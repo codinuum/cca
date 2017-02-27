@@ -1,0 +1,2300 @@
+<?xml version="1.0"?>
+
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY dc "http://purl.org/dc/elements/1.1/" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+]>
+
+
+<rdf:RDF xmlns="http://codinuum.com/ontologies/2016/06/verilog-entity#"
+     xml:base="http://codinuum.com/ontologies/2016/06/verilog-entity"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <owl:Ontology rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity">
+        <dc:title xml:lang="en">An Ontology for (System) Verilog Source Code</dc:title>
+        <dc:creator xml:lang="en">Codinuum Software Lab</dc:creator>
+        <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AlwaysConstruct -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AlwaysConstruct">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#And -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#And">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgram -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgram">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AssertPropertyStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AssertPropertyStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItemDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItemDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AssignmentPatternExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AssignmentPatternExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AssociativeDimension -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AssociativeDimension">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#VariableDimension"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#AssumePropertyStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#AssumePropertyStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BinaryNumber -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BinaryNumber">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegralNumber"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BinaryOperator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BinaryOperator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BindDirective -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BindDirective">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BindInstantiation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BindInstantiation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BinsSelection -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BinsSelection">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BinsSelectionOrOption"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BinsSelectionOrOption -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BinsSelectionOrOption">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CrossBodyItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Bit -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Bit">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerVectorType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#BlockingAssignment -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockingAssignment">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Buf -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Buf">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NOutputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Bufif0 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Bufif0">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#EnableGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Bufif1 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Bufif1">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#EnableGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Byte -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Byte">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CaseStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CaseStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Cast -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Cast">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerGenerateItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerGenerateItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerInstantiation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerInstantiation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BindInstantiation"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassConstraint -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassConstraint">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassConstructorDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassConstructorDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItemQualifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItemQualifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassMethod -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassMethod">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClassProperty -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassProperty">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClockingDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClockingDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ClockingDrive -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ClockingDrive">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Cmos -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Cmos">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CmosSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CmosSwitchtype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CmosSwitchtype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Concatenation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Concatenation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConditionalExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConditionalExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConditionalGenerateConstruct -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConditionalGenerateConstruct">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConditionalStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConditionalStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConfigDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConfigDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDescription"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConstraintDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConstraintDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassConstraint"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ConstraintPrototype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ConstraintPrototype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassConstraint"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ContinuousAssign -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ContinuousAssign">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverCross -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverCross">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpec"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverPoint -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverPoint">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpec"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverPointIdentifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverPointIdentifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CrossItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverPropertyStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverPropertyStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverSequenceStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverSequenceStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageOption -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageOption">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BinsSelectionOrOption"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpecOrOption"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpec -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpec">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpecOrOption"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpecOrOption -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CoverageSpecOrOption">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CovergroupDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CovergroupDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CrossBodyItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CrossBodyItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CrossItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CrossItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#CycleDelay -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#CycleDelay">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControl"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DataDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DataDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DecimalNumber -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DecimalNumber">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegralNumber"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertionStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertionStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssumeStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssumeStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateCoverStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateCoverStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#DeferredImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DelayControl -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DelayControl">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControl"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Description -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Description">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DisableStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DisableStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#DpiImportExport -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#DpiImportExport">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#EdgeSensitivePathDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#EdgeSensitivePathDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PathDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ElaborationSystemTask -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ElaborationSystemTask">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#EmptyQueue -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#EmptyQueue">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#EnableGatetype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#EnableGatetype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Entity -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#EventControl -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#EventControl">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControl"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#EventTrigger -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#EventTrigger">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ExpectPropertyStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ExpectPropertyStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Expression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ExternConstraintDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ExternConstraintDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ExternTfDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ExternTfDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceOrGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#FinalConstruct -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#FinalConstruct">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#FullskewTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#FullskewTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#FunctionDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#FunctionDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CrossBodyItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#FunctionPrototype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#FunctionPrototype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#MethodPrototype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#FunctionSubroutineCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#FunctionSubroutineCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateRegion -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateRegion">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#GenvarDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#GenvarDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#HexNumber -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#HexNumber">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegralNumber"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#HoldTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#HoldTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ImmediateAssertionStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ImmediateAssertionStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#IncOrDecExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#IncOrDecExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#IncludeStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#IncludeStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDescription"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InitialConstruct -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InitialConstruct">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InoutDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InoutDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InputDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InputDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InsideExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InsideExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Int -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Int">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Integer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Integer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerVectorType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerVectorType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#IntegralNumber -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegralNumber">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Number"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceInstantiation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceInstantiation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BindInstantiation"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceOrGenerateItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceOrGenerateItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#InterfacePortDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfacePortDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#JumpStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#JumpStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LetDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LetDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LetExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LetExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDescription"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDescription -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryDescription">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryText -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LibraryText">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Local -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Local">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItemQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LocalParameterDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LocalParameterDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Logic -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Logic">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerVectorType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Longint -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Longint">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LoopGenerateConstruct -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LoopGenerateConstruct">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerGenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#LoopStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#LoopStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#MethodCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#MethodCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCall"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#MethodPrototype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#MethodPrototype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModportDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModportDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceOrGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceOrGenerateItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleInstantiation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleInstantiation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BindInstantiation"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleOrGenerateItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleOrGenerateItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#GenerateItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleOrGenerateItemDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleOrGenerateItemDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#MosSwitchtype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#MosSwitchtype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#MultipleConcatenation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#MultipleConcatenation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NOutputGatetype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NOutputGatetype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Nand -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Nand">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NetAlias -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NetAlias">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NetDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NetDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NetType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Nmos -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Nmos">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#MosSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NochangeTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NochangeTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NonIntegerType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NonIntegerType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#NonblockingAssignment -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#NonblockingAssignment">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Nor -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Nor">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Not -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Not">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NOutputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Notif0 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Notif0">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#EnableGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Notif1 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Notif1">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#EnableGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Number -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Number">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#OctalNumber -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#OctalNumber">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegralNumber"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Or -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Or">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#OutputDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#OutputDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#OverloadDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#OverloadDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CheckerOrGenerateItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PackageDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PackageExportDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageExportDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PackageItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ParBlock -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ParBlock">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ParameterDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ParameterDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BlockItemDeclaration"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PassEnSwitchtype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PassEnSwitchtype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PassSwitchtype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PassSwitchtype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PathDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PathDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PeriodTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PeriodTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Pmos -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Pmos">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#MosSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#InterfaceItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Primary -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PrimaryLiteral -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PrimaryLiteral">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralAssertionStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralAssertionStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralContinuousAssignment -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralContinuousAssignment">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControl -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControl">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControlStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProceduralTimingControlStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProductionItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProductionItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramGenerateItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramGenerateItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramInstantiation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramInstantiation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#BindInstantiation"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ModuleCommonItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ProgramItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyActualArg -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyActualArg">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyExpr -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyExpr">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyActualArg"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyQualifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyQualifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Protected -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Protected">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItemQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#PulsestyleDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#PulsestyleDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#QueueDimension -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#QueueDimension">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#VariableDimension"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rand -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rand">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RandomQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Randc -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Randc">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RandomQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RandomQualifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RandomQualifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RandomizeCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RandomizeCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCall"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RandsequenceStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RandsequenceStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rcmos -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rcmos">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CmosSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Real -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Real">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonIntegerType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RealNumber -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RealNumber">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Number"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Realtime -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Realtime">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonIntegerType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RecoveryTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RecoveryTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RecremTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RecremTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RefDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RefDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PortDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Reg -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Reg">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerVectorType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RemovalTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RemovalTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RestrictPropertyStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RestrictPropertyStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ConcurrentAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rnmos -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rnmos">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#MosSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rpmos -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rpmos">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#MosSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RsCase -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RsCase">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RsCodeBlock -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RsCodeBlock">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RsIfElse -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RsIfElse">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#RsRepeat -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#RsRepeat">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#RsProd"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rtran -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rtran">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PassSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rtranif0 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rtranif0">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PassEnSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Rtranif1 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Rtranif1">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PassEnSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SeqBlock -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SeqBlock">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceActualArg -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceActualArg">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PropertyActualArg"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AssertionItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceExpr -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceExpr">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceMethodCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SequenceMethodCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SetupTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SetupTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SetupholdTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SetupholdTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Shortint -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Shortint">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Shortreal -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Shortreal">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonIntegerType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#ShowcancelledDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#ShowcancelledDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Signed -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Signed">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Signing"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Signing -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Signing">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertionStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertionStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssumeStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssumeStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateCoverStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateCoverStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SimpleImmediateAssertionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SimplePathDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SimplePathDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PathDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SkewTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SkewTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SourceText -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SourceText">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyBlock -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyBlock">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SpecparamDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecparamDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#StateDependentPathDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#StateDependentPathDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PathDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Static -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Static">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#ClassItemQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#StreamingConcatenation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#StreamingConcatenation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Primary"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#StringLiteral -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#StringLiteral">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCallStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCallStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Supply0 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Supply0">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Supply1 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Supply1">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTfCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTfCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCall"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SpecifyItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#TaggedUnionExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#TaggedUnionExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#TaskDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#TaskDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#AnonymousProgramItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageOrGenerateItemDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#TaskPrototype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#TaskPrototype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#MethodPrototype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#TfCall -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#TfCall">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SubroutineCall"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Time -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Time">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#IntegerAtomType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#TimeskewTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#TimeskewTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#TimeunitsDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#TimeunitsDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortInterfaceItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortModuleItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NonPortProgramItem"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PackageItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Tran -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Tran">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PassSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Tranif0 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Tranif0">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PassEnSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Tranif1 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Tranif1">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#PassEnSwitchtype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Tri -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Tri">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Tri0 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Tri0">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Tri1 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Tri1">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Triand -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Triand">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Trior -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Trior">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Trireg -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Trireg">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#UdpDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#UdpDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Description"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#UnaryOperator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#UnaryOperator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#UnpackedDimension -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#UnpackedDimension">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#VariableDimension"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Unsigned -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Unsigned">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Signing"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#UnsizedDimension -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#UnsizedDimension">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#VariableDimension"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Uwire -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Uwire">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#VariableDimension -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#VariableDimension">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#VariableIdentifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#VariableIdentifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#CrossItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#WaitStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#WaitStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#StatementItem"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Wand -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Wand">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#WidthTimingCheck -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#WidthTimingCheck">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#SystemTimingCheck"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Wire -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Wire">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Wor -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Wor">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NetType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Xnor -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Xnor">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/06/verilog-entity#Xor -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2016/06/verilog-entity#Xor">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2016/06/verilog-entity#NInputGatetype"/>
+    </owl:Class>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.2) http://owlapi.sourceforge.net -->
+

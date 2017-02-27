@@ -1,0 +1,1455 @@
+<?xml version="1.0"?>
+
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+]>
+
+
+<rdf:RDF xmlns="http://www.semanticweb.org/mstm/ontologies/2013/12/ccx-entity#"
+     xml:base="http://www.semanticweb.org/mstm/ontologies/2013/12/ccx-entity"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <owl:Ontology rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity">
+        <rdfs:comment xml:lang="en">An ontology for C/C++ language (based on CDT)</rdfs:comment>
+        <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#name -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#name">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:range rdf:resource="&rdfs;Literal"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Data properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#name -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#name"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Alias -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Alias">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#AliasDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#AliasDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#AmbiguousTemplateArgument -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#AmbiguousTemplateArgument">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:comment xml:lang="en">Place-holder in the AST for template arguments that are not yet understood.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayDeclarator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayDeclarator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayDesignator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayDesignator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Designator"/>
+        <rdfs:comment xml:lang="en">C-style array designator. 
+e.g. 
+struct ABC { int def[10] }; 
+struct ABC instance = { def[0] = 9 };</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayModifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayModifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:comment xml:lang="en">This is the portion of the node that represents the portions when someone declares a variable/type which is an array.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayRangeDesignator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ArrayRangeDesignator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Designator"/>
+        <rdfs:comment xml:lang="en">GCC-specific designator that allows for shorthand array range to be specified in a designated initializer. 
+e.g.
+struct ABC { int def[10]; } abc = { def[4...10] = 3 };</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ArraySubscriptExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ArraySubscriptExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#AsmDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#AsmDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Attribute -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Attribute">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:comment xml:lang="en">Represents a C++11 (ISO/IEC 14882:2011 7.6) or a GCC attribute (http://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Auto -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Auto">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#BaseSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#BaseSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable"/>
+        <rdfs:comment xml:lang="en">Base Specifiers are where a class expresses from whom it inherits.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#BinaryExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#BinaryExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#BinaryTypeIdExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#BinaryTypeIdExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Bool -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Bool">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#BreakStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#BreakStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Capture -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Capture">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable"/>
+        <rdfs:comment xml:lang="en">Capture for a lambda expression, introduced in C++0x.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CaseStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CaseStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CastExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CastExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CatchHandler -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CatchHandler">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Char -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Char">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Char16T -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Char16T">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Char32T -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Char32T">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+        <rdfs:comment xml:lang="en">A composite type specifier represents a composite structure (contains declarations).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifierClass -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifierClass">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifierStruct -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifierStruct">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifierUnion -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifierUnion">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#CompositeTypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CompoundStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CompoundStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#CompoundStatementExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#CompoundStatementExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ConditionalExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ConditionalExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Const -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Const">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Constexpr -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Constexpr">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ConstructorChainInitializer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ConstructorChainInitializer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ConstructorInitializer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ConstructorInitializer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ContinueStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ContinueStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ConversionName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ConversionName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Name"/>
+        <rdfs:comment xml:lang="en">This class represents a C++ conversion member function.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#DeclarationStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclarationStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Declarations -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Declarations">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Declarator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Declarator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Decltype -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Decltype">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#DefaultStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#DefaultStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#DeleteExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#DeleteExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#DesignatedInitializer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#DesignatedInitializer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerClause"/>
+        <rdfs:comment xml:lang="en">This class represents a designated initializer.
+e.g. 
+struct x y = { .z = 4, .t[1] = 3 };</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Designator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Designator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#DoStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#DoStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Double -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Double">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ElaboratedTypeSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ElaboratedTypeSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Entity -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#EnumerationSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#EnumerationSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#EqualsInitializer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#EqualsInitializer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Explicit -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Explicit">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ExplicitTemplateInstantiation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ExplicitTemplateInstantiation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Expression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerClause"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ExpressionList -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ExpressionList">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ExpressionStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ExpressionStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Extern -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Extern">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FieldDeclarator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FieldDeclarator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FieldDesignator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FieldDesignator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Designator"/>
+        <rdfs:comment xml:lang="en">Specific designator that represents a field reference.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FieldReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FieldReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Float -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Float">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Float128 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Float128">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ForStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ForStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Friend -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Friend">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FuctionDefinition -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FuctionDefinition">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionCallExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionCallExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionDeclarator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionDeclarator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionWithTryBlock -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionWithTryBlock">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#FuctionDefinition"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#GotoStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#GotoStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#IdExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#IdExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#IfStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#IfStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ImplicitName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ImplicitName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Name"/>
+        <rdfs:comment xml:lang="en">An implicit name is used to resolve uses of implicit bindings, such as overloaded operators. Implicit names are not generated unless they resolve to something.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerClause -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerClause">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerList -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerList">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Initializer"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#InitializerClause"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable"/>
+        <rdfs:comment xml:lang="en">Braced initializer list.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Inline -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Inline">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Int -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Int">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Int128 -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Int128">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#KnrFunctionDeclarator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#KnrFunctionDeclarator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionDeclarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#LabelStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#LabelStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#LambdaExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#LambdaExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+        <rdfs:comment xml:lang="en">Lambda expression, introduced in C++0x.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#LinkageSpecification -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#LinkageSpecification">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#LiteralExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#LiteralExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Long -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Long">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#MappingName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#MappingName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Mutable -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Mutable">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Name -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Name">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#NamedTypeSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#NamedTypeSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#NamespaceAlias -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#NamespaceAlias">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#NamespaceDefinition -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#NamespaceDefinition">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#NewExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#NewExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#NullStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#NullStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+        <rdfs:comment xml:lang="en">This class represents a null statement, &apos;;&apos;.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#OperatorName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#OperatorName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Name"/>
+        <rdfs:comment xml:lang="en">This class represents a C++ overloaded operator member function name.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpansionExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpansionExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+        <rdfs:comment xml:lang="en">Pack expansion as it can occur as an element in an expression-lists or as a non-type template argument.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Parameter -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Parameter">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ParameterDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ParameterDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateParameter"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ParameterNames -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ParameterNames">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Parameters -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Parameters">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Pointer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Pointer">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PointerOperator"/>
+        <rdfs:comment xml:lang="en">This represents the good ol&apos; * pointer operator.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PointerOperator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PointerOperator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PointerToMember -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PointerToMember">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Pointer"/>
+        <rdfs:comment xml:lang="en">This is a pointer to member pointer operator for declarators.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorElifStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorElifStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorElseStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorElseStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorEndifStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorEndifStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorErrorStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorErrorStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorFunctionStyleMacroDefinition -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorFunctionStyleMacroDefinition">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorMacroDefinition"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIfStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIfStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIfdefStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIfdefStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIfndefStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIfndefStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIncludeStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorIncludeStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorMacroDefinition -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorMacroDefinition">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorObjectStyleMacroDefinition -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorObjectStyleMacroDefinition">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorMacroDefinition"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorPragmaStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorPragmaStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorUndefStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorUndefStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PreprocessorStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Problem -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Problem">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:comment xml:lang="en">Class for problems in the ast tree.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+        <rdfs:comment xml:lang="en">This class represents a parse problem where we tried to match against a declaration.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+        <rdfs:comment xml:lang="en">This class epresents a parse problem where we tried to match against an expression.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+        <rdfs:comment xml:lang="en">This class represents a parse problem where we tried to match against a statement.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemTypeId -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ProblemTypeId">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#TypeId"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#QualifiedName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#QualifiedName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Name"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#RangeBasedForStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#RangeBasedForStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ReferenceOperator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ReferenceOperator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PointerOperator"/>
+        <rdfs:comment xml:lang="en">This is C++&apos;s reference operator, i.e. &amp;, used in a declarator.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Register -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Register">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Restrict -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Restrict">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ReturnStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ReturnStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Short -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Short">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Signed -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Signed">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+        <rdfs:comment xml:lang="en">This represents a declaration specifier for a built-in type.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+        <rdfs:comment xml:lang="en">This is a simple declaration which contains a sequence of declSpecifiers followed by a list of declarators.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleTypeConstructorExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleTypeConstructorExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleTypeTemplateParameter -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleTypeTemplateParameter">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateParameter"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#StandardFunctionDeclarator -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#StandardFunctionDeclarator">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#FunctionDeclarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Statement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Static -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Static">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#StaticAssertDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#StaticAssertDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+        <rdfs:comment xml:lang="en">Models static assertions: static_assert(false, &quot;message&quot;);</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Subname -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Subname">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#SwitchStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#SwitchStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateId -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateId">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Name"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateParameter -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateParameter">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:comment xml:lang="en">Base class for all template parameters.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateSpecialization -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateSpecialization">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TemplatedTypeTemplateParameter -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplatedTypeTemplateParameter">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#TemplateParameter"/>
+        <rdfs:comment xml:lang="en">This is a template parameter as V in 
+template&lt;template&lt;typename T&gt; class V&gt; class CT;</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#ThreadLocal -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#ThreadLocal">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TranslationUnit -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TranslationUnit">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TryBlockStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TryBlockStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TypeId -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TypeId">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#PackExpandable"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TypeIdExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TypeIdExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TypeIdInitializerExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TypeIdInitializerExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Typedef -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Typedef">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#StorageClass"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TypedefNameSpecifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TypedefNameSpecifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#TypenameExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#TypenameExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#UnaryExpression -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#UnaryExpression">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Unsigned -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Unsigned">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#SimpleDeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#UsingDeclaration -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#UsingDeclaration">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#UsingDirective -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#UsingDirective">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Virtual -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Virtual">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#VisibilityLabel -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#VisibilityLabel">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Declaration"/>
+        <rdfs:comment xml:lang="en">C++ allows for visibility labels to be mixed with declarations in class specifiers.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Void -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Void">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#Volatile -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#Volatile">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#DeclSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#WcharT -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#WcharT">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#BuiltInType"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2013/12/ccx-entity#WhileStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2013/12/ccx-entity#WhileStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/12/ccx-entity#Statement"/>
+    </owl:Class>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.2) http://owlapi.sourceforge.net -->
+

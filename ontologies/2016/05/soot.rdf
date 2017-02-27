@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY dc "http://purl.org/dc/elements/1.1/" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+]>
+
+
+<rdf:RDF xmlns="http://codinuum.com/ontologies/2014/06/ncc#"
+     xml:base="http://codinuum.com/ontologies/2014/06/ncc"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <owl:Ontology rdf:about="http://codinuum.com/ontologies/2016/05/soot">
+        <dc:title xml:lang="en">An Ontology for Call Graphs Genarated by Soot</dc:title>
+        <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#cfgSuccessor -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#cfgSuccessor">
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2016/05/soot#successor"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#cgSuccessor -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#cgSuccessor">
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2016/05/soot#successor"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#defines -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#defines">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#inClass -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#inClass">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#mayInvoke -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#mayInvoke">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#successor -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#successor">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#uses -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#uses">
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Data properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#isLoopInvariant -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#isLoopInvariant">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#isNotNull -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#isNotNull">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#name -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#name">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&rdfs;Literal"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#needsLowerBoundCheck -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#needsLowerBoundCheck">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#needsNullCheck -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#needsNullCheck">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#needsUpperBoundCheck -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#needsUpperBoundCheck">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2016/05/soot#signature -->
+
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2016/05/soot#signature">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&rdfs;Literal"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.2) http://owlapi.sourceforge.net -->
+

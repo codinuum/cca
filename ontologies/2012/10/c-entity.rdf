@@ -1,0 +1,1939 @@
+<?xml version="1.0"?>
+
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY dc "http://purl.org/dc/elements/1.1/" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY code "http://codinuum.com/ontologies/se/code#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+    <!ENTITY c "http://codinuum.com/ontologies/2012/10/c-entity#" >
+]>
+
+
+<rdf:RDF xmlns="http://codinuum.com/ontologies/2012/10/c-entity#"
+     xml:base="http://codinuum.com/ontologies/2012/10/c-entity"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:c="http://codinuum.com/ontologies/2012/10/c-entity#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:code="http://codinuum.com/ontologies/se/code#">
+    <owl:Ontology rdf:about="http://codinuum.com/ontologies/2012/10/c-entity">
+        <dc:title xml:lang="en">An Ontology for C Source Code</dc:title>
+        <dc:creator xml:lang="en">Codinuum Software Lab</dc:creator>
+        <rdfs:comment xml:lang="en">This ontology was defined based on C parser of Coccinelle (http://coccinelle.lip6.fr).</rdfs:comment>
+        <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#castType -->
+
+    <owl:ObjectProperty rdf:about="&c;castType">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#castedExpression -->
+
+    <owl:ObjectProperty rdf:about="&c;castedExpression">
+        <rdfs:domain rdf:resource="&c;Cast"/>
+        <rdfs:range rdf:resource="&c;Expression"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#conditionOf -->
+
+    <owl:ObjectProperty rdf:about="&c;conditionOf">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#declaredBy -->
+
+    <owl:ObjectProperty rdf:about="&c;declaredBy">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#elsePartOf -->
+
+    <owl:ObjectProperty rdf:about="&c;elsePartOf">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;IfStatement"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inArguments -->
+
+    <owl:ObjectProperty rdf:about="&c;inArguments">
+        <rdfs:range rdf:resource="&c;Arguments"/>
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inCall -->
+
+    <owl:ObjectProperty rdf:about="&c;inCall">
+        <rdfs:range rdf:resource="&c;Call"/>
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inDeclaration -->
+
+    <owl:ObjectProperty rdf:about="&c;inDeclaration">
+        <rdfs:range rdf:resource="&c;Declaration"/>
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inDefine -->
+
+    <owl:ObjectProperty rdf:about="&c;inDefine">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inFunction -->
+
+    <owl:ObjectProperty rdf:about="&c;inFunction">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;FunctionDefinition"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inParameters -->
+
+    <owl:ObjectProperty rdf:about="&c;inParameters">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;ParametersSubDtr"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#inStatement -->
+
+    <owl:ObjectProperty rdf:about="&c;inStatement">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;Statement"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#initializer -->
+
+    <owl:ObjectProperty rdf:about="&c;initializer">
+        <rdfs:domain rdf:resource="&c;Declarator"/>
+        <rdfs:range rdf:resource="&c;Expression"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#lhs -->
+
+    <owl:ObjectProperty rdf:about="&c;lhs">
+        <rdfs:domain rdf:resource="&c;AssignmentExpression"/>
+        <rdfs:range rdf:resource="&c;Expression"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#memberName -->
+
+    <owl:ObjectProperty rdf:about="&c;memberName">
+        <rdfs:domain rdf:resource="&c;ArrayAccess"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="&rdfs;Literal"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#name -->
+
+    <owl:ObjectProperty rdf:about="&c;name">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="&rdfs;Literal"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#provides -->
+
+    <owl:ObjectProperty rdf:about="&c;provides">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+        <rdfs:range rdf:resource="&rdfs;Literal"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#record -->
+
+    <owl:ObjectProperty rdf:about="&c;record">
+        <rdfs:range rdf:resource="&c;Expression"/>
+        <rdfs:domain rdf:resource="&c;RecordMember"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#rhs -->
+
+    <owl:ObjectProperty rdf:about="&c;rhs">
+        <rdfs:domain rdf:resource="&c;AssignmentExpression"/>
+        <rdfs:range rdf:resource="&c;Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#successor -->
+
+    <owl:ObjectProperty rdf:about="&c;successor">
+        <rdfs:range rdf:resource="&c;Statement"/>
+        <rdfs:domain rdf:resource="&c;Statement"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#thenPartOf -->
+
+    <owl:ObjectProperty rdf:about="&c;thenPartOf">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;IfStatement"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#typeSpecifier -->
+
+    <owl:ObjectProperty rdf:about="&c;typeSpecifier">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&c;TypeSpecifier"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Data properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#hasPointerType -->
+
+    <owl:DatatypeProperty rdf:about="&c;hasPointerType">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#isExtern -->
+
+    <owl:DatatypeProperty rdf:about="&c;isExtern">
+        <rdfs:domain rdf:resource="&c;Entity"/>
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#isLocalDeclaration -->
+
+    <owl:DatatypeProperty rdf:about="&c;isLocalDeclaration">
+        <rdfs:range rdf:resource="&xsd;boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#memberName -->
+
+    <owl:DatatypeProperty rdf:about="&c;memberName"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#name -->
+
+    <owl:DatatypeProperty rdf:about="&c;name"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#provides -->
+
+    <owl:DatatypeProperty rdf:about="&c;provides"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Add -->
+
+    <owl:Class rdf:about="&c;Add">
+        <rdfs:label rdf:datatype="&rdfs;Literal">+</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#And -->
+
+    <owl:Class rdf:about="&c;And">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&amp;&amp;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;LogicalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Argument -->
+
+    <owl:Class rdf:about="&c;Argument">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Arguments -->
+
+    <owl:Class rdf:about="&c;Arguments">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ArithmeticExpression -->
+
+    <owl:Class rdf:about="&c;ArithmeticExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ArrayAccess -->
+
+    <owl:Class rdf:about="&c;ArrayAccess">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ArraySubDtr -->
+
+    <owl:Class rdf:about="&c;ArraySubDtr">
+        <rdfs:subClassOf rdf:resource="&c;SubDeclarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AsmClobber -->
+
+    <owl:Class rdf:about="&c;AsmClobber">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AsmColon -->
+
+    <owl:Class rdf:about="&c;AsmColon">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AsmOperand -->
+
+    <owl:Class rdf:about="&c;AsmOperand">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AsmStatement -->
+
+    <owl:Class rdf:about="&c;AsmStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Assign -->
+
+    <owl:Class rdf:about="&c;Assign">
+        <rdfs:label rdf:datatype="&rdfs;Literal">=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignAdd -->
+
+    <owl:Class rdf:about="&c;AssignAdd">
+        <rdfs:label rdf:datatype="&rdfs;Literal">+=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignBitAnd -->
+
+    <owl:Class rdf:about="&c;AssignBitAnd">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&amp;=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignBitOr -->
+
+    <owl:Class rdf:about="&c;AssignBitOr">
+        <rdfs:label rdf:datatype="&rdfs;Literal">|=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignBitXor -->
+
+    <owl:Class rdf:about="&c;AssignBitXor">
+        <rdfs:label rdf:datatype="&rdfs;Literal">^=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignDiv -->
+
+    <owl:Class rdf:about="&c;AssignDiv">
+        <rdfs:label rdf:datatype="&rdfs;Literal">/=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignMod -->
+
+    <owl:Class rdf:about="&c;AssignMod">
+        <rdfs:label rdf:datatype="&rdfs;Literal">%=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignMult -->
+
+    <owl:Class rdf:about="&c;AssignMult">
+        <rdfs:label rdf:datatype="&rdfs;Literal">*=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignShiftL -->
+
+    <owl:Class rdf:about="&c;AssignShiftL">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&lt;&lt;=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignShiftR -->
+
+    <owl:Class rdf:about="&c;AssignShiftR">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&gt;&gt;=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignSubt -->
+
+    <owl:Class rdf:about="&c;AssignSubt">
+        <rdfs:label rdf:datatype="&rdfs;Literal">-=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;AssignmentExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#AssignmentExpression -->
+
+    <owl:Class rdf:about="&c;AssignmentExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Attribute -->
+
+    <owl:Class rdf:about="&c;Attribute">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Auto -->
+
+    <owl:Class rdf:about="&c;Auto">
+        <rdfs:label rdf:datatype="&rdfs;Literal">auto</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;Storage"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#BitAnd -->
+
+    <owl:Class rdf:about="&c;BitAnd">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&amp;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#BitOr -->
+
+    <owl:Class rdf:about="&c;BitOr">
+        <rdfs:label rdf:datatype="&rdfs;Literal">|</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#BitXor -->
+
+    <owl:Class rdf:about="&c;BitXor">
+        <rdfs:label rdf:datatype="&rdfs;Literal">^</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Body -->
+
+    <owl:Class rdf:about="&c;Body">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#BreakStatement -->
+
+    <owl:Class rdf:about="&c;BreakStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">break</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;JumpStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Call -->
+
+    <owl:Class rdf:about="&c;Call">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CaseRangeStatement -->
+
+    <owl:Class rdf:about="&c;CaseRangeStatement">
+        <rdfs:subClassOf rdf:resource="&c;LabeledStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CaseStatement -->
+
+    <owl:Class rdf:about="&c;CaseStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">case</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;LabeledStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Cast -->
+
+    <owl:Class rdf:about="&c;Cast">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Char -->
+
+    <owl:Class rdf:about="&c;Char">
+        <rdfs:label rdf:datatype="&rdfs;Literal">char</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Character -->
+
+    <owl:Class rdf:about="&c;Character">
+        <rdfs:subClassOf rdf:resource="&c;Constant"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Complement -->
+
+    <owl:Class rdf:about="&c;Complement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">~</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CompoundStatement -->
+
+    <owl:Class rdf:about="&c;CompoundStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Conditional -->
+
+    <owl:Class rdf:about="&c;Conditional">
+        <rdfs:label rdf:datatype="&rdfs;Literal">?:</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Const -->
+
+    <owl:Class rdf:about="&c;Const">
+        <rdfs:label rdf:datatype="&rdfs;Literal">const</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Constant -->
+
+    <owl:Class rdf:about="&c;Constant">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ContinueStatement -->
+
+    <owl:Class rdf:about="&c;ContinueStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">continue</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;JumpStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppConcatenatedName -->
+
+    <owl:Class rdf:about="&c;CppConcatenatedName">
+        <rdfs:subClassOf rdf:resource="&c;Name"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppDefine -->
+
+    <owl:Class rdf:about="&c;CppDefine">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#define</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppDefineFunLike -->
+
+    <owl:Class rdf:about="&c;CppDefineFunLike">
+        <rdfs:subClassOf rdf:resource="&c;CppDefine"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppDefineObjLike -->
+
+    <owl:Class rdf:about="&c;CppDefineObjLike">
+        <rdfs:subClassOf rdf:resource="&c;CppDefine"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppDirective -->
+
+    <owl:Class rdf:about="&c;CppDirective">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppElif -->
+
+    <owl:Class rdf:about="&c;CppElif">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#elif</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppElse -->
+
+    <owl:Class rdf:about="&c;CppElse">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#else</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppEndif -->
+
+    <owl:Class rdf:about="&c;CppEndif">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#endif</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppIdentBuilder -->
+
+    <owl:Class rdf:about="&c;CppIdentBuilder">
+        <rdfs:subClassOf rdf:resource="&c;Name"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppIfdef -->
+
+    <owl:Class rdf:about="&c;CppIfdef">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#ifdef</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppIfndef -->
+
+    <owl:Class rdf:about="&c;CppIfndef">
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppInclude -->
+
+    <owl:Class rdf:about="&c;CppInclude">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#include</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppIncludeLocal -->
+
+    <owl:Class rdf:about="&c;CppIncludeLocal">
+        <rdfs:subClassOf rdf:resource="&c;CppInclude"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppIncludeNonLocal -->
+
+    <owl:Class rdf:about="&c;CppIncludeNonLocal">
+        <rdfs:subClassOf rdf:resource="&c;CppInclude"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppIncludeWeird -->
+
+    <owl:Class rdf:about="&c;CppIncludeWeird">
+        <rdfs:subClassOf rdf:resource="&c;CppInclude"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppLinemarker -->
+
+    <owl:Class rdf:about="&c;CppLinemarker">
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppPragma -->
+
+    <owl:Class rdf:about="&c;CppPragma">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#pragma</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppUndef -->
+
+    <owl:Class rdf:about="&c;CppUndef">
+        <rdfs:label rdf:datatype="&rdfs;Literal">#undef</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppUnknown -->
+
+    <owl:Class rdf:about="&c;CppUnknown">
+        <rdfs:subClassOf rdf:resource="&c;CppDirective"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#CppVariadicName -->
+
+    <owl:Class rdf:about="&c;CppVariadicName">
+        <rdfs:subClassOf rdf:resource="&c;Name"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Declaration -->
+
+    <owl:Class rdf:about="&c;Declaration">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#DeclarationSpecifiers -->
+
+    <owl:Class rdf:about="&c;DeclarationSpecifiers">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Declarator -->
+
+    <owl:Class rdf:about="&c;Declarator">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#DefaultStatement -->
+
+    <owl:Class rdf:about="&c;DefaultStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">default</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;LabeledStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#DefineValue -->
+
+    <owl:Class rdf:about="&c;DefineValue">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Deref -->
+
+    <owl:Class rdf:about="&c;Deref">
+        <rdfs:label rdf:datatype="&rdfs;Literal">*</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#DesignatedInitializer -->
+
+    <owl:Class rdf:about="&c;DesignatedInitializer">
+        <rdfs:subClassOf rdf:resource="&c;Initializer"/>
+        <rdfs:comment xml:lang="en">C99</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Designator -->
+
+    <owl:Class rdf:about="&c;Designator">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Div -->
+
+    <owl:Class rdf:about="&c;Div">
+        <rdfs:label rdf:datatype="&rdfs;Literal">/</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#DoStatement -->
+
+    <owl:Class rdf:about="&c;DoStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">do</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;IterationStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Double -->
+
+    <owl:Class rdf:about="&c;Double">
+        <rdfs:label rdf:datatype="&rdfs;Literal">double</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Ellipsis -->
+
+    <owl:Class rdf:about="&c;Ellipsis">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Entity -->
+
+    <owl:Class rdf:about="&c;Entity">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Enum -->
+
+    <owl:Class rdf:about="&c;Enum">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Enumerator -->
+
+    <owl:Class rdf:about="&c;Enumerator">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Eq -->
+
+    <owl:Class rdf:about="&c;Eq">
+        <rdfs:label rdf:datatype="&rdfs;Literal">==</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;LogicalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ExprInitializer -->
+
+    <owl:Class rdf:about="&c;ExprInitializer">
+        <rdfs:subClassOf rdf:resource="&c;Initializer"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Expression -->
+
+    <owl:Class rdf:about="&c;Expression">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ExpressionStatement -->
+
+    <owl:Class rdf:about="&c;ExpressionStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Extern -->
+
+    <owl:Class rdf:about="&c;Extern">
+        <rdfs:label rdf:datatype="&rdfs;Literal">extern</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;Storage"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#FieldDesig -->
+
+    <owl:Class rdf:about="&c;FieldDesig">
+        <rdfs:subClassOf rdf:resource="&c;Designator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Float -->
+
+    <owl:Class rdf:about="&c;Float">
+        <rdfs:label rdf:datatype="&rdfs;Literal">float</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#FloatingPoint -->
+
+    <owl:Class rdf:about="&c;FloatingPoint">
+        <rdfs:subClassOf rdf:resource="&c;Constant"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ForCond -->
+
+    <owl:Class rdf:about="&c;ForCond">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ForInit -->
+
+    <owl:Class rdf:about="&c;ForInit">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ForStatement -->
+
+    <owl:Class rdf:about="&c;ForStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">for</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;IterationStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ForUpdate -->
+
+    <owl:Class rdf:about="&c;ForUpdate">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#FunctionDefinition -->
+
+    <owl:Class rdf:about="&c;FunctionDefinition">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GE -->
+
+    <owl:Class rdf:about="&c;GE">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&gt;=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;RelationalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GT -->
+
+    <owl:Class rdf:about="&c;GT">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&gt;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;RelationalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GccConstructor -->
+
+    <owl:Class rdf:about="&c;GccConstructor">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GccStatementExpression -->
+
+    <owl:Class rdf:about="&c;GccStatementExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GccTypeof -->
+
+    <owl:Class rdf:about="&c;GccTypeof">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GotoCompoundStatement -->
+
+    <owl:Class rdf:about="&c;GotoCompoundStatement">
+        <rdfs:subClassOf rdf:resource="&c;JumpStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#GotoStatement -->
+
+    <owl:Class rdf:about="&c;GotoStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">goto</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;JumpStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#HeaderName -->
+
+    <owl:Class rdf:about="&c;HeaderName">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#HugeArray -->
+
+    <owl:Class rdf:about="&c;HugeArray">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Ident -->
+
+    <owl:Class rdf:about="&c;Ident">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#IfStatement -->
+
+    <owl:Class rdf:about="&c;IfStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">if</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;SelectionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#IfdefStatement -->
+
+    <owl:Class rdf:about="&c;IfdefStatement">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#IndexDesig -->
+
+    <owl:Class rdf:about="&c;IndexDesig">
+        <rdfs:subClassOf rdf:resource="&c;Designator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#InitDeclarator -->
+
+    <owl:Class rdf:about="&c;InitDeclarator">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#InitializedIndexOld -->
+
+    <owl:Class rdf:about="&c;InitializedIndexOld">
+        <rdfs:subClassOf rdf:resource="&c;Initializer"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Initializer -->
+
+    <owl:Class rdf:about="&c;Initializer">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#InitializerFieldOld -->
+
+    <owl:Class rdf:about="&c;InitializerFieldOld">
+        <rdfs:subClassOf rdf:resource="&c;Initializer"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Inline -->
+
+    <owl:Class rdf:about="&c;Inline">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Int -->
+
+    <owl:Class rdf:about="&c;Int">
+        <rdfs:label rdf:datatype="&rdfs;Literal">int</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Integer -->
+
+    <owl:Class rdf:about="&c;Integer">
+        <rdfs:subClassOf rdf:resource="&c;Constant"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#IterationStatement -->
+
+    <owl:Class rdf:about="&c;IterationStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#JumpStatement -->
+
+    <owl:Class rdf:about="&c;JumpStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#LE -->
+
+    <owl:Class rdf:about="&c;LE">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&lt;=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;RelationalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#LT -->
+
+    <owl:Class rdf:about="&c;LT">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&lt;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;RelationalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#LabelStatement -->
+
+    <owl:Class rdf:about="&c;LabelStatement">
+        <rdfs:subClassOf rdf:resource="&c;LabeledStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#LabeledStatement -->
+
+    <owl:Class rdf:about="&c;LabeledStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ListInitializer -->
+
+    <owl:Class rdf:about="&c;ListInitializer">
+        <rdfs:subClassOf rdf:resource="&c;Initializer"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#LocalHeader -->
+
+    <owl:Class rdf:about="&c;LocalHeader">
+        <rdfs:subClassOf rdf:resource="&c;HeaderName"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#LogicalExpression -->
+
+    <owl:Class rdf:about="&c;LogicalExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Long -->
+
+    <owl:Class rdf:about="&c;Long">
+        <rdfs:label rdf:datatype="&rdfs;Literal">long</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroDeclaration -->
+
+    <owl:Class rdf:about="&c;MacroDeclaration">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroIteration -->
+
+    <owl:Class rdf:about="&c;MacroIteration">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroName -->
+
+    <owl:Class rdf:about="&c;MacroName">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroParameter -->
+
+    <owl:Class rdf:about="&c;MacroParameter">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroParameters -->
+
+    <owl:Class rdf:about="&c;MacroParameters">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroStatement -->
+
+    <owl:Class rdf:about="&c;MacroStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MacroSubst -->
+
+    <owl:Class rdf:about="&c;MacroSubst">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Minus -->
+
+    <owl:Class rdf:about="&c;Minus">
+        <rdfs:label rdf:datatype="&rdfs;Literal">-</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Mod -->
+
+    <owl:Class rdf:about="&c;Mod">
+        <rdfs:label rdf:datatype="&rdfs;Literal">%</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Mult -->
+
+    <owl:Class rdf:about="&c;Mult">
+        <rdfs:label rdf:datatype="&rdfs;Literal">*</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Multi -->
+
+    <owl:Class rdf:about="&c;Multi">
+        <rdfs:subClassOf rdf:resource="&c;DefineValue"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#MultiString -->
+
+    <owl:Class rdf:about="&c;MultiString">
+        <rdfs:subClassOf rdf:resource="&c;Constant"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Name -->
+
+    <owl:Class rdf:about="&c;Name">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Negation -->
+
+    <owl:Class rdf:about="&c;Negation">
+        <rdfs:label rdf:datatype="&rdfs;Literal">!</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#NestedFunction -->
+
+    <owl:Class rdf:about="&c;NestedFunction">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#NonLocalHeader -->
+
+    <owl:Class rdf:about="&c;NonLocalHeader">
+        <rdfs:subClassOf rdf:resource="&c;HeaderName"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#NotEq -->
+
+    <owl:Class rdf:about="&c;NotEq">
+        <rdfs:label rdf:datatype="&rdfs;Literal">!=</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;LogicalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Or -->
+
+    <owl:Class rdf:about="&c;Or">
+        <rdfs:label rdf:datatype="&rdfs;Literal">||</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;LogicalExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ParameterDeclaration -->
+
+    <owl:Class rdf:about="&c;ParameterDeclaration">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ParametersSubDtr -->
+
+    <owl:Class rdf:about="&c;ParametersSubDtr">
+        <rdfs:subClassOf rdf:resource="&c;SubDeclarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ParenSubDtr -->
+
+    <owl:Class rdf:about="&c;ParenSubDtr">
+        <rdfs:subClassOf rdf:resource="&c;SubDeclarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ParenthesizedExpression -->
+
+    <owl:Class rdf:about="&c;ParenthesizedExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#PartialDoWhile -->
+
+    <owl:Class rdf:about="&c;PartialDoWhile">
+        <rdfs:subClassOf rdf:resource="&c;DefineValue"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Plus -->
+
+    <owl:Class rdf:about="&c;Plus">
+        <rdfs:label rdf:datatype="&rdfs;Literal">+</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#PointerSubDtr -->
+
+    <owl:Class rdf:about="&c;PointerSubDtr">
+        <rdfs:subClassOf rdf:resource="&c;SubDeclarator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#PostDecrement -->
+
+    <owl:Class rdf:about="&c;PostDecrement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">--</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#PostIncrement -->
+
+    <owl:Class rdf:about="&c;PostIncrement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">++</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#PreDecrement -->
+
+    <owl:Class rdf:about="&c;PreDecrement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">--</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#PreIncrement -->
+
+    <owl:Class rdf:about="&c;PreIncrement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">++</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Ptrdiff_t -->
+
+    <owl:Class rdf:about="&c;Ptrdiff_t">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RangeDesig -->
+
+    <owl:Class rdf:about="&c;RangeDesig">
+        <rdfs:subClassOf rdf:resource="&c;Designator"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RecordAccess -->
+
+    <owl:Class rdf:about="&c;RecordAccess">
+        <rdfs:subClassOf rdf:resource="&c;RecordMember"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RecordMember -->
+
+    <owl:Class rdf:about="&c;RecordMember">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RecordPtrAccess -->
+
+    <owl:Class rdf:about="&c;RecordPtrAccess">
+        <rdfs:subClassOf rdf:resource="&c;RecordMember"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Ref -->
+
+    <owl:Class rdf:about="&c;Ref">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&amp;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RefLabel -->
+
+    <owl:Class rdf:about="&c;RefLabel">
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Register -->
+
+    <owl:Class rdf:about="&c;Register">
+        <rdfs:label rdf:datatype="&rdfs;Literal">register</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;Storage"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RegularName -->
+
+    <owl:Class rdf:about="&c;RegularName">
+        <rdfs:subClassOf rdf:resource="&c;Name"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#RelationalExpression -->
+
+    <owl:Class rdf:about="&c;RelationalExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ReturnStatement -->
+
+    <owl:Class rdf:about="&c;ReturnStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">return</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;JumpStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#SelectionStatement -->
+
+    <owl:Class rdf:about="&c;SelectionStatement">
+        <rdfs:subClassOf rdf:resource="&c;Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Sequence -->
+
+    <owl:Class rdf:about="&c;Sequence">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ShiftL -->
+
+    <owl:Class rdf:about="&c;ShiftL">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&lt;&lt;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#ShiftR -->
+
+    <owl:Class rdf:about="&c;ShiftR">
+        <rdfs:label rdf:datatype="&rdfs;Literal">&gt;&gt;</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Short -->
+
+    <owl:Class rdf:about="&c;Short">
+        <rdfs:label rdf:datatype="&rdfs;Literal">short</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Signed -->
+
+    <owl:Class rdf:about="&c;Signed">
+        <rdfs:label rdf:datatype="&rdfs;Literal">signed</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Size_t -->
+
+    <owl:Class rdf:about="&c;Size_t">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Sizeof -->
+
+    <owl:Class rdf:about="&c;Sizeof">
+        <rdfs:label rdf:datatype="&rdfs;Literal">sizeof</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;UnaryExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Ssize_t -->
+
+    <owl:Class rdf:about="&c;Ssize_t">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Statement -->
+
+    <owl:Class rdf:about="&c;Statement">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Static -->
+
+    <owl:Class rdf:about="&c;Static">
+        <rdfs:label rdf:datatype="&rdfs;Literal">static</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;Storage"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Storage -->
+
+    <owl:Class rdf:about="&c;Storage">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#String -->
+
+    <owl:Class rdf:about="&c;String">
+        <rdfs:subClassOf rdf:resource="&c;Constant"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Struct -->
+
+    <owl:Class rdf:about="&c;Struct">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#StructDeclaration -->
+
+    <owl:Class rdf:about="&c;StructDeclaration">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#StructDeclarator -->
+
+    <owl:Class rdf:about="&c;StructDeclarator">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#SubDeclarator -->
+
+    <owl:Class rdf:about="&c;SubDeclarator">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Subt -->
+
+    <owl:Class rdf:about="&c;Subt">
+        <rdfs:label rdf:datatype="&rdfs;Literal">-</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;ArithmeticExpression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#SwitchStatement -->
+
+    <owl:Class rdf:about="&c;SwitchStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">switch</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;SelectionStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Text -->
+
+    <owl:Class rdf:about="&c;Text">
+        <rdfs:subClassOf rdf:resource="&c;DefineValue"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#TranslationUnit -->
+
+    <owl:Class rdf:about="&c;TranslationUnit">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#TypeName -->
+
+    <owl:Class rdf:about="&c;TypeName">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#TypeQualifier -->
+
+    <owl:Class rdf:about="&c;TypeQualifier">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#TypeSpecifier -->
+
+    <owl:Class rdf:about="&c;TypeSpecifier">
+        <rdfs:subClassOf rdf:resource="&c;Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Typedef -->
+
+    <owl:Class rdf:about="&c;Typedef">
+        <rdfs:label rdf:datatype="&rdfs;Literal">typedef</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;Storage"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#TypedefName -->
+
+    <owl:Class rdf:about="&c;TypedefName">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#UnaryExpression -->
+
+    <owl:Class rdf:about="&c;UnaryExpression">
+        <rdfs:subClassOf rdf:resource="&c;Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Union -->
+
+    <owl:Class rdf:about="&c;Union">
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Unsigned -->
+
+    <owl:Class rdf:about="&c;Unsigned">
+        <rdfs:label rdf:datatype="&rdfs;Literal">unsigned</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Void -->
+
+    <owl:Class rdf:about="&c;Void">
+        <rdfs:label rdf:datatype="&rdfs;Literal">void</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeSpecifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Volatile -->
+
+    <owl:Class rdf:about="&c;Volatile">
+        <rdfs:label rdf:datatype="&rdfs;Literal">volatile</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;TypeQualifier"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#WhileStatement -->
+
+    <owl:Class rdf:about="&c;WhileStatement">
+        <rdfs:label rdf:datatype="&rdfs;Literal">while</rdfs:label>
+        <rdfs:subClassOf rdf:resource="&c;IterationStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/c-entity#Wstring -->
+
+    <owl:Class rdf:about="&c;Wstring">
+        <rdfs:subClassOf rdf:resource="&c;Constant"/>
+    </owl:Class>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.2) http://owlapi.sourceforge.net -->
+
