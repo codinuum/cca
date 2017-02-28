@@ -178,7 +178,18 @@ class c (file : Storage.file) =
             Queue.take queue
           with
             Queue.Empty ->
-              ch#input_line()^"\n"
+              let line = ch#input_line() in
+              let ln = String.length line in
+              let b =
+                if ln > 0 then
+                  line.[ln-1] = '\r'
+                else
+                  false
+              in
+              if b then
+                  line
+              else
+                line^"\n"
         in
         self#proc buf pos n s
       with 
