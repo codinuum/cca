@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<!-- configuration for internal java parser -->
+<conf xmlns="http://codinuum.com/cca/lang/conf"
+      astns="http://codinuum.com/ontologies/2012/10/java-entity#">
+
+  <collapse_targets>
+    <category name="statement\..*"/>
+    <category name="primary\..*"/>
+    <category name="expression\..*"/>
+
+    <category name="class"/>
+    <category name="enum"/>
+    <category name="interface"/>
+    <category name="annotation_type"/>
+    <category name="specifier"/>
+    <category name="class_body"/>
+    <category name="enum_body"/>
+    <category name="interface_body"/>
+    <category name="annotation_type_body"/>
+    <category name="variable_declarator"/>
+    <category name="method"/>
+    <category name="CBD_static_initializer"/>
+    <category name="CBD_instance_initializer"/>
+    <category name="CBD_constructor"/>
+    <category name="block"/>
+    <category name="array_access"/>
+    <category name="parameters"/>
+    <category name="method_body"/>
+    <category name="type_arguments"/>
+    <category name="type_parameters"/>
+    <category name="arguments"/>
+    <category name="modifiers"/>
+    <category name="annotations"/>
+  </collapse_targets>
+
+  <relabel_allowed>
+    <pair>
+      <category name="type\..*"/>
+      <category name="type\..*"/>
+    </pair>
+    <pair>
+      <category name="primary\..*"/>
+      <category name="primary\..*"/>
+    </pair>
+    <pair>
+      <category name="primary\..*"/>
+      <category name="expression\..*"/>
+    </pair>
+    <pair>
+      <category name="expression\..*"/>
+      <category name="primary\..*"/>
+    </pair>
+    <pair>
+      <category name="expression\..*"/>
+      <category name="expression\..*"/>
+    </pair>
+    <pair>
+      <category name="statement\..*"/>
+      <category name="statement\..*"/>
+    </pair>
+    <pair>
+      <category name="modifier\..*"/>
+      <category name="modifier\..*"/>
+    </pair>
+  </relabel_allowed>
+
+  <to_be_notified>
+    <category name="class"/>
+    <category name="interface"/>
+    <category name="method"/>
+  </to_be_notified>
+
+  <boundary_nodes>
+    <category name="class"/>
+    <category name="interface"/>
+    <category name="method"/>
+    <category name="import_declarations"/>
+    <category name="type_declarations"/>
+    <category name="compilation_unit"/>
+  </boundary_nodes>
+
+  <cannot_be_keyroot>
+    <category name="class"/>
+    <category name="class_body"/>
+  </cannot_be_keyroot>
+
+</conf>

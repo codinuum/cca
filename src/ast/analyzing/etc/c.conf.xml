@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<!-- configuration for internal c parser (based on yacfe) -->
+<conf xmlns="http://codinuum.com/cca/lang/conf" 
+      astns="http://codinuum.com/ontologies/2012/10/c-entity#">
+
+  <collapse_targets>
+    <category name="expression\..*"/>
+    <category name="statement\..*"/>
+    <category name="cpp_directive\..*"/>
+    <category name="type\.specifier\.struct"/>
+    <category name="type\.specifier\.union"/>
+    <category name="type\.specifier\.enum"/>
+    <category name="type_name"/>
+    <category name="declaration_specifiers"/>
+    <category name="declaration"/>
+    <category name="declarator"/>
+    <category name="struct_declaration"/>
+    <category name="definition"/>
+    <category name="body"/>
+    <category name="initializer"/>
+    <category name="define_value\.partial_do_while"/>
+    <category name="arguments"/>
+    <category name="macro_subst"/>
+    <category name="macro_declaration"/>
+  </collapse_targets>
+
+  <forced_to_be_collapsible>
+    <category name="cpp_directive\..*"/>
+  </forced_to_be_collapsible>
+
+  <relabel_allowed>
+    <pair>
+      <category name="name\..*"/>
+      <category name="name\..*"/>
+    </pair>
+    <pair>
+      <category name="expression\..*"/>
+      <category name="expression\..*"/>
+    </pair>
+    <pair>
+      <category name="type\.specifier\..*"/>
+      <category name="type\.specifier\..*"/>
+    </pair>
+    <pair>
+      <category name="type\.qualifier\..*"/>
+      <category name="type\.qualifier\..*"/>
+    </pair>
+    <pair>
+      <category name="storage\..*"/>
+      <category name="storage\..*"/>
+    </pair>
+    <pair>
+      <category name="sub_declarator\..*"/>
+      <category name="sub_declarator\..*"/>
+    </pair>
+    <pair>
+      <category name="statement\.expression"/>
+      <category name="statement\.expression"/>
+    </pair>
+    <pair>
+      <category name="statement\.do_while"/>
+      <category name="define_value\.partial_do_while"/>
+    </pair>
+  </relabel_allowed>
+
+<!--
+  <relabel_disallowed>
+    <pair>
+      <category name="init_declarator"/>
+      <category name="init_declarator"/>
+    </pair>
+  </relabel_disallowed>
+-->
+
+  <anonymize2_rules>
+    <pair>
+      <category name="expression\.record_ptr_access"/>
+      <category name="expression.record_access"/>
+    </pair>
+  </anonymize2_rules>
+
+  <to_be_notified>
+    <category name="declaration">
+      <attr_cond local="false"/>
+    </category>
+    <category name="definition"/>
+  </to_be_notified>
+
+  <boundary_nodes>
+    <category name="cpp_directive\..*"/>
+    <category name="declaration"/>
+    <category name="definition"/>
+    <category name="macro_subst"/>
+  </boundary_nodes>
+
+</conf>

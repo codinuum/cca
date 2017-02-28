@@ -1,0 +1,17 @@
+*~
+*.cmo
+*.cmi
+*.cmx
+*.cmxs
+*.cmxa
+*.annot
+*.output
+*.automaton
+*.conflicts
+*.o
+*.a
+*.class
+*.d
+*.di
+*.opt
+*.pyc

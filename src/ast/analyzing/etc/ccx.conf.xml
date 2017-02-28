@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<conf xmlns="http://codinuum.com/cca/lang/conf#"
+      astns="http://codinuum.com/ontologies/2013/12/ccx-entity#">
+
+  <collapse_targets>
+    <category name=".*Expression\|ExpressionList\|FieldReference"/>
+    <category name=".*Statement\|CatchHandler"/>
+    <category name=".*Declaration\|ExplicitTemplateInstantiation\|FunctionDefinition\|FunctionWithTryBlock\|LinkageSpecification\|NamespaceAlias\|NamespaceDefinition\|TemplateSpecialization\|UsingDirective\|VisibilityLabel"/>
+    <category name=".*Declarator"/>
+    <category name=".*Designator"/>
+    <category name=".*Initializer\|InitializerList"/>
+    <category name="QualifiedName"/>
+    <category name="Preprocessor.*"/>
+    <category name="Pointer.*\|ReferenceOperator"/>
+    <category name="Parameters"/>
+    <category name="ForInitializer"/>
+    <category name="ForCondition"/>
+    <category name="ForIncrement"/>
+  </collapse_targets>
+
+
+  <relabel_allowed>
+    <pair>
+      <category name=".*Expression\|ExpressionList\|FieldReference"/>
+      <category name=".*Expression\|ExpressionList\|FieldReference"/>
+    </pair>
+    <pair>
+      <category name="ReturnStatement\|BreakStatement\|ContinueStatement"/>
+      <category name="ReturnStatement\|BreakStatement\|ContinueStatement"/>
+    </pair>
+    <pair>
+      <category name="IfStatement"/>
+      <category name="SwitchStatement"/>
+    </pair>
+    <pair>
+      <category name="ForStatement\|DoStatement\|WhileStatement"/>
+      <category name="ForStatement\|DoStatement\|WhileStatement"/>
+    </pair>
+    <pair>
+      <category name=".*Initializer\|InitializerList"/>
+      <category name=".*Initializer\|InitializerList"/>
+    </pair>
+    <pair>
+      <category name=".*Name\|TemplateId"/>
+      <category name=".*Name\|TemplateId"/>
+    </pair>
+    <pair>
+      <category name="Auto\|Extern\|Mutable\|Register\|Static\|Typedef"/>
+      <category name="Auto\|Extern\|Mutable\|Register\|Static\|Typedef"/>
+    </pair>
+    <pair>
+      <category name="Virtual\|Constexpr\|ThreadLocal\|Friend\|Explicit\|Restrict\|Inline\|Volatile\|Const"/>
+      <category name="Virtual\|Constexpr\|ThreadLocal\|Friend\|Explicit\|Restrict\|Inline\|Volatile\|Const"/>
+    </pair>
+    <pair>
+      <category name="Bool\|Char.*\|Decltype\|Double\|Float.*\|Int.*\|Void\|WcharT"/>
+      <category name="Bool\|Char.*\|Decltype\|Double\|Float.*\|Int.*\|Void\|WcharT"/>
+    </pair>
+    <pair>
+      <category name=".*Specifier"/>
+      <category name=".*Specifier"/>
+    </pair>
+    <pair>
+      <category name="Pointer.*\|ReferenceOperator"/>
+      <category name="Pointer.*\|ReferenceOperator"/>
+    </pair>
+  </relabel_allowed>
+
+  <to_be_notified>
+    <category name="FunctionDefinition\|FunctionWithTryBlock"/>
+  </to_be_notified>
+
+
+</conf>

@@ -1,0 +1,4 @@
+#!/bin/sh
+CMDDIR=`dirname $0`
+ETCDIR=${CMDDIR}/../etc
+exec /usr/bin/env DYLD_LIBRARY_PATH=/usr/lib BOLT_FILE=${ETCDIR}/logger.conf ${CMDDIR}/parsesrc.opt $*

@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- configuration for internal python parser -->
+<conf xmlns="http://codinuum.com/cca/lang/conf"
+      astns="http://codinuum.com/ontologies/2012/10/python-entity#">
+
+  <collapse_targets>
+    <category name="statement\..*"/>
+    <category name="simple_statement\..*"/>
+    <category name="primary\..*"/>
+    <category name="inheritance"/>
+    <category name="parameters"/>
+    <category name="dotted_name"/>
+    <category name="lambda"/>
+    <category name="suite"/>
+    <category name="named_suite"/>
+  </collapse_targets>
+
+  <relabel_allowed>
+    <pair>
+      <category name="primary\..*"/>
+      <category name="primary\..*"/>
+    </pair>
+    <pair>
+      <category name="unary_operator\..*"/>
+      <category name="unary_operator\..*"/>
+    </pair>
+    <pair>
+      <category name="binary_operator\..*"/>
+      <category name="binary_operator\..*"/>
+    </pair>
+    <pair>
+      <category name="simple_statement\..*"/>
+      <category name="simple_statement\..*"/>
+    </pair>
+  </relabel_allowed>
+
+  <to_be_notified>
+    <category name="statement\.func_def"/>
+    <category name="statement\.class_def"/>
+  </to_be_notified>
+
+  <boundary_nodes>
+    <category name="statement\.func_def"/>
+    <category name="statement\.class_def"/>
+  </boundary_nodes>
+
+</conf>
