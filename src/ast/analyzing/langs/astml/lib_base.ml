@@ -84,12 +84,13 @@ let build_tree options file =
       _ ->
         let rec find = function
           | ext::rest -> begin
+              let path_ = path^ext in
               try
-                XML.parse_file ~transform_dtd ~config ~spec (path^ext)
+                XML.parse_file ~transform_dtd ~config ~spec path_
               with
                 exn ->
                   if rest = [] then
-                    raise exn
+                    Xprint.failure "\"%s\": not found" path_
                   else
                     find rest
           end
