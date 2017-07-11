@@ -164,7 +164,7 @@ let name_to_string ?(show_attr=true) n =
 
 let pr_loc loc = pr_string (sprintf "{%s}" (Loc.to_string loc))
 
-let pr_name name = pr_string (name_to_string ~show_attr:false name)
+let pr_name name = pr_string (name_to_string ~show_attr:true name)
 
 let pr_id id = pr_string id
 
@@ -722,17 +722,17 @@ and pr_statement sty s =
       pr_string "while("; pr_expression 0 e; pr_string ")"
   | Sbreak id_opt -> begin
       match id_opt with
-	None -> pr_string "break;"
+      | None -> pr_string "break;"
       | Some id -> pr_string "break "; pr_id id; pr_string ";"
   end
   | Scontinue id_opt -> begin
       match id_opt with
-	None -> pr_string "continue;"
+      | None -> pr_string "continue;"
       | Some id -> pr_string "continue "; pr_id id; pr_string ";"
   end
   | Sreturn e_opt -> begin
       match e_opt with
-	None -> pr_string "return;"
+      | None -> pr_string "return;"
       | Some e -> pr_string "return "; pr_expression 0 e; pr_string ";"
   end
   | Ssynchronized(e, b) -> 
@@ -1022,8 +1022,10 @@ and pr_enum_body eb =
   match eb.eb_enum_constants, eb.eb_class_body_declarations with
   | [], [] -> pr_string " {}"
   | ecs, body -> 
+      pr_block_begin_short();
       pr_enum_constants ecs;
-      pr_block_begin_tall(); 
+      if body <> [] then
+        pr_string ";";
       pr_class_body_declarations body; 
       pr_block_end()      
 

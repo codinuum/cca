@@ -36,11 +36,11 @@ type loc = Loc.t
 
 
 type identifier_attribute = 
-  | IApackage 
+  | IApackage
   | IAclass of string
   | IAinterface of string
   | IAtypename of string
-  | IAmethod 
+  | IAmethod
   | IAfield
   | IAconstructor
   | IAparameter
@@ -138,13 +138,19 @@ let split_inner lname = (* parent * rest *)
   String.sub lname 0 idx, String.sub lname idx ((String.length lname) - idx)
 
 type name_attribute = 
-  | NApackage 
+  | NApackage
   | NAtype of resolve_result
-  | NAexpression 
-  | NAmethod 
-  | NApackageOrType 
-  | NAambiguous 
+  | NAexpression
+  | NAmethod
+  | NApackageOrType
+  | NAambiguous
   | NAunknown
+
+let iattr_to_nattr = function
+  | IApackage     -> NApackage
+  | IAmethod      -> NAmethod
+  | IAexpression  -> NAexpression
+  | _ -> failwith "Ast.iattr_to_nattr"
 
 let get_resolved_name = function
   | NAtype (R_resolved s) -> s

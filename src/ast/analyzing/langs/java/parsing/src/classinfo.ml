@@ -22,10 +22,10 @@ exception Found of string
 
 class classtbl_c = object (self)
 
-  (* package name -> (local name set) (for standard library) *)
+  (* package name -> local name set (for standard library) *)
   val stdtbl = Classtbl.stdtbl           
 
-  (* package name -> (local name set) *)
+  (* package name -> local name set *)
   val pkg_mem_class_tbl = Hashtbl.create 0
 
   val mutable pkgs = Hashtbl.create 0 (* package name -> path *)
@@ -50,7 +50,7 @@ class classtbl_c = object (self)
   method private clear_packages = Hashtbl.clear pkgs
 
 
-  method add_package ?(dir=Storage.dummy_entry) pname = 
+  method add_package ?(dir=Storage.dummy_entry) pname =
     try
       if pname = "" then
         raise Exit;
@@ -85,30 +85,30 @@ class classtbl_c = object (self)
     with
       Exit -> ()
 
+  method add_api_package pname =
+    try
+      if pname = "" then
+        raise Exit;
+
+      DEBUG_MSG "ADDING API PACKAGE \"%s\"" pname;
+
+      Hashtbl.replace pkgs pname Storage.dummy_entry;
+
+    with
+      _ -> ()
 
   method private add pname lname =
-    
-    let b =
+    DEBUG_MSG "ADDING: \"%s\" -> \"%s\"" pname lname;
+    let s = 
       try
-        not (Xset.mem (Hashtbl.find stdtbl pname) lname)
-      with
-        Not_found -> true
+        Hashtbl.find pkg_mem_class_tbl pname
+      with 
+	Not_found -> 
+          let s' = Xset.create 1 in
+          Hashtbl.add pkg_mem_class_tbl pname s';
+          s'
     in
-
-    if b then begin
-      DEBUG_MSG "ADDING: \"%s\" -> \"%s\"" pname lname;
-      let s = 
-        try
-          Hashtbl.find pkg_mem_class_tbl pname
-        with 
-	  Not_found -> 
-            let s' = Xset.create 1 in
-            Hashtbl.add pkg_mem_class_tbl pname s';
-            s'
-      in
-      Xset.add s lname
-    end
-
+    Xset.add s lname
 
   method add_fqn fqn =
     let pname, lname = decompose_qname fqn in
@@ -121,24 +121,26 @@ class classtbl_c = object (self)
     else
       raise Not_found
 
-  method _resolve pname lname =
-    (*DEBUG_MSG "pkg=\"%s\" name=\"%s\"" pname lname;*)
-    try
-      self#__resolve pkg_mem_class_tbl pname lname
-    with
-      Not_found -> self#__resolve stdtbl pname lname
+  method _resolve lname =
+    Hashtbl.iter
+      (fun pkg _ ->
+	try
+	  raise (Found (self#__resolve pkg_mem_class_tbl pkg lname))
+	with 
+	  Not_found -> ()
+      ) pkgs;
+    Hashtbl.iter
+      (fun pkg _ ->
+	try
+	  raise (Found (self#__resolve stdtbl pkg lname))
+	with 
+	  Not_found -> ()
+      ) pkgs
 
   method resolve lname =
     DEBUG_MSG "lname=\"%s\"" lname;
     try
-      Hashtbl.iter
-	(fun pkg _ ->
-	  try
-	    raise (Found (self#_resolve pkg lname))
-	  with 
-	    Not_found -> ()
-	) pkgs;
-
+      self#_resolve lname;
       self#__resolve stdtbl "java.lang" lname
     with 
       Found fqn -> 
@@ -181,6 +183,9 @@ class classtbl_c = object (self)
 
           
   method _resolve_qualified_type_name pkg qname =
+    DEBUG_MSG "pkg=%s qname=%s" pkg qname;
+    if pkg = qname then
+      failwith "Classinfo#_resolve_qualified_type_name";
     let lname = Str.replace_first (Str.regexp_string (pkg^".")) "" qname in
     Xstring.replace lname '.' '$';
     if pkg = "" then

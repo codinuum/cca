@@ -44,6 +44,9 @@ class env = object (self)
 
   val mutable last_rawtoken = Obj.repr ()
 
+  val mutable global_frame = new frame FKother
+
+  method get_global_frame = global_frame
 
   method last_rawtoken = last_rawtoken
   method set_last_rawtoken o = last_rawtoken <- o
@@ -64,9 +67,14 @@ class env = object (self)
 
   method current_package_name = current_package_name
 
-  method begin_scope ?(kind=FKother) () =
+  method begin_scope ?(kind=FKother) ?(frame_opt=None) () =
     DEBUG_MSG "PUSH(%d)" (Stack.length stack);
-    Stack.push (new frame kind) stack
+    let frame =
+      match frame_opt with
+      | None -> new frame kind
+      | Some f -> f
+    in
+    Stack.push frame stack
 
   method end_scope() =
     DEBUG_MSG "POP(%d)" (Stack.length stack);
@@ -144,6 +152,15 @@ class env = object (self)
       frame#qadd qname attr
     end
 
+  method register_global_qname qname attr =
+    if is_qualified_qname qname then begin
+      DEBUG_MSG "REGISTER(%d): \"%s\" -> %s"
+        (Stack.length stack) qname (iattr_to_str attr);
+
+      let frame = self#get_global_frame in
+      frame#qadd qname attr
+    end
+
 
   method lookup_qname ?(afilt=(fun _ -> true)) qname =
     DEBUG_MSG "LOOKUP(%d): \"%s\"" (Stack.length stack) qname;
@@ -165,6 +182,10 @@ class env = object (self)
         DEBUG_MSG "FOUND: %s -> [%s]" qname (Xlist.to_string iattr_to_str ";" attrs);
 	attrs
 
+  method lookup_global_qname qname =
+    let attrs = global_frame#qfind_all qname in
+    DEBUG_MSG "FOUND: %s -> [%s]" qname (Xlist.to_string iattr_to_str ";" attrs);
+    attrs
 
   method get_naive_fqn name =
     let qn = P.name_to_simple_string name in
@@ -365,6 +386,7 @@ class env = object (self)
   method get_package_name name = (* package or normal type or nested type *)
     let qname = P.name_to_simple_string name in
     DEBUG_MSG "name=%s" (P.name_to_string name);
+
     if classtbl#is_package qname then begin
       set_name_attribute NApackage name;
       DEBUG_MSG "pname=%s" (P.name_to_string name);
@@ -374,26 +396,39 @@ class env = object (self)
       try
         let prefix_name, base = decompose_name name in
         let prefix = P.name_to_simple_string prefix_name in
-        if classtbl#is_package prefix then begin
+
+        let spath = self#classtbl#get_source_dir#path in
+        let ppath = Filename.concat spath (pkg_to_path prefix) in
+
+	let _path = Filename.concat ppath base in
+          
+	if self#current_source#tree#is_dir ppath then begin
+
+          if not (classtbl#is_package prefix) then begin
+            classtbl#add_package ~dir:(self#current_source#tree#get_entry ppath) prefix;
+          end;
+          set_name_attribute NApackage prefix_name;
+
+          if self#current_source#tree#is_dir _path then begin
+            classtbl#add_package ~dir:(self#current_source#tree#get_entry _path) qname;
+            set_name_attribute NApackage name;
+            DEBUG_MSG "pname=%s" (P.name_to_string name);
+            qname
+          end
+          else begin
+            DEBUG_MSG "pname=%s" (P.name_to_string prefix_name);
+            prefix
+          end
+
+        end
+        else if classtbl#is_package prefix then begin
           set_name_attribute NApackage prefix_name;
           DEBUG_MSG "pname=%s" (P.name_to_string prefix_name);
           prefix
         end
-        else begin
-          let spath = self#classtbl#get_source_dir#path in
-          let ppath = Filename.concat spath (pkg_to_path prefix) in
-	  let _path = Filename.concat ppath base in
-          let path = _path^".java" in
-          DEBUG_MSG "path=%s" path;
-	  if self#current_source#tree#exists path then begin
-            classtbl#add_package ~dir:(self#current_source#tree#get_entry ppath) prefix;
-            set_name_attribute NApackage prefix_name;
-            DEBUG_MSG "pname=%s" (P.name_to_string prefix_name);
-            prefix
-          end
-          else
-            self#get_package_name prefix_name
-        end
+        else
+          classtbl#get_package_name prefix
+
       with
         _ -> failwith "Parser_aux.env#get_package_name"
     end
@@ -403,9 +438,10 @@ class env = object (self)
     classtbl#_resolve_qualified_type_name (self#get_package_name name) qname
 
   method init =
+    global_frame <- new frame FKother;
     super#init;
     Stack.clear stack;
-    self#begin_scope();
+    self#begin_scope ~frame_opt:(Some global_frame) ();
     self#set_java_lang_spec_unknown
 
   initializer
@@ -481,7 +517,16 @@ module F (Stat : STATE_T) = struct
   let register_identifier_as_label id         = env#register_identifier id IAlabel
   let register_identifier_as_typeparameter id = env#register_identifier id IAtypeparameter
 
-  let register_qname n = env#register_qname (P.name_to_simple_string n)
+  let register_qname n a =
+    try
+      let ss = P.name_to_simple_string n in
+      let _, id = leftmost_of_name n in
+      if env#classtbl#is_resolvable id then
+        env#register_global_qname ss a
+      else
+        env#register_qname ss a
+    with
+      _ -> ()
 
   let register_qname_as_class n         = register_qname n (IAclass "")
   let register_qname_as_interface n     = register_qname n (IAinterface "")
@@ -674,6 +719,7 @@ module F (Stat : STATE_T) = struct
         let id = rightmost_identifier n in
 	try
 	  let attrs = env#lookup_identifier id in
+          DEBUG_MSG "FOUND: %s -> [%s]" id (Xlist.to_string iattr_to_str ";" attrs);
 	  let rec doit i =
 	    match List.nth attrs i with
 	    | IAclass s | IAinterface s | IAtypename s -> s
@@ -712,36 +758,52 @@ module F (Stat : STATE_T) = struct
   (* func get_type_fqn *)
 
   let is_type_name n =
-    DEBUG_MSG "\"%s\"" (P.name_to_simple_string n);
+    let qn = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" qn;
     let afilt = function
       | IAclass _ | IAinterface _ | IAtypename _ | IAtypeparameter -> true
       | _ -> false
     in
-    let qn = P.name_to_simple_string n in
     let b =
-    try
-      if is_simple n then begin
-        try
-          let _ = env#lookup_identifier ~afilt qn in
-          true
-        with
-          Not_found ->
-            let _ = env#classtbl#resolve qn in
+      try
+        if is_simple n then begin
+          try
+            let _ = env#lookup_identifier ~afilt qn in
             true
-      end
-      else
-        raise Not_found
-    with
-      Not_found ->
-        try
-          let _ = env#lookup_qname ~afilt qn in
-          true
-        with
-          Not_found -> false
+          with
+            Not_found ->
+              let _ = env#classtbl#resolve qn in
+              true
+        end
+        else
+          raise Not_found
+      with
+        Not_found ->
+          try
+            let _ = env#lookup_qname ~afilt qn in
+            true
+          with
+            Not_found -> false
     in
     DEBUG_MSG "%s --> %B" (P.name_to_string n) b;
     b
 
+  let is_expr_name n =
+    let qn = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" qn;
+    let afilt = function
+      | IAexpression -> true
+      | _ -> false
+    in
+    let b =
+      try
+        let _ = env#lookup_qname ~afilt qn in
+        true
+      with
+        Not_found -> false
+    in
+    DEBUG_MSG "%s --> %B" (P.name_to_string n) b;
+    b
 
   let is_field_access n =
     DEBUG_MSG "\"%s\"" (P.name_to_simple_string n);
@@ -756,7 +818,8 @@ module F (Stat : STATE_T) = struct
           let _ = env#lookup_identifier ~afilt id in
           true
         with
-          Not_found -> true
+          Not_found ->
+            not (env#classtbl#is_resolvable id)
       end
       else begin
         let id = rightmost_identifier n in
@@ -861,8 +924,11 @@ module F (Stat : STATE_T) = struct
         set_name_attribute NAexpression n;
 	_mkprim loc (Pname n)
       end
-      else begin
+      else if is_field_access q then begin
         name_to_facc n
+      end
+      else begin
+        _mkprim loc (Pname n)
       end
     with
       Not_found -> begin

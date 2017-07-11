@@ -119,8 +119,8 @@ let speclist =
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
    "-clearcache", Arg.Unit (fun () -> options#set_clear_cache_flag), "\tclear cache dir";
    "-usecache", Arg.Unit (fun () -> options#clear_clear_cache_flag), "\tuse cache";
-   "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
-   "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
+   "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tcreate layered cache dir";
+   "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tcreate flat cache dir";
 
    (*"-localcachename", Arg.String options#set_local_cache_name, 
    sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;*)

@@ -150,10 +150,22 @@ class virtual tree = object (self)
   method name =
     Printf.sprintf "%s:%s" (kind_to_string self#kind) self#id
 
-  method exists ?(ignore_case=false) path = 
+  method exists ?(ignore_case=false) path =
     try
       let _ = self#get_entry ~ignore_case path in
       true
+    with
+      _ -> false
+
+  method is_dir ?(ignore_case=false) path =
+    try
+      (self#get_entry ~ignore_case path)#is_dir
+    with
+      _ -> false
+
+  method is_file ?(ignore_case=false) path =
+    try
+      not (self#get_entry ~ignore_case path)#is_dir
     with
       _ -> false
 

@@ -448,14 +448,19 @@ single_type_import_declaration:
     { 
       begin
         try
-          let fqn = env#resolve_qualified_type_name n in
+          let fqn =
+            try
+              env#resolve_qualified_type_name n
+            with _ ->
+              P.name_to_simple_string n
+          in
 	  register_identifier_as_typename fqn (rightmost_identifier n);
 	  set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-	  _ ->
-            let sn = P.name_to_simple_string n in
-            parse_warning $startofs $endofs "failed to resolve %s" sn
+	  _ -> ()
+            (*let sn = P.name_to_simple_string n in
+            parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
       mkimpdecl $startofs $endofs (IDsingle n)
     }
@@ -466,14 +471,19 @@ static_single_type_import_declaration:
     { 
       begin
         try
-          let fqn = env#resolve_qualified_type_name n in
+          let fqn =
+            try
+              env#resolve_qualified_type_name n
+            with
+              _ -> P.name_to_simple_string n
+          in
           register_identifier_as_typename fqn (rightmost_identifier n);
           set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-          _ ->
-            let sn = P.name_to_simple_string n in
-            parse_warning $startofs $endofs "failed to resolve %s" sn
+          _ -> ()
+            (*let sn = P.name_to_simple_string n in
+            parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
       let _, id = i in
       register_identifier_as_static_member id;
@@ -490,7 +500,13 @@ type_import_on_demand_declaration:
         with
           _ ->
             let sn = P.name_to_simple_string n in
-            parse_warning $startofs $endofs "failed to resolve %s" sn
+            try
+              let p =
+                Filename.concat env#classtbl#get_source_dir#path (Common.pkg_to_path sn)
+              in
+              env#classtbl#add_package ~dir:(env#current_source#tree#get_entry p) sn
+            with
+              _ -> env#classtbl#add_api_package sn
       end;
       set_attribute_PT_PT n;
       mkimpdecl $startofs $endofs (IDtypeOnDemand n)
@@ -502,14 +518,19 @@ static_type_import_on_demand_declaration:
     { 
       begin
         try
-          let fqn = env#resolve_qualified_type_name n in
+          let fqn =
+            try
+              env#resolve_qualified_type_name n
+            with
+              _ -> P.name_to_simple_string n
+          in
           register_identifier_as_typename fqn (rightmost_identifier n);
           set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-          _ ->
-            let sn = P.name_to_simple_string n in
-            parse_warning $startofs $endofs "failed to resolve %s" sn
+          _ -> ()
+            (*let sn = P.name_to_simple_string n in
+            parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
       mkimpdecl $startofs $endofs (IDstaticOnDemand n)
     }
@@ -722,8 +743,10 @@ enum_declaration:
 ;
 
 enum_body:
-| LBRACE                  comma_opt b=enum_body_declarations0 RBRACE { mkeb $startofs $endofs [] b }
-| LBRACE e=enum_constants comma_opt b=enum_body_declarations0 RBRACE { mkeb $startofs $endofs e b } 
+| LBRACE                  comma_opt b=enum_body_declarations0 RBRACE
+    { end_scope(); mkeb $startofs $endofs [] b }
+| LBRACE e=enum_constants comma_opt b=enum_body_declarations0 RBRACE
+    { end_scope(); mkeb $startofs $endofs e b } 
 ;
 
 %inline
@@ -1697,16 +1720,28 @@ method_invocation:
 	try
 	  let q = get_qualifier n in
 	  let id = rightmost_identifier n in
-	  if is_local_name q || is_implicit_field_name q || is_field_access q then begin
+	  if
+            is_local_name q ||
+            is_implicit_field_name q ||
+            is_field_access q ||
+            is_expr_name q
+          then begin
             set_name_attribute NAexpression q;
             register_qname_as_expression q;
+            env#reclassify_identifier(leftmost_of_name q);
 	    mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, None, id, a))
           end
           else begin
-            let fqn = get_type_fqn q in
-	    set_attribute_PT_T (mkresolved fqn) q;
-            register_qname_as_typename q;
-	    mkmi $startofs $endofs (MItypeName(q, None, id, a))
+            if is_type_name q then begin
+              let fqn = get_type_fqn q in
+	      set_attribute_PT_T (mkresolved fqn) q;
+              register_qname_as_typename q;
+	      mkmi $startofs $endofs (MItypeName(q, None, id, a))
+            end
+            else begin
+              env#reclassify_identifier(leftmost_of_name q);
+              raise (Unknown "")
+            end
           end
 	with
 	| Not_found | Unknown _ ->
