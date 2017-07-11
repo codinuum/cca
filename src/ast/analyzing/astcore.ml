@@ -291,6 +291,15 @@ class virtual base_c options = object (self)
 	  self#verbose_msg "AST (in DOT) saved in \"%s\"" fname_dot
         end;
 
+	if options#dump_ast_flag then begin
+	  let fname_astml = file#fullpath^Astml.extension in
+          match Misc.find_file_name_with_exts fname_astml Sastml.extensions with
+          | Some fn -> Xprint.warning "already exists: \"%s\"" fn
+          | None ->
+	      tree#dump_astml ~comp:options#ast_compression fname_astml;
+	      self#verbose_msg "AST (in ASTML) saved in \"%s\"" fname_astml
+        end;
+
 	S._dump_source cache_path tree;
 	S._dump_parser cache_path tree;
 	SF.dump_info cache_path tree;
