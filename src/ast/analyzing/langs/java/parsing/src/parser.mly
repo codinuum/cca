@@ -760,7 +760,7 @@ enum_constants:
 | es=enum_constants COMMA e=enum_constant { es @ [e] }
 ;
 
-enum_constant:
+enum_constant_head:
 | a=annotations0 i=identifier e=enum_arguments_opt          
     { 
       let loc0, id = i in
@@ -769,17 +769,22 @@ enum_constant:
 	| [] -> Loc.merge loc0 (get_loc $startofs $endofs)
 	| _ -> get_loc $startofs $endofs
       in
-      mkec loc a id e None 
+      begin_scope();
+      (loc, a, id, e)
     }
-| a=annotations0 i=identifier e=enum_arguments_opt c=class_body 
+;
+
+enum_constant:
+| x=enum_constant_head
     { 
-      let loc0, id = i in
-      let loc =
-	match a with
-	| [] -> Loc.merge loc0 (get_loc $startofs $endofs)
-	| _ -> get_loc $startofs $endofs
-      in
-      mkec loc a id e (Some c) 
+      let loc, a, id, e = x in
+      end_scope();
+      mkec loc a id e None
+    }
+| x=enum_constant_head c=class_body
+    { 
+      let loc, a, id, e = x in
+      mkec loc a id e (Some c)
     }
 ;
 
