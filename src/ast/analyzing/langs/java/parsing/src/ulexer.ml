@@ -158,12 +158,26 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp float_type_suffix = ['F' 'f' 'D' 'd']
   let regexp signed_integer = ['+' '-']? digits
   let regexp exponent_part = ['e' 'E'] signed_integer
-  let regexp floating_point_literal = 
+
+  let regexp decimal_floating_point_literal =
     (digits '.' digits? exponent_part? float_type_suffix?) 
   | ('.' digits exponent_part? float_type_suffix?) 
   | (digits exponent_part)
   | (digits float_type_suffix)
-  | (digits exponent_part float_type_suffix) 
+  | (digits exponent_part float_type_suffix)
+
+  let regexp hex_significand =
+    hex_numeral
+  | hex_numeral '.'
+  | ("0x"|"0X") hex_digit* '.' hex_digit+
+
+  let regexp binary_exponent = ['P' 'p'] signed_integer
+
+  let regexp hexadecimal_floating_point_literal =
+    hex_significand binary_exponent float_type_suffix?
+
+  let regexp floating_point_literal =
+    decimal_floating_point_literal | hexadecimal_floating_point_literal
 
   let regexp boolean_literal = "true" | "false"
 
