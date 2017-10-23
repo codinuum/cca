@@ -1,3 +1,18 @@
+(*
+   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*)
 (* 
  * A parser for the Java Language (based on the JLS 3rd ed.) 
  * 
@@ -274,7 +289,7 @@ type_arguments:
 | lt=LT ts=type_argument_list_1 
     { 
       let targs, loc2 = ts in
-      _mktyargs (Loc.merge lt loc2) targs 
+      mktyargs $startofs $endofs targs 
     }
 ;
 
@@ -290,18 +305,18 @@ wildcard:
 ;
 wildcard_1:
 | al=wildcard_head GT                         { al, None }
-| al=wildcard_head EXTENDS r=reference_type_1 { al, Some(mkwb $startofs $endofs (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type_1 { al, Some(mkwb $startofs $endofs (WBsuper r)) }
+| al=wildcard_head EXTENDS r=reference_type_1 { al, Some(mkwb $startofs ($endofs-1) (WBextends r)) }
+| al=wildcard_head SUPER   r=reference_type_1 { al, Some(mkwb $startofs ($endofs-1) (WBsuper r)) }
 ;
-  wildcard_2:
+wildcard_2:
 | al=wildcard_head GT_GT                      { al, None }
-| al=wildcard_head EXTENDS r=reference_type_2 { al, Some(mkwb $startofs $endofs (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type_2 { al, Some(mkwb $startofs $endofs (WBsuper r)) }
+| al=wildcard_head EXTENDS r=reference_type_2 { al, Some(mkwb $startofs ($endofs-2) (WBextends r)) }
+| al=wildcard_head SUPER   r=reference_type_2 { al, Some(mkwb $startofs ($endofs-2) (WBsuper r)) }
 ;
-  wildcard_3:
+wildcard_3:
 | al=wildcard_head GT_GT_GT                   { al, None }
-| al=wildcard_head EXTENDS r=reference_type_3 { al, Some(mkwb $startofs $endofs (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type_3 { al, Some(mkwb $startofs $endofs (WBsuper r)) }
+| al=wildcard_head EXTENDS r=reference_type_3 { al, Some(mkwb $startofs ($endofs-3) (WBextends r)) }
+| al=wildcard_head SUPER   r=reference_type_3 { al, Some(mkwb $startofs ($endofs-3) (WBsuper r)) }
 ;
 
 reference_type_1:
@@ -311,7 +326,7 @@ reference_type_1:
       let head, a, n = c in
       let targs, loc3 = t in
       let tyargs = _mktyargs (Loc.merge lt loc3) targs in
-      mktype $startofs $endofs (TclassOrInterface(head @ [TSapply(a, n, tyargs)])) 
+      mktype $startofs ($endofs-1) (TclassOrInterface(head @ [TSapply(a, n, tyargs)]))
     }
 ;
 reference_type_2:
@@ -321,7 +336,7 @@ reference_type_2:
       let head, a, n = c in
       let targs, loc3 = t in
       let tyargs = _mktyargs (Loc.merge lt loc3) targs in
-      mktype $startofs $endofs (TclassOrInterface(head @ [TSapply(a, n, tyargs)])) 
+      mktype $startofs ($endofs-2) (TclassOrInterface(head @ [TSapply(a, n, tyargs)]))
     }
 ;
 reference_type_3:
@@ -333,16 +348,16 @@ type_argument_list:
 | l=type_argument_list COMMA t=type_argument { l @ [t] }
 ;
 type_argument_list_1:
-|                            t=type_argument_1 { [t], get_loc $startofs $endofs }
-| l=type_argument_list COMMA t=type_argument_1 { l @ [t], get_loc $startofs $endofs }
+|                            t=type_argument_1 { [t], get_loc $startofs ($endofs-1) }
+| l=type_argument_list COMMA t=type_argument_1 { l @ [t], get_loc $startofs ($endofs-1) }
 ;
 type_argument_list_2:
-|                            t=type_argument_2 { [t], get_loc $startofs $endofs }
-| l=type_argument_list COMMA t=type_argument_2 { l @ [t], get_loc $startofs $endofs }
+|                            t=type_argument_2 { [t], get_loc $startofs ($endofs-2) }
+| l=type_argument_list COMMA t=type_argument_2 { l @ [t], get_loc $startofs ($endofs-2) }
 ;
 type_argument_list_3:
-|                            t=type_argument_3 { [t], get_loc $startofs $endofs }
-| l=type_argument_list COMMA t=type_argument_3 { l @ [t], get_loc $startofs $endofs }
+|                            t=type_argument_3 { [t], get_loc $startofs ($endofs-3) }
+| l=type_argument_list COMMA t=type_argument_3 { l @ [t], get_loc $startofs ($endofs-3) }
 ;
 
 type_argument:
@@ -350,16 +365,16 @@ type_argument:
 | aw=wildcard      { mktyarg $startofs $endofs (TAwildcard aw) }
 ;
 type_argument_1:
-| r=reference_type_1 { mktyarg $startofs $endofs (TAreferenceType r) }
-| aw=wildcard_1      { mktyarg $startofs $endofs (TAwildcard aw) }
+| r=reference_type_1 { _mktyarg r.ty_loc (TAreferenceType r) }
+| aw=wildcard_1      { mktyarg $startofs ($endofs-1) (TAwildcard aw) }
 ;
 type_argument_2:
-| r=reference_type_2 { mktyarg $startofs $endofs (TAreferenceType r) }
-| aw=wildcard_2      { mktyarg $startofs $endofs (TAwildcard aw) }
+| r=reference_type_2 { _mktyarg r.ty_loc (TAreferenceType r) }
+| aw=wildcard_2      { mktyarg $startofs ($endofs-2) (TAwildcard aw) }
 ;
 type_argument_3:
-| r=reference_type_3 { mktyarg $startofs $endofs (TAreferenceType r) }
-| aw=wildcard_3      { mktyarg $startofs $endofs (TAwildcard aw) }
+| r=reference_type_3 { _mktyarg r.ty_loc (TAreferenceType r) }
+| aw=wildcard_3      { mktyarg $startofs ($endofs-3) (TAwildcard aw) }
 ;
 
 
@@ -458,8 +473,8 @@ single_type_import_declaration:
 	  set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-	  _ -> ()
-            (*let sn = P.name_to_simple_string n in
+	  _ ->
+            ()(*let sn = P.name_to_simple_string n in
             parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
       mkimpdecl $startofs $endofs (IDsingle n)
@@ -469,6 +484,7 @@ single_type_import_declaration:
 static_single_type_import_declaration:
 | IMPORT STATIC n=name DOT i=identifier SEMICOLON 
     { 
+      let fqn_opt = ref None in
       begin
         try
           let fqn =
@@ -477,16 +493,22 @@ static_single_type_import_declaration:
             with
               _ -> P.name_to_simple_string n
           in
+          fqn_opt := Some fqn;
           register_identifier_as_typename fqn (rightmost_identifier n);
           set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-          _ -> ()
-            (*let sn = P.name_to_simple_string n in
+          _ ->
+            ()(*let sn = P.name_to_simple_string n in
             parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
       let _, id = i in
-      register_identifier_as_static_member id;
+      let sfqn =
+        match !fqn_opt with
+        | Some x -> x^"."^id
+        | _ -> id
+      in
+      register_identifier_as_static_member sfqn id;
       mkimpdecl $startofs $endofs (IDsingleStatic(n, id)) 
     }
 ;
@@ -500,6 +522,7 @@ type_import_on_demand_declaration:
         with
           _ ->
             let sn = P.name_to_simple_string n in
+            (*parse_warning $startofs $endofs "failed to resolve %s" sn;*)
             try
               let p =
                 Filename.concat env#classtbl#get_source_dir#path (Common.pkg_to_path sn)
@@ -528,8 +551,8 @@ static_type_import_on_demand_declaration:
           set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-          _ -> ()
-            (*let sn = P.name_to_simple_string n in
+          _ ->
+            ()(*let sn = P.name_to_simple_string n in
             parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
       mkimpdecl $startofs $endofs (IDstaticOnDemand n)
@@ -764,6 +787,7 @@ enum_constant_head:
 | a=annotations0 i=identifier e=enum_arguments_opt          
     { 
       let loc0, id = i in
+      register_identifier_as_enumconst (mkfqn id) id;
       let loc =
 	match a with
 	| [] -> Loc.merge loc0 (get_loc $startofs $endofs)
@@ -2186,7 +2210,7 @@ relational_expression_nn:
 |                                      s=shift_expression_nn { s }
 
 | r=shift_expression_nn LT s=shift_expression    { mkexpr $startofs $endofs (Ebinary(BOlt, r, s)) } (* to avoid conflicts *)
-| r=shift_expression_nn GT s=shift_expression    { mkexpr $startofs $endofs (Ebinary(BOle, r, s)) }
+| r=shift_expression_nn GT s=shift_expression    { mkexpr $startofs $endofs (Ebinary(BOgt, r, s)) }
 
 | r=relational_expression_nn LT_EQ s=shift_expression    { mkexpr $startofs $endofs (Ebinary(BOle, r, s)) }
 | r=relational_expression_nn GT_EQ s=shift_expression    { mkexpr $startofs $endofs (Ebinary(BOge, r, s)) }

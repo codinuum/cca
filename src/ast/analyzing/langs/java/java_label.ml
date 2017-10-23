@@ -146,13 +146,16 @@ let vdid_to_string (n, d) = n ^ "[" ^ (string_of_int d)
 
 let vdids_to_string = Xlist.to_string vdid_to_string ";"
 
-let rec conv_name n =
+let rec conv_name ?(resolve=true) n =
   match n.Ast.n_desc with
   | Ast.Nsimple(attr, ident) -> begin
-      try
-	Ast.get_resolved_name !attr
-      with
-	Not_found -> ident
+      if resolve then
+        try
+	  Ast.get_resolved_name !attr
+        with
+	  Not_found -> ident
+      else
+        ident
   end
   | Ast.Nqualified(attr, name, ident) ->
       let sep =
@@ -160,7 +163,7 @@ let rec conv_name n =
         | Ast.NAtype _, Ast.NAtype _ -> "$"
         | _ -> "."
       in
-      (conv_name name)^sep^ident
+      (conv_name ~resolve name)^sep^ident
 
 let conv_loc 
     { Ast.Loc.start_offset = so;
@@ -202,31 +205,32 @@ module Type = struct
     | Array(ty, _) -> is_named ty
     | _ -> false
 
-  let rec type_argument_to_string ta =
+  let rec type_argument_to_string ?(resolve=true) ta =
     match ta.Ast.ta_desc with
-    | Ast.TAreferenceType ty -> to_simple_string (of_javatype ty)
-    | Ast.TAwildcard wc      -> wildcard_to_string wc
+    | Ast.TAreferenceType ty -> to_simple_string (of_javatype ~resolve ty)
+    | Ast.TAwildcard wc      -> wildcard_to_string ~resolve wc
 
-  and wildcard_bounds_to_string wb = 
+  and wildcard_bounds_to_string ?(resolve=true) wb = 
     match wb.Ast.wb_desc with
-    | Ast.WBextends ty -> "extends "^(to_simple_string (of_javatype ty))
-    | Ast.WBsuper ty   -> "super "^(to_simple_string (of_javatype ty))
+    | Ast.WBextends ty -> "extends "^(to_simple_string (of_javatype ~resolve ty))
+    | Ast.WBsuper ty   -> "super "^(to_simple_string (of_javatype ~resolve ty))
 
-  and wildcard_to_string = function
+  and wildcard_to_string ?(resolve=true) = function
     | al, None    -> (Printer.annotations_to_string al)^"?"
-    | al, Some wb -> (Printer.annotations_to_string al)^"? "^(wildcard_bounds_to_string wb)
+    | al, Some wb ->
+        (Printer.annotations_to_string al)^"? "^(wildcard_bounds_to_string ~resolve wb)
 
-  and type_arguments_to_string tas =
+  and type_arguments_to_string ?(resolve=true) tas =
     "<"^ 
-    (Xlist.to_string type_argument_to_string "," tas.Ast.tas_type_arguments)^
+    (Xlist.to_string (type_argument_to_string ~resolve) "," tas.Ast.tas_type_arguments)^
     ">"
 
-  and type_spec_to_string = function
-    | Ast.TSname(al, n)       -> conv_name n
-    | Ast.TSapply(al, n, tas) -> (conv_name n)^(type_arguments_to_string tas)
+  and type_spec_to_string ?(resolve=true) = function
+    | Ast.TSname(al, n)       -> conv_name ~resolve n
+    | Ast.TSapply(al, n, tas) -> (conv_name ~resolve n)^(type_arguments_to_string ~resolve tas)
 
-  and conv_type_specs tss =
-    Xlist.to_string type_spec_to_string "." tss
+  and conv_type_specs ?(resolve=true) tss =
+    Xlist.to_string (type_spec_to_string ~resolve) "." tss
 
   and to_string ty = 
     let rec conv = function
@@ -318,17 +322,17 @@ module Type = struct
     | Ast.PTdouble  -> Double
     | Ast.PTboolean -> Boolean
 
-  and of_javatype ty =
+  and of_javatype ?(resolve=true) ty =
     match ty.Ast.ty_desc with
     | Ast.Tprimitive(_, p)      -> of_primitive_type p
-    | Ast.TclassOrInterface tss -> ClassOrInterface (conv_type_specs tss)
-    | Ast.Tclass tss            -> Class (conv_type_specs tss)
-    | Ast.Tinterface tss        -> Interface (conv_type_specs tss)
-    | Ast.Tarray(ty, dims)      -> Array(of_javatype ty, dims)
+    | Ast.TclassOrInterface tss -> ClassOrInterface (conv_type_specs ~resolve tss)
+    | Ast.Tclass tss            -> Class (conv_type_specs ~resolve tss)
+    | Ast.Tinterface tss        -> Interface (conv_type_specs ~resolve tss)
+    | Ast.Tarray(ty, dims)      -> Array(of_javatype ~resolve ty, dims)
     | Ast.Tvoid                 -> Void
 
 
-  let make_class name = Class (conv_name name)
+  let make_class ?(resolve=true) name = Class (conv_name ~resolve name)
 
 end (* of module Type *)
 
@@ -716,7 +720,7 @@ module Modifier = struct
     | Transient 
     | Volatile 
     | Strictfp
-    | Annotation
+(*    | Annotation*)
     | Default
 
   let to_string m =
@@ -733,7 +737,7 @@ module Modifier = struct
       | Transient    -> "Transient"
       | Volatile     -> "Volatile"
       | Strictfp     -> "Strictfp"
-      | Annotation   -> "Annotation"
+(*      | Annotation   -> "Annotation"*)
       | Default      -> "Default"
     in
     "Modifier." ^ str
@@ -756,7 +760,7 @@ module Modifier = struct
     | Transient    -> "transient"
     | Volatile     -> "volatile"
     | Strictfp     -> "strictfp"
-    | Annotation   -> "@"
+(*    | Annotation   -> "@"*)
     | Default      -> "default"
 
   let to_short_string = function
@@ -771,7 +775,7 @@ module Modifier = struct
     | Transient    -> mkstr 8
     | Volatile     -> mkstr 9
     | Strictfp     -> mkstr 10
-    | Annotation   -> mkstr 11
+(*    | Annotation   -> mkstr 11*)
     | Default      -> mkstr 12
     
   let to_tag m = 
@@ -788,7 +792,7 @@ module Modifier = struct
       | Transient    -> "Transient"
       | Volatile     -> "Volatile"
       | Strictfp     -> "Strictfp"
-      | Annotation   -> "Annotation"
+(*      | Annotation   -> "Annotation"*)
       | Default      -> "Default"
     in
     name, []
@@ -2090,9 +2094,9 @@ let to_char lab =
 let to_elem_data = Astml.to_elem_data lang_prefix to_tag
 
 
-let of_javatype ty = (Type (Type.of_javatype ty))
+let of_javatype ?(resolve=true) ty = (Type (Type.of_javatype ~resolve ty))
 
-let of_classname name = Type (Type.make_class name)
+let of_classname ?(resolve=true) name = Type (Type.make_class ~resolve name)
 
 let of_literal lit = Primary (Primary.of_literal lit)
 
@@ -2226,6 +2230,9 @@ let relabel_allowed (lab1, lab2) =
     | Qualifier _, Primary (Primary.Name _)
     | Primary (Primary.FieldAccess _), Qualifier _ 
     | Qualifier _, Primary (Primary.FieldAccess _)
+
+    | Primary (Primary.Name _), Primary (Primary.FieldAccess _)
+    | Primary (Primary.FieldAccess _), Primary (Primary.Name _)
 
     | Primary _, Expression _ 
     | Expression _, Primary _
@@ -2379,6 +2386,13 @@ let is_sequence = function
 
   | _ -> false
 
+
+(* for change pattern detection *)
+
+let is_wildcard_bounds = function
+  | WildcardBoundsExtends
+  | WildcardBoundsSuper -> true
+  | _ -> false
 
 let is_if = function
   | Statement Statement.If -> true
@@ -3097,7 +3111,7 @@ let of_elem_data =
     "Transient",    (fun a -> mkmod Modifier.Transient);
     "Volatile",     (fun a -> mkmod Modifier.Volatile);
     "Strictfp",     (fun a -> mkmod Modifier.Strictfp);
-    "Annotation",   (fun a -> mkmod Modifier.Annotation);
+(*    "Annotation",   (fun a -> mkmod Modifier.Annotation);*)
     "Default",      (fun a -> mkmod Modifier.Default);
 
     "Name",                          (fun a -> mkp a Primary.(Name(find_name a)));

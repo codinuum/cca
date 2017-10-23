@@ -135,10 +135,11 @@ let pr_hovlist pr_sep pr = function
 
 let name_attribute_to_string = function
   | NApackage       -> "P"
-  | NAtype r        -> "T"^(resolve_result_to_str r)
+  | NAtype r        -> "T:"^(resolve_result_to_str r)
   | NAexpression    -> "E"
   | NAmethod        -> "M"
   | NApackageOrType -> "PT"
+  | NAstatic r      -> "S:"^(resolve_result_to_str r)
   | NAambiguous     -> "A"
   | NAunknown       -> "U"
 
@@ -412,7 +413,7 @@ let rec pr_primary prec p =
         (pr_lparen(); pr_expression 0 e; pr_rparen())
 
   | PclassInstanceCreation cic   -> pr_class_instance_creation cic
-  | PfieldAccess fa              -> pr_field_access fa
+  | PfieldAccess fa              -> pr_string "("; pr_field_access fa; pr_string ")_{FA}";
   | PmethodInvocation mi         -> pr_method_invocation mi
   | ParrayAccess aa              -> pr_array_access aa
   | ParrayCreationExpression ace -> pr_array_creation_expression ace

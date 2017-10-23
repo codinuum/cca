@@ -57,6 +57,7 @@ class type node_data_t = object ('self)
 
   method get_ident_use : string
 
+  method orig_lab_opt  : Obj.t option
 
   method set_binding : Binding.t -> unit
 

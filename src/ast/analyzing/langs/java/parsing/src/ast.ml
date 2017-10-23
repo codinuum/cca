@@ -46,7 +46,7 @@ type identifier_attribute =
   | IAparameter
   | IAvariable
   | IAlabel
-  | IAstatic
+  | IAstatic of string
   | IAtypeparameter
   | IAexpression
   | IAarray
@@ -62,7 +62,7 @@ let iattr_to_str = function
   | IAfield       -> "field"
   | IAparameter   -> "parameter"
   | IAvariable    -> "variable"
-  | IAstatic      -> "static member"
+  | IAstatic s    -> "static member"^(if s = "" then "" else ":"^s)
   | IAtypeparameter -> "type parameter"
   | IAexpression -> "expression"
   | IAarray -> "array"
@@ -143,6 +143,7 @@ type name_attribute =
   | NAexpression
   | NAmethod
   | NApackageOrType
+  | NAstatic of resolve_result
   | NAambiguous
   | NAunknown
 
@@ -153,7 +154,8 @@ let iattr_to_nattr = function
   | _ -> failwith "Ast.iattr_to_nattr"
 
 let get_resolved_name = function
-  | NAtype (R_resolved s) -> s
+  | NAtype (R_resolved s)
+  | NAstatic (R_resolved s) -> s
   | _ -> raise Not_found
 
 type name = { n_desc : name_desc; n_loc : loc; }
@@ -166,6 +168,11 @@ let set1 orig a =
   | NApackageOrType -> begin
       match a with
       | NApackage | NAtype _ -> orig := a
+      | _ -> ()
+  end
+  | NAexpression -> begin
+      match a with
+      | NAstatic _ -> orig := a
       | _ -> ()
   end
   | NAambiguous -> begin

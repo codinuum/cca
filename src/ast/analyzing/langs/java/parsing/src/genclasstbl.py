@@ -14,7 +14,7 @@ classpath_tbl = {
                  '/usr/lib/jvm/java-6-openjdk-amd64/jre/lib',
                  '/usr/lib/jvm/java-6-openjdk/jre/lib',
              ],
-    'darwin' : [ '/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home/jre/lib',
+    'darwin' : [ '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre/lib',
                  '/Library/Java/JavaVirtualMachines/jdk1.7.0_75.jdk/Contents/Home/jre/lib',
                  '/System/Library/Frameworks/JavaVM.framework/Classes',
              ],

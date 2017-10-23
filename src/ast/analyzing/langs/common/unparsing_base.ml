@@ -42,8 +42,11 @@ let pr_char        = Format.print_char
 let pr_bool        = Format.print_bool
 let pr_flush       = Format.print_flush
 
+let _pr_comma()    = pr_string ","
+let _pr_eq()       = pr_string "="
 let pr_comma()     = pr_string ", "
 let pr_eq()        = pr_string " = "
+
 let pr_lparen()    = pr_string "("
 let pr_rparen()    = pr_string ")"
 let pr_lbracket()  = pr_string "["
