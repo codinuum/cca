@@ -146,6 +146,26 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
   match getlab node with
   | L.Error -> ()
 
+  | L.CatchParameter(n, dims) ->
+      pb#open_box 0;
+      pr_selected ~tail:pr_space L.is_modifiers children;
+      pr_selected ~sep:pr_bor ~tail:pr_space L.is_type children;
+      pr_id n; pr_dims dims;
+      pb#close_box()
+
+  | L.ResourceSpec ->
+      pr_lparen();
+      pb#pr_hova pr_semicolon pr_node children;
+      pr_rparen()
+
+  | L.Resource(n, dims) ->
+      pb#open_box 0;
+      pr_selected ~tail:pr_space L.is_modifiers children;
+      pr_selected ~tail:pr_space L.is_type children;
+      pr_id n; pr_dims dims; pad 1; pr_string "="; pr_space();
+      pr_selected L.is_expression children;
+      pb#close_box()
+
   | L.ReferenceTypeElem n ->
       pr_selected ~sep:pr_space ~tail:pr_space L.is_annotation children;
       pr_name n;
@@ -249,9 +269,10 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
       pb#close_box()
 
   | L.AnnotationType i ->
+      let specs = get_specs children in
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~tail:pr_space L.is_modifiers children;
+      pr_selected ~tail:pr_space L.is_modifiers specs;
       pr_string "@interface "; pr_id i;
       pb#close_box(); 
       pr_selected ~blk_style L.is_annotationtypebody children; 
@@ -378,12 +399,18 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
       pr_string "extends "; 
       pb#pr_hova pr_comma pr_node children
 
-  | L.ATEDabstract i ->
+  | L.ElementDeclaration i ->
       pb#open_box 0;
       pr_selected ~tail:pad1 L.is_modifiers children;
-      pr_selected L.is_type children; pad 1; pr_id i;
-      pr_selected L.is_elementvalue children;
-      pr_semicolon()
+      pr_selected L.is_type children; pad 1; pr_id i; pr_string "()";
+      pr_selected L.is_annot_dim children;
+      pr_selected ~head:(fun _ -> pr_string " default ") L.is_elementvalue children;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.AnnotDim ->
+      pr_selected ~sep:pr_space ~tail:pr_space L.is_annotations children;
+      pr_string "[]";
 
   | L.FieldDeclarations _ -> pb#pr_a pr_space pr_node children
 
@@ -504,11 +531,13 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
       pb#pr_block_end()
 
   | L.SwitchBlockStatementGroup ->
+      pb#open_vbox 0;
       pr_selected ~sep:pr_space L.is_switchlabel children; pr_break 1 pb#indent;
       pb#open_vbox 0;
       pr_selected ~sep:pr_space
         (fun lab -> L.is_block lab || L.is_blockstatement lab)
         children;
+      pb#close_box();
       pb#close_box()
 
   | L.Statement stmt -> begin
@@ -558,15 +587,11 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
           pr_string " while ("; pr_node children.(1); pr_rparen(); pr_semicolon()
 
       | L.Statement.Try ->
-          pr_string "try "; pr_node children.(0);
-          if nchildren > 2 then begin
-	    pr_node children.(1); pad 1;
-	    pr_node children.(2)
-          end
-          else if nchildren = 2 then begin
-            pad 1;
-            pr_node children.(1)
-          end
+          pr_string "try ";
+          pr_selected ~tail:pad1 L.is_resource_spec children;
+          pr_selected ~tail:pad1 L.is_block children;
+          pr_selected ~tail:pad1 L.is_catches children;
+          pr_selected ~tail:pad1 L.is_finally children
 
       | L.Statement.Switch ->
           pr_string "switch ("; pr_node children.(0); pr_rparen(); pad 1;

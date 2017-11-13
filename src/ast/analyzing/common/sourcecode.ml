@@ -327,7 +327,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method to_elem_data = L.to_elem_data self#src_loc lab
 
-      method eq ndat = _label = ndat#_label
+      method eq ndat = _label = ndat#_label && self#orig_lab_opt = ndat#orig_lab_opt
 
       method subtree_equals ndat = 
 	self#eq ndat && _digest = ndat#_digest && _digest <> None

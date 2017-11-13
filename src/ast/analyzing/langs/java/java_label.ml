@@ -163,7 +163,13 @@ let rec conv_name ?(resolve=true) n =
         | Ast.NAtype _, Ast.NAtype _ -> "$"
         | _ -> "."
       in
-      (conv_name ~resolve name)^sep^ident
+      if resolve then
+        try
+	  Ast.get_resolved_name !attr
+        with
+	  Not_found -> (conv_name ~resolve name)^sep^ident
+      else
+        (conv_name ~resolve name)^sep^ident
 
 let conv_loc 
     { Ast.Loc.start_offset = so;
@@ -1518,7 +1524,7 @@ type t = (* Label *)
   | Arguments
   | NamedArguments of name (* method *)
   | Parameters of name (* method *)
-  | Parameter of name * int * bool
+  | Parameter of name * dims * bool
   | TypeParameter of name (* type variable *)
   | TypeParameters of name
   | ArrayInitializer
@@ -1555,7 +1561,7 @@ type t = (* Label *)
   | TypeDeclarations
   | CompilationUnit
 
-  | ATEDabstract of name
+  | ElementDeclaration of name
 
   | FieldDeclarations of name
 
@@ -1563,6 +1569,13 @@ type t = (* Label *)
   | InferredParameter of name
 
   | ReferenceTypeElem of name
+
+  | ResourceSpec
+  | Resource of name * dims
+
+  | CatchParameter of name * dims
+
+  | AnnotDim
 
   | Error
 
@@ -1649,12 +1662,19 @@ let rec to_string = function
   | ImportDeclarations                      -> "ImportDeclarations"
   | TypeDeclarations                        -> "TypeDeclarations"
   | CompilationUnit                         -> "CompilationUnit"
-  | ATEDabstract name                       -> sprintf "ATEDabstract(%s)" name
+  | ElementDeclaration name                 -> sprintf "ElementDeclaration(%s)" name
   | FieldDeclarations name                  -> sprintf "FieldDeclarations(%s)" name
   | InferredParameters                      -> "InferredParameters"
   | InferredParameter name                  -> sprintf "InferredParameter(%s)" name
 
   | ReferenceTypeElem name                  -> sprintf "ReferenceTypeElem(%s)" name
+
+  | ResourceSpec                            -> sprintf "ResourceSpec"
+  | Resource(name, dims)                    -> sprintf "Resource(%s,%d)" name dims
+
+  | CatchParameter(name, dims)              -> sprintf "CatchParameter(%s,%d)" name dims
+
+  | AnnotDim                                -> "AnnotDim"
 
 let anonymize ?(more=false) = function
   | Type ty                        -> Type (Type.anonymize ty)
@@ -1697,13 +1717,15 @@ let anonymize ?(more=false) = function
   | IDtypeOnDemand name            -> IDtypeOnDemand ""
   | IDsingleStatic(name, ident)    -> IDsingleStatic("", "")
   | IDstaticOnDemand name          -> IDstaticOnDemand ""
-  | ATEDabstract name              -> ATEDabstract ""
+  | ElementDeclaration name        -> ElementDeclaration ""
   | FieldDeclarations name         -> FieldDeclarations ""
   | ForInit tid                    -> ForInit (anonymize_tid tid)
   | ForCond tid                    -> ForCond (anonymize_tid tid)
   | ForUpdate tid                  -> ForUpdate (anonymize_tid tid)
   | InferredParameter name         -> InferredParameter ""
   | ReferenceTypeElem name         -> ReferenceTypeElem ""
+  | Resource(name, dims)           -> Resource("", 0)
+  | CatchParameter(name, dims)     -> CatchParameter("", 0)
 
   | lab                            -> lab
 
@@ -1795,11 +1817,15 @@ let rec to_simple_string = function
   | ImportDeclarations          -> "<imports>"
   | TypeDeclarations            -> "<ty_decls>"
   | CompilationUnit             -> "<compilation_unit>"
-  | ATEDabstract name           -> "@interface "^name
+  | ElementDeclaration name     -> "@interface "^name
   | FieldDeclarations name      -> "<fdecls>"
   | InferredParameters          -> "<inferred_parameters>"
   | InferredParameter name      -> name
   | ReferenceTypeElem name      -> "<reference_type_elem>"
+  | ResourceSpec                -> "<resource_spec>"
+  | Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d" dims)
+  | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
+  | AnnotDim                    -> "[]"
   | Error               -> "<ERROR>"
 
 
@@ -1875,7 +1901,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | ImportDeclarations                      -> mkstr 68
   | TypeDeclarations                        -> mkstr 69
   | CompilationUnit                         -> mkstr 70
-  | ATEDabstract name                       -> catstr [mkstr 71; name]
+  | ElementDeclaration name                 -> catstr [mkstr 71; name]
   | FieldDeclarations name                  -> catstr [mkstr 72; name]
   | LocalVariableDeclaration(isstmt, vdids) -> catstr [mkstr 73; if isstmt then "S" else ""; vdids_to_string vdids]
   | WildcardBoundsExtends                   -> mkstr 74
@@ -1886,6 +1912,10 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Error                                   -> mkstr 79
   | SwitchBlock                             -> mkstr 80
   | ConstructorBody(name, s)                -> combo 81 [name;s]
+  | ResourceSpec                            -> mkstr 82
+  | Resource(name, dims)                    -> combo 83 [name; string_of_int dims]
+  | CatchParameter(name, dims)              -> combo 84 [name; (string_of_int dims)]
+  | AnnotDim                                -> mkstr 85
 
 let to_tag l =
   let name, attrs = 
@@ -1955,7 +1985,7 @@ let to_tag l =
     | Super                       -> "Super", []
     | Qualifier q                 -> "Qualifier", ["name",xmlenc q]
     | ReturnType name             -> "ReturnType", ["name",xmlenc name]
-    | Throws name                 -> "Throws", ["name",name]
+    | Throws name                 -> "Throws", ["name",xmlenc name]
     | MethodBody name             -> "MethodBody", ["name",xmlenc name]
     | Specifier k                 -> (kind_to_string k)^"Specifier", []
     | Class name                  -> "ClassDeclaration", ["name",xmlenc name]
@@ -1982,7 +2012,7 @@ let to_tag l =
     | TypeDeclarations            -> "TypeDeclarations", []
 
 (* annotation type element declaration *)
-    | ATEDabstract name           -> "AbstractAnnotationTypeElementDeclaration", ["name",xmlenc name] 
+    | ElementDeclaration name     -> "AnnotationTypeElementDeclaration", ["name",xmlenc name]
 
     | FieldDeclarations name      -> "FieldDeclarations", ["name",xmlenc name]
 
@@ -1997,6 +2027,15 @@ let to_tag l =
           "LocalVariableDeclaration"), [vdids_attr_name,vdids_to_string vdids]
 
     | ReferenceTypeElem name      -> "ReferenceTypeElem", ["name",xmlenc name]
+
+    | ResourceSpec                -> "ResourceSpec", []
+    | Resource(name, dims)        -> "Resource", ["name",xmlenc name;
+                                                  dims_attr_name,string_of_int dims]
+
+    | CatchParameter(name, dims)  -> "CatchParameter", ["name",xmlenc name;
+                                                        dims_attr_name,string_of_int dims]
+
+    | AnnotDim                    -> "AnnotDim", []
 
     | Error -> "Error", []
   in
@@ -2076,7 +2115,7 @@ let to_char lab =
     | ImportDeclarations -> 72
     | TypeDeclarations -> 73
     | CompilationUnit -> 74
-    | ATEDabstract name -> 75
+    | ElementDeclaration name -> 75
     | FieldDeclarations name -> 76
     | LocalVariableDeclaration(isstmt, vdids) -> 77
     | WildcardBoundsExtends -> 78
@@ -2087,6 +2126,10 @@ let to_char lab =
     | Error -> 83
     | SwitchBlock -> 84
     | ConstructorBody _ -> 85
+    | ResourceSpec -> 86
+    | Resource _ -> 87
+    | CatchParameter(name, dims) -> 88
+    | AnnotDim                   -> 89
   in
   char_pool.(to_index lab)
 
@@ -2303,10 +2346,13 @@ let is_named = function
   | IDtypeOnDemand _
   | IDsingleStatic _
   | IDstaticOnDemand _
-  | ATEDabstract _
+  | ElementDeclaration _
   | FieldDeclarations _
   | LocalVariableDeclaration _
   | InferredParameter _
+  | ReferenceTypeElem _
+  | Resource _
+  | CatchParameter _
     -> true
 
   | _ -> false
@@ -2336,6 +2382,8 @@ let is_named_orig = function
   | IDsingleStatic _
   | IDstaticOnDemand _
   | InferredParameter _
+  | Resource _
+  | CatchParameter _
     -> true
 
   | _ -> false
@@ -2406,6 +2454,10 @@ let is_do = function
   | Statement Statement.Do -> true
   | _ -> false
 
+let is_try = function
+  | Statement Statement.Try -> true
+  | _ -> false
+
 let is_return = function
   | Statement Statement.Return -> true
   | _ -> false
@@ -2420,6 +2472,10 @@ let is_method = function
 
 let is_parameter = function
   | Parameter _ -> true
+  | _ -> false
+
+let is_va_parameter = function
+  | Parameter(_, _, va) -> va
   | _ -> false
 
 let is_parameters = function
@@ -2877,6 +2933,29 @@ let is_type_bound = function
   | TypeBound -> true
   | _ -> false
 
+let is_catches = function
+  | Catches -> true
+  | _ -> false
+
+let is_finally = function
+  | Finally -> true
+  | _ -> false
+
+let is_resource_spec = function
+  | ResourceSpec -> true
+  | _ -> false
+
+let is_resource = function
+  | Resource _ -> true
+  | _ -> false
+
+let is_catch_parameter = function
+  | CatchParameter _ -> true
+  | _ -> false
+
+let is_annot_dim = function
+  | AnnotDim -> true
+  | _ -> false
 
 let scope_creating lab =
   is_compilationunit lab ||
@@ -2886,7 +2965,8 @@ let scope_creating lab =
   is_class_or_interface lab ||
   is_method lab ||
   is_methodbody lab ||
-  is_block lab
+  is_block lab ||
+  is_try lab
 
 
 (* for fact extraction *)
@@ -2932,12 +3012,15 @@ let get_name lab =
     | AnnotationTypeBody name
     | InterfaceBody name
     | PackageDeclaration name
-    | ATEDabstract name
+    | ElementDeclaration name
     | IDsingle name
     | IDtypeOnDemand name
     | IDstaticOnDemand name 
     | FieldDeclarations name
     | InferredParameter name
+    | ReferenceTypeElem name
+    | Resource(name, _)
+    | CatchParameter(name, _)
       -> name
 
     | LocalVariableDeclaration(_, name_dim_list) -> 
@@ -3262,12 +3345,16 @@ let of_elem_data =
     "StaticImportOnDemandDeclaration", (fun a -> IDstaticOnDemand(find_name a));
     "ImportDeclarations",                       (fun a -> ImportDeclarations);
     "TypeDeclarations",                         (fun a -> TypeDeclarations);
-    "AbstractAnnotationTypeElementDeclaration", (fun a -> ATEDabstract(find_name a));
+    "AnnotationTypeElementDeclaration",         (fun a -> ElementDeclaration(find_name a));
     "FieldDeclarations",                        (fun a -> FieldDeclarations(find_name a));
     "InferredParameters",                       (fun a -> InferredParameters);
     "InferredParameter",                        (fun a -> InferredParameter(find_name a));
     "ReferenceTypeElem",                        (fun a -> ReferenceTypeElem(find_name a));
     "CompilationUnit",                          (fun a -> CompilationUnit);
+    "ResourceSpec",                             (fun a -> ResourceSpec);
+    "Resource",                                 (fun a -> Resource(find_name a, find_dims a));
+    "CatchParameter",                           (fun a -> CatchParameter(find_name a, find_dims a));
+    "AnnotDim",                                 (fun a -> AnnotDim);
     "Error",                                    (fun a -> Error);
    ]
   in

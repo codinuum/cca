@@ -382,6 +382,13 @@ type 'node mutation =
   | Minsert of float (* offset *) * 'node list
   | Mdelete
 
+let mutation_to_string = function
+  | Minsert(o, cl) ->
+      sprintf "ins(%s):\n%s" (Path.Elem.ofs_to_str o)
+        (String.concat "\n"
+           (List.map (fun x -> "     "^x#initial_to_string) cl));
+  | Mdelete -> "del"
+
 
 class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
   let uid = uid_gen#gen in
@@ -844,8 +851,8 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
     method v_delete_children = List.iter self#v_delete_child
 
     method end_mutation() = (* flush mutations *)
-      DEBUG_MSG "%s" self#to_string;
-      (*printf "!!! end_mutation: %s\n" self#to_string;*)
+      DEBUG_MSG "%s" self#initial_to_string;
+      (*printf "!!! end_mutation: %s\n" self#initial_to_string;*)
 
       let buf = ref [] in
       let push x = buf := x :: !buf in
@@ -879,8 +886,8 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
       else begin
         Array.iteri
           (fun pos child ->
-            DEBUG_MSG "pos=%d %s" pos child#to_string;
-            (*printf "!!! pos=%d %s\n" pos child#to_string;*)
+            DEBUG_MSG "pos=%d %s" pos child#initial_to_string;
+            (*printf "!!! pos=%d %s\n" pos child#initial_to_string;*)
             
             try
               let ms = Hashtbl.find mutation_tbl pos in
@@ -900,13 +907,8 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                     match m with
                     | Minsert(o, cl) ->
 
-                        DEBUG_MSG " ins(%s):\n%s" (Path.Elem.ofs_to_str o)
-                          (String.concat "\n"
-                             (List.map (fun x -> "     "^x#initial_to_string) cl));
-
-                        (*printf "!!! ins(%s):\n%s\n" (Path.Elem.ofs_to_str o)
-                          (String.concat "\n"
-                             (List.map (fun x -> "     "^x#initial_to_string) cl));*)
+                        DEBUG_MSG " %s" (mutation_to_string m);
+                        (*printf "!!! %s\n" (mutation_to_string m);*)
 
                         ins_tbl_add o m;
                         (d, i + 1, z || o = 0.)
@@ -1705,7 +1707,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
         (fun uid mutations ->
           try
             let nd = self#search_node_by_uid uid in
-            DEBUG_MSG "%a (%d)" UID.p uid (List.length mutations);
+            DEBUG_MSG "%a (%d)" UID.ps uid (List.length mutations);
 
             Xset.add extra nd;
             Xset.add_set extra (self#v_mutate uid mutations)
@@ -1755,7 +1757,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
            : int * float * 'node * ('node * Path.Elem.t) list)
         =
       DEBUG_MSG "%s\npartial=%B pos=%d ofs=%s subroot=%a fnode_felem_list:\n%s"
-        nd#initial_to_string partial pos (Path.Elem.ofs_to_str ofs) UID.p subroot#uid
+        nd#initial_to_string partial pos (Path.Elem.ofs_to_str ofs) UID.ps subroot#uid
         (String.concat "\n"
            (List.map (fun (n, e) ->
              sprintf "%a(%s)" UID.ps n#uid (Path.Elem.to_string e)) fnode_felem_list));
@@ -2776,7 +2778,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 	    (fun (nd, i, b) elm ->
               try
                 if b then begin
-                  DEBUG_MSG "  %a(%a)" GI.p nd#gindex UID.p nd#uid;
+                  DEBUG_MSG "  %a(%a)" GI.ps nd#gindex UID.ps nd#uid;
                   (*Printf.printf "!!!  %s ->\n" nd#to_string;*)
 
                   if elm.Path.Elem.ofs <> 0. && not ignore_ofs then
@@ -2784,7 +2786,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 
 	          let next = get_child nd elm.Path.Elem.pos in
 
-                  DEBUG_MSG " -> %a(%a)" GI.p next#gindex UID.p next#uid;
+                  DEBUG_MSG " -> %a(%a)" GI.p next#gindex UID.ps next#uid;
 
 	          (next, i + 1, b)
                 end
@@ -2796,7 +2798,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 	    ) (self#root, 0, true) elems
 	in
 	DEBUG_MSG "path=%s node=%s" (Path.to_string path) node#to_string;
-        DEBUG_MSG "    %a(%a)" GI.p node#gindex UID.p node#uid;
+        DEBUG_MSG "    %a(%a)" GI.p node#gindex UID.ps node#uid;
 
 	(*Printf.printf "!!! path=%s node=%s\n" (Path.to_string path) node#to_string;*)
 

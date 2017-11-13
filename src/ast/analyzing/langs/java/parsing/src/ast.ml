@@ -68,9 +68,10 @@ let iattr_to_str = function
   | IAarray -> "array"
 
 
-type frame_kind = FKtypeparameter | FKother
+type frame_kind = FKclass of string | FKtypeparameter | FKother
 
 let frame_kind_to_string = function
+  | FKclass s -> "class:"^s
   | FKtypeparameter -> "typeparameter"
   | FKother -> "other"
 
@@ -80,6 +81,11 @@ class frame kind = object (self)
   val qtbl = (Hashtbl.create 0 : (string, identifier_attribute) Hashtbl.t)
 
   method is_typeparameter_frame = kind = FKtypeparameter
+
+  method get_class_name =
+    match kind with
+    | FKclass n -> n
+    | _ -> raise Not_found
 
   method private _add t id attr =
     if not (List.mem attr (Hashtbl.find_all t id)) then
@@ -502,30 +508,35 @@ and interface_declaration_desc =
   | IFDnormal of interface_declaration_head * interface_body
   | IFDannotation of interface_declaration_head	* annotation_type_body
 
-and annotation_type_body = 
-    { atb_element_declarations : annotation_type_element_declaration list;
-      atb_loc                  : loc;
+and annotation_type_body =
+    { atb_member_declarations : annotation_type_member_declaration list;
+      atb_loc                 : loc;
     }
 
 and constant_declaration = field_declaration
 
 and default_value = element_value
 
-and annotation_type_element_declaration = 
-    { ated_desc : annotation_type_element_declaration_desc;
-      ated_loc : loc;
+and annotation_type_member_declaration =
+    { atmd_desc : annotation_type_member_declaration_desc;
+      atmd_loc  : loc;
     }
-and annotation_type_element_declaration_desc = 
-  | ATEDconstant of constant_declaration
-  | ATEDabstract of 
-      modifiers option * 
-	javatype * 
-	identifier * 
+and annotation_type_member_declaration_desc =
+  | ATMDconstant of constant_declaration
+  | ATMDelement of
+      modifiers option *
+	javatype *
+	identifier *
+        annot_dim list *
 	default_value option
 
-  | ATEDclass of class_declaration
-  | ATEDinterface of interface_declaration
-  | ATEDempty
+  | ATMDclass of class_declaration
+  | ATMDinterface of interface_declaration
+  | ATMDempty
+
+and annot_dim = { ad_annotations : annotations;
+                  ad_loc : loc;
+                }
 
 and interface_body = { ib_member_declarations : interface_member_declaration list;
 		       ib_loc                 : loc;
@@ -576,7 +587,7 @@ and statement_desc =
   | Sreturn of expression option
   | Ssynchronized of expression * block
   | Sthrow of expression
-  | Stry of block * catches option * finally option
+  | Stry of resource_spec option * block * catches option * finally option
 
   | Slabeled of identifier * statement
   | SifThen of expression * statement
@@ -741,7 +752,7 @@ and switch_block = { sb_switch_block_stmt_grps : switch_block_stmt_grp list;
                      sb_loc                    : loc;
                    }
 
-and catch = { c_formal_parameter : formal_parameter;
+and catch = { c_formal_parameter : catch_formal_parameter;
 	      c_block            : block;
 	      c_loc              : loc;
 	    }
@@ -751,6 +762,25 @@ and catches = catch list
 and finally = { f_block : block;
 		f_loc   : loc;
 	      }
+
+and catch_formal_parameter =
+        { cfp_modifiers              : modifiers option;
+          cfp_type_list              : javatype list;
+          cfp_variable_declarator_id : variable_declarator_id;
+          cfp_loc                    : loc;
+        }
+
+and resource_spec = { rs_resources : resource list;
+                      rs_loc       : loc;
+                    }
+
+and resource =
+    { r_modifiers              : modifiers option;
+      r_type                   : javatype;
+      r_variable_declarator_id : variable_declarator_id;
+      r_expr                   : expression;
+      r_loc                    : loc;
+    }
 
 type package_declaration = { pd_annotations : annotations; 
 			     pd_name        : name; 
@@ -947,7 +977,8 @@ and proc_statement f s =
   | Ssynchronized(e, b) ->
       proc_expression f e;
       proc_block f b
-  | Stry(b, cts_op, fin_op) ->
+  | Stry(rs_op, b, cts_op, fin_op) ->
+      proc_op proc_resource_spec f rs_op;
       proc_block f b;
       proc_op (fun f catches -> List.iter (proc_catch f) catches) f cts_op;
       proc_op (fun f fin -> proc_block f fin.f_block) f fin_op
@@ -973,9 +1004,18 @@ and proc_statement f s =
   | Sassert2(e0, e1) -> List.iter (proc_expression f) [e0; e1]
   | _ -> ()
 
+and proc_resource_spec f rs = List.iter (proc_resource f) rs.rs_resources
+
+and proc_resource f r =
+  proc_type f r.r_type;
+  proc_expression f r.r_expr
+
 and proc_catch f c =
-  proc_formal_parameter f c.c_formal_parameter;
+  proc_catch_formal_parameter f c.c_formal_parameter;
   proc_block f c.c_block
+
+and proc_catch_formal_parameter f cfp =
+  List.iter (proc_type f) cfp.cfp_type_list
 
 and proc_for_init f fi =
   match fi.fi_desc with
@@ -1031,16 +1071,17 @@ and proc_interface_declaration f ifd =
       proc_interface_declaration_head f ih;
       proc_interface_body f ib
   | IFDannotation(ih, atb) ->
-      List.iter (proc_annotation_type_element_declaration f) atb.atb_element_declarations
+      List.iter (proc_annotation_type_member_declaration f) atb.atb_member_declarations
 
-and proc_annotation_type_element_declaration f ated =
-  match ated.ated_desc with
-  | ATEDconstant fd -> proc_field_declaration f fd
-  | ATEDabstract(_, ty, _, dv_op) ->
+and proc_annotation_type_member_declaration f atmd =
+  match atmd.atmd_desc with
+  | ATMDconstant fd -> proc_field_declaration f fd
+  | ATMDelement(_, ty, _, dl, dv_op) ->
       proc_type f ty;
+      List.iter (fun d -> List.iter (proc_annotation f) d.ad_annotations) dl;
       proc_op proc_element_value f dv_op
-  | ATEDclass cd -> proc_class_declaration f cd
-  | ATEDinterface id -> proc_interface_declaration f id
+  | ATMDclass cd -> proc_class_declaration f cd
+  | ATMDinterface id -> proc_interface_declaration f id
   | _ -> ()
 
 and proc_interface_body f ib =

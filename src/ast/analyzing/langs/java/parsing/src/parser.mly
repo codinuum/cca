@@ -236,6 +236,10 @@ unann_class_or_interface_type:
     }
 ;
 
+%inline
+unann_class_type:
+| c=unann_class_or_interface_type { c }
+;
 
 %inline
 class_type:
@@ -286,7 +290,7 @@ type_arguments_opt:
 
 type_arguments:
 | LT GT { mktyargs $startofs $endofs [] }
-| lt=LT ts=type_argument_list_1 
+| LT ts=type_argument_list_1 
     { 
       let targs, loc2 = ts in
       mktyargs $startofs $endofs targs 
@@ -659,8 +663,8 @@ class_declaration_head0:
 | m_opt=modifiers_opt CLASS i=identifier 
     { 
       let _, id = i in
-      register_identifier_as_class (mkfqn_cls id) id; 
-      begin_scope(); 
+      register_identifier_as_class (mkfqn_cls id) id;
+      begin_scope ~kind:(FKclass id) ();
       m_opt, id
     }
 ;
@@ -745,7 +749,7 @@ enum_declaration_head0:
       | Common.JLS3 | Common.JLSx ->
 	  env#set_java_lang_spec_JLS3;
 	  register_identifier_as_class (mkfqn_cls id) id;
-	  begin_scope(); 
+	  begin_scope ~kind:(FKclass id) ();
 	  m_opt, id
       | Common.JLS2 ->
 	  parse_error $symbolstartofs $endofs "'enum' declaration is not available in JLS2"
@@ -1081,7 +1085,7 @@ normal_interface_declaration_head0:
     { 
       let _, id = i in
       register_identifier_as_interface (mkfqn_cls id) id; 
-      begin_scope(); 
+      begin_scope ~kind:(FKclass id) ();
       m_opt, id
     }
 ;
@@ -1109,7 +1113,7 @@ annotation_type_declaration_head:
     { 
       let _, id = i in
       register_identifier_as_interface (mkfqn_cls id) id;
-      begin_scope();
+      begin_scope ~kind:(FKclass id) ();
       mkifh $startofs $endofs m_opt id None None
     }
 ;
@@ -1122,17 +1126,17 @@ annotation_type_declaration:
 ;
 
 annotation_type_body:
-| LBRACE a=annotation_type_element_declarations0 RBRACE { end_scope(); mkatb $startofs $endofs a }
+| LBRACE a=annotation_type_member_declarations0 RBRACE { end_scope(); mkatb $startofs $endofs a }
 ;
 
 %inline
-annotation_type_element_declarations0:
-| l=list(annotation_type_element_declaration) { l }
+annotation_type_member_declarations0:
+| l=list(annotation_type_member_declaration) { l }
 ;
 
-annotation_type_element_declaration:
-| c=constant_declaration { mkated $startofs $endofs (ATEDconstant c) }
-| m_opt=modifiers_opt j=unann_type i=identifier LPAREN RPAREN d=default_value_opt SEMICOLON 
+annotation_type_member_declaration:
+| c=constant_declaration { mkatmd $startofs $endofs (ATMDconstant c) }
+| m_opt=modifiers_opt j=unann_type i=identifier LPAREN RPAREN a=ann_dims0 d=default_value_opt SEMICOLON 
     { 
       let loc = 
 	match m_opt with
@@ -1140,12 +1144,12 @@ annotation_type_element_declaration:
 	| Some _ -> get_loc $symbolstartofs $endofs
       in
       let _, id = i in
-      _mkated loc (ATEDabstract(m_opt, j, id, d)) 
+      _mkatmd loc (ATMDelement(m_opt, j, id, a, d))
     }
-| c=class_declaration     { _mkated c.cd_loc (ATEDclass c)  }
-| e=enum_declaration      { _mkated e.cd_loc (ATEDclass e) }
-| i=interface_declaration { _mkated i.ifd_loc (ATEDinterface i) }
-| SEMICOLON               { mkated $startofs $endofs ATEDempty }
+| c=class_declaration     { _mkatmd c.cd_loc (ATMDclass c)  }
+| e=enum_declaration      { _mkatmd e.cd_loc (ATMDclass e) }
+| i=interface_declaration { _mkatmd i.ifd_loc (ATMDinterface i) }
+| SEMICOLON               { mkatmd $startofs $endofs ATMDempty }
 ;
 
 default_value_opt:
@@ -1154,6 +1158,21 @@ default_value_opt:
 
 default_value:
 | DEFAULT e=element_value { e }
+;
+
+%inline
+ann_dims0:
+| (* *)      { [] }
+| a=ann_dims { a }
+;
+
+ann_dims:
+|            a=ann_dim { [a] }
+| d=ann_dims a=ann_dim { d @ [a] }
+;
+
+ann_dim:
+| a=annotations0 LBRACKET RBRACKET { mkad $startofs $endofs a }
 ;
 
 extends_interfaces_opt:
@@ -1500,9 +1519,37 @@ synchronized_statement:
 ;
 
 try_statement:
-| TRY b=block c=catches           { mkstmt $startofs $endofs (Stry(b, Some c, None)) }
-| TRY b=block           f=finally { mkstmt $startofs $endofs (Stry(b, None, Some f)) }
-| TRY b=block c=catches f=finally { mkstmt $startofs $endofs (Stry(b, Some c, Some f)) }
+| TRY r_opt=resource_spec_opt b=block c=catches           { mkstmt $startofs $endofs (Stry(r_opt, b, Some c, None)) }
+| TRY r_opt=resource_spec_opt b=block           f=finally { mkstmt $startofs $endofs (Stry(r_opt, b, None, Some f)) }
+| TRY r_opt=resource_spec_opt b=block c=catches f=finally { mkstmt $startofs $endofs (Stry(r_opt, b, Some c, Some f)) }
+| TRY r_opt=resource_spec_opt b=block                     { mkstmt $startofs $endofs (Stry(r_opt, b, None, None)) }
+;
+
+%inline
+resource_spec_opt:
+| r_opt=ioption(resource_spec) { r_opt }
+;
+
+resource_spec:
+| LPAREN rl=resource_list ioption(SEMICOLON) RPAREN { mkresspec $symbolstartofs $endofs rl }
+;
+
+resource_list:
+|                           r=resource { [r] }
+| l=resource_list SEMICOLON r=resource { l @ [r] }
+;
+
+resource:
+| m_opt=variable_modifiers_opt t=unann_type v=variable_declarator_id EQ e=expression 
+    { 
+      let loc = 
+	match m_opt with
+	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+	| Some _ -> get_loc $symbolstartofs $endofs
+      in
+      register_identifier_as_variable (fst v) t;
+      mkres loc m_opt t v e
+    }
 ;
 
 %inline
@@ -1513,8 +1560,26 @@ catches:
 catch_clause_header:
 | CATCH { begin_scope() }
 
+catch_formal_parameter:
+| ms_opt=variable_modifiers_opt tl=catch_type d=variable_declarator_id
+    {
+      let loc = 
+	match ms_opt with
+	| None -> Loc.merge (List.hd tl).ty_loc (get_loc $symbolstartofs $endofs)
+	| Some _ -> get_loc $symbolstartofs $endofs
+      in
+      List.iter (register_identifier_as_parameter (fst d)) tl;
+      mkcfp loc ms_opt tl d
+    }
+;
+
+catch_type:
+|                 t=unann_class_type { [t] }
+| l=catch_type OR t=class_type       { l @ [t] }
+;
+
 catch_clause: 
-| catch_clause_header LPAREN f=formal_parameter RPAREN b=block 
+| catch_clause_header LPAREN f=catch_formal_parameter RPAREN b=block 
     { end_scope(); mkcatch $startofs $endofs f b }
 ;
 

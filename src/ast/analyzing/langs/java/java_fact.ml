@@ -53,8 +53,9 @@ let p_declared_by    = mkjres "declaredBy"
 let p_requires       = mkjres "requires"
 let p_successor      = mkjres "successor"
 
-let p_nparams = mkjres "nParameters"
-let p_nargs   = mkjres "nArguments"
+let p_nparams    = mkjres "nParameters"
+let p_nargs      = mkjres "nArguments"
+let p_is_va_meth = mkjres "isVariableArityMethod"
 
 let getlab = getlab
 
@@ -194,16 +195,24 @@ class extractor options cache_path tree = object (self)
       if L.is_method lab || L.is_ctor lab then begin
 	let signature = L.annotation_to_string (Tree.get_annotation nd) in
 	self#add (entity, p_signature, mklit signature);
-	let name = L.get_name lab in
+	let name =
+          if L.is_ctor lab then
+            "<init>"
+          else
+            L.get_name lab
+        in
 	self#add (entity, p_name, mklit name);
 
         let nparams = ref 0 in
+        let is_va = ref false in
         begin
           try
             Array.iter
               (fun c ->
                 if L.is_parameters (getlab c) then begin
                   nparams := Array.length c#initial_children;
+                  let last_param = c#initial_children.(!nparams - 1) in
+                  is_va := L.is_va_parameter (getlab last_param);
                   raise Exit
                 end
               ) nd#initial_children
@@ -212,6 +221,8 @@ class extractor options cache_path tree = object (self)
         end;
         self#add (entity, p_nparams, Triple.make_nn_int_literal !nparams);
 	self#add (entity, p_extended_name, mklit (Printf.sprintf "%s#%d" name !nparams));
+        if !is_va then
+          self#add (entity, p_is_va_meth, Triple.l_true);
 
 (*
   stack#register name nd;
@@ -325,6 +336,11 @@ class extractor options cache_path tree = object (self)
 	  self#add (entity, p_initializer, self#mkentity rhs_nd)
       end;
 
+      if L.is_resource lab then begin
+	let name = L.get_name lab in
+        stack#register name nd
+      end;
+
       if L.is_primaryname lab then begin
 	let name = L.get_name lab in
 	try
@@ -344,7 +360,7 @@ class extractor options cache_path tree = object (self)
       end;
 
       if L.is_named_orig lab then
-	if L.is_method lab || L.is_invocation_or_instance_creation lab then
+	if L.is_method lab || L.is_ctor lab || L.is_invocation_or_instance_creation lab then
 	  ()
 	else
 	  self#add (entity, p_name, mklit (L.get_name lab));

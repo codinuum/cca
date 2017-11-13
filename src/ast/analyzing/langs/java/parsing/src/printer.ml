@@ -38,6 +38,8 @@ let pr_cut      = print_cut
 let pr_comma()  = print_string ","
 let pr_lparen() = print_string "("
 let pr_rparen() = print_string ")"
+let pr_semicolon() = print_string ";"
+let pr_bor()    = print_string "|"
 
 let pad i = pr_string (String.make i ' ')
 
@@ -195,7 +197,7 @@ let rec type_to_short_string dims ty =
     end
     | TclassOrInterface tspecs
     | Tclass tspecs
-    | Tinterface tspecs -> (list_to_string type_spec_to_short_string "." tspecs)
+    | Tinterface tspecs -> type_specs_to_short_string tspecs
 
     | Tarray(ty, dims') -> type_to_short_string (dims + dims') ty
 
@@ -203,23 +205,32 @@ let rec type_to_short_string dims ty =
 
   in sprintf "%s%s" dim_str base
 
+and type_specs_to_short_string = function
+  | [] -> ""
+  | [tspec] -> sprintf "L%s;" (type_spec_to_short_string ~resolve:true tspec)
+  | tspec::ts ->
+      sprintf "L%s.%s;"
+        (type_spec_to_short_string ~resolve:true tspec)
+        (list_to_string type_spec_to_short_string "." ts)
 
-and type_spec_to_short_string = function
-  | TSname(al, n) ->
-      let attr = get_name_attribute n in
-      let lname = name_to_simple_string n in
-      let fqn = 
-	match attr with
-	| NAtype r -> resolve_result_to_str r
-	| _ -> lname
-      in
-      sprintf "%sL%s;" (annotations_to_string al) fqn
-
-  | TSapply(al, n, tyargs) -> 
-      sprintf "%s%s%s"
-        (annotations_to_string al)
-	(name_to_simple_string n) 
-	(type_arguments_to_short_string tyargs)
+and type_spec_to_short_string ?(resolve=false) tspec =
+  let n_to_s =
+    if resolve then
+      fun n ->
+        let lname = name_to_simple_string n in
+        let attr = get_name_attribute n in
+        let fqn =
+	  match attr with
+	  | NAtype r -> resolve_result_to_str r
+	  | _ -> lname
+        in
+        fqn
+    else
+      name_to_simple_string
+  in
+  match tspec with
+  | TSname(_, n)
+  | TSapply(_, n, _) -> n_to_s n
 
 and annotations_to_string ?(show_attr=false) = function
   | [] -> ""
@@ -740,13 +751,19 @@ and pr_statement sty s =
       pr_string "synchronized ("; pr_expression 0 e; pr_rparen();
       pr_block sty b
   | Sthrow e -> pr_string "throw "; pr_expression 0 e; pr_string ";"
-  | Stry(b, cs_opt, fin_opt) -> begin
-      pr_string "try"; pr_block_short b;
+  | Stry(rs_opt, b, cs_opt, fin_opt) -> begin
+      pr_string "try";
+      begin
+        match rs_opt with
+        | Some rs -> pad 1; pr_resource_spec rs
+        | None -> ()
+      end;
+      pr_block_short b;
       match cs_opt, fin_opt with
       | Some cs, None -> pad 1; pr_catches_short cs
       | None, Some fin -> pad 1; pr_finally_short fin
       | Some cs, Some fin ->
-	  pr_catches_short cs; pad 1;
+	  pad 1; pr_catches_short cs; pad 1;
 	  pr_finally_short fin
       | _ -> () (* impossible *)
   end
@@ -781,11 +798,34 @@ and pr_statement sty s =
 
   | Serror -> pr_string "<ERROR>"
 
+and pr_resource_spec rs =
+  pr_lparen();
+  begin
+    match rs.rs_resources with
+    | [] -> ()
+    | rl -> pr_hovlist pr_semicolon pr_resource rl
+  end;
+  pr_rparen()
+
+and pr_resource r =
+  pr_option pr_modifiers r.r_modifiers; 
+  pr_type r.r_type; 
+  pad 1; 
+  pr_variable_declarator_id r.r_variable_declarator_id;
+  pad 1; pr_string "="; pad 1;
+  pr_expression 0 r.r_expr
+
 and pr_catch_clause sty c = 
   pr_string "catch ("; 
-  pr_formal_parameter c.c_formal_parameter; 
+  pr_catch_formal_parameter c.c_formal_parameter; 
   pr_rparen();
   pr_block sty c.c_block
+
+and pr_catch_formal_parameter cfp =
+  pr_option pr_modifiers cfp.cfp_modifiers;
+  pr_hovlist pr_bor pr_type cfp.cfp_type_list;
+  pad 1;
+  pr_variable_declarator_id cfp.cfp_variable_declarator_id
 
 and pr_finally sty f =
   pr_string "finally"; 
@@ -808,10 +848,12 @@ and pr_switch_block sty sb =
   pr_block_end()
 
 and pr_switch_block_stmt_grp sty (sls, bss) =
+  open_box 0;
   pr_list pr_newline pr_switch_label sls; 
   pr_break 1 indent;
   open_vbox 0;
-  pr_list pr_newline (pr_block_statement sty) bss;
+  pr_list pr_space (pr_block_statement sty) bss;
+  close_box();
   close_box()
 
 and pr_local_variable_declaration_statement lvd = 
@@ -931,32 +973,41 @@ and pr_interface_declaration ifd =
       pr_annotation_type_body body; close_box()
 
 and pr_annotation_type_body atb =
-  match atb.atb_element_declarations with
+  match atb.atb_member_declarations with
   | [] -> pr_string " {}"
   | eds ->
       pr_block_begin_tall(); 
-      pr_list pr_space pr_annotation_type_element_declaration eds;
+      pr_list pr_space pr_annotation_type_member_declaration eds;
       pr_block_end()
 
 and pr_constant_declaration cd = pr_field_declaration cd
 
-and pr_annotation_type_element_declaration ated =
-  match ated.ated_desc with
-  | ATEDconstant cd -> pr_constant_declaration cd
-  | ATEDabstract(ms_opt, ty, id, dv_opt) -> 
+and pr_annotation_type_member_declaration atmd =
+  match atmd.atmd_desc with
+  | ATMDconstant cd -> pr_constant_declaration cd
+  | ATMDelement(ms_opt, ty, id, dl, dv_opt) ->
       open_box 0;
       begin 
 	match ms_opt with None -> () | Some ms -> pr_modifiers ms; pad 1 
       end;
-      pr_type ty; pad 1; pr_id id;
+      pr_type ty; pad 1; pr_id id; pr_string "()";
+      pr_list pr_space pr_annot_dim dl;
+      begin
+        match dv_opt with
+        | Some _ -> pr_string " default "
+        | _ -> ()
+      end;
       pr_option pr_element_value dv_opt;
-      pr_string ";"
+      pr_string ";";
+      close_box()
 
-  | ATEDclass cd -> pr_class_declaration cd
-  | ATEDinterface id -> pr_interface_declaration id
-  | ATEDempty -> pr_string ";"
+  | ATMDclass cd -> pr_class_declaration cd
+  | ATMDinterface id -> pr_interface_declaration id
+  | ATMDempty -> pr_string ";"
 
-  
+and pr_annot_dim adim =
+  pr_annotations adim.ad_annotations;
+  pr_string "[]"
 
 and pr_explicit_constructor_invocation eci =
   match eci.eci_desc with

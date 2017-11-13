@@ -104,7 +104,7 @@ let append_pos ?(ofs=0.) path pos =
   | PATH es -> PATH ((Elem.make ~ofs pos) :: es)
 
 let set_ofs path ofs =
-  DEBUG_MSG "path=\"%s\" ofs=%s" (to_string path) (ofs_to_str ofs);
+  DEBUG_MSG "path=\"%s\" ofs=%s" (to_string path) (Elem.ofs_to_str ofs);
   match path with
   | PATH (elem::_) -> elem.Elem.ofs <- ofs
   | _ -> assert false

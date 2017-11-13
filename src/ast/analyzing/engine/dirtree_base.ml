@@ -27,6 +27,11 @@ let printf  = Printf.printf
 let fprintf = Printf.fprintf
 
 
+let auxfile_exts = [".jj"; ".jjt"; ".properties"]
+
+let is_auxfile name =
+  List.exists (Xstring.endswith name) auxfile_exts
+
 let path_concat l =
   List.fold_left (fun p x -> Filename.concat p x) "" l
 
@@ -78,6 +83,10 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
 
     method is_dir = entry#is_dir
     method is_file = content_digest <> None
+
+    val mutable is_auxfile = false
+    method set_is_auxfile = is_auxfile <- true
+    method is_auxfile = is_auxfile
 
     method label = entry#name
     method _label = entry#name
@@ -214,9 +223,14 @@ let of_tree options mktbl (tree : Storage.tree) =
     end
     else begin (* file node *)
 
-      if options#check_extension name then begin
+      let is_aux = is_auxfile name in
+
+      if options#check_extension name || is_aux then begin
 
 	let ndat = new node_data tree entry in
+
+        if is_aux then
+          ndat#set_is_auxfile;
 
 	let di = entry#file_digest in
 
@@ -315,11 +329,26 @@ let _extract_fact fact_buf options pr kv all_leaves =
   List.iter
     (fun nd -> 
       let ent = fent_of_nd options pr kv nd in
+      fact_buf#add (ent, T.p_is_a, T.c_file);
       fact_buf#add (ent, T.p_in_srctree, stree_ent);
       fact_buf#add (stree_ent, T.p_contains_file, ent);
-      fact_buf#add (ent, T.p_file_location, T.make_literal nd#data#path);
+
       if not (T.is_ghost_node vent) then
         fact_buf#add (ent, T.p_version, vent);
+
+      let loc_lit = T.make_literal nd#data#path in
+
+      if nd#data#is_auxfile then begin
+        fact_buf#add (ent, T.p_is_a, T.c_auxfile);
+	let gp = Triple.p_guard T.p_file_location in
+	let bn = Triple.gen_blank_node() in
+        fact_buf#add_group
+          [(ent, T.p_file_location, loc_lit);
+           (bn, gp, ent);(bn, gp, loc_lit);(bn, T.p_version, vent)]
+      end
+      else
+        fact_buf#add (ent, T.p_file_location, loc_lit);
+
     ) all_leaves;
 
   stree_id, stree_ent

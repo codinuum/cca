@@ -59,6 +59,7 @@ let pr_ellipsis()  = pr_string "..."
 let pr_amp()       = pr_string "&"
 let pr_colon()     = pr_string ":"
 let pr_semicolon() = pr_string ";"
+let pr_bor()       = pr_string "|"
 let pr_none()      = ()
 
 let force_newline = Format.force_newline

@@ -135,12 +135,29 @@ class env = object (self)
       self#peek_frame skip
 
 
-  method register_identifier ?(skip=0) ident attr =
+  method register_identifier ?(qualify=false) ?(skip=0) ident attr =
     DEBUG_MSG "REGISTER(%d): \"%s\" -> %s" 
       ((Stack.length stack) - skip) ident (iattr_to_str attr);
 
     let frame = self#get_frame ~skip attr in
-    frame#add ident attr 
+    frame#add ident attr;
+
+    if qualify then begin
+      let class_names= self#surrounding_class_names in
+      DEBUG_MSG "class_names=[%s]" (String.concat "," class_names);
+      let rec iter = function
+        | [] -> ()
+        | (h :: t) as l ->
+            let n = (String.concat "." l)^"."^ident in
+            let skip = skip + (List.length l) in
+            DEBUG_MSG "n=%s, skip=%d" n skip;
+            let f = self#get_frame ~skip attr in
+            DEBUG_MSG "%s" f#to_string;
+            f#qadd n attr;
+            iter t
+      in
+      iter class_names
+    end
 
 
   method lookup_identifier ?(afilt=(fun _ -> true)) ident =
@@ -230,6 +247,16 @@ class env = object (self)
         in
         fqn
 
+  method surrounding_class_names =
+    let l = ref [] in
+    Stack.iter
+      (fun frame ->
+        try
+	  l := frame#get_class_name :: !l
+        with
+          Not_found -> ()
+      ) stack;
+    !l
 
   method inner_most_class =
     let s = Stack.copy stack in
@@ -531,9 +558,8 @@ module F (Stat : STATE_T) = struct
     loc
 
 
-  let register_identifier_as_class fqn id     = env#register_identifier id (IAclass fqn)
-  let register_identifier_as_interface fqn id = env#register_identifier id (IAinterface fqn)
-  let register_identifier_as_typename fqn id  = env#register_identifier id (IAtypename fqn)
+  let register_identifier_as_class fqn id     = env#register_identifier ~qualify:true id (IAclass fqn)
+  let register_identifier_as_interface fqn id = env#register_identifier ~qualify:true id (IAinterface fqn)  let register_identifier_as_typename fqn id  = env#register_identifier id (IAtypename fqn)
   let register_identifier_as_method id        = env#register_identifier id IAmethod
   let register_identifier_as_parameter id t   = env#register_identifier id IAparameter
   let register_identifier_as_variable id t    = env#register_identifier id IAvariable
@@ -625,7 +651,7 @@ module F (Stat : STATE_T) = struct
 				 fp_loc=loc
 			       }
   let _mkargs loc args = { as_arguments=args; as_loc=loc }
-  let _mkated loc d = { ated_desc=d; ated_loc=loc }
+  let _mkatmd loc d = { atmd_desc=d; atmd_loc=loc }
   let _mkch loc ms id ts_opt s_opt i_opt = { ch_modifiers=ms;
                                              ch_identifier=id;
                                              ch_type_parameters=ts_opt;
@@ -667,7 +693,7 @@ module F (Stat : STATE_T) = struct
     let fqn =
       try
 	match env#inner_most_class with
-	| IAclass s | IAinterface s -> s^sep^id
+	| IAclass s | IAinterface s | IAtypename s -> s^sep^id
 	| _ -> raise Not_found
       with 
 	Not_found ->
@@ -805,35 +831,52 @@ module F (Stat : STATE_T) = struct
     fqn
   (* func get_type_fqn *)
 
+  let get_type_name n =
+    let qn = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" qn;
+
+    let get simple name =
+      let afilt = function
+        | IAclass _ | IAinterface _ | IAtypename _ | IAtypeparameter -> true
+        | _ -> false
+      in
+      let get_tyname =
+        List.fold_left
+          (fun tn a ->
+            match a with
+            | IAclass n | IAinterface n -> n
+            | _ -> tn
+          ) ""
+      in
+      let tyname =
+        try
+          if simple then begin
+            try
+              get_tyname (env#lookup_identifier ~afilt name)
+            with
+              Not_found -> env#classtbl#resolve name
+          end
+          else
+            raise Not_found
+        with
+          Not_found -> get_tyname (env#lookup_qname ~afilt name)
+      in
+      DEBUG_MSG "%s --> %s" name tyname;
+      tyname
+    in
+    get (is_simple n) qn
+
   let is_type_name n =
     let qn = P.name_to_simple_string n in
     DEBUG_MSG "\"%s\"" qn;
-    let afilt = function
-      | IAclass _ | IAinterface _ | IAtypename _ | IAtypeparameter -> true
-      | _ -> false
-    in
     let b =
       try
-        if is_simple n then begin
-          try
-            let _ = env#lookup_identifier ~afilt qn in
-            true
-          with
-            Not_found ->
-              let _ = env#classtbl#resolve qn in
-              true
-        end
-        else
-          raise Not_found
+        let _ = get_type_name n in
+        true
       with
-        Not_found ->
-          try
-            let _ = env#lookup_qname ~afilt qn in
-            true
-          with
-            Not_found -> false
+        Not_found -> false
     in
-    DEBUG_MSG "%s --> %B" (P.name_to_string n) b;
+    DEBUG_MSG "%s --> %B" qn b;
     b
 
   let is_expr_name n =
@@ -969,7 +1012,15 @@ module F (Stat : STATE_T) = struct
     let id = rightmost_identifier n in
     try
       let q = get_qualifier n in
-      if is_type_name q then begin
+      let is_tyname, tyname =
+        try
+          let tn = get_type_name q in
+          true, tn
+        with
+          Not_found -> false, ""
+      in
+      if is_tyname then begin
+        set_name_attribute (NAtype (R_resolved tyname)) q;
         set_name_attribute NAexpression n;
 	_mkprim loc (Pname n)
       end
@@ -1048,9 +1099,10 @@ module F (Stat : STATE_T) = struct
   let mkmr so eo d = { mr_desc=d; mr_loc=(get_loc so eo) }
   let mkargs so eo d = _mkargs (get_loc so eo) d
   let mkib so eo imds = { ib_member_declarations=imds; ib_loc=(get_loc so eo) }
-  let mkatb so eo ateds = { atb_element_declarations=ateds; atb_loc=(get_loc so eo) }
-  let mkated so eo d = _mkated (get_loc so eo) d
+  let mkatb so eo ateds = { atb_member_declarations=ateds; atb_loc=(get_loc so eo) }
+  let mkatmd so eo d = _mkatmd (get_loc so eo) d
   let mkbs so eo d = { bs_desc=d; bs_loc=(get_loc so eo) }
+  let mkad so eo a = { ad_annotations=a; ad_loc=(get_loc so eo) }
 
   let mkerrbs so eo = 
     let loc = get_loc so eo in
@@ -1064,6 +1116,18 @@ module F (Stat : STATE_T) = struct
 				lvd_loc=(get_loc so eo)
 			      }
   let mkfi so eo d = { fi_desc=d; fi_loc=(get_loc so eo) }
+  let mkres loc m t d e = { r_modifiers=m;
+                            r_type=t;
+                            r_variable_declarator_id=d;
+                            r_expr=e;
+                            r_loc=loc;
+                          }
+  let mkresspec so eo rl = { rs_resources=rl; rs_loc=(get_loc so eo) }
+  let mkcfp loc ms tl vdid = { cfp_modifiers=ms;
+			       cfp_type_list=tl;
+			       cfp_variable_declarator_id=vdid;
+			       cfp_loc=loc
+			     }
   let mkcatch so eo param b = { c_formal_parameter=param; c_block=b; c_loc=(get_loc so eo) }
   let mkfinally so eo b = { f_block=b; f_loc=(get_loc so eo)}
   let mkmi so eo d = { mi_desc=d; mi_loc=(get_loc so eo) }

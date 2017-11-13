@@ -82,7 +82,7 @@ class virtual base_c options = object (self)
   method verbose_msg : 'a. ('a, unit, string, unit) format4 -> 'a = 
     Xprint.verbose options#verbose_flag
 
-  method private get_cache_path1 = options#get_cache_path_for_file1
+  method get_cache_path1 = options#get_cache_path_for_file1
 
 
   method search_cache_for_info cache_path =
@@ -181,7 +181,7 @@ class virtual base_c options = object (self)
     file#free_local_file;
     r
 
-  method private handle_file_versions ?(lock=true)
+  method handle_file_versions ?(lock=true)
       fact_store cache_path proj_root file versions
       =
     if
@@ -260,7 +260,7 @@ class virtual base_c options = object (self)
                (fun x -> "\""^x.Cache.sr_cache_path^"\"") "\n" info_paths);
 
 
-        self#handle_file_versions fact_store cache_path proj_root file
+        self#handle_file_versions ~lock:false fact_store cache_path proj_root file
           (version :: versions);
 
 	let info = SF.scan_info info_paths in
