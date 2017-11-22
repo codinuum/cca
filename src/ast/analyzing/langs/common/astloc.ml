@@ -249,20 +249,39 @@ let collapse_backward
     { filename = fn0;
       start_offset = so0;
       end_offset   = eo0;
-      start_line   = sl0; 
-      start_char   = sc0; 
-      end_line     = el0; 
+      start_line   = sl0;
+      start_char   = sc0;
+      end_line     = el0;
       end_char     = ec0;
     }
     =
   { filename = fn0;
     start_offset = eo0;
     end_offset   = eo0;
-    start_line   = el0; 
-    start_char   = ec0; 
-    end_line     = el0; 
+    start_line   = el0;
+    start_char   = ec0;
+    end_line     = el0;
     end_char     = ec0;
   }
+
+let widen
+    { filename = fn0;
+      start_offset = so0;
+      end_offset   = eo0;
+      start_line   = sl0;
+      start_char   = sc0;
+      end_line     = el0;
+      end_char     = ec0;
+    } d
+=
+    { filename = fn0;
+      start_offset = so0;
+      end_offset   = eo0 + d;
+      start_line   = sl0;
+      start_char   = sc0;
+      end_line     = el0;
+      end_char     = ec0 + d;
+    }
 
 let is_contained loc loc0 =
   let fn = loc.filename in

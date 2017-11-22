@@ -161,7 +161,11 @@ let iattr_to_nattr = function
 
 let get_resolved_name = function
   | NAtype (R_resolved s)
-  | NAstatic (R_resolved s) -> s
+  | NAstatic (R_resolved s) ->
+      if s = "" then
+        raise Not_found
+      else
+        s
   | _ -> raise Not_found
 
 type name = { n_desc : name_desc; n_loc : loc; }
@@ -246,6 +250,12 @@ let is_qualified n =
   match n.n_desc with
   | Nqualified _ -> true
   | _ -> false
+
+let is_ambiguous_name name =
+  (get_name_attribute name) = NAambiguous
+
+let is_unknown_name name =
+  (get_name_attribute name) = NAunknown
 
 let dummy_name = { n_desc=Nsimple(ref NAunknown, ""); n_loc=Loc.dummy; }
 

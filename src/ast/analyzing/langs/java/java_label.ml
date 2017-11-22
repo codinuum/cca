@@ -167,7 +167,7 @@ let rec conv_name ?(resolve=true) n =
         try
 	  Ast.get_resolved_name !attr
         with
-	  Not_found -> (conv_name ~resolve name)^sep^ident
+	  Not_found -> (conv_name name)^sep^ident
       else
         (conv_name ~resolve name)^sep^ident
 
@@ -819,9 +819,9 @@ module Primary = struct
     | QualifiedInstanceCreation of name
     | NameQualifiedInstanceCreation of name * name
 
-    | FieldAccess of name
-    | SuperFieldAccess of name
-    | ClassSuperFieldAccess of name
+    | FieldAccess of identifier
+    | SuperFieldAccess of identifier
+    | ClassSuperFieldAccess of identifier
 
     | PrimaryMethodInvocation of name
     | SimpleMethodInvocation of name
@@ -840,6 +840,9 @@ module Primary = struct
     | TypeSuperMethodReference of name * name
     | TypeNewMethodReference of name
 
+    | AmbiguousName of name
+    | AmbiguousMethodInvocation of name
+
   let get_name = function
     | Name name
     | QualifiedThis name
@@ -855,6 +858,8 @@ module Primary = struct
     | PrimaryMethodReference name
     | SuperMethodReference name
     | TypeNewMethodReference name
+    | AmbiguousName name
+    | AmbiguousMethodInvocation name
       -> name
 
     | NameQualifiedInstanceCreation(name1, name2)
@@ -892,6 +897,8 @@ module Primary = struct
     | SuperMethodReference _
     | TypeSuperMethodReference _
     | TypeNewMethodReference _
+    | AmbiguousName _
+    | AmbiguousMethodInvocation _
       -> true
 
     | Literal (Literal.String s) -> s <> ""
@@ -944,6 +951,8 @@ module Primary = struct
       | SuperMethodReference ident            -> sprintf "SuperMethodReference(%s)" ident
       | TypeSuperMethodReference(name, ident) -> sprintf "TypeSuperMethodReference(%s,%s)" name ident
       | TypeNewMethodReference name           -> "TypeNewMethodReference"
+      | AmbiguousName name                    -> sprintf "AmbiguousName(%s)" name
+      | AmbiguousMethodInvocation name        -> sprintf "AmbiguousMethodInvocation(%s)" name
     in
     "Primary." ^ str
 
@@ -969,12 +978,17 @@ module Primary = struct
     | SuperMethodReference ident             -> SuperMethodReference ""
     | TypeSuperMethodReference(name, ident)  -> TypeSuperMethodReference("", "")
     | TypeNewMethodReference name            -> TypeNewMethodReference ""
+    | AmbiguousName name                     -> AmbiguousName ""
+    | AmbiguousMethodInvocation name         -> AmbiguousMethodInvocation ""
     | pri                                    -> pri
 
   let anonymize2 = function
-    | FieldAccess _           -> Name ""
-    | SuperFieldAccess _      -> Name ""
-    | ClassSuperFieldAccess _ -> Name ""
+    | FieldAccess _
+    | SuperFieldAccess _
+    | ClassSuperFieldAccess _
+    | AmbiguousName _
+      -> Name ""
+
     | lab -> anonymize ~more:true lab
 
   let to_simple_string = function
@@ -1004,6 +1018,8 @@ module Primary = struct
     | SuperMethodReference ident             -> "super::"^ident
     | TypeSuperMethodReference(name, ident)  -> name^".super::"^ident
     | TypeNewMethodReference name            -> name^"::new"
+    | AmbiguousName name                     -> "?"^name
+    | AmbiguousMethodInvocation name         -> "?"^name
     
   let to_short_string ?(ignore_identifiers_flag=false) = 
     let combo = combo ~ignore_identifiers_flag in function
@@ -1038,6 +1054,8 @@ module Primary = struct
     | SuperMethodReference ident            -> combo 23 [ident]
     | TypeSuperMethodReference(name, ident) -> combo 24 [name; ident]
     | TypeNewMethodReference name           -> combo 25 [name]
+    | AmbiguousName name                    -> combo 26 [name]
+    | AmbiguousMethodInvocation name        -> combo 27 [name]
     
   let to_tag p = 
     let name, attrs = 
@@ -1069,6 +1087,8 @@ module Primary = struct
       | SuperMethodReference ident             -> "SuperMethodReference", ["name",xmlenc ident]
       | TypeSuperMethodReference(name, ident)  -> "TypeSuperMethodReference", ["name",xmlenc name;ident_attr_name,xmlenc ident]
       | TypeNewMethodReference name            -> "TypeNewMethodReference", []
+      | AmbiguousName name                     -> "AmbiguousName", ["name",xmlenc name]
+      | AmbiguousMethodInvocation name         -> "AmbiguousMethodInvocation", ["name",xmlenc name]
     in
     name, attrs
 
@@ -2697,6 +2717,14 @@ let is_name = function
   | Primary (Primary.Name _) -> true
   | _ -> false
 
+let is_ambiguous_name = function
+  | Primary (Primary.AmbiguousName _) -> true
+  | _ -> false
+
+let is_ambiguous_method_invocation = function
+  | Primary (Primary.AmbiguousMethodInvocation _) -> true
+  | _ -> false
+
 let is_instancecreation = function
   | Primary
       (Primary.InstanceCreation _
@@ -3029,7 +3057,7 @@ let get_name lab =
     | FieldDeclaration name_dim_list -> 
 	String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
 
-    | IDsingleStatic(name1, name2) -> String.concat "," [name1; name2]
+    | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]
 
     | _ -> raise Not_found
   in

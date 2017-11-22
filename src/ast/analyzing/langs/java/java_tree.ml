@@ -996,12 +996,17 @@ class translator options = let bid_gen = new BID.generator in object (self)
   let hash = self#digest_of_arguments args in
   let ident = self#addhash ident hash in
  *)
-	  let plab = L.Primary.PrimaryMethodInvocation (deco ident args) in
+          let prim_nd = self#of_primary prim in
+	  let plab =
+            (*if L.is_ambiguous_name (getlab prim_nd) then
+              L.Primary.AmbiguousMethodInvocation (deco ident args)
+            else*)
+              L.Primary.PrimaryMethodInvocation (deco ident args)
+          in
           let ta_nodes = self#of_type_arguments_opt ident targs_opt in
           let otbl = [1; List.length ta_nodes; 1] in
 	  let children =
-	    (self#of_primary prim) ::
-	    (ta_nodes @ [self#of_named_arguments ident args])
+	    prim_nd :: (ta_nodes @ [self#of_named_arguments ident args])
 	  in
 	  create plab children otbl
 
@@ -1099,14 +1104,46 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	   (List.map self#of_variable_initializer array_initializer))
 
   method of_primary p =
+    let loc0 = Ast.Loc.collapse_forward p.Ast.p_loc in
+    let name_to_node ?(children=[]) mkplab n =
+      let unresolved = L.conv_name ~resolve:false n in
+      let orig_lab_opt = Some (L.Primary (mkplab unresolved)) in
+      let nd = self#mknode ~orig_lab_opt (L.Primary (mkplab (L.conv_name n))) children in
+      let loc = Ast.Loc.widen loc0 (String.length unresolved) in
+      set_loc nd loc;
+      nd
+    in
     let nd =
       match p.Ast.p_desc with
-      | Ast.Pname name ->
-          let orig_lab_opt =
-            Some (L.Primary (L.Primary.Name (L.conv_name ~resolve:false name)))
-          in
-          self#mkleaf ~orig_lab_opt (L.Primary (L.Primary.Name (L.conv_name name)))
-
+      | Ast.Pname name -> begin
+          match qualifier_of_name name with
+          | None -> begin
+              let mklab =
+                if Ast.is_ambiguous_name name then
+                  (fun x -> L.Primary.AmbiguousName x)
+                else
+                  (fun x -> L.Primary.Name x)
+              in
+              name_to_node mklab name
+          end
+          | Some q -> begin
+              if Ast.is_ambiguous_name q then begin
+                let mknd ?(children=[]) =
+                  name_to_node ~children (fun x -> L.Primary.AmbiguousName x)
+                in
+                let rec doit n =
+                  try
+                    let n0, _ = Ast.decompose_name n in
+                    mknd ~children:[doit n0] n
+                  with
+                    _ -> mknd n
+                in
+                doit name
+              end
+              else
+                name_to_node (fun x -> L.Primary.Name x) name
+          end
+      end
       | Ast.Pliteral lit -> self#of_literal lit
 
       | Ast.PclassLiteral ty ->
@@ -1997,14 +2034,16 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.ATMDconstant cd -> self#of_constant_declaration cd
       | Ast.ATMDelement(modifiers_opt, ty, ident, dl, dval_opt) ->
           let mod_nodes = self#of_modifiers_opt L.Kannotation ident modifiers_opt in
+          let dval_nodes = of_opt self#of_default_value dval_opt in
           let ordinal_tbl_opt =
-            Some (new ordinal_tbl [List.length mod_nodes; 1; List.length dl; 1])
+            Some (new ordinal_tbl [List.length mod_nodes;
+                                   1;
+                                   List.length dl;
+                                   List.length dval_nodes])
           in
 	  [self#mknode ~ordinal_tbl_opt (L.ElementDeclaration ident)
-	     (mod_nodes @
-              [self#of_javatype 0 ty] @
-              (List.map self#of_annot_dim dl) @
-              (of_opt self#of_default_value dval_opt))]
+	     (mod_nodes @ [self#of_javatype 0 ty] @
+              (List.map self#of_annot_dim dl) @ dval_nodes)]
 
       | Ast.ATMDclass cd -> [self#of_class_declaration false cd]
       | Ast.ATMDinterface ifd -> [self#of_interface_declaration false ifd]

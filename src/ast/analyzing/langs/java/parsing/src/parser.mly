@@ -1827,19 +1827,25 @@ method_invocation:
           end
           else begin
             if is_type_name q then begin
-              let fqn = get_type_fqn q in
-	      set_attribute_PT_T (mkresolved fqn) q;
-              register_qname_as_typename q;
-	      mkmi $startofs $endofs (MItypeName(q, None, id, a))
+              try
+                let fqn = get_type_fqn q in
+                set_attribute_PT_T (mkresolved fqn) q;
+                register_qname_as_typename q;
+                mkmi $startofs $endofs (MItypeName(q, None, id, a))
+              with
+              | Unknown _ ->
+                  set_attribute_PT_T (env#resolve q) q;
+                  register_qname_as_typename q;
+                  mkmi $startofs $endofs (MItypeName(q, None, id, a))
             end
             else begin
               env#reclassify_identifier(leftmost_of_name q);
-              raise (Unknown "")
+              mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, None, id, a))
+              (*raise (Unknown "")*)
             end
           end
 	with
-	| Not_found | Unknown _ ->
-	    mkmi $startofs $endofs (MImethodName(n, a))
+	| Not_found -> mkmi $startofs $endofs (MImethodName(n, a))
       end
     }
 

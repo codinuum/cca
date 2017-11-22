@@ -186,7 +186,7 @@ class env = object (self)
 
 
   method register_qname qname attr =
-    if is_qualified_qname qname then begin
+    if true(*is_qualified_qname qname*) then begin
       DEBUG_MSG "REGISTER(%d): \"%s\" -> %s"
         (Stack.length stack) qname (iattr_to_str attr);
 
@@ -277,8 +277,8 @@ class env = object (self)
 
 
   method resolve name =
-    DEBUG_MSG "resolving \"%s\"" (P.name_to_simple_string name);
     let ss = P.name_to_simple_string name in
+    DEBUG_MSG "resolving \"%s\"" ss;
     let res =
       if is_simple name then begin
 	try
@@ -295,6 +295,7 @@ class env = object (self)
             | IAtypeparameter -> rightmost_identifier name
 	    | _ -> assert false
 	  in
+	  DEBUG_MSG "resolved: %s --> %s" ss res;
 	  R_resolved res
 	with
 	  Not_found ->
@@ -575,8 +576,9 @@ module F (Stat : STATE_T) = struct
     env#register_identifier ~skip:1 id (IAstatic fqn)
 
   let register_qname n a =
+    let ss = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" ss;
     try
-      let ss = P.name_to_simple_string n in
       let _, id = leftmost_of_name n in
       if env#classtbl#is_resolvable id then
         env#register_global_qname ss a
@@ -755,7 +757,7 @@ module F (Stat : STATE_T) = struct
           in
           iter attrs
 	with
-	  Not_found -> not (env#classtbl#is_resolvable id)
+	  Not_found -> false
       end
     in
     DEBUG_MSG "\"%s\" --> %B" (P.name_to_simple_string n) b;
@@ -832,43 +834,67 @@ module F (Stat : STATE_T) = struct
   (* func get_type_fqn *)
 
   let get_type_name n =
-    let qn = P.name_to_simple_string n in
-    DEBUG_MSG "\"%s\"" qn;
+    let ss = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" ss;
 
-    let get simple name =
-      let afilt = function
-        | IAclass _ | IAinterface _ | IAtypename _ | IAtypeparameter -> true
-        | _ -> false
-      in
-      let get_tyname =
-        List.fold_left
-          (fun tn a ->
-            match a with
-            | IAclass n | IAinterface n -> n
-            | _ -> tn
-          ) ""
-      in
-      let tyname =
-        try
-          if simple then begin
-            try
-              get_tyname (env#lookup_identifier ~afilt name)
-            with
-              Not_found -> env#classtbl#resolve name
-          end
-          else
-            raise Not_found
-        with
-          Not_found -> get_tyname (env#lookup_qname ~afilt name)
-      in
-      DEBUG_MSG "%s --> %s" name tyname;
-      tyname
+    let afilt = function
+      | IAclass _ | IAinterface _ | IAtypename _ | IAtypeparameter -> true
+      | _ -> false
     in
-    get (is_simple n) qn
+    let get_tyname =
+      List.fold_left
+        (fun tn a ->
+          match a with
+          | IAclass n | IAinterface n | IAtypename n -> n
+          | _ -> tn
+        ) ""
+    in
+    let rec get name =
+      match name.n_desc with
+      | Nsimple(_, i) -> begin
+          try
+            get_tyname (env#lookup_identifier ~afilt i)
+          with
+            Not_found ->
+              try
+                let tn = get_tyname (env#lookup_qname ~afilt ss) in
+                if tn = "" then
+                  try
+                    env#classtbl#resolve i
+                  with
+                    Not_found -> i
+                else
+                  tn
+              with
+                Not_found -> env#classtbl#resolve i
+      end
+      | Nqualified(_, n, i) -> begin
+          try
+            get_tyname (env#lookup_identifier ~afilt i)
+          with
+            Not_found ->
+              let ss = P.name_to_simple_string name in
+              let tn = get_tyname (env#lookup_qname ~afilt ss) in
+              if tn = "" then
+                try
+                  let pt = get n in
+                  if pt = "" then
+                    ss
+                  else
+                    pt^"$"^i
+                with
+                  Not_found -> ss
+              else
+                tn
+      end
+    in
+    let tyname = get n in
+    DEBUG_MSG "%s --> \"%s\"" ss tyname;
+    tyname
 
   let is_type_name n =
-    let qn = P.name_to_simple_string n in
-    DEBUG_MSG "\"%s\"" qn;
+    let ss = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" ss;
     let b =
       try
         let _ = get_type_name n in
@@ -876,19 +902,19 @@ module F (Stat : STATE_T) = struct
       with
         Not_found -> false
     in
-    DEBUG_MSG "%s --> %B" qn b;
+    DEBUG_MSG "%s --> %B" ss b;
     b
 
   let is_expr_name n =
-    let qn = P.name_to_simple_string n in
-    DEBUG_MSG "\"%s\"" qn;
+    let ss = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" ss;
     let afilt = function
       | IAexpression -> true
       | _ -> false
     in
     let b =
       try
-        let _ = env#lookup_qname ~afilt qn in
+        let _ = env#lookup_qname ~afilt ss in
         true
       with
         Not_found -> false
@@ -909,8 +935,7 @@ module F (Stat : STATE_T) = struct
           let _ = env#lookup_identifier ~afilt id in
           true
         with
-          Not_found ->
-            not (env#classtbl#is_resolvable id)
+          Not_found -> false
       end
       else begin
         let id = rightmost_identifier n in
@@ -1028,6 +1053,7 @@ module F (Stat : STATE_T) = struct
         name_to_facc n
       end
       else begin
+        set_name_attribute NAambiguous q;
         _mkprim loc (Pname n)
       end
     with

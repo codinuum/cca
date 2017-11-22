@@ -44,7 +44,7 @@ let pr_flush       = Format.print_flush
 
 let _pr_comma()    = pr_string ","
 let _pr_eq()       = pr_string "="
-let pr_comma()     = pr_string ", "
+let pr_comma()     = pr_string ","; pr_space()
 let pr_eq()        = pr_string " = "
 
 let pr_lparen()    = pr_string "("

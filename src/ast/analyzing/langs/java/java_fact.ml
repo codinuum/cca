@@ -24,6 +24,7 @@ open FB
 
 let p_provides       = mkjres "provides"
 let p_fqn            = mkjres "fullyQualifiedName"
+let p_uqn            = mkjres "unqualifiedName"
 let p_in_class       = mkjres "inClass"
 let p_in_interface   = mkjres "inInterface"
 let p_in_method      = mkjres "inMethod"
@@ -41,6 +42,7 @@ let p_in_return_type = mkjres "inReturnType"
 let p_in_variable_declaration = mkjres "inVariableDeclaration"
 let p_in_parameter   = mkjres "inParameter"
 let p_in_staticinit  = mkjres "inStaticInitializer"
+let p_in_instanceinit = mkjres "inInstanceInitializer"
 let p_cond_of        = mkjres "conditionOf"
 let p_then_part_of   = mkjres "thenPartOf"
 let p_else_part_of   = mkjres "elsePartOf"
@@ -56,6 +58,9 @@ let p_successor      = mkjres "successor"
 let p_nparams    = mkjres "nParameters"
 let p_nargs      = mkjres "nArguments"
 let p_is_va_meth = mkjres "isVariableArityMethod"
+
+let p_identifier = mkjres "identifier"
+let p_qualifier  = mkjres "qualifier"
 
 let getlab = getlab
 
@@ -114,6 +119,25 @@ let is_argument nd =
     L.is_arguments (getlab nd#initial_parent)
   with
     _ -> false
+
+let find is_xxx children =
+  let idx = ref (-1) in
+  begin
+    try
+      Array.iteri
+        (fun i nd ->
+          if is_xxx (getlab nd) then begin
+            idx := i;
+            raise Exit
+          end
+        ) children
+    with
+      Exit -> ()
+  end;
+  if !idx >= 0 then
+    children.(!idx)
+  else
+    raise Not_found
 
 class extractor options cache_path tree = object (self)
   inherit extractor_base options cache_path tree as super
@@ -269,17 +293,27 @@ class extractor options cache_path tree = object (self)
   self#add_surrounding_xxx L.is_method_invocation nd entity p_in_method_invocation;
   self#add_surrounding_xxx L.is_ctor_invocation nd entity p_in_ctor_invocation;
  *)
-      if L.is_invocation_or_instance_creation lab && L.is_named lab then begin
-	let ename = L.get_name lab in
-	self#add (entity, p_extended_name, mklit ename);
-	self#add (entity, p_name, mklit (extended_name_to_simple_name ename));
+      if L.is_invocation_or_instance_creation lab then begin
+	let ename = try L.get_name lab with Not_found -> "" in
+        if ename <> "" then begin
+	  self#add (entity, p_extended_name, mklit ename);
+          let esn = extended_name_to_simple_name ename in
+	  self#add (entity, p_name, mklit esn);
+          if String.contains esn '.' then
+            self#add (entity, p_uqn, mklit (Xlist.last (String.split_on_char '.' esn)))
+        end;
 
         let n =
           try
             let i = String.index ename '#' in
             String.sub ename (i+1) ((String.length ename) - i - 1)
           with
-            _ -> ""
+            _ ->
+              try
+                let args = find L.is_arguments nd#initial_children in
+                string_of_int (Array.length args#initial_children)
+              with
+                _ -> ""
         in
         if n <> "" then
           self#add (entity, p_nargs, Triple.make_literal ~ty:Triple.LT_int n)
@@ -353,7 +387,19 @@ class extractor options cache_path tree = object (self)
       end;
 
       if L.is_named lab && L.is_type lab then begin
-	self#add (entity, p_name, mklit (L.get_name lab));
+        let n = L.get_name lab in
+	self#add (entity, p_name, mklit n);
+
+        let s =
+          try
+            String.sub n 0 (String.index n '<')
+          with
+            _ -> n
+        in
+        let ln0 = Xlist.last (String.split_on_char '.' s) in
+        let ln = Xlist.last (String.split_on_char '$' ln0) in
+        self#add (entity, p_uqn, mklit ln);
+
         let dims = L.get_dimensions lab in
         if dims > 0 then
           self#add (entity, p_dimensions, Triple.make_nn_int_literal dims)
@@ -365,7 +411,20 @@ class extractor options cache_path tree = object (self)
 	else
 	  self#add (entity, p_name, mklit (L.get_name lab));
 
+      if L.is_ambiguous_name lab then begin
+        let n = L.get_name lab in
+        let q, i =
+          match List.rev (String.split_on_char '.' n) with
+          | [] | [_] -> "", n
+          | h0 :: h1 :: _ -> h1, h0
+        in
+        self#add (entity, p_identifier, mklit i);
+        if q <> "" then
+          self#add (entity, p_qualifier, mklit q);
+      end;
+
       self#add_surrounding_xxx L.is_staticinit nd entity p_in_staticinit;
+      self#add_surrounding_xxx L.is_instanceinit nd entity p_in_instanceinit;
     end
 
 end (* of class Java.Fact.extractor *)

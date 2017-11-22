@@ -35,7 +35,7 @@ let pr_break    = print_break
 let pr_space    = print_space
 let pr_newline  = print_newline
 let pr_cut      = print_cut
-let pr_comma()  = print_string ","
+let pr_comma()  = print_string ","; pr_space()
 let pr_lparen() = print_string "("
 let pr_rparen() = print_string ")"
 let pr_semicolon() = print_string ";"
@@ -574,26 +574,26 @@ and pr_method_invocation mi =
   open_box 0; 
   let _ = match mi.mi_desc with
   | MImethodName(n, args) ->
-      pr_name n; pr_cut(); pr_lparen(); pr_argument_list args; pr_string ")"; 
+      pr_name n; pr_lparen(); pr_argument_list args; pr_string ")"; 
   | MIprimary(p, tyargs_opt, id, args) ->
       pr_primary (get_precedence ".") p; pr_string ".";
       pr_option pr_type_arguments tyargs_opt;
-      pr_id id; pr_cut();
+      pr_id id;
       pr_lparen(); pr_argument_list args; pr_string ")"
   | MItypeName(n, tyargs_opt, id, args) ->
       pr_name n; pr_string ".";
       pr_option pr_type_arguments tyargs_opt;
-      pr_id id; pr_cut();
+      pr_id id;
       pr_lparen(); pr_argument_list args; pr_string ")"
   | MIsuper(_, tyargs_opt, id, args) ->
       pr_string "super.";
       pr_option pr_type_arguments tyargs_opt;
-      pr_id id; pr_cut();
+      pr_id id;
       pr_lparen(); pr_argument_list args; pr_string ")"
   | MIclassSuper(_, _, n, tyargs_opt, id, args) ->
       pr_name n; pr_string ".super.";
       pr_option pr_type_arguments tyargs_opt;
-      pr_id id; pr_cut();
+      pr_id id;
       pr_lparen(); pr_argument_list args; pr_string ")"
   in close_box()
 
@@ -724,7 +724,7 @@ and pr_statement_short s = pr_statement BSshort s
 and pr_statement sty s = 
   match s.s_desc with
   | Sblock b -> pr_block sty b
-  | Sempty -> pr_string ";"
+  | Sempty -> pr_semicolon()
   | Sexpression se -> pr_expression_statement se
   | Sswitch(e, sb) -> 
       pr_string "switch("; pr_expression 0 e; pr_rparen(); 
@@ -735,22 +735,22 @@ and pr_statement sty s =
   | Sbreak id_opt -> begin
       match id_opt with
       | None -> pr_string "break;"
-      | Some id -> pr_string "break "; pr_id id; pr_string ";"
+      | Some id -> pr_string "break "; pr_id id; pr_semicolon()
   end
   | Scontinue id_opt -> begin
       match id_opt with
       | None -> pr_string "continue;"
-      | Some id -> pr_string "continue "; pr_id id; pr_string ";"
+      | Some id -> pr_string "continue "; pr_id id; pr_semicolon()
   end
   | Sreturn e_opt -> begin
       match e_opt with
       | None -> pr_string "return;"
-      | Some e -> pr_string "return "; pr_expression 0 e; pr_string ";"
+      | Some e -> pr_string "return "; pr_expression 0 e; pr_semicolon()
   end
   | Ssynchronized(e, b) -> 
       pr_string "synchronized ("; pr_expression 0 e; pr_rparen();
       pr_block sty b
-  | Sthrow e -> pr_string "throw "; pr_expression 0 e; pr_string ";"
+  | Sthrow e -> pr_string "throw "; pr_expression 0 e; pr_semicolon()
   | Stry(rs_opt, b, cs_opt, fin_opt) -> begin
       pr_string "try";
       begin
@@ -769,19 +769,19 @@ and pr_statement sty s =
   end
   | Slabeled(id, s) -> pr_id id; pr_string ": "; pr_statement sty s
   | SifThen(e, s) -> 
-      pr_string "if ("; pr_expression 0 e; pr_rparen(); pr_statement_short s;
+      pr_string "if ("; pr_expression 0 e; pr_rparen(); pr_space(); pr_statement_short s;
   | SifThenElse(e, s1, s2) -> 
-      pr_string "if ("; pr_expression 0 e; pr_rparen();
-      pr_statement_short s1; pr_string " else "; pr_statement_short s2;
-  | Swhile(e, s) -> pr_string "while ("; pr_expression 0 e; pr_rparen();
+      pr_string "if ("; pr_expression 0 e; pr_rparen(); pr_space();
+      pr_statement_short s1; pr_string " else"; pr_space(); pr_statement_short s2;
+  | Swhile(e, s) -> pr_string "while ("; pr_expression 0 e; pr_rparen(); pr_space();
       pr_statement_short s
   | Sfor(fi_op, e_op, ses, s) -> 
       let pr_fi_op = function Some fi -> pr_for_init fi | None -> () in
       let pr_e_op = function  Some e -> pr_expression 0 e | None -> () in
-      pr_string "for ("; 
-      pr_fi_op fi_op; pr_string ";"; 
-      pr_e_op e_op; pr_string ";"; 
-      pr_statement_expression_list ses; pr_rparen();
+      pr_string "for (";
+      pr_fi_op fi_op; pr_semicolon();
+      pr_e_op e_op; pr_semicolon();
+      pr_statement_expression_list ses; pr_rparen(); pr_space();
       pr_statement_short s
   | SforEnhanced(fp, e, s) -> 
       pr_string "for (";
@@ -789,12 +789,12 @@ and pr_statement sty s =
       pr_string ":";
       pr_expression 0 e;
       pr_space();
-      pr_rparen();
+      pr_rparen(); pr_space();
       pr_statement_short s
 
-  | Sassert1 e -> pr_string "assert "; pr_expression 0 e; pr_string ";"
+  | Sassert1 e -> pr_string "assert "; pr_expression 0 e; pr_semicolon()
   | Sassert2(e1, e2) -> pr_string "assert "; pr_expression 0 e1; 
-      pr_string ":"; pr_expression 0 e2; pr_string ";"
+      pr_string ":"; pr_expression 0 e2; pr_semicolon()
 
   | Serror -> pr_string "<ERROR>"
 
@@ -857,7 +857,7 @@ and pr_switch_block_stmt_grp sty (sls, bss) =
   close_box()
 
 and pr_local_variable_declaration_statement lvd = 
-  pr_local_variable_declaration lvd; pr_string ";"
+  pr_local_variable_declaration lvd; pr_semicolon()
 
 and pr_local_variable_declaration lvd =
   open_box 0;
@@ -873,7 +873,7 @@ and pr_for_init fi =
   | FIlocal lvd -> pr_local_variable_declaration lvd
 
 and pr_expression_statement se =
-  pr_statement_expression se; pr_string ";"
+  pr_statement_expression se; pr_semicolon()
 
 and pr_statement_expression_list ses = 
   pr_list pr_comma pr_statement_expression ses
@@ -918,7 +918,7 @@ and pr_field_declaration fd =
     | None -> () | Some ms -> pr_modifiers ms; pr_space()
   end;
   pr_type fd.fd_type; pr_space(); 
-  pr_variable_declarators fd.fd_variable_declarators; pr_string ";";
+  pr_variable_declarators fd.fd_variable_declarators; pr_semicolon();
   close_box()
 
 and pr_interface_method_declaration amd =
@@ -934,7 +934,7 @@ and pr_class_body_declaration cbd =
   | CBDstaticInitializer b -> pr_string "static "; pr_block_tall b
   | CBDinstanceInitializer b -> pr_block_tall b
   | CBDconstructor cd -> pr_constructor_declaration cd
-  | CBDempty -> pr_string ";"
+  | CBDempty -> pr_semicolon()
   | CBDerror -> pr_string "<ERROR>"
 
 and pr_interface_member_declaration = function
@@ -942,7 +942,7 @@ and pr_interface_member_declaration = function
   | IMDinterfaceMethod amd -> pr_interface_method_declaration amd
   | IMDclass cd -> pr_class_declaration cd
   | IMDinterface id -> pr_interface_declaration id
-  | IMDempty -> pr_string ";"
+  | IMDempty -> pr_semicolon()
 
 and pr_interface_body ib =
   match ib.ib_member_declarations with
@@ -998,12 +998,12 @@ and pr_annotation_type_member_declaration atmd =
         | _ -> ()
       end;
       pr_option pr_element_value dv_opt;
-      pr_string ";";
+      pr_semicolon();
       close_box()
 
   | ATMDclass cd -> pr_class_declaration cd
   | ATMDinterface id -> pr_interface_declaration id
-  | ATMDempty -> pr_string ";"
+  | ATMDempty -> pr_semicolon()
 
 and pr_annot_dim adim =
   pr_annotations adim.ad_annotations;
@@ -1022,13 +1022,13 @@ and pr_explicit_constructor_invocation eci =
       pr_string ".";
       pr_option pr_type_arguments tyargs;
       pr_string "super"; pr_arguments args; 
-      pr_string ";"
+      pr_semicolon()
   | ECIname(n, tyargs, args) ->
       pr_name n;
       pr_string ".";
       pr_option pr_type_arguments tyargs;
       pr_string "super"; pr_arguments args; 
-      pr_string ";"
+      pr_semicolon()
 
 and pr_constructor_body cnb =
   match cnb.cnb_explicit_constructor_invocation, cnb.cnb_block with
@@ -1077,7 +1077,7 @@ and pr_enum_body eb =
       pr_block_begin_short();
       pr_enum_constants ecs;
       if body <> [] then
-        pr_string ";";
+        pr_semicolon();
       pr_class_body_declarations body; 
       pr_block_end()      
 
@@ -1146,24 +1146,24 @@ let pr_type_declaration td =
   match td.td_desc with
   | TDclass cd -> pr_class_declaration cd
   | TDinterface id -> pr_interface_declaration id
-  | TDempty -> pr_string ";"
+  | TDempty -> pr_semicolon()
 
 let pr_type_declarations = pr_list pr_newline pr_type_declaration
 
 let pr_package_declaration pd =
   pr_string "package "; 
   pr_name pd.pd_name; 
-  pr_string ";"
+  pr_semicolon()
 
 let pr_import_declaration id =
   match id.id_desc with
-  | IDsingle n -> pr_string "import "; pr_name n; pr_string ";"
+  | IDsingle n -> pr_string "import "; pr_name n; pr_semicolon()
   | IDtypeOnDemand n -> pr_string "import "; pr_name n; pr_string ".*;"
   | IDsingleStatic(n, i) -> 
       pr_string "import static "; 
       pr_name n; pr_string ".";
       pr_id i;
-      pr_string ";"
+      pr_semicolon()
   | IDstaticOnDemand n -> 
       pr_string "import static "; pr_name n; pr_string ".*;"
 
