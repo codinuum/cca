@@ -325,6 +325,8 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method is_phantom = L.is_phantom lab
 
+      method is_special = L.is_special lab
+
       method to_elem_data = L.to_elem_data self#src_loc lab
 
       method eq ndat = _label = ndat#_label && self#orig_lab_opt = ndat#orig_lab_opt
@@ -476,7 +478,8 @@ module Tree (L : Spec.LABEL_T) = struct
     val mutable true_children_tbl = (Hashtbl.create 0 : (node_t, node_t array) Hashtbl.t)
     method set_true_children_tbl tbl = true_children_tbl <- tbl
 
-    method recover_true_children =
+    method recover_true_children ~initial_only () =
+      DEBUG_MSG "initial_only=%B" initial_only;
       let modified = ref false in
       Hashtbl.iter 
 	(fun nd c ->
@@ -485,12 +488,14 @@ module Tree (L : Spec.LABEL_T) = struct
 	    UID.ps nd#uid (Xarray.to_string (fun n -> UID.to_string n#uid) ";" c);
 
 	  nd#set_initial_children c;
-(*	  nd#set_children c; *)
+          if not initial_only then
+            nd#set_children c;
 	  Array.iteri
             (fun i n ->
               n#set_initial_parent nd;
               n#set_initial_pos i;
-              (*n#set_parent nd*)
+              if not initial_only then
+                n#set_parent nd
             ) c;
 	  modified := true
 	) true_children_tbl;

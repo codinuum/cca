@@ -46,6 +46,10 @@ let rec set_ghost_rec nd =
 let is_ghost = Triple.is_ghost_ast_node
 
 let getlab = FB.getlab
+let get_orig_lab_opt nd =
+  match nd#data#orig_lab_opt with
+  | Some o -> Some (Obj.obj o : L.t)
+  | None -> None
 
 let get_surrounding_classes_or_interfaces nd =
   FB.get_surrounding_xxxs (fun l -> L.is_class l || L.is_interface l || L.is_enum l) nd
@@ -471,23 +475,26 @@ class translator options = let bid_gen = new BID.generator in object (self)
     in
     let rec get_children desc = 
       match desc with
-      | Ast.Tprimitive(al, _) -> List.map self#of_annotation al
+      | Ast.Tprimitive(al, _) -> (List.map self#of_annotation al), None
 
       | Ast.TclassOrInterface tss
       | Ast.Tclass tss
-      | Ast.Tinterface tss
-          -> begin
+      | Ast.Tinterface tss -> begin
+          let nds =
             match tss with
             | [] -> []
-            | [Ast.TSname([], _)] | [Ast.TSapply([], _, _)] -> []
-            | [Ast.TSname(al, _)] | [Ast.TSapply(al, _, _)] -> List.map self#of_annotation al
+            | [Ast.TSname(al, _)] -> List.map self#of_annotation al
             | _ -> begin
-                List.map
-                  (fun spec ->
+                List.fold_left
+                  (fun l spec ->
                     let al, n, tas_opt =
                       match spec with
                       | Ast.TSname(al, n)       -> al, n, None
-                      | Ast.TSapply(al, n, tas) -> al, n, Some tas
+                      | Ast.TSapply(al, n, tas) ->
+                          if tas.Ast.tas_type_arguments = [] then
+                            al, n, None
+                          else
+                            al, n, Some tas
                     in
                     let id = L.conv_name n in
                     let orig_id = L.conv_name ~resolve:false n in
@@ -507,27 +514,48 @@ class translator options = let bid_gen = new BID.generator in object (self)
                       else
                         Ast.Loc.merge loc0 loc1
                     in
-                    let c =
-                      (List.map self#of_annotation al) @
+                    let tal =
                       match tas_opt with
                       | Some tas -> [self#of_type_arguments id tas]
                       | None -> []
                     in
-                    let ordinal_tbl_opt = Some (new ordinal_tbl [List.length al; 1]) in
-                    let orig_lab_opt = Some (L.ReferenceTypeElem orig_id) in
-                    let nd =
-                      self#mknode ~orig_lab_opt ~ordinal_tbl_opt (L.ReferenceTypeElem id) c
+                    let c = l @ (List.map self#of_annotation al) @ tal in
+                    let ordinal_tbl_opt =
+                      Some (new ordinal_tbl [List.length l; List.length al; List.length tal])
                     in
+                    let orig_lab_opt = Some (L.Type (L.Type.ClassOrInterface orig_id)) in
+                    let lab = L.Type (L.Type.ClassOrInterface id) in
+                    let nd = self#mknode ~orig_lab_opt ~ordinal_tbl_opt lab c in
                     set_loc nd loc;
-                    nd
-                  ) tss
+                    [nd]
+                  ) [] tss
             end
-          end
-      | Ast.Tarray(t, _) -> get_children t.Ast.ty_desc
-      | Ast.Tvoid -> []
+          in
+          match nds with
+          | [] -> [], None
+          | nd :: _ -> (Array.to_list nd#children), get_orig_lab_opt nd
+      end
+      | Ast.Tarray(t, dims) -> begin
+          let children, _lab_opt = get_children t.Ast.ty_desc in
+          let lab_opt =
+            match _lab_opt with
+            | Some (L.Type lab) -> Some (L.Type (L.Type.Array(lab, dims)))
+            | Some _ -> assert false
+            | None -> None
+          in
+          children, lab_opt
+      end
+      | Ast.Tvoid -> [], None
     in
-    let orig_lab_opt = Some (L.of_javatype ~resolve:false ty) in
-    let nd = self#mknode ~orig_lab_opt (L.of_javatype ty) (get_children ty.Ast.ty_desc) in
+    let children, lab_opt =
+      get_children ty.Ast.ty_desc
+    in
+    let orig_lab_opt =
+      match lab_opt with
+      | None -> Some (L.of_javatype ~resolve:false ty)
+      | Some _ -> lab_opt
+    in
+    let nd = self#mknode ~orig_lab_opt (L.of_javatype ty) children in
     set_loc nd ty.Ast.ty_loc;
     nd
 
@@ -682,9 +710,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
 
     let mod_nodes = self#of_modifiers_opt L.Kmethod ident mods in
     let tp_nodes = self#of_type_parameters_opt ident tparams in
-    let ty_leaf = self#of_javatype 0 header.Ast.mh_return_type in
-    let rty = self#mknode (L.ReturnType ident) [ty_leaf] in
-    rty#data#set_loc ty_leaf#data#src_loc;
+    let rty = self#of_javatype 0 header.Ast.mh_return_type in
     let p_nodes = self#of_parameters ident header.Ast.mh_parameters_loc params in
     let th_nodes = self#of_throws_opt ident throws in
     let ordinal_tbl_opt =

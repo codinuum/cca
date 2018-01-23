@@ -55,13 +55,11 @@ module type T = sig
   val is_while                 : t -> bool
   val is_do                    : t -> bool
   val is_return                : t -> bool
-  val is_returntype            : t -> bool
   val is_parameter             : t -> bool
   val is_parameters            : t -> bool
   val is_typeparameter         : t -> bool
   val is_typeparameters        : t -> bool
   val is_typearguments         : ?nth:int -> t -> bool
-  val is_retty                 : t -> bool
   val is_statement             : t -> bool
   val is_field                 : t -> bool
   val is_type                  : t -> bool
@@ -235,8 +233,12 @@ module Type = struct
     | Ast.TSname(al, n)       -> conv_name ~resolve n
     | Ast.TSapply(al, n, tas) -> (conv_name ~resolve n)^(type_arguments_to_string ~resolve tas)
 
+  and type_spec_to_name ?(resolve=true) = function
+    | Ast.TSname(al, n)
+    | Ast.TSapply(al, n, _) -> conv_name ~resolve n
+
   and conv_type_specs ?(resolve=true) tss =
-    Xlist.to_string (type_spec_to_string ~resolve) "." tss
+    Xlist.to_string (type_spec_to_name ~resolve) "." tss
 
   and to_string ty = 
     let rec conv = function
@@ -1553,7 +1555,6 @@ type t = (* Label *)
   | Method of name
   | Super
   | Qualifier of name
-  | ReturnType of name
   | Throws of name (* method or ctor name *)
   | MethodBody of name (* method name *)
   | Specifier of kind
@@ -1587,8 +1588,6 @@ type t = (* Label *)
 
   | InferredParameters
   | InferredParameter of name
-
-  | ReferenceTypeElem of name
 
   | ResourceSpec
   | Resource of name * dims
@@ -1658,7 +1657,6 @@ let rec to_string = function
   | Method name                             -> sprintf "Method(%s)" name
   | Super                                   -> "Super"
   | Qualifier q                             -> sprintf "Qualifier(%s)" q
-  | ReturnType name                         -> sprintf "ReturnType(%s)" name
   | Throws name                             -> sprintf "Throws(%s)" name
   | MethodBody name                         -> sprintf "MethodBody(%s)" name
   | Specifier k                             -> "Specifier:"^(kind_to_string k)
@@ -1686,8 +1684,6 @@ let rec to_string = function
   | FieldDeclarations name                  -> sprintf "FieldDeclarations(%s)" name
   | InferredParameters                      -> "InferredParameters"
   | InferredParameter name                  -> sprintf "InferredParameter(%s)" name
-
-  | ReferenceTypeElem name                  -> sprintf "ReferenceTypeElem(%s)" name
 
   | ResourceSpec                            -> sprintf "ResourceSpec"
   | Resource(name, dims)                    -> sprintf "Resource(%s,%d)" name dims
@@ -1719,7 +1715,6 @@ let anonymize ?(more=false) = function
   | FieldDeclaration vdids         -> FieldDeclaration []
   | Method name                    -> Method ""
   | Qualifier q                    -> Qualifier ""
-  | ReturnType name                -> ReturnType ""
   | Throws name                    -> Throws ""
   | MethodBody name                -> MethodBody ""
   | Specifier k                    -> Specifier Kany
@@ -1743,7 +1738,6 @@ let anonymize ?(more=false) = function
   | ForCond tid                    -> ForCond (anonymize_tid tid)
   | ForUpdate tid                  -> ForUpdate (anonymize_tid tid)
   | InferredParameter name         -> InferredParameter ""
-  | ReferenceTypeElem name         -> ReferenceTypeElem ""
   | Resource(name, dims)           -> Resource("", 0)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
 
@@ -1753,6 +1747,7 @@ let anonymize ?(more=false) = function
 let anonymize2 = function
   | Primary p   -> Primary (Primary.anonymize2 p) 
   | Qualifier _ -> Primary (Primary.Name "")
+  | VariableDeclarator _ -> Primary (Primary.Name "")
   | lab -> anonymize ~more:true lab
 
 let anonymize3 = function
@@ -1813,7 +1808,6 @@ let rec to_simple_string = function
   | Method name                 -> name
   | Super                       -> "super"
   | Qualifier q                 -> q
-  | ReturnType name             -> name
   | Throws name                 -> "throws"
   | MethodBody name             -> "<body>"
   | Specifier k                 -> "<spec"^(kind_to_suffix k)^">"
@@ -1841,7 +1835,6 @@ let rec to_simple_string = function
   | FieldDeclarations name      -> "<fdecls>"
   | InferredParameters          -> "<inferred_parameters>"
   | InferredParameter name      -> name
-  | ReferenceTypeElem name      -> "<reference_type_elem>"
   | ResourceSpec                -> "<resource_spec>"
   | Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d" dims)
   | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
@@ -1897,7 +1890,6 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Method name                             -> combo 44 [name]
   | Super                                   -> mkstr 45
   | Qualifier q                             -> catstr [mkstr 46; q]
-  | ReturnType name                         -> catstr [mkstr 47; name]
   | Throws name                             -> combo 48 [name]
   | MethodBody name                         -> combo 49 [name]
   | Specifier k                             -> catstr [mkstr 50; kind_to_short_string k]
@@ -1928,7 +1920,6 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | WildcardBoundsSuper                     -> mkstr 75
   | InferredParameters                      -> mkstr 76
   | InferredParameter name                  -> combo 77 [name]
-  | ReferenceTypeElem name                  -> combo 78 [name]
   | Error                                   -> mkstr 79
   | SwitchBlock                             -> mkstr 80
   | ConstructorBody(name, s)                -> combo 81 [name;s]
@@ -2004,7 +1995,6 @@ let to_tag l =
     | Method name                 -> "MethodDeclaration", ["name",xmlenc name]
     | Super                       -> "Super", []
     | Qualifier q                 -> "Qualifier", ["name",xmlenc q]
-    | ReturnType name             -> "ReturnType", ["name",xmlenc name]
     | Throws name                 -> "Throws", ["name",xmlenc name]
     | MethodBody name             -> "MethodBody", ["name",xmlenc name]
     | Specifier k                 -> (kind_to_string k)^"Specifier", []
@@ -2045,8 +2035,6 @@ let to_tag l =
           "LocalVariableDeclarationStatement"
         else
           "LocalVariableDeclaration"), [vdids_attr_name,vdids_to_string vdids]
-
-    | ReferenceTypeElem name      -> "ReferenceTypeElem", ["name",xmlenc name]
 
     | ResourceSpec                -> "ResourceSpec", []
     | Resource(name, dims)        -> "Resource", ["name",xmlenc name;
@@ -2111,7 +2099,6 @@ let to_char lab =
     | Method name -> 48
     | Super -> 49
     | Qualifier q -> 50
-    | ReturnType name -> 51
     | Throws name -> 52
     | MethodBody name -> 53
     | Specifier _ -> 54
@@ -2142,7 +2129,6 @@ let to_char lab =
     | WildcardBoundsSuper -> 79
     | InferredParameters     -> 80
     | InferredParameter name -> 81
-    | ReferenceTypeElem name -> 82
     | Error -> 83
     | SwitchBlock -> 84
     | ConstructorBody _ -> 85
@@ -2215,6 +2201,7 @@ let is_collapse_target options lab =
     | Statement _
     | Primary _
     | Expression _
+    | Type (Type.ClassOrInterface _ | Type.Class _ | Type.Interface _)
 
     | Class _
     | Enum _
@@ -2303,13 +2290,15 @@ let relabel_allowed (lab1, lab2) =
     | Expression Expression.Cond, Statement Statement.If
     | Statement Statement.If, Expression Expression.Cond
 
+    | Implements, Extends
+    | Extends, Implements
+    | Method _, Constructor _ | Constructor _, Method _
+
     | Type _, Type _
     | Primary _, Primary _
     | Expression _, Expression _
     | Modifier _, Modifier _
     | LocalVariableDeclaration _, LocalVariableDeclaration _
-    | Implements, Extends
-    | Extends, Implements
       -> true
 
     | l1, l2 -> anonymize2 l1 = anonymize2 l2
@@ -2349,7 +2338,6 @@ let is_named = function
   | FieldDeclaration _
   | Method _ 
   | Qualifier _
-  | ReturnType _
   | Throws _
   | MethodBody _
   | Class _
@@ -2370,7 +2358,6 @@ let is_named = function
   | FieldDeclarations _
   | LocalVariableDeclaration _
   | InferredParameter _
-  | ReferenceTypeElem _
   | Resource _
   | CatchParameter _
     -> true
@@ -2482,10 +2469,6 @@ let is_return = function
   | Statement Statement.Return -> true
   | _ -> false
 
-let is_returntype = function
-  | ReturnType _ -> true
-  | _ -> false
-
 let is_method = function
   | Method _ -> true
   | _ -> false
@@ -2512,10 +2495,6 @@ let is_typeparameters = function
 
 let is_typearguments ?(nth=1) = function
   | TypeArguments(n, _) -> n = nth
-  | _ -> false
-
-let is_retty = function
-  | ReturnType _ -> true
   | _ -> false
 
 let is_statement = function
@@ -3027,7 +3006,6 @@ let get_name lab =
     | Modifiers name
     | Method name
     | Qualifier name
-    | ReturnType name
     | Throws name
     | MethodBody name
     | Class name
@@ -3046,7 +3024,6 @@ let get_name lab =
     | IDstaticOnDemand name 
     | FieldDeclarations name
     | InferredParameter name
-    | ReferenceTypeElem name
     | Resource(name, _)
     | CatchParameter(name, _)
       -> name
@@ -3102,11 +3079,11 @@ let is_phantom = function
   | Modifiers _
   | ImportDeclarations
   | TypeDeclarations
-  | ReturnType _
   | Specifier _
     -> true
   | _ -> false
 
+let is_special _ = false
 
 
 open Astml.Attr
@@ -3343,7 +3320,6 @@ let of_elem_data =
     "MethodDeclaration",         (fun a -> Method(find_name a));
     "Super",                     (fun a -> Super);
     "Qualifier",                 (fun a -> Qualifier(find_name a));
-    "ReturnType",                (fun a -> ReturnType(find_name a));
     "Throws",                    (fun a -> Throws(find_name a));
     "MethodBody",                (fun a -> MethodBody(find_name a));
 
@@ -3377,7 +3353,6 @@ let of_elem_data =
     "FieldDeclarations",                        (fun a -> FieldDeclarations(find_name a));
     "InferredParameters",                       (fun a -> InferredParameters);
     "InferredParameter",                        (fun a -> InferredParameter(find_name a));
-    "ReferenceTypeElem",                        (fun a -> ReferenceTypeElem(find_name a));
     "CompilationUnit",                          (fun a -> CompilationUnit);
     "ResourceSpec",                             (fun a -> ResourceSpec);
     "Resource",                                 (fun a -> Resource(find_name a, find_dims a));

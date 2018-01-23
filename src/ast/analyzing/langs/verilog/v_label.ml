@@ -1934,6 +1934,8 @@ let is_phantom = function
       -> true
   | _ -> false
 
+let is_special _ = false
+
 let is_always_construct = function
   | AlwaysConstruct _ -> true
   | _ -> false

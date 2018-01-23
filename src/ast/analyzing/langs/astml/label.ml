@@ -797,6 +797,7 @@ let cannot_be_keyroot nd =
 
 let is_phantom lab = false (* not yet *)
 
+let is_special lab = false (* not yet *)
 
 
 

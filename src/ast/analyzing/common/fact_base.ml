@@ -381,7 +381,7 @@ module F (L : Spec.LABEL_T) = struct
       end
       else
 	let range_str = Triple.get_range_str enc loc in
-	Triple.mkent (Triple.__make_entity enc_str fid_str range_str nd#data#is_phantom)
+	Triple.mkent (Triple.__make_entity enc_str fid_str range_str nd#data#is_phantom nd#data#is_special)
 
 
     method private mkfileentity =

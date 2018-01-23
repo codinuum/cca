@@ -604,7 +604,7 @@ module F (Stat : STATE_T) = struct
 
   let _mkty loc d = { ty_desc=d; ty_loc=loc }
   let _mktyargs loc tyargs = { tas_type_arguments=tyargs; tas_loc=loc }
-  let mktyparams loc typarams = { tps_type_parameters=typarams; tps_loc=loc }
+  let mktyparams so eo typarams = { tps_type_parameters=typarams; tps_loc=(get_loc so eo) }
   let _mktype loc d = { ty_desc=d; ty_loc=loc }
   let _mkmod loc d = { m_desc=d; m_loc=loc }
   let annots_to_mods = List.map (fun a -> _mkmod a.a_loc (Mannotation a))
@@ -962,13 +962,14 @@ module F (Stat : STATE_T) = struct
   let mktyarg so eo d = _mktyarg (get_loc so eo) d
   let mktyparam so eo (al, tvar) tb = { tp_type_variable=tvar;
                                         tp_annotations=al;
-				        tp_type_bound=tb; 
-				        tp_loc=(get_loc so eo) 
-				}
-  let mktb so eo rty ab = { tb_reference_type=rty; 
+                                        tp_type_bound=tb; 
+                                        tp_loc=(get_loc so eo);
+				      }
+  let _mktb loc rty ab = { tb_reference_type=rty; 
 			    tb_additional_bounds=ab; 
-			    tb_loc=(get_loc so eo) 
+			    tb_loc=loc;
 			  }
+  let mktb so eo rty ab = _mktb (get_loc so eo) rty ab
   let mkab so eo intf = { ab_interface=intf; ab_loc=(get_loc so eo) }
 
   let _mkname loc d = { n_desc=d; n_loc=loc }

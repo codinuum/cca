@@ -1246,3 +1246,6 @@ let is_phantom = function
   | NamedArguments _
       -> true
   | _ -> false
+
+let is_special _ = false
+

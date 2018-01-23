@@ -43,6 +43,7 @@ class type node_data_t = object ('self)
 
   method is_sequence     : bool
   method is_phantom      : bool
+  method is_special      : bool
 
   method anonymized_label  : string
   method anonymized2_label : string
@@ -87,7 +88,7 @@ class type tree_t = object ('self)
   method find_true_parent         : UID.t -> node_t
 
   method set_true_children_tbl    : (node_t, node_t array) Hashtbl.t -> unit
-  method recover_true_children    : unit
+  method recover_true_children    : initial_only:bool -> unit -> unit
 
   method set_source_info          : Storage.file -> unit
 
@@ -217,6 +218,7 @@ module type LABEL_T = sig
   val cannot_be_keyroot  : node_t -> bool
 
   val is_phantom         : t -> bool
+  val is_special         : t -> bool
 
   val is_string_literal  : t -> bool
   val is_int_literal     : t -> bool

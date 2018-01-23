@@ -379,12 +379,12 @@ and [ 'node ] path =
 
 
 type 'node mutation =
-  | Minsert of float (* offset *) * 'node list
+  | Minsert of float (* offset *) * 'node list * bool (* later *)
   | Mdelete
 
 let mutation_to_string = function
-  | Minsert(o, cl) ->
-      sprintf "ins(%s):\n%s" (Path.Elem.ofs_to_str o)
+  | Minsert(o, cl, later) ->
+      sprintf "ins(%s)%s:\n%s" (Path.Elem.ofs_to_str o) (if later then "*" else "")
         (String.concat "\n"
            (List.map (fun x -> "     "^x#initial_to_string) cl));
   | Mdelete -> "del"
@@ -819,7 +819,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         mutation_started <- true
       end
 
-    method v_insert_children
+    method v_insert_children ?(later=false)
         ?(offset=(-1.)) pos (children : 'self list)
         =
       DEBUG_MSG "%s\npos=%d offset=%s [%s]" self#to_string
@@ -831,15 +831,15 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         pos (Path.Elem.ofs_to_str offset)
         (String.concat ";" (List.map (fun n -> UID.to_string n#uid) children));*)
 
-      self#mutation_tbl_add pos (Minsert(offset, children))
+      self#mutation_tbl_add pos (Minsert(offset, children, later))
 
-    method v_insert_child ?(offset=(-1.)) pos child =
-      self#v_insert_children ~offset pos [child]
+    method v_insert_child ?(later=false) ?(offset=(-1.)) pos child =
+      self#v_insert_children ~later ~offset pos [child]
 
     method v_update_children pos (children : 'self list) =
       DEBUG_MSG "pos=%d" pos;
       self#mutation_tbl_add pos Mdelete;
-      self#mutation_tbl_add pos (Minsert(0., children))
+      self#mutation_tbl_add pos (Minsert(0., children, false))
 
     method v_update_child pos child = self#v_update_children pos [child]
 
@@ -850,30 +850,88 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
 
     method v_delete_children = List.iter self#v_delete_child
 
-    method end_mutation() = (* flush mutations *)
+    method has_later_mutation =
+      let b =
+        try
+          Hashtbl.iter
+            (fun pos ms ->
+              List.iter
+                (function
+                  | Minsert(_, _, true)(* as m*) ->
+                      (*printf "pos=%d %s\n" pos (mutation_to_string m);*)
+                      raise Exit
+                  | _ -> ()
+                ) ms
+            ) mutation_tbl;
+          false
+        with
+          Exit -> true
+      in
+      (*printf "has_later_mutation: %s -> %B\n" (UID.to_string uid) b;*)
+      b
+
+    method end_mutation ?(overwrite=true) () = (* flush mutations *)
       DEBUG_MSG "%s" self#initial_to_string;
       (*printf "!!! end_mutation: %s\n" self#initial_to_string;*)
 
       let buf = ref [] in
-      let push x = buf := x :: !buf in
+      let push x =
+        (*printf "!!! [%s] push: %s\n" (UID.to_string uid) x#to_string;*)
+        let b =
+          overwrite ||
+          let p_opt = try Some x#parent with _ -> None in
+          let ip_opt = try Some x#initial_parent with _ -> None in
+          match p_opt, ip_opt with
+          | Some p, Some ip -> p == ip
+          | None, None -> true
+          | _ -> false
+        in
+        if b then begin
+          (*printf "!!! pushed\n";*)
+          buf := x :: !buf
+        end
+      in
 
       if self#initial_nchildren = 0 then begin
         DEBUG_MSG "nchildren=0";
         (*printf "!!! nchildren=0\n";*)
         try
           let ms = Hashtbl.find mutation_tbl 0 in
+          let _insl = List.filter (function Minsert _ -> true | _ -> false) ms in
           let insl =
             List.fast_sort
               (fun m0 m1 ->
                 match m0, m1 with
-                | (Minsert(o0, _)), (Minsert(o1, _)) -> compare o0 o1
+                | (Minsert(o0, nds0, _)), (Minsert(o1, nds1, _)) -> begin
+                    compare o0 o1
+                    (*if o0 = o1 && o0 <> 0. then begin
+                      try
+                        let c = ref 0 in
+                        let last0 = Xlist.last nds0 in
+                        let head1 = List.hd nds1 in
+                        if last0#initial_parent == head1#initial_parent then
+                          if last0#initial_pos < head1#initial_pos then
+                            c := -1;
+                        if !c = 0 then begin
+                          let last1 = Xlist.last nds1 in
+                          let head0 = List.hd nds0 in
+                          if last1#initial_parent == head0#initial_parent then
+                            if last1#initial_pos < head0#initial_pos then
+                              c := 1
+                        end;
+                        !c
+                      with
+                      | _ -> 0
+                    end
+                    else
+                      compare o0 o1*)
+                end
                 | _ -> 0
-              )
-              (List.filter (function Minsert _ -> true | _ -> false) ms)
+              ) _insl
           in
           List.iter
             (function
-              | Minsert(o, nds) ->
+              | Minsert(o, nds, _) ->
                   DEBUG_MSG "ofs=%s" (Path.Elem.ofs_to_str o);
                   (*printf "!!! ofs=%s\n" (Path.Elem.ofs_to_str o);*)
                   List.iter push nds
@@ -887,7 +945,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         Array.iteri
           (fun pos child ->
             DEBUG_MSG "pos=%d %s" pos child#initial_to_string;
-            (*printf "!!! pos=%d %s\n" pos child#initial_to_string;*)
+            (*printf "!!! %s: pos=%d %s\n" (UID.to_string uid) pos child#initial_to_string;*)
             
             try
               let ms = Hashtbl.find mutation_tbl pos in
@@ -905,7 +963,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                 List.fold_left
                   (fun (d, i, z) m ->
                     match m with
-                    | Minsert(o, cl) ->
+                    | Minsert(o, cl, _) ->
 
                         DEBUG_MSG " %s" (mutation_to_string m);
                         (*printf "!!! %s\n" (mutation_to_string m);*)
@@ -945,20 +1003,28 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                 List.fast_sort
                   (fun m0 m1 ->
                     match m0, m1 with
-                    | (Minsert(o0, _)), (Minsert(o1, _)) -> compare o0 o1
+                    | (Minsert(o0, _, _)), (Minsert(o1, _, _)) -> compare o0 o1
                     | _ -> 0
                   )
                   (if has_del || has_0ofs then begin
                     if moved then begin
-                      let ofs0, others =
+                      let _, others =
                         List.partition
                           (function
-                            | Minsert(ofs, nds) -> begin
+                            | Minsert(ofs, nds, _) -> begin
                                 let b = ofs = 0. in
-                                if b then
+                                if b then begin
+
+                                  (*printf "!!! %s: %d -> [%s]\n"
+                                    (UID.to_string child#initial_parent#uid)
+                                    child#initial_pos
+                                    (String.concat ";"
+                                       (List.map (fun n -> UID.to_string n#uid) nds));*)
+
                                   child#initial_parent#_replace_children
                                     ~initial:true
-                                    [child#initial_pos, Array.of_list nds];
+                                    [child#initial_pos, Array.of_list nds]
+                                end;
                                 b
                             end
                             | _ -> assert false
@@ -970,14 +1036,14 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                       insl
                   end
                   else begin
-                    (Minsert(0., [child])) :: insl
+                    (Minsert(0., [child], false)) :: insl
                   end
                   )
               in
 
               List.iter
                 (function
-                  | Minsert(ofs, nds) -> List.iter push nds
+                  | Minsert(ofs, nds, _) -> List.iter push nds
                   | Mdelete -> assert false
                 ) insl
 
@@ -1800,7 +1866,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
                 let pos0 = felem.Path.Elem.pos in
                 let ofs0 = felem.Path.Elem.ofs in
                 if (fst (modf ofs0)) = 0. && pos0 >= 0 then
-                  fnode#v_insert_child ~offset:ofs0 pos0 children.(p);
+                  fnode#v_insert_child ~later:partial ~offset:ofs0 pos0 children.(p);
 
 	      ) p_fnode_felem_list;
 

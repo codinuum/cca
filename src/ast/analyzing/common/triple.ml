@@ -464,10 +464,12 @@ let rec avoid_ghost node =
   else
     node
 
-let __make_entity enc_str fid_str range_str is_phantom =
+let __make_entity enc_str fid_str range_str is_phantom is_special =
   let l =
     if is_phantom then
       [enc_str; fid_str; range_str; "P"]
+    else if is_special then
+      [enc_str; fid_str; range_str; "S"]
     else
       [enc_str; fid_str; range_str]
   in
@@ -490,7 +492,7 @@ let _make_entity options tree nd =
 
     let range_str = get_range_str enc loc in
 
-    __make_entity enc_str fid_str range_str nd#data#is_phantom
+    __make_entity enc_str fid_str range_str nd#data#is_phantom nd#data#is_special
 
 let make_entity options tree nd =
   if is_ghost_ast_node nd then

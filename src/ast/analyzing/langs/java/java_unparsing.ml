@@ -166,11 +166,6 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
       pr_selected L.is_expression children;
       pb#close_box()
 
-  | L.ReferenceTypeElem n ->
-      pr_selected ~sep:pr_space ~tail:pr_space L.is_annotation children;
-      pr_name n;
-      pr_selected L.is_typearguments children
-
   | L.InferredParameter n -> pr_string n
   | L.InferredParameters ->
       pr_lparen(); pb#pr_a pr_comma pr_node children; pr_rparen()
@@ -440,8 +435,8 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
 
   | L.TypeBound -> pb#pr_a pr_amp pr_node children
 
-  | L.Type ty -> 
-      if nchildren = 0 || has_orig_lab node then begin
+  | L.Type ty ->
+      if nchildren = 0 then begin
         pr_string (type_to_string ty)
       end
       else begin
@@ -453,15 +448,18 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
           | L.Type.Char
           | L.Type.Float
           | L.Type.Double
-          | L.Type.Boolean -> 
+          | L.Type.Boolean -> begin
               pr_selected ~sep:pr_space ~tail:pr_space L.is_annotation children;
               pr_string (type_to_string ty)
-
-          | L.Type.ClassOrInterface _
-          | L.Type.Class _
-          | L.Type.Interface _ ->
-              pb#pr_a pr_dot pr_node children
-                
+          end
+          | L.Type.ClassOrInterface n
+          | L.Type.Class n
+          | L.Type.Interface n -> begin
+              pr_selected ~tail:pr_dot L.is_type children;
+              pr_selected ~sep:pr_space ~tail:pr_space L.is_annotation children;
+              pr_name n;
+              pr_selected L.is_typearguments children
+          end
           | L.Type.Array(ty, dims)    -> pr_ty ty; pr_string (dims_to_string dims)
 
           | L.Type.Void               -> pr_string "void"
@@ -477,8 +475,6 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
 
   | L.Throws _ -> pr_break 1 pb#indent; pr_string "throws "; pr_types children; pr_space()
 
-  | L.ReturnType _ -> pr_node children.(0)
-
   | L.Parameters _ -> pb#pr_hova pr_comma pr_node children
 
   | L.Parameter(i, dims, va) ->
@@ -493,7 +489,7 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
       pb#open_box 0;
       pr_selected ~tail:pad1 L.is_modifiers children;
       pr_typeparameters children;
-      pr_selected L.is_returntype children; pad 1;
+      pr_selected L.is_type children; pad 1;
       pr_id i; 
       pr_parameters children;
       pr_selected ~head:pad1 L.is_throws children;

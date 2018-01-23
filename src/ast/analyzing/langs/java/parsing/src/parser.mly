@@ -290,57 +290,104 @@ type_arguments_opt:
 
 type_arguments:
 | LT GT { mktyargs $startofs $endofs [] }
-| LT ts=type_argument_list_1 
+| LT tas=type_argument_list_1 
     { 
-      let targs, loc2 = ts in
-      mktyargs $startofs $endofs targs 
+      mktyargs $startofs $endofs tas 
     }
 ;
 
 %inline
 wildcard_head:
-| al=annotations0 QUESTION { al }
+| al=annotations0 QUESTION { al, $endofs }
 ;
 
 wildcard:
-| al=wildcard_head                          { al, None }
-| al=wildcard_head EXTENDS r=reference_type { al, Some(mkwb $startofs $endofs (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type { al, Some(mkwb $startofs $endofs (WBsuper r)) }
+| alo=wildcard_head                            { let al, _ = alo in al, None }
+| alo=wildcard_head e=EXTENDS r=reference_type
+    { 
+      let _ = e in
+      let al, _ = alo in
+      al, Some(mkwb $startofs(e) $endofs (WBextends r))
+    }
+| alo=wildcard_head s=SUPER   r=reference_type
+    { 
+      let _ = s in
+      let al, _ = alo in
+      al, Some(mkwb $startofs(s) $endofs (WBsuper r))
+    }
 ;
 wildcard_1:
-| al=wildcard_head GT                         { al, None }
-| al=wildcard_head EXTENDS r=reference_type_1 { al, Some(mkwb $startofs ($endofs-1) (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type_1 { al, Some(mkwb $startofs ($endofs-1) (WBsuper r)) }
+| alo=wildcard_head GT                           { let al, o = alo in (al, None), o }
+| alo=wildcard_head e=EXTENDS r=reference_type_1
+    { 
+      let _ = e in
+      let eo = r.Ast.ty_loc.Loc.end_offset in
+      let al, _ = alo in
+      (al, Some(mkwb $startofs(e) eo (WBextends r))), eo
+    }
+| alo=wildcard_head s=SUPER   r=reference_type_1
+    { 
+      let _ = s in
+      let eo = r.Ast.ty_loc.Loc.end_offset in
+      let al, _ = alo in
+      (al, Some(mkwb $startofs(s) eo (WBsuper r))), eo
+    }
 ;
 wildcard_2:
-| al=wildcard_head GT_GT                      { al, None }
-| al=wildcard_head EXTENDS r=reference_type_2 { al, Some(mkwb $startofs ($endofs-2) (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type_2 { al, Some(mkwb $startofs ($endofs-2) (WBsuper r)) }
+| alo=wildcard_head GT_GT                        { let al, o = alo in (al, None), o }
+| alo=wildcard_head e=EXTENDS r=reference_type_2
+    { 
+      let _ = e in
+      let eo = r.Ast.ty_loc.Loc.end_offset in
+      let al, _ = alo in
+      (al, Some(mkwb $startofs(e) eo (WBextends r))), eo
+    }
+| alo=wildcard_head s=SUPER   r=reference_type_2
+    { 
+      let _ = s in
+      let eo = r.Ast.ty_loc.Loc.end_offset in
+      let al, _ = alo in
+      (al, Some(mkwb $startofs(s) eo (WBsuper r))), eo
+    }
 ;
 wildcard_3:
-| al=wildcard_head GT_GT_GT                   { al, None }
-| al=wildcard_head EXTENDS r=reference_type_3 { al, Some(mkwb $startofs ($endofs-3) (WBextends r)) }
-| al=wildcard_head SUPER   r=reference_type_3 { al, Some(mkwb $startofs ($endofs-3) (WBsuper r)) }
+| alo=wildcard_head GT_GT_GT                     { let al, o = alo in (al, None), o }
+| alo=wildcard_head e=EXTENDS r=reference_type_3
+    { 
+      let _ = e in
+      let eo = r.Ast.ty_loc.Loc.end_offset in
+      let al, _ = alo in
+      (al, Some(mkwb $startofs(e) eo (WBextends r))), eo
+    }
+| alo=wildcard_head s=SUPER   r=reference_type_3
+    { 
+      let _ = s in
+      let eo = r.Ast.ty_loc.Loc.end_offset in
+      let al, _ = alo in
+      (al, Some(mkwb $startofs(s) eo (WBsuper r))), eo
+    }
 ;
 
 reference_type_1:
 | r=reference_type GT { r }
-| c=class_or_interface_type_spec lt=LT t=type_argument_list_2 
+| c=class_or_interface_type_spec lt=LT tas=type_argument_list_2 
     {
       let head, a, n = c in
-      let targs, loc3 = t in
-      let tyargs = _mktyargs (Loc.merge lt loc3) targs in
-      mktype $startofs ($endofs-1) (TclassOrInterface(head @ [TSapply(a, n, tyargs)]))
+      let edloc = $endofs - 1 in
+      let _ = lt in
+      let tyargs = mktyargs $startofs(lt) edloc tas in
+      mktype $startofs edloc (TclassOrInterface(head @ [TSapply(a, n, tyargs)]))
     }
 ;
 reference_type_2:
 | r=reference_type GT_GT { r }
-| c=class_or_interface_type_spec lt=LT t=type_argument_list_3 
+| c=class_or_interface_type_spec lt=LT tas=type_argument_list_3 
     {  
       let head, a, n = c in
-      let targs, loc3 = t in
-      let tyargs = _mktyargs (Loc.merge lt loc3) targs in
-      mktype $startofs ($endofs-2) (TclassOrInterface(head @ [TSapply(a, n, tyargs)]))
+      let edloc = $endofs - 2 in
+      let _ = lt in
+      let tyargs = mktyargs $startofs(lt) edloc tas in
+      mktype $startofs edloc (TclassOrInterface(head @ [TSapply(a, n, tyargs)]))
     }
 ;
 reference_type_3:
@@ -352,33 +399,33 @@ type_argument_list:
 | l=type_argument_list COMMA t=type_argument { l @ [t] }
 ;
 type_argument_list_1:
-|                            t=type_argument_1 { [t], get_loc $startofs ($endofs-1) }
-| l=type_argument_list COMMA t=type_argument_1 { l @ [t], get_loc $startofs ($endofs-1) }
+|                            t=type_argument_1 { [t] }
+| l=type_argument_list COMMA t=type_argument_1 { l @ [t] }
 ;
 type_argument_list_2:
-|                            t=type_argument_2 { [t], get_loc $startofs ($endofs-2) }
-| l=type_argument_list COMMA t=type_argument_2 { l @ [t], get_loc $startofs ($endofs-2) }
+|                            t=type_argument_2 { [t] }
+| l=type_argument_list COMMA t=type_argument_2 { l @ [t] }
 ;
 type_argument_list_3:
-|                            t=type_argument_3 { [t], get_loc $startofs ($endofs-3) }
-| l=type_argument_list COMMA t=type_argument_3 { l @ [t], get_loc $startofs ($endofs-3) }
+|                            t=type_argument_3 { [t] }
+| l=type_argument_list COMMA t=type_argument_3 { l @ [t] }
 ;
 
 type_argument:
 | r=reference_type { mktyarg $startofs $endofs (TAreferenceType r) }
-| aw=wildcard      { mktyarg $startofs $endofs (TAwildcard aw) }
+| aw=wildcard      { mktyarg $symbolstartofs $endofs (TAwildcard aw) }
 ;
 type_argument_1:
 | r=reference_type_1 { _mktyarg r.ty_loc (TAreferenceType r) }
-| aw=wildcard_1      { mktyarg $startofs ($endofs-1) (TAwildcard aw) }
+| awo=wildcard_1     { let aw, o = awo in mktyarg $symbolstartofs o (TAwildcard aw) }
 ;
 type_argument_2:
 | r=reference_type_2 { _mktyarg r.ty_loc (TAreferenceType r) }
-| aw=wildcard_2      { mktyarg $startofs ($endofs-2) (TAwildcard aw) }
+| awo=wildcard_2     { let aw, o = awo in mktyarg $symbolstartofs o (TAwildcard aw) }
 ;
 type_argument_3:
 | r=reference_type_3 { _mktyarg r.ty_loc (TAreferenceType r) }
-| aw=wildcard_3      { mktyarg $startofs ($endofs-3) (TAwildcard aw) }
+| awo=wildcard_3     { let aw, o = awo in mktyarg $symbolstartofs o (TAwildcard aw) }
 ;
 
 
@@ -1861,10 +1908,38 @@ method_invocation:
       mkmi $startofs $endofs (MIprimary(p, Some t, id, a)) 
     }
 
-| n=name DOT t=type_arguments i=identifier a=arguments
+| q=name DOT t=type_arguments i=identifier a=arguments
     { 
       let _, id = i in
-      mkmi $startofs $endofs (MItypeName(n, Some t, id, a)) 
+      if
+        is_local_name q ||
+        is_implicit_field_name q ||
+        is_field_access q ||
+        is_expr_name q
+      then begin
+        set_name_attribute NAexpression q;
+        register_qname_as_expression q;
+        env#reclassify_identifier(leftmost_of_name q);
+	mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, Some t, id, a))
+      end
+      else begin
+        if is_type_name q then begin
+          try
+            let fqn = get_type_fqn q in
+            set_attribute_PT_T (mkresolved fqn) q;
+            register_qname_as_typename q;
+            mkmi $startofs $endofs (MItypeName(q, Some t, id, a))
+          with
+          | Unknown _ ->
+              set_attribute_PT_T (env#resolve q) q;
+              register_qname_as_typename q;
+              mkmi $startofs $endofs (MItypeName(q, Some t, id, a))
+        end
+        else begin
+          env#reclassify_identifier(leftmost_of_name q);
+          mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, Some t, id, a))
+        end
+      end
     }
 
 | s=super DOT i=identifier a=arguments
@@ -2163,11 +2238,7 @@ type_parameters_opt:
 ;
 
 type_parameters:
-| lt=LT t=type_parameter_list_1 
-    { 
-      let tparams, loc = t in  
-      mktyparams (Loc.merge lt loc) tparams
-    }
+| LT tps=type_parameter_list_1 { mktyparams $startofs $endofs tps }
 ;
 
 type_parameter_list:
@@ -2176,8 +2247,8 @@ type_parameter_list:
 ;
 
 type_parameter_list_1:
-|                               tp=type_parameter_1 { [tp], get_loc $startofs $endofs }
-| tps=type_parameter_list COMMA tp=type_parameter_1 { tps @ [tp], get_loc $startofs $endofs }
+|                               tp=type_parameter_1 { [tp] }
+| tps=type_parameter_list COMMA tp=type_parameter_1 { tps @ [tp] }
 ;
 
 type_variable:
@@ -2191,12 +2262,12 @@ type_variable:
 ;
 
 type_parameter:
-| tv=type_variable tb=type_bound_opt { mktyparam $startofs $endofs tv tb }
+| tv=type_variable tb=type_bound_opt { mktyparam $symbolstartofs $endofs tv tb }
 ;
 
 type_parameter_1:
-| tv=type_variable GT              { mktyparam $startofs(tv) $endofs(tv) tv None }
-| tv=type_variable tb=type_bound_1 { mktyparam $startofs $endofs tv (Some tb) }
+| tv=type_variable GT              { mktyparam $symbolstartofs $endofs(tv) tv None }
+| tv=type_variable tb=type_bound_1 { mktyparam $symbolstartofs (tb.Ast.tb_loc.Loc.end_offset) tv (Some tb) }
 ;
 
 %inline
@@ -2209,8 +2280,12 @@ type_bound:
 ;
 
 type_bound_1:
-| EXTENDS r=reference_type_1                           { mktb $startofs $endofs r [] }
-| EXTENDS r=reference_type   a=additional_bound_list_1 { mktb $startofs $endofs r a }
+| EXTENDS r=reference_type_1                           { mktb $startofs r.Ast.ty_loc.Loc.end_offset r [] }
+| EXTENDS r=reference_type   a=additional_bound_list_1
+    { 
+      let edofs = (Xlist.last a).Ast.ab_loc.Loc.end_offset in
+      mktb $startofs edofs r a
+    }
 ;
 
 %inline
@@ -2233,7 +2308,7 @@ additional_bound:
 ;
 
 additional_bound_1:
-| AND r=reference_type_1 { mkab $startofs $endofs r }
+| AND r=reference_type_1 { mkab $startofs r.Ast.ty_loc.Loc.end_offset r }
 ;
 
 postfix_expression_nn:

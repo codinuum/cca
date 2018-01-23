@@ -332,9 +332,6 @@ class extractor options cache_path tree = object (self)
       if not (L.is_throws lab) then
 	self#add_surrounding_xxx L.is_throws nd entity p_in_throws;
 
-      if not (L.is_retty lab) then
-	self#add_surrounding_xxx L.is_retty nd entity p_in_return_type;
-
       if not (L.is_localvariabledecl lab) then
 	self#add_surrounding_xxx L.is_localvariabledecl nd entity 
 	  p_in_variable_declaration;
