@@ -156,20 +156,6 @@ class Fact(dp.base):
     def addStatement(self, stmt, attr=None, value=None):
         self.add(stmt.subject, stmt.predicate, stmt.object, attr, value)
 
-    def get_pred_table(self):
-        q = self._create_statement(None, self.p_tool_id, None)
-        for stmt in self._model.find_statements(q):
-            tool = Resource(node=stmt.subject)
-            self._pred_tbl[tool] = []
-
-        for tool in self._pred_tbl.iterkeys():
-            q = self._create_statement(tool, self.p_provides_predicate, None)
-            l = self._pred_tbl[tool]
-            for stmt in self._model.find_statements(q):
-                l.append(Predicate(node=stmt.object))
-
-        return self._pred_tbl
-
     def _create_statement(self, subj, pred, obj):
         s = None
         p = None
@@ -181,19 +167,6 @@ class Fact(dp.base):
         if obj:
             o = obj.as_node()
         return RDF.Statement(s, p, o)
-
-    def get_tool_id(self, tool):
-        q = self._create_statement(tool, self.p_tool_id, None)
-        count = 0
-        tid = None
-        for stmt in self._model.find_statements(q):
-            count += 1
-            tid = stmt.object
-
-        if count > 1:
-            self.warning('multiple tool ids for "%s"' % tool)
-
-        return Literal(node=tid)
 
     def _guess_fmt(self, path):
         fmt = ''

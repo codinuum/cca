@@ -75,7 +75,7 @@ class LCRange(Range):
             ec = compo_to_int(compos[3])
             obj = LCRange(sl, sc, el, ec)
         except Exception, e:
-            self.warning(str(e))
+            dp.warning(str(e))
         return obj
 
     def __init__(self, sl, sc, el, ec):
@@ -180,7 +180,7 @@ class ORange(Range):
             eo = compo_to_int(compos[1])
             obj = ORange(so, eo)
         except Exception, e:
-            self.warning(str(e))
+            dp.warning(str(e))
         return obj
 
     def __init__(self, so, eo):
@@ -240,16 +240,12 @@ class LORange(ORange):
             eo = compo_to_int(compos[5])
             obj = LORange(sl, so, el, eo)
         except Exception, e:
-            self.warning(str(e))
+            dp.warning(str(e))
         return obj
         
     def __init__(self, sl, so, el, eo):
         Range.__init__(self)
-        valid0 = False
-        if sl == el:
-            valid0 = sc <= ec
-        else:
-            valid0 = sl < el
+        valid0 = sl <= el and so <= eo
         self._start_line = sl
         self._end_line = el
         ORange.__init__(self, so, eo)
@@ -312,7 +308,7 @@ class LCORange(LCRange, ORange):
             eo = compo_to_int(compos[5])
             obj = LCORange(sl, sc, so, el, ec, eo)
         except Exception, e:
-            self.warning(str(e))
+            dp.warning(str(e))
         return obj
         
     def __init__(self, sl, sc, so, el, ec, eo):

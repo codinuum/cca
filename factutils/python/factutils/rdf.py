@@ -93,11 +93,11 @@ class Resource(RDFNode):
         return str(self.as_node().uri)
 
     def get_namespane(self):
-        ns, ln = split_uri(self.get_uri())
+        ns, ln = uri_split(self.get_uri())
         return ns
 
     def get_local_name(self):
-        ns, ln = split_uri(self.get_uri())
+        ns, ln = uri_split(self.get_uri())
         return ln
 
 
