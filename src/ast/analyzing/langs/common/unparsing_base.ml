@@ -125,6 +125,7 @@ class ppbox = object (self)
                Format.out_flush   = orig_functions.Format.out_flush;
                Format.out_newline = out_newline;
                Format.out_spaces  = orig_functions.Format.out_spaces;
+               (*Format.out_indent  = orig_functions.Format.out_indent;*)
              }
     in
     let stat = self#checkpoint_box() in

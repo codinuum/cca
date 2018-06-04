@@ -82,12 +82,15 @@ let guess_src_dir file =
 
     let apath = file#path in
 
-    try
-      let _ = Str.search_forward pkg_pat apath 0 in
-      SD_named (Str.global_replace pkg_pat "" apath)
-    with
-    | Not_found -> 
-        failwith (Printf.sprintf "cannot guess source directory for \"%s\"" apath)
+    if Xstring.startswith apath pkg_p then
+      SD_named ""
+    else
+      try
+        let _ = Str.search_forward pkg_pat apath 0 in
+        SD_named (Str.global_replace pkg_pat "" apath)
+      with
+      | Not_found ->
+          failwith (Printf.sprintf "cannot guess source directory for \"%s\"" apath)
   with
   | Not_found -> SD_unnamed file#dirname
 
@@ -107,3 +110,8 @@ let is_qualified_qname qname =
     true
   with
     Not_found -> false
+
+let dot_pat = Str.regexp_string "."
+
+let replace_dot_with_dollar s =
+  Str.global_replace dot_pat "$" s

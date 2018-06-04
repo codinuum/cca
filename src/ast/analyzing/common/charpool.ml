@@ -80,9 +80,9 @@ let mkstr_str idx str = mkstr_strs idx [str]
 let mkstr2 idx =
   let c0 = char_pool.(idx / char_pool_len) in
   let c1 = char_pool.(idx mod char_pool_len) in
-  let res = String.make 2 c1 in
+  let res = Bytes.make 2 c1 in
   Bytes.set res 0 c0;
-  res
+  Bytes.to_string res
 
 let combo2 ?(ignore_identifiers_flag=false) idx id_list =
   catstr ((mkstr2 idx)::(encode_ids ~ignore_identifiers_flag id_list))

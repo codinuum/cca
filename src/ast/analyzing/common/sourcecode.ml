@@ -193,6 +193,10 @@ module Tree (L : Spec.LABEL_T) = struct
 
       constraint 'node = 'self Otree.node2
 
+      val mutable source_fid = ""
+      method set_source_fid x = source_fid <- x
+      method source_fid = source_fid
+
       method get_ordinal nth =
         match ordinal_tbl_opt with
         | None -> nth
@@ -239,10 +243,15 @@ module Tree (L : Spec.LABEL_T) = struct
       method successors = successors
       method add_successor nd = Xset.add successors nd
 
-      val mutable binding = Binding.None
+      val mutable binding = Binding.NoBinding
       method binding = binding
       method set_binding b = binding <- b
 
+      val mutable bindings = []
+      method bindings = bindings
+      method add_binding (b : Binding.t) =
+        if not (List.mem b bindings) then
+          bindings <- b :: bindings
 
       method get_ident_use = L.get_ident_use lab
 

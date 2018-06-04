@@ -366,8 +366,6 @@ module F (L : Spec.LABEL_T) = struct
     val enc_str = Entity.encoding_to_string enc
     val fid_str = Triple.encode_fid options tree
 
-    val mkbinding = Triple.make_binding options tree
-
     val mkextname = Triple.make_extname options tree
 
     method mkentity (nd : Spec.node_t) =
@@ -381,7 +379,16 @@ module F (L : Spec.LABEL_T) = struct
       end
       else
 	let range_str = Triple.get_range_str enc loc in
-	Triple.mkent (Triple.__make_entity enc_str fid_str range_str nd#data#is_phantom nd#data#is_special)
+        let fid_str =
+          let fid = nd#data#source_fid in
+          if fid = "" then
+            fid_str
+          else
+            fid
+        in
+	Triple.mkent
+          (Triple.__make_entity
+             enc_str fid_str range_str nd#data#is_phantom nd#data#is_special)
 
 
     method private mkfileentity =
@@ -395,7 +402,7 @@ module F (L : Spec.LABEL_T) = struct
       else
 	fileentity
 
-    method mkbinding bid = mkbinding bid
+    method mkbinding ?(loc_opt=None) bid = Triple.make_binding ~loc_opt options tree bid
 
     method mkextname lname = mkextname ~lang:lang_prefix lname
 

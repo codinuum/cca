@@ -24,6 +24,10 @@ type kind =
   | K_FS
   | K_GIT
 
+let kind_fs = K_FS
+let kind_git = K_GIT
+let kind_dummy = K_DUMMY
+
 let kind_to_string = function
   | K_DUMMY -> "dummy"
   | K_FS    -> "fs"
@@ -117,12 +121,12 @@ class virtual tree = object (self)
   method virtual get_local_file  : ?ignore_case:bool -> string -> string
   method virtual free_local_file : string -> unit 
 
-  val kept_local_path_set = Xset.create 0 (* path to be kept *)
+  val kept_local_path_set = (Xset.create 0 : string Xset.t) (* path to be kept *)
 
-  method private keep_local_path path =
+  method keep_local_path path =
     Xset.add kept_local_path_set path
 
-  method private is_kept_local_path path =
+  method is_kept_local_path path =
     Xset.mem kept_local_path_set path
 
   val filter_tbl = (Hashtbl.create 0 : (string, (string -> string)) Hashtbl.t)
@@ -202,8 +206,8 @@ class file ?(digest_opt=None) ?(ignore_case=false) (t : tree) (_path : string) =
   method set_extra_ext ext =
     extra_ext <- Some ext
 
-    method set_digest d =
-      digest_opt <- Some d
+  method set_digest d =
+    digest_opt <- Some d
 
   method tree          = t
   method fullpath      = Xfile.normpath (Filename.concat t#id path)

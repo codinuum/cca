@@ -124,7 +124,7 @@ let layers_eq ls0 ls1 =
   with
     _ -> false
 
-let get_common_layers lloc0 lloc1 =
+let get_common_layers (lloc0 : c) (lloc1 : c) =
     let lv = min lloc0#get_level lloc1#get_level in
     let ls0 = List.rev (lloc0#get_layers lv) in
     let ls1 = List.rev (lloc1#get_layers lv) in

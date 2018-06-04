@@ -106,9 +106,15 @@ class out_channel ?(overwrite=true) ?(comp=C.none) dest
     method flush = 
       och#flush()
 
-    method output buf pos len = 
+    method output (buf : bytes) pos len =
       try
 	och#output buf pos len
+      with
+      | e -> raise (Error (Printexc.to_string e))
+
+    method output_ (buf : string) pos len =
+      try
+       och#output (Bytes.of_string buf) pos len
       with
       | e -> raise (Error (Printexc.to_string e))
 
@@ -122,8 +128,12 @@ class out_channel ?(overwrite=true) ?(comp=C.none) dest
   end (* of class Xchannel.out_channel *)
 
 
-let output_string (ch : out_channel) s = 
-  ignore (ch#output s 0 (String.length s))
+let output_bytes (ch : out_channel) b =
+  ignore (ch#output b 0 (Bytes.length b))
+
+let output_string (ch : out_channel) s =
+  let b = Bytes.of_string s in
+  output_bytes ch b
 
 let fprintf ch fmt = Printf.ksprintf (output_string ch) fmt
 

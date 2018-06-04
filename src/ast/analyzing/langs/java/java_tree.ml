@@ -279,6 +279,12 @@ let set_control_flow body =
     | L.LocalVariableDeclaration _ -> begin
         add_succ nexts
     end
+    | L.ThisInvocation
+    | L.SuperInvocation
+    | L.PrimaryInvocation
+    | L.NameInvocation _ -> begin
+        add_succ nexts
+    end
 
     | _ -> ()
   in
@@ -475,18 +481,22 @@ class translator options = let bid_gen = new BID.generator in object (self)
     in
     let rec get_children desc = 
       match desc with
-      | Ast.Tprimitive(al, _) -> (List.map self#of_annotation al), None
+      | Ast.Tprimitive(al, _) ->
+          let ordinal_tbl_opt = Some (new ordinal_tbl [0; List.length al; 0]) in
+          (List.map self#of_annotation al), None, ordinal_tbl_opt
 
       | Ast.TclassOrInterface tss
       | Ast.Tclass tss
       | Ast.Tinterface tss -> begin
-          let nds =
+          let nds, ordinal_tbl_opt =
             match tss with
-            | [] -> []
-            | [Ast.TSname(al, _)] -> List.map self#of_annotation al
+            | [] -> [], None
+            | [Ast.TSname(al, _)] ->
+                let ordinal_tbl_opt = Some (new ordinal_tbl [0; List.length al; 0]) in
+                (List.map self#of_annotation al), ordinal_tbl_opt
             | _ -> begin
                 List.fold_left
-                  (fun l spec ->
+                  (fun (l, _) spec ->
                     let al, n, tas_opt =
                       match spec with
                       | Ast.TSname(al, n)       -> al, n, None
@@ -527,27 +537,27 @@ class translator options = let bid_gen = new BID.generator in object (self)
                     let lab = L.Type (L.Type.ClassOrInterface id) in
                     let nd = self#mknode ~orig_lab_opt ~ordinal_tbl_opt lab c in
                     set_loc nd loc;
-                    [nd]
-                  ) [] tss
+                    [nd], ordinal_tbl_opt
+                  ) ([], None) tss
             end
           in
           match nds with
-          | [] -> [], None
-          | nd :: _ -> (Array.to_list nd#children), get_orig_lab_opt nd
+          | [] -> [], None, None
+          | nd :: _ -> (Array.to_list nd#children), get_orig_lab_opt nd, ordinal_tbl_opt
       end
       | Ast.Tarray(t, dims) -> begin
-          let children, _lab_opt = get_children t.Ast.ty_desc in
+          let children, _lab_opt, ordinal_tbl_opt = get_children t.Ast.ty_desc in
           let lab_opt =
             match _lab_opt with
             | Some (L.Type lab) -> Some (L.Type (L.Type.Array(lab, dims)))
             | Some _ -> assert false
             | None -> None
           in
-          children, lab_opt
+          children, lab_opt, ordinal_tbl_opt
       end
-      | Ast.Tvoid -> [], None
+      | Ast.Tvoid -> [], None, None
     in
-    let children, lab_opt =
+    let children, lab_opt, ordinal_tbl_opt =
       get_children ty.Ast.ty_desc
     in
     let orig_lab_opt =
@@ -555,7 +565,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | None -> Some (L.of_javatype ~resolve:false ty)
       | Some _ -> lab_opt
     in
-    let nd = self#mknode ~orig_lab_opt (L.of_javatype ty) children in
+    let nd = self#mknode ~orig_lab_opt ~ordinal_tbl_opt (L.of_javatype ty) children in
     set_loc nd ty.Ast.ty_loc;
     nd
 
@@ -739,9 +749,9 @@ class translator options = let bid_gen = new BID.generator in object (self)
     | Ast.VIexpression e -> self#of_expression e
     | Ast.VIarray ai ->
         let ordinal_tbl_opt = Some (new ordinal_tbl [List.length ai]) in
-	let nd = 
+	let nd =
 	  self#mknode ~ordinal_tbl_opt
-            L.ArrayInitializer (List.map self#of_variable_initializer ai) 
+            L.ArrayInitializer (List.map self#of_variable_initializer ai)
 	in
 	set_loc nd vi.Ast.vi_loc;
 	nd
@@ -927,8 +937,11 @@ class translator options = let bid_gen = new BID.generator in object (self)
            args_nd @
 	   cb_nodes) (* ! *)
 	in
+        let orig_lab_opt =
+          Some (L.Primary.QualifiedInstanceCreation ident)
+        in
 	let plab = L.Primary.QualifiedInstanceCreation (deco ident args) in
-	create plab children otbl
+        create ~orig_lab_opt plab children otbl
 
     | Ast.CICnameQualified(name, targs_opt1, ident, targs_opt2, args, body_opt) ->
 	let n = L.conv_name name in

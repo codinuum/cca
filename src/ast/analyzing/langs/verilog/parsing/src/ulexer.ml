@@ -998,7 +998,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
             DEBUG_MSG "checking %s" file#path;
             let is_extra_source_file =
               try
-                let ext = String.lowercase file#get_extension in
+                let ext = String.lowercase_ascii file#get_extension in
                 not (List.mem ext extensions)
               with
                 Xfile.No_extension _ -> true

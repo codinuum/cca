@@ -15,7 +15,7 @@ MLDIFF_OBJS = mldiff.cmo
 
 MLDIFF_OBJS_DEP = $(foreach f,$(MLDIFF_OBJS),$(MLDIFF_DIR)/$(f))
 
-COMMON_OBJS_P = key.cmo binding.cmo adiff.cmo loc.cmo \
+COMMON_OBJS_P = key.cmo loc.cmo binding.cmo adiff.cmo \
 		astml.cmo entity.cmo storage.cmo cache.cmo \
 		hash_options.cmo fact_options.cmo fs_options.cmo base_options.cmo \
 		basic_options.cmo const.cmo misc.cmo parser_options.cmo \

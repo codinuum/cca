@@ -107,11 +107,11 @@ class c (file : Storage.file) =
     method get_ulexbuf_from_stdin =
       Ulexing.from_utf8_channel stdin
 
-    method private purify str =
+    method private purify (str : bytes) =
       try
         while true do
           try
-            NC.verify default_encoding str;
+            NC.verify default_encoding (Bytes.to_string str);
             raise Exit
           with
             NC.Malformed_code_at i ->
@@ -124,7 +124,7 @@ class c (file : Storage.file) =
     method private proc buf pos n s =
       let len = String.length s in
 
-      let _proc() =
+      let _proc s =
         DEBUG_MSG "[%s] ^%s$" (NC.string_of_encoding encoding) s;
         if len > n then begin
           let cur = self#create_cursor s in
@@ -150,7 +150,7 @@ class c (file : Storage.file) =
 	      let n' = len - !nb in
 	      let s' = Bytes.create n' in
 	      Bytes.blit_string s !nb s' 0 n';
-              Queue.add s' queue;
+              Queue.add (Bytes.to_string s') queue;
 	      pos_mgr#feed !nc;
 	      !nb
         end
@@ -162,13 +162,14 @@ class c (file : Storage.file) =
         end
       in
       try
-        _proc()
+        _proc s
       with
         NC.Malformed_code -> 
           Xprint.warning "\"%s\": malformed code found in \"%s\"" file#fullpath s;
-          self#purify s;
+          let b = Bytes.of_string s in
+          self#purify b;
           Xprint.warning "\"%s\": malformed characters are converted into '?'" file#fullpath;
-          _proc()
+          _proc (Bytes.to_string b)
 
     method refill ch buf pos n =
       DEBUG_MSG "pos=%d n=%d" pos n;

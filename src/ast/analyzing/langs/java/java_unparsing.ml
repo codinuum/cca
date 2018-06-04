@@ -471,7 +471,8 @@ let rec pr_node ?(blk_style=BSshort) ?(prec=0) node =
 
   | L.DimExpr -> pr_node children.(0)
 
-  | L.ArrayInitializer -> pr_array_initializer children
+  | L.ArrayInitializer ->
+        pr_string "{"; pr_space(); pb#pr_a pr_comma pr_node children; pr_space(); pr_string "}"
 
   | L.Throws _ -> pr_break 1 pb#indent; pr_string "throws "; pr_types children; pr_space()
 
@@ -683,9 +684,6 @@ and pr_dims dims = pr_string (dims_to_string dims)
 
 and pr_expressions pr_sep children = pb#pr_hova pr_sep pr_node children 
 
-and pr_array_initializer children = 
-  pr_string "{"; pr_space(); pb#pr_a pr_comma pr_node children; pr_space(); pr_string "}"
-
 and pr_arguments children = 
   pr_lparen(); pr_selected L.is_arguments children; pr_rparen() 
 
@@ -841,8 +839,9 @@ and pr_primary ?(prec=0) p children =
 
   | L.Primary.ArrayCreationInit ->
       pr_string "new "; pr_node children.(0);
-      let rest = Array.sub children 1 (nchildren-1) in
-      pr_array_initializer rest
+      if nchildren > 1 then begin
+        pr_node children.(1)
+      end
 
   | L.Primary.Paren _ ->
       let e = children.(0) in

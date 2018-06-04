@@ -36,6 +36,10 @@ let parser_file_name  = "parser"
 exception Stat_not_found
 exception Malformed_stat of string
 	
+let fscanf ic =
+  let ib = Scanf.Scanning.from_channel ic in
+  Scanf.bscanf ib
+
   
 let scan ?(max_retry_count=10) scanner path = 
   let rec _scan n path (scanner : in_channel -> 'a) =
@@ -153,7 +157,7 @@ module File = struct
   let scan_info paths =
     scan_paths
       (fun ch ->
-        Scanf.fscanf ch (info_fmt())
+        fscanf ch (info_fmt())
 	  (fun nnodes nunits tloc mloc ->
 	    { i_nodes      = nnodes; 
 	      i_units      = nunits; 

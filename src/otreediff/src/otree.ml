@@ -2244,7 +2244,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 
     method dump_xml_ch ?(initial=false) ?(pre_tags="") ?(post_tags="") (ch : Xchannel.out_channel) 
         =
-      let _output_string s = ignore (ch#output s 0 (String.length s)) in
+      let _output_string s = ignore (ch#output_ s 0 (String.length s)) in
       let _printf fmt = ksprintf _output_string fmt in
 
       let attrs_to_string attrs =

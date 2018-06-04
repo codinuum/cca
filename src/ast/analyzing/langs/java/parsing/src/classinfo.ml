@@ -187,7 +187,7 @@ class classtbl_c = object (self)
     if pkg = qname then
       failwith "Classinfo#_resolve_qualified_type_name";
     let lname = Str.replace_first (Str.regexp_string (pkg^".")) "" qname in
-    Xstring.replace lname '.' '$';
+    let lname = replace_dot_with_dollar lname in
     if pkg = "" then
       lname
     else

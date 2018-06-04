@@ -314,8 +314,7 @@ class env = object (self)
 	  R_resolved res
 	with 
 	  Not_found ->
-	    let s = Bytes.copy ss in
-	    Xstring.replace s '.' '$';
+            let s = replace_dot_with_dollar ss in
 	    let frms = self#copy_current_stack in
 	    try
 	      let res = classtbl#resolve s in
@@ -387,8 +386,7 @@ class env = object (self)
 	      classtbl#resolve_qualified_type_name id
 	    with
 	    | Not_found ->
-		let s = Bytes.copy id in
-		Xstring.replace s '.' '$';
+                let s = replace_dot_with_dollar id in
 		resolve_lname s
 	  end
 	  else

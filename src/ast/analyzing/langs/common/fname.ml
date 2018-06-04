@@ -76,7 +76,7 @@ let escape fname =
        )
     )
 
-let to_string ?(show_ext=false) ?(short=false) fname =
+let to_string ?(show_ext=false) ?(short=false) (fname : string) =
   let fn =
     if show_ext then
       escape fname

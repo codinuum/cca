@@ -61,6 +61,7 @@ class type node_data_t = object ('self)
   method orig_lab_opt  : Obj.t option
 
   method set_binding : Binding.t -> unit
+  method add_binding : Binding.t -> unit
 
   method successors    : ('self Otree.node2) Xset.t
   method add_successor : ('self Otree.node2) -> unit

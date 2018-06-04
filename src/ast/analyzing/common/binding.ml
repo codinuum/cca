@@ -70,12 +70,17 @@ let use_to_string = function
   | Used i  -> Printf.sprintf "Used:%d" i
   | Unknown -> "Unknown"
 
-type t = None | Def of ID.t * use | Use of ID.t
+type t =
+  | NoBinding
+  | Def of ID.t * use
+  | Use of ID.t * Loc.t option (* loc of def *)
 
 let to_string = function
-  | None          -> "None"
-  | Def(bid, use) -> Printf.sprintf "Def(%a,%s)" ID.ps bid (use_to_string use)
-  | Use bid       -> Printf.sprintf "Use(%a)" ID.ps bid
+  | NoBinding         -> "NoBinding"
+  | Def(bid, use)     -> Printf.sprintf "Def(%a,%s)" ID.ps bid (use_to_string use)
+  | Use(bid, loc_opt) ->
+      Printf.sprintf "Use(%a%s)" ID.ps bid
+        (match loc_opt with Some loc -> ":"^(Loc.to_string loc) | None -> "")
 
 let make_def id u = Def(id, u)
 
@@ -83,10 +88,10 @@ let make_used_def id n = Def(id, Used n)
 let make_unused_def id = Def(id, Used 0)
 let make_unknown_def id = Def(id, Unknown)
 
-let make_use id = Use id
+let make_use ?(loc_opt=None) id = Use(id, loc_opt)
 
 let is_none = function
-  | None -> true
+  | NoBinding -> true
   | _ -> false
 
 let is_use = function
@@ -106,13 +111,17 @@ let is_unused_def = function
   | _ -> false
 
 let get_bid = function
-  | Def(bid, _) | Use bid -> bid
-  | None -> raise Not_found
+  | Def(bid, _) | Use(bid, _) -> bid
+  | NoBinding -> raise Not_found
 
 let get_bid_opt = function
-  | Def(bid, _) | Use bid -> Some bid
-  | None -> None
+  | Def(bid, _) | Use(bid, _) -> Some bid
+  | NoBinding -> None
 
 let get_use_count = function
   | Def(_, Used n) -> n
+  | _ -> raise Not_found
+
+let get_loc = function
+  | Use(_, Some loc) -> loc
   | _ -> raise Not_found

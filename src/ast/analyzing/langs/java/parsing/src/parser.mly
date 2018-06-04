@@ -908,7 +908,7 @@ variable_declarator_id:
 
 variable_initializer: 
 | e=expression        { mkvi $startofs $endofs (VIexpression e) }
-| a=array_initializer { mkvi $startofs $endofs (VIarray a) }
+| a=array_initializer { a }
 ;
 
 method_declaration:
@@ -1265,8 +1265,8 @@ interface_method_declaration:
 ;
 
 array_initializer:
-| LBRACE                         ioption(COMMA) RBRACE { [] }
-| LBRACE v=variable_initializers ioption(COMMA) RBRACE { v }
+| LBRACE                         ioption(COMMA) RBRACE { mkvi $startofs $endofs (VIarray []) }
+| LBRACE v=variable_initializers ioption(COMMA) RBRACE { mkvi $startofs $endofs (VIarray v) }
 ;
 
 variable_initializers:
@@ -1801,8 +1801,8 @@ array_creation_noinit:
 ;
 
 array_creation_init:
-| NEW p=primitive_type          d=dims a=array_initializer { ACEtypeInit(p, (fst d), a) }
-| NEW c=class_or_interface_type d=dims a=array_initializer { ACEtypeInit(c, (fst d), a) }
+| NEW p=primitive_type          d=dims a=array_initializer { ACEtypeInit(p, (fst d), [a]) }
+| NEW c=class_or_interface_type d=dims a=array_initializer { ACEtypeInit(c, (fst d), [a]) }
 ;
 
 dim_exprs:

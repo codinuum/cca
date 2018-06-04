@@ -112,19 +112,6 @@ let to_char_array s =
   a
 
 
-let replace s c_old c_new =
-  let start = ref 0 in
-  try
-    while true do
-      let i = String.index_from s !start c_old in
-      Bytes.set s i c_new;
-      start := i
-    done
-  with 
-    _ -> ()
-
-
-
 
 let encode s =
   let buf = Buffer.create 0 in
@@ -148,17 +135,17 @@ let decode encoded =
 
 (* The following are derived from the OCaml Stdlib *)
 
-external length : string -> int = "%string_length"
-external create : int -> string = "caml_create_string"
-external unsafe_get : string -> int -> char = "%string_unsafe_get"
-external unsafe_set : string -> int -> char -> unit = "%string_unsafe_set"
-external char_code : char -> int = "%identity"
-external char_chr : int -> char = "%identity"
+external length     : bytes -> int                 = "%bytes_length"
+external create     : int -> bytes                 = "caml_create_bytes"
+external unsafe_get : bytes -> int -> char         = "%bytes_unsafe_get"
+external unsafe_set : bytes -> int -> char -> unit = "%bytes_unsafe_set"
+external char_code  : char -> int                  = "%identity"
+external char_chr   : int -> char                  = "%identity"
 
 let bts = Bytes.to_string
 let bos = Bytes.of_string
 
-let _escaped s =
+let _escaped (s : bytes) =
   let n = ref 0 in
   for i = 0 to length s - 1 do
     n := !n +
@@ -202,7 +189,7 @@ let _escaped s =
     s'
   end
 
-let _ntriples_escaped s =
+let _ntriples_escaped (s : bytes) =
   let n = ref 0 in
   for i = 0 to length s - 1 do
     n := !n +
@@ -250,7 +237,7 @@ let _ntriples_escaped s =
     s'
   end
 
-let needs_escape s =
+let needs_escape (s : bytes) =
   let rec _needs_escape i =
     if i >= length s then
       false
@@ -263,13 +250,15 @@ let needs_escape s =
   _needs_escape 0
 
 let escaped s =
-  if needs_escape s then
-    bts (_escaped (bos s))
+  let b = bos s in
+  if needs_escape b then
+    bts (_escaped b)
   else
     s
 
 let ntriples_escaped s =
-  if needs_escape s then
-    bts (_ntriples_escaped (bos s))
+  let b = bos s in
+  if needs_escape b then
+    bts (_ntriples_escaped b)
   else
     s
