@@ -54,15 +54,6 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#extendedName -->
-
-    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#extendedName">
-        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
-        <rdfs:range rdf:resource="http://www.w3.org/2000/01/rdf-schema#Literal"/>
-    </owl:ObjectProperty>
-    
-
-
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#inClass -->
 
     <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inClass">
@@ -352,10 +343,7 @@
 
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#extendedName -->
 
-    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#extendedName">
-        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
-        <rdfs:range rdf:resource="http://www.w3.org/2000/01/rdf-schema#Literal"/>
-    </owl:DatatypeProperty>
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#extendedName"/>
     
 
 
@@ -4049,20 +4037,6 @@
     <!-- http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
-    
-
-
-    <!-- 
-    ///////////////////////////////////////////////////////////////////////////////////////
-    //
-    // Annotations
-    //
-    ///////////////////////////////////////////////////////////////////////////////////////
-     -->
-
-    <rdf:Description rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#extendedName">
-        <rdfs:comment xml:lang="en">name with its arity</rdfs:comment>
-    </rdf:Description>
 </rdf:RDF>
 
 
