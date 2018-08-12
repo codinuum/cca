@@ -252,33 +252,33 @@ interface_type:
 ;
 
 unann_array_type:
-| n=name d=dims 
+| n=name d=ann_dims 
     { 
-      set_attribute_PT_T (env#resolve n) n; 
+      set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
-      mktype $startofs $endofs (Tarray(name_to_ty [] n, fst d)) 
+      mktype $startofs $endofs (Tarray(name_to_ty [] n, List.length d))
     }
 
-| p=unann_primitive_type d=dims { mktype $startofs $endofs (Tarray(p, fst d)) }
+| p=unann_primitive_type d=ann_dims { mktype $startofs $endofs (Tarray(p, List.length d)) }
 
-| c=unann_class_or_interface_type_spec ts=type_arguments DOT a=annotations0 n=name d=dims 
+| c=unann_class_or_interface_type_spec ts=type_arguments DOT a=annotations0 n=name d=ann_dims 
     { 
       let head, a0, n0 = c in
       let ty =
 	_mktype (Loc.merge (get_loc $startofs $endofs) n.n_loc) 
 	  (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)])) 
       in
-      mktype $startofs $endofs (Tarray(ty, fst d))
+      mktype $startofs $endofs (Tarray(ty, List.length d))
     }
 
-| c=unann_class_or_interface_type_spec ts=type_arguments d=dims 
+| c=unann_class_or_interface_type_spec ts=type_arguments d=ann_dims 
     { 
       let head, a, n = c in
       let ty =
 	_mktype (Loc.merge (get_loc $startofs $endofs) ts.tas_loc) 
 	  (TclassOrInterface(head @ [TSapply(a, n, ts)])) 
       in
-      mktype $startofs $endofs (Tarray(ty, fst d))
+      mktype $startofs $endofs (Tarray(ty, List.length d))
     }
 ;
 
@@ -623,14 +623,13 @@ modifiers_opt:
 ;
 
 modifiers:
-| m=mixed_modifiers { mkmods $startofs $endofs m }
-| a=annotations     { mkmods $startofs $endofs (annots_to_mods a) }
+| l=nonempty_list(annotation_or_modifier) { mkmods $startofs $endofs l }
 ;
 
-mixed_modifiers:
-|                   am=adhoc_modifier { [mkmod $startofs $endofs am] }
-| a=annotations     am=adhoc_modifier { (annots_to_mods a) @ [mkmod $startofs(am) $endofs(am) am] }
-| m=mixed_modifiers am=adhoc_modifier { m @ [mkmod $startofs(am) $endofs(am) am] }
+%inline
+annotation_or_modifier:
+| a=annotation     { annot_to_mod a }
+| m=adhoc_modifier { mkmod $startofs $endofs m }
 ;
 
 adhoc_modifier:
@@ -656,8 +655,7 @@ annotations0:
 
 
 annotations:
-|               a=annotation { [a] }
-| l=annotations a=annotation { l @ [a] }
+| l=nonempty_list(annotation) { l }
 ;
 
 annotation:
@@ -698,12 +696,24 @@ element_value:
 ;
 
 element_value_array_initializer:
-| LBRACE e=element_values0 RBRACE { e }
+| LBRACE COMMA                   RBRACE { [] }
+| LBRACE e=element_values0       RBRACE { e }
+| LBRACE e=element_values0_comma RBRACE { e }
 ;
 
 %inline
 element_values0:
 | l=clist0(element_value) { l }
+;
+
+%inline
+element_values0_comma:
+| l=nonempty_list(element_value_comma) { l }
+;
+
+%inline
+element_value_comma:
+| e=element_value COMMA { e }
 ;
 
 class_declaration_head0:
@@ -1685,19 +1695,22 @@ primary_no_new_array:
 | a=array_access       { mkprim $startofs $endofs (ParrayAccess a) }
 | n=name DOT this      { register_qname_as_typename n; mkprim $startofs $endofs (PqualifiedThis n) }
 | n=name DOT CLASS     { register_qname_as_typename n; mkprim $startofs $endofs (PclassLiteral (name_to_ty [] n)) }
-| n=name d=dims DOT CLASS 
+| n=name d=ann_dims DOT CLASS 
     { 
       register_qname_as_typename n;
-      let i, loc = d in
-      let ty = _mkty (Loc.merge n.n_loc loc) (Tarray(name_to_ty [] n, i)) in
+      let ty =
+        _mkty (Loc.merge n.n_loc (Xlist.last d).Ast.ad_loc)
+          (Tarray(name_to_ty [] n, List.length d))
+      in
       mkprim $startofs $endofs (PclassLiteral ty) 
     }
 | p=unann_primitive_type        DOT CLASS { mkprim $startofs $endofs (PclassLiteral p) }
 
-| p=unann_primitive_type d=dims DOT CLASS 
+| p=unann_primitive_type d=ann_dims DOT CLASS 
     { 
-      let i, loc = d in
-      let ty = _mkty (Loc.merge p.ty_loc loc) (Tarray(p, i)) in
+      let ty =
+        _mkty (Loc.merge p.ty_loc (Xlist.last d).Ast.ad_loc) (Tarray(p, List.length d))
+      in
       mkprim $startofs $endofs (PclassLiteral ty) 
     }
 
@@ -1729,10 +1742,26 @@ method_reference:
       let _, id = i in
       mkmr $startofs $endofs (MRtypeSuper(n, tas_opt, id))
     }
-| n=name           COLON_COLON tas_opt=type_arguments_opt NEW
+| p=unann_primitive_type d=ann_dims0 COLON_COLON tas_opt=type_arguments_opt NEW
     { 
+      let ty =
+	match d with
+	| [] -> p
+	| l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
+      in
+      mkmr $startofs $endofs (MRtypeNew(ty, tas_opt))
+    }
+| n=name d=ann_dims0 COLON_COLON tas_opt=type_arguments_opt NEW
+    { 
+      let ty =
+        match d with
+        | [] -> name_to_ty [] n
+        | l ->
+            _mkty (Loc.merge n.n_loc (Xlist.last l).Ast.ad_loc)
+              (Tarray(name_to_ty [] n, List.length d))
+      in
       register_qname_as_typename n;
-      mkmr $startofs $endofs (MRtypeNew(n, tas_opt))
+      mkmr $startofs $endofs (MRtypeNew(ty, tas_opt))
     }
 ;
 
@@ -1788,21 +1817,21 @@ argument_list0:
 array_creation_noinit:
 | NEW p=primitive_type          d=dim_exprs      { ACEtype(p, List.rev d, 0) }
 | NEW c=class_or_interface_type d=dim_exprs      { ACEtype(c, List.rev d, 0) }
-| NEW p=primitive_type          d=dim_exprs dm=dims       
+| NEW p=primitive_type          d=dim_exprs dm=ann_dims
      { 
-       let i, loc = dm in
-       ACEtype(p, List.rev d, i)
+       ACEtype(p, List.rev d, List.length dm)
      }
-| NEW c=class_or_interface_type d=dim_exprs dm=dims
+| NEW c=class_or_interface_type d=dim_exprs dm=ann_dims
      { 
-       let i, loc = dm in
-       ACEtype(c, List.rev d, i)
+       ACEtype(c, List.rev d, List.length dm)
      }
 ;
 
 array_creation_init:
-| NEW p=primitive_type          d=dims a=array_initializer { ACEtypeInit(p, (fst d), [a]) }
-| NEW c=class_or_interface_type d=dims a=array_initializer { ACEtypeInit(c, (fst d), [a]) }
+| NEW p=primitive_type          d=ann_dims a=array_initializer
+    { ACEtypeInit(p, (List.length d), [a]) }
+| NEW c=class_or_interface_type d=ann_dims a=array_initializer
+    { ACEtypeInit(c, (List.length d), [a]) }
 ;
 
 dim_exprs:
@@ -1812,16 +1841,6 @@ dim_exprs:
 
 dim_expr:
 | LBRACKET e=expression RBRACKET { mkde $startofs $endofs e }
-;
-
-%inline
-dims_opt:
-| o=ioption(dims) { o }
-;
-
-dims:
-|        LBRACKET RBRACKET { 1, get_loc $startofs $endofs }
-| d=dims LBRACKET RBRACKET { (fst d) + 1, get_loc $startofs $endofs }
 ;
 
 field_access:
@@ -2031,45 +2050,61 @@ unary_expression_not_plus_minus:
 | c=cast_expression { c }
 ;
 
+unary_expression_not_plus_minus_or_lambda_expression:
+| u=unary_expression_not_plus_minus { u }
+| l=lambda_e                        { l }
+;
+
+lambda_e:
+| p=lambda_parameters MINUS_GT b=lambda_b { mkexpr $startofs $endofs (Elambda(p, b)) }
+;
+lambda_b:
+| e=unary_expression_not_plus_minus { LBexpr e }
+| b=block                           { LBblock b }
+;
+
 cast_expression:
-| LPAREN p=primitive_type d=dims_opt RPAREN u=unary_expression 
+| LPAREN p=primitive_type d=ann_dims0 RPAREN u=unary_expression 
     { 
       let ty = 
 	match d with 
-	| None -> p 
-	| Some(i, loc) -> _mkty (Loc.merge p.ty_loc loc) (Tarray(p, i))
+	| [] -> p
+	| l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
       in
       mkexpr $startofs $endofs (Ecast(ty, u)) 
     }
-| LPAREN a=annotations0 n=name RPAREN u=unary_expression_not_plus_minus 
+| LPAREN a=annotations0 n=name RPAREN u=unary_expression_not_plus_minus_or_lambda_expression
     { 
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
       mkexpr $startofs $endofs (Ecast(name_to_ty a n, u))
     }
 
-| LPAREN a=annotations0 n=name d=dims RPAREN u=unary_expression_not_plus_minus 
+| LPAREN a=annotations0 n=name d=ann_dims RPAREN u=unary_expression_not_plus_minus_or_lambda_expression
     { 
-      let i, loc = d in
-      let ty = _mkty (Loc.merge n.n_loc loc) (Tarray(name_to_ty a n, i)) in
+      let ty =
+        _mkty (Loc.merge n.n_loc (Xlist.last d).Ast.ad_loc)
+          (Tarray(name_to_ty a n, List.length d))
+      in
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
       mkexpr $startofs $endofs (Ecast(ty, u)) 
     }
-| LPAREN a=annotations0 n=name ts=type_arguments d_opt=dims_opt RPAREN u=unary_expression_not_plus_minus
+| LPAREN a=annotations0 n=name ts=type_arguments d=ann_dims0 RPAREN u=unary_expression_not_plus_minus_or_lambda_expression
     { 
       let ty = name_to_ty_args (Loc.merge n.n_loc ts.tas_loc) a n ts in
       let ty' = 
-	match d_opt with 
-	| None -> ty
-	| Some(i, loc) -> _mkty (Loc.merge ty.ty_loc loc) (Tarray(ty, i))
+	match d with
+	| [] -> ty
+	| l ->
+            _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
       in
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
       mkexpr $startofs $endofs (Ecast(ty', u)) 
     }
-| LPAREN a=annotations0 n=name ts0=type_arguments DOT c=class_or_interface_type d_opt=dims_opt RPAREN
-       u=unary_expression_not_plus_minus
+| LPAREN a=annotations0 n=name ts0=type_arguments DOT c=class_or_interface_type d=ann_dims0 RPAREN
+       u=unary_expression_not_plus_minus_or_lambda_expression
     { 
       let tspecs =
 	match c.ty_desc with
@@ -2081,9 +2116,10 @@ cast_expression:
 	  (TclassOrInterface((TSapply(a, n, ts0)) :: tspecs))
       in
       let ty' = 
-	match d_opt with 
-	| None -> ty
-	| Some(i, loc) -> _mkty (Loc.merge ty.ty_loc loc) (Tarray(ty, i))
+	match d with 
+	| [] -> ty
+	| l ->
+            _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
       in
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;

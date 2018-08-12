@@ -1258,14 +1258,18 @@ class translator options = let bid_gen = new BID.generator in object (self)
       mkprim ~orig_lab_opt ordinal_tbl_opt
         (L.Primary.TypeSuperMethodReference(L.conv_name n, id)) ta_nodes
 
-  | Ast.MRtypeNew(n, tas_opt) ->
+  | Ast.MRtypeNew(ty, tas_opt) ->
       let ta_nodes = self#of_type_arguments_opt "" tas_opt in
-      let ordinal_tbl_opt = Some (new ordinal_tbl [List.length ta_nodes]) in
+      let ordinal_tbl_opt = Some (new ordinal_tbl [1; List.length ta_nodes]) in
+      let ty_node = self#of_javatype 0 ty in
+      let n = L.get_name (getlab ty_node) in
       let orig_lab_opt =
-        Some (L.Primary.TypeNewMethodReference(L.conv_name ~resolve:false n))
+        match get_orig_lab_opt ty_node with
+        | Some lab -> Some (L.Primary.TypeNewMethodReference(L.get_name lab))
+        | None -> None
       in
       mkprim ~orig_lab_opt ordinal_tbl_opt
-        (L.Primary.TypeNewMethodReference(L.conv_name n)) ta_nodes
+        (L.Primary.TypeNewMethodReference(n)) (ty_node::ta_nodes)
 
   method of_assignment ?(is_stmt=false) (lhs, ao, expr) = 
    let lab = L.of_assignment_operator ~is_stmt ao in
@@ -2029,7 +2033,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | L.Method _ -> methods := nd::!methods
       | L.Class _ -> classes := nd::!classes
       | L.Enum _ -> enums := nd::!enums
-      | L.Interface _ -> ifaces := nd::!ifaces
+      | L.Interface _
+      | L.AnnotationType _ -> ifaces := nd::!ifaces
       | l -> FATAL_MSG "%s" (L.to_string l); exit 1
     in
     List.iter classify children;

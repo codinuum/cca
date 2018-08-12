@@ -650,7 +650,7 @@ and method_reference_desc =
   | MRprimary of primary * type_arguments option * identifier
   | MRsuper of type_arguments option * identifier
   | MRtypeSuper of name * type_arguments option * identifier
-  | MRtypeNew of name * type_arguments option
+  | MRtypeNew of javatype * type_arguments option
 
 and array_creation_expression = 
   | ACEtype of javatype * dim_expr list * dims
@@ -1141,9 +1141,12 @@ and proc_explicit_constructor_invocation f eci =
 and proc_method_reference f mr =
   match mr.mr_desc with
   | MRname(n, tas_opt, _)
-  | MRtypeSuper(n, tas_opt, _)
-  | MRtypeNew(n, tas_opt) ->
+  | MRtypeSuper(n, tas_opt, _) ->
       f n;
+      proc_op proc_type_arguments f tas_opt
+
+  | MRtypeNew(ty, tas_opt) ->
+      proc_type f ty;
       proc_op proc_type_arguments f tas_opt
 
   | MRprimary(p, tas_opt, _) ->

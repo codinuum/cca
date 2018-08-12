@@ -139,39 +139,55 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp not_star = [^'*'] | unicode_escape | "\013\010"
 
 
-  let regexp java_letter = ['A'-'Z' 'a'-'z' '_' '$']
+  let regexp java_letter = ['A'-'Z' 'a'-'z' '_' '$' 880-1023 1024-1279]
   let regexp java_letter_or_digit = java_letter | ['0'-'9']
   let regexp identifier_chars = java_letter java_letter_or_digit*
   let regexp identifier_or_keyword = identifier_chars
 
-  let regexp integer_type_suffix = ['l' 'L']
-  let regexp octal_numeral = '0' | ['0'-'7']+
-  let regexp octal_integer_literal = octal_numeral integer_type_suffix?
-  let regexp hex_numeral = ("0x"|"0X") hex_digit+
-  let regexp hex_integer_literal = hex_numeral integer_type_suffix?
-  let regexp digits = ['0'-'9']+
-  let regexp decimal_numeral = '0' | ['1'-'9'] digits?
-  let regexp decimal_integer_literal = decimal_numeral integer_type_suffix?
-  let regexp integer_literal = 
-    decimal_integer_literal | hex_integer_literal | octal_integer_literal
+  let regexp underscores = '_'+
+  let regexp non_zero_digit = ['1'-'9']
+  let regexp digit = '0' | non_zero_digit
+  let regexp digits = digit | digit (digit|'_')* digit
+  let regexp decimal_numeral = '0' | non_zero_digit digits? | non_zero_digit underscores digits
 
-  let regexp float_type_suffix = ['F' 'f' 'D' 'd']
+  let regexp hex_digits = hex_digit | hex_digit (hex_digit|'_')* hex_digit
+  let regexp hex_numeral = ("0x"|"0X") hex_digits
+
+  let regexp octal_digit = ['0'-'7']
+  let regexp octal_digits = octal_digit | octal_digit (octal_digit|'_')* octal_digit
+  let regexp octal_numeral = '0' underscores? octal_digits
+
+  let regexp binary_digit = ['0' '1']
+  let regexp binary_digits = binary_digit | binary_digit (binary_digit|'_')* binary_digit
+  let regexp binary_numeral = ("0b"|"0B") binary_digits
+
+  let regexp integer_type_suffix = ['l' 'L']
+
+  let regexp decimal_integer_literal = decimal_numeral integer_type_suffix?
+  let regexp hex_integer_literal = hex_numeral integer_type_suffix?
+  let regexp octal_integer_literal = octal_numeral integer_type_suffix?
+  let regexp binary_integer_literal = binary_numeral integer_type_suffix?
+
+  let regexp integer_literal = 
+    decimal_integer_literal | hex_integer_literal
+  | octal_integer_literal | binary_integer_literal
+
+  let regexp float_type_suffix = ['f' 'F' 'd' 'D']
   let regexp signed_integer = ['+' '-']? digits
   let regexp exponent_part = ['e' 'E'] signed_integer
 
   let regexp decimal_floating_point_literal =
-    (digits '.' digits? exponent_part? float_type_suffix?) 
-  | ('.' digits exponent_part? float_type_suffix?) 
-  | (digits exponent_part)
-  | (digits float_type_suffix)
-  | (digits exponent_part float_type_suffix)
+    digits '.' digits? exponent_part? float_type_suffix?
+  | '.' digits exponent_part? float_type_suffix?
+  | digits exponent_part
+  | digits float_type_suffix
+  | digits exponent_part float_type_suffix
 
   let regexp hex_significand =
-    hex_numeral
-  | hex_numeral '.'
-  | ("0x"|"0X") hex_digit* '.' hex_digit+
+    hex_numeral '.'?
+  | ("0x"|"0X") hex_digits? '.' hex_digits
 
-  let regexp binary_exponent = ['P' 'p'] signed_integer
+  let regexp binary_exponent = ['p' 'P'] signed_integer
 
   let regexp hexadecimal_floating_point_literal =
     hex_significand binary_exponent float_type_suffix?

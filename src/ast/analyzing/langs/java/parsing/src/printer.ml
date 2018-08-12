@@ -460,8 +460,8 @@ and pr_method_reference mr =
       pr_option pr_type_arguments tas_opt;
       pr_id id
 
-  | MRtypeNew(n, tas_opt) ->
-      pr_name n;
+  | MRtypeNew(ty, tas_opt) ->
+      pr_type ty;
       pr_string "::";
       pr_option pr_type_arguments tas_opt;
       pr_string "new"

@@ -605,7 +605,8 @@ module F (Stat : STATE_T) = struct
   let mktyparams so eo typarams = { tps_type_parameters=typarams; tps_loc=(get_loc so eo) }
   let _mktype loc d = { ty_desc=d; ty_loc=loc }
   let _mkmod loc d = { m_desc=d; m_loc=loc }
-  let annots_to_mods = List.map (fun a -> _mkmod a.a_loc (Mannotation a))
+  let annot_to_mod a = _mkmod a.a_loc (Mannotation a)
+  let annots_to_mods = List.map annot_to_mod
   let _mkexpr loc d = { e_desc=d; e_loc=loc }
   let _mkprim loc d = { p_desc=d; p_loc=loc }
   let _mkannot loc d = { a_desc=d; a_loc=loc }

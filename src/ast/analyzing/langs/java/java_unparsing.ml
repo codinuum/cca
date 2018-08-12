@@ -40,80 +40,83 @@ let has_orig_lab nd =
 
 (* precedence of operators
  *
- * 15: []  .  (params)  expr++  expr--
- * 14: ++expr  --expr  +expr  -expr  ~  !
- * 13: new  (type)expr
- * 12: *  /  %
- * 11: +  - 
- * 10: <<  >>  >>>
- *  9: <  >  >=  <=  instanceof
- *  8: ==  !=
- *  7: &
- *  6: ^
- *  5: |
- *  4: &&
- *  3: ||
- *  2: ?:
- *  1: =  +=  -=  *=  /=  %=  >>=  <<=  >>>=  &=  ^=  |=
+ * 17: []  .  (params)                       left
+ * 16: expr++  expr--                        left
+ * 15: ++expr  --expr  +expr  -expr  ~  !    right
+ * 14: new  (type)expr                       right
+ * 13: *  /  %                               left
+ * 12: +  -                                  left
+ * 11: <<  >>  >>>                           left
+ * 10: <  >  >=  <=  instanceof              noassoc
+ *  9: ==  !=                                left
+ *  8: &                                     left
+ *  7: ^                                     left
+ *  6: |                                     left
+ *  5: &&                                    left
+ *  4: ||                                    left
+ *  3: ?:                                    right
+ *  2: =  +=  -=  *=  /=  %=                 right
+       >>=  <<=  >>>=  &=  ^=  |=
+ *  1: ->                                    right
  * 
  *)
 
 let get_prec_of_sym = function
-  | "." | "[]" -> 15
-  | "::" -> 15 (* ??? *)
+  | "." | "[]" -> 17
+  | "::" -> 17 (* ??? *)
   | _ -> 0
 
 
-let prec_of_assignment_operators = 1
+let prec_of_assignment_operators = 2
 
 
 
 let get_prec_of_primary = function
-  | L.Primary.Name _ | L.Primary.AmbiguousName _ -> 15
+  | L.Primary.Name _ | L.Primary.AmbiguousName _ -> 17
   | L.Primary.InstanceCreation _
   | L.Primary.ArrayCreationDims _
-  | L.Primary.ArrayCreationInit -> 13
+  | L.Primary.ArrayCreationInit -> 14
   | _ -> 0
 
 let get_prec_of_expression = function
   | L.Expression.UnaryOperator uop -> begin
       match uop with
       | L.UnaryOperator.PostIncrement
-      | L.UnaryOperator.PostDecrement -> 15
+      | L.UnaryOperator.PostDecrement -> 16
       | L.UnaryOperator.PreIncrement
       | L.UnaryOperator.PreDecrement
       | L.UnaryOperator.Positive
       | L.UnaryOperator.Negative
       | L.UnaryOperator.Complement
-      | L.UnaryOperator.Not -> 14
+      | L.UnaryOperator.Not -> 15
   end
   | L.Expression.BinaryOperator bop -> begin
       match bop with
       | L.BinaryOperator.Mul
       | L.BinaryOperator.Div
-      | L.BinaryOperator.Mod -> 12
+      | L.BinaryOperator.Mod -> 13
       | L.BinaryOperator.Add
-      | L.BinaryOperator.Sub -> 11
+      | L.BinaryOperator.Sub -> 12
       | L.BinaryOperator.ShiftL
       | L.BinaryOperator.ShiftR
-      | L.BinaryOperator.ShiftRU -> 10
+      | L.BinaryOperator.ShiftRU -> 11
       | L.BinaryOperator.Lt
       | L.BinaryOperator.Gt
       | L.BinaryOperator.Le
-      | L.BinaryOperator.Ge -> 9
+      | L.BinaryOperator.Ge -> 10
       | L.BinaryOperator.Eq
-      | L.BinaryOperator.Neq -> 8
-      | L.BinaryOperator.BitAnd -> 7
-      | L.BinaryOperator.BitXor -> 6
-      | L.BinaryOperator.BitOr -> 5
-      | L.BinaryOperator.And -> 4
-      | L.BinaryOperator.Or -> 3
+      | L.BinaryOperator.Neq -> 9
+      | L.BinaryOperator.BitAnd -> 8
+      | L.BinaryOperator.BitXor -> 7
+      | L.BinaryOperator.BitOr -> 6
+      | L.BinaryOperator.And -> 5
+      | L.BinaryOperator.Or -> 4
   end
-  | L.Expression.AssignmentOperator _ -> 1
+  | L.Expression.AssignmentOperator _ -> 2
   | L.Expression.Primary p -> get_prec_of_primary p
-  | L.Expression.Cast -> 13
-  | L.Expression.Instanceof -> 9
-  | L.Expression.Cond -> 2
+  | L.Expression.Cast -> 14
+  | L.Expression.Instanceof -> 10
+  | L.Expression.Cond -> 3
   | L.Expression.Lambda -> 0
 
 let get_prec = function
