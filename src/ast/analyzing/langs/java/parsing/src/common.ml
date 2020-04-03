@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -29,7 +29,8 @@ exception Parse_error = PB.Parse_error
 exception Pkg_found of string
 
 
-let warning_loc loc   = PB.parse_warning_loc ~head:"[Java]" loc
+(*let warning spos epos = PB.parse_warning ~head:"[Java]" spos epos*)
+let warning_loc loc = PB.parse_warning_loc ~head:"[Java]" loc
 
 let fail_to_parse = PB.fail_to_parse
 
@@ -38,7 +39,8 @@ let warning_msg = Xprint.warning ~head:"[Java]"
 
 
 let find_package_name file =
-  let pat = Str.regexp "^[ \t]*package[ \t]+\\(.+\\)[ \t]*;[ \t]*[\r]?$" in
+  (*let pat = Str.regexp "^[ \t]*package[ \t]+\\(.+\\)[ \t]*;[ \t]*[\r]?$" in*)
+  let pat = Str.regexp "^[ \t]*package[ \t]+\\(.+\\)[ \t]*;.*$" in
   try
     let ich = file#get_channel in
     try
@@ -115,3 +117,29 @@ let dot_pat = Str.regexp_string "."
 
 let replace_dot_with_dollar s =
   Str.global_replace dot_pat "$" s
+
+let token_queue_to_string token_to_string tq =
+  let is_alpha_numeric c =
+    match c with
+    | '0'..'9' | 'a'..'z' | 'A'..'Z' -> true
+    | _ -> false
+  in
+  let buf = Buffer.create 0 in
+  tq#iter
+    (fun t ->
+      let s = token_to_string t in
+      begin
+        match s with
+        | "." | ")" | "," | ";" | "}" | "]" -> ()
+        | _ -> begin
+            let buf_len = Buffer.length buf in
+            if buf_len > 0 then
+              match Buffer.nth buf (buf_len - 1) with
+              | '.' | '(' | '@' | '[' -> ()
+              | c when is_alpha_numeric c && s = "(" -> ()
+              | _ -> Buffer.add_string buf " "
+        end
+      end;
+      Buffer.add_string buf s
+    );
+  Buffer.contents buf

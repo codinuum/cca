@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -142,7 +142,7 @@ let name_attribute_to_string = function
   | NAmethod        -> "M"
   | NApackageOrType -> "PT"
   | NAstatic r      -> "S:"^(resolve_result_to_str r)
-  | NAambiguous     -> "A"
+  | NAambiguous r   -> "A:"^(resolve_result_to_str r)
   | NAunknown       -> "U"
 
 let rec name_to_simple_string name =
@@ -150,6 +150,7 @@ let rec name_to_simple_string name =
   | Nsimple(attr, sn) -> sn
   | Nqualified(attr, n, sn) -> 
       sprintf "%s.%s" (name_to_simple_string n) sn
+  | Nerror s -> s
 
 let rec _name_to_string name =
   match name.n_desc with
@@ -158,6 +159,8 @@ let rec _name_to_string name =
 
   | Nqualified(attr, n, sn) ->
       sprintf "(%s.%s)_{%s}" (_name_to_string n) sn (name_attribute_to_string !attr)
+
+  | Nerror s -> s
 
 let name_to_string ?(show_attr=true) n =
   if show_attr then
@@ -179,7 +182,7 @@ let dims_to_short_string dims =
 
 
 
-let rec type_to_short_string dims ty = 
+let rec type_to_short_string ?(resolve=true) dims ty =
   let dim_str = dims_to_short_string dims in
   let base = 
     match ty.ty_desc with
@@ -197,20 +200,20 @@ let rec type_to_short_string dims ty =
     end
     | TclassOrInterface tspecs
     | Tclass tspecs
-    | Tinterface tspecs -> type_specs_to_short_string tspecs
+    | Tinterface tspecs -> type_specs_to_short_string ~resolve tspecs
 
-    | Tarray(ty, dims') -> type_to_short_string (dims + dims') ty
+    | Tarray(ty, dims') -> type_to_short_string ~resolve (dims + dims') ty
 
     | Tvoid -> "V"
 
   in sprintf "%s%s" dim_str base
 
-and type_specs_to_short_string = function
+and type_specs_to_short_string ?(resolve=false) = function
   | [] -> ""
-  | [tspec] -> sprintf "L%s;" (type_spec_to_short_string ~resolve:true tspec)
+  | [tspec] -> sprintf "L%s;" (type_spec_to_short_string ~resolve tspec)
   | tspec::ts ->
       sprintf "L%s.%s;"
-        (type_spec_to_short_string ~resolve:true tspec)
+        (type_spec_to_short_string ~resolve tspec)
         (list_to_string type_spec_to_short_string "." ts)
 
 and type_spec_to_short_string ?(resolve=false) tspec =
@@ -254,15 +257,15 @@ and type_arguments_to_short_string tyargs =
   sprintf "<%s>" 
     (list_to_string type_argument_to_short_string "," tyargs.tas_type_arguments)
 
-and type_argument_to_short_string ta =
+and type_argument_to_short_string ?(resolve=true) ta =
   match ta.ta_desc with
-  | TAreferenceType ty -> type_to_short_string 0 ty
+  | TAreferenceType ty -> type_to_short_string ~resolve 0 ty
   | TAwildcard wc      -> wildcard_to_short_string wc
 
-and wildcard_bounds_to_short_string wb =
+and wildcard_bounds_to_short_string ?(resolve=true) wb =
   match wb.wb_desc with
-  | WBextends ty -> sprintf "extends %s" (type_to_short_string 0 ty)
-  | WBsuper ty   -> sprintf "super %s" (type_to_short_string 0 ty)
+  | WBextends ty -> sprintf "extends %s" (type_to_short_string ~resolve 0 ty)
+  | WBsuper ty   -> sprintf "super %s" (type_to_short_string ~resolve 0 ty)
 
 and wildcard_to_short_string = function
   | al, Some wcb -> sprintf "%s? %s" (annotations_to_string al) (wildcard_bounds_to_short_string wcb)
@@ -353,7 +356,7 @@ let pr_literal lit =
     | LfloatingPoint s -> s
     | Ltrue            -> "true"
     | Lfalse           -> "false"
-    | Lcharacter s     -> s
+    | Lcharacter s     -> "'"^s^"'"
     | Lstring s        -> "\""^s^"\""
     | Lnull            -> "null")
 
@@ -430,7 +433,7 @@ let rec pr_primary prec p =
   | ParrayCreationExpression ace -> pr_array_creation_expression ace
   | PmethodReference mr          -> pr_method_reference mr
 
-  | Perror -> pr_string "<ERROR>"
+  | Perror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_method_reference mr =
   match mr.mr_desc with
@@ -574,7 +577,7 @@ and pr_method_invocation mi =
   open_box 0; 
   let _ = match mi.mi_desc with
   | MImethodName(n, args) ->
-      pr_name n; pr_lparen(); pr_argument_list args; pr_string ")"; 
+      pr_name n; pr_lparen(); pr_argument_list args; pr_string ")";
   | MIprimary(p, tyargs_opt, id, args) ->
       pr_primary (get_precedence ".") p; pr_string ".";
       pr_option pr_type_arguments tyargs_opt;
@@ -601,7 +604,7 @@ and pr_field_access = function
   | FAprimary(p, id) -> pr_primary (get_precedence ".") p; pr_string "."; pr_id id
   | FAsuper id -> pr_string "super."; pr_id id
   | FAclassSuper(n, id) -> pr_name n; pr_string ".super."; pr_id id
-  | FAimplicit id -> pr_string "."; pr_id id
+  | FAimplicit n -> pr_string "."; pr_name n
 
 and pr_expression prec expr =
   let prec' = get_precedence_of_expression expr in
@@ -632,7 +635,7 @@ and pr_expression prec expr =
       pr_string " -> ";
       pr_lambda_body prec' body
 
-  | Eerror -> pr_string "<ERROR>"
+  | Eerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_lambda_params params =
   match params.lp_desc with
@@ -666,6 +669,7 @@ and pr_variable_initializer vi =
   match vi.vi_desc with
   | VIexpression e -> pr_expression 0 e
   | VIarray ai -> pr_array_initializer ai
+  | VIerror s -> pr_string s
 
 and pr_array_initializer ai = pr_list pr_comma pr_variable_initializer ai
 
@@ -717,11 +721,11 @@ and pr_block_statement sty bs =
   | BSlocal lvd -> pr_local_variable_declaration_statement lvd
   | BSclass cd -> pr_class_declaration cd
   | BSstatement s -> pr_statement sty s
-  | BSerror -> pr_string "<ERROR>"
+  | BSerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_statement_short s = pr_statement BSshort s
 
-and pr_statement sty s = 
+and pr_statement sty s =
   match s.s_desc with
   | Sblock b -> pr_block sty b
   | Sempty -> pr_semicolon()
@@ -796,7 +800,7 @@ and pr_statement sty s =
   | Sassert2(e1, e2) -> pr_string "assert "; pr_expression 0 e1; 
       pr_string ":"; pr_expression 0 e2; pr_semicolon()
 
-  | Serror -> pr_string "<ERROR>"
+  | Serror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_resource_spec rs =
   pr_lparen();
@@ -892,7 +896,7 @@ and pr_statement_expression se =
   | SEmethodInvocation mi -> pr_method_invocation mi
   | SEclassInstanceCreation cic -> pr_class_instance_creation cic
 
-  | SEerror -> pr_string "<ERROR>"
+  | SEerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_block_statements sty bss = 
   pr_list pr_space (pr_block_statement sty) bss
@@ -935,7 +939,7 @@ and pr_class_body_declaration cbd =
   | CBDinstanceInitializer b -> pr_block_tall b
   | CBDconstructor cd -> pr_constructor_declaration cd
   | CBDempty -> pr_semicolon()
-  | CBDerror -> pr_string "<ERROR>"
+  | CBDerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_interface_member_declaration = function
   | IMDconstant fd -> pr_field_declaration fd
@@ -1029,6 +1033,7 @@ and pr_explicit_constructor_invocation eci =
       pr_option pr_type_arguments tyargs;
       pr_string "super"; pr_arguments args; 
       pr_semicolon()
+  | ECIerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_constructor_body cnb =
   match cnb.cnb_explicit_constructor_invocation, cnb.cnb_block with
@@ -1076,8 +1081,6 @@ and pr_enum_body eb =
   | ecs, body -> 
       pr_block_begin_short();
       pr_enum_constants ecs;
-      if body <> [] then
-        pr_semicolon();
       pr_class_body_declarations body; 
       pr_block_end()      
 
@@ -1151,6 +1154,7 @@ let pr_type_declaration td =
 let pr_type_declarations = pr_list pr_newline pr_type_declaration
 
 let pr_package_declaration pd =
+  pr_annotations pd.pd_annotations;
   pr_string "package "; 
   pr_name pd.pd_name; 
   pr_semicolon()

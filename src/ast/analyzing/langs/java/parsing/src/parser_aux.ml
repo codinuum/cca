@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -28,6 +28,101 @@ exception Unknown of string
 exception Str_found of string
 
 
+type sub_context =
+  | SC_block
+  | SC_new
+  | SC_for
+  | SC_array
+  | SC_lambda
+  | SC_res
+
+type meth_stat = {
+    mutable m_block_level: int;
+    mutable m_paren_level: int;
+    mutable m_new_level: int;
+    mutable m_for_level: int;
+    mutable m_array_level: int; (* array initializer *)
+    mutable m_lambda_level: int;
+    mutable m_tap_level: int;
+    mutable m_res_level: int;
+    m_stack: sub_context Stack.t
+}
+
+type class_stat = {
+    mutable c_tap_level: int;
+}
+
+type top_stat = {
+    mutable t_tap_level: int;
+}
+
+let create_class_stat () =
+  { c_tap_level=0;
+  }
+
+let create_top_stat () =
+  { t_tap_level=0;
+  }
+
+let create_meth_stat () =
+  { m_block_level=0;
+    m_paren_level=0;
+    m_new_level=0;
+    m_for_level=0;
+    m_array_level=0;
+    m_lambda_level=0;
+    m_tap_level=0;
+    m_res_level=0;
+    m_stack=Stack.create();
+  }
+
+type context =
+  | C_toplevel of top_stat
+  | C_class of class_stat
+  | C_method of meth_stat
+
+let stack_to_list stack = List.rev (Stack.fold (fun l x -> x::l) [] stack)
+
+let sub_context_to_string = function
+  | SC_block  -> "B"
+  | SC_new    -> "N"
+  | SC_for    -> "F"
+  | SC_array  -> "A"
+  | SC_lambda -> "L"
+  | SC_res    -> "R"
+
+let meth_stat_to_string { m_block_level=blv;
+                          m_paren_level=plv;
+                          m_new_level=nlv;
+                          m_for_level=flv;
+                          m_array_level=alv;
+                          m_lambda_level=llv;
+                          m_tap_level=tlv;
+                          m_res_level=rlv;
+                          m_stack=stack;
+                        } =
+  let s = String.concat "" (List.map sub_context_to_string (stack_to_list stack)) in
+  Printf.sprintf "{B:%d,P:%d,N:%d,F:%d,A:%d,L:%d,T:%d,R:%d,%s}" blv plv nlv flv alv llv tlv rlv s
+
+let class_stat_to_string { c_tap_level=tlv;
+                         } =
+  Printf.sprintf "{T:%d}" tlv
+
+let top_stat_to_string { t_tap_level=tlv;
+                       } =
+  Printf.sprintf "{T:%d}" tlv
+
+let context_to_string = function
+  | C_toplevel tstat -> Printf.sprintf "%s" (top_stat_to_string tstat)
+  | C_class cstat -> Printf.sprintf "C%s" (class_stat_to_string cstat)
+  | C_method mstat -> Printf.sprintf "M%s" (meth_stat_to_string mstat)
+
+let stack_memq stack x =
+  try
+    Stack.iter (fun y -> if y == x then raise Exit) stack;
+    false
+  with
+    Exit -> true
 
 exception Frame_found of frame
 
@@ -45,6 +140,338 @@ class env = object (self)
   val mutable last_rawtoken = Obj.repr ()
 
   val mutable global_frame = new frame FKother
+
+  val mutable keep_going_flag = true
+  val mutable lex_brace_level = 0
+  val mutable class_flag = false
+  val mutable shift_flag = false
+
+  val context_stack = Stack.create ()
+
+  method shift_flag = shift_flag
+
+  method set_shift_flag =
+    DEBUG_MSG "set";
+    shift_flag <- true
+
+  method clear_shift_flag =
+    DEBUG_MSG "clear";
+    shift_flag <- false
+
+  method class_flag = class_flag
+
+  method set_class_flag =
+    DEBUG_MSG "set";
+    class_flag <- true
+
+  method clear_class_flag =
+    DEBUG_MSG "clear";
+    class_flag <- false
+
+  method context_stack_rep =
+    let buf = Buffer.create 0 in
+    Stack.iter
+      (fun c ->
+        Buffer.add_string buf (context_to_string c)
+      ) context_stack;
+    Buffer.contents buf
+
+  method context_stack_as_list =
+    stack_to_list context_stack
+
+  method enter_class =
+    DEBUG_MSG "enter";
+    Stack.push (C_class (create_class_stat())) context_stack;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method enter_method =
+    DEBUG_MSG "enter";
+    Stack.push (C_method (create_meth_stat())) context_stack;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method exit_context =
+    DEBUG_MSG "exit";
+    ignore (Stack.pop context_stack);
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method current_context =
+    Stack.top context_stack
+
+  method in_method =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match Stack.top context_stack with
+    | C_method _ -> true
+    | _ -> false
+
+  method in_class =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match Stack.top context_stack with
+    | C_class _ -> true
+    | _ -> false
+
+  method keep_going_flag = keep_going_flag
+  method _set_keep_going_flag b = keep_going_flag <- b
+
+  method at_res =
+    begin
+      match self#current_context with
+      | C_method mstat -> stack_memq mstat.m_stack SC_res
+      | _ -> false
+    end
+
+  method at_lambda =
+    begin
+      match self#current_context with
+      | C_method mstat -> stack_memq mstat.m_stack SC_lambda
+      | _ -> false
+    end
+
+  method at_array =
+    begin
+      match self#current_context with
+      | C_method mstat -> stack_memq mstat.m_stack SC_array
+      | _ -> false
+    end
+
+  method at_new =
+    begin
+      match self#current_context with
+      | C_method mstat -> Stack.top mstat.m_stack = SC_new
+      | _ -> false
+    end
+
+  method at_for =
+    begin
+      match self#current_context with
+      | C_method mstat -> stack_memq mstat.m_stack SC_for
+      | _ -> false
+    end
+
+  method at_block =
+    begin
+      match self#current_context with
+      | C_method mstat -> Stack.top mstat.m_stack = SC_block
+      | _ -> false
+    end
+
+  method res_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_res_level
+    | _ -> 0
+
+  method in_res = self#res_level > 0
+
+  method open_res =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_res_level <- mstat.m_res_level + 1;
+          Stack.push SC_res mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method close_res =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_res_level <- mstat.m_res_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method tap_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_tap_level
+    | C_class cstat -> cstat.c_tap_level
+    | C_toplevel tstat -> tstat.t_tap_level
+
+  method in_tap = self#tap_level > 0
+
+  method open_tap =
+    begin
+      match self#current_context with
+      | C_method mstat -> mstat.m_tap_level <- mstat.m_tap_level + 1
+      | C_class cstat -> cstat.c_tap_level <- cstat.c_tap_level + 1
+      | C_toplevel tstat -> tstat.t_tap_level <- tstat.t_tap_level + 1
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method close_tap =
+    begin
+      match self#current_context with
+      | C_method mstat -> mstat.m_tap_level <- mstat.m_tap_level - 1
+      | C_class cstat -> cstat.c_tap_level <- cstat.c_tap_level - 1
+      | C_toplevel tstat -> tstat.t_tap_level <- tstat.t_tap_level - 1
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method lambda_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_lambda_level
+    | _ -> 0
+
+  method in_lambda = self#lambda_level > 0
+
+  method enter_lambda =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_lambda_level <- mstat.m_lambda_level + 1;
+          Stack.push SC_lambda mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method exit_lambda =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_lambda_level <- mstat.m_lambda_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method array_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_array_level
+    | _ -> 0
+
+  method in_array = self#array_level > 0
+
+  method enter_array =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_array_level <- mstat.m_array_level + 1;
+          Stack.push SC_array mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method exit_array =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_array_level <- mstat.m_array_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method new_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_new_level
+    | _ -> 0
+
+  method in_new = self#new_level > 0
+
+  method enter_new =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_new_level <- mstat.m_new_level + 1;
+          Stack.push SC_new mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method exit_new =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_new_level <- mstat.m_new_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method in_for = self#for_level > 0
+
+  method for_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_for_level
+    | _ -> 0
+
+  method enter_for =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_for_level <- mstat.m_for_level + 1;
+          Stack.push SC_for mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method exit_for =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_for_level <- mstat.m_for_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method block_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_block_level
+    | _ -> 0
+
+  method open_block =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_block_level <- mstat.m_block_level + 1;
+          Stack.push SC_block mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method close_block =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_block_level <- mstat.m_block_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method paren_level =
+    match self#current_context with
+    | C_method mstat -> mstat.m_paren_level
+    | _ -> 0
+
+  method open_paren =
+    begin
+      match self#current_context with
+      | C_method mstat -> mstat.m_paren_level <- mstat.m_paren_level + 1
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method close_paren =
+    begin
+      match self#current_context with
+      | C_method mstat -> mstat.m_paren_level <- mstat.m_paren_level - 1
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method lex_brace_level = lex_brace_level
+  method reset_lex_brace_level = lex_brace_level <- 0
+  method open_lex_brace = lex_brace_level <- lex_brace_level + 1
+  method close_lex_brace = lex_brace_level <- lex_brace_level - 1
 
   method get_global_frame = global_frame
 
@@ -185,12 +612,12 @@ class env = object (self)
         end
 
 
-  method register_qname qname attr =
+  method register_qname ?(skip=0) qname attr =
     if true(*is_qualified_qname qname*) then begin
       DEBUG_MSG "REGISTER(%d): \"%s\" -> %s"
         (Stack.length stack) qname (iattr_to_str attr);
 
-      let frame = self#get_frame attr in
+      let frame = self#get_frame ~skip attr in
       frame#qadd qname attr
     end
 
@@ -331,15 +758,44 @@ class env = object (self)
     try
       let a =
         match !nattr_ref with
-        | NAtype rr ->
+        | NAtype rr -> begin
 	    let ln = self#finalize_resolve_result rr in
 	    DEBUG_MSG "TYPE(%s)" ln;
             NAtype (R_resolved ln)
+        end
+        | NAambiguous (R_deferred(id, frames, cand)) -> begin
+	    try
+	      Stack.iter
+	        (fun frame ->
+                  DEBUG_MSG "%s" frame#to_string;
+		  try
+		    match frame#find id with
+		    | IAclass s | IAinterface s | IAtypename s ->
+                        DEBUG_MSG "found: %s" s;
+                        raise (Str_found (if s = "" then id else s))
+		    | _ -> raise Not_found
+		  with
+		    Not_found ->
+                      try
+                        match frame#qfind id with
+		        | IAclass s | IAinterface s | IAtypename s ->
+                            DEBUG_MSG "found: %s" s;
+                            raise (Str_found (if s = "" then id else s))
+		        | _ -> ()
+                      with
+                        Not_found -> ()
+	        ) frames;
+              !nattr_ref
+	    with
+	    | Str_found s -> NAtype (R_resolved s)
+        end
         | _ -> raise Not_found
       in
       nattr_ref := a
     with
       Not_found -> ()
+
+
 
   method finalize_resolve_result = function
     | R_resolved s -> s
@@ -359,7 +815,7 @@ class env = object (self)
 		  Not_found -> ()
 	      ) frames;
 	    raise Not_found
-	  with 
+	  with
 	  | Str_found s -> s
 	  | Not_found ->
 	      if cand <> "" then
@@ -437,7 +893,7 @@ class env = object (self)
 
   method get_package_name name = (* package or normal type or nested type *)
     let qname = P.name_to_simple_string name in
-    DEBUG_MSG "name=%s" (P.name_to_string name);
+    DEBUG_MSG "qname=%s name=%s" qname (P.name_to_string name);
 
     if classtbl#is_package qname then begin
       set_name_attribute NApackage name;
@@ -448,11 +904,14 @@ class env = object (self)
       try
         let prefix_name, base = decompose_name name in
         let prefix = P.name_to_simple_string prefix_name in
-
+        DEBUG_MSG "prefix=%s" prefix;
         let spath = self#classtbl#get_source_dir#path in
         let ppath = Filename.concat spath (pkg_to_path prefix) in
-
 	let _path = Filename.concat ppath base in
+
+        DEBUG_MSG "spath=%s" spath;
+        DEBUG_MSG "ppath=%s" ppath;
+        DEBUG_MSG "_path=%s" _path;
           
 	if self#current_source#tree#is_dir ppath then begin
 
@@ -479,7 +938,7 @@ class env = object (self)
           prefix
         end
         else
-          classtbl#get_package_name prefix
+          (*classtbl#get_package_name *)prefix
 
       with
         _ -> failwith "Parser_aux.env#get_package_name"
@@ -494,7 +953,9 @@ class env = object (self)
     super#init;
     Stack.clear stack;
     self#begin_scope ~frame_opt:(Some global_frame) ();
-    self#set_java_lang_spec_unknown
+    self#set_java_lang_spec_unknown;
+    Stack.clear context_stack;
+    Stack.push (C_toplevel (create_top_stat())) context_stack
 
   initializer
     self#init
@@ -558,7 +1019,8 @@ module F (Stat : STATE_T) = struct
 
 
   let register_identifier_as_class fqn id     = env#register_identifier ~qualify:true id (IAclass fqn)
-  let register_identifier_as_interface fqn id = env#register_identifier ~qualify:true id (IAinterface fqn)  let register_identifier_as_typename fqn id  = env#register_identifier id (IAtypename fqn)
+  let register_identifier_as_interface fqn id = env#register_identifier ~qualify:true id (IAinterface fqn)
+  let register_identifier_as_typename fqn id  = env#register_identifier id (IAtypename fqn)
   let register_identifier_as_method id        = env#register_identifier id IAmethod
   let register_identifier_as_parameter id t   = env#register_identifier id IAparameter
   let register_identifier_as_variable id t    = env#register_identifier id IAvariable
@@ -573,7 +1035,7 @@ module F (Stat : STATE_T) = struct
   let register_identifier_as_enumconst fqn id =
     env#register_identifier ~skip:1 id (IAstatic fqn)
 
-  let register_qname n a =
+  let register_qname ?(skip=0) n a =
     let ss = P.name_to_simple_string n in
     DEBUG_MSG "\"%s\"" ss;
     try
@@ -581,13 +1043,16 @@ module F (Stat : STATE_T) = struct
       if env#classtbl#is_resolvable id then
         env#register_global_qname ss a
       else
-        env#register_qname ss a
+        env#register_qname ~skip ss a
     with
       _ -> ()
 
   let register_qname_as_class n         = register_qname n (IAclass "")
   let register_qname_as_interface n     = register_qname n (IAinterface "")
-  let register_qname_as_typename n      = register_qname n (IAtypename "")
+
+  let register_qname_as_typename ?(skip=0) n =
+    register_qname ?skip:(Some skip) n (IAtypename "")
+
   let register_qname_as_method n        = register_qname n IAmethod
   let register_qname_as_static_member n = register_qname n (IAstatic "")
   let register_qname_as_parameter n     = register_qname n IAparameter
@@ -756,7 +1221,7 @@ module F (Stat : STATE_T) = struct
           in
           iter attrs
 	with
-	  Not_found -> false
+	  Not_found -> (*not (env#classtbl#is_resolvable id)*)false
       end
     in
     DEBUG_MSG "\"%s\" --> %B" (P.name_to_simple_string n) b;
@@ -886,6 +1351,7 @@ module F (Stat : STATE_T) = struct
               else
                 tn
       end
+      | Nerror s -> s
     in
     let tyname = get n in
     DEBUG_MSG "%s --> \"%s\"" ss tyname;
@@ -934,7 +1400,18 @@ module F (Stat : STATE_T) = struct
           let _ = env#lookup_identifier ~afilt id in
           true
         with
-          Not_found -> false
+          Not_found ->
+            let afilt = function
+              | IAclass _ | IAinterface _ | IAtypename _ -> true
+              | _ -> false
+            in
+            try
+              let _ = env#lookup_identifier ~afilt id in
+              false
+            with
+              Not_found ->
+                (*not (env#classtbl#is_resolvable id)*)
+                false
       end
       else begin
         let id = rightmost_identifier n in
@@ -974,40 +1451,45 @@ module F (Stat : STATE_T) = struct
   let _mkname loc d = { n_desc=d; n_loc=loc }
   let mkname so eo d = _mkname (get_loc so eo) d
 
+  let mkerrname so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { n_desc=Nerror s; n_loc=loc }
+
   let mktyargs so eo d = _mktyargs (get_loc so eo) d
   let mktype so eo d = _mktype (get_loc so eo) d
   let mkmod so eo d = _mkmod (get_loc so eo) d
   let mkmods so eo ms = { ms_modifiers=ms; ms_loc=(get_loc so eo) }
   let mkaop so eo d = { ao_desc=d; ao_loc=(get_loc so eo) }
   let mkstmt so eo d = { s_desc=d; s_loc=(get_loc so eo) }
-  let mkerrstmt so eo =
+  let mkerrstmt so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { s_desc=Serror; s_loc=loc }
+    { s_desc=Serror s; s_loc=loc }
 
   let mkexpr so eo d = _mkexpr (get_loc so eo) d
 
   let mklp so eo d = { lp_desc=d; lp_loc=(get_loc so eo) }
 
-  let mkerrexpr so eo =
+  let mkerrexpr so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { e_desc=Eerror; e_loc=loc }
+    { e_desc=Eerror s; e_loc=loc }
 
 
   let mkstmtexpr so eo d = { se_desc=d; se_loc=(get_loc so eo) }
 
-  let mkerrstmtexpr so eo =
+  let mkerrstmtexpr so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { se_desc=SEerror; se_loc=loc }
+    { se_desc=SEerror s; se_loc=loc }
 
   let mkprim so eo d = _mkprim (get_loc so eo) d
 
-  let mkerrprim so eo =
+  let mkerrprim so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { p_desc=Perror; p_loc=loc }
+    { p_desc=Perror s; p_loc=loc }
 
 
   let mkannot so eo d = _mkannot (get_loc so eo) d
@@ -1022,21 +1504,25 @@ module F (Stat : STATE_T) = struct
         let lab =
           try
             match env#lookup_identifier i with
-            | IAfield::_ -> PfieldAccess(FAimplicit i)
+            | IAfield::_ -> PfieldAccess(FAimplicit name)
             | _ -> Pname name
           with
-            Not_found -> PfieldAccess(FAimplicit i)
+            Not_found ->
+              a := NAambiguous (env#resolve name);
+              PfieldAccess(FAimplicit name)
         in
         _mkprim name.n_loc lab
     | Nqualified(a, n, i) ->
         a := NAexpression;
         _mkprim name.n_loc (PfieldAccess(FAprimary(name_to_facc n, i)))
+    | Nerror s -> _mkprim name.n_loc (Pname name)
 
   let _name_to_prim loc n =
     DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
     let id = rightmost_identifier n in
     try
       let q = get_qualifier n in
+      DEBUG_MSG "q=%s" (P.name_to_string q);
       let is_tyname, tyname =
         try
           let tn = get_type_name q in
@@ -1045,15 +1531,19 @@ module F (Stat : STATE_T) = struct
           Not_found -> false, ""
       in
       if is_tyname then begin
+        DEBUG_MSG "tyname=\"%s\"" tyname;
         set_name_attribute (NAtype (R_resolved tyname)) q;
-        set_name_attribute NAexpression n;
+        let na = NAambiguous (env#resolve n) in
+        DEBUG_MSG "na=%s" (P.name_attribute_to_string na);
+        set_name_attribute ~force:true na n;
+        DEBUG_MSG "n=%s" (P.name_to_string n);
 	_mkprim loc (Pname n)
       end
       else if is_field_access n then begin
         name_to_facc n
       end
       else begin
-        set_name_attribute NAambiguous q;
+        set_name_attribute (NAambiguous (env#resolve q)) q;
         _mkprim loc (Pname n)
       end
     with
@@ -1062,16 +1552,16 @@ module F (Stat : STATE_T) = struct
           let rec iter = function
             | [] -> begin
                 set_name_attribute NAexpression n;
-                _mkprim loc (PfieldAccess(FAimplicit id))
+                _mkprim loc (PfieldAccess(FAimplicit n))
             end
             | (IAstatic fqn)::_ -> begin
-                DEBUG_MSG "fqn=%s" fqn;
+                DEBUG_MSG "fqn=\"%s\"" fqn;
                 set_name_attribute (NAstatic (R_resolved fqn)) n;
                 _simple_name_to_prim loc n
             end
 	    | IAfield::_ -> begin
                 set_name_attribute NAexpression n;
-                _mkprim loc (PfieldAccess(FAimplicit id))
+                _mkprim loc (PfieldAccess(FAimplicit n))
             end
 	    | (IAvariable | IAparameter)::_ -> begin
                 set_name_attribute NAexpression n;
@@ -1082,8 +1572,8 @@ module F (Stat : STATE_T) = struct
           iter (env#lookup_identifier id)
 	with
 	  Not_found -> begin
-            set_name_attribute NAexpression n;
-            _mkprim loc (PfieldAccess(FAimplicit id))
+            set_name_attribute (NAambiguous (env#resolve n)) n;
+            _mkprim loc (PfieldAccess(FAimplicit n))
           end
       end
 
@@ -1095,10 +1585,10 @@ module F (Stat : STATE_T) = struct
   let mkcic so eo d = { cic_desc=d; cic_loc=(get_loc so eo) }
   let mkcb so eo decls = { cb_class_body_declarations=decls; cb_loc=(get_loc so eo) }
   let mkcbd so eo d = _mkcbd (get_loc so eo) d
-  let mkerrcbd so eo = 
+  let mkerrcbd so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { cbd_desc=CBDerror; cbd_loc=loc }
+    { cbd_desc=CBDerror s; cbd_loc=loc }
 
   let mksb so eo l = { sb_switch_block_stmt_grps=l; sb_loc=(get_loc so eo) }
 
@@ -1115,6 +1605,12 @@ module F (Stat : STATE_T) = struct
 				vd_loc=(get_loc so eo)
 			      }
   let mkvi so eo d = { vi_desc=d; vi_loc=(get_loc so eo) }
+
+  let mkerrvi so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { vi_desc=VIerror s; vi_loc=loc }
+
   let mkth so eo es = { th_exceptions=es; th_loc=(get_loc so eo) }
   let mkcnb so eo eci bss = { cnb_explicit_constructor_invocation=eci;
 			      cnb_block=bss;
@@ -1122,6 +1618,12 @@ module F (Stat : STATE_T) = struct
 			    }
   let mkb so eo bss = { b_block_statements=bss; b_loc=(get_loc so eo) }
   let mkeci so eo d = { eci_desc=d; eci_loc=(get_loc so eo) }
+
+  let mkerreci so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { eci_desc=ECIerror s; eci_loc=loc }
+
   let mkmr so eo d = { mr_desc=d; mr_loc=(get_loc so eo) }
   let mkargs so eo d = _mkargs (get_loc so eo) d
   let mkib so eo imds = { ib_member_declarations=imds; ib_loc=(get_loc so eo) }
@@ -1130,10 +1632,10 @@ module F (Stat : STATE_T) = struct
   let mkbs so eo d = { bs_desc=d; bs_loc=(get_loc so eo) }
   let mkad so eo a = { ad_annotations=a; ad_loc=(get_loc so eo) }
 
-  let mkerrbs so eo = 
+  let mkerrbs so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { bs_desc=BSerror; bs_loc=loc }
+    { bs_desc=BSerror s; bs_loc=loc }
 
 
   let mklvd so eo ms ty vds = { lvd_modifiers=ms; 

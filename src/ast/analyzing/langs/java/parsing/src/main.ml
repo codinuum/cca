@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -26,11 +26,13 @@ let compile_mode = ref false
 let filename = ref ""
 let arg_count = ref 0
 let dump_flag = ref false
+let keep_going_flag = ref false
 
 let _ = 
   Arg.parse 
     [
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump result";
+     "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tparse tolerantly";
     ]
     (fun s -> incr arg_count; filename := s)
     ("usage: " ^ Filename.basename (Sys.argv.(0))
@@ -47,6 +49,7 @@ let _ =
   if !arg_count = 1 then compile_mode := true;
   try
     let _parser = new Lib.parser_c in
+    _parser#_set_keep_going_flag !keep_going_flag;
     while true do
       let ast = 
 	if !compile_mode then

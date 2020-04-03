@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -143,14 +143,14 @@ let split_inner lname = (* parent * rest *)
   let idx = String.index lname '$' in
   String.sub lname 0 idx, String.sub lname idx ((String.length lname) - idx)
 
-type name_attribute = 
+type name_attribute =
   | NApackage
   | NAtype of resolve_result
   | NAexpression
   | NAmethod
   | NApackageOrType
   | NAstatic of resolve_result
-  | NAambiguous
+  | NAambiguous of resolve_result
   | NAunknown
 
 let iattr_to_nattr = function
@@ -172,6 +172,7 @@ type name = { n_desc : name_desc; n_loc : loc; }
 and name_desc = 
   | Nsimple of name_attribute ref * identifier 
   | Nqualified of name_attribute ref * name * identifier
+  | Nerror of string
 
 let set1 orig a =
   match !orig with
@@ -185,61 +186,71 @@ let set1 orig a =
       | NAstatic _ -> orig := a
       | _ -> ()
   end
-  | NAambiguous -> begin
+  | NAambiguous _ -> begin
       match a with
-      | NAunknown | NAambiguous -> ()
+      | NAunknown | NAambiguous _ -> ()
       | _ -> orig := a
   end
   | NAunknown -> orig := a
   | _ -> ()
 
-let set_name_attribute a n =
+let set_name_attribute ?(force=false) a n =
   match n.n_desc with
+  | Nsimple(at, _) when force -> at := a
+  | Nqualified(at, _, _) when force -> at := a
   | Nsimple(at, _) -> set1 at a
   | Nqualified(at, _, _) -> set1 at a
+  | _ -> ()
 
 let set_attribute lattr attr name =
   let rec set_attr a n =
     match n.n_desc with
     | Nsimple(at, _) -> set1 at a
     | Nqualified(at, n, _) -> set1 at a; set_attr a n
+    | _ -> ()
   in
   match name.n_desc with
   | Nsimple _ -> set_attr attr name
   | Nqualified(at, n, _) -> set_attr lattr n; set1 at attr
+  | _ -> ()
 
-let set_attribute_PT_T fqn = set_attribute NApackageOrType (NAtype fqn)
-let set_attribute_P_T fqn  = set_attribute NApackage (NAtype fqn)
-let set_attribute_PT_PT    = set_attribute NApackageOrType NApackageOrType
-let set_attribute_P_P      = set_attribute NApackage NApackage
-let set_attribute_A_M      = set_attribute NAambiguous NAmethod
-let set_attribute_A_E      = set_attribute NAambiguous NAexpression
+let set_attribute_PT_T rr = set_attribute NApackageOrType (NAtype rr)
+let set_attribute_P_T rr  = set_attribute NApackage (NAtype rr)
+let set_attribute_PT_PT   = set_attribute NApackageOrType NApackageOrType
+let set_attribute_P_P     = set_attribute NApackage NApackage
+let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod
+let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression
 
 
 let get_name_attribute name =
   match name.n_desc with
   | Nsimple(attr, _)
   | Nqualified(attr, _, _) -> !attr
+  | _ -> NAunknown
 
 let decompose_name name =
   match name.n_desc with
   | Nsimple _ -> failwith "Ast.decompose_name"
   | Nqualified(_, n, id) -> n, id
+  | _ -> failwith "Ast.decompose_name"
 
 let rec leftmost_of_name n =
   match n.n_desc with
   | Nsimple(attr, id) -> attr, id
   | Nqualified(_, n, _) -> leftmost_of_name n
+  | _ -> ref NAunknown, "?"
 
 let rightmost_identifier n =
   match n.n_desc with
   | Nsimple(_, id) -> id
   | Nqualified(_, _, id) -> id
+  | _ -> "?"
 
 let get_qualifier name =
   match name.n_desc with
   | Nsimple _ -> raise Not_found
   | Nqualified(_, n, _) -> n
+  | _ -> raise Not_found
 
 let is_simple n =
   match n.n_desc with
@@ -252,7 +263,14 @@ let is_qualified n =
   | _ -> false
 
 let is_ambiguous_name name =
-  (get_name_attribute name) = NAambiguous
+  match get_name_attribute name with
+  | NAambiguous _ -> true
+  | _ -> false
+
+let is_type_name name =
+  match get_name_attribute name with
+  | NAtype _ -> true
+  | _ -> false
 
 let is_unknown_name name =
   (get_name_attribute name) = NAunknown
@@ -381,6 +399,7 @@ and variable_initializer = { vi_desc : variable_initializer_desc; vi_loc : loc; 
 and variable_initializer_desc = 
   | VIexpression of expression 
   | VIarray of array_initializer
+  | VIerror of string
 
 and array_initializer = variable_initializer list
 
@@ -456,7 +475,7 @@ and class_body_declaration_desc =
   | CBDinstanceInitializer of block
   | CBDconstructor of constructor_declaration
   | CBDempty
-  | CBDerror
+  | CBDerror of string
 
 and field_declaration = { fd_modifiers            : modifiers option;
 			  fd_type                 : javatype;
@@ -502,6 +521,7 @@ and explicit_constructor_invocation_desc =
   | ECIsuper of type_arguments option * arguments
   | ECIprimary of primary * type_arguments option * arguments
   | ECIname of name * type_arguments option * arguments
+  | ECIerror of string
 
 and interface_declaration_head = {
     ifh_modifiers          : modifiers option;
@@ -571,7 +591,7 @@ and block_statement_desc =
   | BSlocal of local_variable_declaration
   | BSclass of class_declaration
   | BSstatement of statement
-  | BSerror
+  | BSerror of string
 
 and local_variable_declaration = 
     { lvd_modifiers            : modifiers option;
@@ -609,7 +629,7 @@ and statement_desc =
   | SforEnhanced of formal_parameter * expression * statement
   | Sassert1 of expression
   | Sassert2 of expression * expression
-  | Serror
+  | Serror of string
 
 and statement_expression = { se_desc : statement_expression_desc; se_loc : loc; }
 and statement_expression_desc = 
@@ -620,14 +640,14 @@ and statement_expression_desc =
   | SEpostDecrement of expression
   | SEmethodInvocation of method_invocation
   | SEclassInstanceCreation of class_instance_creation
-  | SEerror
+  | SEerror of string
 
 and for_init = { fi_desc : for_init_desc; fi_loc : loc; }
 and for_init_desc = 
   | FIstatement of statement_expression list
   | FIlocal of local_variable_declaration
 
-and primary = { p_desc : primary_desc; p_loc : loc; }
+and primary = { mutable p_desc : primary_desc; p_loc : loc; }
 and primary_desc = 
   | Pname of name
   | Pliteral of literal
@@ -642,7 +662,7 @@ and primary_desc =
   | ParrayAccess of array_access
   | ParrayCreationExpression of array_creation_expression
   | PmethodReference of method_reference
-  | Perror
+  | Perror of string
 
 and method_reference = { mr_desc : method_reference_desc; mr_loc : loc; }
 and method_reference_desc =
@@ -687,9 +707,9 @@ and field_access =
   | FAprimary of primary * identifier
   | FAsuper of identifier
   | FAclassSuper of name (* of type *) * identifier
-  | FAimplicit of identifier
+  | FAimplicit of name(*identifier*)
 
-and method_invocation = { mi_desc : method_invocation_desc; mi_loc : loc; }
+and method_invocation = { mutable mi_desc : method_invocation_desc; mi_loc : loc; }
 and method_invocation_desc =
   | MImethodName of name (* of method *) * arguments
   | MIprimary of primary * type_arguments option * identifier * arguments
@@ -717,7 +737,7 @@ and expression_desc =
   | Econd of expression * expression * expression
   | Eassignment of assignment
   | Elambda of lambda_params * lambda_body
-  | Eerror
+  | Eerror of string
 
 and lambda_params = { lp_desc : lambda_params_desc; lp_loc : loc; }
 and lambda_params_desc = 
@@ -876,6 +896,11 @@ and proc_primary f p =
   | PqualifiedThis n -> f n
   | Pparen e -> proc_expression f e
   | PclassInstanceCreation cic -> proc_class_instance_creation f cic
+  | PfieldAccess (FAimplicit n) when is_ambiguous_name n -> begin
+      f n;
+      if is_type_name n then
+        p.p_desc <- Pname n
+  end
   | PfieldAccess fa -> proc_field_access f fa
   | PmethodInvocation mi -> proc_method_invocation f mi
   | ParrayAccess aa -> proc_array_access f aa
@@ -945,6 +970,7 @@ and proc_variable_initializer f vi =
   match vi.vi_desc with
   | VIexpression e -> proc_expression f e
   | VIarray ai -> proc_array_initializer f ai
+  | VIerror _ -> ()
 
 and proc_variable_declarator f vd =
   proc_op proc_variable_initializer f vd.vd_variable_initializer
@@ -1137,6 +1163,7 @@ and proc_explicit_constructor_invocation f eci =
       f n;
       proc_op proc_type_arguments f tas_op;
       proc_arguments f args
+  | _ -> ()
 
 and proc_method_reference f mr =
   match mr.mr_desc with
@@ -1190,10 +1217,14 @@ and proc_method_invocation f mi =
   | MImethodName(n, args) ->
       f n;
       proc_arguments f args
-  | MIprimary(p, tas_op, _, args) ->
+  | MIprimary(p, tas_op, id, args) -> begin
       proc_primary f p;
       proc_op proc_type_arguments f tas_op;
-      proc_arguments f args
+      proc_arguments f args;
+      match p.p_desc with
+      | Pname n when is_type_name n -> mi.mi_desc <- MItypeName(n, tas_op, id, args)
+      | _ -> ()
+  end
   | MIsuper(_, tas_op, _, args) ->
       proc_op proc_type_arguments f tas_op;
       proc_arguments f args
