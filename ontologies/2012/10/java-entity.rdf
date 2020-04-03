@@ -1384,7 +1384,6 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Throws"/>
             </owl:Restriction>
         </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassBodyDeclaration"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodOrConstructor"/>
     </owl:Class>
     
