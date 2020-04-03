@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -97,6 +97,33 @@ let rec last = function
   | [] -> raise (Failure "Xlist.last")
   | [x] -> x
   | h::t -> last t
+
+let firstn n l =
+  let len = List.length l in
+  if n < 1 || n > len then
+    failwith "Xlist.firstn"
+  else
+    let cur = ref l in
+    let l' = ref [] in
+    for i = 1 to n do
+      match !cur with
+      | h::t ->
+          l' := h :: !l';
+          cur := t
+      | [] -> assert false
+    done;
+    List.rev !l'
+
+let lastn n l =
+  let len = List.length l in
+  if n < 1 || n > len then
+    failwith "Xlist.lastn"
+  else
+    let l' = ref l in
+    for i = 1 to len - n do
+      l' := List.tl !l'
+    done;
+    !l'
 
 let rec balance = function
   | [], l -> [], []

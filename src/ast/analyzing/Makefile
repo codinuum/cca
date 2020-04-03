@@ -63,7 +63,7 @@ OTHER_OBJS_P_OPT   = $(OTHER_OBJS_P:.cmo=.cmx)
 OTHER_OBJS_DEP_OPT = $(OTHER_OBJS_DEP:.cmo=.cmx)
 
 PACKAGES = -package pxp,ulex,str,csv,bigarray,num,zip,menhirLib
-PACKAGES += -package cryptokit,netzip,uuidm,volt
+PACKAGES += -package cryptokit,netzip,uuidm,dynlink,volt
 
 DEP_INCLS = -I $(COMMON_DIR) -I $(ENGINE_DIR) -I .
 

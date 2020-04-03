@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -32,16 +32,16 @@ let to_string g = "#"^(string_of_int g)^"G"
 
 let to_raw g = string_of_int g
 
-let p ch (g : t) = Pervasives.output_string ch (to_string g)
+let p ch (g : t) = Stdlib.output_string ch (to_string g)
 
-let r ch (g : t) = Pervasives.output_string ch (to_raw g)
+let r ch (g : t) = Stdlib.output_string ch (to_raw g)
 
 let ps () (g : t) = to_string g
 
 let rs () (g : t) = to_raw g
 
 let list_to_string l = (* assume that l is not a multiset *)
-  let l = List.fast_sort Pervasives.compare l in
+  let l = List.fast_sort Stdlib.compare l in
 
   let get_last s = 
     if s = "" then 'x' else String.get s ((String.length s) - 1) 

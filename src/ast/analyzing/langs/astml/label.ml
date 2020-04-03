@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -530,7 +530,6 @@ let encode_attrs alist =
   let filtered = List.filter (fun a -> not (ignored_attr a)) alist in
   catstr (List.map encode_attr filtered)
 
-
 let encode { elem_name=elem; elem_attrs=attrs; elem_parser=_; elem_ast_ns=ast_ns; } =
   let tbl = Hashtbl.find token_tbl ast_ns in
   try
@@ -626,6 +625,11 @@ let check_attrs attrs elem_attrs =
 
 let conv_pat pat = "^"^pat^"$"
 
+let is_compatible _ _ = false
+
+let is_order_insensitive = function
+  | _ -> false
+
 let relabel_allowed (l1, l2) =
   let parser1, parser2 = l1.elem_parser, l2.elem_parser in
   if parser1 <> parser2 then
@@ -661,6 +665,10 @@ let relabel_allowed (l1, l2) =
   DEBUG_MSG "%s vs %s -> %B" name1 name2 res;
   res
 (* end of func relabel_allowed *)
+
+let move_disallowed _ = false
+
+let is_common _ = false
 
 let anonymizex tag rules lab =
   let rec scan = function
@@ -777,6 +785,19 @@ let get_value { elem_attrs=attrs; } =
   in
   doit attrs
 
+let has_value { elem_attrs=attrs; } =
+  let rec doit = function
+    | [] -> false
+    | (a, v)::rest ->
+        if is_attr_for_value a then
+          true
+        else
+          doit rest
+  in
+  doit attrs
+
+let has_non_trivial_value = has_value (* tentative *)
+
 let get_operator { elem_attrs=attrs; } =
   let rec doit = function
     | [] -> raise Not_found
@@ -798,7 +819,6 @@ let cannot_be_keyroot nd =
 let is_phantom lab = false (* not yet *)
 
 let is_special lab = false (* not yet *)
-
 
 
 module CCX = struct

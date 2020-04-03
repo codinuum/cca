@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ module OutChannel = struct
   let of_xchannel ch = XChannel ch
 
   let is_stdout = function
-    | Pervasives ch -> ch = Pervasives.stdout
+    | Pervasives ch -> ch = Stdlib.stdout
     | _ -> false
 
   let to_pervasives = function
@@ -43,7 +43,7 @@ module OutChannel = struct
     | _ -> failwith "OutChannel.to_xchannel"
 
   let close = function
-    | Pervasives ch -> Pervasives.close_out ch
+    | Pervasives ch -> Stdlib.close_out ch
     | XChannel ch -> ch#close
 
 end

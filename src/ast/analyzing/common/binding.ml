@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ module ID = struct
 
   type t = Local of int | Global of string
 
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 
   let succ = succ
   let pred = pred
@@ -56,9 +56,9 @@ module ID = struct
       Local id
   end
 
-  let p ch bid = Pervasives.output_string ch (to_string bid)
+  let p ch bid = Stdlib.output_string ch (to_string bid)
 
-  let r ch bid = Pervasives.output_string ch (to_raw bid)
+  let r ch bid = Stdlib.output_string ch (to_raw bid)
 
   let ps () bid = to_string bid
 

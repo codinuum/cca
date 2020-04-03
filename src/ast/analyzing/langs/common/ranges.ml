@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ class c ini = object (self)
   method fuse =
     let sorted =
       List.fast_sort 
-	(fun (st0, _) (st1, _) -> Pervasives.compare st0 st1) 
+	(fun (st0, _) (st1, _) -> Stdlib.compare st0 st1)
 	ranges
     in
 (*

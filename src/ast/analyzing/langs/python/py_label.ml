@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1144,6 +1144,11 @@ let is_named_orig = function
     -> true
   | _ -> false
 
+let is_compatible _ _ = false
+
+let is_order_insensitive = function
+  | _ -> false
+
 let relabel_allowed = function (* FIXME: should be tuned! *)
   | Primary _, Primary _
   | UnaryOperator _, UnaryOperator _
@@ -1152,6 +1157,9 @@ let relabel_allowed = function (* FIXME: should be tuned! *)
 
   | l1, l2 -> anonymize2 l1 = anonymize2 l2
 
+let move_disallowed _ = false
+
+let is_common _ = false
 
 let is_hunk_boundary _ _ = false (* not yet *)
 
@@ -1235,6 +1243,18 @@ let get_value = function
   | StringLiteral s -> s
   | _ -> raise Not_found
 
+let has_value = function
+  | Primary (Primary.Literal _)
+  | StringLiteral _ -> true
+  | _ -> false
+
+let has_non_trivial_value lab =
+  try
+    let v = get_value lab in
+    v <> "0" && v <> "1" && v <> "True" && v <> "False" && v <> "None"
+  with
+    Not_found -> false
+
 let cannot_be_keyroot nd = false
 
 let is_phantom = function
@@ -1248,4 +1268,3 @@ let is_phantom = function
   | _ -> false
 
 let is_special _ = false
-

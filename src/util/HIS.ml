@@ -158,7 +158,7 @@ module F (W : Weight.T) = struct
 	    node_add (j, vijw) ((i, j)::(node_find (s, v)))
 	  end
 	)
-	(List.fast_sort (fun x y -> Pervasives.compare y x) p)
+	(List.fast_sort (fun x y -> Stdlib.compare y x) p)
     done;
 
     let seq = node_find !max_pair in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -58,13 +58,13 @@ let find_case_insensitive_path ?(prefix="") path =
                  if n = Filename.current_dir_name then
                    ps
                  else
-                   let lcn = String.lowercase n in
+                   let lcn = String.lowercase_ascii n in
                    List.flatten
                      (List.map
                         (fun (p, rel) ->
                           let xs = Array.to_list (Sys.readdir p) in
                           let filtered = 
-                            List.filter (fun x -> String.lowercase x = lcn) xs 
+                            List.filter (fun x -> String.lowercase_ascii x = lcn) xs 
                           in
                           if filtered = [] then
                             raise Exit
@@ -287,7 +287,7 @@ let get_extension fname =
     let len = String.length (Filename.chop_extension fname) in
     String.sub fname len (len0 - len)
   with 
-    Invalid_argument "Filename.chop_extension" -> 
+    Invalid_argument _ -> 
       raise (No_extension fname)
 
 let has_extension fname =

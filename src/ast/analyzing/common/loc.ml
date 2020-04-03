@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ let dummy =
   { filename     = "";
     start_offset = -1;
     end_offset   = -1;
-    start_line   = -1; 
-    start_char   = -1; 
-    end_line     = -1; 
+    start_line   = -1;
+    start_char   = -1;
+    end_line     = -1;
     end_char     = -1;
   }
 
@@ -41,9 +41,9 @@ let ghost =
   { filename     = "";
     start_offset = -10;
     end_offset   = -10;
-    start_line   = -10; 
-    start_char   = -10; 
-    end_line     = -10; 
+    start_line   = -10;
+    start_char   = -10;
+    end_line     = -10;
     end_char     = -10;
   }
 
@@ -51,9 +51,9 @@ let make ?(fname="") so eo sl sc el ec =
   { filename     = fname;
     start_offset = so;
     end_offset   = eo;
-    start_line   = sl; 
-    start_char   = sc; 
-    end_line     = el; 
+    start_line   = sl;
+    start_char   = sc;
+    end_line     = el;
     end_char     = ec;
   }
 
@@ -64,9 +64,9 @@ let _merge loc0 loc1 =
   { filename     = fn0;
     start_offset = loc0.start_offset;
     end_offset   = loc1.end_offset;
-    start_line   = loc0.start_line; 
-    start_char   = loc0.start_char; 
-    end_line     = loc1.end_line; 
+    start_line   = loc0.start_line;
+    start_char   = loc0.start_char;
+    end_line     = loc1.end_line;
     end_char     = loc1.end_char;
   }
 
@@ -100,9 +100,9 @@ let extend_end loc n = (* does not modify line end *)
     { filename     = loc.filename;
       start_offset = loc.start_offset;
       end_offset   = loc.end_offset + n;
-      start_line   = loc.start_line; 
-      start_char   = loc.start_char; 
-      end_line     = loc.end_line; 
+      start_line   = loc.start_line;
+      start_char   = loc.start_char;
+      end_line     = loc.end_line;
       end_char     = loc.end_char + n;
     }
 

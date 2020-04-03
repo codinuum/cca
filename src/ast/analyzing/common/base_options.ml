@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ class c = object
 
   method get_extension name =
     try
-      Xfile.get_extension (String.lowercase name)
+      Xfile.get_extension (String.lowercase_ascii name)
     with
       Xfile.No_extension _ -> ""
 
@@ -47,7 +47,7 @@ class c = object
 
   method check_extension _name =
     let b =
-      let name = String.lowercase _name in
+      let name = String.lowercase_ascii _name in
       try
         let ext = Xfile.get_extension name in
         Xset.mem extensions ext

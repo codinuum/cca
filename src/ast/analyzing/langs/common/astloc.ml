@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -29,29 +29,29 @@ let dummy =
   { filename = "";
     start_offset = 0;
     end_offset   = 0;
-    start_line   = 0; 
-    start_char   = 0; 
-    end_line     = 0; 
-    end_char     = 0; 
+    start_line   = 0;
+    start_char   = 0;
+    end_line     = 0;
+    end_char     = 0;
   }
 
 let make ?(fname="") so eo sl sc el ec =
   { filename     = fname;
     start_offset = so;
     end_offset   = eo;
-    start_line   = sl; 
-    start_char   = sc; 
-    end_line     = el; 
-    end_char     = ec; 
+    start_line   = sl;
+    start_char   = sc;
+    end_line     = el;
+    end_char     = ec;
   }
 
 let copy
     { filename = fname;
       start_offset = so;
       end_offset   = eo;
-      start_line   = sl; 
-      start_char   = sc; 
-      end_line     = el; 
+      start_line   = sl;
+      start_char   = sc;
+      end_line     = el;
       end_char     = ec;
     }
     =
@@ -61,9 +61,9 @@ let interchange
     { filename = fname;
       start_offset = so;
       end_offset   = eo;
-      start_line   = sl; 
-      start_char   = sc; 
-      end_line     = el; 
+      start_line   = sl;
+      start_char   = sc;
+      end_line     = el;
       end_char     = ec;
     }
     =
@@ -73,9 +73,9 @@ let is_valid ?(weak=false)
     { filename = fn;
       start_offset = so;
       end_offset   = eo;
-      start_line   = sl; 
-      start_char   = sc; 
-      end_line     = el; 
+      start_line   = sl;
+      start_char   = sc;
+      end_line     = el;
       end_char     = ec;
     }
     =
@@ -141,15 +141,16 @@ let extend ?cache loc ext =
 
 let to_string ?(show_ext=false) ?(short=false) ?(prefix="") ?(suffix="") loc =
   let fstr = Fname.to_string ~show_ext ~short loc.filename in
+  let fstr = if fstr = "" then "" else fstr^" " in
   if loc.start_line = loc.end_line then
-    Printf.sprintf "%s%s %dL,%dC-%dC(%d-%d)%s"
+    Printf.sprintf "%s%s%dL,%dC-%dC(%d-%d)%s"
       prefix
       fstr
       loc.start_line loc.start_char loc.end_char
       loc.start_offset loc.end_offset
       suffix
   else
-    Printf.sprintf "%s%s %dL,%dC-%dL,%dC(%d-%d)%s" 
+    Printf.sprintf "%s%s%dL,%dC-%dL,%dC(%d-%d)%s"
       prefix
       fstr
       loc.start_line loc.start_char loc.end_line loc.end_char
@@ -230,20 +231,20 @@ let collapse_forward
     { filename = fn0;
       start_offset = so0;
       end_offset   = eo0;
-      start_line   = sl0; 
-      start_char   = sc0; 
-      end_line     = el0; 
+      start_line   = sl0;
+      start_char   = sc0;
+      end_line     = el0;
       end_char     = ec0;
     }
-    =
-  { filename = fn0;
-    start_offset = so0;
-    end_offset   = so0;
-    start_line   = sl0; 
-    start_char   = sc0; 
-    end_line     = sl0; 
-    end_char     = sc0;
-  }
+=
+    { filename = fn0;
+      start_offset = so0;
+      end_offset   = so0;
+      start_line   = sl0;
+      start_char   = sc0;
+      end_line     = sl0;
+      end_char     = sc0;
+    }
 
 let collapse_backward
     { filename = fn0;
@@ -254,15 +255,15 @@ let collapse_backward
       end_line     = el0;
       end_char     = ec0;
     }
-    =
-  { filename = fn0;
-    start_offset = eo0;
-    end_offset   = eo0;
-    start_line   = el0;
-    start_char   = ec0;
-    end_line     = el0;
-    end_char     = ec0;
-  }
+=
+    { filename = fn0;
+      start_offset = eo0;
+      end_offset   = eo0;
+      start_line   = el0;
+      start_char   = ec0;
+      end_line     = el0;
+      end_char     = ec0;
+    }
 
 let widen
     { filename = fn0;
@@ -311,7 +312,7 @@ let dump_locs locs =
     let sorted =
       List.fast_sort 
 	(fun loc0 loc1 -> 
-	  Pervasives.compare loc0.start_offset loc1.end_offset
+	  Stdlib.compare loc0.start_offset loc1.end_offset
 	) locs
     in
     List.iter

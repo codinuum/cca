@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ let digest_of_file algo fname =
 
 let git_digest_of_ch ch =
   let hash = C.Hash.sha1() in
-  let len = Pervasives.in_channel_length ch in
+  let len = Stdlib.in_channel_length ch in
   let header = Printf.sprintf "blob %d\000" len in
   let ich = NC.input_channel ch in
   begin

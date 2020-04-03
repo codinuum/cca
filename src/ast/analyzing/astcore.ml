@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -155,7 +155,7 @@ class virtual base_c options = object (self)
     let csv = 
       List.fast_sort 
 	(fun x y -> 
-	  Pervasives.compare (get_sz y) (get_sz x)
+	  Stdlib.compare (get_sz y) (get_sz x)
 	) !l 
     in
     Csv.save path csv

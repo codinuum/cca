@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -66,3 +66,30 @@ let subset_eq (s0 : 'a t) (s1 : 'a t) = for_all (mem s1) s0
 
 let equals (s0 : 'a t) (s1 : 'a t) = 
   (subset_eq s0 s1) && (subset_eq s1 s0)
+
+let map f (s : 'a t) =
+  let s' = create (length s) in
+  iter
+    (fun x ->
+      add s' (f x)
+    ) s;
+  s'
+
+let filter f (s : 'a t) =
+  let s' = create 0 in
+  iter
+    (fun x ->
+      if f x then
+        add s' x
+    ) s;
+  s'
+
+let filter_map f (s : 'a t) =
+  let s' = create 0 in
+  iter
+    (fun x ->
+      match f x with
+      | Some y -> add s' y
+      | None -> ()
+    ) s;
+  s'

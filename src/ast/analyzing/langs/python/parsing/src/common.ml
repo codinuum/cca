@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 (* common.ml *)
 
 module PB = Parserlib_base
-module EB = Env_base
-module SB = Source_base
 
 exception Parse_error = PB.Parse_error
 

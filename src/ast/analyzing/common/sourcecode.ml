@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ let load_gmap fpath =
   try
     Xfile.load fpath load_gmap_ch
   with 
-    Failure "Xfile.load" -> []
+    Failure _ -> []
 
 
 let digest_of_file options file =
@@ -453,7 +453,7 @@ module Tree (L : Spec.LABEL_T) = struct
     end;
     unparse node;
     if redirect then begin
-      Format.set_formatter_out_channel Pervasives.stdout
+      Format.set_formatter_out_channel Stdlib.stdout
     end
 
 
@@ -906,7 +906,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	try
 	  List.nth row i
 	with 
-	  Failure "nth" -> 
+	  Failure _ ->
 	    ERROR_MSG "_get_origin.get: index out of bounds: i=%d row=%s" 
 	      i (Xlist.to_string (fun x -> x) ", " row);
 	    exit 1
@@ -951,7 +951,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	    nd#data#set_ending ending
 	  with 
 	  | Not_found -> ()
-	  | Failure "int_of_string" -> raise (Malformed_row row_s)
+	  | Failure _ -> raise (Malformed_row row_s)
 	) csv;
 
       let buf = new Origin.abuf bufsize in
@@ -1341,7 +1341,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let matched, _ = List.split matches in
       let relabeled, _ = List.split relabels in
 
-      let matched = List.fast_sort Pervasives.compare matched in
+      let matched = List.fast_sort Stdlib.compare matched in
 
       let gaps = 
 	let rec loop a = function
@@ -1530,7 +1530,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	  let sim2 = (float nmats2) /. (float tokpat_len) in
 	  let nrels2 = List.length relabels2 in
 	  let matched2, _ = List.split matches2 in
-	  let matched2 = List.fast_sort Pervasives.compare matched2 in
+	  let matched2 = List.fast_sort Stdlib.compare matched2 in
 
 	  let continuity = self#compute_continuity matched2 in
 
@@ -1581,8 +1581,8 @@ module Tree (L : Spec.LABEL_T) = struct
 
 	end
 	else
-	  let matched = 
-	    List.fast_sort Pervasives.compare (List.map (fun n -> Hashtbl.find index_tbl n) matched_nodes) 
+	  let matched =
+	    List.fast_sort Stdlib.compare (List.map (fun n -> Hashtbl.find index_tbl n) matched_nodes)
 	  in
 	  let c = self#compute_continuity matched in
 	  if c >= options#continuity_threshold then begin

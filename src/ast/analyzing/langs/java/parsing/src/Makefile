@@ -66,8 +66,8 @@ OTHER_OBJS_OPT = $(OTHER_OBJS:.cmo=.cmx)
 LIB_OBJS_OPT = $(LIB_OBJS:.cmo=.cmx)
 LINKS_OPT = ../$(LIB_OPT)
 
-PACKAGES_NO_ULEX = -package str,unix,menhirLib,volt
-PACKAGES = -package ulex,str,unix,menhirLib,cryptokit,netstring,volt
+PACKAGES_NO_ULEX = -package str,unix,menhirLib,dynlink,volt
+PACKAGES = -package ulex,str,unix,menhirLib,cryptokit,netstring,dynlink,volt
 SYNTAX = -syntax camlp4o
 
 USE_MENHIR = true

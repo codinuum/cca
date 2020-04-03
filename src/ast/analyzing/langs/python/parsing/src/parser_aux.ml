@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ open Ast
 
 
 class env = object (self)
-  inherit [SB.c] EB.c as super
+  inherit [Source_base.c] Env_base.c as super
 
   val mutable with_stmt_enabled = true (* always enabled in v2.6+ *)
 

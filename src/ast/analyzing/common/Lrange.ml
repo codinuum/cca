@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ module Line : (Range.POSITION_T with type value = int) = struct
 
   let eq p1 p2  = p1#value = p2#value
   let leq p1 p2 = p1#value <= p2#value
-  let compare p1 p2 = Pervasives.compare p1#value p2#value
+  let compare p1 p2 = Stdlib.compare p1#value p2#value
 
   class c = object (self)
     val mutable _value = (-1 : value)

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ class c = object (self)
       
   method set_list l =
     _list <- [];
-    let l = List.fast_sort Pervasives.compare l in
+    let l = List.fast_sort Stdlib.compare l in
     let st_opt = ref None in
     let prev_opt = ref None in
     List.iter

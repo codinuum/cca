@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -167,7 +167,7 @@ let dump_llocs llocs =
           let lv = get_common_level lloc0 lloc1 in
           let loc0 = lloc0#get_loc_of_level lv in
           let loc1 = lloc1#get_loc_of_level lv in
-	  Pervasives.compare loc0.Astloc.start_offset loc1.Astloc.end_offset
+	  Stdlib.compare loc0.Astloc.start_offset loc1.Astloc.end_offset
 	) llocs
     in
     List.iter

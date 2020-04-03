@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -43,9 +43,9 @@ class generator = object
 end
 
 
-let p ch (u : t) = Pervasives.output_string ch (to_string u)
+let p ch (u : t) = Stdlib.output_string ch (to_string u)
 
-let r ch (u : t) = Pervasives.output_string ch (to_raw u)
+let r ch (u : t) = Stdlib.output_string ch (to_raw u)
 
 let ps () (u : t) = to_string u
 

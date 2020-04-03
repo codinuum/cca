@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -272,7 +272,7 @@ let rawtoken_to_orig = function
   | EOF -> ""
 
 
-let to_string pos_mgr (tok, st, ed) =
+let to_string (pos_mgr : Position.manager) (tok, st, ed) =
   let loc = pos_mgr#lexposs_to_loc st ed in
   Printf.sprintf "%s[%s]" (rawtoken_to_string tok) (Ast.Loc.to_string ~short:true loc)
 

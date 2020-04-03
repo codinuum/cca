@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -132,9 +132,9 @@ class virtual tree = object (self)
   val filter_tbl = (Hashtbl.create 0 : (string, (string -> string)) Hashtbl.t)
 
   method set_filter extl filt =
-    List.iter (fun ext -> Hashtbl.add filter_tbl (String.lowercase ext) filt) extl
+    List.iter (fun ext -> Hashtbl.add filter_tbl (String.lowercase_ascii ext) filt) extl
 
-  method get_filter_by_ext ext = Hashtbl.find filter_tbl (String.lowercase ext)
+  method get_filter_by_ext ext = Hashtbl.find filter_tbl (String.lowercase_ascii ext)
 
   method get_filter_by_name name =
     let ext = Xfile.get_extension name in

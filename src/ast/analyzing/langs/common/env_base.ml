@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@ class ['src] c = object (self)
 
     in
     let files =
-      List.fast_sort (fun f0 f1 -> Pervasives.compare f0#path f1#path) files
+      List.fast_sort (fun f0 f1 -> Stdlib.compare f0#path f1#path) files
     in
 
     List.iter (fun f -> self#verbose_msg "found: \"%s\"" f#path) files;
