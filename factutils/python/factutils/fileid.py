@@ -1,10 +1,9 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 '''
   Factutils: helper scripts for source code entities
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -22,8 +21,8 @@
 import os
 import hashlib
 
-from exn import Invalid_argument
-from const import SUB_SEP, SUB_SUB_SEP
+from .exn import Invalid_argument
+from .const import SUB_SEP, SUB_SUB_SEP
 
 import pathsetup
 import dp
@@ -111,7 +110,7 @@ def compute_hash(algo, fname):
         f = open(fname, 'r')
         digest = _compute_hash(algo, f, path=fname)
 
-    except Exception, e:
+    except Exception as e:
 #        dp.warning(str(e))
         raise
 
@@ -191,7 +190,7 @@ class FileDigest(FileId):
                 self._valid = True
             else:
                 self._valid = False
-        except Exception, e:
+        except Exception as e:
             self.warning(str(e))
             self._valid = False
 

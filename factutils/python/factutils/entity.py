@@ -1,10 +1,9 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 '''
   Factutils: helper scripts for source code entities
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -22,13 +21,13 @@
 
 import RDF
 
-from const import ENTITY_NS, EXTERNAL_NS, SEP
-from exn import Invalid_argument
-from rdf import Resource
-from range import LCRange, ORange, LORange, LCORange, MAX_RANGE
-from fileid import FileDigest, FileDesc
-import fileid
-import range
+from .const import ENTITY_NS, EXTERNAL_NS, SEP
+from .exn import Invalid_argument
+from .rdf import Resource
+from .range import LCRange, ORange, LORange, LCORange, MAX_RANGE
+from .fileid import FileDigest, FileDesc
+from . import fileid
+from . import range
 
 import pathsetup
 import dp
@@ -150,7 +149,7 @@ class SourceCodeEntity(Resource):
 
                     self._valid = self._file_id.is_valid() & self._range.is_valid()
 
-                except Exception, e:
+                except Exception as e:
                     #self.warning(str(e))
                     self._valid = False
                 

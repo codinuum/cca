@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 
 '''
   Configuration for CCA
@@ -214,7 +214,7 @@ class Config(dp.base):
             self.vers = [n for (n, a) in self.abbrev_list] 
 
         self.abbrev_tbl = dict(self.abbrev_list)
-        for (x, a) in self.abbrev_tbl.iteritems():
+        for (x, a) in self.abbrev_tbl.items():
             self.inv_abbrev_tbl[a.rstrip()] = x
 
 
@@ -356,11 +356,11 @@ class Config(dp.base):
 
                             self.ver_tbl[shorten_sha(h)] = v
 
-                        except Exception, e:
+                        except Exception as e:
                             self.warning(str(e))
 
             
-        except Exception, e:
+        except Exception as e:
             self.warning(str(e))
 
 
@@ -413,7 +413,7 @@ class Config(dp.base):
 
         if self.ver_tbl:
             s += 'ver_tbl:\n'
-            for vo in self.ver_tbl.iteritems():
+            for vo in self.ver_tbl.items():
                 s += '  %s -> %s\n' % vo
             
 

@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 '''
   A pygit2 wrapper
@@ -19,6 +18,8 @@
   limitations under the License.
 '''
 
+# Fortran extensions added by Masatomo Hashimoto <m.hashimoto@riken.jp>
+
 import os
 import pygit2
 from datetime import datetime, timedelta, tzinfo
@@ -32,7 +33,8 @@ import factutils.fileid
 
 ###############
 
-EXTS = ['.c', '.h', '.py', '.java', '.v']
+EXTS = ['.c', '.h', '.py', '.java', '.v',
+        '.f', '.for', '.ftn', '.f90', '.f95', '.f03', '.f08']
 
 def shorten_sha(sha):
     return sha[0:7]
@@ -391,7 +393,7 @@ class Repository(dp.base):
                         if filt(x.name):
                             l.append({'path':path_,'id':x.hex})
 
-                except Exception, e:
+                except Exception as e:
                     self.warning(str(e))
                     continue
 

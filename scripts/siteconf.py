@@ -3,7 +3,7 @@ import os
 
 HOME = os.environ['HOME']
 
-CCA_HOME = os.path.join(HOME, 'github', 'cca')
+CCA_HOME = os.path.join(HOME, 'github', 'codinuum', 'cca')
 
 SPARQL_ENDPOINT = 'http://localhost:8890/sparql'
 

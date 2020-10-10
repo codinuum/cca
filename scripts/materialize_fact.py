@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 
 '''
   Base library for fact materialization
@@ -103,7 +103,7 @@ class Materializer(dp.base):
             q = f.read()
             query = INSERT_PAT.sub('WITH <%s>\nINSERT' % self._graph_uri, q, count=1).rstrip('\n ;')
             f.close()
-        except Exception, e:
+        except Exception as e:
             self.error(str(e))
         return query
 

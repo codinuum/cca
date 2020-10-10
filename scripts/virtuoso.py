@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 '''
   A Virtuoso driver
@@ -67,27 +66,23 @@ def get_odbc_connect_string(driver=VIRTUOSO_DRIVER,
                             pwd=VIRTUOSO_PW,
                             uid=VIRTUOSO_USER):
 
-    return ODBC_CONNECT_STRING_FMT % {'driver':driver,
-                                      'host':host,
-                                      'port':port,
-                                      'pwd':pwd,
-                                      'uid':uid}
+    s = ODBC_CONNECT_STRING_FMT % {'driver':driver,
+                                   'host':host,
+                                   'port':port,
+                                   'pwd':pwd,
+                                   'uid':uid}
+
+    return s
 
 ODBC_CONNECT_STRING = get_odbc_connect_string(pwd=VIRTUOSO_PW)
 
 
 class ODBCDriver(dp.base):
     def __init__(self, connect_string=ODBC_CONNECT_STRING):
-        try:
-            import pyodbc
-        except Exception, e:
-            self.debug(str(e))
-            self.message('using pypyodbc')
-            import pypyodbc as pyodbc
-            pyodbc.lowercase = False
-
-        self._db = pyodbc.connect(connect_string, ansi=True, autocommit=True)
-
+        self.message('using pypyodbc')
+        import pypyodbc as pyodbc
+        pyodbc.lowercase = False
+        self._db = pyodbc.connect(connect_string.encode('utf-8'), ansi=True, autocommit=True)
 
     def conv_row(self, row):
         d = {}
@@ -101,7 +96,7 @@ class ODBCDriver(dp.base):
 
     def query(self, query):
         cur = self._db.cursor()
-        for row in cur.execute(query):
+        for row in cur.execute(query.encode('utf-8')):
             vs = [d[0] for d in row.cursor_description]
             converted = ODBCDriver.conv_row(self, row)
             yield vs, converted
@@ -109,12 +104,12 @@ class ODBCDriver(dp.base):
 
     def execute(self, query):
         cur = self._db.cursor()
-        cur.execute(query)
+        cur.execute(query.encode('utf-8'))
         cur.close()
 
     def fetchone(self, query):
         cur = self._db.cursor()
-        row = cur.execute(query).fetchone()
+        row = cur.execute(query.encode('utf-8')).fetchone()
         if row:
             row = ODBCDriver.conv_row(self, row)
         cur.close()
@@ -312,7 +307,6 @@ class Loader(base):
         driver = self.get_driver()
         row = driver.fetchone('SELECT COUNT(*) FROM DB.DBA.load_list WHERE ll_state=0')
         nfiles = row['count']
-
         return nfiles
 
 
@@ -321,11 +315,11 @@ class Loader(base):
 
         nfiles = self.prepare_load(graph_uri, d, exts, resume=resume)
 
-        n = nfiles / maxfiles / nprocs
+        n = int(nfiles / maxfiles / nprocs)
         if nfiles % (maxfiles * nprocs) > 0:
             n += 1
 
-        self.message('%d files are divided into %d parts' % (nfiles, n))
+        self.message('{} files are divided into {} parts'.format(nfiles, n))
 
         rc = -1
 

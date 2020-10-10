@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 
 '''
   A subprocess wrapper
@@ -42,7 +42,7 @@ def system(cmd, cwd=None, quiet=False, rc_check=True):
                 dp.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, rc))
             return 1
 
-    except OSError, e:
+    except OSError as e:
         dp.error('execution failed: %s' % e)
 
 def check_output(cmd, rc_check=True):
@@ -50,7 +50,7 @@ def check_output(cmd, rc_check=True):
     try:
         out = subprocess.check_output(cmd, shell=True,universal_newlines=True)
 
-    except CalledProcessError, e:
+    except CalledProcessError as e:
         if rc_check:
             dp.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, e.returncode))
         out = e.output
@@ -95,7 +95,7 @@ def test():
     with c as p:
         (o, e) = p.communicate()
         for l in o.split('\n'):
-            print l
+            print(l)
 
 if __name__ == '__main__':
     #test()

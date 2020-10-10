@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 '''
   Common namespaces
@@ -18,6 +18,7 @@
   limitations under the License.
 '''
 
+# Fortran namespaces added by Masatomo Hashimoto <m.hashimoto@riken.jp>
 
 XSD_NS = 'http://www.w3.org/2001/XMLSchema#'
 RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
@@ -33,10 +34,15 @@ CLONE_NS = 'http://codinuum.com/ontologies/2013/01/clone#'
 CCFX_NS = 'http://codinuum.com/ontologies/2015/02/ccfx#'
 SOOT_NS = 'http://codinuum.com/ontologies/2016/05/soot#'
 
+CPP_NS = 'http://codinuum.com/ontologies/2019/02/cpp-entity#'
 C_NS = 'http://codinuum.com/ontologies/2012/10/c-entity#'
 JAVA_NS = 'http://codinuum.com/ontologies/2012/10/java-entity#'
 V_NS = 'http://codinuum.com/ontologies/2012/10/verilog-entity#'
 PY_NS = 'http://codinuum.com/ontologies/2012/10/python-entity#'
+F_NS = 'http://codinuum.com/ontologies/2013/05/fortran-entity#'
+PA_NS = 'http://codinuum.com/ontologies/2013/05/performance-analysis#'
+FJPA_NS = 'http://codinuum.com/ontologies/2013/05/fujitsu-performance-analysis#'
+FPT_NS = 'http://codinuum.com/ontologies/2013/08/fortran-performance-tuning#'
 
 GIT_NS = 'http://codinuum.com/ontologies/2014/06/git#'
 SVN_NS = 'http://codinuum.com/svn/fact/predicate#'
@@ -44,6 +50,8 @@ SVN_NS = 'http://codinuum.com/svn/fact/predicate#'
 NCC_NS = 'http://codinuum.com/ontologies/2014/06/ncc#'
 
 ICFGC_NS = 'http://codinuum.com/ontologies/2014/08/interprocedural-control-flow-c#'
+
+MET_NS = 'http://codinuum.com/ontologies/2014/09/source-code-metrics#'
 
 def make_guard_ns(ns):
     return GUARD_NS+'?orig='+ns
@@ -64,9 +72,15 @@ PREFIX_TBL = { 'xsd'   : XSD_NS,
                'ccfx'  : CCFX_NS,
                'soot'  : SOOT_NS,
                'c'     : C_NS,
+               'cpp'   : CPP_NS,
                'java'  : JAVA_NS,
                'v'     : V_NS,
                'py'    : PY_NS,
+               'f'     : F_NS,
+               'pa'    : PA_NS,
+               'fjpa'  : FJPA_NS,
+               'fpt'   : FPT_NS,
+               'met'   : MET_NS,
                'git'   : GIT_NS,
                'ncc'   : NCC_NS,
                'icfgc' : ICFGC_NS,
@@ -79,6 +93,7 @@ PREFIX_TBL = { 'xsd'   : XSD_NS,
                'svnrev'   : 'http://codinuum.com/fact/version/svn/revision/',
                'gitrev'   : 'http://codinuum.com/fact/version/git/revision/',
                'variant'  : 'http://codinuum.com/fact/version/variant/',
+               'fjpadata' : 'http://codinuum.com/fact/padata/fujitsu/',
 
                'missing'  : MISSING_ENT_NS,
                'gsrc'     : make_guard_ns(SRC_NS),
@@ -86,5 +101,5 @@ PREFIX_TBL = { 'xsd'   : XSD_NS,
 
 
 NS_TBL = {}
-for (k, v) in PREFIX_TBL.iteritems():
+for (k, v) in PREFIX_TBL.items():
     NS_TBL[k+'_ns'] = v

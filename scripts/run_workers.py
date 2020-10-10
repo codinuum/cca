@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 
 '''
   A script for running worker processes
@@ -51,7 +51,8 @@ def mklogname(cmd_name, wid):
     return 'log.worker.%s.%s' % (base, wid)
 
 
-def dump_log(cmd_name, wid, (sout, serr), wdir='.', timeout=TIMEOUT):
+def dump_log(cmd_name, wid, sout_serr, wdir='.', timeout=TIMEOUT):
+    sout, serr = sout_serr
     log = os.path.join(wdir, mklogname(cmd_name, wid))
 
     f = open(log, 'w')
@@ -117,8 +118,8 @@ def dump_log(cmd_name, wid, (sout, serr), wdir='.', timeout=TIMEOUT):
                 running = False
                 dp.message('[wid:%s] finished.' % wid)
 
-        except BaseException, e:
-            print str(e)
+        except BaseException as e:
+            print(str(e))
             break
 
     f.close()

@@ -1,10 +1,9 @@
-#!/usr/bin/env python
-#-*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 '''
   Factutils: helper scripts for source code entities
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -19,7 +18,7 @@
   limitations under the License.
 '''
 
-from const import SUB_SEP
+from .const import SUB_SEP
 
 import pathsetup
 import dp
@@ -29,7 +28,7 @@ def compo_to_int(s):
     i = -1
     try:
         i = int(s)
-    except Exception, e:
+    except Exception as e:
         if s != 'U':
             dp.warning(str(e))
     return i
@@ -74,7 +73,7 @@ class LCRange(Range):
             el = compo_to_int(compos[2])
             ec = compo_to_int(compos[3])
             obj = LCRange(sl, sc, el, ec)
-        except Exception, e:
+        except Exception as e:
             dp.warning(str(e))
         return obj
 
@@ -105,29 +104,31 @@ class LCRange(Range):
 
 
     @classmethod
-    def _meet(cls, (sl0, sc0, el0, ec0), (sl1, sc1, el1, ec1)):
-            sl = max(sl0, sl1)
-            el = min(el0, el1)
+    def _meet(cls, s0, s1):
+        sl0, sc0, el0, ec0 = s0
+        sl1, sc1, el1, ec1 = s1
+        sl = max(sl0, sl1)
+        el = min(el0, el1)
 
-            sc = 0
-            if el0 == el1:
-                sc = max(sc0, sc1)
+        sc = 0
+        if el0 == el1:
+            sc = max(sc0, sc1)
+        else:
+            if sl0 > sl1:
+                sc = sc0
             else:
-                if sl0 > sl1:
-                    sc = sc0
-                else:
-                    sc = sc1
+                sc = sc1
 
-            ec = 0
-            if el0 == el1:
-                ec = min(ec0, ec1)
+        ec = 0
+        if el0 == el1:
+            ec = min(ec0, ec1)
+        else:
+            if el0 > el1:
+                ec = ec1
             else:
-                if el0 > el1:
-                    ec = ec1
-                else:
-                    ec = ec0
+                ec = ec0
 
-            return (sl, sc, el, ec)
+        return (sl, sc, el, ec)
 
     def __str__(self):
         s = '%dL,%dC-%dL,%dC' % (self._start_line, 
@@ -179,7 +180,7 @@ class ORange(Range):
             so = compo_to_int(compos[0])
             eo = compo_to_int(compos[1])
             obj = ORange(so, eo)
-        except Exception, e:
+        except Exception as e:
             dp.warning(str(e))
         return obj
 
@@ -239,7 +240,7 @@ class LORange(ORange):
             el = compo_to_int(compos[3])
             eo = compo_to_int(compos[5])
             obj = LORange(sl, so, el, eo)
-        except Exception, e:
+        except Exception as e:
             dp.warning(str(e))
         return obj
         
@@ -307,7 +308,7 @@ class LCORange(LCRange, ORange):
             ec = compo_to_int(compos[4])
             eo = compo_to_int(compos[5])
             obj = LCORange(sl, sc, so, el, ec, eo)
-        except Exception, e:
+        except Exception as e:
             dp.warning(str(e))
         return obj
         
