@@ -3,7 +3,7 @@
 '''
   A pygit2 wrapper
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import re
 
 import pathsetup
 import dp
-import factutils.fileid
+from factutils.fileid import FileDigest, HashAlgo
 
 
 
@@ -40,7 +40,7 @@ def shorten_sha(sha):
     return sha[0:7]
 
 def get_fid(blob):
-    fid = factutils.fileid.FileDigest(HashAlgo.GIT, stream=blob.data_stream.stream)
+    fid = FileDigest(HashAlgo.GIT, stream=blob.data_stream.stream)
     return fid
 
 def issrc(name):
@@ -194,7 +194,7 @@ class Repository(dp.base):
 
     def _get_obj(self, k):
         obj = None
-        if isinstance(k, str) or isinstance(k, unicode):
+        if isinstance(k, str):
             obj = self._repo.revparse_single(k)
         elif isinstance(k, pygit2.Oid):
             obj = self._repo.revparse_single(str(k))

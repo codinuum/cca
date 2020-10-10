@@ -4,7 +4,7 @@
 '''
   A script for running worker processes
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -173,7 +173,7 @@ def main():
 
     out_tbl = {}
 
-    for i in xrange(opt.nprocs):
+    for i in range(opt.nprocs):
         wid = str(i)
         dp.message('worker id: %s' % wid)
 

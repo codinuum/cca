@@ -4,7 +4,7 @@
 '''
   A SPARQL driver
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -152,7 +152,9 @@ class VirtuosoHTTPDriver(Driver):
         return d
 
     def _exec(self, q, limit=-1):
-        import urllib, urllib2, json
+        import json
+        from urllib.parse import urlencode
+        from urllib.request import Request, urlopen
 
         format = 'application/json'
 
@@ -167,11 +169,11 @@ class VirtuosoHTTPDriver(Driver):
             'maxrows' : maxrows,
         }
 
-        qpart = urllib.urlencode(params)
+        qpart = urlencode(params)
 
-        req = urllib2.Request(self._endpoint, qpart)
+        req = Request(self._endpoint, qpart)
 
-        response = urllib2.urlopen(req).read()
+        response = urlopen(req).read()
         
         result = json.loads(response)
 

@@ -4,7 +4,7 @@
 '''
   Base library for fact materialization
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ class Materializer(dp.base):
                     ts.append('<%s> ver:next <%s> .' % (u1, u2))
             else:
                 uris = self._conf.versionURIs
-                for i in xrange(self._conf.nversions - 1):
+                for i in range(self._conf.nversions - 1):
                     if len(ts) >= MAX_VER_TRIPLES:
                         triples.append(ts)
                         ts = []

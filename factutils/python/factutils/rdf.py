@@ -58,7 +58,7 @@ class Resource(RDFNode):
             RDFNode.__init__(self, nd)
         else:
             if uri != None:
-                if isinstance(uri, unicode):
+                if isinstance(uri, str):
                     uri = uri.encode()
                 try:
                     RDFNode.__init__(self, RDF.Node(uri_string=uri))
@@ -78,11 +78,20 @@ class Resource(RDFNode):
             
         return res
 
+    def __lt__(self, other):
+        return str(self.get_uri()) < str(other.get_uri())
+
+    def __gt__(self, other):
+        return str(self.get_uri()) > str(other.get_uri())
+
+    def __le__(self, other):
+        self.__eq__(other) or self.__lt__(other)
+
+    def __ge__(self, other):
+        self.__eq__(other) or self.__gt__(other)
+
     def __hash__(self):
         return str(self.get_uri()).__hash__()
-
-    def __cmp__(self, other):
-        return cmp(str(self.get_uri()), str(other.get_uri()))
 
 
     def __str__(self):

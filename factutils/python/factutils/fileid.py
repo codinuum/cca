@@ -20,6 +20,7 @@
 
 import os
 import hashlib
+from functools import reduce
 
 from .exn import Invalid_argument
 from .const import SUB_SEP, SUB_SUB_SEP
@@ -133,7 +134,7 @@ def decode_string(encoded):
     sz = len(encoded)
     if sz % 2 != 0:
         raise Invalid_argument
-    for n in xrange(0, sz, 2):
+    for n in range(0, sz, 2):
         try:
             h = encoded[n:n+2]
             s += chr(int(h, 16))
@@ -150,7 +151,10 @@ class FileId(dp.base):
         self._enc = None
 
     def __str__(self):
-        return self._encoded
+        if self._encoded:
+            return self._encoded
+        else:
+            return ''
 
     def __hash__(self):
         return hash(self._encoded)

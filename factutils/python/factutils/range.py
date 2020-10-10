@@ -18,6 +18,8 @@
   limitations under the License.
 '''
 
+from functools import reduce
+
 from .const import SUB_SEP
 
 import pathsetup

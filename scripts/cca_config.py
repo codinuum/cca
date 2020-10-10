@@ -4,7 +4,7 @@
 '''
   Configuration for CCA
 
-  Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -246,7 +246,7 @@ class Config(dp.base):
             self.versionNS = SVNREV_INST_NS
             self.versions = []
             for (st, ed) in self.ranges:
-                for rev in xrange(st, ed+1):
+                for rev in range(st, ed+1):
                     srev = str(rev)
                     self.versions.append(srev)
                     self.versionURIs.append(SVNREV_INST_NS + srev)
@@ -372,7 +372,7 @@ class Config(dp.base):
                     self.warning('does not exist: "%s"' % p)
 
     def get_index(self, ver):
-        for i in xrange(self.nversions):
+        for i in range(self.nversions):
             if self.versions[i] == ver or self.vers[i] == ver:
                 return i
         return -1
