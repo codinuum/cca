@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ let rawtoken_to_string = function
   | BLOCK_STMT _ -> "BLOCK_STMT"
   | ERROR_STMT s -> "ERROR_STMT:" ^ s
   | ERROR s      -> "ERROR:" ^ s
+  | MARKER s     -> "MARKER:" ^ s
+  | GT_7         -> "GT_7"
   | EOP          -> "EOP"
 
 
@@ -152,6 +154,8 @@ let rawtoken_to_orig = function
   | BLOCK_STMT _ -> "<block-stmt>"
   | ERROR_STMT s -> s
   | ERROR s      -> s
+  | MARKER s     -> s
+  | GT_7         -> ">>>>>>>"
   | EOP          -> ""
 
 

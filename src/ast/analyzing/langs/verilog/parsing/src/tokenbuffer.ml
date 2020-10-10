@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -116,6 +116,19 @@ module F (Stat : Aux.STATE_T) = struct
       List.nth (List.rev !q) (n - 1)
     with
       _ -> raise Buffer_empty
+
+(*
+  let check_error partial =
+  let nodes = Ast.nodes_of_partial partial in
+  List.iter
+  (fun node ->
+  Ast.visit 
+  (fun lab -> 
+  if L.is_error lab then
+  raise Incomplete
+  ) node
+  ) nodes
+ *)
 
   let check_partial partial =
     let nodes = Ast.nodes_of_partial partial in
@@ -546,6 +559,48 @@ module F (Stat : Aux.STATE_T) = struct
       try
 	if not self#top#get_context.C.is_active then
 	  raise Not_active;
+(*
+  let partial = self#top#parse_by (partial_parser_selector context) in
+  context_stack#resume;
+  self#top#to_partial partial;
+  
+  DEBUG_MSG "selecting all branches... (current context: %s)"
+  (C.to_string (context_stack#top));
+  
+  let blist = ref [] in
+  self#iter_branch (fun br -> blist := br::!blist);
+  List.iter (fun br -> (!selected_buf)#receive_all br) !blist;
+
+  !selected_buf, !ignored_regions
+ *)
+
+(*
+  let parser = partial_parser_selector context in
+
+  DEBUG_MSG "current context: %s"
+  (C.to_string (context_stack#top));
+
+  try
+  self#iter_branch 
+  (fun br -> 
+  try
+  let partial = br#parse_by parser in
+  br#to_partial partial;
+  raise Exit
+  with Incomplete -> ()
+  );
+  DEBUG_MSG "all branches are incomplete";
+  raise Incomplete
+  
+  with Exit -> 
+  DEBUG_MSG "selecting all branches...";
+  context_stack#resume;
+  let blist = ref [] in
+  self#iter_branch (fun br -> blist := br::!blist);
+  List.iter (fun br -> (!selected_buf)#receive_all br) !blist;
+  
+  !selected_buf, !ignored_regions
+ *)
 	DEBUG_MSG "current context: %s" (C.to_string (context_stack#top));
 
 	let _parser = partial_parser_selector context in
@@ -666,6 +721,25 @@ module F (Stat : Aux.STATE_T) = struct
 	  incr count
 	)
 
+(*
+  method parse_by : partial_parser -> Ast.partial list =
+  fun p ->
+  DEBUG_MSG "parsing...";
+  let partials = ref [] in
+  context_stack#suspend;
+  self#iter_branch
+  (fun br -> 
+  begin
+  try
+  partials := (br#parse_by p)::!partials;
+
+  with Incomplete ->
+  DEBUG_MSG "parse failed! (%s)" (branch_tag_to_string br#get_tag)
+  end;
+  );
+  context_stack#resume;
+  !partials
+ *)
 
     initializer
       self#new_branch btag
@@ -1552,6 +1626,20 @@ module F (Stat : Aux.STATE_T) = struct
       tok
     in
 
+(*
+    begin
+      match env#lang_spec with
+      | Common.V1995 | Common.V2001 | Common.V2005 ->
+	  if Tok.is_sv_keyword !tok then
+	    tok := IDENTIFIER (Token.rawtoken_to_rep !tok)
+
+      | Common.SV2005 ->
+	  if Tok.is_sv2009_keyword !tok then
+	    tok := IDENTIFIER (Token.rawtoken_to_rep !tok)
+
+      | _ -> ()
+    end;
+*)
     begin
       match !tok with
       | PP_IDENTIFIER s ->

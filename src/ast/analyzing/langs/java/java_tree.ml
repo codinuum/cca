@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ let qualifier_of_name n =
   match n.Ast.n_desc with
   | Ast.Nsimple(_, ident) -> None
   | Ast.Nqualified(_, name, _) -> Some name
+  | Ast.Nerror s -> None
 
 let conv_loc = L.conv_loc
 
@@ -54,10 +55,11 @@ let get_orig_lab_opt nd =
 let get_surrounding_classes_or_interfaces nd =
   FB.get_surrounding_xxxs (fun l -> L.is_class l || L.is_interface l || L.is_enum l) nd
 
+let get_uqn name =
+  Xlist.last (String.split_on_char '.' name)
+
 let get_fqn package_name nd lab =
-  let name =
-    Xlist.last (String.split_on_char '.' (L.get_name lab))
-  in
+  let name = get_uqn (L.get_name lab) in
   let get_name n = L.get_name (getlab n) in
   let pkg_prefix = 
     if package_name = "" then 
@@ -103,7 +105,8 @@ class c options root is_whole = object
 
   method private create root is_whole = new c options root is_whole
 
-  method unparse_subtree_ch = make_unparser Java_unparsing.unparse
+  method unparse_subtree_ch ?(fail_on_error=true) =
+    make_unparser (Java_unparsing.unparse ~fail_on_error)
 
 end
 
@@ -122,6 +125,7 @@ let set_nodes_loc nd nodes =
       let loc = Loc._merge n#data#src_loc (List.hd(List.rev rest))#data#src_loc in
       nd#data#set_loc loc
 
+
 let apply_child is_xxx f children =
   Array.iter
     (fun nd ->
@@ -136,7 +140,6 @@ let vdid_to_id vdid =
     String.sub vdid 0 (String.index vdid '[')
   with
     Not_found -> vdid
-
 
 let set_control_flow body =
 
@@ -181,7 +184,7 @@ let set_control_flow body =
     match ndlab with
     | L.Statement stmt -> begin
         match stmt with
-        | L.Statement.If -> begin
+        | L.Statement.If _ -> begin
             let c1 = children.(1) in
             add_succ1 c1;
             set_succ label_env loop_env nexts c1;
@@ -268,7 +271,7 @@ let set_control_flow body =
             add_succ nexts
         end
     end
-    | L.Block -> begin
+    | L.Block _ -> begin
         handle_block children nchildren
     end
     | L.SwitchBlockStatementGroup -> begin
@@ -349,7 +352,7 @@ class visitor bid_gen tree = object (self)
       | L.MethodBody _ | L.ConstructorBody _ -> set_control_flow nd
       | L.StaticInitializer | L.InstanceInitializer | L.Finally ->
             set_control_flow nd#initial_children.(0)
-      | L.CatchClause -> set_control_flow nd#initial_children.(1)
+      | L.CatchClause _ -> set_control_flow nd#initial_children.(1)
       | _ -> ()
     end
 
@@ -456,6 +459,14 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	Xhash.to_hex (new c options nd false)#digest) 
       ""
 
+  method __mktid (lab : string) =
+    Lang_base.mktid ""
+      (if options#incomplete_info_flag then
+	""
+      else
+	lab)
+
+
   val true_parent_tbl = Hashtbl.create 0
   method true_parent_tbl = true_parent_tbl
   method add_true_parent (uid : Otreediff.UID.t) (nd : Spec.node_t) =
@@ -500,11 +511,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
                     let al, n, tas_opt =
                       match spec with
                       | Ast.TSname(al, n)       -> al, n, None
-                      | Ast.TSapply(al, n, tas) ->
-                          if tas.Ast.tas_type_arguments = [] then
-                            al, n, None
-                          else
-                            al, n, Some tas
+                      | Ast.TSapply(al, n, tas) -> al, n, Some tas
                     in
                     let id = L.conv_name n in
                     let orig_id = L.conv_name ~resolve:false n in
@@ -570,20 +577,21 @@ class translator options = let bid_gen = new BID.generator in object (self)
     nd
 
 
-  method param_to_tystr param = 
-    P.type_to_short_string 
-      (snd param.Ast.fp_variable_declarator_id) param.Ast.fp_type
+  method param_to_tystr ?(resolve=true) param =
+    (if param.Ast.fp_variable_arity then "[" else "")^
+    (P.type_to_short_string ~resolve
+       (snd param.Ast.fp_variable_declarator_id) param.Ast.fp_type)
 
-  method signature_of_method_header mh =
+  method signature_of_method_header ?(resolve=true) mh =
     let params = mh.Ast.mh_parameters in
     (*sprintf "%s(%s)%s"
       mh.Ast.mh_name
       (Xlist.to_string self#param_to_tystr "" params)
       (P.type_to_short_string 0 mh.Ast.mh_return_type)*)
     sprintf "(%s)%s"
-      (Xlist.to_string self#param_to_tystr "" params)
-      (P.type_to_short_string 0 mh.Ast.mh_return_type)
-      
+      (Xlist.to_string (self#param_to_tystr ~resolve) "" params)
+      (P.type_to_short_string ~resolve 0 mh.Ast.mh_return_type)
+
   method of_parameter param =
     let name, dims = param.Ast.fp_variable_declarator_id in
     let mods = param.Ast.fp_modifiers in
@@ -591,9 +599,10 @@ class translator options = let bid_gen = new BID.generator in object (self)
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length mod_nodes; 1])
     in
+    let d = if param.Ast.fp_variable_arity then 1 else 0 in
     let nd = 
       self#mknode ~ordinal_tbl_opt (L.Parameter(name, dims, param.Ast.fp_variable_arity))
-	(mod_nodes @ [self#of_javatype 0 param.Ast.fp_type])
+	(mod_nodes @ [self#of_javatype d param.Ast.fp_type])
     in
     set_loc nd param.Ast.fp_loc;
     nd
@@ -634,6 +643,13 @@ class translator options = let bid_gen = new BID.generator in object (self)
       (List.map self#of_annotation annots) @
       match tbound with
       | None -> []
+      | Some tb when options#ast_reduction_flag -> begin
+          let t = P.type_to_string tb.Ast.tb_reference_type in
+          if t = "java.lang.Object" then
+            []
+          else
+            [self#of_type_bound tb]
+      end
       | Some tb -> [self#of_type_bound tb]
     in
     let nd =
@@ -688,15 +704,24 @@ class translator options = let bid_gen = new BID.generator in object (self)
           end
 	) ms.Ast.ms_modifiers
     in
-    let children' = List.fast_sort compare_node children in
+    let children' =
+      if options#weak_flag then
+        List.fast_sort compare_node children
+      else
+        children
+    in
     let namek = name^(L.kind_to_suffix kind) in
     let nd = self#mklnode (L.Modifiers namek) children' in
-    self#add_true_children nd (Array.of_list children);
+    if options#weak_flag then
+      self#add_true_children nd (Array.of_list children);
     set_loc nd ms.Ast.ms_loc;
     nd
 
   method of_modifiers_opt kind name = function
-    | None -> [] 
+    | None -> []
+        (*let namek = name^(L.kind_to_suffix kind) in
+        let nd = self#mklnode (L.Modifiers namek) [] in
+        [nd]*)
     | Some ms -> [self#of_modifiers kind name ms]
 
   method of_throws mname th =
@@ -710,6 +735,11 @@ class translator options = let bid_gen = new BID.generator in object (self)
     | Some throws -> [self#of_throws mname throws]
 
   method name_of_method_header header = header.Ast.mh_name
+
+  method name_sig_of_method_header header =
+    (header.Ast.mh_name,
+     (self#signature_of_method_header ~resolve:false header),
+     (self#signature_of_method_header header))
 
   method of_method_header header =
     let ident = header.Ast.mh_name in
@@ -734,15 +764,22 @@ class translator options = let bid_gen = new BID.generator in object (self)
     let children = 
       mod_nodes @ tp_nodes @ [rty] @ p_nodes @ th_nodes in
     let msig = self#signature_of_method_header header in
+    let orig_msig = self#signature_of_method_header ~resolve:false header in
+    let orig_lab_opt =
+      if msig <> orig_msig then
+        Some (L.Method(ident, ""(*orig_msig*)))
+      else
+        None
+    in
     let nd =
       self#mknode
         ~annot:(L.make_annotation msig)
+        ~orig_lab_opt
         ~ordinal_tbl_opt
-        (L.Method ident) children
+        (L.Method(ident, msig)) children
     in
     set_loc nd header.Ast.mh_loc;
     nd
-
 
   method of_variable_initializer vi =
     match vi.Ast.vi_desc with
@@ -753,8 +790,44 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	  self#mknode ~ordinal_tbl_opt
             L.ArrayInitializer (List.map self#of_variable_initializer ai)
 	in
+        let nd =
+          if options#ignore_huge_arrays_flag then begin
+            let buf = Buffer.create 0 in
+            let _oc = new Xchannel.out_channel (Xchannel.Destination.of_buffer buf) in
+            let oc = Spec_base.OutChannel.of_xchannel _oc in
+            let n = new c options nd false in
+            let _ = n#setup_initial_children in
+            (*let _ = n#setup_initial_size in
+            let sz = n#initial_size in*)
+            let sz =
+              let c = ref 0 in
+              n#scan_whole_initial
+                (fun n ->
+                  if L.is_literal (getlab n) then
+                    incr c
+                );
+              !c
+            in
+            if sz >= options#huge_array_threshold then begin
+              Xprint.verbose options#verbose_flag "huge array found at %s (size=%d)"
+                (Ast.Loc.to_string vi.Ast.vi_loc) sz;
+              let _ = n#unparse_ch oc in
+              let u = Buffer.contents buf in
+              let _ = Spec_base.OutChannel.close oc in
+              self#mkleaf (L.HugeArray(sz, u))
+            end
+            else
+              nd
+          end
+          else
+            nd
+        in
 	set_loc nd vi.Ast.vi_loc;
 	nd
+    | Ast.VIerror s ->
+        let nd = self#mkleaf (L.Error s) in
+        set_loc nd vi.Ast.vi_loc;
+        nd
 
   method of_variable_declarator vd =
     let loc = conv_loc vd.Ast.vd_loc in
@@ -798,7 +871,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
     nd
 
 
-  method of_literal lit = self#mkleaf (L.of_literal lit)
+  method of_literal lit = self#mkleaf (L.of_literal ~reduce:options#ast_reduction_flag lit)
 
   method is_empty_arguments args = args.Ast.as_arguments = []
 
@@ -854,25 +927,27 @@ class translator options = let bid_gen = new BID.generator in object (self)
     set_loc nd wb.Ast.wb_loc;
     nd
 
-  method _of_arguments lab args =
+  method _of_arguments ?(orig_lab_opt=None) lab args =
     let children = List.map self#of_expression args.Ast.as_arguments in
     (*let ordinal_tbl_opt = Some (new ordinal_tbl [List.length children]) in*)
-    let nd = self#mknode (*~ordinal_tbl_opt*) lab children in
+    let nd = self#mknode ~orig_lab_opt (*~ordinal_tbl_opt*) lab children in
     set_loc nd args.Ast.as_loc;
     nd
 
   method of_arguments args = self#_of_arguments L.Arguments args
 
-  method of_named_arguments name args = 
-    self#_of_arguments (L.NamedArguments name) args
+  method of_named_arguments ?(orig_lab_opt=None) name args = 
+    self#_of_arguments ~orig_lab_opt (L.NamedArguments name) args
 
-  method of_named_arguments_opt name args_opt = 
-    of_opt (self#of_named_arguments name) args_opt
+  method of_named_arguments_opt ?(orig_lab_opt=None) name args_opt = 
+    of_opt (self#of_named_arguments ~orig_lab_opt name) args_opt
 
   method of_class_instance_creation ?(is_stmt=false) cic =
+
     let deco id args =
       id^".<init>#"^(string_of_int (List.length args.Ast.as_arguments))
     in
+
     let create ?(orig_lab_opt=None) plab children otbl =
       let lab = L.mkplab is_stmt plab in
       let orig_lab_opt =
@@ -895,9 +970,11 @@ class translator options = let bid_gen = new BID.generator in object (self)
     in
     match cic.Ast.cic_desc with
     | Ast.CICunqualified(targs_opt, ty, args, body_opt) ->
+        let orig_name = P.type_to_string ~show_attr:false ty in
 	let name = P.type_to_string ~resolve:true ~show_attr:false ty in
-	let args_nd = 
-	    [self#of_named_arguments name args]
+	let args_nd =
+          let orig_lab_opt = Some (L.NamedArguments orig_name) in
+	  [self#of_named_arguments ~orig_lab_opt name args]
 	in
         let ta_nodes = self#of_type_arguments_opt name targs_opt in
         let cb_nodes = self#of_class_body_opt name body_opt in
@@ -912,7 +989,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	  ta_nodes @ [self#of_javatype 0 ty] @ args_nd @ cb_nodes
 	in
         let orig_lab_opt =
-          Some (L.Primary.InstanceCreation (P.type_to_string ~show_attr:false ty))
+          Some (L.Primary.InstanceCreation orig_name)
         in
 	let plab = L.Primary.InstanceCreation (deco name args) in
 	create ~orig_lab_opt plab children otbl
@@ -941,7 +1018,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
           Some (L.Primary.QualifiedInstanceCreation ident)
         in
 	let plab = L.Primary.QualifiedInstanceCreation (deco ident args) in
-        create ~orig_lab_opt plab children otbl
+	create ~orig_lab_opt plab children otbl
 
     | Ast.CICnameQualified(name, targs_opt1, ident, targs_opt2, args, body_opt) ->
 	let n = L.conv_name name in
@@ -972,7 +1049,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
     | Ast.FAclassSuper(classname, name) -> 
 	self#mknode (L.Primary (L.Primary.ClassSuperFieldAccess name))
 	  [self#mkleaf (L.of_classname classname)]
-    | Ast.FAimplicit name -> self#mkleaf (L.Primary (L.Primary.FieldAccess name))
+    | Ast.FAimplicit name -> self#mkleaf (L.Primary (L.Primary.FieldAccess (Ast.rightmost_identifier name)))
 
 
   method of_method_invocation ?(is_stmt=false) mi = 
@@ -1027,8 +1104,9 @@ class translator options = let bid_gen = new BID.generator in object (self)
   let hash = self#digest_of_arguments args in
   let rightmost = self#addhash rightmost hash in
  *)
+          let orig_lab_opt = Some (L.Primary.SimpleMethodInvocation rightmost) in
 	  let plab = L.Primary.SimpleMethodInvocation (deco rightmost args) in
-	  create plab children otbl
+	  create ~orig_lab_opt plab children otbl
 
       | Ast.MIprimary(prim, targs_opt, ident, args) ->
 (*
@@ -1036,6 +1114,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
   let ident = self#addhash ident hash in
  *)
           let prim_nd = self#of_primary prim in
+          let orig_lab_opt = Some (L.Primary.PrimaryMethodInvocation ident) in
 	  let plab =
             (*if L.is_ambiguous_name (getlab prim_nd) then
               L.Primary.AmbiguousMethodInvocation (deco ident args)
@@ -1047,7 +1126,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	  let children =
 	    prim_nd :: (ta_nodes @ [self#of_named_arguments ident args])
 	  in
-	  create plab children otbl
+	  create ~orig_lab_opt plab children otbl
 
       | Ast.MItypeName(name, targs_opt, ident, args) ->
 	  let n = L.conv_name name in
@@ -1057,7 +1136,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
  *)
           let orig_lab_opt =
             let n = L.conv_name ~resolve:false name in
-            Some (L.Primary.TypeMethodInvocation(n, deco ident args))
+            Some (L.Primary.TypeMethodInvocation(n, ident(*deco ident args*)))
           in
 	  let plab = L.Primary.TypeMethodInvocation(n, deco ident args) in
           let ta_nodes = self#of_type_arguments_opt ident targs_opt in
@@ -1072,13 +1151,14 @@ class translator options = let bid_gen = new BID.generator in object (self)
   let hash = self#digest_of_arguments args in
   let ident = self#addhash ident hash in
  *)
+          let orig_lab_opt = Some (L.Primary.SuperMethodInvocation ident) in
 	  let plab = L.Primary.SuperMethodInvocation (deco ident args) in
           let ta_nodes = self#of_type_arguments_opt ident targs_opt in
           let otbl = [1; List.length ta_nodes; 1] in
 	  let children = 
 	    snd::(ta_nodes @ [self#of_named_arguments ident args])
 	  in
-	  create plab children otbl
+	  create ~orig_lab_opt plab children otbl
 
       | Ast.MIclassSuper(loc_cl, loc_super, classname, targs_opt, ident, args) ->
 	  let cnd =
@@ -1093,13 +1173,14 @@ class translator options = let bid_gen = new BID.generator in object (self)
   let hash = self#digest_of_arguments args in
   let ident = self#addhash ident hash in
  *)
+          let orig_lab_opt = Some (L.Primary.ClassSuperMethodInvocation ident) in
 	  let plab = L.Primary.ClassSuperMethodInvocation (deco ident args) in
           let ta_nodes = self#of_type_arguments_opt ident targs_opt in
           let otbl = [1; 1; List.length ta_nodes; 1] in
 	  let children =
 	    cnd::snd::(ta_nodes @ [self#of_named_arguments ident args])
 	  in
-	  create plab children otbl
+	  create ~orig_lab_opt plab children otbl
 	    
     in
     set_loc nd mi.Ast.mi_loc;
@@ -1213,7 +1294,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.PmethodReference method_reference ->
           self#of_method_reference method_reference
 
-      | Ast.Perror -> self#mkleaf L.Error
+      | Ast.Perror s -> self#mkleaf (L.Error s)
     in
     set_loc nd p.Ast.p_loc;
     nd
@@ -1271,9 +1352,10 @@ class translator options = let bid_gen = new BID.generator in object (self)
       mkprim ~orig_lab_opt ordinal_tbl_opt
         (L.Primary.TypeNewMethodReference(n)) (ty_node::ta_nodes)
 
-  method of_assignment ?(is_stmt=false) (lhs, ao, expr) = 
-   let lab = L.of_assignment_operator ~is_stmt ao in
-   let children = [self#of_expression lhs; self#of_expression expr] in
+  method of_assignment ?(is_stmt=false) (lhs, ao, expr) =
+    let lhs_ = self#of_expression lhs in
+    let lab = L.of_assignment_operator ~is_stmt ao L.null_tid(*(self#mktid lhs_)*) in
+    let children = [lhs_; self#of_expression expr] in
 (*
    let children =
      if is_stmt then
@@ -1317,36 +1399,41 @@ class translator options = let bid_gen = new BID.generator in object (self)
           self#mknode (L.Expression L.Expression.Lambda)
             [self#of_lambda_params params; self#of_lambda_body body]
 
-      | Ast.Eerror -> self#mkleaf L.Error
+      | Ast.Eerror s -> self#mkleaf (L.Error s)
     in
     set_loc nd e.Ast.e_loc;
     nd
 
   method of_lambda_params params =
     match params.Ast.lp_desc with
-    | Ast.LPident id     -> 
-        let nd = self#mkleaf (L.InferredParameter id) in
+    | Ast.LPident id     ->
+        let nd = self#mkleaf (L.InferredFormalParameter id) in
         set_loc nd params.Ast.lp_loc;
         nd
 
-    | Ast.LPformal fps -> 
+    | Ast.LPformal fps ->
         let nd = self#mknode (L.Parameters "") (List.map self#of_parameter fps) in
         set_loc nd params.Ast.lp_loc;
         nd
 
-    | Ast.LPinferred ids -> 
+    | Ast.LPinferred [(loc, id)] when options#ast_reduction_flag ->
+        let nd = self#mkleaf (L.InferredFormalParameter id) in
+        set_loc nd loc;
+        nd
+
+    | Ast.LPinferred ids ->
         let mkp (loc, id) =
-          let n = self#mkleaf (L.InferredParameter id) in
+          let n = self#mkleaf (L.InferredFormalParameter id) in
           set_loc n loc;
           n
         in
-        let nd = self#mknode (L.InferredParameters) (List.map mkp ids) in
+        let nd = self#mknode (L.InferredFormalParameters) (List.map mkp ids) in
         set_loc nd params.Ast.lp_loc;
         nd
 
   method of_lambda_body = function
     | Ast.LBexpr expr   -> self#of_expression expr
-    | Ast.LBblock block -> self#of_block block
+    | Ast.LBblock block -> self#of_block ~tid:(self#__mktid "lambda") block
 
 
   method of_statement_expression ?(is_stmt=false) se =
@@ -1364,7 +1451,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.SEclassInstanceCreation class_instance_creation ->
 	  self#of_class_instance_creation ~is_stmt class_instance_creation
 
-      | Ast.SEerror -> self#mkleaf L.Error
+      | Ast.SEerror s -> self#mkleaf (L.Error s)
     in
     set_loc nd se.Ast.se_loc;
     nd
@@ -1427,34 +1514,20 @@ class translator options = let bid_gen = new BID.generator in object (self)
     nd
 
   method of_catch c =
+    let p_ = self#of_catch_parameter c.Ast.c_formal_parameter in
+    let tid = self#mktid p_ in
     let nd =
-      self#mknode L.CatchClause 
-	[self#of_catch_parameter c.Ast.c_formal_parameter; self#of_block c.Ast.c_block]
+      self#mknode (L.CatchClause tid)
+	[p_; self#of_block ~tid:(self#__mktid "catch-clause") c.Ast.c_block]
     in
     set_loc nd c.Ast.c_loc;
     nd
 
   method of_finally f =
     let nd =
-      self#mknode L.Finally [self#of_block f.Ast.f_block] 
+      self#mknode L.Finally [self#of_block ~tid:(self#__mktid "finally") f.Ast.f_block]
     in
     set_loc nd f.Ast.f_loc;
-    nd
-
-  method of_catches catches = 
-    let children = List.map self#of_catch catches in
-    let len = List.length children in
-    let loc =
-      if len = 1 then (List.hd children)#data#src_loc
-      else if len > 1 then 
-	Loc._merge
-	  (List.hd children)#data#src_loc 
-	  (List.hd(List.rev children))#data#src_loc
-      else 
-	Loc.dummy
-    in
-    let nd = self#mklnode L.Catches children in
-    nd#data#set_loc loc;
     nd
 
   method of_for_init fi =
@@ -1487,10 +1560,10 @@ class translator options = let bid_gen = new BID.generator in object (self)
     set_loc nd sb.Ast.sb_loc;
     nd
 
-  method of_statement s =
+  method of_statement ?(block_context="block") s =
     let nd =
       match s.Ast.s_desc with
-      | Ast.Sblock block   -> self#of_block block
+      | Ast.Sblock block   -> self#of_block ~tid:(self#__mktid "block"(*block_context*)) block
       | Ast.Sempty         -> self#mkleaf (L.Statement L.Statement.Empty)
       | Ast.Sexpression se -> self#of_statement_expression ~is_stmt:true se
 
@@ -1499,7 +1572,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	    [self#of_expression e; self#of_switch_block switch_block]
 
       | Ast.Sdo(s, e) -> 
-	  (self#mknode (L.Statement L.Statement.Do) [self#of_statement s; self#of_expression e])
+	  (self#mknode (L.Statement L.Statement.Do)
+             [self#of_statement ~block_context:"do" s; self#of_expression e])
 
       | Ast.Sbreak ident_opt    -> self#mkleaf (L.Statement (L.Statement.Break ident_opt))
       | Ast.Scontinue ident_opt -> 
@@ -1510,35 +1584,53 @@ class translator options = let bid_gen = new BID.generator in object (self)
 
       | Ast.Ssynchronized(e, block) -> 
 	  self#mknode (L.Statement L.Statement.Synchronized) 
-	    [self#of_expression e; self#of_block block]
+	    [self#of_expression e; self#of_block ~tid:(self#__mktid "synchronized") block]
 
       | Ast.Sthrow e -> self#mknode (L.Statement L.Statement.Throw) [self#of_expression e]
 
       | Ast.Stry(rspec_opt, block, catches_opt, finally_opt) ->
+          let catches =
+            match catches_opt with
+            | Some cl -> cl
+            | None -> []
+          in
           let ordinal_tbl_opt =
             Some (new ordinal_tbl [if rspec_opt = None then 0 else 1;
                                    1;
-                                   if catches_opt = None then 0 else 1;
+                                   List.length catches;
                                    if finally_opt = None then 0 else 1;
                                  ])
           in
 	  self#mknode ~ordinal_tbl_opt (L.Statement L.Statement.Try)
             ((of_opt self#of_resource_spec rspec_opt) @
-	     ((self#of_block block) :: 
-	      ((of_opt self#of_catches catches_opt) @ (of_opt self#of_finally finally_opt))))
+	     ((self#of_block ~tid:(self#__mktid "try") block) :: 
+	      ((List.map self#of_catch catches) @ (of_opt self#of_finally finally_opt))))
 
-      | Ast.Slabeled(name, s) -> 
+      | Ast.Slabeled(name, s) ->
 	  self#mknode (L.Statement (L.Statement.Labeled name)) [self#of_statement s]
 
-      | Ast.SifThen(e, s) -> 
-	  self#mknode (L.Statement L.Statement.If) [self#of_expression e; self#of_statement s] (* order sensitive s -> e *)
+      | Ast.SifThen(e, s) ->
+          let e_ = self#of_expression e in
+          let tid = self#mktid e_ in
+          (*let tid = L.null_tid in*)
+          let lab = L.Statement (L.Statement.If tid) in
+	  self#mknode lab
+            [self#of_expression e;
+             self#of_statement ~block_context:"if" s] (* order sensitive s -> e *)
 
       | Ast.SifThenElse(e, s1, s2) ->
-	  self#mknode (L.Statement L.Statement.If) 
-	    [self#of_expression e; self#of_statement s1; self#of_statement s2] (* order sensitive s2 -> s1 -> e *)
+          let e_ = self#of_expression e in
+          let tid = self#mktid e_ in
+          (*let tid = L.null_tid in*)
+          let lab = L.Statement (L.Statement.If tid) in
+	  self#mknode lab
+            [self#of_expression e;
+             self#of_statement ~block_context:"if" s1;
+             self#of_statement ~block_context:"if" s2] (* order sensitive s2 -> s1 -> e *)
 
       | Ast.Swhile(e, s) -> 
-	  self#mknode (L.Statement L.Statement.While) [self#of_expression e; self#of_statement s]
+	  self#mknode (L.Statement L.Statement.While)
+            [self#of_expression e; self#of_statement ~block_context:"while" s]
 
       | Ast.Sfor(init_opt, e_opt, se_list, s) ->
           let ordinal_tbl_opt =
@@ -1572,13 +1664,15 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	      [n]
 	    end
 	    else []) @
-	    [self#of_statement s]
+	    [self#of_statement ~block_context:"for" s]
 	  in
 	  self#mknode ~ordinal_tbl_opt (L.Statement L.Statement.For) children
 
       | Ast.SforEnhanced(param, e, s) ->
 	  self#mknode (L.Statement L.Statement.ForEnhanced)
-	    [self#of_parameter param; self#of_expression e; self#of_statement s]
+	    [self#of_parameter param;
+             self#of_expression e;
+             self#of_statement ~block_context:"for" s]
 
       | Ast.Sassert1 e -> 
 	  self#mknode (L.Statement L.Statement.Assert) [self#of_expression e]
@@ -1587,21 +1681,34 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	  self#mknode (L.Statement L.Statement.Assert) 
 	    [self#of_expression e1; self#of_expression e2]
 
-      | Ast.Serror -> self#mkleaf L.Error
+      | Ast.Serror s -> self#mkleaf (L.Error s)
     in
     set_loc nd s.Ast.s_loc;
     nd
 
-  method _of_block lab b =
+  method _of_block ?(orig_lab_opt=None) lab b =
+    if options#ast_reduction_flag && List.length b.Ast.b_block_statements = 1 then
+      match b.Ast.b_block_statements with
+      | [stmt] -> self#of_block_statement stmt
+      | _ -> assert false
+    else
     let nd =
-      self#mklnode lab (List.map self#of_block_statement b.Ast.b_block_statements)
+      self#mklnode ~orig_lab_opt lab
+        (List.map self#of_block_statement b.Ast.b_block_statements)
     in
     set_loc nd b.Ast.b_loc;
     nd
 
-  method of_block b = self#_of_block L.Block b
+  method of_block ?(tid=L.null_tid) b = self#_of_block (L.Block tid) b
 
-  method of_method_body mname body = self#_of_block (L.MethodBody mname) body
+  method of_method_body (mname, orig_msig, msig) body =
+    let orig_lab_opt =
+      if orig_msig <> msig then
+        Some (L.MethodBody(mname, orig_msig))
+      else
+        None
+    in
+    self#_of_block ~orig_lab_opt (L.MethodBody(mname, msig)) body
 
   method of_block_statement bs =
     let nd =
@@ -1609,7 +1716,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.BSlocal lvd -> self#of_local_variable_declaration ~is_stmt:true lvd
       | Ast.BSclass cd -> self#of_class_declaration false cd
       | Ast.BSstatement s -> self#of_statement s
-      | Ast.BSerror -> self#mkleaf L.Error
+      | Ast.BSerror s -> self#mkleaf (L.Error s)
     in
     set_loc nd bs.Ast.bs_loc;
     nd
@@ -1708,6 +1815,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
           in
 	  self#mknode ~orig_lab_opt ~ordinal_tbl_opt
             (L.NameInvocation (L.conv_name name)) (ta_nodes @ [self#of_arguments args])
+
+      | Ast.ECIerror s -> self#mkleaf (L.Error s)
     in
     set_loc nd eci.Ast.eci_loc;
     nd
@@ -1725,7 +1834,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	    | Some block -> begin
 		nd#add_child_rightmost
 		  (self#of_method_body 
-                     (self#name_of_method_header method_header) block);
+                     (self#name_sig_of_method_header method_header) block);
                 nd#data#add_to_ordinal_list [1]
             end
 	  end;
@@ -1735,10 +1844,10 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.CBDinterface ifd -> [self#of_interface_declaration false ifd]
 
       | Ast.CBDstaticInitializer block -> 
-	  [self#mknode L.StaticInitializer [self#of_block block]]
+	  [self#mknode L.StaticInitializer [self#of_block ~tid:(self#__mktid "static-initializer") block]]
 
       | Ast.CBDinstanceInitializer block -> 
-	  [self#mknode L.InstanceInitializer [self#of_block block]]
+	  [self#mknode L.InstanceInitializer [self#of_block ~tid:(self#__mktid "instance-initializer") block]]
 
       | Ast.CBDconstructor cd ->
           let mods = cd.Ast.cnd_modifiers in
@@ -1766,15 +1875,16 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	    mod_nodes @ ta_nodes @ p_nodes @ th_nodes @
 	    [self#of_constructor_body name signature cd.Ast.cnd_body]
 	  in
-          let annot = L.make_annotation (sprintf "(%s)V" signature) in
-          let orig_lab_opt = Some (L.Constructor(orig_name, signature)) in
+          let msig = sprintf "(%s)V" signature in
+          let annot = L.make_annotation msig in
+          let orig_lab_opt = Some (L.Constructor(orig_name, ""(*msig*))) in
 	  let nd =
             self#mknode ~orig_lab_opt ~annot ~ordinal_tbl_opt
-              (L.Constructor(name, signature)) children
+              (L.Constructor(name, msig)) children
           in
 	  [nd]
-      | Ast.CBDempty -> []
-      | Ast.CBDerror -> [self#mkleaf L.Error]
+      | Ast.CBDempty -> [self#mkleaf L.EmptyDeclaration]
+      | Ast.CBDerror s -> [self#mkleaf (L.Error s)]
     in
     List.iter 
       (fun nd -> 
@@ -1791,7 +1901,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
       Some (new ordinal_tbl [List.length ctor_nodes; List.length bss])
     in
     let children = ctor_nodes @ (List.map self#of_block_statement bss) in
-    let nd = self#mknode ~ordinal_tbl_opt (L.ConstructorBody(name, signature)) children in
+    let msig = sprintf "(%s)V" signature in
+    let nd = self#mknode ~ordinal_tbl_opt (L.ConstructorBody(name, msig)) children in
     set_loc nd cnb.Ast.cnb_loc;
     nd
 
@@ -1802,24 +1913,42 @@ class translator options = let bid_gen = new BID.generator in object (self)
     let children = 
       List.flatten (List.map self#of_class_body_declaration body)
     in
-    let fields, methods, ctors, classes, enums, ifaces, static_inits, inst_inits
-	= ref [], ref [], ref [], ref [], ref [], ref [], ref [], ref []
+    let fields, methods, ctors, classes, enums, ifaces, static_inits, inst_inits, others
+	= ref [], ref [], ref [], ref [], ref [], ref [], ref [], ref [], ref []
     in
     let classify nd =
-      match (Obj.obj nd#data#_label : L.t) with
-      | L.FieldDeclaration _  -> fields := !fields @ [nd]
-      | L.Method _            -> methods := !methods @ [nd]
-      | L.Constructor _       -> ctors := !ctors @ [nd]
-      | L.Class _             -> classes := !classes @ [nd]
-      | L.Enum _              -> enums := !enums @ [nd]
-      | L.Interface _         -> ifaces := !ifaces @ [nd]
-      | L.AnnotationType _    -> ifaces := !ifaces @ [nd]
-      | L.StaticInitializer   -> static_inits := !static_inits @ [nd]
-      | L.InstanceInitializer -> inst_inits := !inst_inits @ [nd]
-      | l -> WARN_MSG "%s" (L.to_string l)
+      match getlab nd with
+      | L.FieldDeclaration _  -> fields := nd :: !fields
+      | L.Method _            -> methods := nd :: !methods
+      | L.Constructor _       -> ctors := nd :: !ctors
+      | L.Class _             -> classes := nd :: !classes
+      | L.Enum _              -> enums := nd :: !enums
+      | L.Interface _         -> ifaces := nd :: !ifaces
+      | L.AnnotationType _    -> ifaces := nd :: !ifaces
+      | L.StaticInitializer   -> static_inits := nd :: !static_inits
+      | L.InstanceInitializer -> inst_inits := nd :: !inst_inits
+      | _ -> others := nd :: !others
     in
     let _ = List.iter classify children in
-
+    let _ =
+      fields := List.rev (!fields);
+      methods := List.rev (!methods);
+      ctors := List.rev (!ctors);
+      classes := List.rev (!classes);
+      enums := List.rev (!enums);
+      ifaces := List.rev (!ifaces);
+      static_inits := List.rev (!static_inits);
+      inst_inits := List.rev (!inst_inits);
+      others := List.rev (!others);
+    in
+    if options#weak_flag then begin
+      fields := List.fast_sort compare_node !fields;
+      ctors := List.fast_sort compare_node !ctors;
+      methods := List.fast_sort compare_node !methods;
+      classes := List.fast_sort compare_node !classes;
+      enums := List.fast_sort compare_node !enums;
+      ifaces := List.fast_sort compare_node !ifaces;
+    end;
     let fields_l =
       if !fields = [] then
         []
@@ -1831,15 +1960,16 @@ class translator options = let bid_gen = new BID.generator in object (self)
     let children' = 
       List.flatten 
 	(List.map 
-	   (* (List.stable_sort compare_node) *) (fun x -> x)
+	   (* (List.fast_sort compare_node) *) (fun x -> x)
 	   [ fields_l;(*[fields_];*)
-	     !ctors; 
+	     !ctors;
 	     !methods;
-	     !classes; 
+	     !classes;
 	     !enums;
-	     !ifaces; 
-	     !static_inits; 
-	     !inst_inits
+	     !ifaces;
+	     !static_inits;
+	     !inst_inits;
+             !others
 	  ])
     in
     let nd = self#mklnode (L.ClassBody cname) children' in
@@ -1866,7 +1996,12 @@ class translator options = let bid_gen = new BID.generator in object (self)
     let args = ec.Ast.ec_arguments in
     let ident = ec.Ast.ec_identifier in
     let a_nodes = self#of_annotations al in
-    let na_nodes = self#of_named_arguments_opt ident args in
+    let na_nodes =
+      match args with
+      | None -> []
+      | Some a when options#ast_reduction_flag && a.Ast.as_arguments = [] -> []
+      | Some a -> [self#of_named_arguments ident a]
+    in
     let cb_nodes = self#of_class_body_opt ident ec.Ast.ec_class_body in
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length a_nodes;
@@ -2016,7 +2151,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
     | Ast.IMDinterfaceMethod abs_meth -> [self#of_abstract_method_declaration abs_meth]
     | Ast.IMDclass class_decl         -> [self#of_class_declaration false class_decl]
     | Ast.IMDinterface iface_decl     -> [self#of_interface_declaration false iface_decl]
-    | Ast.IMDempty -> []
+    | Ast.IMDempty -> [self#mkleaf L.EmptyDeclaration]
 
   method of_interface_body iname ib = 
     let mems = ib.Ast.ib_member_declarations in
@@ -2027,19 +2162,26 @@ class translator options = let bid_gen = new BID.generator in object (self)
     let fields, methods, classes, enums, ifaces = 
       ref [], ref [], ref [], ref [], ref []
     in
+    let others = ref (ref []) in
     let classify nd =
       match (Obj.obj nd#data#_label : L.t) with
-      | L.FieldDeclaration _ -> fields := nd::!fields
-      | L.Method _ -> methods := nd::!methods
-      | L.Class _ -> classes := nd::!classes
-      | L.Enum _ -> enums := nd::!enums
+      | L.FieldDeclaration _ -> fields := nd::!fields; others := fields
+      | L.Method _ -> methods := nd::!methods; others := methods
+      | L.Class _ -> classes := nd::!classes; others := classes
+      | L.Enum _ -> enums := nd::!enums; others := enums
       | L.Interface _
-      | L.AnnotationType _ -> ifaces := nd::!ifaces
-      | l -> FATAL_MSG "%s" (L.to_string l); exit 1
+      | L.AnnotationType _ -> ifaces := nd::!ifaces; others := ifaces
+      | _ -> !others := nd::!(!others)
     in
     List.iter classify children;
+    let mapper =
+      if options#weak_flag then
+        List.map (List.fast_sort compare_node)
+      else
+        List.map (fun x -> x)
+    in
     let children' = 
-      List.flatten (List.map (List.fast_sort compare_node)
+      List.flatten (mapper
 		      [!fields; 
 		       !methods;
 		       !classes;
@@ -2057,7 +2199,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       self#mklnode (L.AnnotationTypeBody name) 
 	(List.flatten
 	   (List.map 
-	      self#of_annotation_type_member_declaration
+	      self#of_annotation_type_member_declaration 
 	      atb.Ast.atb_member_declarations))
     in
     set_loc nd atb.Ast.atb_loc;
@@ -2138,7 +2280,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       match td.Ast.td_desc with
       | Ast.TDclass class_decl -> [self#of_class_declaration true class_decl]
       | Ast.TDinterface iface_decl -> [self#of_interface_declaration true iface_decl]
-      | Ast.TDempty -> []
+      | Ast.TDempty -> [self#mkleaf L.EmptyDeclaration]
     in
     let loc = td.Ast.td_loc in
     List.iter (fun nd -> set_loc nd loc) nds;
@@ -2154,7 +2296,9 @@ class translator options = let bid_gen = new BID.generator in object (self)
 
   method of_import_decls idecls =
     match idecls with 
-    | [] -> []
+    | [] ->(* []*)
+	let nd = self#mklnode L.ImportDeclarations [] in
+	[nd]
     | _ ->
 	let of_import_decl id =
 	  let nd =
@@ -2171,7 +2315,15 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	  nd
 	in
 	let inodes = List.map of_import_decl idecls in
-	let nd = self#mklnode L.ImportDeclarations inodes in
+        let inodes' =
+          if options#weak_flag then
+            List.fast_sort compare_node inodes
+          else
+            inodes
+        in
+        let nd = self#mklnode L.ImportDeclarations inodes' in
+        if options#weak_flag then
+          self#add_true_children nd (Array.of_list inodes);
 	set_nodes_loc nd inodes;
 	[nd]
 

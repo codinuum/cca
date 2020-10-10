@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -167,7 +167,7 @@ module F (Stat : Aux.STATE_T) = struct
         match ulexbuf_opt with
         | Some ulexbuf -> begin
             let token = U.get_token queue ulexbuf in
-            DEBUG_MSG ">>>>>>> %s" (Token.to_string env#current_pos_mgr token);
+            DEBUG_MSG "------> %s" (Token.to_string env#current_pos_mgr token);
             token
         end
         | None -> failwith "Scanner.F.c#get_token"
@@ -216,7 +216,7 @@ module F (Stat : Aux.STATE_T) = struct
             | LBRACE when env#in_new -> ()
             | LBRACE when env#class_flag -> env#clear_class_flag
             | _ -> begin
-                DEBUG_MSG "";
+                DEBUG_MSG "@";
                 let t1, rt1 = self#peek_nth 1 in
                 match rt1 with
                 | EOF -> ()
@@ -254,6 +254,21 @@ module F (Stat : Aux.STATE_T) = struct
                     | _ -> ()
                 end
                 | AT _ when not has_error && self#method_follows -> add_braces()
+                | RPAREN _ when not has_error && begin
+                    match env#current_context with
+                    | C_method mstat -> begin
+                        match Aux.stack_to_list mstat.m_stack with
+                        | SC_block :: SC_block :: SC_lambda :: SC_ivk :: _ -> true
+                        | _ -> false
+                    end
+                    | _ -> false
+                end -> begin
+                  let loc = loc_of_poss stp edp in
+                  DEBUG_MSG "adding a closing brace";
+                  Common.warning_loc loc "adding a closing brace";
+                  let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
+                  self#prepend_token t;
+                end
                 | _ -> ()
             end
         end
@@ -293,9 +308,19 @@ module F (Stat : Aux.STATE_T) = struct
         end
         | _ -> ()
       end;
+      DEBUG_MSG "@";
       let token, rawtok =
         if not env#keep_going_flag || stp = Lexing.dummy_pos || edp = Lexing.dummy_pos || has_error then
-          token, rawtok
+          match rawtok with
+          | GT_7 -> begin
+              let _, stp, edp = Token.decompose token in
+              self#prepend_token (Token.create Tokens_.GT edp edp);
+              self#prepend_token
+                (Token.create Tokens_.GT_GT_GT (Astloc.incr_n_lexpos 3 stp) (Astloc.decr_n_lexpos 1 edp));
+              let t = Token.create Tokens_.GT_GT_GT stp (Astloc.incr_n_lexpos 2 stp) in
+              t, Token.to_rawtoken t
+          end
+          | _ -> token, rawtok
         else
           match rawtok with
           | SEMICOLON
@@ -305,16 +330,30 @@ module F (Stat : Aux.STATE_T) = struct
               Common.warning_loc loc "adding a closing parentheses";
               let dummy_loc = loc_of_poss Lexing.dummy_pos Lexing.dummy_pos in
               let t = Token.create (Tokens_.RPAREN dummy_loc) Lexing.dummy_pos Lexing.dummy_pos in
-              DEBUG_MSG ">>>> %s" (Token.to_string env#current_pos_mgr t);
+              DEBUG_MSG "---> %s" (Token.to_string env#current_pos_mgr t);
               self#prepend_token token;
               t, Token.to_rawtoken t
             end
           | RBRACE when env#in_method && env#block_level = 1 && not env#at_array -> begin
+              DEBUG_MSG "@";
               match env#context_stack_as_list with
               | C_method _ :: C_class _ :: C_class _ :: _ -> token, rawtok
               | C_method _ :: C_class _ :: C_method _ :: C_class _ :: _ -> token, rawtok
+              | C_method mstat :: _ when mstat.m_block_level = 1 && begin
+                  let t1, rt1 = self#peek_nth 1 in
+                  match rt1 with
+                  | RETURN _ -> true
+                  | _ -> false
+              end -> begin
+                DEBUG_MSG "discarding a closing brace";
+                let loc = loc_of_poss stp edp in
+                Common.warning_loc loc "discarding a closing brace";
+                let t1_rt1 = self#peek_nth 1 in
+                self#discard_tokens 1;
+                t1_rt1
+              end
               | _ -> begin
-                  DEBUG_MSG "";
+                  DEBUG_MSG "@";
                   let t1, rt1 = self#peek_nth 1 in
                   match rt1 with
                   | RBRACE -> begin
@@ -356,7 +395,7 @@ module F (Stat : Aux.STATE_T) = struct
               | Some ulexbuf -> begin
                   shadow_queue#add token;
                   let token = U.get_token queue ulexbuf in
-                  DEBUG_MSG ">>>> %s" (Token.to_string env#current_pos_mgr token);
+                  DEBUG_MSG "---> %s" (Token.to_string env#current_pos_mgr token);
                   token, Token.to_rawtoken token
               end
               | None -> failwith "Scanner.F.c#get_token"
@@ -375,7 +414,7 @@ module F (Stat : Aux.STATE_T) = struct
                           let _, stp, _ = Token.decompose token in
                           let _, _, edp = Token.decompose t3 in
                           let t = Token.create (Tokens_.ERROR "=======") stp edp in
-                          DEBUG_MSG ">>>>>>> %s" (Token.to_string env#current_pos_mgr t);
+                          DEBUG_MSG "------> %s" (Token.to_string env#current_pos_mgr t);
                           let loc = loc_of_poss stp edp in
                           Common.warning_loc loc "syntax error: marker \"=======\" found";
                           t, Token.to_rawtoken t
@@ -385,6 +424,97 @@ module F (Stat : Aux.STATE_T) = struct
                   | _ -> token, rawtok
               end
               | _ -> token, rawtok
+          end
+          | OR_OR -> begin
+              let t1, rt1 = self#peek_nth 1 in
+              match rt1 with
+              | OR_OR -> begin
+                  let t2, rt2 = self#peek_nth 2 in
+                  match rt2 with
+                  | OR_OR -> begin
+                      let t3, rt3 = self#peek_nth 3 in
+                      match rt3 with
+                      | OR -> begin
+                          self#discard_tokens 3;
+                          let _, stp, _ = Token.decompose token in
+                          let _, _, edp = Token.decompose t3 in
+                          let t = Token.create (Tokens_.ERROR "|||||||") stp edp in
+                          DEBUG_MSG "------> %s" (Token.to_string env#current_pos_mgr t);
+                          let loc = loc_of_poss stp edp in
+                          Common.warning_loc loc "syntax error: marker \"|||||||\" found";
+                          t, Token.to_rawtoken t
+                      end
+                      | _ -> token, rawtok
+                  end
+                  | _ -> token, rawtok
+              end
+              | _ -> token, rawtok
+          end
+          | GT_7 when env#tap_level < 7 -> begin
+              let _, stp, edp = Token.decompose token in
+              let loc = env#current_pos_mgr#lexposs_to_loc stp edp in
+              let el = loc.Astloc.end_line in
+              DEBUG_MSG "el=%d" el;
+              let buf = Buffer.create 7 in
+              Buffer.add_string buf ">>>>>>>";
+              let last_cnum = ref edp.Lexing.pos_cnum in
+              let last_pos = ref edp in
+              let count = ref 1 in
+              begin
+                try
+                  while true do
+                    let t, rt = self#peek_nth !count in
+                    DEBUG_MSG "%d: %s" !count (Token.to_string env#current_pos_mgr t);
+                    let _, sp, ep = Token.decompose t in
+                    let l = env#current_pos_mgr#lexposs_to_loc sp ep in
+                    if l.Astloc.start_line = el then begin
+                      for i = 2 to sp.Lexing.pos_cnum - !last_cnum do
+                        Buffer.add_string buf " "
+                      done;
+                      Buffer.add_string buf (Token.rawtoken_to_orig rt);
+                      last_pos := ep;
+                      last_cnum := ep.Lexing.pos_cnum;
+                      incr count
+                    end
+                    else
+                      raise Exit
+                  done
+                with
+                  Exit -> ()
+              end;
+              if !count > 1 then
+                self#discard_tokens (!count - 1);
+              let marker = Buffer.contents buf in
+              if env#keep_going_flag then begin
+                let loc = loc_of_poss stp !last_pos in
+                Common.warning_loc loc "marker \"%s\" found" marker;
+                let t = Token.create (Tokens_.MARKER marker) stp !last_pos in
+                t, Token.to_rawtoken t
+              end
+              else begin
+                let t = Token.create (Tokens_.ERROR marker) stp !last_pos in
+                t, Token.to_rawtoken t
+              end
+          end
+          | GT_7 -> begin
+              let _, stp, edp = Token.decompose token in
+              self#prepend_token (Token.create Tokens_.GT edp edp);
+              self#prepend_token
+                (Token.create Tokens_.GT_GT_GT (Astloc.incr_n_lexpos 3 stp) (Astloc.decr_n_lexpos 1 edp));
+              let t = Token.create Tokens_.GT_GT_GT stp (Astloc.incr_n_lexpos 2 stp) in
+              t, Token.to_rawtoken t
+          end
+          | MARKER marker when env#keep_going_flag -> begin
+              let loc = loc_of_poss stp edp in
+              Common.warning_loc loc "marker \"%s\" found" marker;
+              token, rawtok
+          end
+          | MARKER marker when not env#keep_going_flag -> begin
+              let _, stp, edp = Token.decompose token in
+              let loc = loc_of_poss stp edp in
+              Common.warning_loc loc "syntax error: marker \"%s\" found" marker;
+              let t = Token.create (Tokens_.ERROR marker) stp edp in
+              t, Token.to_rawtoken t
           end
           | GT_GT_GT when env#tap_level <> 7 -> begin
               let t1, rt1 = self#peek_nth 1 in
@@ -397,7 +527,7 @@ module F (Stat : Aux.STATE_T) = struct
                       let _, stp, _ = Token.decompose token in
                       let _, _, edp = Token.decompose t2 in
                       let t = Token.create (Tokens_.ERROR ">>>>>>>") stp edp in
-                      DEBUG_MSG ">>>>>>> %s" (Token.to_string env#current_pos_mgr t);
+                      DEBUG_MSG "------> %s" (Token.to_string env#current_pos_mgr t);
                       let loc = loc_of_poss stp edp in
                       Common.warning_loc loc "syntax error: marker \">>>>>>>\" found";
                       t, Token.to_rawtoken t
@@ -420,7 +550,7 @@ module F (Stat : Aux.STATE_T) = struct
                           let _, stp, _ = Token.decompose token in
                           let _, _, edp = Token.decompose t3 in
                           let t = Token.create (Tokens_.ERROR "<<<<<<<") stp edp in
-                          DEBUG_MSG ">>>>>>> %s" (Token.to_string env#current_pos_mgr t);
+                          DEBUG_MSG "------> %s" (Token.to_string env#current_pos_mgr t);
                           let loc = loc_of_poss stp edp in
                           Common.warning_loc loc "syntax error: marker \"<<<<<<<\" found";
                           t, Token.to_rawtoken t
@@ -453,6 +583,7 @@ module F (Stat : Aux.STATE_T) = struct
 
         | _ -> shadow_queue#add token
       end;
+      DEBUG_MSG "---------- %s" (Token.to_string env#current_pos_mgr token);
       env#clear_shift_flag;
       last_rawtoken <- rawtok;
       token

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ module Pxp_tree_parser = Pxp_tree_parser
 module Pxp_ev_parser   = Pxp_ev_parser
 module Pxp_event       = Pxp_event
 
-
+(* required by Mfortran.cmxs *)
 module Stream = Stream 
 
 
@@ -246,6 +246,8 @@ class virtual base_c options = object (self)
 	not 
           (
            options#dump_ast_flag ||
+           (*options#dump_src_flag ||*)
+           (*options#dump_origin_flag ||*)
            options#clear_cache_flag
           ) 
       then begin
@@ -275,7 +277,8 @@ class virtual base_c options = object (self)
 	let _ = Cache.prepare_cache_dir options cache_path in
 	let tree = self#__parse_file ~proj_root ~version file in
 
-        tree#recover_true_children ~initial_only:true ();
+        if not options#weak_flag then
+          tree#recover_true_children ~initial_only:true ();
 
         if options#dump_dot_flag then begin
 	  let fname_dot = file#basename^".dot" in
@@ -398,7 +401,6 @@ class virtual base_c options = object (self)
       self#_dump_dir_info cache_path dtree !ast_nodes
 
 
-
 end (* of class Astcore.base_c *)
 
 class c options = object (self)
@@ -409,6 +411,7 @@ class c options = object (self)
 
   method __parse_file ?(proj_root="") ?(version=Entity.unknown_version) file =
     DEBUG_MSG "parsing \"%s\"" file#fullpath;
+    printf "parsing \"%s\"\n" file#fullpath;
 
     let ext = file#get_extension in
     let lang = Lang_base.search options ext in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -87,6 +87,14 @@ let is_completed cache_path =
   let fexists n = Xfile.file_exists (Filename.concat cache_path n) in
   fexists completion_file_name
 
+(*
+let has_files files cache_path =
+  let res = 
+    List.for_all (fun n -> Xfile.file_exists (Filename.concat cache_path n)) files
+  in
+  DEBUG_MSG "\"%s\" --> %B" cache_path res;
+  res
+*)
 
 type search_result = { sr_cache_path : string;
                        sr_path       : string;

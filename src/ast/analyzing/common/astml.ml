@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -28,23 +28,28 @@ let default_file_name = "src"^extension
 let default_ns = "http://codinuum.com/ontologies/2012/10/"
 let default_ns2 = "http://codinuum.com/ontologies/2013/05/"
 let default_ns3 = "http://codinuum.com/ontologies/2013/12/"
+let default_ns4 = "http://codinuum.com/ontologies/2019/02/"
 
 let ast_ns = default_ns^"source-code-entity#"
 
 let c_ns       = default_ns^"c-entity#"
 let cx_ns      = default_ns^"cx-entity#"
 let ccx_ns     = default_ns3^"ccx-entity#"
+let cpp_ns     = default_ns4^"cpp-entity#"
 let java_ns    = default_ns^"java-entity#"
 let python_ns  = default_ns^"python-entity#"
 let verilog_ns = default_ns^"verilog-entity#"
+let fortran_ns = default_ns2^"fortran-entity#"
 
 let default_prefix = "a"
 let c_prefix       = "c"
 let cx_prefix      = "cx"
 let ccx_prefix     = "ccx"
+let cpp_prefix     = "cpp"
 let java_prefix    = "java"
 let python_prefix  = "py"
 let verilog_prefix = "v"
+let fortran_prefix = "f"
 
 
 let parser_tbl = (* PREFIX * NS *)
@@ -52,9 +57,11 @@ let parser_tbl = (* PREFIX * NS *)
     java_prefix,    java_ns;
     python_prefix,  python_ns;
     verilog_prefix, verilog_ns;
+    fortran_prefix, fortran_ns;
     
     cx_prefix,      cx_ns;
     ccx_prefix,     ccx_ns;
+    cpp_prefix,     cpp_ns;
   ]
 
 
@@ -168,11 +175,11 @@ module Attr = struct
 *)
     v (* Pxp decodes automatically *)
 
-  let find_attr attrs n =
+  let find_attr ?(default="") attrs n =
     try
       _find_attr attrs n
     with
-      Not_found -> ""
+      Not_found -> default
 
   let find_attr_opt attrs n =
     try
@@ -203,7 +210,7 @@ module Attr = struct
   let find_value_u attrs = Scanf.unescaped (find_attr attrs "value")
 
   let find_path attrs  = find_attr attrs path_attr_name
-  let find_ident attrs = find_attr attrs ident_attr_name
+  let find_ident ?(default="") attrs = find_attr ~default attrs ident_attr_name
 
   let find_name_opt attrs  = find_attr_opt attrs "name"
 

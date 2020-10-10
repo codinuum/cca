@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -74,6 +74,24 @@ module F (W : Weight.T) = struct
 	  mat.(i).(j) <- maxlu mat.(i-1).(j) mat.(i).(j-1)
       done
     done;
+
+(*
+  let pr_elem {weight=w; direction=d } =
+  Printf.printf "%2d:%s" w 
+  (match d with 
+  | Dnone -> "0"
+  | Dleft -> "<"
+  | Dup -> "^"
+  | Dupper_left -> "\\"|Dleft_or_up -> ";")
+  in
+  for j = 0 to len2 do
+  for i = 0 to len1 do
+  pr_elem mat.(i).(j);
+  print_string " "
+  done;
+  print_newline();
+  done;
+ *)
 
     let seq = ref [] in
     let del = ref [] in

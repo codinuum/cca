@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -143,7 +143,7 @@ class tree options _path =
       abspath _path 
   in 
   object (self)
-    inherit Storage.tree
+    inherit Storage.tree as super
 
     val mutable case_insensitive_root_path = ""
 
@@ -167,7 +167,7 @@ class tree options _path =
 
     method hash_algo = options#hash_algo
 
-    method kind = Storage.K_FS
+    method kind = Storage.kind_fs
 
     method id = root_path
 

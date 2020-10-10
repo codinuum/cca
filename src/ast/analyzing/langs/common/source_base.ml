@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-
+(* *)
 
 open Compat
 
@@ -21,6 +21,9 @@ module Loc = Astloc
 module NC = Netconversion
 
 
+(*
+let available_encodings = NC.available_input_encodings()
+*)
 
 let default_encoding = Ulexing.default_encoding
 
@@ -170,6 +173,36 @@ class c (file : Storage.file) =
           self#purify b;
           Xprint.warning "\"%s\": malformed characters are converted into '?'" file#fullpath;
           _proc (Bytes.to_string b)
+(*
+          let guessed_enc = ref None in
+          try
+            List.iter
+              (fun enc ->
+                try
+                  NC.verify enc s;
+                  guessed_enc := Some enc;
+                  raise Exit
+                with
+                  NC.Malformed_code_at x -> ()
+              ) available_encodings;
+            self#purify s;
+            _proc()
+          with
+            Exit ->
+              match !guessed_enc with
+              | Some enc ->
+                  Xprint.warning "\"%s\": encoding \"%s\" found" 
+                    file#fullpath (NC.string_of_encoding enc);
+
+                  self#update_encoding enc;
+                  List.iter 
+                    (fun ulexbuf -> 
+                      let ulb = ulexbuf.Ulexing.ulb in
+                      Netulex.ULB.set_encoding enc ulb
+                    ) ulexbuf_list;
+                  _proc()
+              | None -> assert false
+*)
 
     method refill ch buf pos n =
       DEBUG_MSG "pos=%d n=%d" pos n;
@@ -185,6 +218,8 @@ class c (file : Storage.file) =
         self#proc buf pos n s
       with 
         End_of_file -> 0
+
+ 
 
 
 

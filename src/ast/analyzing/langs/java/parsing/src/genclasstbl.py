@@ -1,4 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+#
+#   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
 
 import os
 import sys
@@ -7,12 +22,12 @@ import subprocess
 output_file_name = 'classtbl.ml'
 
 classpath_tbl = {
-    'linux2' : [ '/usr/lib/jvm/java-8-openjdk-amd64/jre/lib',
-                 '/usr/lib/jvm/java-8-openjdk/jre/lib',
-                 '/usr/lib/jvm/java-7-openjdk-amd64/jre/lib',
-                 '/usr/lib/jvm/java-7-openjdk/jre/lib',
-                 '/usr/lib/jvm/java-6-openjdk-amd64/jre/lib',
-                 '/usr/lib/jvm/java-6-openjdk/jre/lib',
+    'linux' : [ '/usr/lib/jvm/java-8-openjdk-amd64/jre/lib',
+                '/usr/lib/jvm/java-8-openjdk/jre/lib',
+                '/usr/lib/jvm/java-7-openjdk-amd64/jre/lib',
+                '/usr/lib/jvm/java-7-openjdk/jre/lib',
+                '/usr/lib/jvm/java-6-openjdk-amd64/jre/lib',
+                '/usr/lib/jvm/java-6-openjdk/jre/lib',
              ],
     'darwin' : [ '/Library/Java/JavaVirtualMachines/openjdk8/Contents/Home/jre/lib',
                  '/Library/Java/JavaVirtualMachines/jdk1.8.0_191.jdk/Contents/Home/jre/lib',
@@ -76,7 +91,7 @@ def gen(jars):
         f = proc.stdout
 
         for l in f:
-            line = l.rstrip()
+            line = l.rstrip().decode('utf-8')
             if line.endswith('.class'):
                 if True: # line.find('$') == -1:
                     s = os.path.splitext(line)[0]
@@ -112,7 +127,7 @@ def main():
     jars = getjars()
 
     for jar in jars:
-        print 'using "%s"' % jar
+        print('using "%s"' % jar)
 
     gen(jars)
     

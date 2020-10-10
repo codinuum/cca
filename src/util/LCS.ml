@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -15,6 +15,32 @@
 *)
 (* An Algorithm for Longest Common Subsequence Problem *)
 
+(*
+let lcs a1 a2 =
+  let max2 ((l0, _, _, _, _) as t0) ((l1, _, _, _, _) as t1) =
+    if l0 >= l1 then t0 else t1
+  in
+  let n1 = Array.length a1 in
+  let n2 = Array.length a2 in
+  let mat = Array.make_matrix (n1+1) (n2+1) (-1, -1, -1, -1, -1) in
+  for i = 0 to n1 do mat.(i).(0) <- (0, -1, -1, -1, -1) done;
+  for j = 0 to n2 do mat.(0).(j) <- (0, -1, -1, -1, -1) done;
+  for i = 1 to n1 do
+    for j = 1 to n2 do
+      if a1.(i-1) = a2.(j-1) then begin
+        let (l, s1, e1, s2, e2) = mat.(i-1).(j-1) in
+        let st1, st2 =
+          if s1 < 0 && s2 < 0 then i-1, j-1 else s1, s2
+        in
+        let ed1, ed2 = i-1, j-1 in
+        mat.(i).(j) <- (1 + l, st1, ed1, st2, ed2)
+      end
+      else
+        mat.(i).(j) <- max2 mat.(i-1).(j) mat.(i).(j-1)
+    done
+  done;
+  mat.(n1).(n2)
+*)
 
 let lcs ?(eq=(=)) a1 a2 = (* 'a array -> 'a array ->
                   (int(nmatches) * int(st_pos1) * int(ed_pos1) * int(st_pos2) * int(ed_pos2)) *)

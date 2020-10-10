@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* *)
 
 
 module Loc = Astloc
@@ -121,7 +120,11 @@ module F (Stat : Aux.STATE_T) = struct
         env#set_enter_source_callback tokensrc#enter_source;
         current_bufs <- Some bufs;
         ulexbuf
-
+(*
+      method exit_source =
+        env#ignored_regions#add_regions (poped.b_tokenbuf#ignored_regions);
+        env#pop_loc
+*)
 
       initializer
         env#set_enter_source_callback self#enter_source

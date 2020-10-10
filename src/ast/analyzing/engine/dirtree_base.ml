@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -35,7 +35,6 @@ let is_auxfile name =
 let path_concat l =
   List.fold_left (fun p x -> Filename.concat p x) "" l
 
-
 let union ll =
   let len =
     List.fold_left (fun n l -> n + (List.length l)) 0 ll
@@ -50,7 +49,7 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
     | Some d -> Some d
     | None -> None
   in
-  object (self)
+  object (self : 'self)
     inherit Otree.data2
 
     val mutable _digest = default_digest
@@ -93,6 +92,10 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
     method dirname = entry#dirname
     method path = entry#path
 
+    method relabel_allowed (ndata: 'self) = true
+    method anonymized_label = self#label
+    method anonymized2_label = self#label
+
     method id = sprintf "%s%s" self#path
       (match _digest with
       | Some d -> "("^(Xhash.to_hex d)^")"
@@ -110,6 +113,10 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
 
     method to_elem_data = self#to_string, [], ""
 
+(*
+    method to_tag = sprintf "<%s>" self#to_string
+    method to_tags = let s = self#to_string in sprintf "<%s>" s, sprintf "</%s>" s
+*)
     method eq ndat = entry#name = ndat#label
     method equals ndat = self#eq ndat && digest = ndat#digest
 
@@ -117,7 +124,7 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
 
     method get_content_channel_for_xml() =
       let ch = tree#get_channel entry#path in
-      let conv = (new Storage.converter XML.encode_string)#conv in
+      let conv = (new Storage.converter Netencoding.Q.encode)#conv in
       let pipe = new Netchannels.pipe ~conv () in
       let filt_ch = new Netchannels.input_filter ch pipe in
       new Storage.filtered_in_channel ch filt_ch
@@ -223,7 +230,15 @@ let of_tree options mktbl (tree : Storage.tree) =
     end
     else begin (* file node *)
 
-      let is_aux = is_auxfile name in
+      let is_aux =
+        if
+          not (options#is_disabled_parser "java") &&
+          (options#designated_parser = "" || options#designated_parser = "java")
+        then
+          is_auxfile name
+        else
+          false
+      in
 
       if options#check_extension name || is_aux then begin
 

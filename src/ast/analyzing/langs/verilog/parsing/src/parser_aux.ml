@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -280,6 +280,10 @@ class env = object (self)
       mkstate (Hashtbl.copy symbol_tbl) (self#_copy_stack stack) 
 	scoped_flag pvstate vartype in_table
     in
+(*
+    if Hashtbl.mem checkpoint_tbl key then
+      WARN_MSG "already checkpointed: key=%s" (Loc.to_string key);
+*)
     Hashtbl.replace checkpoint_tbl key stat;
 
     

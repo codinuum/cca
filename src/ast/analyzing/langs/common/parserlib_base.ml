@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -43,7 +43,27 @@ let extend_pos ?cache ext pos =
 
 let extend_poss ?cache ext pos1 pos2 =
   extend_pos ?cache ext pos1, extend_pos ?cache ext pos2
-
+(*
+  let fname = pos1.Lexing.pos_fname in
+  if fname = pos2.Lexing.pos_fname then begin
+    if ext <> "" && fname <> "" && not (Fname.is_extended fname) then
+      let extended = Fname.extend ?cache ~force:true fname ext in
+      { Lexing.pos_fname = extended;
+        Lexing.pos_lnum  = pos1.Lexing.pos_lnum;
+        Lexing.pos_bol   = pos1.Lexing.pos_bol;
+        Lexing.pos_cnum  = pos1.Lexing.pos_cnum;
+      },
+      { Lexing.pos_fname = extended;
+        Lexing.pos_lnum  = pos2.Lexing.pos_lnum;
+        Lexing.pos_bol   = pos2.Lexing.pos_bol;
+        Lexing.pos_cnum  = pos2.Lexing.pos_cnum;
+      }
+    else
+      pos1, pos2
+  end
+  else
+    extend_pos ext pos1, extend_pos ext pos2
+*)
 let get_stripped_pos pos =
   if is_extended_pos pos then
     { Lexing.pos_fname = Fname.strip pos.Lexing.pos_fname;
@@ -135,7 +155,7 @@ let parse_error_loc ?(head="") env mknode loc (fmt : ('a, unit, string, 'b) form
     ) fmt
 
 let parse_error ?(head="") env mknode spos epos =
-  let loc = loc_of_lexposs spos spos in
+  let loc = loc_of_lexposs spos epos in
   parse_error_loc ~head env mknode loc
 
 let parse_warning_loc ?(out=stderr) ?(head="") loc (fmt : ('a, out_channel, unit, 'b) format4) : 'a =
@@ -145,7 +165,7 @@ let parse_warning_loc ?(out=stderr) ?(head="") loc (fmt : ('a, out_channel, unit
     ("[%s][WARNING]%s[%s] "^^fmt) cmd_name head (Astloc.to_string ~short:false loc)
 
 let parse_warning ?(out=stderr) ?(head="") spos epos =
-  let loc = loc_of_lexposs spos spos in
+  let loc = loc_of_lexposs spos epos in
   parse_warning_loc ~out ~head loc
 
 

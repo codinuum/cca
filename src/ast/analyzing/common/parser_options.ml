@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -133,15 +133,25 @@ class c = object (self)
   val mutable recursive_flag       = false
   val mutable incomplete_info_flag = false
 
-  val mutable no_collapse_flag             = false
+  val mutable no_collapse_flag     = false
   method no_collapse_flag = no_collapse_flag
   method set_no_collapse_flag = no_collapse_flag <- true
   method clear_no_collapse_flag = no_collapse_flag <- false
+
+  val mutable ast_reduction_flag = false
+  method ast_reduction_flag = ast_reduction_flag
+  method set_ast_reduction_flag = ast_reduction_flag <- true
+  method clear_ast_reduction_flag = ast_reduction_flag <- false
 
   (* *)
   val mutable latest_target = ""
   method latest_target = latest_target
   method set_latest_target x = latest_target <- x
+
+  val mutable weak_flag            = false (* weaken node equation and node permutation detection *)
+  method weak_flag = weak_flag
+  method set_weak_flag = weak_flag <- true
+  method clear_weak_flag = weak_flag <- false
 
   (* searchast *)
   val mutable sim_threshold = 0.8
@@ -207,7 +217,7 @@ class c = object (self)
   method set_ignore_huge_arrays_flag  = ignore_huge_arrays_flag <- true
   method clear_ignore_huge_arrays_flag  = ignore_huge_arrays_flag <- false
 
-  val mutable huge_array_threshold = 128
+  val mutable huge_array_threshold = 256
   method huge_array_threshold = huge_array_threshold
   method set_huge_array_threshold x = huge_array_threshold <- x
 
@@ -220,8 +230,20 @@ class c = object (self)
   (* Python *)
   val mutable python_with_stmt_disabled_flag = false
 
+  (* Fortran *)
+  val mutable fortran_max_line_length = -1
+  val mutable fortran_parse_d_lines_flag = false
+  val mutable fortran_ignore_include_flag = false
+
   (* Verilog *)
   val mutable verilog_ignore_include_flag = false
+
+  (* yacfe *)
+  val mutable yacfe_defs_builtins = ""
+  val mutable yacfe_env = ""
+  val mutable yacfe_cfg_flag = true
+  val mutable yacfe_skip_expanded_flag = false
+  val mutable yacfe_skip_other_directives_flag = false
 
   (* external parser *)
   val external_parser_cache = Hashtbl.create 0
@@ -279,11 +301,70 @@ class c = object (self)
   method set_python_with_stmt_disabled_flag = python_with_stmt_disabled_flag <- true
   method clear_python_with_stmt_disabled_flag = python_with_stmt_disabled_flag <- false
 
+  (* Fortran *)
+  method fortran_max_line_length = fortran_max_line_length
+  method set_fortran_max_line_length n = fortran_max_line_length <- n
+
+  method fortran_parse_d_lines_flag = fortran_parse_d_lines_flag
+  method set_fortran_parse_d_lines_flag = fortran_parse_d_lines_flag <- true
+  method clear_fortran_parse_d_lines_flag = fortran_parse_d_lines_flag <- false
+
+  method fortran_ignore_include_flag = fortran_ignore_include_flag
+  method set_fortran_ignore_include_flag = fortran_ignore_include_flag <- true
+  method clear_fortran_ignore_include_flag = fortran_ignore_include_flag <- false
+
   (* Verilog *)
+
   method verilog_ignore_include_flag = verilog_ignore_include_flag
   method set_verilog_ignore_include_flag = verilog_ignore_include_flag <- true
   method clear_verilog_ignore_include_flag = verilog_ignore_include_flag <- false
 
+
+  (* yacfe *)
+  method yacfe_defs_builtins = yacfe_defs_builtins
+
+  method set_yacfe_defs_builtins x = 
+    if Sys.file_exists x then
+      yacfe_defs_builtins <- x
+    else begin
+      yacfe_defs_builtins <- "";
+      Xprint.warning "\"%s\": not found. assumes default configuration" x
+    end
+
+  method yacfe_env = yacfe_env
+  method set_yacfe_env x = yacfe_env <- x
+
+  method get_default_yacfe_defs_builtins = search_conf_file "standard.h"
+(*
+  method get_default_yacfe_env = search_conf_file "environment.h"
+*)
+  method get_yacfe_defs_builtins = 
+    if yacfe_defs_builtins = "" then 
+      self#get_default_yacfe_defs_builtins
+    else 
+      yacfe_defs_builtins
+
+(*
+  method get_yacfe_env = 
+    if yacfe_env = "" then 
+      self#get_default_yacfe_env
+    else 
+      yacfe_env
+*)
+
+  method yacfe_cfg_flag = yacfe_cfg_flag
+  method set_yacfe_cfg_flag = yacfe_cfg_flag <- true
+  method clear_yacfe_cfg_flag = yacfe_cfg_flag <- false
+
+  method yacfe_skip_expanded_flag = yacfe_skip_expanded_flag
+  method set_yacfe_skip_expanded_flag = yacfe_skip_expanded_flag <- true
+  method clear_yacfe_skip_expanded_flag = yacfe_skip_expanded_flag <- false
+
+  method yacfe_skip_other_directives_flag = yacfe_skip_other_directives_flag
+  method set_yacfe_skip_other_directives_flag = yacfe_skip_other_directives_flag <- true
+  method clear_yacfe_skip_other_directives_flag = yacfe_skip_other_directives_flag <- false
+
+      
   (* external parser *)
   method get_external_parser pname = 
     try
@@ -296,6 +377,6 @@ class c = object (self)
 
   initializer
     clone_map_file_name <- "clone_map"^gmap_ext;
-    cache_dir_base <- Filename.concat (Filename.concat (Misc.get_home_dir()) ".cca") "cache"
+    cache_dir_base <- Filename.concat (Filename.concat (Misc.get_home_dir()) ".diffts") "cache"
 
 end (* of class Parser_options.c *)

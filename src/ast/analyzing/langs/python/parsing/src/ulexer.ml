@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -403,6 +403,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       lexing_error lexbuf (sprintf "invalid symbol(%s)" sym)
 
+
+(*
+  and line_comment = lexer
+      line_terminator -> ()
+| _ -> line_comment lexbuf
+*)
 
   and indent = lexer
       indent -> Ulexing.utf8_lexeme lexbuf

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -196,18 +196,46 @@ let get_file_size path =
     
 
 let file_exists path = Sys.file_exists path
+(*
+  let res =
+    try
+      (Unix.stat path).Unix.st_kind = Unix.S_REG
+    with
+      Unix.Unix_error(Unix.ENOENT, _, _) -> false
+  in
+  DEBUG_MSG "path=\"%s\" exists=%B" path res;
+  res
+*)
 
 let dir_exists path = 
   try
     Sys.is_directory path
   with
     Sys_error _ -> false
+(*
+  try
+    (Unix.stat path).Unix.st_kind = Unix.S_DIR
+  with
+    Unix.Unix_error(Unix.ENOENT, _, _) -> false
+*)
 
 let is_dir path =
   try
     Sys.is_directory path
   with
     Sys_error _ -> raise (No_such_file_or_directory path)
+(*
+  try 
+    (Unix.stat path).Unix.st_kind = Unix.S_DIR 
+  with 
+    Unix.Unix_error(err, s1, s2) ->
+      if err = Unix.ENOENT then 
+	raise (No_such_file_or_directory s2)
+      else begin
+	ERROR_MSG "%s: %s" s2 (Unix.error_message err);
+	exit 1
+      end
+*)
 
 
 let rec scan_dir f dirname =
@@ -232,6 +260,18 @@ let rec scan_dir f dirname =
       | _ ->
 	  raise (Error (sprintf "%s: %s (%s)" s2 (Unix.error_message err) s1))
 
+
+(*
+let rec scan_dir f dir =
+  Array.iter
+    (fun name ->
+      let path = Filename.concat dir name in
+      if Sys.is_directory path then
+	scan_dir f path
+      else
+	f path
+    ) (Sys.readdir dir)
+*)
 
 let rec rmdir dirname =
   INFO_MSG "removing \"%s\"" dirname;
@@ -320,11 +360,41 @@ let rec mkdir ?(perm=0o755) dir =
   | Unix.Unix_error(err, f, a) -> 
       raise (Error (sprintf "%s: \"%s\": %s" f a (Unix.error_message err)))
 
+let move path path_ =
+  let dir_ = Filename.dirname path_ in
+  if not (dir_exists dir_) then
+    mkdir dir_;
+  Sys.rename path path_
+
+let copy_file ?(buf_size=8192) ?(perm=0o666) path path_ =
+  let buf = Bytes.create buf_size in
+  try
+    let dir_ = Filename.dirname path_ in
+    if not (dir_exists dir_) then
+      mkdir dir_;
+
+    let f_in = Unix.openfile path [Unix.O_RDONLY] 0 in
+    let f_out = Unix.openfile path_ [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] perm in
+    let rec copy_loop () =
+      match Unix.read f_in buf 0 buf_size with
+      | 0 -> ()
+      | r ->
+          ignore (Unix.write f_out buf 0 r);
+          copy_loop()
+    in
+    copy_loop();
+    Unix.close f_in;
+    Unix.close f_out
+  with
+  | Unix.Unix_error(err, f, a) -> 
+      raise (Error (sprintf "%s: \"%s\": %s" f a (Unix.error_message err)))
+
+
 let dump ?(lock=true) ?(dir_perm=0o755) fname (dumper : out_channel -> unit) =
   let dn = Filename.dirname fname in
   if not (dir_exists dn) then begin
-    WARN_MSG "not found: \"%s\"" dn;
-    mkdir ~perm:dir_perm dn
+    mkdir ~perm:dir_perm dn;
+    (*WARN_MSG "parent directory created for \"%s\"" fname;*)
   end;
   try
     let ch = open_out fname in

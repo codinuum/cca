@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -193,7 +193,7 @@ module F (W : Weight.T) = struct
        for ii = 0 to i - li + 1 do
 	 for jj = 0 to j -lj + 1 do
 	   let n, _ = forestdist_array.(ii).(jj) in
-	   Buffer.add_string buf (sprintf "%s " (W.to_string n))
+	   Buffer.add_string buf (Printf.sprintf "%s " (W.to_string n))
 	 done;
 	 Buffer.add_string buf "\n"
        done;

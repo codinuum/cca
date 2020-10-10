@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ let non_label_attrs =
     frommacro_attr_name;
     is_initializer_list_attr_name;
     gid_attr_name;
+(*    Astml.line_terminator_attr_name; *)
 
     parser_attr_name;
     Astml.source_attr_name;
@@ -98,6 +99,16 @@ type annotation = string option
 let remove_prefix s =
   let (_, ln) = Pxp_event.namespace_split s in
   ln
+  (*try
+    let i = String.index s ':' in
+    let len = String.length s in
+    let i_ = i + 1 in
+    if i_ >= len then
+      s
+    else
+      String.sub s i_ (len - i - 1)
+  with
+    Not_found -> s*)
 
 let get_elem { elem_name=e; } = remove_prefix e
 
@@ -176,6 +187,7 @@ let _ =
       "java";
       "python";
       "verilog";
+      "fortran";
 *)
     ]
 
@@ -529,6 +541,50 @@ let encode_attr (name, value) =
 let encode_attrs alist =
   let filtered = List.filter (fun a -> not (ignored_attr a)) alist in
   catstr (List.map encode_attr filtered)
+
+(*
+let elem_pat = Str.regexp "^\\(.+\\):\\(.+\\)"
+let dot_pat  = Str.regexp_string "."
+let decomp_elem elem =
+  if Str.string_match elem_pat elem 0 then begin
+    let lang_prefix = Str.matched_group 1 elem in
+    let ln = Str.matched_group 2 elem in
+    let names = Str.split dot_pat ln in
+    (lang_prefix, names)
+  end
+  else begin
+    ERROR_MSG "illegal element: \"%s\"" elem;
+    exit 1
+  end
+
+let encode_names lang names =
+(*
+    DEBUG_MSG "lang=\"%s\" names=[%s]"
+      lang (Xlist.to_string (fun x -> x) "; " names);
+*)
+  try
+    let tbl = Hashtbl.find token_tbl lang in
+    let rec encode level = function
+      | [] -> ""
+      | name::rest ->
+	  try
+	    let c = Hashtbl.find tbl.(level) name in
+	    c^(encode (level + 1) rest)
+	  with 
+	    Not_found -> 
+              FATAL_MSG "name not found: \"%s\"" name; 
+              exit 1
+    in
+    encode 0 names
+  with 
+    Not_found -> 
+      FATAL_MSG "lang not found: \"%s\"" lang; 
+      exit 1
+
+let encode_elem elem =
+  let lang_prefix, names = decomp_elem elem in
+  encode_names lang_prefix names
+*)    
 
 let encode { elem_name=elem; elem_attrs=attrs; elem_parser=_; elem_ast_ns=ast_ns; } =
   let tbl = Hashtbl.find token_tbl ast_ns in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -56,13 +56,12 @@ class tree_factory options (tree_builder : tree_builder) = object
   method from_xnode = tree_builder#from_xnode
 
   method from_file (file : S.file) =
-    let ext = file#get_extension in
-    if options#check_extension ext then begin
+    if options#check_extension file#path then begin
       let tree = tree_builder#build_tree file in
       (tree : tree_t)
     end
     else
-      failwith (Printf.sprintf "Lang.tree_factory: not supported: \"%s\"" ext)
+      failwith (Printf.sprintf "Lang.tree_factory: not supported: \"%s\"" file#get_extension)
 
 end (* of class Lang.tree_factory *)
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -25,6 +25,12 @@ module SB    = Spec_base
 
 class type node_data_t = object ('self)
   inherit SB.node_data_t_shared
+
+  method set_prefix : string -> unit
+  method get_prefix : string
+
+  method set_suffix : string -> unit
+  method get_suffix : string
 
   method gid     : GI.t
   method set_gid : GI.t -> unit
@@ -55,6 +61,16 @@ class type node_data_t = object ('self)
 
   method get_category : string
   method get_value    : string
+  method has_value    : bool
+  method has_non_trivial_value : bool
+  method is_string_literal : bool
+  method is_int_literal : bool
+  method is_real_literal : bool
+
+  method move_disallowed : bool
+  method is_common       : bool
+
+  method is_order_insensitive : bool
 
   method get_ident_use : string
 
@@ -79,11 +95,13 @@ end (* of class type node_data_t *)
 type node_t = node_data_t SB.node_t
 
 
+
+
 class type tree_t = object ('self)
   inherit [ node_t ] SB.tree_t_shared
 
-  method unparse_subtree_ch       : node_t -> SB.OutChannel.t -> unit
-  method unparse_ch               : SB.OutChannel.t -> unit
+  method unparse_subtree_ch       : ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit
+  method unparse_ch               : ?fail_on_error:bool -> SB.OutChannel.t -> unit
 
   method set_true_parent_tbl      : (UID.t, node_t) Hashtbl.t -> unit
   method find_true_parent         : UID.t -> node_t
@@ -92,7 +110,6 @@ class type tree_t = object ('self)
   method recover_true_children    : initial_only:bool -> unit -> unit
 
   method set_source_info          : Storage.file -> unit
-
 
   method set_source_fullpath      : string -> unit
   method source_fullpath          : string
@@ -110,6 +127,12 @@ class type tree_t = object ('self)
   method set_parser_name          : string -> unit
 
   method dump_astml               : ?comp:Compression.c -> string -> unit
+
+(*
+  method set_line_terminator      : string -> unit
+  method line_terminator          : string
+  method line_terminator_name     : string
+*)
 
   method collapse                 : unit
 
@@ -175,6 +198,141 @@ class type tree_t = object ('self)
 end (* of class type tree_t *)
 
 
+
+
+
+class type uidmapping_t = object ('self)
+
+  method search_node_by_uid1 : UID.t -> node_t
+  method search_node_by_uid2 : UID.t -> node_t
+
+  method use_crossing_or_incompatible_matches_count_cache : bool
+
+  method clear_crossing_or_incompatible_matches_count_cache : unit
+  method crossing_or_incompatible_matches_count_cache_hit_count : int
+  method size_of_crossing_or_incompatible_matches_count_cache : int
+
+  method clear_starting_uid_pairs_for_glueing : unit
+  method set_starting_uid_pairs_for_glueing   : ((UID.t * UID.t) list) -> unit
+  method add_starting_uid_pairs_for_glueing   : ((UID.t * UID.t) list) -> unit
+  method starting_uid_pairs_for_glueing       : ((UID.t * UID.t) list)
+
+
+  method is_locked_uid     : UID.t -> bool
+  method lock_uid          : ?key:Key.t -> UID.t -> unit
+  method unlock_uid        : UID.t -> unit
+  method key_of_locked_uid : UID.t -> Key.t
+
+  method stable_pairs     : (UID.t, UID.t) Hashtbl.t
+  method set_stable_pairs : (UID.t, UID.t) Hashtbl.t -> unit
+  method is_stable_pair   : UID.t -> UID.t -> bool
+  method add_stable_pair  : UID.t -> UID.t -> unit
+  method find_stable_pair : UID.t -> UID.t list
+  method iter_stable_pairs : (UID.t -> UID.t -> unit) -> unit
+
+  method set_blacklist1 : (UID.t, bool) Hashtbl.t -> unit
+  method set_blacklist2 : (UID.t, bool) Hashtbl.t -> unit
+
+  method size : int
+
+  method iter           : (UID.t -> UID.t -> unit) -> unit
+  method iter_rev       : (UID.t -> UID.t -> unit) -> unit
+  method iter_unsettled : (UID.t -> UID.t -> unit) -> unit
+  method iter_settled   : (UID.t -> UID.t -> unit) -> unit
+
+  method iter_sorted           : (UID.t -> UID.t -> int) -> (UID.t -> UID.t -> unit) -> unit
+  method iter_unsettled_sorted : (UID.t -> UID.t -> int) -> (UID.t -> UID.t -> unit) -> unit
+  method iter_settled_sorted   : (UID.t -> UID.t -> int) -> (UID.t -> UID.t -> unit) -> unit
+
+
+  method find_unsettled : UID.t -> UID.t
+  method find_settled   : UID.t -> UID.t
+  method find           : UID.t -> UID.t
+  method inv_find       : UID.t -> UID.t
+
+  method add_unsettled     : UID.t -> UID.t -> unit
+  method add_settled       : ?stable:bool -> UID.t -> UID.t -> unit
+  method add_settled_roots    : UID.t -> UID.t -> unit
+  method is_settled_root_pair : UID.t -> UID.t -> bool
+
+  method iter_settled_roots : (UID.t -> UID.t -> unit) -> unit
+  method iter_settled_roots_sorted : (UID.t -> UID.t -> int) -> (UID.t -> UID.t -> unit) -> unit
+
+  method merge_no_override : 'self -> unit
+  method merge             : 'self -> unit
+  method merge_checked     : 'self -> unit
+
+  method mem           : UID.t -> bool
+  method mem_unsettled : UID.t -> bool
+  method mem_settled   : UID.t -> bool
+
+  method remove         : UID.t -> UID.t -> unit
+  method remove_settled : UID.t -> UID.t -> unit
+
+  method filter : (UID.t -> UID.t -> bool) -> unit
+
+  method promote : UID.t -> UID.t -> unit
+  method demote  : UID.t -> UID.t -> unit
+
+  method to_list_unsettled : (UID.t * UID.t) list
+  method to_list_settled   : (UID.t * UID.t) list
+  method to_list           : (UID.t * UID.t) list
+
+  method cod : UID.t list
+  method dom : UID.t list
+
+  method cod_unsettled : UID.t list
+  method dom_unsettled : UID.t list
+
+  method cod_settled : UID.t list
+  method dom_settled : UID.t list
+
+  method has_settled_mapping   : UID.t -> UID.t -> bool
+  method has_unsettled_mapping : UID.t -> UID.t -> bool
+  method has_mapping           : UID.t -> UID.t -> bool
+
+  method to_string_gid : string
+  method to_string     : string
+
+  method dump : string -> unit
+
+  method dump_with_info    : ?comp:Compression.c -> string -> unit
+
+  method print_status : unit
+
+  method setup_rev_map : unit
+
+  method mem_dom : UID.t -> bool
+  method mem_cod : UID.t -> bool
+
+  method mem_dom_settled : UID.t -> bool
+  method mem_cod_settled : UID.t -> bool
+
+  method mem_dom_unsettled : UID.t -> bool
+  method mem_cod_unsettled : UID.t -> bool
+
+  method cleanup_ghost : unit
+
+  method count_p_mapping : (node_t -> node_t -> node_t -> node_t -> bool) -> node_t -> node_t -> int
+  method count_crossing_mapping                 : node_t -> node_t -> int
+  method count_crossing_matches                 : node_t -> node_t -> int
+  method count_crossing_or_incompatible_matches : node_t -> node_t -> int
+  method count_compatible_noncrossing_matches   : node_t -> node_t -> int
+
+  method iter_p_mapping : (node_t -> node_t -> node_t -> node_t -> bool) -> node_t -> node_t -> (UID.t -> UID.t -> unit) -> unit
+  method iter_crossing_mapping                  : node_t -> node_t -> (UID.t -> UID.t -> unit) -> unit
+  method iter_crossing_or_incompatible_mapping  : node_t -> node_t -> (UID.t -> UID.t -> unit) -> unit
+
+  method setup_partitions : unit
+  method partition_nodes1 : node_t list -> node_t list array
+  method partition_nodes2 : node_t list -> node_t list array
+
+  method get_subtree_match_score : node_t -> node_t -> int
+
+end (* of class type uidmapping_t *)
+
+
+
 module type LABEL_T = sig
 
   type annotation
@@ -195,6 +353,10 @@ module type LABEL_T = sig
   val of_elem_data     : string -> (string * string) list -> string -> t
 
   val relabel_allowed          : t * t -> bool
+  val is_compatible            : t -> t -> bool
+  val is_order_insensitive     : t -> bool
+  val move_disallowed          : t -> bool
+  val is_common                : t -> bool
   val is_to_be_notified        : t -> bool
   val is_collapse_target       : #Parser_options.c -> t -> bool
   val is_hunk_boundary         : t -> t -> bool
@@ -215,6 +377,8 @@ module type LABEL_T = sig
   val get_category       : t -> string
   val get_name           : t -> string
   val get_value          : t -> string
+  val has_value          : t -> bool
+  val has_non_trivial_value : t -> bool
 
   val cannot_be_keyroot  : node_t -> bool
 

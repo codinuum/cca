@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -130,12 +130,22 @@ class stack env = object (self)
     DEBUG_MSG "called";
     suspended <- false;
 
+(*
+  method _force_pop n stack =
+  for i = 1 to n do
+  ignore (Stack.pop stack)
+  done
+ *)
+
   method checkpoint key = 
     BEGIN_DEBUG
       DEBUG_MSG "key=%s" (Loc.to_string key);
     Stack.iter (fun c -> DEBUG_MSG "stack: %s" (to_string c)) stack;
     END_DEBUG;
-
+(*
+  if Hashtbl.mem checkpoint_tbl key then
+  WARN_MSG "already checkpointed: key=%s" (Loc.to_string key);
+ *)
     let copy = self#_copy_stack stack in
     Hashtbl.replace checkpoint_tbl key copy;
 

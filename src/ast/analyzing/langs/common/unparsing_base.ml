@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ type box =
   | B of int
   | Bh
   | Bv of int
+  | Bhv of int
   | Bhov of int
 
 let sprintf = Printf.sprintf
@@ -29,6 +30,7 @@ let box_to_string = function
   | B i    -> sprintf "B(%d)" i
   | Bh     -> sprintf "Bh"
   | Bv i   -> sprintf "Bv(%d)" i
+  | Bhv i  -> sprintf "Bhv(%d)" i
   | Bhov i -> sprintf "Bhov(%d)" i
 
 let pr_string      = Format.print_string
@@ -101,15 +103,16 @@ class ppbox = object (self)
         | B i    -> self#open_box i; if i > 0 then pad i
         | Bh     -> self#open_hbox()
         | Bv i   -> self#open_vbox i; if i > 0 then pad i
+        | Bhv i  -> self#open_hvbox i; if i > 0 then pad i
         | Bhov i -> self#open_hovbox i; if i > 0 then pad i
       ) stat
 
   method open_box i    = self#enter_box (B i); Format.open_box i
   method open_hbox()   = self#enter_box Bh; Format.open_hbox()
   method open_vbox i   = self#enter_box (Bv i); Format.open_vbox i
+  method open_hvbox i  = self#enter_box (Bhv i); Format.open_hvbox i
   method open_hovbox i = self#enter_box (Bhov i); Format.open_hovbox i
   method close_box()   = self#exit_box(); Format.close_box()
-
 
   method enable_backslash_newline() =
     orig_functions <- Format.get_formatter_out_functions();
@@ -176,6 +179,15 @@ class ppbox = object (self)
       self#pr_a ~head ~tail pr_sep pr a;
       self#close_box()
     end
+
+  method pr_hva : 'a. ?head:(unit->unit) -> ?tail:(unit->unit) -> (unit->unit) -> ('a -> unit) -> 'a array -> unit
+      =
+    fun ?(head=pr_none) ?(tail=pr_none) pr_sep pr a ->
+      if (Array.length a) > 0 then begin
+        self#open_hvbox 0;
+        self#pr_a ~head ~tail (fun () -> pr_sep(); pr_cut()) pr a;
+        self#close_box();
+      end
 
   method pr_hova : 'a. ?head:(unit->unit) -> ?tail:(unit->unit) -> (unit->unit) -> ('a -> unit) -> 'a array -> unit
       =

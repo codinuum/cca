@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -45,5 +45,6 @@ class tree_builder options =
     initializer
       _parser#_set_verbose_flag options#verbose_flag;
       _parser#set_search_path_list options#search_path_list;
+      _parser#_set_keep_going_flag options#keep_going_flag
 
   end

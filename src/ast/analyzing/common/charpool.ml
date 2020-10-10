@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
+(* *)
 
 let string_len_threshold = 32
 
@@ -73,6 +74,14 @@ let mkstr_strs idx str_list = (* next index must be idx+2 *)
   let string_list, no_digest = encode_strs str_list in
   catstr ((mkstr (if no_digest then idx+1 else idx))::string_list)
 
+
+(*
+let mkstr_str idx str =
+  if (String.length str) > string_len_threshold then
+    catstr [mkstr idx; Digest.to_hex(Digest.string str)]
+  else
+    catstr [mkstr (idx+1); str]
+*)
 
 let mkstr_str idx str = mkstr_strs idx [str]
 

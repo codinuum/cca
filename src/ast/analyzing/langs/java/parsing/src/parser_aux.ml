@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ exception Str_found of string
 type sub_context =
   | SC_block
   | SC_new
+  | SC_ivk
   | SC_for
   | SC_array
   | SC_lambda
@@ -40,6 +41,7 @@ type meth_stat = {
     mutable m_block_level: int;
     mutable m_paren_level: int;
     mutable m_new_level: int;
+    mutable m_ivk_level: int;
     mutable m_for_level: int;
     mutable m_array_level: int; (* array initializer *)
     mutable m_lambda_level: int;
@@ -68,6 +70,7 @@ let create_meth_stat () =
   { m_block_level=0;
     m_paren_level=0;
     m_new_level=0;
+    m_ivk_level=0;
     m_for_level=0;
     m_array_level=0;
     m_lambda_level=0;
@@ -86,6 +89,7 @@ let stack_to_list stack = List.rev (Stack.fold (fun l x -> x::l) [] stack)
 let sub_context_to_string = function
   | SC_block  -> "B"
   | SC_new    -> "N"
+  | SC_ivk    -> "I"
   | SC_for    -> "F"
   | SC_array  -> "A"
   | SC_lambda -> "L"
@@ -94,6 +98,7 @@ let sub_context_to_string = function
 let meth_stat_to_string { m_block_level=blv;
                           m_paren_level=plv;
                           m_new_level=nlv;
+                          m_ivk_level=ilv;
                           m_for_level=flv;
                           m_array_level=alv;
                           m_lambda_level=llv;
@@ -182,29 +187,29 @@ class env = object (self)
   method enter_class =
     DEBUG_MSG "enter";
     Stack.push (C_class (create_class_stat())) context_stack;
-    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep
 
   method enter_method =
     DEBUG_MSG "enter";
     Stack.push (C_method (create_meth_stat())) context_stack;
-    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep
 
   method exit_context =
     DEBUG_MSG "exit";
     ignore (Stack.pop context_stack);
-    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep
 
   method current_context =
     Stack.top context_stack
 
   method in_method =
-    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep;
     match Stack.top context_stack with
     | C_method _ -> true
     | _ -> false
 
   method in_class =
-    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep;
     match Stack.top context_stack with
     | C_class _ -> true
     | _ -> false
@@ -388,6 +393,34 @@ class env = object (self)
       match self#current_context with
       | C_method mstat ->
           mstat.m_new_level <- mstat.m_new_level - 1;
+          ignore (Stack.pop mstat.m_stack)
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method ivk_level =
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
+    match self#current_context with
+    | C_method mstat -> mstat.m_ivk_level
+    | _ -> 0
+
+  method in_ivk = self#ivk_level > 0
+
+  method enter_ivk =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_ivk_level <- mstat.m_ivk_level + 1;
+          Stack.push SC_ivk mstat.m_stack
+      | _ -> ()
+    end;
+    DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
+
+  method exit_ivk =
+    begin
+      match self#current_context with
+      | C_method mstat ->
+          mstat.m_ivk_level <- mstat.m_ivk_level - 1;
           ignore (Stack.pop mstat.m_stack)
       | _ -> ()
     end;
@@ -996,9 +1029,9 @@ module F (Stat : STATE_T) = struct
     let head = sprintf "[%d:%d]" line char in
     fail_to_parse ~head msg
 
-  let parse_error_loc loc msg = 
+  let parse_error_loc loc (fmt : ('a, unit, string, 'b) format4) : 'a = 
     let head = sprintf "[%s]" (Loc.to_string loc) in
-    fail_to_parse ~head msg
+    Printf.ksprintf (fail_to_parse ~head) fmt
 
   let parse_warning start_ofs end_ofs =
     let loc = get_loc start_ofs end_ofs in
@@ -1454,7 +1487,10 @@ module F (Stat : STATE_T) = struct
   let mkerrname so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { n_desc=Nerror s; n_loc=loc }
+    if env#keep_going_flag then
+      { n_desc=Nerror s; n_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mktyargs so eo d = _mktyargs (get_loc so eo) d
   let mktype so eo d = _mktype (get_loc so eo) d
@@ -1465,7 +1501,10 @@ module F (Stat : STATE_T) = struct
   let mkerrstmt so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { s_desc=Serror s; s_loc=loc }
+    if env#keep_going_flag then
+      { s_desc=Serror s; s_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mkexpr so eo d = _mkexpr (get_loc so eo) d
 
@@ -1474,23 +1513,30 @@ module F (Stat : STATE_T) = struct
   let mkerrexpr so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { e_desc=Eerror s; e_loc=loc }
-
+    if env#keep_going_flag then
+      { e_desc=Eerror s; e_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mkstmtexpr so eo d = { se_desc=d; se_loc=(get_loc so eo) }
 
   let mkerrstmtexpr so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { se_desc=SEerror s; se_loc=loc }
+    if env#keep_going_flag then
+      { se_desc=SEerror s; se_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mkprim so eo d = _mkprim (get_loc so eo) d
 
   let mkerrprim so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { p_desc=Perror s; p_loc=loc }
-
+    if env#keep_going_flag then
+      { p_desc=Perror s; p_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mkannot so eo d = _mkannot (get_loc so eo) d
   let mkev so eo d = { ev_desc=d; ev_loc=(get_loc so eo) }
@@ -1588,7 +1634,10 @@ module F (Stat : STATE_T) = struct
   let mkerrcbd so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { cbd_desc=CBDerror s; cbd_loc=loc }
+    if env#keep_going_flag then
+      { cbd_desc=CBDerror s; cbd_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mksb so eo l = { sb_switch_block_stmt_grps=l; sb_loc=(get_loc so eo) }
 
@@ -1609,7 +1658,10 @@ module F (Stat : STATE_T) = struct
   let mkerrvi so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { vi_desc=VIerror s; vi_loc=loc }
+    if env#keep_going_flag then
+      { vi_desc=VIerror s; vi_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mkth so eo es = { th_exceptions=es; th_loc=(get_loc so eo) }
   let mkcnb so eo eci bss = { cnb_explicit_constructor_invocation=eci;
@@ -1622,7 +1674,10 @@ module F (Stat : STATE_T) = struct
   let mkerreci so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { eci_desc=ECIerror s; eci_loc=loc }
+    if env#keep_going_flag then
+      { eci_desc=ECIerror s; eci_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
   let mkmr so eo d = { mr_desc=d; mr_loc=(get_loc so eo) }
   let mkargs so eo d = _mkargs (get_loc so eo) d
@@ -1635,7 +1690,10 @@ module F (Stat : STATE_T) = struct
   let mkerrbs so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
-    { bs_desc=BSerror s; bs_loc=loc }
+    if env#keep_going_flag then
+      { bs_desc=BSerror s; bs_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
 
 
   let mklvd so eo ms ty vds = { lvd_modifiers=ms; 

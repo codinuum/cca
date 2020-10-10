@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -91,6 +91,19 @@ module Effect =
 
 let find_largest_1 beta_array psi_array tree1 tree2 (i, j) =
   let li, lj = tree1#leftmost i, tree2#leftmost j in
+
+(*
+  let psi_array = Array.make_matrix (i - li + 2) (j - lj + 2) (-1, []) in
+
+  let set_psi_array (li, s, lj, t) n efs =
+    let li, s, lj, t = conv(li, s, lj, t) in
+    psi_array.(s - li + 1).(t - lj + 1) <- (n, efs)
+  in
+  let psi(li, s, lj, t) =
+    let li, s, lj, t = conv(li, s, lj, t) in
+    psi_array.(s - li + 1).(t - lj + 1)
+  in
+*)
 
   let set_psi_array (li, s, lj, t) n efs =
     let li, s, lj, t = conv(li, s, lj, t) in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,15 +21,52 @@ module Comp = Compression
 let sprintf = Printf.sprintf
 
 let header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+(*
+let rules = [
+  "&",  "&amp;";
+  "<",  "&lt;";
+  ">",  "&gt;";
+  "\"", "&quot;";
+  "'",  "&apos;";
+]
 
-let encode_string =
-  let unsafe_chars =
-    "'"^Netencoding.Html.unsafe_chars_html4
+let inv_rules = List.map (fun (o, n) -> n, o) rules
+
+let mkpat rules =
+  Str.regexp
+    (String.concat "\\|"
+       (List.map (fun (x, _) -> sprintf "\\(%s\\)" x) rules))
+
+let subst rules =
+  let pat = mkpat rules in
+  let conv s =
+    let ss = Str.matched_string s in
+    try
+      List.assoc ss rules
+    with
+      Not_found -> s
   in
-  Netencoding.Html.encode ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 ~unsafe_chars ()
+  Str.global_substitute pat conv
 
-let decode_string =
-  Netencoding.Html.decode ~entity_base:`Xml ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 ()
+
+let encode_string = subst rules
+
+let decode_string = subst inv_rules
+*)
+
+
+(*let unsafe_chars = "'\t\n"^Netencoding.Html.unsafe_chars_html4*)
+let unsafe_chars = Netencoding.Html.unsafe_chars_html4
+
+let encode_string s =
+  let x = String.escaped s in
+  Netencoding.Html.encode ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 ~unsafe_chars () x
+
+let decode_string s =
+  let x =
+    Netencoding.Html.decode ~entity_base:`Xml ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 () s
+  in
+  Scanf.unescaped x
 
 
 let get_local_part qualified_name =

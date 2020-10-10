@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -20,7 +20,12 @@ class c = object (self)
   val mutable fact_flag                        = false
   val mutable fact_restricted_flag             = false
   val mutable fact_add_versions_flag           = false
+  val mutable fact_for_changes_flag            = false
+  val mutable fact_for_changes_basic_flag      = false
+  val mutable fact_for_mapping_flag            = false
+  val mutable fact_for_mapping_restricted_flag = false
   val mutable fact_for_ast_flag                = false
+  val mutable fact_for_delta_flag              = false
   val mutable fact_compress_flag               = true
 
   val mutable fact_proj              = ""
@@ -46,9 +51,29 @@ class c = object (self)
   method set_fact_add_versions_flag = fact_add_versions_flag <- true
   method clear_fact_add_versions_flag = fact_add_versions_flag <- false
 
+  method fact_for_changes_flag = fact_for_changes_flag
+  method set_fact_for_changes_flag = fact_for_changes_flag <- true
+  method clear_fact_for_changes_flag = fact_for_changes_flag <- false
+
+  method fact_for_changes_basic_flag = fact_for_changes_basic_flag
+  method set_fact_for_changes_basic_flag = fact_for_changes_basic_flag <- true
+  method clear_fact_for_changes_basic_flag = fact_for_changes_basic_flag <- false
+
+  method fact_for_mapping_flag = fact_for_mapping_flag
+  method set_fact_for_mapping_flag = fact_for_mapping_flag <- true
+  method clear_fact_for_mapping_flag = fact_for_mapping_flag <- false
+
+  method fact_for_mapping_restricted_flag = fact_for_mapping_restricted_flag
+  method set_fact_for_mapping_restricted_flag = fact_for_mapping_restricted_flag <- true
+  method clear_fact_for_mapping_restricted_flag = fact_for_mapping_restricted_flag <- false
+
   method fact_for_ast_flag = fact_for_ast_flag
   method set_fact_for_ast_flag = fact_for_ast_flag <- true
   method clear_fact_for_ast_flag = fact_for_ast_flag <- false
+
+  method fact_for_delta_flag = fact_for_delta_flag
+  method set_fact_for_delta_flag = fact_for_delta_flag <- true
+  method clear_fact_for_delta_flag = fact_for_delta_flag <- false
 
   method fact_compress_flag = fact_compress_flag
   method set_fact_compress_flag = 

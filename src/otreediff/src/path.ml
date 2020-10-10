@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-
 
 module Elem = struct
 
@@ -69,6 +68,9 @@ module Elem = struct
       elem.pos + (int_of_float elem.ofs)
     else
       elem.pos
+
+  let compare elem0 elem1 =
+    compare (elem0.pos, elem0.ofs) (elem1.pos, elem1.ofs)
 
 end (* module Path.Elem *)
 
@@ -129,6 +131,17 @@ let remove_head head path = (* ignore ofs *)
       in
       PATH (List.rev (doit (List.rev hd) (List.rev pa)))
 
+let remove_head_n n path = (* ignore ofs *)
+  DEBUG_MSG "removing %d elems from \"%s\"" n (to_string path);
+  match path with
+  | PATH pa ->
+      let rec doit i l =
+        match l with
+        | _::l1 when i > 0 -> doit (i-1) l1
+        | [] when i > 0 -> failwith "Path.remove_head"
+        | _ -> l
+      in
+      PATH (List.rev (doit n (List.rev pa)))
 
 let get_positions = function
   | PATH elems ->
@@ -236,3 +249,21 @@ let is_prefix ?(exact=true) path0 path =
       p = path0
     else
       eq p path0
+
+let compare path0 path1 =
+  match path0, path1 with
+  | PATH el0, PATH el1 -> begin
+      let rec scan = function
+        | e0::t0, e1::t1 -> begin
+            let c = Elem.compare e0 e1 in
+            if c = 0 then
+              scan (t0, t1)
+            else
+              c
+        end
+        | _::_, [] -> -1
+        | [], _::_ -> 1
+        | [], [] -> 0
+      in
+      scan (List.rev el0, List.rev el1)
+  end

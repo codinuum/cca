@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -88,6 +88,15 @@ let get_stable_matches ?(check=false) cmpr array1 array2 =
       (fun x -> Stack.push x stack) 
       (List.fast_sort (cmpr#compare_LR i) (Xlist.range sz2))
   done;
+
+(*
+  Array.iteri
+  (fun i stack ->
+  Printf.printf "pref_array1[%d]" i;
+  Stack.iter (fun j -> Printf.printf " %d" j) stack;
+  Printf.printf "\n"
+  ) pref_array1;
+ *)
 
   (* setup status arrays *)
   let stat_array1 = Array.make sz1 Sfree in

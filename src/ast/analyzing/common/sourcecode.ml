@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 open Otreediff
 
 module GI  = GIndex
+module MID = Moveid
 module C   = Compression
 module SB  = Spec_base
 
@@ -56,9 +57,6 @@ let search_pat pats file =
   !b
 
 let is_generated f = search_pat [bison_pat;flex_pat] f
-
-
-
 
 
 let unknown_origin = "-1"
@@ -181,8 +179,8 @@ module Tree (L : Spec.LABEL_T) = struct
       ?(annot=L.null_annotation) 
       ?(ordinal_tbl_opt=(None : ordinal_tbl option))
       ?(orig_lab_opt=(None : L.t option))
-      (lab : L.t) = 
-
+      (lab : L.t)
+      =
     let is_named      = L.is_named lab in
     let is_named_orig = L.is_named_orig lab in
     let category      = L.get_category lab in
@@ -192,6 +190,16 @@ module Tree (L : Spec.LABEL_T) = struct
       inherit Otree.data2
 
       constraint 'node = 'self Otree.node2
+
+      val mutable prefix = ""
+      method set_prefix s = prefix <- s
+      method get_prefix = prefix
+
+      val mutable suffix = ""
+      method set_suffix s = suffix <- s
+      method get_suffix = suffix
+
+      val mutable _eq = fun _ -> false
 
       val mutable source_fid = ""
       method set_source_fid x = source_fid <- x
@@ -239,6 +247,45 @@ module Tree (L : Spec.LABEL_T) = struct
         | Some d -> rep <- String.concat "" [rep;"<";d;">"]
         | None -> ()
 
+      method elem_name_for_delta =
+        let n, _, _ = self#to_elem_data_for_delta in
+        n
+
+      method orig_elem_name_for_delta =
+        let n, _, _ = self#orig_to_elem_data_for_delta in
+        n
+
+      method elem_attrs_for_delta =
+        let _, attrs, _ = self#to_elem_data_for_delta in
+        attrs
+
+      method orig_elem_attrs_for_delta =
+        let _, attrs, _ = self#orig_to_elem_data_for_delta in
+        attrs
+        
+      method change_attr (attr : string) (v : string) =
+        let name, attrs, _ = self#orig_to_elem_data_for_delta in
+        if List.mem_assoc attr attrs then begin
+          let attrs' = List.remove_assoc attr attrs in
+          let lab' = of_elem_data name ((attr, v)::attrs') in
+          DEBUG_MSG "%s -> %s" (L.to_string lab) (L.to_string lab');
+          orig_lab_opt <- Some lab';
+          (*self#update*)
+        end
+
+      method delete_attr (attr : string) =
+        let name, attrs, _ = self#orig_to_elem_data_for_delta in
+        let attrs' = List.remove_assoc attr attrs in
+        orig_lab_opt <- Some (of_elem_data name attrs');
+        (*self#update*)
+
+      method insert_attr (attr : string) (v : string) =
+        let name, attrs, _ = self#orig_to_elem_data_for_delta in
+        let attrs' = List.remove_assoc attr attrs in
+        orig_lab_opt <- Some (of_elem_data name ((attr, v)::attrs'));
+        (*self#update*)
+
+
       val successors = (Xset.create 0 : 'node Xset.t)
       method successors = successors
       method add_successor nd = Xset.add successors nd
@@ -252,6 +299,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method add_binding (b : Binding.t) =
         if not (List.mem b bindings) then
           bindings <- b :: bindings
+
 
       method get_ident_use = L.get_ident_use lab
 
@@ -275,6 +323,17 @@ module Tree (L : Spec.LABEL_T) = struct
       method relabel_allowed (ndat : 'self) = 
 	L.relabel_allowed (lab, (Obj.obj ndat#_label : L.t))
 
+      method is_compatible_with (ndat : 'self) =
+        L.is_compatible lab (Obj.obj ndat#_label : L.t) ||
+        match orig_lab_opt, ndat#orig_lab_opt with
+        | Some l1, Some o2 -> L.is_compatible l1 (Obj.obj o2)
+        | _ -> false
+
+      method is_order_insensitive = L.is_order_insensitive lab
+
+      method move_disallowed = L.move_disallowed lab
+
+      method is_common = L.is_common lab
 
       method _anonymized_label = Obj.repr (L.anonymize lab)
 
@@ -338,7 +397,18 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method to_elem_data = L.to_elem_data self#src_loc lab
 
-      method eq ndat = _label = ndat#_label && self#orig_lab_opt = ndat#orig_lab_opt
+      method to_elem_data_for_delta = L.to_elem_data ~strip:true self#src_loc lab
+
+      method orig_to_elem_data_for_delta =
+        let lab_ =
+          match orig_lab_opt with
+          | Some l -> l
+          | None -> lab
+        in
+        L.to_elem_data ~strip:true self#src_loc lab_
+
+      method eq ndat = _eq ndat
+        (*_label = ndat#_label && self#orig_lab_opt = ndat#orig_lab_opt*)
 
       method subtree_equals ndat = 
 	self#eq ndat && _digest = ndat#_digest && _digest <> None
@@ -371,6 +441,15 @@ module Tree (L : Spec.LABEL_T) = struct
       method get_category = category
       method get_name = L.get_name lab
       method get_value = L.get_value lab
+      method has_value = L.has_value lab
+      method has_non_trivial_value = L.has_non_trivial_value lab
+      method is_string_literal = L.is_string_literal lab
+      method is_int_literal = L.is_int_literal lab
+      method is_real_literal = L.is_real_literal lab
+
+      val mutable move_id = MID.unknown
+      method set_mid mid = move_id <- mid
+      method mid = move_id
 
       method orig_lab_opt =
         match orig_lab_opt with
@@ -378,6 +457,21 @@ module Tree (L : Spec.LABEL_T) = struct
         | None -> None
 
       initializer
+        _eq <-
+          if options#weak_flag then
+            (fun x ->
+              _label = x#_label && self#orig_lab_opt = x#orig_lab_opt ||
+              (not self#is_named_orig) && (not self#has_value) &&
+              (not x#is_named_orig) && (not x#has_value) &&
+              self#elem_name_for_delta = x#elem_name_for_delta ||
+              (match self#orig_lab_opt, x#orig_lab_opt with
+              | Some o1, Some o2 -> o1 = o2
+              | Some o1, None -> L.is_compatible (Obj.obj o1) (Obj.obj x#_label)
+              | None, Some o2 -> L.is_compatible (Obj.obj _label) (Obj.obj o2)
+              | _ -> false) ||
+              self#is_compatible_with x)
+          else
+            (fun x -> _label = x#_label && self#orig_lab_opt = x#orig_lab_opt);
 	self#update
 
 	    
@@ -416,6 +510,15 @@ module Tree (L : Spec.LABEL_T) = struct
     Otree.create_node2 options#uid_generator
       (new node_data options ~annot ~orig_lab_opt lab) [||]
 
+  let _get_logical_nth_child nd nth =
+    let l = ref [] in
+    Array.iteri
+      (fun i x ->
+        if (nd#data#get_ordinal i) = nth then
+          l := x :: !l
+      ) nd#children;
+    Array.of_list (List.rev !l)
+
   let get_logical_nth_child nd nth =
     let l = ref [] in
     Array.iteri
@@ -449,7 +552,14 @@ module Tree (L : Spec.LABEL_T) = struct
   let make_unparser unparse node ch =
     let redirect = not (SB.OutChannel.is_stdout ch) in
     if redirect then begin
-      Format.set_formatter_out_channel (SB.OutChannel.to_pervasives ch)
+      try
+        Format.set_formatter_out_channel (SB.OutChannel.to_pervasives ch)
+      with
+        _ ->
+          let xc = SB.OutChannel.to_xchannel ch in
+          let out s pos len = ignore (xc#output_ s pos len) in
+          let flush () = xc#close in
+          Format.set_formatter_output_functions out flush
     end;
     unparse node;
     if redirect then begin
@@ -468,10 +578,11 @@ module Tree (L : Spec.LABEL_T) = struct
 
     method extra_namespaces = ([] : (string * string) list)
 
-    method unparse_subtree_ch : node_t -> SB.OutChannel.t -> unit =
-      fun _ _ -> failwith "Sourcecode.unparse_subtree_ch: unparser is not implemented yet"
+    method unparse_subtree_ch : ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit =
+      fun ?(fail_on_error=true) _ _ ->
+        failwith "Sourcecode.unparse_subtree_ch: unparser is not implemented yet"
         
-    method unparse_ch = self#unparse_subtree_ch root
+    method unparse_ch ?(fail_on_error=true) = self#unparse_subtree_ch ~fail_on_error root
 
     method get_digest nd =
       let st = self#create nd false in
@@ -488,6 +599,8 @@ module Tree (L : Spec.LABEL_T) = struct
     method set_true_children_tbl tbl = true_children_tbl <- tbl
 
     method recover_true_children ~initial_only () =
+      (*Printf.printf "! [before] initial_size=%d (initial_only=%B)\n"
+        self#initial_size initial_only;*)
       DEBUG_MSG "initial_only=%B" initial_only;
       let modified = ref false in
       Hashtbl.iter 
@@ -496,15 +609,24 @@ module Tree (L : Spec.LABEL_T) = struct
 	  DEBUG_MSG "recovering true children: %a -> [%s]"
 	    UID.ps nd#uid (Xarray.to_string (fun n -> UID.to_string n#uid) ";" c);
 
+          (*if (Array.length nd#initial_children) <> (Array.length c) then begin
+            Printf.printf "!!! %s\n" nd#initial_to_string;
+	    Printf.printf "!!! [%s] -> [%s]\n"
+              (Xarray.to_string (fun n -> UID.to_string n#uid) ";" nd#initial_children)
+	      (Xarray.to_string (fun n -> UID.to_string n#uid) ";" c)
+          end;*)
+
 	  nd#set_initial_children c;
           if not initial_only then
-            nd#set_children c;
+	    nd#set_children c;
 	  Array.iteri
             (fun i n ->
               n#set_initial_parent nd;
               n#set_initial_pos i;
-              if not initial_only then
-                n#set_parent nd
+              if not initial_only then begin
+                n#set_parent nd;
+                n#set_pos i
+              end
             ) c;
 	  modified := true
 	) true_children_tbl;
@@ -522,7 +644,8 @@ module Tree (L : Spec.LABEL_T) = struct
 	self#setup_gindex_table;
 	self#setup_initial_leftmost_table;
         self#setup_apath
-      end
+      end(*;
+      Printf.printf "! [after] initial_size=%d\n" self#initial_size*)
 
     val mutable source_path = "unknown"
     method set_source_path p = source_path <- p
@@ -532,7 +655,7 @@ module Tree (L : Spec.LABEL_T) = struct
     method set_source_fullpath p = source_fullpath <- p
     method source_fullpath = source_fullpath
 
-    val mutable source_kind = Storage.K_DUMMY
+    val mutable source_kind = Storage.kind_dummy
     method set_source_kind k = source_kind <- k
     method source_kind = source_kind
 
@@ -697,6 +820,18 @@ module Tree (L : Spec.LABEL_T) = struct
 		  children
 	       )
 	    )
+
+(*
+  val mutable line_terminator = ""
+  method set_line_terminator s = line_terminator <- s
+  method line_terminator = line_terminator
+  method line_terminator_name =
+  match line_terminator with
+  "\013\010" -> "CRLF"
+  | "\013" -> "CR"
+  | "\010" -> "LF"
+  | _ -> "??"
+ *)
 
     method dump_line_ranges fpath =
       let ch = open_out fpath in
@@ -887,7 +1022,7 @@ module Tree (L : Spec.LABEL_T) = struct
       try
 	Xlist.last !common, List.length !common
       with 
-	Failure _ -> 
+	Failure _ ->
 	  BEGIN_DEBUG
             let nds_to_str nds = (String.concat ", " (List.map (fun n -> GI.to_string n#gindex) nds)) in
 	    DEBUG_MSG "nearest_common_ancestor of [%s]\n" (nds_to_str nds);
@@ -905,7 +1040,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let get i =
 	try
 	  List.nth row i
-	with 
+	with
 	  Failure _ ->
 	    ERROR_MSG "_get_origin.get: index out of bounds: i=%d row=%s" 
 	      i (Xlist.to_string (fun x -> x) ", " row);
@@ -1389,9 +1524,21 @@ module Tree (L : Spec.LABEL_T) = struct
 	  | [] -> []
 	in
 	let segs = scan [] [] m in
+(*	let nsegs = List.length segs in*)
 	let sizes = List.map (fun seg -> List.length seg) segs in
 	let locs = List.map merge_locs segs in
+(*
+  let sum_size =
+  List.fold_left
+  (fun s sz ->
+  s + sz
+  ) 0 sizes
+  in
+ *)
 	let rels = List.map (fun seg -> List.filter (fun n -> List.memq n relabeled_nds) seg) segs in
+(*
+  let ave_size = (float sum_size) /. (float nsegs) in
+ *)
 	let ranges = 
 	  let get_range seg =
 	    let last = List.hd (List.rev seg) in
@@ -1495,6 +1642,11 @@ module Tree (L : Spec.LABEL_T) = struct
       let renamed_nodes = List.filter (fun nd -> nd#data#is_named) relabeled_nodes in
       let nrenamed = List.length renamed_nodes in
       let wemr = (float nmats) /. (float (nmats + nrenamed)) in (* WEMR: weak EMR *)
+
+(*
+  Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n" 
+  nmats tokpat_len sim nrels str emr wemr loc pathash;
+ *)
 
       (* secondary matching *)
       if nmats > 0 then begin
@@ -1633,12 +1785,41 @@ module Tree (L : Spec.LABEL_T) = struct
 	);
       !labs
 
+    method dump_subtree_for_delta_ch
+        (root : node_t) 
+        (except : node_t list) 
+        (ch : Xchannel.out_channel)
+        =
+      let fprintf = Xchannel.fprintf in
+      let attrs_to_string attrs =
+        String.concat "" 
+          (List.map 
+             (fun (a, v) ->
+               sprintf " %s=\"%s\"" a v
+             ) attrs)
+      in
+      let rec doit nd =
+        if not (List.memq nd except) then
+          let name, attrs, _ = nd#data#orig_to_elem_data_for_delta in
+          if nd#is_leaf then begin
+	    fprintf ch "<%s%s/>" name (attrs_to_string attrs)
+          end
+          else begin
+	    fprintf ch "<%s%s>" name (attrs_to_string attrs);
+            Array.iter doit nd#initial_children;
+            fprintf ch "</%s>" name
+          end
+      in
+      doit root
+
+
   end (* of class Sourcecode.Tree.c *)
 
 
   module PxpD = Pxp_document
 
   exception Ignore
+
 
   let attrs_of_anodes anodes =
     List.fold_left 
@@ -1648,10 +1829,7 @@ module Tree (L : Spec.LABEL_T) = struct
         | _ -> assert false
       ) [] anodes
 
-  let xnode_to_string (xnode : 'a PxpD.node) =
-    let buf = Buffer.create 0 in
-    xnode#write (`Out_buffer buf) `Enc_utf8;
-    Buffer.contents buf
+  let xnode_to_string = Delta_base.xnode_to_string
 
   let of_xnode 
       ?(tree_creator=fun options nd -> new c options nd true) 
@@ -1660,13 +1838,23 @@ module Tree (L : Spec.LABEL_T) = struct
       =
     let rec scan_xnode xnode =
       match xnode#node_type with
-      | PxpD.T_element name -> begin
-	  let children = scan_xnodes xnode#sub_nodes in
-	  let anodes = xnode#attributes_as_nodes in
-	  let attrs = attrs_of_anodes anodes in
-	  let nd = mknode options (of_elem_data name attrs) children in
-	  nd
-      end
+      | PxpD.T_element name ->
+	  if name = Delta_base.text_tag then begin
+            failwith (sprintf "illegal node: %s" (xnode_to_string xnode))
+          end
+	  else begin
+	    let children = scan_xnodes xnode#sub_nodes in
+
+	    let anodes = xnode#attributes_as_nodes in
+	    let attrs = attrs_of_anodes anodes in
+(*
+  let nchildren = List.length children in
+  if nchildren > 0 then L.add_collapse_target name;
+ *)
+	    let nd = mknode options (of_elem_data name attrs) children in
+	    nd
+	  end
+
       | t -> begin
 	  Xprint.warning "ignored: %s" (XML.node_type_to_string xnode#node_type);
 	  raise Ignore
@@ -1682,10 +1870,26 @@ module Tree (L : Spec.LABEL_T) = struct
     (* end of func Sourcecode.Tree.node_of_xnode *)
 
 
+
 end (* of functor Sourcecode.Tree *)
 
 
 
+
+let find_nearest_p_ancestor_node pred nd =
+  let rec scan n =
+    try
+      let pn = n#initial_parent in
+      if pred pn then
+	pn
+      else
+	scan pn
+    with
+      Otreediff.Otree.Parent_not_found _ -> raise Not_found
+  in
+  let a = scan nd in
+  DEBUG_MSG "%a --> %a" UID.ps nd#uid UID.ps a#uid;
+  a
 
 let find_nearest_mapped_ancestor_node is_mapped nd =
   let rec scan n =
@@ -1701,7 +1905,6 @@ let find_nearest_mapped_ancestor_node is_mapped nd =
   let a = scan nd in
   DEBUG_MSG "%a --> %a" UID.ps nd#uid UID.ps a#uid;
   a
-
 
 let find_nearest_mapped_descendant_nodes is_mapped node =
   let rec get nd =

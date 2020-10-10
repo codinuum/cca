@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ class c = object
 
   method add_extensions es =
     DEBUG_MSG "[%s]" (String.concat "," es);
+    Xprint.verbose verbose_flag "supported extensions: %s" (String.concat "," es);
     List.iter (Xset.add extensions) es
 
   method get_extension name =

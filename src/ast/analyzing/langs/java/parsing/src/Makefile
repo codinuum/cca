@@ -50,7 +50,7 @@ LANGS_COMMON_OBJS_DEP = $(foreach f,$(LANGS_COMMON_OBJS),$(LANGS_COMMON_DIR)/$(f
 COMMON_OBJS = base_options.cmo fs_options.cmo hash_options.cmo basic_options.cmo \
 	storage.cmo fs.cmo
 COMMON_OBJS_DEP = $(foreach f,$(COMMON_OBJS),$(COMMON_DIR)/$(f))
-UTIL_OBJS = xprint.cmo xstring.cmo xlist.cmo xfile.cmo xset.cmo xhash.cmo xarray.cmo xoption.cmo
+UTIL_OBJS = xprint.cmo xstring.cmo xlist.cmo xfile.cmo xqueue.cmo xset.cmo xhash.cmo xarray.cmo xoption.cmo
 UTIL_OBJS_DEP = $(foreach f,$(UTIL_OBJS),$(UTIL_DIR)/$(f))
 OTHER_OBJS = $(UTIL_OBJS) $(COMMON_OBJS) $(LANGS_COMMON_OBJS)
 OTHER_OBJS_DEP = $(UTIL_OBJS_DEP) $(COMMON_OBJS_DEP) $(LANGS_COMMON_OBJS_DEP)
@@ -74,7 +74,7 @@ USE_MENHIR = true
 
 #MENHIR_TRACE = --trace
 
-MENHIRFLAGS = $(MENHIR_TRACE) --table --explain --external-tokens Tokens_ --infer --ocamlc "ocamlc $(INCLS)" #--error-recovery
+MENHIRFLAGS = $(MENHIR_TRACE) --table --explain --external-tokens Tokens_ --infer --ocamlc "ocamlc $(INCLS)" --inspection #--error-recovery
 
 
 include $(SRC_DIR)/rules.mk
@@ -98,8 +98,8 @@ $(DEP)/classinfo.d: classtbl.ml
 
 
 
-$(TOKENS_ML): $(MLY)
-	$(MENHIR) --base $(TOKENS) --only-tokens $(MLY)
+$(TOKENS_ML): $(MLY) parser_aux.ml
+	$(MENHIR) --base $(TOKENS) --only-tokens $(MLY) --table --inspection
 
 $(DEP)/tokens_.d: $(TOKENS_ML)
 

@@ -13,26 +13,32 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-include Lib_base
+(* *)
 
-let _ =
-  Lang_base.register Sastml.parser_name
-    (new Lang_base.c 
-       ~make_tree_builder:(new tree_builder)
-       ~get_cache_key:file_digest_hex
-       ~extract_fact:extract_fact
-    )
+type t = MOVE of int
 
-(* for external parsers *)
+let to_string = function
+  | MOVE i -> Printf.sprintf "#%dM" i
 
-let _ =
-  Lang_base.register_external Sastml.parser_name Sastml.xparser_name_ccx
-    (fun subname name ->
-      new Lang_base.c 
-        ~subname
-        ~make_tree_builder:(new ext_tree_builder subname)
-        ~get_cache_key:ext_file_digest_hex
-        ~extract_fact:FactCCX.extract
-        ~node_filter:FactCCX.node_filter
-        name
-    )
+let to_raw = function
+  | MOVE i -> Printf.sprintf "%d" i
+
+let of_string s = MOVE (int_of_string s)
+
+let unknown = MOVE (-1)
+
+let p ch mid = Stdlib.output_string ch (to_string mid)
+
+let r ch mid = Stdlib.output_string ch (to_raw mid)
+
+let ps () mid = to_string mid
+
+class generator = object
+  val mutable id = 0
+  method reset = id <- 0
+  method gen =
+    id <- id + 1;
+    let mid = MOVE id in
+    DEBUG_MSG "%a" ps mid;
+    mid
+end

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -25,6 +25,24 @@ module F (W : Weight.T) = struct
   exception Found of int * W.t
   exception Break
 
+(*
+  let pair_le (u, v) (x, y) =
+    u < x || (u = x && v <= y)
+
+  let pair_eq (u, v) (x, y) =
+    u = x && v = y
+
+  let pair_lt (u, v) (x, y) =
+    u < x
+
+  let comp_pair p q =
+    if pair_eq p q then
+      0
+    else if pair_lt p q then
+      -1
+    else
+      1
+*)
   let comp_pair (u, v) (x, y) =
     if u = x && v = y then
       0

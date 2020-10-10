@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -138,8 +138,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp not_star_not_slash = [^'*' '/'] | unicode_escape | "\013\010"
   let regexp not_star = [^'*'] | unicode_escape | "\013\010"
 
-
-  let regexp java_letter = ['A'-'Z' 'a'-'z' '_' '$' 880-1023 1024-1279]
+ (* 880-1023:Greek 4352-4607,43360-43391,44032-55215,55216-55295:Hangul *)
+  let regexp java_letter = ['A'-'Z' 'a'-'z' '_' '$' 880-1023 1024-1279 4352-4607 43360-43391 44032-55215 55216-55295]
   let regexp java_letter_or_digit = java_letter | ['0'-'9']
   let regexp identifier_chars = java_letter java_letter_or_digit*
   let regexp identifier_or_keyword = identifier_chars
@@ -244,6 +244,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
   |   string_literal         -> mktok (STRING_LITERAL (Ulexing.utf8_lexeme lexbuf)) lexbuf
   |   null_literal           -> mktok NULL lexbuf
 
+  |   ">>>>>>>" -> mktok GT_7 lexbuf
+  |   "=======" -> marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
+  |   "|||||||" -> marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
+  |   "<<<<<<<" -> marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
+
   |   "==" -> mktok EQ_EQ lexbuf
   |   "<=" -> mktok LT_EQ lexbuf
   |   ">=" -> mktok GT_EQ lexbuf
@@ -326,6 +331,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
   |   "*/" -> env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st (Ulexing.lexeme_end lexbuf))
   |   _ -> document_comment st lexbuf
 
+  and marker st s = lexer
+  |   line_terminator -> (MARKER s), mklexpos st, mklexpos ((Ulexing.lexeme_end lexbuf) - 1)
+  |   _ -> marker st (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
+
 
   let set_to_JLS2 loc kw =
     match env#java_lang_spec with
@@ -333,7 +342,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 	Common.warning_loc loc "'%s' occurred as an identifier, assuming JLS2..." kw;
 	env#set_java_lang_spec_JLS2
     | Common.JLS3 -> 
-	Aux.parse_error_loc loc (Printf.sprintf "'%s' identifier is not available in JLS3" kw)
+        Aux.parse_error_loc loc "'%s' identifier is not available in JLS3" kw
     | Common.JLS2 -> ()
 
 
@@ -511,13 +520,16 @@ module F (Stat : Parser_aux.STATE_T) = struct
                   Queue.Empty -> token ulexbuf
               in
               begin
+                let blv = ref 0 in
                 try
                   while true do
                     let t = take() in
                     last := t;
                     q0#add t;
                     match Token.to_rawtoken t with
-                    | SEMICOLON -> raise Exit
+                    | SEMICOLON when !blv = 0 -> raise Exit
+                    | LBRACE -> incr blv
+                    | RBRACE -> decr blv
                     | _ -> ()
                   done
                 with
@@ -581,4 +593,3 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
 end (* of functor Ulexer.F *)
-

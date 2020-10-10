@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ let create n = (Hashtbl.create n : 'a t)
 let clear (set : 'a t) = Hashtbl.clear set
 
 let length (set : 'a t) = Hashtbl.length set
+let size = length
 
 let is_empty (set : 'a t) = (length set) = 0
 

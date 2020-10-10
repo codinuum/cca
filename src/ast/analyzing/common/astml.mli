@@ -1,3 +1,18 @@
+(*
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*)
 
 exception External_parser_not_found of string
 
@@ -11,16 +26,20 @@ val ast_ns : string
 val c_ns : string
 val cx_ns : string
 val ccx_ns : string
+val cpp_ns : string
 val java_ns : string
 val python_ns : string
 val verilog_ns : string
+val fortran_ns : string
 val default_prefix : string
 val c_prefix : string
 val cx_prefix : string
 val ccx_prefix : string
+val cpp_prefix : string
 val java_prefix : string
 val python_prefix : string
 val verilog_prefix : string
+val fortran_prefix : string
 val parser_tbl : (string * string) list
 val get_prefix_by_ns : string -> string
 val add_prefix : string -> string -> string
@@ -57,7 +76,7 @@ val to_elem_data :
 
 module Attr : sig
   val _find_attr : ('a * 'b) list -> 'a -> 'b
-  val find_attr : ('a * string) list -> 'a -> string
+  val find_attr : ?default:string -> ('a * string) list -> 'a -> string
   val find_attr_opt : ('a * 'b) list -> 'a -> 'b option
   val find_tid : (string * string) list -> string * string
   val find_stmttid : (string * string) list -> string * string
@@ -70,7 +89,7 @@ module Attr : sig
   val find_nth : (string * string) list -> int
   val find_value_u : (string * string) list -> string
   val find_path : (string * string) list -> string
-  val find_ident : (string * string) list -> string
+  val find_ident : ?default:string -> (string * string) list -> string
   val find_name_opt : (string * 'a) list -> 'a option
   val _vdid_of_string : string -> string list
   val vdid_of_string : string -> string * int

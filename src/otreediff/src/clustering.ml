@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -67,8 +67,16 @@ let exact_cluster otree1 otree2 mapping edits =
   in
   List.map
     (function {contents=cluster} ->
+(*      let clu1, clu2 = List.split cluster in *)
       List.filter 
 	(fun (i, j) -> true
+(*
+	  let nd1, nd2 = otree1#get i, otree2#get j in
+	  let cis1, cis2 = nd1#children_indexes, nd2#children_indexes in
+	  let cond1 = List.exists (fun i -> not(List.mem i clu1)) cis1 in
+	  let cond2 = List.exists (fun j -> not(List.mem j clu2)) cis2 in
+	  not(cond1 || cond2)
+*)
 	) cluster
     ) clusters
 

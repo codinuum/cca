@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -114,7 +114,7 @@ class out_channel ?(overwrite=true) ?(comp=C.none) dest
 
     method output_ (buf : string) pos len =
       try
-       och#output (Bytes.of_string buf) pos len
+	och#output (Bytes.of_string buf) pos len
       with
       | e -> raise (Error (Printexc.to_string e))
 
@@ -134,6 +134,7 @@ let output_bytes (ch : out_channel) b =
 let output_string (ch : out_channel) s =
   let b = Bytes.of_string s in
   output_bytes ch b
+
 
 let fprintf ch fmt = Printf.ksprintf (output_string ch) fmt
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
    limitations under the License.
 *)
 (* 
- * Ordered labeled trees
+ * Ordered labeled trees for differentiation
  *
  * otree.ml
  *
@@ -192,6 +192,7 @@ class [ 'a ] node (d : 'a) =
       Array.iteri (fun i ochild -> ochild#set_pos (i+len)) old_children
 
     method add_child pos child =
+      (*printf "!!! add_child: %s (pos=%d) %s\n" self#to_string pos child#to_string;*)
       let children = self#children in
       let len = self#nchildren in
       if pos = 0 then self#add_child_leftmost child
@@ -439,6 +440,19 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
       
       DEBUG_MSG "(self=%a): old children=[%s]" UID.ps self#uid
 	(Xarray.to_string (fun nd -> UID.to_string nd#uid) "," self#children);
+(*
+      printf "!!! replace_children: (self=%a) {%s}\n" UID.p self#uid
+	(Xlist.to_string 
+	   (fun (pos, children) -> 
+	     sprintf "(%d,[%s])" 
+	       pos 
+	       (Xarray.to_string (fun n -> UID.to_string n#uid) ";" children)
+	   ) ";" pos_and_children_list);
+      
+      printf "!!! old children=[%s]\n"
+	(Xarray.to_string (fun nd -> UID.to_string nd#uid) "," self#children);
+*)
+(*      super#replace_children pos_and_children_list; *)
 
       let c = ref [] in
       let nchildren = if initial then self#initial_nchildren else self#nchildren in
@@ -480,6 +494,10 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
 
       DEBUG_MSG "(self=%a): new children=[%s]" UID.ps self#uid
 	(Xarray.to_string (fun nd -> UID.to_string nd#uid) "," new_children);
+(*
+      printf "!!! new children=[%s]\n"
+	(Xarray.to_string (fun nd -> UID.to_string nd#uid) "," new_children);
+*)
 
     val mutable initial_children = ([||] : 'self array)
     method initial_children = initial_children
@@ -487,6 +505,8 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
       Array.to_list(Array.map (fun nd -> nd#uid) initial_children)
 
     method set_initial_children c =
+      (*printf "!!! set_initial_children: %a -> [%s]\n"
+        UID.p self#uid (Xarray.to_string (fun c -> UID.to_string c#uid) ";" c);*)
       initial_children <- Array.copy c
 
     method initial_nchildren = Array.length initial_children
@@ -600,6 +620,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
       | None -> raise (Parent_not_found (sprintf "initial:uid=%a" UID.ps self#uid))
 
     method set_initial_parent nd =
+      (*printf "!!! set_initial_parent: %a -> %a\n" UID.p self#uid UID.p nd#uid;*)
       initial_parent <- Some nd
 
     method has_initial_parent = 
@@ -662,7 +683,43 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         self#initial_nchildren self#initial_children (fun n -> n#set_initial_pos)
         self#set_initial_children
         posl
+(*
+    method prune_children posl =
+      let posl = List.fast_sort compare posl in
+      let posl = List.filter (fun p -> p >= 0) posl in
 
+      DEBUG_MSG "%s[%a](nchildren=%d) {%s}" 
+	self#to_string UID.ps self#uid self#nchildren
+	(Xlist.to_string string_of_int "," posl);
+
+      let nchildren = self#nchildren in
+      let a = self#children in
+      let start = ref 0 in
+      let res = ref [||] in
+      try
+	List.iter
+	  (fun pos ->
+	    let len = pos - !start in
+	    res := Array.append !res (Array.sub a !start len);
+	    start := pos + 1
+	  ) posl;
+	if !start < nchildren then
+	  res := Array.append !res (Array.sub a !start (nchildren - !start));
+
+	Array.iteri (fun i c -> c#set_pos i) !res;
+	
+	DEBUG_MSG "new children: [\n%s\n]" 
+	  (Xarray.to_string (fun nd -> nd#to_string) "\n" !res);
+
+	List.iter (fun p -> (self#nth_child p)#set_pos (-1)) posl;
+
+	self#set_children !res
+
+      with 
+	Invalid_argument s ->
+	  raise (Invalid_argument (sprintf "Otree.node2#prune_children: %s" self#to_string))
+    (* end of method prune_children *)
+*)
     method expand =
       if is_collapsed && not collapse_locked then begin
 	self#data#reset_digest;
@@ -763,6 +820,21 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
     method to_dot_str_ini ?(mklab=dot_label_of_node) () =
       sprintf "%a [label=\"%s\"];\n" UID.rs self#uid (mklab self)
 
+(*
+    method is_initial_ancestor_of (node : 'self) = (* inefficient *)
+      let rec proc_one nd =
+	try 
+	  let pnd = nd#initial_parent in
+	  if pnd#uid = uid then 
+	    true
+	  else
+	    proc_one pnd
+	with 
+	| Parent_not_found _ -> false
+      in
+      proc_one node
+*)
+
     method iter_initial_ancestor_nodes (f : 'self -> unit) = (* from the parent *)
       let rec proc_one nd =
 	try 
@@ -811,6 +883,11 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         pos (Path.Elem.ofs_to_str offset)
         (String.concat ";" (List.map (fun n -> UID.to_string n#uid) children));
 
+      (*Printf.printf "!!! v_insert_children: %s\npos=%d offset=%s [%s]\n"
+        self#to_string
+        pos (Path.Elem.ofs_to_str offset)
+        (String.concat ";" (List.map (fun n -> UID.to_string n#uid) children));*)
+
       self#mutation_tbl_add pos (Minsert(offset, children, later))
 
     method v_insert_child ?(later=false) ?(offset=(-1.)) pos child =
@@ -825,6 +902,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
     val mutable v_delete_child_count = 0
     method v_delete_child pos =
       DEBUG_MSG "pos=%d" pos;
+      (*printf "!!! v_delete_child: %a: pos=%d\n" UID.p self#uid pos;*)
       self#mutation_tbl_add pos Mdelete
 
     method v_delete_children = List.iter self#v_delete_child
@@ -837,6 +915,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
               List.iter
                 (function
                   | Minsert(_, _, true)(* as m*) ->
+                      (*printf "pos=%d %s\n" pos (mutation_to_string m);*)
                       raise Exit
                   | _ -> ()
                 ) ms
@@ -845,13 +924,26 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         with
           Exit -> true
       in
+      (*printf "has_later_mutation: %s -> %B\n" (UID.to_string uid) b;*)
       b
 
     method end_mutation ?(overwrite=true) () = (* flush mutations *)
       DEBUG_MSG "overrite=%B %s" overwrite self#initial_to_string;
+      (*printf "!!! end_mutation: overwrite=%B %s\n" overwrite self#initial_to_string;*)
+
+      (*printf "!!! %s:\n" self#initial_to_string;
+      Hashtbl.iter
+        (fun pos ms ->
+          printf "!!!   pos=%d:\n" pos;
+          List.iter
+            (fun m ->
+              printf "!!!     %s\n" (mutation_to_string m);
+            ) ms
+        ) mutation_tbl;*)
 
       let buf = ref [] in
       let push x =
+        (*printf "!!! [%s] push: %s\n" (UID.to_string uid) x#to_string;*)
         let b =
           overwrite ||
           let p_opt = try Some x#parent with _ -> None in
@@ -862,6 +954,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
           | _ -> false
         in
         if b then begin
+          (*printf "!!! pushed\n";*)
           buf := x :: !buf
         end
       in
@@ -869,6 +962,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
 
       if self#initial_nchildren = 0 then begin
         DEBUG_MSG "nchildren=0";
+        (*printf "!!! nchildren=0\n";*)
         try
           let ms = List.rev (Hashtbl.find mutation_tbl 0) in
           let _insl = List.filter (function Minsert _ -> true | _ -> false) ms in
@@ -878,6 +972,27 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                 match m0, m1 with
                 | (Minsert(o0, nds0, _)), (Minsert(o1, nds1, _)) -> begin
                     compare o0 o1
+                    (*if o0 = o1 && o0 <> 0. then begin
+                      try
+                        let c = ref 0 in
+                        let last0 = Xlist.last nds0 in
+                        let head1 = List.hd nds1 in
+                        if last0#initial_parent == head1#initial_parent then
+                          if last0#initial_pos < head1#initial_pos then
+                            c := -1;
+                        if !c = 0 then begin
+                          let last1 = Xlist.last nds1 in
+                          let head0 = List.hd nds0 in
+                          if last1#initial_parent == head0#initial_parent then
+                            if last1#initial_pos < head0#initial_pos then
+                              c := 1
+                        end;
+                        !c
+                      with
+                      | _ -> 0
+                    end
+                    else
+                      compare o0 o1*)
                 end
                 | _ -> 0
               ) _insl
@@ -886,6 +1001,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
             (function
               | Minsert(o, nds, _) ->
                   DEBUG_MSG "ofs=%s" (Path.Elem.ofs_to_str o);
+                  (*printf "!!! ofs=%s\n" (Path.Elem.ofs_to_str o);*)
                   push_multi nds
               | _ -> ()
             ) insl
@@ -897,6 +1013,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         Array.iteri
           (fun pos child ->
             DEBUG_MSG "pos=%d %s" pos child#initial_to_string;
+            (*printf "!!! %s: pos=%d %s\n" (UID.to_string uid) pos child#initial_to_string;*)
             
             try
               let ms = Hashtbl.find mutation_tbl pos in
@@ -917,17 +1034,20 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                     | Minsert(o, cl, _) ->
 
                         DEBUG_MSG " %s" (mutation_to_string m);
+                        (*printf "!!! %s\n" (mutation_to_string m);*)
 
                         ins_tbl_add o m;
                         (d, i + 1, z || o = 0.)
 
                     | Mdelete       ->
                         DEBUG_MSG " del";
+                        (*printf "!!! del\n";*)
                         (d + 1, i, z)
 
                   ) (0, 0, false) ms
               in
               DEBUG_MSG "del_count=%d ins_count=%d" del_count ins_count;
+              (*printf "!!! del_count=%d ins_count=%d\n" del_count ins_count;*)
 
               let has_del = del_count > 0 in
 
@@ -936,6 +1056,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
               in
               
               DEBUG_MSG "has_del=%B has_0ofs=%B moved=%B" has_del has_0ofs moved;
+              (*printf "!!! has_del=%B has_0ofs=%B moved=%B\n" has_del has_0ofs moved;*)
             
               let insl =
                 Hashtbl.fold
@@ -947,6 +1068,7 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                   ) ins_tbl []
               in
               DEBUG_MSG "insl:\n%s" (String.concat "\n" (List.map mutation_to_string insl));
+              (*printf "!!! insl:\n%s\n" (String.concat "\n" (List.map mutation_to_string insl));*)
               
               let insl =
                 List.fast_sort
@@ -969,6 +1091,12 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
                                     child#initial_pos
                                     (String.concat ";"
                                        (List.map (fun n -> UID.to_string n#uid) nds));
+
+                                  (*printf "!!! %s: %d -> [%s]\n"
+                                    (UID.to_string child#initial_parent#uid)
+                                    child#initial_pos
+                                    (String.concat ";"
+                                       (List.map (fun n -> UID.to_string n#uid) nds));*)
 
                                   child#initial_parent#_replace_children
                                     ~initial:true
@@ -1035,7 +1163,12 @@ class [ 'a ] node2 (uid_gen : UID.generator) (d : 'a) =
         Array.iter (fun c -> DEBUG_MSG "  %s" c#initial_to_string) initial_children;
       END_DEBUG;
 
+      (*printf "!!! %s\n" self#initial_to_string;
+      printf "!!! new children:\n";
+      Array.iter (fun c -> printf "  %s\n" c#initial_to_string) initial_children;*)
+
       DEBUG_MSG "exit";
+      (*printf "!!! exit\n";*)
 
   end (* of class Otree.node2 *)
 
@@ -1173,6 +1306,15 @@ class [ 'node ] otree (root : 'node) =
 	(fun nd -> if nd#is_leaf then res := (nd#index)::!res);
       !res
 
+(*
+    method keynodes =
+      let leftmost_idxs, res = ref [], ref [] in
+      for i = self#size downto 1 do
+	let lm = (self#leftmost i) in
+	if List.mem lm !leftmost_idxs then ()
+	else res := i::!res; leftmost_idxs := lm::!leftmost_idxs
+      done; !res
+*)
     method keynodes =
       let leftmost_idxs = Hashtbl.create 0 in
       let res = ref [] in
@@ -1645,6 +1787,11 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
       let nd = self#root in
       nd#expand
 
+(*
+    method collapse idxs = 
+      List.iter (fun idx -> self#collapse_nodei idx) idxs
+*)
+
     method expand idxs = 
       List.iter (fun idx -> self#expand_nodei idx) idxs
     method expand_uids uids = 
@@ -1794,6 +1941,12 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
            (List.map (fun (n, e) ->
              sprintf "%a(%s)" UID.ps n#uid (Path.Elem.to_string e)) fnode_felem_list));
 
+      (*printf "!!! v_insert_cluster: %s\npartial=%B pos=%d ofs=%s subroot=%a fnode_felem_list:\n%s\n"
+        nd#initial_to_string partial pos (Path.Elem.ofs_to_str ofs) UID.p subroot#uid
+        (String.concat "\n"
+           (List.mapi (fun i (n, e) ->
+             sprintf "%a (%s) pos=%d" UID.ps n#uid (Path.Elem.to_string e) (pos+i)) fnode_felem_list));*)
+
       let children = nd#initial_children in
 
       let extra = Xset.create 0 in
@@ -1843,6 +1996,10 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
       DEBUG_MSG "%s\npos=%d excluded=[%s]"
         nd#initial_to_string pos
         (String.concat ";" (List.map (fun n -> UID.to_string n#uid) excluded_nds));
+
+      (*printf "!!! v_prune_cluster: %s\npos=%d excluded=[%s]\n"
+        nd#initial_to_string pos
+        (String.concat ";" (List.map (fun n -> UID.to_string n#uid) excluded_nds));*)
 
       nd#v_delete_child pos;
 
@@ -2003,6 +2160,11 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 	let result = List.filter (fun i -> not (List.mem i cluster)) ci in
 
 	DEBUG_MSG "result=[%s]:" (Xlist.to_string string_of_int ";" result);
+(*
+	Printf.printf "!!! derive %a: [%s]\n" 
+	  UID.p node#uid 
+	  (Xlist.to_string (fun i -> UID.to_string ((self#get i)#uid)) ";" result);
+*)
 	result
       in
       let result = 
@@ -2518,6 +2680,87 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
     method scan_whole_initial (f : 'node -> unit) =
       self#scan_whole_initial_subtree self#root f
 
+
+(*
+    val whole_initial_subtree_scan_hist_tbl = Hashtbl.create 0
+    val whole_initial_subtree_size_hist_tbl = Hashtbl.create 0
+
+    method scan_whole_initial_subtree nd (f : 'node -> unit) =
+      let count = ref 0 in
+      let rec do_scan nd = incr count; Array.iter do_scan nd#initial_children; f nd in
+      do_scan nd;
+      begin
+	try
+	  let c = Hashtbl.find whole_initial_subtree_scan_hist_tbl !count in
+	  Hashtbl.replace whole_initial_subtree_scan_hist_tbl !count (c+1)
+	with
+	  Not_found -> Hashtbl.add whole_initial_subtree_scan_hist_tbl !count 1
+      end
+
+    method fast_scan_whole_initial_subtree nd (f : 'node -> unit) =
+      let lgi = (self#initial_leftmost nd)#gindex in
+      for i = lgi to GI.to_int nd#gindex do
+	f (self#search_node_by_gindex (GI.of_int i))
+      done;
+      let count = (GI.to_int nd#gindex) - lgi + 1 in
+      begin
+	try
+	  let c = Hashtbl.find whole_initial_subtree_scan_hist_tbl count in
+	  Hashtbl.replace whole_initial_subtree_scan_hist_tbl count (c+1)
+	with
+	  Not_found -> Hashtbl.add whole_initial_subtree_scan_hist_tbl count 1
+      end
+
+    method whole_initial_subtree_size nd =
+      let sz = ref 0 in
+      self#scan_whole_initial_subtree nd (fun _ -> incr sz);
+      begin
+	try
+	  let c = Hashtbl.find whole_initial_subtree_size_hist_tbl !sz in
+	  Hashtbl.replace whole_initial_subtree_size_hist_tbl !sz (c+1)
+	with
+	  Not_found -> Hashtbl.add whole_initial_subtree_size_hist_tbl !sz 1
+      end;
+      !sz
+
+    method fast_whole_initial_subtree_size nd =
+      let sz =
+	(GI.to_int nd#gindex) - (GI.to_int (self#initial_leftmost nd)#gindex) + 1
+      in
+      begin
+	try
+	  let c = Hashtbl.find whole_initial_subtree_size_hist_tbl sz in
+	  Hashtbl.replace whole_initial_subtree_size_hist_tbl sz (c+1)
+	with
+	  Not_found -> Hashtbl.add whole_initial_subtree_size_hist_tbl sz 1
+      end;
+      sz
+
+    method show_whole_initial_subtree_size_hist =
+      Printf.printf "initial subtree size freq:\n";
+      let l =
+	Hashtbl.fold
+	  (fun sz freq l -> (sz, freq)::l) whole_initial_subtree_size_hist_tbl []
+      in
+      let l' = List.fast_sort (fun (sz1, _) (sz2, _) -> Pervasives.compare sz1 sz2) l in
+      List.iter
+	(fun (sz, freq) ->
+	  Printf.printf "%d: %d\n" sz freq
+	) l'
+
+    method show_whole_initial_subtree_scan_hist =
+      Printf.printf "initial subtree scan freq:\n";
+      let l =
+	Hashtbl.fold
+	  (fun sz freq l -> (sz, freq)::l) whole_initial_subtree_scan_hist_tbl []
+      in
+      let l' = List.fast_sort (fun (sz1, _) (sz2, _) -> Pervasives.compare sz1 sz2) l in
+      List.iter
+	(fun (sz, freq) ->
+	  Printf.printf "%d: %d\n" sz freq
+	) l'
+*)
+
     method scan_whole_initial_subtree nd (f : 'node -> unit) =
       try
         let rec do_scan nd = Array.iter do_scan nd#initial_children; f nd in
@@ -2621,6 +2864,10 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
       self#setup_initial_parent;
       self#setup_initial_size;
       let lmn = self#_initial_leftmost self#root in
+(*
+      Printf.printf "_register_gindexes: size:%d lmn:%a\n" self#size GI.p lmn#gindex;
+      Printf.printf "%s\n" self#to_string;
+*)
       gindex_offset <- -(GI.to_int lmn#gindex);
       self#setup_initial_leftmost_table
 
@@ -2793,6 +3040,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 
     method private _acc ?(ignore_ofs=false) ?(from=self#root) get_child path =
       DEBUG_MSG "path=%s" (Path.to_string path);
+      (*Printf.printf "!!! path=%s\n" (Path.to_string path);*)
       try
 	let elems = Path.get_elems path in
 	let node, nelems, _ = 
@@ -2802,6 +3050,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
               try
                 if b then begin
                   DEBUG_MSG "  %a(%a)" GI.ps nd#gindex UID.ps nd#uid;
+                  (*Printf.printf "!!!  %s ->\n" nd#to_string;*)
 
                   if elm.Path.Elem.ofs <> 0. && not ignore_ofs then
                     invalid_arg "";
@@ -2821,6 +3070,8 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 	in
 	DEBUG_MSG "path=%s node=%s" (Path.to_string path) node#to_string;
         DEBUG_MSG "    %a(%a)" GI.ps node#gindex UID.ps node#uid;
+
+	(*Printf.printf "!!! path=%s node=%s\n" (Path.to_string path) node#to_string;*)
 
 	node, nelems
       with 

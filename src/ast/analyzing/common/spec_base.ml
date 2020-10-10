@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 module Otree = Otreediff.Otree
 module UID   = Otreediff.UID
+module MID   = Moveid
 module GI    = Otreediff.GIndex
 module Path  = Otreediff.Path
 
@@ -63,6 +64,7 @@ class type node_data_t_shared = object ('self)
 
   method label           : string
   method _label          : Obj.t
+  method is_compatible_with : 'self -> bool
   method relabel_allowed : 'self -> bool
   method to_be_notified  : bool
   
@@ -94,8 +96,24 @@ class type node_data_t_shared = object ('self)
   method is_partition       : bool   
   method is_boundary        : bool   
 
+  method set_mid         : MID.t -> unit
+  method mid             : MID.t
+
   method binding     : Binding.t
   method bindings    : Binding.t list
+
+
+(* for delta *)
+  method to_elem_data_for_delta      : string * (string * string) list * string
+  method orig_to_elem_data_for_delta : string * (string * string) list * string
+  method elem_name_for_delta         : string
+  method orig_elem_name_for_delta    : string
+  method elem_attrs_for_delta        : (string * string) list
+  method orig_elem_attrs_for_delta   : (string * string) list
+
+  method change_attr     : string -> string -> unit
+  method delete_attr     : string -> unit
+  method insert_attr     : string -> string -> unit
 
 
 end (* of class type node_data_t_shared *)
@@ -120,8 +138,9 @@ class type [ 'node ] tree_t_shared = object ('self)
   method make_subtree_from_node    : 'node -> 'self
   method make_subtree_from_path    : Path.t -> 'self
   method make_subtree_copy         : ?find_hook:('node -> 'node -> unit) -> 'node -> 'self
-  method unparse_ch                : OutChannel.t -> unit
-  method extra_namespaces          : (string * string) list
+  method dump_subtree_for_delta_ch : 'node -> 'node list -> Xchannel.out_channel -> unit
+  method unparse_ch                : ?fail_on_error:bool -> OutChannel.t -> unit
+  method extra_namespaces          : (string * string) list (* for subtrees in delta *)
 
 end (* of class type tree_t_shared *)
 
@@ -145,4 +164,3 @@ class type ['tree] tree_factory_t = object
   method from_xnode        : xnode_t      -> 'tree
   method from_file         : Storage.file -> 'tree
 end
-

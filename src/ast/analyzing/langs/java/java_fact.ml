@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -243,10 +243,12 @@ class extractor options cache_path tree = object (self)
           with
             Exit -> ()
         end;
+
         self#add (entity, p_nparams, Triple.make_nn_int_literal !nparams);
 	self#add (entity, p_extended_name, mklit (Printf.sprintf "%s#%d" name !nparams));
         if !is_va then
           self#add (entity, p_is_va_meth, Triple.l_true);
+
 
 (*
   stack#register name nd;
@@ -293,7 +295,7 @@ class extractor options cache_path tree = object (self)
   self#add_surrounding_xxx L.is_method_invocation nd entity p_in_method_invocation;
   self#add_surrounding_xxx L.is_ctor_invocation nd entity p_in_ctor_invocation;
  *)
-      if L.is_invocation_or_instance_creation lab then begin
+      if L.is_invocation_or_instance_creation lab(* && L.is_named lab*) then begin
 	let ename = try L.get_name lab with Not_found -> "" in
         if ename <> "" then begin
 	  self#add (entity, p_extended_name, mklit ename);
@@ -321,6 +323,10 @@ class extractor options cache_path tree = object (self)
 
       if L.is_parameter lab || is_argument nd then begin
         self#add (entity, Triple.p_nth, Triple.make_nn_int_literal nd#initial_pos)
+      end;
+
+      if L.is_parameter lab || L.is_catch_parameter lab then begin
+        self#add (entity, p_dimensions, Triple.make_nn_int_literal (L.get_dims lab))
       end;
 
       if not (L.is_enum lab) then
@@ -397,6 +403,9 @@ class extractor options cache_path tree = object (self)
         let ln = Xlist.last (String.split_on_char '$' ln0) in
         self#add (entity, p_uqn, mklit ln);
 
+      end;
+
+      if L.is_type lab then begin
         let dims = L.get_dimensions lab in
         if dims > 0 then
           self#add (entity, p_dimensions, Triple.make_nn_int_literal dims)

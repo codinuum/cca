@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -65,7 +65,14 @@ let _ =
   try
 
     let macrotbl_opt = None in
-
+(*
+    let macrotbl_opt =
+      let f = 
+	Fs.file_of_path options (Filename.concat (Filename.dirname (Sys.argv.(0))) "standard.f") 
+      in
+      Some (read_hint f)
+    in
+*)
     begin match macrotbl_opt with 
     | Some tbl -> tbl#set_readonly
     | None -> ()

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -433,6 +433,22 @@ class parser_c = object (self)
                 raise Exit
             end*)
             (* *)
+            | I.X (I.N N_method_invocation), _, I.X (I.T T_LPAREN) -> begin
+                env#enter_ivk;
+                raise Exit
+            end
+            | I.X (I.N N_method_invocation), _, I.X (I.T T_RPAREN) -> begin
+                env#exit_ivk;
+                raise Exit
+            end
+            | I.X (I.N N_explicit_constructor_invocation), _, I.X (I.T T_LPAREN) -> begin
+                env#enter_ivk;
+                raise Exit
+            end
+            | I.X (I.N N_explicit_constructor_invocation), _, I.X (I.T T_RPAREN) -> begin
+                env#exit_ivk;
+                raise Exit
+            end
             | I.X (I.N N_resource_spec), _, I.X (I.T T_LPAREN) -> begin
                 env#open_res;
                 raise Exit
@@ -501,6 +517,10 @@ class parser_c = object (self)
                 env#enter_class;
                 raise Exit
             end
+            | I.X (I.N N_interface_body), _, I.X (I.T T_LBRACE) -> begin
+                env#enter_class;
+                raise Exit
+            end
             | I.X (I.N N_enum_body), _, I.X (I.T T_LBRACE) -> begin
                 env#enter_class;
                 raise Exit
@@ -511,6 +531,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_interface_body), _, I.X (I.T T_RBRACE) -> begin
                 save_state menv_;
+                env#exit_context;
                 raise Exit
             end
             | I.X (I.N N_annotation_type_body), _, I.X (I.T T_RBRACE) -> begin

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -121,6 +121,11 @@ let src_ns = "http://codinuum.com/ontologies/2012/10/source-code-entity#"
 let src_prefix = "src"
 let mksrcres s = make_qname src_prefix s
 
+(* primitive change vocabulary *)
+let change_ns = "http://codinuum.com/ontologies/2012/10/primitive-change#"
+let change_prefix = "chg"
+let mkchangeres s = make_qname change_prefix s
+
 (* versioning vocabulary *)
 let ver_ns = "http://codinuum.com/ontologies/2012/10/versioning#"
 let ver_prefix = "ver"
@@ -151,7 +156,16 @@ let external_prefix = "ext"
 
 let binding_prefix  = "b"
 
+let entity_pair_ns = common_base_ns^"entity-pair/"
+let entity_pair_prefix = "entpair"
+
 let external_ns = common_base_ns^"external-name/"
+
+let chg_inst_ns = common_base_ns^"change/"
+let chg_inst_prefix = "chginst"
+
+let delta_ns = "http://codinuum.com/ontologies/2016/05/delta#"
+let delta_prefix = "delta"
 
 let ns_tbl = (Hashtbl.create 0 : (string, string) Hashtbl.t)
 
@@ -161,6 +175,7 @@ let _ =
       xsd_prefix,         xsd_ns;
 
       src_prefix,         src_ns;
+      change_prefix,      change_ns;
       ver_prefix,         ver_ns;
 
       proj_prefix,        project_ns;
@@ -172,12 +187,19 @@ let _ =
       entity_prefix,      entity_ns;
       external_prefix,    external_ns;
 
+      external_prefix^A.cpp_prefix,     external_ns^"cpp/";
       external_prefix^A.java_prefix,    external_ns^"java/";
+      external_prefix^A.fortran_prefix, external_ns^"fortran/";
       external_prefix^A.python_prefix,  external_ns^"python/";
       external_prefix^A.verilog_prefix, external_ns^"verilog/";
       external_prefix^A.c_prefix,       external_ns^"c/";
 
       binding_prefix,     binding_ns;
+
+      entity_pair_prefix, entity_pair_ns;
+
+      chg_inst_prefix, chg_inst_ns;
+      delta_prefix, delta_ns;
 
       A.c_prefix,       A.c_ns;
       A.cx_prefix,      A.cx_ns;
@@ -185,6 +207,8 @@ let _ =
       A.java_prefix,    A.java_ns;
       A.python_prefix,  A.python_ns;
       A.verilog_prefix, A.verilog_ns;
+      A.fortran_prefix, A.fortran_ns;
+      A.cpp_prefix,     A.cpp_ns;
     ]
   in
   List.iter 
@@ -241,6 +265,10 @@ let mksvnrev s = make_qname svnrev_prefix s
 let mkgitrev s = make_qname gitrev_prefix s
 let mkvariant s = make_qname variant_prefix s
 
+let mkchginst s = make_qname chg_inst_prefix s
+
+let mkdeltares s = make_qname delta_prefix s
+
 let mkent s    = make_qname entity_prefix s
 let mkext ?(lang="") s    = make_qname (external_prefix^lang) s
 (*let mkext s = make_literal s *)
@@ -249,8 +277,14 @@ let mkjres s = make_qname A.java_prefix s
 let mkcres s = make_qname A.c_prefix s
 let mkpres s = make_qname A.python_prefix s
 let mkvres s = make_qname A.verilog_prefix s
+let mkfres s = make_qname A.fortran_prefix s
+let mkcppres s = make_qname A.cpp_prefix s
 
 let mkccxres s = make_qname A.ccx_prefix s
+
+let p_xml = mkdeltares "xml"
+let p_entity1 = mkdeltares "entity1"
+let p_entity2 = mkdeltares "entity2"
 
 let p_version       = mkverres "version"
 let p_file_digest   = mkverres "fileDigest"
@@ -287,11 +321,56 @@ let c_binding       = mksrcres "Binding"
 let c_external_name = mksrcres "ExternalName"
 let c_loc           = mksrcres "Location"
 
+let p_mapped_neq_to = mkchangeres "mappedNeqTo"
+let p_mapped_eq_to  = mkchangeres "mappedEqTo"
+let p_changed_to    = mkchangeres "changedTo"
+let p_mov_changed_to = mkchangeres "movChangedTo"
+let p_moved_to      = mkchangeres "movedTo"
+let p_renamed       = mkchangeres "renamed"
+let p_mov_renamed   = mkchangeres "movRenamed"
+let p_deleted_from  = mkchangeres "deletedFrom"
+let p_order_changed = mkchangeres "orderChanged"
+let p_inserted_into = mkchangeres "insertedInto"
+let p_modified      = mkchangeres "modified"
+let p_pruned_from   = mkchangeres "prunedFrom"
+let p_grafted_onto  = mkchangeres "graftedOnto"
+
+let p_copied_from   = mkchangeres "copiedFrom"
+let p_glued_to      = mkchangeres "gluedTo"
+
+let p_gen_added   = mkchangeres "genAdded"
+let p_gen_removed = mkchangeres "genRemoved"
+
+let p_abstracted_to         = mkchangeres "abstractedTo"
+let p_mov_abstracted_to     = mkchangeres "movAbstractedTo"
+let p_folded_into           = mkchangeres "foldedInto"
+let p_mov_folded_into       = mkchangeres "movFoldedInto"
+let p_affects_nesting_depth = mkchangeres "affectsNestingDepth"
+let p_nesting_depth         = mkchangeres "nestingDepth"
+let p_cardinality           = mkchangeres "cardinality"
+
+let p_orig_file    = mkchangeres "originalFile"
+let p_mod_file     = mkchangeres "modifiedFile"
+let p_orig_srctree = mkchangeres "originalSourceTree"
+let p_mod_srctree  = mkchangeres "modifiedSourceTree"
+let p_file_pair    = mkchangeres "filePair"
+let p_srctree_pair = mkchangeres "sourceTreePair"
+
+let c_file_pair    = mkchangeres "FilePair"
+let c_srctree_pair = mkchangeres "SourceTreePair"
+let c_del          = mkchangeres "Deletion"
+let c_ins          = mkchangeres "Insertion"
+let c_rel          = mkchangeres "Relabeling"
+let c_mov          = mkchangeres "Move"
+
 
 let l_true  = make_literal "true"
 let l_false = make_literal "false"
 
 
+(*
+exception Proj_root_not_set
+*)
 
 let get_proj_rel_path proj_root path = 
   Xfile.relpath proj_root path
@@ -450,6 +529,10 @@ let make_srctree_entity options tree =
   _make_srctree_entity options (tree#vkind, tree#version)
 
 let make_extname options tree ?(lang="") lname =
+(*
+  let srctree_id = __make_srctree_entity options (tree#vkind, tree#version) in
+  mkext ~lang (srctree_id ^ Entity.sep ^ lname)
+*)
   mkext ~lang lname
 
 let get_range_str enc loc =
@@ -544,6 +627,9 @@ let make_entity options tree nd =
     ghost
   else
     mkent (_make_entity options tree nd)
+
+let make_entity_pair id1 id2 = 
+  make_qname entity_pair_prefix (String.concat Entity.sep [id1; id2])
 
 
 let format_node = function

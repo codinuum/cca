@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ let comp_ext_list = Sastml.comp_ext_list
 
 let decomp = Sastml.decomp
 
-let gen_temp_file_path () = Filename.temp_file "cca_" Astml.extension
+let gen_temp_file_path () = Filename.temp_file "diffast_" Astml.extension
 
 let ns_mgr = Pxp_dtd.create_namespace_manager()
 
@@ -35,12 +35,17 @@ let config =
 let spec = Pxp_tree_parser.default_namespace_spec
 
 let setup_ns_mgr ns_mgr =
+(*
+  ns_mgr#add_namespace Astml.default_prefix Astml.default_ns;
+  ns_mgr#add_namespace Astml.diffts_prefix  Astml.diffts_ns;
+*)
   ns_mgr#add_namespace Astml.c_prefix       Astml.c_ns;
   ns_mgr#add_namespace Astml.cx_prefix      Astml.cx_ns;
   ns_mgr#add_namespace Astml.ccx_prefix     Astml.ccx_ns;
   ns_mgr#add_namespace Astml.java_prefix    Astml.java_ns;
   ns_mgr#add_namespace Astml.python_prefix  Astml.python_ns;
-  ns_mgr#add_namespace Astml.verilog_prefix Astml.verilog_ns
+  ns_mgr#add_namespace Astml.verilog_prefix Astml.verilog_ns;
+  ns_mgr#add_namespace Astml.fortran_prefix Astml.fortran_ns
 
 let transform_dtd dtd =
   setup_ns_mgr dtd#namespace_manager;
@@ -101,6 +106,28 @@ let build_tree options file =
 
   DEBUG_MSG "parsed";
 
+(*
+  let line_terminator =
+    let s = 
+      try
+	Label.pxp_att_value_to_string
+	  (doc#root#attribute Tree.line_terminator_attr_name)
+      with 
+        Not_found -> 
+          WARN_MSG "'%s' does not contain attribute %s. assuming 'LF'..." 
+	  file Tree.line_terminator_attr_name;
+	"\010"
+    in
+    match s with
+    | "CR" -> "\013"
+    | "CRLF" -> "\013\010"
+    | "LF" -> "\010"
+    | _ -> 
+	WARN_MSG
+	  "'%s': illegal line terminator. assuming 'LF'..." s;
+	"\010"
+  in
+*)
   BEGIN_DEBUG
     DEBUG_MSG "root node: %s" (XML.node_type_to_string doc#root#node_type);
     List.iter
@@ -129,6 +156,7 @@ let build_tree options file =
   DEBUG_MSG "done.";
 
   tree#set_parser_name parser_name;
+(*  tree#set_line_terminator line_terminator; *)
 
   tree
 (* end of func build_tree *)
@@ -212,7 +240,7 @@ let file_digest_hex file =
 	let h = get_header decompressed in
         decode_digest h.h_source_digest
       with
-	Not_found -> Xprint.failure "\"%s\": malformed ASTML file" file#path
+        Not_found -> Xprint.failure "\"%s\": malformed ASTML file" file#path
   in
 
   let ast, comp_flag, comp_ext = check_comp file in
@@ -232,6 +260,18 @@ let file_digest_hex file =
   else
     let d = get_digest_hex ast#get_local_file in
     d
+
+(*
+let digest options file =
+  DEBUG_MSG "parsing %s" file#path;
+  let tree = build_tree options file in
+  Xhash.to_hex tree#digest
+
+let equal options file1 file2 =
+  let d1 = digest options file1 in
+  let d2 = digest options file2 in
+  d1 = d2
+*)
 
 let extract_fact options cache_path tree =
 ()

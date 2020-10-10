@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -24,6 +24,14 @@ module Fact = Fact_base.F (Label)
 let sprintf = Printf.sprintf
 
 let extract_fact options cache_path tree = (* not yet *)
+(*
+  try
+  let extractor = new Fact.extractor_base cache_path options tree in
+  extractor#set_lang_prefix Astml.python_prefix;
+  extractor#extract
+  | Triple.File_exists s -> Common.warning_msg "file exists: \"%s\"" s
+  | Triple.Lock_failed -> Common.warning_msg "fact buffer is already locked."
+*)
 ()
 
 class tree_builder options =

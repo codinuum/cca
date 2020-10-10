@@ -17,11 +17,11 @@ Factbases are intended to be queried for code comprehension tasks.
 ## Requirements
 
 * GNU make
-* [OCaml](http://ocaml.org/) (>=4.02)
+* [OCaml](http://ocaml.org/) (>=4.11.1)
 * [Findlib](http://projects.camlcity.org/projects/findlib.html)
 * [Menhir](http://gallium.inria.fr/~fpottier/menhir/)
-* [Ocamlnet](http://projects.camlcity.org/projects/ocamlnet.html) (>=4.1.0)
-* [PXP](http://projects.camlcity.org/projects/pxp.html) (>=1.2.8)
+* [Ocamlnet](http://projects.camlcity.org/projects/ocamlnet.html) (>=4.1.8)
+* [PXP](http://projects.camlcity.org/projects/pxp.html) (>=1.2.9)
 * [Cryptokit](https://github.com/xavierleroy/cryptokit)
 * [Camlzip](https://github.com/xavierleroy/camlzip)
 * [OCaml CSV](https://github.com/Chris00/ocaml-csv)

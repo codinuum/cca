@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -187,6 +187,7 @@ class classtbl_c = object (self)
     if pkg = qname then
       failwith "Classinfo#_resolve_qualified_type_name";
     let lname = Str.replace_first (Str.regexp_string (pkg^".")) "" qname in
+    DEBUG_MSG "lname=%s" lname;
     let lname = replace_dot_with_dollar lname in
     if pkg = "" then
       lname
@@ -194,6 +195,7 @@ class classtbl_c = object (self)
       pkg^"."^lname
 
   method resolve_qualified_type_name qname =
+    DEBUG_MSG "qname=%s" qname;
     let pkg = self#get_package_name qname in
     DEBUG_MSG "pkg=\"%s\"" pkg;
     self#_resolve_qualified_type_name pkg qname

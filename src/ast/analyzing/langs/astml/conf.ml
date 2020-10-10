@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -19,10 +19,13 @@
 
 let sprintf = Printf.sprintf
 
-let conf_ns = "http://codinuum.com/cca/lang/conf#"
+let conf_ns = "http://codinuum.com/diffts/diffast/conf#"
 
-let conf_prefix = "lc"
+let conf_prefix = "dc"
 
+(*
+let add_conf_prefix = Astml.add_prefix conf_prefix
+*)
 let add_conf_prefix ln = conf_ns ^ ln
 
 let collapse_targets_tag         = add_conf_prefix "collapse_targets"

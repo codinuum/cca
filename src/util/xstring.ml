@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -111,8 +111,6 @@ let to_char_array s =
   done;
   a
 
-
-
 let encode s =
   let buf = Buffer.create 0 in
   String.iter
@@ -133,7 +131,6 @@ let decode encoded =
   Buffer.contents buf
 
 
-(* The following are derived from the OCaml Stdlib *)
 
 external length     : bytes -> int                 = "%bytes_length"
 external create     : int -> bytes                 = "caml_create_bytes"

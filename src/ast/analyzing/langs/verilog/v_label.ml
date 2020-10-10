@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -24,6 +24,12 @@ type identifier = string
 
 let lang_prefix = Astml.verilog_prefix
 
+(*let ident_attr_name = "ident"
+let label_attr_name = "label"
+let value_attr_name = "value"
+let path_attr_name  = "path"
+let spec_attr_name  = "spec"*)
+
 let keyroot_depth_min = 2
 
 type tie_id = Lang_base.tie_id
@@ -33,6 +39,10 @@ let mktid         = Lang_base.mktid
 let tid_to_string = Lang_base.tid_to_string
 let anonymize_tid = Lang_base.anonymize_tid
 let mktidattr     = Lang_base.mktidattr
+
+
+(*let strlit_to_encoded_path s =
+  XML.encode_string (Astml.str_lit_to_path s)*)
 
 
 
@@ -1861,6 +1871,25 @@ let get_value = function
   | Expr expr -> Expression.get_value expr
   | _ -> raise Not_found
 
+let has_value = function
+  | Expr (Expression.IntegralNumber _
+  | Expression.RealNumber _
+  | Expression.TimeNumber _)
+    -> true
+  | _ -> false
+
+let has_non_trivial_value lab =
+  try
+    let v = get_value lab in
+    v <> "0" && v <> "1"
+  with
+    Not_found -> false
+
+let is_compatible _ _ = false
+
+let is_order_insensitive = function
+  | _ -> false
+
 let relabel_allowed = function
   | ModuleDeclaration _, ModuleDeclaration _
   | Expr _, Expr _
@@ -1884,6 +1913,9 @@ let relabel_allowed = function
     -> true
   | l1, l2 -> anonymize2 l1 = anonymize2 l2
 
+let move_disallowed _ = false
+
+let is_common _ = false
 
 let get_ident_use = function
   | IdSelect id -> id

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ let dummy =
     start_line   = 0;
     start_char   = 0;
     end_line     = 0;
-    end_char     = 0;
+    end_char     = 0; 
   }
 
 let make ?(fname="") so eo sl sc el ec =
@@ -42,7 +42,7 @@ let make ?(fname="") so eo sl sc el ec =
     start_line   = sl;
     start_char   = sc;
     end_line     = el;
-    end_char     = ec;
+    end_char     = ec; 
   }
 
 let copy

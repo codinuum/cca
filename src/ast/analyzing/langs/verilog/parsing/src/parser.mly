@@ -1,4 +1,19 @@
 (*
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*)
+(*
  * A parser for SystemVerilog (IEEE-1800-2009) 
  * based on Verilog-Perl <http://www.veripool.org/systemperl>
  *
@@ -80,7 +95,10 @@ open Stat
 %token <string> PACKAGE_IDENTIFIER
 %token <string> TYPE_IDENTIFIER
 %token <string> CLASS_IDENTIFIER
+(*%token <string> INTERFACE_IDENTIFIER*)
 %token <string> COVERGROUP_IDENTIFIER
+(*%token <string> CLOCKING_IDENTIFIER*)
+(*%token <string> PROPERTY_IDENTIFIER*)
 
 %token <string> PATHPULSE_IDENTIFIER
 
@@ -113,6 +131,7 @@ open Stat
 %token PP_DEFAULT_DECAY_TIME PP_DEFAULT_TRIREG_STRENGTH 
 %token PP_DELAY_MODE_DISTRIBUTED PP_DELAY_MODE_PATH PP_DELAY_MODE_UNIT PP_DELAY_MODE_ZERO
 %token PP_CELLDEFINE PP_ENDCELLDEFINE PP_UNCONNECTED_DRIVE PP_NOUNCONNECTED_DRIVE
+(* %token PP_PROTECTED PP_ENDPROTECTED *)
 
 
 %token BEGIN_ END_ FORK_ JOIN_ ENDMODULE_ MATCHES_ INSIDE_ GENERATE_

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -67,7 +67,8 @@ open Stat
 
 %token <Ast.statement> STMT
 %token <Ast.block_statement> BLOCK_STMT
-%token <string> ERROR ERROR_STMT
+%token <string> MARKER ERROR ERROR_STMT
+%token GT_7
 %token EOP
 
 %start main
@@ -100,6 +101,7 @@ clist0(X):
 reserved:
 | GOTO  { }
 | CONST { }
+| GT_7 { }
 ;
 
 partial_block_statement:
@@ -255,7 +257,7 @@ unann_array_type:
     { 
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
-      mktype $startofs $endofs (Tarray(name_to_ty [] n, List.length d))
+      mktype $startofs $endofs (Tarray(name_to_ty [] n, List.length d)) 
     }
 
 | p=unann_primitive_type d=ann_dims { mktype $startofs $endofs (Tarray(p, List.length d)) }
@@ -265,7 +267,7 @@ unann_array_type:
       let head, a0, n0 = c in
       let ty =
 	_mktype (Loc.merge (get_loc $startofs $endofs) n.n_loc) 
-	  (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)])) 
+	  (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)]))
       in
       mktype $startofs $endofs (Tarray(ty, List.length d))
     }
@@ -448,7 +450,7 @@ qualified_name:
     { 
       let n = mkerrname $startofs $endofs(s) s in
       let _, id = i in
-      mkname $startofs $endofs (Nqualified(ref NAunknown, n, id))
+      mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
     }
 ;
 
@@ -804,6 +806,7 @@ class_member_declaration:
 | e=enum_declaration      { mkcbd $startofs $endofs (CBDclass e) }
 | i=interface_declaration { mkcbd $startofs $endofs (CBDinterface i) }
 | SEMICOLON               { mkcbd $startofs $endofs CBDempty }
+| s=MARKER                { mkerrcbd $startofs $endofs s }
 ;
 
 enum_declaration_head0:
@@ -1329,6 +1332,7 @@ block_statement:
 | e=enum_declaration                     { mkbs $startofs $endofs (BSclass e) }
 (*| error                                  { mkerrbs $symbolstartofs $endofs "" }*)
 | s=ERROR                                { mkerrbs $startofs $endofs s }
+| s=MARKER                               { mkerrbs $startofs $endofs s }
 | s=BLOCK_STMT                           { s }
 ;
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2017 Codinuum Software Lab <http://codinuum.com>
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -158,24 +158,32 @@ let layout = Bigarray.c_layout
 class int_array_list block_size = object (self)
 
   val block_tbl = Hashtbl.create 0
-  val mutable nblocks = 0
+  val mutable nblocks = 1
   val mutable last_index = -1
+  val mutable last_local_index = -1
+  val mutable current_block = A.create kind layout block_size
+
+  initializer
+    Hashtbl.add block_tbl 0 current_block
 
   method private get_block i = Hashtbl.find block_tbl i
 
   method clear =
     Hashtbl.clear block_tbl;
-    nblocks <- 0;
-    last_index <- -1
+    nblocks <- 1;
+    last_index <- -1;
+    last_local_index <- -1;
+    current_block <- A.create kind layout block_size;
+    Hashtbl.add block_tbl 0 current_block
 
   method length = last_index + 1
 
   method is_empty = last_index < 0
 
   method get idx =
-    if idx < 0 || idx > last_index then
-      raise (Index_out_of_bounds idx)
-    else
+    match idx with
+    | _ when idx < 0 || idx > last_index -> raise (Index_out_of_bounds idx)
+    | _ ->
       let bi = idx / block_size in
       let i = idx mod block_size in
       let b = self#get_block bi in
@@ -192,17 +200,18 @@ class int_array_list block_size = object (self)
 
   method add x =
     let idx = last_index + 1 in
-    let bi = idx / block_size in
-    let i = idx mod block_size in
-    if bi < nblocks then begin
-      let b = self#get_block bi in
-      A.set b i x
-    end
-    else begin
+    let i = last_local_index + 1 in
+    if i >= block_size then begin
       let b = A.create kind layout block_size in
       A.set b 0 x;
+      current_block <- b;
+      last_local_index <- 0;
       Hashtbl.add block_tbl nblocks b;
       nblocks <- nblocks + 1
+    end
+    else begin
+      A.set current_block i x;
+      last_local_index <- i
     end;
     last_index <- idx
 
