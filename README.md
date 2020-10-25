@@ -2,7 +2,7 @@
 
 The framework is currently composed of the following:
 
-* parsers for Python, Java, and Verilog,
+* parsers for Python, Java, Verilog, Fortran, and C/C++,
 * helper scripts for factbase manipulation, and
 * ontologies for related entities.
 
