@@ -29,7 +29,8 @@ module Pxp_ev_parser   = Pxp_ev_parser
 module Pxp_event       = Pxp_event
 
 (* required by Mfortran.cmxs *)
-module Stream = Stream 
+module Stream = Stdlib.Stream 
+let _ = Stream.from
 
 
 module DTB = Dirtree_base
