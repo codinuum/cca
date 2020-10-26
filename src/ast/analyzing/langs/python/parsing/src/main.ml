@@ -50,7 +50,7 @@ let _ =
   try
 
     while true do
-      let ast = 
+      let ast =
 	if !compile_mode then
 	  _parser#parse_file (Fs.file_of_path options !filename)
 	else

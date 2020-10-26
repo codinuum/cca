@@ -13230,12 +13230,12 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | IDENT(*_V*) _ when not env#enum_head_flag -> DEBUG_MSG "IDENT @ (IDENT|RBRACE)"; mk T.INI_LBRACE
 
                 | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
-                  -> DEBUG_MSG "(PLUS_EQ|...) @"; mk T.INI_LBRACE
+                  -> DEBUG_MSG "(PLUS_EQ|...) @ (IDENT|RBRACE)"; mk T.INI_LBRACE
 
                 | RPAREN when env#end_of_decltype_flag && env#in_body_brace_flag
-                  -> DEBUG_MSG "RPAREN @"; mk T.INI_LBRACE
+                  -> DEBUG_MSG "RPAREN @ (IDENT|RBRACE)"; mk T.INI_LBRACE
 
-                | COMMA when env#braced_init_flag -> DEBUG_MSG "RPAREN @"; mk T.INI_LBRACE
+                | COMMA | COLON when env#braced_init_flag -> DEBUG_MSG "COMMA @ (IDENT|RBRACE)"; mk T.INI_LBRACE
 
                 | _ -> begin
                     match self#peek_nth_rawtoken 2 with
@@ -20373,6 +20373,17 @@ module F (Stat : Aux.STATE_T) = struct
               | COMMA when env#dtor_flag -> true
               | _ -> false
           end -> DEBUG_MSG "@"; get()
+
+          | NAMESPACE when begin
+              match prev_rawtoken with
+              | LPAREN | TY_LPAREN | COMMA -> begin
+                  match self#peek_rawtoken() with
+                  | COMMA | RPAREN -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@"; get()
+
           | TEMPLATE | BOOL_LITERAL _ | DEFAULT when begin
               match self#peek_rawtoken() with
               | EQ | EQ_EQ | EXCLAM_EQ _ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ
@@ -20387,6 +20398,7 @@ module F (Stat : Aux.STATE_T) = struct
               end
               | _ -> false
           end -> DEBUG_MSG "@"; get()
+
           | BOOL when begin
               match self#peek_rawtoken() with
               | QUEST | EQ | EQ_EQ | EXCLAM_EQ _ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ

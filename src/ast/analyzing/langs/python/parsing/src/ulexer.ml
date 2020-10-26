@@ -281,11 +281,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   string                  -> mktok (SHORTSTRING (Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 |   null_lines ->
-    let s = Ulexing.utf8_lexeme lexbuf in
-    DEBUG_MSG "[NULL_LINES] \"%s\"" s;
-    let st, ed = 
-      Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1
-    in
+    DEBUG_MSG "[NULL_LINES] \"%s\"" (Ulexing.utf8_lexeme lexbuf);
+    let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
     DEBUG_MSG "[NULL_LINES]: region: %d-%d" st ed;
     env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
     if scanner_env#in_paren then 
@@ -352,6 +349,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   ">>=" -> mktok GT_GT_EQ lexbuf
 |   "<<=" -> mktok LT_LT_EQ lexbuf
 |   "**=" -> mktok STAR_STAR_EQ lexbuf
+|   ":="  -> mktok COLON_EQ lexbuf
 
 |   '+' -> mktok PLUS lexbuf
 |   '-' -> mktok MINUS lexbuf
@@ -488,5 +486,3 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
 end (* of functor Ulexer.F *)
-
-

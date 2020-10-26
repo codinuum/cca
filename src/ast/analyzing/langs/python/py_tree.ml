@@ -163,10 +163,12 @@ class translator options = object (self)
 	     (self#of_named_parameters (L.conv_name name) params) @ 
 	     [self#of_named_suite name suite])
 
-      | Ast.Sclassdef(decos, name, exprs, suite) ->
+      | Ast.Sclassdef(decos, name, arglist, suite) ->
 	  let c = [self#of_named_suite name suite] in
-	  let c = 
-	    if exprs = [] then c else (self#of_exprs L.Inheritance exprs)::c 
+	  let c =
+            match arglist with
+            | _, [], _, _ -> c
+            | _ -> (*(self#of_arglist L.Inheritance arglist)::*)c 
 	  in
 	  let c = (self#of_decorators decos) @ ((self#of_name name)::c) in
 	  mkstmtnode c
@@ -326,42 +328,39 @@ class translator options = object (self)
     set_loc nd loc;
     nd
 
-  method of_parameters (loc, dparams, name1_opt, name2_opt) =
-    match dparams, name1_opt, name2_opt with
-    | [], None, None -> []
+  method of_parameters (loc, dparams) =
+    match dparams with
+    | [] -> []
     | _ -> 
-	let children = 
-	  (List.map self#of_dparam dparams) @
-	  (self#of_opt_lab L.Tuple self#of_name name1_opt) @
-	  (self#of_opt_lab L.Dict self#of_name name2_opt)
-	in
+	let children = List.map self#of_vararg dparams in
 	let nd = self#mknode L.Parameters children in
 	set_loc nd loc;
 	[nd]
 
-  method of_named_parameters name (loc, dparams, name1_opt, name2_opt) =
-    match dparams, name1_opt, name2_opt with
-    | [], None, None -> []
+  method of_vararg = function
+    | Ast.VAarg(fpdef, expr_opt) -> begin
+        let children = (self#of_fpdef fpdef)::(of_opt self#of_expr expr_opt) in
+        if children = [] then self#mkleaf L.DefParameter
+        else
+          let loc = 
+	    Loc._merge (first children)#data#src_loc (last children)#data#src_loc 
+          in
+          let nd = self#mknode L.DefParameter children in
+          nd#data#set_loc loc;
+          nd
+    end
+    | Ast.VAargs(loc, None)     -> let nd = self#mkleaf L.Tuple in set_loc nd loc; nd
+    | Ast.VAargs(loc, (Some n)) -> let nd = self#mknode L.Tuple [self#of_name n] in set_loc nd loc; nd
+    | Ast.VAkwargs(loc, n)      -> let nd = self#mknode L.Dict [self#of_name n] in set_loc nd loc; nd
+
+  method of_named_parameters name (loc, dparams) =
+    match dparams with
+    | [] -> []
     | _ -> 
-	let children = 
-	  (List.map self#of_dparam dparams) @
-	  (self#of_opt_lab L.Tuple self#of_name name1_opt) @
-	  (self#of_opt_lab L.Dict self#of_name name2_opt)
-	in
+	let children = List.map self#of_vararg dparams in
 	let nd = self#mknode (L.NamedParameters name) children in
 	set_loc nd loc;
 	[nd]
-
-  method of_dparam (fpdef, expr_opt) =
-    let children = (self#of_fpdef fpdef)::(of_opt self#of_expr expr_opt) in
-    if children = [] then self#mkleaf L.DefParameter
-    else
-      let loc = 
-	Loc._merge (first children)#data#src_loc (last children)#data#src_loc 
-      in
-      let nd = self#mknode L.DefParameter children in
-      nd#data#set_loc loc;
-      nd
 
   method of_fpdef = function
     | Ast.Fname name -> self#of_name name
@@ -382,23 +381,20 @@ class translator options = object (self)
     let nd = 
       match expr.Ast.expr_desc with
       | Ast.Eprimary prim -> self#of_primary prim
-      | Ast.Epower(prim, expr) -> 
-	  self#mknode L.Power [self#of_primary prim; self#of_expr expr]
-
-      | Ast.Ebop(expr1, bop, expr2) -> 
-	  self#of_exprs (L.of_bop bop) [expr1; expr2]
-
+      | Ast.Epower(prim, expr) -> self#mknode L.Power [self#of_primary prim; self#of_expr expr]
+      | Ast.Ebop(expr1, bop, expr2) -> self#of_exprs (L.of_bop bop) [expr1; expr2]
       | Ast.Euop(uop, expr) -> self#of_exprs (L.of_uop uop) [expr]
-      | Ast.Elambda(params, expr) ->
-	  self#mknode L.Lambda ((self#of_parameters params) @ [self#of_expr expr])
-      | Ast.Econd(expr1, expr2, expr3) ->
-	  self#of_exprs L.Test [expr1; expr2; expr3]
+      | Ast.Elambda(params, expr) -> self#mknode L.Lambda ((self#of_parameters params) @ [self#of_expr expr])
+      | Ast.Econd(expr1, expr2, expr3) -> self#of_exprs L.Test [expr1; expr2; expr3]
+      | Ast.Estar expr -> self#of_exprs L.Star [expr]
+      | Ast.Enamed(expr1, expr2) -> self#of_exprs L.Named [expr1; expr2]
+      | Ast.Efrom expr -> self#of_exprs L.From [expr]
     in
     set_loc nd expr.Ast.expr_loc;
     nd
 
-  method of_primary prim =
-    let primd = prim.Ast.prim_desc in
+
+  method of_primary_desc primd =
     let lab = L.of_primary primd in
     let mkprimnode = self#mknode lab in
     let nd = 
@@ -412,10 +408,8 @@ class translator options = object (self)
 		   (fun pystr ->
 		     let str, loc = 
 		       match pystr with
-		       | Ast.PSshort(l, s) -> 
-			   String.sub s 1 ((String.length s) - 2), l
-		       | Ast.PSlong(l, s) -> 
-			   String.sub s 3 ((String.length s) - 6), l
+		       | Ast.PSshort(l, s) -> String.sub s 1 ((String.length s) - 2), l
+		       | Ast.PSlong(l, s) -> String.sub s 3 ((String.length s) - 6), l
 		     in
 		     let n = self#mkleaf (L.StringLiteral str) in
 		     set_loc n loc; 
@@ -426,31 +420,27 @@ class translator options = object (self)
       | Ast.Pparen expr -> self#of_exprs lab [expr]
       | Ast.Ptuple exprs -> self#of_exprs lab exprs
       | Ast.Pyield exprs -> self#of_exprs lab exprs
-      | Ast.Pcomp(expr, compfor) -> 
-	  mkprimnode [self#of_expr expr; self#of_compfor compfor]
-      | Ast.Plist listmaker -> mkprimnode (self#of_listmaker listmaker)
+      | Ast.PcompT(expr, compfor) -> mkprimnode [self#of_expr expr; self#of_compfor compfor]
+      | Ast.PcompL(expr, compfor) -> mkprimnode [self#of_expr expr; self#of_compfor compfor]
+      | Ast.Plist exprs -> self#of_exprs lab exprs
       | Ast.Plistnull -> self#mkleaf lab
       | Ast.Pdictorset dictorsetmaker -> mkprimnode (self#of_dictorsetmaker dictorsetmaker)
       | Ast.Pdictnull -> self#mkleaf lab
       | Ast.Pstrconv exprs -> self#of_exprs lab exprs
       | Ast.Pattrref(prim, name) -> self#mknode lab [self#of_primary prim; self#of_name name]
-      | Ast.Psubscript(prim, exprs) ->
-	  mkprimnode ((self#of_primary prim)::(List.map self#of_expr exprs))
-
-      | Ast.Pslice(prim, sliceitems) ->
-	  mkprimnode ((self#of_primary prim)::(List.map self#of_sliceitem sliceitems))
-
-      | Ast.Pcall(prim, arglist) ->
-	  mkprimnode ((self#of_primary prim)::(self#of_arglist arglist))
+      | Ast.Psubscript(prim, exprs) -> mkprimnode ((self#of_primary prim)::(List.map self#of_expr exprs))
+      | Ast.Pslice(prim, sliceitems) -> mkprimnode ((self#of_primary prim)::(List.map self#of_sliceitem sliceitems))
+      | Ast.Pcall(prim, arglist) -> mkprimnode ((self#of_primary prim)::(self#of_arglist arglist))
     in
+    nd
+
+  method of_primary prim =
+    let primd = prim.Ast.prim_desc in
+    let nd = self#of_primary_desc primd in
     set_loc nd prim.Ast.prim_loc;
     nd
 
   method of_targ t = self#of_expr t
-
-  method of_listmaker = function
-    | Ast.LMfor (expr, listfor) -> [self#of_expr expr; self#of_listfor listfor]
-    | Ast.LMtest exprs -> List.map self#of_expr exprs
 
   method of_listfor (loc, exprs1, exprs2, listiter_opt) =
     let children =
@@ -458,13 +448,13 @@ class translator options = object (self)
       let innd = self#of_exprs L.In exprs2 in
       [tgnd; innd] @ (of_opt self#of_listiter listiter_opt)
     in
-    let nd = self#mknode L.ListFor children in
+    let nd = self#mknode (L.Primary L.Primary.ListFor) children in
     set_loc nd loc;
     nd
 
   method of_listif (loc, expr, listiter_opt) =
     let children = (self#of_expr expr)::(of_opt self#of_listiter listiter_opt) in
-    let nd = self#mknode (L.ListIf) children in
+    let nd = self#mknode L.ListIf children in
     set_loc nd loc;
     nd
 
@@ -472,18 +462,20 @@ class translator options = object (self)
     | Ast.LIfor listfor -> self#of_listfor listfor
     | Ast.LIif listif -> self#of_listif listif
 
-  method of_dictorsetmaker = function
-    | Ast.DSMdict key_datums ->
-	List.map
-	  (fun (loc, expr1, expr2) -> 
-	    let nd = self#of_exprs L.KeyDatum [expr1; expr2] in
-	    set_loc nd loc;
-	    nd)
-	  key_datums
+  method of_dictelem delem =
+    let nd =
+      match delem.Ast.delem_desc with
+      | DEkeyValue(e1, e2) -> self#of_exprs L.KeyDatum [e1; e2]
+      | DEstarStar e -> self#of_exprs L.StarStar [e]
+    in
+    set_loc nd delem.Ast.delem_loc;
+    nd
 
-    | Ast.DSMdictC(e1, e2, compfor) -> [self#of_expr e1; self#of_expr e2; self#of_compfor compfor]
-    | Ast.DSMset es                 -> List.map self#of_expr es
-    | Ast.DSMsetC(e, compfor)       -> [self#of_expr e; self#of_compfor compfor]
+  method of_dictorsetmaker = function
+    | Ast.DSMdict key_datums       -> List.map self#of_dictelem key_datums
+    | Ast.DSMdictC(delem, compfor) -> [self#of_dictelem delem; self#of_compfor compfor]
+    | Ast.DSMset es                -> List.map self#of_expr es
+    | Ast.DSMsetC(e, compfor)      -> [self#of_expr e; self#of_compfor compfor]
 
   method of_sliceitem = function
     | Ast.SIexpr expr -> self#of_expr expr

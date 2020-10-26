@@ -51,7 +51,7 @@ and statement_desc =
   | Stryfin of suite * (loc * suite)
   | Swith of (expr * target option) list * suite
   | Sfuncdef of decorator list * name * parameters * suite
-  | Sclassdef of decorator list * name * expr list * suite
+  | Sclassdef of decorator list * name * arglist * suite
 
 and simplestmt = { sstmt_desc: simplestmt_desc; sstmt_loc: loc }
 
@@ -89,7 +89,12 @@ and except = EX of loc | EX1 of loc * expr | EX2 of loc * expr * target
 
 and suite = loc * statement list
 
-and parameters = loc * (fpdef * expr option) list * name option * name option
+and parameters = loc * vararg list
+
+and vararg =
+| VAarg of fpdef * expr option
+| VAargs of loc * name option
+| VAkwargs of loc * name
 
 and fpdef = Fname of name | Flist of loc * fpdef list
 
@@ -104,25 +109,25 @@ and expr_desc =
   | Euop of uop * expr
   | Elambda of parameters * expr
   | Econd of expr * expr * expr
+  | Estar of expr
+  | Enamed of expr * expr
+  | Efrom of expr
 
 and primary = { prim_desc: primary_desc; prim_loc: loc }
 
 and primary_desc = 
   | Pname of name
   | Pliteral of literal
-	
   | Pparen of expr
   | Ptuple of expr list
-
   | Pyield of expr list
-  | Pcomp of expr * compfor
-
-  | Plist of listmaker
+  | PcompT of expr * compfor
+  | PcompL of expr * compfor
+  | Plist of expr list
   | Plistnull
   | Pdictorset of dictorsetmaker
   | Pdictnull
   | Pstrconv of expr list
-
   | Pattrref of primary * name
   | Psubscript of primary * expr list
   | Pslice of primary * sliceitem list
@@ -144,16 +149,6 @@ and literal =
 and pystring = PSlong of loc * string | PSshort of loc * string
 
 and target = expr
-(*
-  | Tname of name
-  | Ttuple of target list
-  | Tlist of target list
-  | Tattrref of primary * name
-  | Tsubscript of primary * expr list
-  | Tslice of primary * sliceitem list
-*)
-
-and listmaker = LMfor of expr * listfor | LMtest of expr list
 
 and listfor = loc * expr list * expr list * listiter option
 
@@ -161,11 +156,17 @@ and listif = loc * expr * listiter option
 
 and listiter = LIfor of listfor | LIif of listif
 
-and dictorsetmaker = 
-| DSMdict of (loc * expr * expr) list 
-| DSMdictC of expr * expr * compfor
+and dictorsetmaker =
+| DSMdict of dictelem list
+| DSMdictC of dictelem * compfor
 | DSMset of expr list
 | DSMsetC of expr * compfor
+
+and dictelem = { delem_desc : dictelem_desc; delem_loc : loc }
+
+and dictelem_desc =
+| DEkeyValue of expr * expr
+| DEstarStar of expr
 
 and sliceitem = 
   | SIexpr of expr 

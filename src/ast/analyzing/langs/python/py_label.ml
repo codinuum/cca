@@ -492,6 +492,7 @@ module Primary = struct
     | Yield
     | Test
     | List
+    | ListFor
     | Dict
     | StringConv
     | AttrRef
@@ -508,6 +509,7 @@ module Primary = struct
     | Yield        -> "Yield"
     | Test         -> "Test"
     | List         -> "List"
+    | ListFor      -> "ListFor"
     | Dict         -> "Dict"
     | StringConv   -> "StringConv"
     | AttrRef      -> "AttrRef"
@@ -530,12 +532,13 @@ module Primary = struct
     | Yield        -> mkstr 4
     | Test         -> mkstr 5
     | List         -> mkstr 6
-    | Dict         -> mkstr 7
-    | StringConv   -> mkstr 8 
-    | AttrRef      -> mkstr 9
-    | Subscription -> mkstr 10
-    | Slicing      -> mkstr 11
-    | Call tid     -> combo 12 [tid_to_string tid]
+    | ListFor      -> mkstr 7
+    | Dict         -> mkstr 8
+    | StringConv   -> mkstr 9 
+    | AttrRef      -> mkstr 10
+    | Subscription -> mkstr 11
+    | Slicing      -> mkstr 12
+    | Call tid     -> combo 13 [tid_to_string tid]
 			      
   let to_tag prim =
     let name, attrs =
@@ -547,6 +550,7 @@ module Primary = struct
       | Yield        -> "YieldAtom", []
       | Test         -> "TestAtom", []
       | List         -> "ListAtom", []
+      | ListFor      -> "ListForAtom", []
       | Dict         -> "DictAtom", []
       | StringConv   -> "StringConvAtom", []
       | AttrRef      -> "AttrRef", []
@@ -602,7 +606,6 @@ type t = (* Label *)
   | As
   | ListMaker
   | ListIf
-  | ListFor
   | DictOrSetMaker
   | KeyDatum
   | SliceItem
@@ -624,7 +627,9 @@ type t = (* Label *)
   | Sublist
   | StringLiteral of string
   | WithItem
-
+  | StarStar
+  | Star
+  | Named
 
 let opt_to_string to_str = function
   | Some x -> to_str x
@@ -646,19 +651,19 @@ let literal_to_string = function
 	 ) ";" pystrs) ^
       "]"
 
-let rec primary_to_string prim = 
-  match prim.Ast.prim_desc with
+let rec primary_to_string prim = primary_desc_to_string prim.Ast.prim_desc
+
+and primary_desc_to_string = function
   | Ast.Pname name           -> "Pname(" ^ (name_to_string name) ^ ")"
   | Ast.Pliteral lit         -> "Pliteral(" ^ (literal_to_string lit) ^ ")"
   | Ast.Pparen expr          -> "Pparen(" ^ (expr_to_string expr) ^ ")"
   | Ast.Ptuple exprs         -> "Ptuple" ^ (exprs_to_string exprs)
   | Ast.Pyield exprs         -> "Pyield" ^ (exprs_to_string exprs)
 
-  | Ast.Pcomp(expr, compfor) -> 
-      "Pcomp(" ^ (expr_to_string expr) ^ "," ^ 
-      (compfor_to_string compfor) ^ ")"
+  | Ast.PcompT(expr, compfor) -> "PcompT(" ^ (expr_to_string expr) ^ "," ^ (compfor_to_string compfor) ^ ")"
+  | Ast.PcompL(expr, compfor) -> "PcompL(" ^ (expr_to_string expr) ^ "," ^ (compfor_to_string compfor) ^ ")"
 
-  | Ast.Plist listmaker -> "Plist" ^ (listmaker_to_string listmaker)
+  | Ast.Plist exprs -> "Plist" ^ (exprs_to_string exprs)
   | Ast.Plistnull -> "Plistnull"
   | Ast.Pdictorset dictorsetmaker -> "Pdictorset" ^ (dictorsetmaker_to_string dictorsetmaker)
   | Ast.Pdictnull -> "Pdictnull"
@@ -695,7 +700,7 @@ and expr_to_string expr =
   | Ast.Elambda(params, expr) ->
       "Elambda(" ^ 
       (match params with 
-	_, [], None, None -> "" 
+        _, [] -> "" 
       | _ -> parameters_to_string params) ^
       (expr_to_string expr)
 
@@ -704,6 +709,12 @@ and expr_to_string expr =
       (expr_to_string expr1) ^ "," ^
       (expr_to_string expr2) ^ "," ^
       (expr_to_string expr3) ^ ")"
+
+  | Ast.Estar expr -> "*"^(expr_to_string expr)
+
+  | Ast.Enamed(expr1, expr2) -> (expr_to_string expr1)^":="^(expr_to_string expr2)
+
+  | Ast.Efrom expr -> "from "^(expr_to_string expr)
 
 and bop_to_string = function
   | Ast.Bmul    -> "Bmul"
@@ -736,17 +747,18 @@ and uop_to_string = function
   | Ast.Ucomplement -> "Ucomplement"
   | Ast.Unot        -> "Unot"
 
-and parameters_to_string (_, vargs, tini, dini) =
+and parameters_to_string (_, vargs) =
   "(" ^ 
   (vargs_to_string vargs) ^ "," ^
-  (opt_to_string name_to_string tini) ^ "," ^
-  (opt_to_string name_to_string dini) ^ ")"
+  ")"
 
-and vargs_to_string vargs =
-  let varg_to_string (fpdef, expr_opt) = 
-    (fpdef_to_string fpdef) ^ "," ^ (opt_to_string expr_to_string expr_opt)
-  in
-  "[" ^ (Xlist.to_string varg_to_string ";" vargs) ^ "]"
+and vararg_to_string = function
+  | Ast.VAarg(fpdef, expr_opt) -> (fpdef_to_string fpdef) ^ "," ^ (opt_to_string expr_to_string expr_opt)
+  | Ast.VAargs(_, None)     -> "*"
+  | Ast.VAargs(_, (Some n)) -> "*" ^ (name_to_string n)
+  | Ast.VAkwargs(_, n)      -> "**" ^ (name_to_string n)
+
+and vargs_to_string vargs = "[" ^ (Xlist.to_string vararg_to_string ";" vargs) ^ "]"
 
 and fpdef_to_string = function
   | Ast.Fname n -> "Fname(" ^ (name_to_string n) ^ ")"
@@ -771,11 +783,6 @@ and compif_to_string (_, expr, compiter_opt) =
   (expr_to_string expr) ^ "," ^ (opt_to_string compiter_to_string compiter_opt) ^ 
   ")"
 
-and listmaker_to_string = function
-  | Ast.LMfor (expr, listfor) -> 
-      "LMfor(" ^ (expr_to_string expr) ^ "," ^ (listfor_to_string listfor) ^ ")"
-  | Ast.LMtest exprs -> "LMtest" ^ (exprs_to_string exprs)
-
 and listfor_to_string (_, exprs1, exprs2, listiter_opt) =
   "(" ^ 
   (exprs_to_string exprs1) ^ "," ^ (exprs_to_string exprs2) ^ "," ^ 
@@ -791,16 +798,17 @@ and listif_to_string (_, expr, listiter_opt) =
   (expr_to_string expr) ^ "," ^ (opt_to_string listiter_to_string listiter_opt) ^ 
   ")"
 
+and dictelem_to_string delem =
+  match delem.Ast.delem_desc with
+  | DEkeyValue(e1, e2) -> (expr_to_string e1)^":"^(expr_to_string e2)
+  | DEstarStar e -> "**"^(expr_to_string e)
+
 and dictorsetmaker_to_string dictorsetmaker = 
   let s =
     match dictorsetmaker with
-    | Ast.DSMdict key_dats ->
-	(Xlist.to_string
-	   (fun (_, e1, e2) -> 
-	     (expr_to_string e1)^":"^(expr_to_string e2)) "," key_dats)
+    | Ast.DSMdict key_dats -> Xlist.to_string dictelem_to_string "," key_dats
 
-    | Ast.DSMdictC(e1, e2, compfor) ->
-	(expr_to_string e1)^":"^(expr_to_string e2)^" "^(compfor_to_string compfor)
+    | Ast.DSMdictC(delem, compfor) -> (dictelem_to_string delem)^" "^(compfor_to_string compfor)
 
     | Ast.DSMset es -> Xlist.to_string expr_to_string "," es
 
@@ -891,7 +899,8 @@ let of_primary p =
     | Ast.Pparen _        -> Primary.Paren
     | Ast.Ptuple _        -> Primary.Tuple
     | Ast.Pyield _        -> Primary.Yield
-    | Ast.Pcomp _         -> Primary.Test
+    | Ast.PcompT _        -> Primary.Test
+    | Ast.PcompL _        -> Primary.ListFor
     | Ast.Plist _         -> Primary.List
     | Ast.Plistnull       -> Primary.List 
     | Ast.Pdictorset _    -> Primary.Dict
@@ -943,7 +952,6 @@ let rec to_string = function
   | As                    -> "As"
   | ListMaker             -> "ListMaker"
   | ListIf                -> "ListIf"
-  | ListFor               -> "ListFor"
   | DictOrSetMaker        -> "DictOrSetMaker"
   | KeyDatum              -> "KeyDatum"
   | SliceItem             -> "SliceItem"
@@ -968,6 +976,9 @@ let rec to_string = function
       let str0 = Str.global_replace re0 "\\n" str in
       sprintf "StringLiteral:%s" str0
   | WithItem -> "WithItem"
+  | StarStar -> "StarStar"
+  | Star     -> "Star"
+  | Named    -> "Named"
 
 let anonymize ?(more=false) = function
   | Primary p         -> Primary (Primary.anonymize ~more p)
@@ -1025,7 +1036,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | As  -> mkstr 27
   | ListMaker -> mkstr 28
   | ListIf    -> mkstr 29
-  | ListFor   -> mkstr 30
+
   | DictOrSetMaker -> mkstr 31
   | KeyDatum  -> mkstr 32
   | SliceItem -> mkstr 33
@@ -1053,7 +1064,9 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
       else
 	catstr [mkstr 51; str]
   | WithItem     -> mkstr 52
-
+  | StarStar     -> mkstr 53
+  | Star         -> mkstr 54
+  | Named        -> mkstr 55
 
 let to_tag l =
   let name, attrs =
@@ -1089,7 +1102,6 @@ let to_tag l =
     | As                    -> "As", []
     | ListMaker             -> "ListMaker", []
     | ListIf                -> "ListIf", []
-    | ListFor               -> "ListFor", []
     | DictOrSetMaker        -> "DictOrsetMaker", []
     | KeyDatum              -> "KeyDatum", []
     | SliceItem             -> "SliceItem", []
@@ -1111,6 +1123,9 @@ let to_tag l =
     | Sublist               -> "Sublist", []
     | StringLiteral str     -> "StringLiteral", ["value",XML.encode_string str]
     | WithItem              -> "WithItem", []
+    | StarStar              -> "StarStar", []
+    | Star                  -> "Star", []
+    | Named                 -> "Named", []
 
     | FileInput n           -> "FileInput", ["name",n]
   in

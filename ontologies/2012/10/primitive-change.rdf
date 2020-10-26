@@ -1,0 +1,538 @@
+<?xml version="1.0"?>
+
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY dc "http://purl.org/dc/elements/1.1/" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+    <!ENTITY chg "http://codinuum.com/ontologies/2010/10/primitive-change#" >
+]>
+
+
+<rdf:RDF xmlns="http://codinuum.com/ontologies/2010/10/primitive-change#"
+     xml:base="http://codinuum.com/ontologies/2010/10/primitive-change"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:chg="http://codinuum.com/ontologies/2010/10/primitive-change#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <owl:Ontology rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change">
+        <dc:title xml:lang="en">An Ontology for Basic Source Code Change</dc:title>
+        <dc:creator xml:lang="en">Codinuum Software Lab</dc:creator>
+        <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#abstractedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#abstractedTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#relabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#addition -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#addition"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#changedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#changedTo">
+        <rdfs:label xml:lang="en">changed to</rdfs:label>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#relabeled"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#childPair -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#childPair">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#copiedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#copiedTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#correspondsTo"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#correspondsTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#correspondsTo">
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:subPropertyOf rdf:resource="&owl;topObjectProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#deletedFrom -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#deletedFrom">
+        <rdfs:label xml:lang="en">deleted from</rdfs:label>
+        <rdfs:comment xml:lang="en">e deletedFrom e1
+means that a node e is deleted from a node e0 that is mapped to e1</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#deletedOrPruned"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#deletedOrPruned -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#deletedOrPruned">
+        <rdfs:label xml:lang="en">deleted or pruned</rdfs:label>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#removal"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#edit -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#edit">
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#Edit"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#TextEntityPair"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#filePair -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#filePair">
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#FilePair"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#SourceTreePair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#childPair"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#foldedInto -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#foldedInto">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#relabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#genAdded -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#genAdded">
+        <rdfs:label xml:lang="en">weak addition</rdfs:label>
+        <rdfs:comment xml:lang="en">inserted into, grafted onto, or moved</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#addition"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#genRemoved -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#genRemoved">
+        <rdfs:label xml:lang="en">weak removal</rdfs:label>
+        <rdfs:comment xml:lang="en">deleted from, pruned from, or moved</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#removal"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#gluedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#gluedTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#correspondsTo"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#graftedOnto -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#graftedOnto">
+        <rdfs:label xml:lang="en">grafted onto</rdfs:label>
+        <rdfs:comment xml:lang="en">e graftedOnto e0
+means that a subtree rooted at e is inserted into a node e1 that is mapped from e0</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#insertedOrGrafted"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#insertedInto -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#insertedInto">
+        <rdfs:label xml:lang="en">inserted into</rdfs:label>
+        <rdfs:comment xml:lang="en">e insertedInto e0
+means that a node e is inserted into a node e1 that is mapped from e0</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#insertedOrGrafted"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#insertedOrGrafted -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#insertedOrGrafted">
+        <rdfs:label xml:lang="en">inserted or grafted</rdfs:label>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#addition"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#mappedEqTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#mappedEqTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#mappedTo"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#mappedNeqTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#mappedNeqTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#mappedTo"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#mappedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#mappedTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#correspondsTo"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#mappingChange -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#mappingChange"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#modified -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#modified">
+        <rdfs:label xml:lang="en">modified</rdfs:label>
+        <rdfs:comment xml:lang="en">means that the subtree rooted at the subject entity is modified and mapped to the subtree rooted at the object entity</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#correspondsTo"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#mappingChange"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#modifiedEntity -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedEntity">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#modifiedFile -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedFile">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#FilePair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#File"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#modifiedSourceTree -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedSourceTree">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#SourceTreePair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#SourceTree"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#modifiedTextEntity -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedTextEntity">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#TextEntityPair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#modifiedEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#movAbstractedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#movAbstractedTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#movRelabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#movChangedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#movChangedTo">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#movRelabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#movFoledInto -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#movFoledInto">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#movRelabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#movRelabeled -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#movRelabeled">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#movedTo"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#relabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#movRenamed -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#movRenamed">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#movRelabeled"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#movedTo -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#movedTo">
+        <rdfs:label xml:lang="en">moved to</rdfs:label>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#mappingChange"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#orderChanged -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#orderChanged">
+        <rdfs:label xml:lang="en">order changed</rdfs:label>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#movedTo"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#originalEntity -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#originalEntity">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#originalFile -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#originalFile">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#FilePair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#originalEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#File"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#originalSourceTree -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#originalSourceTree">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#SourceTreePair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#originalEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#SourceTree"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#originalTextEntity -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#originalTextEntity">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#TextEntityPair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#originalEntity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#parentPair -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#parentPair"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#prunedFrom -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#prunedFrom">
+        <rdfs:label xml:lang="en">pruned from</rdfs:label>
+        <rdfs:comment xml:lang="en">e prunedFrom e1
+means that a subtree rooted at e is deleted from a node e0 that is mapped to e1</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#deletedOrPruned"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#relabeled -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#relabeled">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#mappingChange"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#removal -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#removal"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#renamed -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#renamed">
+        <rdfs:label xml:lang="en">renamed</rdfs:label>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#relabeled"/>
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#sourceTreePair -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#sourceTreePair">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#FilePair"/>
+        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#SourceTreePair"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#parentPair"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#Deletion -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#Deletion">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#Edit"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#Edit -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#Edit">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#FilePair -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#FilePair">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#Insertion -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#Insertion">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#Edit"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#Move -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#Move">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#Edit"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#Relabeling -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#Relabeling">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#Edit"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#SourceTreePair -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#SourceTreePair">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/primitive-change#TextEntityPair -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/primitive-change#TextEntityPair">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/primitive-change#EntityPair"/>
+    </owl:Class>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.2) http://owlapi.sourceforge.net -->
+

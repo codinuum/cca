@@ -93,7 +93,7 @@ let dump_in_xml_ch root ch =
 
 
 let dump_in_xml root =
-  dump_in_xml_ch root Pervasives.stdout
+  dump_in_xml_ch root Stdlib.stdout
 
 let save_in_xml fname root =
   Xfile.dump fname (dump_in_xml_ch root)

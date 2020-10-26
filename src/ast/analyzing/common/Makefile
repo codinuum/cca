@@ -21,7 +21,7 @@ include $(SRC_DIR)/rules.mk
 include ../subs.mk
 
 
-OBJS = $(COMMON_OBJS_P)
+OBJS = $(COMMON_OBJS)
 OBJS_OPT = $(OBJS:.cmo=.cmx)
 
 all: opt

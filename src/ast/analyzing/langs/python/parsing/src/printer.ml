@@ -137,14 +137,14 @@ and pr_statement level stmt =
       pr_string "):";
       pr_suite level suite
 
-  | Sclassdef(decs, name, exprs, suite) ->
+  | Sclassdef(decs, name, arglist, suite) ->
       pr_indent level;
       pr_list pr_decorator pr_null decs;
       pr_string "class ";
       pr_name name;
-      (match exprs with 
-	[] -> () 
-      | _ -> pr_string "("; pr_exprs exprs; pr_string ")");
+      (match arglist with
+      |	_, [], _, _ -> ()
+      | _ -> pr_arglist arglist);
       pr_colon();
       pr_suite level suite
 
@@ -291,26 +291,20 @@ and pr_suite level (_, stmts) =
 	pr_newline();
 	pr_list (pr_statement level') pr_null stmts
 
+and pr_vararg = function
+  | VAarg(fpdef, expr_opt) -> begin
+      pr_fpdef fpdef;
+      pr_opt (fun expr -> pr_equal(); pr_expr expr) expr_opt
+  end
+  | VAargs(_, None)     -> pr_string "*"
+  | VAargs(_, (Some n)) -> pr_string "*"; pr_name n
+  | VAkwargs(_, n)      -> pr_string "**"; pr_name n
 
-and pr_parameters (_, vargs, tini, dini) = 
-  pr_vargs vargs;
-  (match tini, dini with
-  | None, None -> ()
-  | Some t, None -> pr_string "*"; pr_name t
-  | None, Some d -> pr_string "**"; pr_name d
-  | Some t, Some d -> 
-      pr_string "*"; pr_name t; pr_string ",**"; pr_name d)
-
-and pr_vargs vargs =
-  let pr_varg (fpdef, expr_opt) =
-    pr_fpdef fpdef;
-    pr_opt (fun expr -> pr_equal(); pr_expr expr) expr_opt
-  in
-  pr_list pr_varg pr_comma vargs
+and pr_parameters (_, vargs) = pr_list pr_vararg pr_comma vargs
 
 and pr_fpdef = function 
   | Fname name -> pr_name name
-  | Flist(_, fpdefs) -> 
+  | Flist(_, fpdefs) ->
       pr_string "("; pr_list pr_fpdef pr_comma fpdefs; pr_string ")"
 
 and pr_decorator (_, dname, arglist) =
@@ -334,8 +328,8 @@ and pr_expr expr =
 
   | Elambda(params, expr) ->
       pr_string "lambda";
-      (match params with 
-	_, [], None, None -> () 
+      (match params with
+	_, [] -> ()
       | _ -> pr_space(); pr_parameters params);
       pr_colon();
       pr_expr expr
@@ -347,8 +341,15 @@ and pr_expr expr =
       pr_string "else";
       pr_expr expr3
 
-and pr_primary prim =
-  match prim.prim_desc with
+  | Estar expr -> pr_string "*"; pr_expr expr
+
+  | Enamed(expr1, expr2) -> pr_expr expr1; pr_string " := "; pr_expr expr2
+
+  | Efrom expr -> pr_string "from "; pr_expr expr
+
+and pr_primary prim = _pr_primary prim.prim_desc
+
+and _pr_primary = function
   | Pname name -> pr_name name
 
   | Pliteral lit -> pr_literal lit
@@ -359,15 +360,21 @@ and pr_primary prim =
 
   | Pyield exprs -> pr_string "(yield"; pr_exprs exprs; pr_string ")"
 
-  | Pcomp(expr, compfor) -> 
+  | PcompT(expr, compfor) ->
       pr_string "(";
       pr_expr expr;
       pr_space();
       pr_compfor compfor;
       pr_string ")"
 
-  | Plist listmaker -> 
-      pr_string "["; pr_listmaker listmaker; pr_string "]"
+  | PcompL(expr, compfor) ->
+      pr_string "[";
+      pr_expr expr;
+      pr_space();
+      pr_compfor compfor;
+      pr_string "]"
+
+  | Plist exprs -> pr_string "["; pr_exprs exprs; pr_string "]"
 
   | Plistnull -> pr_string "[]"
 
@@ -409,11 +416,6 @@ and pr_literal = function
 
 and pr_target x = pr_expr x
 
-and pr_listmaker = function
-  | LMfor(expr, listfor) -> pr_expr expr; pr_space(); pr_listfor listfor
-
-  | LMtest exprs -> pr_exprs exprs
-
 and pr_listfor (_, exprs1, exprs2, listiter_opt) =
   pr_string "for ";
   pr_exprs exprs1;
@@ -430,16 +432,16 @@ and pr_listiter = function
   | LIfor listfor -> pr_listfor listfor
   | LIif listif -> pr_listif listif
 
-and pr_dictorsetmaker = function
-  | DSMdict key_dats ->
-      pr_list
-	(fun (_, e1, e2) -> pr_expr e1; pr_colon(); pr_expr e2)
-	pr_comma key_dats
+and pr_dictelem delem =
+  match delem.delem_desc with
+  | DEkeyValue(e1, e2) -> pr_expr e1; pr_colon(); pr_expr e2
+  | DEstarStar e -> pr_string "**"; pr_expr e
 
-  | DSMdictC(e1, e2, compfor) ->
-      pr_expr e1;
-      pr_colon();
-      pr_expr e2;
+and pr_dictorsetmaker = function
+  | DSMdict key_dats -> pr_list pr_dictelem pr_comma key_dats
+
+  | DSMdictC(delem, compfor) ->
+      pr_dictelem delem;
       pr_space();
       pr_compfor compfor
 

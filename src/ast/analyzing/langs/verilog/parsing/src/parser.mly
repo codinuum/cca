@@ -355,6 +355,7 @@ library_declaration:
        }
    | LIBRARY i=id f0=file_path_spec_list d=INCDIR f1=file_path_spec_list SEMICOLON 
        { 
+         ignore d;
 	 mknode $startpos $endpos (L.LibraryDeclaration i) (f0 @ [mknode $startpos(d) $endpos(f1) L.Incdir f1])
        }
 ;
@@ -3566,6 +3567,7 @@ fexpr: (* for use as leading part of statement *)
    | fexpr MATCHES MATCHES_     pattern_no_expr  { mknode $startpos $endpos L.CondPattern [$1; $4] }
    | fexpr MATCHES MATCHES_     fexpr            { mknode $startpos $endpos L.CondPattern [$1; $4] }
    | fexpr DIST LBRACE dist_list RBRACE { mknode $startpos $endpos L.Dist $4 }
+   | e=PP_MACRO_EXPR { mkleaf $startpos $endpos (L.MacroExpr e) }
 ;
 
 ev_expr:

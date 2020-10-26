@@ -7,6 +7,7 @@ PARSER_NAME = astml
 
 LIB_NAME = M$(PARSER_NAME)
 
+LIB = $(LIB_NAME).cmo
 LIB_P = $(LIB_NAME)_p.cmo
 
 
@@ -27,17 +28,23 @@ LINKFLAGS =  -g $(INCLS)
 LINKFLAGS_OPT = $(INCLS)
 
 __OBJS = common.cmo conf.cmo label.cmo tree.cmo fact.cmo lib_base.cmo
+_OBJS = $(__OBJS) change.cmo
+
+OBJS = $(_OBJS) lib.cmo
 
 OBJS_P = $(__OBJS) lib_p.cmo
 
 SPEC_OBJ = S$(PARSER_NAME).cmo
 
+LIB_OPT = $(LIB:.cmo=.cmxs)
 LIB_P_OPT = $(LIB_P:.cmo=.cmxs)
+OBJS_OPT = $(OBJS:.cmo=.cmx)
 OBJS_P_OPT = $(OBJS_P:.cmo=.cmx)
 
 SPEC_OBJ_OPT = $(SPEC_OBJ:.cmo=.cmx)
 
 OTHER_OBJS_DEP_OPT = $(OTHER_OBJS_DEP:.cmo=.cmx)
+COMMON_OBJS_DEP_OPT = $(COMMON_OBJS_DEP:.cmo=.cmx)
 COMMON_OBJS_DEP_OPT_P = $(COMMON_OBJS_DEP_P:.cmo=.cmx)
 
 PACKAGES = -package pxp,volt
@@ -53,10 +60,14 @@ production: opt
 
 all: opt
 
-opt: $(SPEC_OBJ_OPT) $(LIB_P_OPT)
+opt: $(SPEC_OBJ_OPT) $(LIB_OPT) $(LIB_P_OPT)
 
 $(SPEC_OBJ_OPT): $(COMMON_OBJS_DEP_OPT_P)
 	$(OCAMLFIND) ocamlopt $(PACKAGES) $(SYNTAX) $(LINKFLAGS_OPT) $(PROFFLAGS) -c $(SPEC_OBJ:.cmo=.ml)
+
+$(LIB_OPT): $(OBJS_OPT) $(OTHER_OBJS_DEP_OPT)
+	$(OCAMLFIND) ocamlopt $(LINKFLAGS_OPT) $(PROFFLAGS) -shared -o $(LIB_OPT) \
+	$(OBJS_OPT)
 
 $(LIB_P_OPT): $(OBJS_P_OPT) $(OTHER_OBJS_DEP_OPT)
 	$(OCAMLFIND) ocamlopt $(LINKFLAGS_OPT) $(PROFFLAGS) -shared -o $(LIB_P_OPT) \
@@ -66,6 +77,10 @@ debug: $(SPEC_OBJ) $(LIB) $(LIB_P)
 
 $(SPEC_OBJ): $(COMMON_OBJS_DEP_P)
 	$(OCAMLFIND) $(OCAMLC_MODE) $(PACKAGES) $(SYNTAX) $(LINKFLAGS) -c $(SPEC_OBJ:.cmo=.ml) 
+
+$(LIB): $(OBJS) $(OTHER_OBJS_DEP)
+	$(OCAMLFIND) $(OCAMLC_MODE) $(LINKFLAGS) -shared -o $(LIB) \
+	$(OBJS)
 
 $(LIB_P): $(OBJS_P) $(OTHER_OBJS_DEP)
 	$(OCAMLFIND) $(OCAMLC_MODE) $(LINKFLAGS) -shared -o $(LIB_P) \
