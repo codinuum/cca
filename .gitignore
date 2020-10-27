@@ -15,3 +15,9 @@
 *.di
 *.opt
 *.pyc
+tmp
+diffviewer/DiffViewer-darwin-x64
+diffviewer/node_modules
+diffviewer/icon.png*
+diffviewer/package-lock.json
+diffviewer/tmp
