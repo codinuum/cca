@@ -64,7 +64,7 @@ RUN set -x && \
     cd /root && \
     opam init -y --disable-sandboxing && \
     eval $(opam config env) && \
-    opam install -y camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm && \
+    opam install -y camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre && \
     git clone https://github.com/codinuum/volt && \
     cd volt && sh configure && make all && make install && \
     cd /root && \

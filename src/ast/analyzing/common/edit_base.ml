@@ -1713,6 +1713,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     let nmaps = uidmapping#size in
     let total = ndels + ninss + nrels + (* nmovs *) nmovgrs in
+    let nnodes1 = tree1#_initial_size in
+    let nnodes2 = tree2#_initial_size in
+    let sim =
+      if total = 0 then
+        "1.0"
+      else
+        let spm = nmaps - nmovs - nrels + nmovrels in
+        let _sim = float (spm * 2) /. float (nnodes1 + nnodes2) in
+        sprintf "%.6f" _sim
+    in
     let cr =
       sprintf "%.6f" ((float_of_int total) /. (float_of_int nmaps))
     in
@@ -1725,7 +1735,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       let ng = ndelgrs + ninsgrs + nmovgrs in
       sprintf "%.6f" ((float_of_int n) /. (float_of_int ng))
     in
-    { s_nnodes1 = tree1#_initial_size; s_nnodes2 = tree2#_initial_size;
+    { s_nnodes1 = nnodes1; s_nnodes2 = nnodes2;
       s_deletes     = ndels;
       s_deletes_gr  = ndelgrs;
       s_inserts     = ninss;
@@ -1739,6 +1749,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       s_units            = nunits;
       s_unmodified_units = nunmodified;
       s_total_changes    = total;
+      s_similarity       = sim;
       s_change_ratio     = cr;
       s_unmodified_rate  = ur;
       s_SPSM = nmaps - nmovs - nrels + nmovrels;

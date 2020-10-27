@@ -491,31 +491,34 @@ let _ =
   end
 
 let new_file, old_file = 
-  match !filenames with 
-  | n::o::[] -> Fs.file_of_path options n, Fs.file_of_path options o
-  | [x] -> begin
-      if !get_cache_dir_only then begin
-        let f = Fs.file_of_path options x in
-	if f#exists then begin
-          if f#is_dir then
-            printf "%s\n" (DT.get_cache_path_for_dir1 options f#tree)
-          else
-            ignore (astcore#parse_file ~get_cache_dir_only:true f);
-	  exit 0
+  try
+    match !filenames with 
+    | n::o::[] -> Fs.file_of_path options n, Fs.file_of_path options o
+    | [x] -> begin
+        if !get_cache_dir_only then begin
+          let f = Fs.file_of_path options x in
+	  if f#exists then begin
+            if f#is_dir then
+              printf "%s\n" (DT.get_cache_path_for_dir1 options f#tree)
+            else
+              ignore (astcore#parse_file ~get_cache_dir_only:true f);
+	    exit 0
+          end
+          else begin
+            Xprint.error ~head:"[FAILURE]" "not found: %s" f#path;
+            exit 1
+          end
         end
         else begin
-          Xprint.error ~head:"[FAILURE]" "not found: %s" f#path;
-          exit 1
+	  Xprint.message "If you want to only parse, run with -parseonly flag.";
+	  exit 0
         end
-      end
-      else begin
-	Xprint.message "If you want to only parse, run with -parseonly flag.";
-	exit 0
-      end
-  end
-  | _ -> 
-      Arg.usage speclist usage_msg; 
-      exit 1
+    end
+    | _ -> 
+        Arg.usage speclist usage_msg; 
+        exit 1
+  with
+  | Xfile.No_such_file_or_directory f -> Xprint.error "\"%s\": no such file or directory" f; exit 1
 
 let _ = 
   if new_file = old_file && not !align_fragments_flag && not !get_cache_dir_only then begin 
@@ -574,12 +577,12 @@ let _ =
 	  stat_paths <> [] && (not options#clear_cache_flag)
 	then begin
 
-	  Xprint.warning "using caches%s:\n%s"
+	  Xprint.message "read from cache%s:\n%s"
             (if options#local_cache_name = "" then 
               "" 
             else 
               sprintf " (local cache name: %s)" options#local_cache_name)
-            (Xlist.to_string (fun x -> "\""^x.Cache.sr_cache_path^"\"") "\n" stat_paths);
+            (Xlist.to_string (fun x -> x.Cache.sr_cache_path) "\n" stat_paths);
 
           let handle_file_versions i file =
             let cache_path = astcore#get_cache_path1 file in
@@ -613,8 +616,10 @@ let _ =
 	end
 	else begin
           let stat = astcore#compare_files ~cache_path old_file new_file in
-          if not options#verbose_flag then
-            S.File.dump_diff_stat_ch stat stdout
+          if not options#verbose_flag then begin
+            Xprint.message "results saved in %s" cache_path;
+            S.File.dump_diff_stat_ch ~short:true stat stdout
+          end
         end
       end
     end
