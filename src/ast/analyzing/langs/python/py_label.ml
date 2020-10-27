@@ -49,6 +49,8 @@ let conv_loc
 let conv_name (_, name) = name
 let loc_of_name (loc, _) = loc
 
+let dotted_name_to_string dname = String.concat "." (List.map conv_name dname)
+
 open Charpool
 
 module Literal =
@@ -597,8 +599,8 @@ type t = (* Label *)
   | NamedSuite of name
   | Parameters
   | NamedParameters of name
-  | Decorators
-  | Decorator
+  | Decorators of name
+  | Decorator of name
   | Finally
   | In
   | LHS
@@ -613,7 +615,7 @@ type t = (* Label *)
   | Upper
   | Stride
   | SliceItemEllipsis
-  | Arguments
+  | Arguments of tie_id
   | NamedArguments of name
   | Argument
   | GenFor
@@ -891,6 +893,11 @@ let of_bop bop = BinaryOperator (BinaryOperator.of_bop bop)
 
 let of_uop uop = UnaryOperator (UnaryOperator.of_uop uop)
 
+let tid_of_primary prim =
+  mktid
+    (Digest.to_hex (Digest.string (primary_to_string prim)))
+    ""
+
 let of_primary p =
   Primary
     (match p with
@@ -909,13 +916,7 @@ let of_primary p =
     | Ast.Pattrref _      -> Primary.AttrRef
     | Ast.Psubscript _    -> Primary.Subscription
     | Ast.Pslice _        -> Primary.Slicing
-    | Ast.Pcall (prim, _) -> 
-	let tid = 
-	  mktid
-	    (Digest.to_hex (Digest.string (primary_to_string prim)))
-	    ""
-	in
-	Primary.Call tid
+    | Ast.Pcall (prim, _) -> Primary.Call (tid_of_primary prim)
     )
 
 
@@ -943,8 +944,8 @@ let rec to_string = function
   | NamedSuite n          -> sprintf "Suite:%s" n
   | Parameters            -> "Parameters"
   | NamedParameters n     -> sprintf "Parameters:%s" n
-  | Decorators            -> "Decorators"
-  | Decorator             -> "Decorator"
+  | Decorators n          -> sprintf "Decorators:%s" n
+  | Decorator n           -> sprintf "Decorator:%s" n
   | Finally               -> "Finally"
   | In                    -> "In"	
   | LHS                   -> "LHS"
@@ -959,8 +960,8 @@ let rec to_string = function
   | Upper                 -> "Upper"
   | Stride                -> "Stride"
   | SliceItemEllipsis     -> "SliceItemEllipsis"
-  | Arguments             -> "Arguments"
-  | NamedArguments n      -> sprintf "Arguments:%s" n
+  | Arguments tid         -> sprintf "Arguments:%s" (tid_to_string tid)
+  | NamedArguments n      -> sprintf "NamedArguments:%s" n
   | Argument              -> "Argument"
   | GenFor                -> "GenFor"
   | GenIf                 -> "GenIf"
@@ -987,7 +988,10 @@ let anonymize ?(more=false) = function
   | Name n            -> Name ""
   | NamedSuite n      -> NamedSuite ""
   | NamedParameters n -> NamedParameters ""
+  | Arguments tid     -> Arguments (anonymize_tid ~more tid)
   | NamedArguments n  -> NamedArguments ""
+  | Decorator n       -> Decorator ""
+  | Decorators n      -> Decorators ""
   | StringLiteral str -> StringLiteral ""
   | lab               -> lab
 
@@ -1027,9 +1031,9 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Parameters        -> mkstr 19
   | NamedParameters n -> combo 20 [n]
 
-  | Decorators -> mkstr 21
-  | Decorator  -> mkstr 22
-  | Finally    -> mkstr 23
+  | Decorators n -> combo 21 [n]
+  | Decorator n  -> combo 22 [n]
+  | Finally      -> mkstr 23
   | In  -> mkstr 24
   | LHS -> mkstr 25
   | RHS -> mkstr 26
@@ -1044,8 +1048,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Upper     -> mkstr 35
   | Stride    -> mkstr 36
   | SliceItemEllipsis -> mkstr 37
-  | Arguments -> mkstr 38
-
+  | Arguments tid -> combo 38 [tid_to_string tid]
   | NamedArguments n -> combo 39 [n]
 
   | Argument    -> mkstr 40
@@ -1093,8 +1096,8 @@ let to_tag l =
     | NamedSuite n          -> "NamedSuite", ["name",n]
     | Parameters            -> "Parameters", []
     | NamedParameters n     -> "NamedParameters", ["name",n]
-    | Decorators            -> "Decorators", []
-    | Decorator             -> "Decorator", []
+    | Decorators n          -> "Decorators", ["name",n]
+    | Decorator n           -> "Decorator", ["name",n]
     | Finally               -> "Finally", []
     | In                    -> "In", []
     | LHS                   -> "Lhs", []
@@ -1109,7 +1112,7 @@ let to_tag l =
     | Upper                 -> "Upper", []
     | Stride                -> "Stride", []
     | SliceItemEllipsis     -> "SliceItemEllipsis", []
-    | Arguments             -> "Arguments", []
+    | Arguments tid         -> "Arguments", mktidattr tid
     | NamedArguments n      -> "NamedArguments", ["name",n]
     | Argument              -> "Argument", []
     | GenFor                -> "GenFor", []
@@ -1141,21 +1144,23 @@ let of_elem_data name attrs _ = Dummy (* not yet *)
 
 
 let is_named = function
-  | FileInput _ 
+  | FileInput _
   | Name _
   | NamedSuite _
   | NamedParameters _
-  | NamedArguments _ 
+  | NamedArguments _
+  | Decorator _
+  | Decorators _
   | Statement (Statement.FuncDef _ | Statement.ClassDef _)
-  | Primary (Primary.Name _) 
+  | Primary (Primary.Name _)
     -> true
   | _ -> false
 
 let is_named_orig = function
-  | FileInput _ 
+  | FileInput _
   | Name _
   | Statement (Statement.FuncDef _ | Statement.ClassDef _)
-  | Primary (Primary.Name _) 
+  | Primary (Primary.Name _)
     -> true
   | _ -> false
 
@@ -1174,7 +1179,11 @@ let relabel_allowed = function (* FIXME: should be tuned! *)
 
 let move_disallowed _ = false
 
-let is_common _ = false
+let is_common = function
+  | Name "self"
+  | Name "super"
+    -> true
+  | _ -> false
 
 let is_hunk_boundary _ _ = false (* not yet *)
 
@@ -1273,11 +1282,11 @@ let has_non_trivial_value lab =
 let cannot_be_keyroot nd = false
 
 let is_phantom = function
-  | Decorators
+  | Decorators _
   | Targets
   | Parameters
   | NamedParameters _
-  | Arguments
+  | Arguments _
   | NamedArguments _
       -> true
   | _ -> false

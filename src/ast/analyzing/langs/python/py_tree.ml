@@ -159,7 +159,7 @@ class translator options = object (self)
 
       | Ast.Sfuncdef(decos, name, params, suite) ->
 	  mkstmtnode
-	    ((self#of_decorators decos) @ [self#of_name name] @
+	    ((self#of_decorators name decos) @ [self#of_name name] @
 	     (self#of_named_parameters (L.conv_name name) params) @ 
 	     [self#of_named_suite name suite])
 
@@ -168,9 +168,9 @@ class translator options = object (self)
 	  let c =
             match arglist with
             | _, [], _, _ -> c
-            | _ -> (*(self#of_arglist L.Inheritance arglist)::*)c 
+            | _ -> (self#mknode L.Inheritance (self#of_named_arglist (L.conv_name name) arglist))::c 
 	  in
-	  let c = (self#of_decorators decos) @ ((self#of_name name)::c) in
+	  let c = (self#of_decorators name decos) @ ((self#of_name name)::c) in
 	  mkstmtnode c
     in
     set_loc nd stmt.Ast.stmt_loc;
@@ -217,14 +217,14 @@ class translator options = object (self)
 
   method of_excepts es = List.map self#of_except es
 
-  method of_decorators decos =
+  method of_decorators name decos =
     if decos = [] then []
     else
       let children = List.map self#of_decorator decos in
       let loc = 
 	Loc._merge (first children)#data#src_loc (last children)#data#src_loc 
       in
-      let nd = self#mknode L.Decorators children in
+      let nd = self#mknode (L.Decorators (L.conv_name name)) children in
       nd#data#set_loc loc;
       [nd]
 	
@@ -371,8 +371,9 @@ class translator options = object (self)
 	nd
 
   method of_decorator (loc, dname, arglist) =
-    let children = (self#of_dottedname dname)::(self#of_arglist arglist) in
-    let nd = self#mknode L.Decorator children in
+    let dname_str = L.dotted_name_to_string dname in
+    let children = (self#of_dottedname dname)::(self#of_named_arglist dname_str arglist) in
+    let nd = self#mknode (L.Decorator dname_str) children in
     set_loc nd loc;
     nd
 
@@ -430,7 +431,10 @@ class translator options = object (self)
       | Ast.Pattrref(prim, name) -> self#mknode lab [self#of_primary prim; self#of_name name]
       | Ast.Psubscript(prim, exprs) -> mkprimnode ((self#of_primary prim)::(List.map self#of_expr exprs))
       | Ast.Pslice(prim, sliceitems) -> mkprimnode ((self#of_primary prim)::(List.map self#of_sliceitem sliceitems))
-      | Ast.Pcall(prim, arglist) -> mkprimnode ((self#of_primary prim)::(self#of_arglist arglist))
+      | Ast.Pcall(prim, arglist) ->
+          let tid = L.tid_of_primary prim in
+          let lab = L.Primary (L.Primary.Call tid) in
+          self#mknode lab ((self#of_primary prim)::(self#of_arglist tid arglist))
     in
     nd
 
@@ -495,7 +499,7 @@ class translator options = object (self)
 	set_loc nd loc;
 	nd
 
-  method of_arglist (loc, args, expr_args_opt, expr_opt) =
+  method of_arglist tid (loc, args, expr_args_opt, expr_opt) =
     match args, expr_args_opt, expr_opt with
     | [], None, None -> []
     | _ -> 
@@ -507,7 +511,7 @@ class translator options = object (self)
 	  ) @
 	  (self#of_opt_lab L.Dict self#of_expr expr_opt)
 	in
-	let nd = self#mknode L.Arguments children in
+	let nd = self#mknode (L.Arguments tid) children in
 	set_loc nd loc;
 	[nd]
 

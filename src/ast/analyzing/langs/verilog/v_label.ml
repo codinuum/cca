@@ -831,7 +831,7 @@ let anonymize ?(more=false) = function
     | ForInitItemDT id                         -> ForInitItemDT ""
     | CycleDelay s                             -> CycleDelay ""
     | CycleDelayId id                          -> CycleDelayId ""
-    | InstName id                              -> InstName id
+    | InstName id                              -> InstName ""
     | ClockingEvent id                         -> ClockingEvent ""
     | CycleDelayRange s                        -> CycleDelayRange ""
     | CycleDelayRangeId id                     -> CycleDelayRangeId ""

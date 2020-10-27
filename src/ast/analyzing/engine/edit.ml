@@ -1123,8 +1123,22 @@ let adjust_renames
             let a2 = pnd2#initial_children in
             if Array.length a1 = Array.length a2 then
               chka a1 a2
+            else if sz1 = 1 || sz2 = 1 then
+              true
             else
-              false
+              (*false*)
+              try
+                Array.iter
+                  (fun s1 ->
+                    if
+                      s1 != nd1 &&
+                      Array.exists (fun s2 -> s2 != nd2 && chk s1 s2) a2
+                    then
+                      raise Exit
+                  ) a1;
+                false
+              with
+                Exit -> true
           else
             chka ca1 ca2
         else

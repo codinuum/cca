@@ -792,34 +792,58 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | UnsignedLong -> mkstr2 645
 
 let _anonymize ?(more=false) ?(most=false) = function
-  | SimpleTypeSpecifier _           when most -> DefiningTypeSpecifier
-  | ElaboratedTypeSpecifier         when most -> DefiningTypeSpecifier
-  | ElaboratedTypeSpecifierClass _  when most -> DefiningTypeSpecifier
-  | ElaboratedTypeSpecifierStruct _ when most -> DefiningTypeSpecifier
-  | ElaboratedTypeSpecifierUnion _  when most -> DefiningTypeSpecifier
-  | ElaboratedTypeSpecifierEnum _   when most -> DefiningTypeSpecifier
-  | TypenameSpecifier _             when most -> DefiningTypeSpecifier
-  | CvQualifier                     when most -> DefiningTypeSpecifier
-  | Const                           when most -> DefiningTypeSpecifier
-  | Volatile                        when most -> DefiningTypeSpecifier
-  | Restrict _                      when most -> DefiningTypeSpecifier
-  (*| MsCdecl _                       when most -> DefiningTypeSpecifier
-  | MsStdcall _                     when most -> DefiningTypeSpecifier*)
-  | ClassSpecifier                  when most -> DefiningTypeSpecifier
-  | EnumSpecifier                   when most -> DefiningTypeSpecifier
-  | TypeMacroInvocation _           when most -> DefiningTypeSpecifier
+  | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
+  | ElaboratedTypeSpecifier          when most -> DefiningTypeSpecifier
+  | ElaboratedTypeSpecifierClass _   when most -> DefiningTypeSpecifier
+  | ElaboratedTypeSpecifierStruct _  when most -> DefiningTypeSpecifier
+  | ElaboratedTypeSpecifierUnion _   when most -> DefiningTypeSpecifier
+  | ElaboratedTypeSpecifierEnum _    when most -> DefiningTypeSpecifier
+  | TypenameSpecifier _              when most -> DefiningTypeSpecifier
+  | CvQualifier                      when most -> DefiningTypeSpecifier
+  | Const                            when most -> DefiningTypeSpecifier
+  | Char                             when most -> DefiningTypeSpecifier
+  | Char8_t                          when most -> DefiningTypeSpecifier
+  | Char16_t                         when most -> DefiningTypeSpecifier
+  | Char32_t                         when most -> DefiningTypeSpecifier
+  | Wchar_t                          when most -> DefiningTypeSpecifier
+  | Bool                             when most -> DefiningTypeSpecifier
+  | Short                            when most -> DefiningTypeSpecifier
+  | Int                              when most -> DefiningTypeSpecifier
+  | Long                             when most -> DefiningTypeSpecifier
+  | Signed                           when most -> DefiningTypeSpecifier
+  | Unsigned                         when most -> DefiningTypeSpecifier
+  | UnsignedInt                      when most -> DefiningTypeSpecifier
+  | UnsignedLong                     when most -> DefiningTypeSpecifier
+  | Float                            when most -> DefiningTypeSpecifier
+  | Double                           when most -> DefiningTypeSpecifier
+  | Void                             when most -> DefiningTypeSpecifier
+  | Volatile                         when most -> DefiningTypeSpecifier
+  | Restrict _                       when most -> DefiningTypeSpecifier
+(*
+  | MsCdecl _                        when most -> DefiningTypeSpecifier
+  | MsStdcall _                      when most -> DefiningTypeSpecifier
+*)
+  | ClassSpecifier                   when most -> DefiningTypeSpecifier
+  | EnumSpecifier                    when most -> DefiningTypeSpecifier
+  | TypeMacroInvocation _            when most -> DefiningTypeSpecifier
+  | PlaceholderTypeSpecifierAuto     when most -> DefiningTypeSpecifier
+  | PlaceholderTypeSpecifierDecltype when most -> DefiningTypeSpecifier
+
   | DeclaratorFunc                  when most -> Declarator
   | NoptrDeclaratorId               when most -> Declarator
   | NoptrDeclaratorParen            when most -> Declarator
   | NoptrDeclaratorFunc             when most -> Declarator
   | NoptrDeclaratorArray            when most -> Declarator
+
   | AbstractDeclaratorFunc          when most -> AbstractDeclarator
   | PtrAbstractDeclarator           when most -> AbstractDeclarator
   | NoptrAbstractDeclaratorParen    when most -> AbstractDeclarator
   | NoptrAbstractDeclaratorFunc     when most -> AbstractDeclarator
   | NoptrAbstractDeclaratorArray    when most -> AbstractDeclarator
+
   | SimpleTemplateId _              when most -> TemplateId
   | SimpleTemplateIdM               when most -> TemplateId
+
 
   | ElaboratedTypeSpecifierStruct _     when more -> ElaboratedTypeSpecifierClass ""
   | ElaboratedTypeSpecifierUnion _      when more -> ElaboratedTypeSpecifierClass ""
@@ -955,12 +979,14 @@ let _anonymize ?(more=false) ?(most=false) = function
   | MinusMinus                          when more -> Operator
   | Comma                               when more -> Operator
   | DotStar                             when more -> Operator
+
   | OperatorFunctionId                  when more -> UnqualifiedId
   | ConversionFunctionId                when more -> UnqualifiedId
   | LiteralOperatorId _                 when more -> UnqualifiedId
   | Destructor                          when more -> UnqualifiedId
   | TemplateId                          when more -> UnqualifiedId
   | IterationMacroInvocation _          when more -> UnqualifiedId
+
   | IntegerLiteral _                    when more -> Literal
   | CharacterLiteral _                  when more -> Literal
   | FloatingLiteral _                   when more -> Literal
@@ -973,6 +999,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | UserDefinedStringLiteral _          when more -> Literal
   | UserDefinedFloatingLiteral _        when more -> Literal
   | UserDefinedIntegerLiteral _         when more -> Literal
+
   | AssignmentExpressionPlus            when more -> AssignmentExpression
   | AssignmentExpressionMinus           when more -> AssignmentExpression
   | AssignmentExpressionMult            when more -> AssignmentExpression
@@ -985,6 +1012,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | AssignmentExpressionOr _            when more -> AssignmentExpression
   | AssignmentExpressionOverloaded _    when more -> AssignmentExpression
   | YieldExpression                     when more -> AssignmentExpression
+
   | PostfixExpressionSubscr             when more -> PostfixExpression
   | PostfixExpressionFunCall            when more -> PostfixExpression
   | PostfixExpressionExplicitTypeConv   when more -> PostfixExpression
@@ -1000,6 +1028,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | PostfixExpressionExplicitTypeConv       when more -> PostfixExpression
   | PostfixExpressionExplicitTypeConvExpr   when more -> PostfixExpression
   | PostfixExpressionExplicitTypeConvBraced when more -> PostfixExpression
+
   | UnaryExpressionIncr                 when more -> UnaryExpression
   | UnaryExpressionDecr                 when more -> UnaryExpression
   | UnaryExpressionInd                  when more -> UnaryExpression
@@ -1434,7 +1463,11 @@ let is_collapse_target options lab =
 
 
 let is_to_be_notified = function
-
+  | TemplateDeclaration
+  | ClassSpecifier
+  | EnumSpecifier
+  | FunctionDefinition
+    -> true
   | _ -> false
 
 let is_partition = function
@@ -1460,6 +1493,21 @@ let is_boundary = function
     -> true
   | _ -> false
 
+let is_literal = function
+  | IntegerLiteral _
+  | CharacterLiteral _
+  | FloatingLiteral _
+  | StringLiteral _
+  | StringMacro _
+  | BooleanLiteral _
+  | Nullptr
+  | ConcatenatedString
+  | UserDefinedCharacterLiteral _
+  | UserDefinedStringLiteral _
+  | UserDefinedFloatingLiteral _
+  | UserDefinedIntegerLiteral _
+      -> true
+  | _ -> false
 
 let is_primary = function
   | IntegerLiteral _
@@ -1540,6 +1588,8 @@ let is_expr = function
   | PostfixExpressionReinterpret_cast
   | PostfixExpressionConst_cast
   | AssignmentExpression
+  | AssignmentExpressionOverloaded _
+  | AssignmentExpressionEq
   | AssignmentExpressionPlus
   | AssignmentExpressionMinus
   | AssignmentExpressionMult
@@ -1563,15 +1613,57 @@ let is_expr = function
     -> true
   | lab -> is_primary lab
 
+let is_pp_branch = function
+  | PpIf
+  | PpIfdef _
+  | PpIfndef _
+  | PpElif
+  | PpElse
+    -> true
+  | _ -> false
+
+let is_stmt = function
+  | ExpressionStatement
+  | DeclarationStatement
+  (*| EmptyStatement*)
+  | CompoundStatement
+  | TryBlock
+  | LabeledStatement
+  | SelectionStatement
+  | IfStatement
+  | ElseStatement
+  | SwitchStatement
+  | IterationStatement
+  | WhileStatement
+  | DoStatement
+  | ForStatement
+  | RangeBasedForStatement
+  | JumpStatement
+  | BreakStatement
+  | ContinueStatement
+  | ReturnStatement
+  | GotoStatement _
+  | StatementMacroInvocation _
+  | StatementMacro _
+  | IterationMacroInvocation _
+  | IterationMacro _
+    -> true
+  | _ -> false
+
+
 let is_compatible _ _ = false
 
 let is_order_insensitive = function
   | _ -> false
 
 let relabel_allowed = function
+  | Identifier _, Identifier _ -> true
+  | Identifier _, l | l, Identifier _ -> is_literal l
   | l1, l2 -> 
       (is_expr l1 && is_expr l2) ||
-      (anonymize2 l1 = anonymize2 l2)
+      (*(is_stmt l1 && is_stmt l2) ||*)
+      (is_pp_branch l1 && is_pp_branch l2) ||
+      (anonymize3 l1 = anonymize3 l2)
 
 let move_disallowed _ = false
 
@@ -1789,34 +1881,6 @@ let is_simple_decl = function
 
 let is_func = function
   | FunctionDefinition -> true
-  | _ -> false
-
-let is_stmt = function
-  | ExpressionStatement
-  | DeclarationStatement
-  (*| EmptyStatement*)
-  | CompoundStatement
-  | TryBlock
-  | LabeledStatement
-  | SelectionStatement
-  | IfStatement
-  | ElseStatement
-  | SwitchStatement
-  | IterationStatement
-  | WhileStatement
-  | DoStatement
-  | ForStatement
-  | RangeBasedForStatement
-  | JumpStatement
-  | BreakStatement
-  | ContinueStatement
-  | ReturnStatement
-  | GotoStatement _
-  | StatementMacroInvocation _
-  | StatementMacro _
-  | IterationMacroInvocation _
-  | IterationMacro _
-    -> true
   | _ -> false
 
 let is_jump_stmt = function

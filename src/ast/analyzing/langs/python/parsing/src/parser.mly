@@ -68,6 +68,10 @@ open Stat
 %token PASS PRINT RAISE RETURN TRY
 %token WHILE WITHx YIELD
 
+(* *)
+%token COLON_EQ
+
+
 %start main
 %type <Ast.fileinput> main
 
@@ -112,31 +116,24 @@ name:
 ;
 
 parameters:
-| LPAREN             RPAREN { Ast.Loc.dummy, [], None, None }
+| LPAREN             RPAREN { Ast.Loc.dummy, [] }
 | LPAREN varargslist RPAREN { $2 }
 ;
 
 varargslist:
-| v=vararg_comma_list STAR n0=name                         { get_loc $startofs $endofs, v, Some n0, None }
-| v=vararg_comma_list STAR n0=name COMMA STAR_STAR n1=name { get_loc $startofs $endofs, v, Some n0, Some n1 }
-| v=vararg_comma_list                    STAR_STAR n1=name { get_loc $startofs $endofs, v, None, Some n1 }
-| v=varargs_       { get_loc $startofs $endofs, v, None, None }
-| v=varargs_ COMMA { get_loc $startofs $endofs, v, None, None }
-;
-%inline vararg_comma_list:
-| (* *) { [] }
-| v=vararg_comma_list_ { v }
-;
-%inline vararg_comma_list_:
-| v=varargs_ COMMA { v }
+| v=varargs_       { get_loc $startofs $endofs, v }
+| v=varargs_ COMMA { get_loc $startofs $endofs, v }
 ;
 varargs_:
 |                vararg { [$1] }
 | varargs_ COMMA vararg { $1 @ [$3] }
 ;
 vararg:
-| fpdef         { $1, None }
-| fpdef EQ test { $1, Some $3 }
+| fpdef          { VAarg ($1, None) }
+| fpdef EQ test  { VAarg ($1, Some $3) }
+| STAR           { VAargs(get_loc $startofs $endofs, None) }
+| STAR name      { VAargs(get_loc $startofs $endofs, (Some $2)) }
+| STAR_STAR name { VAkwargs(get_loc $startofs $endofs, $2) }
 ;
 
 fpdef:
@@ -186,9 +183,9 @@ small_stmt_:
 ;
 
 expr_stmt:
-| testlist { SSexpr $1.list }
-| testlist augassign testlist_or_yield_expr { SSaugassign($1.list, $2, $3) }
-| testlist eq_testlists 
+| testlist_star_expr { SSexpr $1.list }
+| testlist_star_expr augassign testlist_or_yield_expr { SSaugassign($1.list, $2, $3) }
+| testlist_star_expr eq_testlists
     {
      match $2 with
        last :: a -> SSassign($1 :: (List.rev a), last) 
@@ -200,7 +197,7 @@ eq_testlists:
 | eq_testlists EQ testlist_or_yield_expr { $3 :: $1 }
 ;
 testlist_or_yield_expr:
-| testlist { $1 }
+| testlist_star_expr { $1 }
 | yield_expr { $1 }
 ;
 
@@ -255,8 +252,8 @@ continue_stmt:
 ;
 
 return_stmt:
-| RETURN          { SSreturn [] }
-| RETURN testlist { SSreturn $2.list }
+| RETURN                    { SSreturn [] }
+| RETURN testlist_star_expr { SSreturn $2.list }
 ;
 
 yield_stmt:
@@ -435,28 +432,24 @@ stmts:
 | stmt stmts { $1 :: $2 }
 ;
 
-testlist_safe:
-| old_tests       { List.rev $1 }
-| old_tests COMMA { List.rev $1 }
-;
-old_tests:
-|                 old_test { [$1] }
-| old_tests COMMA old_test { $3 :: $1 }
-;
-
 old_test:
 | or_test { $1 }
 | old_lambdef { mkexpr $startofs $endofs $1 }
 ;
 
 old_lambdef:
-| LAMBDA             COLON old_test { Elambda((Ast.Loc.dummy, [], None, None), $3) }
+| LAMBDA             COLON old_test { Elambda((Ast.Loc.dummy, []), $3) }
 | LAMBDA varargslist COLON old_test { Elambda($2, $4) }
+;
+
+namedexpr_test:
+| test { $1 }
+| test COLON_EQ test { mkexpr $startofs $endofs (Enamed($1, $3)) }
 ;
 
 test:
 | or_test { $1 }
-| or_test IF or_test ELSE test { mkexpr $startofs $endofs(Econd($1, $3, $5)) }
+| or_test IF or_test ELSE test { mkexpr $startofs $endofs (Econd($1, $3, $5)) }
 | lambdef { mkexpr $startofs $endofs $1 }
 ;
 
@@ -492,6 +485,10 @@ comp_op:
 | NOT IN { BnotIn }
 | IS     { Bis }
 | IS NOT { BisNot }
+;
+
+star_expr:
+| STAR expr { mkexpr $startofs $endofs (Estar $2) }
 ;
 
 expr:
@@ -560,8 +557,15 @@ primary:
 atom:
 | LPAREN               RPAREN { Ptuple [] }
 | LPAREN testlist_comp RPAREN { $2 }
-| LBRACKET           RBRACKET { Plistnull }
-| LBRACKET listmaker RBRACKET { Plist $2 }
+| LBRACKET               RBRACKET { Plistnull }
+| LBRACKET testlist_comp RBRACKET
+    { 
+      match $2 with
+      | Pparen t -> Plist [t]
+      | Ptuple l -> Plist l
+      | PcompT(x, y) -> PcompL(x, y)
+      | _ -> assert false
+    }
 | LBRACE                RBRACE { Pdictnull }
 | LBRACE dictorsetmaker RBRACE { Pdictorset $2 }
 | BACKQUOTE testlist1 BACKQUOTE { Pstrconv $2 }
@@ -585,14 +589,9 @@ stringliteral:
 | LONGSTRING_BEGIN_D LONGSTRING_REST { PSlong(get_loc $startofs $endofs, $1 ^ $2) }
 ;
 
-listmaker:
-| test list_for { LMfor($1, $2) }
-| testlist { LMtest $1.list }
-;
-
 testlist_comp:
-| test comp_for { Pcomp($1, $2) }
-| testlist 
+| test_ comp_for { PcompT($1, $2) }
+| testlist_
     { 
       if $1.yield then 
 	Pyield $1.list
@@ -603,9 +602,14 @@ testlist_comp:
 	  Ptuple $1.list
     }
 ;
+%inline
+test_:
+| namedexpr_test { $1 }
+| star_expr { $1 }
+;
 
 lambdef:
-| LAMBDA             COLON test { Elambda((Ast.Loc.dummy, [], None, None), $3) }
+| LAMBDA             COLON test { Elambda((Ast.Loc.dummy, []), $3) }
 | LAMBDA varargslist COLON test { Elambda($2, $4) }
 ;
 
@@ -658,42 +662,62 @@ exprlist:
 | exprs COMMA { $1 }
 ;
 exprs:
-|             expr { [$1] }
-| exprs COMMA expr { $1 @ [$3] }
+|             expr_ { [$1] }
+| exprs COMMA expr_ { $1 @ [$3] }
+;
+%inline
+expr_:
+| expr { $1 }
+| star_expr { $1 }
 ;
 
 testlist:
 | testlist1       { mktestlist $1 false false }
 | testlist1 COMMA { mktestlist $1 true false }
 ;
+testlist_star_expr:
+| testlist1_star_expr       { mktestlist $1 false false }
+| testlist1_star_expr COMMA { mktestlist $1 true false }
+;
+testlist_:
+| testlist1_       { mktestlist $1 false false }
+| testlist1_ COMMA { mktestlist $1 true false }
+;
 
 dictorsetmaker:
-| test COLON test comp_for { DSMdictC($1, $3, $4) }
-| test_colon_tests         { DSMdict(List.rev $1) }
-| test_colon_tests COMMA   { DSMdict(List.rev $1) }
-| test comp_for   { DSMsetC($1, $2) }
-| testlist1       { DSMset $1 }
-| testlist1 COMMA { DSMset $1 }
+| dictelem comp_for { DSMdictC($1, $2) }
+| dictelems         { DSMdict(List.rev $1) }
+| dictelems COMMA   { DSMdict(List.rev $1) }
+| test_ comp_for            { DSMsetC($1, $2) }
+| testlist1_star_expr       { DSMset $1 }
+| testlist1_star_expr COMMA { DSMset $1 }
 ;
-test_colon_tests:
-|                        test_colon_test { [$1] }
-| test_colon_tests COMMA test_colon_test { $3 :: $1 }
+dictelems:
+|                 dictelem { [$1] }
+| dictelems COMMA dictelem { $3 :: $1 }
 ;
-test_colon_test:
-| test COLON test { get_loc $startofs $endofs, $1, $3 }
+dictelem:
+| test COLON test { mkde $startofs $endofs (DEkeyValue($1, $3)) }
+| STAR_STAR expr  { mkde $startofs $endofs (DEstarStar $2) }
+;
+
+%inline
+test_star_expr:
+| test { $1 }
+| star_expr { $1 }
 ;
 
 classdef:
-| CLASS name                        COLON suite { Sclassdef([], $2, [], $4) }
-| CLASS name LPAREN testlist RPAREN COLON suite { Sclassdef([], $2, $4.list, $7) }
+| CLASS name                       COLON suite { Sclassdef([], $2, (Ast.Loc.dummy, [], None, None), $4) }
+| CLASS name LPAREN arglist RPAREN COLON suite { Sclassdef([], $2, $4, $7) }
 ;
 
 arglist:
-| al=arg_comma_list a=argument                                             { get_loc $startofs $endofs, al @ [a], None, None }
-| al=arg_comma_list a=argument COMMA                                       { get_loc $startofs $endofs, al @ [a], None, None }
-| al=arg_comma_list STAR t0=test cl=comma_arg_list                         { get_loc $startofs $endofs, al, Some (t0, cl), None }
-| al=arg_comma_list STAR t0=test cl=comma_arg_list COMMA STAR_STAR t1=test { get_loc $startofs $endofs, al, Some (t0, cl), Some t1 }
-| al=arg_comma_list                                      STAR_STAR t1=test { get_loc $startofs $endofs, al, None, Some t1 }
+| al=arg_comma_list a=argument                                             { get_loc $symbolstartofs $endofs, al @ [a], None, None }
+| al=arg_comma_list a=argument COMMA                                       { get_loc $symbolstartofs $endofs, al @ [a], None, None }
+| al=arg_comma_list STAR t0=test cl=comma_arg_list                         { get_loc $symbolstartofs $endofs, al, Some (t0, cl), None }
+| al=arg_comma_list STAR t0=test cl=comma_arg_list COMMA STAR_STAR t1=test { get_loc $symbolstartofs $endofs, al, Some (t0, cl), Some t1 }
+| al=arg_comma_list                                      STAR_STAR t1=test { get_loc $symbolstartofs $endofs, al, None, Some t1 }
 ;
 
 %inline comma_arg_list:
@@ -719,21 +743,6 @@ argument:
 | test EQ test comp_for { get_loc $startofs $endofs, Some $1, $3, Some $4 }
 ;
 
-list_iter:
-| list_for { LIfor $1 }
-| list_if { LIif $1 }
-;
-
-list_for:
-| FOR exprlist IN testlist_safe           { get_loc $startofs $endofs, $2, $4, None }
-| FOR exprlist IN testlist_safe list_iter { get_loc $startofs $endofs, $2, $4, Some $5 }
-;
-
-list_if:
-| IF old_test           { get_loc $startofs $endofs, $2, None }
-| IF old_test list_iter { get_loc $startofs $endofs, $2, Some $3 }
-;
-
 comp_iter:
 | comp_for { Cfor $1 }
 | comp_if  { Cif $1 }
@@ -754,9 +763,21 @@ testlist1:
 | testlist1 COMMA test { $1 @ [$3] }
 ;
 
-yield_expr:
-| YIELD          { mktestlist [] false true }
-| YIELD testlist { $2.yield<-true; $2 }
+testlist1_star_expr:
+|                           test_star_expr { [$1] }
+| testlist1_star_expr COMMA test_star_expr { $1 @ [$3] }
 ;
+
+testlist1_:
+|                           test_ { [$1] }
+| testlist1_ COMMA test_ { $1 @ [$3] }
+;
+
+yield_expr:
+| YIELD                    { mktestlist [] false true }
+| YIELD testlist_star_expr { $2.yield<-true; $2 }
+| YIELD FROM test          { mktestlist [mkexpr $startofs $endofs (Efrom $3)] false true }
+;
+
 
 %%
