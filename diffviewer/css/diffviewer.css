@@ -1,0 +1,407 @@
+.CodeMirror {
+  /* Set height, width, borders, and global font properties here */
+  font-family: monospace;
+  font-size: 100%;
+  line-height: 132%;
+}
+
+.CodeMirror-merge {
+  position: relative;
+  border: 1px solid #ddd;
+  white-space: pre;
+}
+
+.CodeMirror-glasspane {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 100;
+    pointer-events: none;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.CodeMirror-merge, .CodeMirror-merge .CodeMirror {
+    height: 800px;
+}
+
+.CodeMirror-merge-2pane .CodeMirror-merge-pane { width: 49%; }
+.CodeMirror-merge-2pane .CodeMirror-merge-gap { width: 2%; }
+.CodeMirror-merge-3pane .CodeMirror-merge-pane { width: 32%; }
+.CodeMirror-merge-3pane .CodeMirror-merge-gap { width: 2%; }
+
+.CodeMirror-merge-pane {
+  display: inline-block;
+  white-space: normal;
+  vertical-align: top;
+}
+.CodeMirror-merge-pane-rightmost {
+  position: absolute;
+  right: 0px;
+  z-index: 1;
+}
+
+.CodeMirror-merge-gap {
+  z-index: 2;
+  display: inline-block;
+  height: 100%;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  position: relative;
+  background: #f8f8f8;
+}
+
+.CodeMirror-merge-scrolllock-wrap {
+  position: absolute;
+  bottom: 0; left: 50%;
+}
+.CodeMirror-merge-scrolllock {
+  position: relative;
+  left: -50%;
+  cursor: pointer;
+  color: #555;
+  line-height: 1;
+}
+
+.CodeMirror-merge-scrolllock:after {
+  content: "\21db\00a0\00a0\21da";
+}
+.CodeMirror-merge-scrolllock.CodeMirror-merge-scrolllock-enabled:after {
+  content: "\21db\21da";
+}
+
+.CodeMirror-merge-copybuttons-left, .CodeMirror-merge-copybuttons-right {
+  position: absolute;
+  left: 0; top: 0;
+  right: 0; bottom: 0;
+  line-height: 1;
+}
+
+.CodeMirror-merge-copy {
+  position: absolute;
+  cursor: pointer;
+  color: #44c;
+  z-index: 3;
+}
+
+.CodeMirror-merge-copy-reverse {
+  position: absolute;
+  cursor: pointer;
+  color: #44c;
+}
+
+.CodeMirror-merge-copybuttons-left .CodeMirror-merge-copy { left: 2px; }
+.CodeMirror-merge-copybuttons-right .CodeMirror-merge-copy { right: 2px; }
+
+.CodeMirror-merge-r-inserted, .CodeMirror-merge-l-inserted {
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVQI12MwuCXy3+CWyH8GBgYGJgYkAABZbAQ9ELXurwAAAABJRU5ErkJggg==);
+  background-position: bottom left;
+  background-repeat: repeat-x;
+}
+
+.CodeMirror-merge-r-deleted, .CodeMirror-merge-l-deleted {
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAGUlEQVQI12M4Kyb2/6yY2H8GBgYGJgYkAABURgPz6Ks7wQAAAABJRU5ErkJggg==);
+  background-position: bottom left;
+  background-repeat: repeat-x;
+}
+
+.CodeMirror-merge-r-chunk { background: #ffffe0; }
+.CodeMirror-merge-r-chunk-start { border-top: 1px solid #ee8; }
+.CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #ee8; }
+.CodeMirror-merge-r-connect { fill: #ffffe0; stroke: #ee8; stroke-width: 1px; }
+
+.CodeMirror-merge-l-chunk { background: #eef; }
+.CodeMirror-merge-l-chunk-start { border-top: 1px solid #88e; }
+.CodeMirror-merge-l-chunk-end { border-bottom: 1px solid #88e; }
+.CodeMirror-merge-l-connect { fill: #eef; stroke: #88e; stroke-width: 1px; }
+
+.CodeMirror-merge-l-chunk.CodeMirror-merge-r-chunk { background: #dfd; }
+.CodeMirror-merge-l-chunk-start.CodeMirror-merge-r-chunk-start { border-top: 1px solid #4e4; }
+.CodeMirror-merge-l-chunk-end.CodeMirror-merge-r-chunk-end { border-bottom: 1px solid #4e4; }
+
+.CodeMirror-merge-collapsed-widget:before {
+  content: "(...)";
+}
+.CodeMirror-merge-collapsed-widget {
+  cursor: pointer;
+  color: #88b;
+  background: #eef;
+  border: 1px solid #ddf;
+  font-size: 90%;
+  padding: 0 3px;
+  border-radius: 4px;
+}
+.CodeMirror-merge-collapsed-line .CodeMirror-gutter-elt { display: none; }
+
+.CodeMirror-foldmarker {
+  color: blue;
+  text-shadow: #b9f 1px 1px 2px, #b9f -1px -1px 2px, #b9f 1px -1px 2px, #b9f -1px 1px 2px;
+  font-family: arial;
+  line-height: .3;
+  cursor: pointer;
+}
+.CodeMirror-foldgutter {
+  width: .7em;
+}
+.CodeMirror-foldgutter-open,
+.CodeMirror-foldgutter-folded {
+  cursor: pointer;
+}
+.CodeMirror-foldgutter-open:after {
+  content: "\25BE";
+}
+.CodeMirror-foldgutter-folded:after {
+  content: "\25B8";
+}
+
+.CodeMirror-simplescroll-horizontal div, .CodeMirror-simplescroll-vertical div {
+  position: absolute;
+  background: #aaa;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  border: 1px solid #999;
+  border-radius: 4px;
+}
+
+.CodeMirror-simplescroll-horizontal, .CodeMirror-simplescroll-vertical {
+  position: absolute;
+  z-index: 6;
+  background: #eee;
+}
+
+.CodeMirror-simplescroll-horizontal {
+  bottom: 0; left: 0;
+  height: 8px;
+}
+.CodeMirror-simplescroll-horizontal div {
+  bottom: 0;
+  height: 100%;
+}
+
+.CodeMirror-simplescroll-vertical {
+  right: 0; top: 0;
+  width: 8px;
+}
+.CodeMirror-simplescroll-vertical div {
+  right: 0;
+  width: 100%;
+}
+
+
+/*******************************/
+
+.DTS-tooltip {
+    stroke: #cbcbcb;
+    fill: #f4f4f4;
+}
+
+.DTS-deleted-left {
+    /*background: #B8E3B1;*/
+    background: rgba(184, 227, 177, 0.55);
+    border-top: solid 1px #98c391;
+    border-bottom: solid 1px #98c391;
+    border-left: solid 1px #98c391;
+}
+.DTS-inserted-left {
+    /*background: #B2CDF9;*/
+    background: rgba(178, 205, 249, 0.55);
+    border-top: solid 1px #92add9;
+    border-bottom: solid 1px #92add9;
+    border-left: solid 1px #92add9;
+}
+.DTS-relabeled-left {
+    /*background: #FFC0A9;*/
+    background: rgba(255, 192, 169, 0.55);
+    border-top: solid 1px #dfa089;
+    border-bottom: solid 1px #dfa089;
+    border-left: solid 1px #dfa089;
+}
+.DTS-moved-left {
+    /*background: #E6DFCF;*/
+    background: rgba(230, 223, 207, 0.55);
+    border-top: solid 1px #c6bfaf;
+    border-bottom: solid 1px #c6bfaf;
+    border-left: solid 1px #c6bfaf;
+}
+.DTS-moved-and-relabeled-left {
+    /*background: #FFDFCF;*/
+    /*background: rgba(255, 223, 207, 0.55);*/
+    background: repeating-linear-gradient(-45deg,
+                                          rgba(230, 223, 207, 0.55) 0,
+                                          rgba(230, 223, 207, 0.55) 4px,
+                                          rgba(235, 172, 149, 0.55) 4px,
+                                          rgba(235, 172, 149, 0.55) 8px);
+    border-top: solid 1px #dfbfaf;
+    border-bottom: solid 1px #dfbfaf;
+    border-left: solid 1px #dfbfaf;
+}
+.DTS-deleted-right {
+    /*background: #B8E3B1;*/
+    background: rgba(184, 227, 177, 0.55);
+    border-top: solid 1px #98c391;
+    border-bottom: solid 1px #98c391;
+    border-right: solid 1px #98c391;
+}
+.DTS-inserted-right {
+    /*background: #B2CDF9;*/
+    background: rgba(178, 205, 249, 0.55);
+    border-top: solid 1px #92add9;
+    border-bottom: solid 1px #92add9;
+    border-right: solid 1px #92add9;
+}
+.DTS-relabeled-right {
+    /*background: #FFC0A9;*/
+    background: rgba(255, 192, 169, 0.55);
+    border-top: solid 1px #dfa089;
+    border-bottom: solid 1px #dfa089;
+    border-right: solid 1px #dfa089;
+}
+.DTS-moved-right {
+    /*background: #E6DFCF;*/
+    background: rgba(230, 223, 207, 0.55);
+    border-top: solid 1px #c6bfaf;
+    border-bottom: solid 1px #c6bfaf;
+    border-right: solid 1px #c6bfaf;
+}
+.DTS-moved-and-relabeled-right {
+    /*background: #FFDFCF;*/
+    /*background: rgba(255, 223, 207, 0.55);*/
+    background: repeating-linear-gradient(-45deg,
+                                          rgba(230, 223, 207, 0.55) 0,
+                                          rgba(230, 223, 207, 0.55) 4px,
+                                          rgba(235, 172, 149, 0.55) 4px,
+                                          rgba(235, 172, 149, 0.55) 8px);
+    border-top: solid 1px #dfbfaf;
+    border-bottom: solid 1px #dfbfaf;
+    border-right: solid 1px #dfbfaf;
+}
+
+.DTS-deleted {
+    /*background: #B8E3B1;*/
+    background: rgba(184, 227, 177, 0.55);
+    border-top: solid 1px #98c391;
+    border-bottom: solid 1px #98c391;
+}
+.DTS-inserted {
+    /*background: #B2CDF9;*/
+    background: rgba(178, 205, 249, 0.55);
+    border-top: solid 1px #92add9;
+    border-bottom: solid 1px #92add9;
+}
+.DTS-relabeled {
+    /*background: #FFC0A9;*/
+    background: rgba(255, 192, 169, 0.55);
+    border-top: solid 1px #dfa089;
+    border-bottom: solid 1px #dfa089;
+}
+.DTS-moved {
+    /*background: #E6DFCF;*/
+    background: rgba(230, 223, 207, 0.55);
+    border-top: solid 1px #c6bfaf;
+    border-bottom: solid 1px #c6bfaf;
+}
+.DTS-moved-and-relabeled {
+    /*background: #FFDFCF;*/
+    /*background: rgba(255, 223, 207, 0.55);*/
+    background: repeating-linear-gradient(-45deg,
+                                          rgba(230, 223, 207, 0.55) 0,
+                                          rgba(230, 223, 207, 0.55) 4px,
+                                          rgba(235, 172, 149, 0.55) 4px,
+                                          rgba(235, 172, 149, 0.55) 8px);
+    border-top: solid 1px #dfbfaf;
+    border-bottom: solid 1px #dfbfaf;
+}
+
+.DTS-selected {
+    background: rgba(248, 214, 89, 1.0);
+}
+
+/*
+.DTS-deleted:active {
+    background: rgba(248, 214, 89, 0.55);
+}
+.DTS-inserted:active {
+    background: rgba(248, 214, 89, 0.55);
+}
+.DTS-relabeled:active {
+    background: rgba(248, 214, 89, 0.55);
+}
+.DTS-moved:active {
+    background: rgba(248, 214, 89, 0.55);
+}
+.DTS-moved-and-relabeled:active {
+    background: rgba(248, 214, 89, 0.55);
+}
+*/
+
+.DTS-ignored { 
+    color: #808080;
+    font-style: italic;
+}
+.DTS-missed { 
+    color: #cf6795;
+    font-style: italic;
+}
+.DTS-frame {
+    stroke: gray;
+    stroke-width: 1;
+    fill: none;
+}
+.DTS-frame-essential {
+    stroke: #f3cf11; /*#6463ff;*/
+    stroke-width: 1;
+    fill-opacity: 0.15;
+    fill: #f3cf11; /*#6463ff;*/
+}
+.DTS-connector-corr {
+    stroke: #f3cf11; /*#6463ff;*/
+    stroke-width: 1;
+    fill: none;
+}
+.DTS-connector-move {
+    stroke: #d6cfbf;
+    stroke-width: 1;
+    fill: none;
+}
+.DTS-connector-relabel {
+    stroke: #cf6795;
+    stroke-width: 1;
+    fill: none;
+}
+.DTS-connector-movrel {
+    stroke: #e69fbf;
+    stroke-width: 1;
+    fill: none;
+}
+.DTS-connector-align {
+    stroke: #bbbbbb;
+    stroke-width: 1;
+    stroke-dasharray: 5 8; /* slows down Firefox */
+    fill: none;
+}
+
+.DTS-change-name {
+    /* font-weight: bold; */
+    font-style: italic;
+}
+
+.DTS-variable {
+    /* font-weight: lighter; */
+    font-style: normal;
+    color: #000199;
+    font-size: 90%;
+    /* font-family: monospace; */
+}
+.DTS-scrollbar-marks {
+  background: orange;
+  border-top: 1px solid saddlebrown;
+  border-bottom: 1px solid saddlebrown;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  opacity: .4;
+}
