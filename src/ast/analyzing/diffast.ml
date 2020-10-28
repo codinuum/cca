@@ -490,9 +490,9 @@ let _ =
     exit 0
   end
 
-let new_file, old_file = 
+let new_file, old_file =
   try
-    match !filenames with 
+    match !filenames with
     | n::o::[] -> Fs.file_of_path options n, Fs.file_of_path options o
     | [x] -> begin
         if !get_cache_dir_only then begin
@@ -514,8 +514,8 @@ let new_file, old_file =
 	  exit 0
         end
     end
-    | _ -> 
-        Arg.usage speclist usage_msg; 
+    | _ ->
+        Arg.usage speclist usage_msg;
         exit 1
   with
   | Xfile.No_such_file_or_directory f -> Xprint.error "\"%s\": no such file or directory" f; exit 1
@@ -608,7 +608,7 @@ let _ =
               S.File.scan_diff_stat ~max_retry_count:options#max_retry_count 
                 stat_paths
             in
-	    S.File.dump_diff_stat_ch stat stdout
+	    S.File.dump_diff_stat_ch ~short:true stat stdout
 	  with
 	    S.Stat_not_found -> 
 	      Xprint.warning "re-computing...";

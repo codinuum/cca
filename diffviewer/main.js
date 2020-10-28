@@ -113,13 +113,13 @@ ipcMain.on('sync-mesg', (event, arg) => {
 
         var apathd = null;
         if (cache) {
-          apathd = path.resolve(process.cwd(), cache);
+          apathd = path.resolve(process.cwd(), cache)
         } else {
-          const hash0 = getMD5(apath0);
-          const hash1 = getMD5(apath1);
-          apathd = path.join(app.getPath('home'),
-                             '.diffts', 'cache', hash0.substring(0, 2), hash0+'-'+hash1, 'diff.json');
+          apathd = path.join(app.getPath('home'), '.cca', 'cache');
         }
+        const hash0 = getMD5(apath0);
+        const hash1 = getMD5(apath1);
+        apathd = path.join(apathd, hash0.substring(0, 2), hash0+'-'+hash1, 'diff.json')
 
         if (fs.existsSync(apathd)) {
 

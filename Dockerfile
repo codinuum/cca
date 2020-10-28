@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN set -x && \
     useradd -r -s /bin/nologin cca && \
     mkdir -p /opt/cca/modules && \
+    mkdir -p /var/lib/cca && \
     mkdir /root/src
 
 COPY LICENSE /opt/cca/

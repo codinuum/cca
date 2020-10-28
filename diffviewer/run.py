@@ -10,8 +10,8 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='run DiffViewer',
                             formatter_class=ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file0', type=str, help='the first source file')
-    parser.add_argument('file1', type=str, help='the second source file')
+    parser.add_argument('file0', type=str, metavar='ORIGINAL', help='original source file')
+    parser.add_argument('file1', type=str, metavar='MODIFIED', help='modified source file')
 
     parser.add_argument('-c', '--cache', dest='cache', default=None,
                         metavar='DIR', type=str, help='specify cache path')
