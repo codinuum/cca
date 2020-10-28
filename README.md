@@ -25,14 +25,14 @@ reported in the following paper.
 > Engineering, 2008, pp. 279-288, DOI: 10.1109/WCRE.2008.44.
 
 It compares ASTs node by node, while popular `diff` tool compares any (text) files line by line.
-The algorithm is based on an algorithm for computing *tree edit distance (TED)* between two ordered labeled trees.  The tree edit distance between two trees is considered as the minimum (weighted) number of edit operations to transform one tree to another.
+The algorithm is based on [an algorithm](https://doi.org/10.1137/0218082) for computing *tree edit distance (TED)* between two ordered labeled trees.  The tree edit distance between two trees is considered as the minimum (weighted) number of edit operations to transform one tree to another.
 Unfortunately, applying TED algorithms directly to wild ASTs is not feasible in general, because [the computational complexity of them is essentially, at best, quadratic with respect to the number of AST nodes](https://www.sciencedirect.com/science/article/pii/S0304397505000174).
 Therefore Diff/TS makes moderate use of a TED algorithm in a divide-and-conquer manner backed by elaborated heuristics to approximate tree edit distances.
 Nevertheless, Diff/AST still requires much time for non-trivial huge inputs. So it always caches the results.
 
 ## Quick start
 
-You can instantly try Diff/AST by means of [Docker](https://www.docker.com/) and a ready-made container image.
+You can instantly try Diff/AST by means of [Docker](https://www.docker.com/) and [a ready-made container image](https://hub.docker.com/r/codinuum/cca).
 
     $ docker pull codinuum/cca
 
