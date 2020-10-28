@@ -1,4 +1,4 @@
-// DiffViewer
+// DiffViewer for Diff/AST, Copyright 2020 Codinuum Software Lab <https://codinuum.com>
 // based on 
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: http://codemirror.net/LICENSE
