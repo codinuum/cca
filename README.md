@@ -42,7 +42,7 @@ The following command line executes Diff/AST within a container to compare sampl
 
 Once you have built *DiffViewer*, you can inspect the AST differences in a viewer window. See `diffviewer/README.md` for details.
 
-    $ diffviewer/run.py -c DIR samples/java/0/Test.java samples/java/1/Test.java
+    $ diffviewer/run.py -c results samples/java/0/Test.java samples/java/1/Test.java
 
 You can run both Diff/AST and DiffViewer by the following line.
 
