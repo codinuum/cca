@@ -6,13 +6,13 @@
 
 ## Build (macOS)
 
-   $ npm install
-   $ ./mkpkg.sh
+    $ npm install
+    $ ./mkpkg.sh
 
 ## Usage
 
-   $ ../src/ast/analyzing/bin/diffast [--cache PATH] PATH0 PATH1
-   $ ./run.py [--cache PATH] PATH0 PATH1
+    $ ../src/ast/analyzing/bin/diffast [--cache PATH] PATH0 PATH1
+    $ ./run.py [--cache PATH] PATH0 PATH1
 
 ## License
 
