@@ -121,6 +121,7 @@ let rawtoken_to_string = function
   | BACKQUOTE -> "BACKQUOTE"
   | EQ        -> "EQ"
   | SEMICOLON -> "SEMICOLON"
+  | ELLIPSIS  -> "ELLIPSIS"
 
   | EOF -> "EOF"
 

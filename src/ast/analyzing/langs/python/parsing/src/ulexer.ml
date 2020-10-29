@@ -123,7 +123,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
 	"return",   RETURN;
 	"try",      TRY;
 	"while",    WHILE;
-	"yield",    YIELD
+	"yield",    YIELD;
+
+        "await",    AWAIT;
+        "async",    ASYNC;
+        "nonlocal", NONLOCAL;
       ] in 
     let keyword_table = Hashtbl.create (List.length keyword_list) in
     let _ = 
@@ -236,7 +240,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp shortstringitem_double = shortstringchar_double | escapeseq
 
   let regexp shortstring = '\'' shortstringitem_single* '\'' | '"' shortstringitem_double* '"'
-  let regexp stringprefix = "r" | "u" | "ur" | "R" | "U" | "UR" | "Ur" | "uR"
+  let regexp stringprefix =
+    "r" | "u" | "R" | "U" | "f" | "F" | "fr" | "Fr" | "fR" | "FR" |
+    "rf" | "rF" | "Rf" | "RF" | "ur" | "UR" | "Ur" | "uR" |
+    "b" | "B" | "br" | "Br" | "bR" | "BR" | "rb" | "rB" | "Rb" | "RB"
 
   let regexp string = stringprefix? shortstring
 
@@ -244,10 +251,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp longstring_start_double = stringprefix? longstring_double_quote
 
   let regexp hexdigit = ['0'-'9' 'a'-'f' 'A'-'F']
-  let regexp hexinteger = '0' ['x' 'X'] hexdigit+
-  let regexp octinteger = '0' ['o' 'O'] ['0'-'7']+
-  let regexp bininteger = '0' ['b' 'B'] ['0' '1']+
-  let regexp decimalinteger = '0' | ['1'-'9'] digit*
+  let regexp hexinteger = '0' ['x' 'X'] ('_'? hexdigit)+
+  let regexp octinteger = '0' ['o' 'O'] ('_'? ['0'-'7'])+
+  let regexp bininteger = '0' ['b' 'B'] ('_'? ['0' '1'])+
+  let regexp decimalinteger = '0' ('_'? '0')* | ['1'-'9'] ('_'? digit)*
   let regexp integer = decimalinteger | bininteger | octinteger | hexinteger
   let regexp longinteger = integer ['l' 'L']
 
@@ -350,6 +357,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   "<<=" -> mktok LT_LT_EQ lexbuf
 |   "**=" -> mktok STAR_STAR_EQ lexbuf
 |   ":="  -> mktok COLON_EQ lexbuf
+
+|   "->"  -> mktok MINUS_GT lexbuf
+|   "..." -> mktok ELLIPSIS lexbuf
 
 |   '+' -> mktok PLUS lexbuf
 |   '-' -> mktok MINUS lexbuf

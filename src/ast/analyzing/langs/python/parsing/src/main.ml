@@ -68,6 +68,6 @@ let _ =
     done
   with 
   | Sys_error msg
-  | Failure msg -> Xprint.error "%s" msg
-  | Parse_error(head, msg) -> Xprint.error ~head "%s" msg
+  | Failure msg -> Xprint.error ~out:stdout "%s" msg; exit 1
+  | Parse_error(head, msg) -> Xprint.error ~out:stdout ~head "%s" msg; exit 1
 

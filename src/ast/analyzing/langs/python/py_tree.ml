@@ -157,21 +157,38 @@ class translator options = object (self)
 	  mkstmtnode 
 	    ((List.map self#of_withitem withitems) @ [self#of_suite suite])
 
-      | Ast.Sfuncdef(decos, name, params, suite) ->
+      | Ast.Sasync_funcdef(decos, name, params, retann_opt, suite) ->
 	  mkstmtnode
 	    ((self#of_decorators name decos) @ [self#of_name name] @
-	     (self#of_named_parameters (L.conv_name name) params) @ 
+	     (self#of_named_parameters (L.conv_name name) params) @
+             (self#of_opt_lab L.ReturnAnnotation self#of_expr retann_opt) @
+	     [self#of_named_suite name suite])
+
+      | Ast.Sfuncdef(decos, name, params, retann_opt, suite) ->
+	  mkstmtnode
+	    ((self#of_decorators name decos) @ [self#of_name name] @
+	     (self#of_named_parameters (L.conv_name name) params) @
+             (self#of_opt_lab L.ReturnAnnotation self#of_expr retann_opt) @
 	     [self#of_named_suite name suite])
 
       | Ast.Sclassdef(decos, name, arglist, suite) ->
 	  let c = [self#of_named_suite name suite] in
 	  let c =
             match arglist with
-            | _, [], _, _ -> c
-            | _ -> (self#mknode L.Inheritance (self#of_named_arglist (L.conv_name name) arglist))::c 
+            | loc, [] when loc = Ast.Loc.dummy -> c
+            | loc, [] ->
+                let nd = self#mkleaf L.Inheritance in
+                set_loc nd loc;
+                nd::c
+            | loc, _ ->
+                let nd = self#mknode L.Inheritance (self#of_named_arglist (L.conv_name name) arglist) in
+                set_loc nd loc;
+                nd::c
 	  in
 	  let c = (self#of_decorators name decos) @ ((self#of_name name)::c) in
 	  mkstmtnode c
+
+      | Ast.Sasync stmt -> mkstmtnode [self#of_statement stmt]
     in
     set_loc nd stmt.Ast.stmt_loc;
     nd
@@ -250,6 +267,14 @@ class translator options = object (self)
 	  mksstmtnode
 	    [self#of_targs L.LHS targs; self#of_exprs L.RHS exprs]
 
+      | Ast.SSannassign(targs, expr, testlist_opt) ->
+          let exprs =
+            match testlist_opt with
+            | Some testlist -> testlist.Ast.list
+            | None -> []
+          in
+          mksstmtnode [self#of_targs L.LHS targs; self#of_expr expr; self#of_exprs L.RHS exprs]
+
       | Ast.SSprint exprs -> self#of_exprs lab exprs
       | Ast.SSprintchevron(expr, exprs) ->
 	  mksstmtnode
@@ -263,29 +288,54 @@ class translator options = object (self)
       | Ast.SSraise -> self#mkleaf lab
       | Ast.SSraise1 expr -> self#of_exprs lab [expr]
       | Ast.SSraise2(expr1, expr2) -> self#of_exprs lab [expr1; expr2]
+      | Ast.SSraisefrom(expr1, expr2) -> self#of_exprs lab [expr1; expr2]
       | Ast.SSraise3(expr1, expr2, expr3) -> self#of_exprs lab [expr1; expr2; expr3]
       | Ast.SSyield exprs -> self#of_exprs lab exprs
       | Ast.SSimport dottedname_as_names ->
 	  mksstmtnode (List.map self#of_dottedname_as_name dottedname_as_names)
 	    
-      | Ast.SSfrom(dottedname, name_as_names) ->
-	  let dnnd = self#of_dottedname dottedname in
-	  let dnloc = dnnd#data#src_loc in
-	  let fromnd = self#mknode L.From [dnnd] in
-	  let fromloc = Loc._merge (conv_loc sstmt.Ast.sstmt_loc) dnloc in
-	  fromnd#data#set_loc fromloc;
-	  mksstmtnode (fromnd::(List.map self#of_name_as_name name_as_names))
-
-      | Ast.SSglobal names ->
+      | Ast.SSfrom(dots_opt, dottedname_opt, name_as_names) -> begin
+          let from_children, from_loc =
+            match dots_opt, dottedname_opt with
+            | None,      Some dottedname -> begin
+                let dnnd = self#of_dottedname dottedname in
+                [dnnd], dnnd#data#src_loc
+            end
+            | Some dots, Some dottedname -> begin
+                let dnd = self#of_dots dots in
+                let dnnd = self#of_dottedname dottedname in
+                [dnd; dnnd], Loc._merge dnd#data#src_loc dnnd#data#src_loc
+            end
+            | Some dots, None -> begin
+                let dnd = self#of_dots dots in
+                [dnd], dnd#data#src_loc
+            end
+            | _ -> assert false
+          in
+          let from_nd = self#mknode L.From from_children in
+          from_nd#data#set_loc from_loc;
+          mksstmtnode (from_nd::(List.map self#of_name_as_name name_as_names))
+      end
+      | Ast.SSglobal names -> begin
 	  mksstmtnode
-	    (List.map 
-	       (fun name -> 
+	    (List.map
+	       (fun name ->
 		 let n = self#mkleaf (L.Name (L.conv_name name)) in
 		 set_loc n (L.loc_of_name name);
 		 n
 	       )
-	       names) 
-
+	       names)
+      end
+      | Ast.SSnonlocal names -> begin
+	  mksstmtnode
+	    (List.map
+	       (fun name ->
+		 let n = self#mkleaf (L.Name (L.conv_name name)) in
+		 set_loc n (L.loc_of_name name);
+		 n
+	       )
+	       names)
+      end
       | Ast.SSexec expr -> self#of_exprs lab [expr]
       | Ast.SSexec2(expr1, expr2) -> self#of_exprs lab [expr1; expr2]
       | Ast.SSexec3(expr1, expr2, expr3) -> self#of_exprs lab [expr1; expr2; expr3]
@@ -295,6 +345,10 @@ class translator options = object (self)
     set_loc nd sstmt.Ast.sstmt_loc;
     nd
 
+  method of_dots (loc, ndots) =
+    let nd = self#mkleaf (L.Dots ndots) in
+    set_loc nd loc;
+    nd
       
   method of_dottedname_as_name (dname, name_opt) =
     let dname_nd = self#of_dottedname dname in
@@ -364,11 +418,17 @@ class translator options = object (self)
 
   method of_fpdef = function
     | Ast.Fname name -> self#of_name name
-    | Ast.Flist(loc, fpdefs) ->
+    | Ast.Ftyped(loc, name, expr) -> begin
+        let nd = self#mknode L.Typed [self#of_name name; self#of_expr expr] in
+        set_loc nd loc;
+        nd
+    end
+    | Ast.Flist(loc, fpdefs) -> begin
 	let children = List.map self#of_fpdef fpdefs in
 	let nd = self#mknode L.Sublist children in
 	set_loc nd loc;
 	nd
+    end
 
   method of_decorator (loc, dname, arglist) =
     let dname_str = L.dotted_name_to_string dname in
@@ -390,6 +450,7 @@ class translator options = object (self)
       | Ast.Estar expr -> self#of_exprs L.Star [expr]
       | Ast.Enamed(expr1, expr2) -> self#of_exprs L.Named [expr1; expr2]
       | Ast.Efrom expr -> self#of_exprs L.From [expr]
+      | Ast.Earg(expr1, expr2) -> self#of_exprs L.Named [expr1; expr2]
     in
     set_loc nd expr.Ast.expr_loc;
     nd
@@ -431,10 +492,12 @@ class translator options = object (self)
       | Ast.Pattrref(prim, name) -> self#mknode lab [self#of_primary prim; self#of_name name]
       | Ast.Psubscript(prim, exprs) -> mkprimnode ((self#of_primary prim)::(List.map self#of_expr exprs))
       | Ast.Pslice(prim, sliceitems) -> mkprimnode ((self#of_primary prim)::(List.map self#of_sliceitem sliceitems))
-      | Ast.Pcall(prim, arglist) ->
+      | Ast.Pcall(prim, arglist) -> begin
           let tid = L.tid_of_primary prim in
           let lab = L.Primary (L.Primary.Call tid) in
           self#mknode lab ((self#of_primary prim)::(self#of_arglist tid arglist))
+      end
+      | Ast.Pawait prim -> mkprimnode [self#of_primary prim]
     in
     nd
 
@@ -499,46 +562,57 @@ class translator options = object (self)
 	set_loc nd loc;
 	nd
 
-  method of_arglist tid (loc, args, expr_args_opt, expr_opt) =
-    match args, expr_args_opt, expr_opt with
-    | [], None, None -> []
-    | _ -> 
-	let children = 
-	  (List.map self#of_argument args) @
-	  (self#of_opt_lab_l L.Tuple 
-	     (fun (expr, args) -> 
-	       (self#of_expr expr)::(List.map self#of_argument args)) expr_args_opt
-	  ) @
-	  (self#of_opt_lab L.Dict self#of_expr expr_opt)
-	in
-	let nd = self#mknode (L.Arguments tid) children in
-	set_loc nd loc;
-	[nd]
+  method of_arglist tid (loc, args) =
+    match args with
+    | [] -> []
+    | _ -> begin
+        let children = List.map self#of_argument args in
+        let nd = self#mknode (L.Arguments tid) children in
+        set_loc nd loc;
+        [nd]
+    end
 
-  method of_named_arglist name (loc, args, expr_args_opt, expr_opt) =
-    match args, expr_args_opt, expr_opt with
-    | [], None, None -> []
-    | _ -> 
-	let children = 
-	  (List.map self#of_argument args) @
-	  (self#of_opt_lab_l L.Tuple 
-	     (fun (expr, args) -> 
-	       (self#of_expr expr)::(List.map self#of_argument args)) expr_args_opt
-	  ) @
-	  (self#of_opt_lab L.Dict self#of_expr expr_opt)
-	in
+  method of_named_arglist name (loc, args) =
+    match args with
+    | [] -> []
+    | _ -> begin
+	let children = List.map self#of_argument args in
 	let nd = self#mknode (L.NamedArguments name) children in
 	set_loc nd loc;
 	[nd]
+    end
 
-  method of_argument (loc, expr_opt, expr, compfor_opt) =
-    let children = 
-      (of_opt self#of_expr expr_opt) @ [self#of_expr expr] @ (of_opt self#of_compfor compfor_opt)
-    in
-    let nd = self#mknode L.Argument children in
-    set_loc nd loc;
-    nd
-      
+  method of_argument = function
+    | Aarg(loc, expr, expr_opt) -> begin
+        let children =
+          match expr_opt with
+          | Some e -> [self#of_expr expr; self#of_expr e]
+          | None -> [self#of_expr expr]
+        in
+        let nd = self#mknode L.Argument children in
+        set_loc nd loc;
+        nd
+    end
+    | Acomp(loc, expr, compfor) -> begin
+        let nd = self#mknode L.CompArgument [self#of_expr expr; self#of_compfor compfor] in
+        set_loc nd loc;
+        nd
+    end
+    | Aassign(loc, expr1, expr2) -> begin
+        let nd = self#mknode L.AssignArgument [self#of_expr expr1; self#of_expr expr2] in
+        set_loc nd loc;
+        nd
+    end
+    | Aargs(loc, expr) -> begin
+        let nd = self#mknode L.StarArgument [self#of_expr expr] in
+        set_loc nd loc;
+        nd
+    end
+    | Akwargs(loc, expr) -> begin
+        let nd = self#mknode L.StarStarArgument [self#of_expr expr] in
+        set_loc nd loc;
+        nd
+    end
 
   method of_compiter = function
     | Ast.Cfor compfor -> self#of_compfor compfor
@@ -550,13 +624,19 @@ class translator options = object (self)
     set_loc nd loc;
     nd
 
-  method of_compfor (loc, exprs, expr, compiter_opt) =
+  method of_compfor (loc, (exprs, expr, compiter_opt), async) =
     let children = 
       [self#of_exprs L.Target exprs;
        self#of_exprs L.In [expr]] @
       (of_opt self#of_compiter compiter_opt)
     in
-    let nd = self#mknode L.GenFor children in
+    let lab =
+      if async then
+        L.AsyncGenFor
+      else
+        L.GenFor
+    in
+    let nd = self#mknode lab children in
     set_loc nd loc;
     nd
 

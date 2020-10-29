@@ -74,12 +74,14 @@ module F (Stat : STATE_T) = struct
   let mksstmt so eo d = { sstmt_desc=d; sstmt_loc=(get_loc so eo) }
   let mkexpr so eo d = { expr_desc=d; expr_loc=(get_loc so eo) }
   let mkprim so eo d = { prim_desc=d; prim_loc=(get_loc so eo) }
+  let mkprimexpr so eo d = { expr_desc=(Eprimary (mkprim so eo d)); expr_loc=(get_loc so eo) }
   let mkde so eo d = { delem_desc=d; delem_loc=(get_loc so eo) }
 
   let mktestlist l c y = { list=l; comma=c; yield=y }
 
-  let emptyarglist = Ast.Loc.dummy, [], None, None
-
+  let emptyarglist = Ast.Loc.dummy, []
+  let emptyvarargslist = emptyarglist
+  let emptytypedargslist = emptyarglist
 
 end (* of functor Parser_aux.F *)
 

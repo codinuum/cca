@@ -14,8 +14,8 @@
    limitations under the License.
 *)
 (*
- * A parser for the Python programming language (for v2.7)
- * based on Python-2.7.3/Grammar/Grammar
+ * A parser for the Python programming language (for v2.7 and v3)
+ * based on Python-2.7.3/Grammar/Grammar and https://github.com/python/cpython/Grammar/Grammar
  * parser.mly
  *
  *)
@@ -56,8 +56,8 @@ open Stat
 
 (* Delimiters *)
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE AT
-%token COMMA COLON DOT BACKQUOTE EQ SEMICOLON 
-%token PLUS_EQ MINUS_EQ STAR_EQ SLASH_EQ SLASH_SLASH_EQ PERCENT_EQ 
+%token COMMA COLON DOT BACKQUOTE EQ SEMICOLON ELLIPSIS
+%token PLUS_EQ MINUS_EQ STAR_EQ SLASH_EQ SLASH_SLASH_EQ PERCENT_EQ
 %token AMP_EQ PIPE_EQ HAT_EQ LT_LT_EQ GT_GT_EQ STAR_STAR_EQ
 
 (* Keywords *)
@@ -68,9 +68,9 @@ open Stat
 %token PASS PRINT RAISE RETURN TRY
 %token WHILE WITHx YIELD
 
-(* *)
-%token COLON_EQ
-
+(* 3 *)
+%token COLON_EQ MINUS_GT
+%token AWAIT ASYNC NONLOCAL
 
 %start main
 %type <Ast.fileinput> main
@@ -106,18 +106,44 @@ decorators:
 
 decorated:
 | decorators classdef { match $2 with Sclassdef(_, n, t, s) -> Sclassdef($1, n, t, s) | _ -> assert false }
-| decorators funcdef  { match $2 with Sfuncdef(_, n, p, s) -> Sfuncdef($1, n, p, s) | _ -> assert false }
+| decorators funcdef  { match $2 with Sfuncdef(_, n, p, a, s) -> Sfuncdef($1, n, p, a, s) | _ -> assert false }
+| decorators async_funcdef
+    { match $2 with Sasync_funcdef(_, n, p, a, s) -> Sasync_funcdef($1, n, p, a, s) | _ -> assert false }
 
+async_funcdef:
+| ASYNC DEF name parameters           COLON suite { Sasync_funcdef([], $3, $4, None, $6) }
+| ASYNC DEF name parameters ret_annot COLON suite { Sasync_funcdef([], $3, $4, Some $5, $7) }
+;
 funcdef:
-| DEF name parameters COLON suite { Sfuncdef([], $2, $3, $5) }
+| DEF name parameters           COLON suite { Sfuncdef([], $2, $3, None, $5) }
+| DEF name parameters ret_annot COLON suite { Sfuncdef([], $2, $3, Some $4, $6) }
+;
+ret_annot:
+| MINUS_GT test { $2 }
 ;
 name:
 | NAMEx { get_loc $startofs $endofs, $1 }
 ;
 
 parameters:
-| LPAREN             RPAREN { Ast.Loc.dummy, [] }
-| LPAREN varargslist RPAREN { $2 }
+| LPAREN               RPAREN { emptytypedargslist }
+| LPAREN typedargslist RPAREN { $2 }
+;
+
+typedargslist:
+| v=typedargs_       { get_loc $startofs $endofs, v }
+| v=typedargs_ COMMA { get_loc $startofs $endofs, v }
+;
+typedargs_:
+|                typedarg {      [$1] }
+| typedargs_ COMMA typedarg { $1 @ [$3] }
+;
+typedarg:
+| tfpdef          { VAarg ($1, None) }
+| tfpdef EQ test  { VAarg ($1, Some $3) }
+| STAR            { VAargs(get_loc $startofs $endofs, None) }
+| STAR name       { VAargs(get_loc $startofs $endofs, (Some $2)) }
+| STAR_STAR name  { VAkwargs(get_loc $startofs $endofs, $2) }
 ;
 
 varargslist:
@@ -125,7 +151,7 @@ varargslist:
 | v=varargs_ COMMA { get_loc $startofs $endofs, v }
 ;
 varargs_:
-|                vararg { [$1] }
+|                vararg {      [$1] }
 | varargs_ COMMA vararg { $1 @ [$3] }
 ;
 vararg:
@@ -136,8 +162,13 @@ vararg:
 | STAR_STAR name { VAkwargs(get_loc $startofs $endofs, $2) }
 ;
 
+tfpdef:
+| fpdef { $1 }
+| name COLON test { Ftyped(get_loc $startofs $endofs, $1, $3) }
+;
+
 fpdef:
-| name                 { Fname $1 }
+| name            { Fname $1 }
 | LPAREN fplist RPAREN { Flist(get_loc $startofs $endofs, $2) }
 ;
 
@@ -171,19 +202,26 @@ small_stmt:
 | small_stmt_ { mksstmt $startofs $endofs $1 }
 ;
 small_stmt_:
-| expr_stmt   { $1 }
-| print_stmt  { $1 }
-| del_stmt    { $1 }
-| pass_stmt   { $1 }
-| flow_stmt   { $1 }
-| import_stmt { $1 }
-| global_stmt { $1 }
-| exec_stmt   { $1 }
-| assert_stmt { $1 }
+| expr_stmt     { $1 }
+| print_stmt    { $1 }
+| del_stmt      { $1 }
+| pass_stmt     { $1 }
+| flow_stmt     { $1 }
+| import_stmt   { $1 }
+| global_stmt   { $1 }
+| nonlocal_stmt { $1 }
+| exec_stmt     { $1 }
+| assert_stmt   { $1 }
+;
+
+annassign:
+| COLON test                           { $2, None }
+| COLON test EQ testlist_or_yield_expr { $2, Some $4 }
 ;
 
 expr_stmt:
 | testlist_star_expr { SSexpr $1.list }
+| testlist_star_expr annassign { SSannassign($1.list, fst $2, snd $2) }
 | testlist_star_expr augassign testlist_or_yield_expr { SSaugassign($1.list, $2, $3) }
 | testlist_star_expr eq_testlists
     {
@@ -265,6 +303,7 @@ raise_stmt:
 | RAISE test                       { SSraise1 $2 }
 | RAISE test COMMA test            { SSraise2($2, $4) }
 | RAISE test COMMA test COMMA test { SSraise3($2, $4, $6) }
+| RAISE test FROM test             { SSraisefrom($2, $4) }
 ;
 
 import_stmt:
@@ -279,15 +318,27 @@ import_name:
 import_from:
 | FROM dotted_name IMPORT imports 
     {
-     begin
+     (*begin
        match $2, $4 with
 	 [_, "__future__"], [(_, "with_statement"), None] ->
 	   env#enable_with_stmt
        | _ -> ()
-     end;
-     SSfrom($2, $4) 
+     end;*)
+     SSfrom(None, Some $2, $4)
    }
+| FROM dot_or_ellipsis_seq dotted_name IMPORT imports { SSfrom(Some $2, Some $3, $5) }
+| FROM dot_or_ellipsis_seq             IMPORT imports { SSfrom(Some $2, None, $4) }
 ;
+
+%inline
+dot_or_ellipsis:
+| DOT      { 1 }
+| ELLIPSIS { 3 }
+;
+dot_or_ellipsis_seq:
+| dot_or_ellipsis+ { get_loc $startofs $endofs, (List.fold_left (fun s x -> s + x) 0 $1) }
+;
+
 imports:
 | STAR { [] }
 | LPAREN import_as_names_list RPAREN { $2 }
@@ -327,6 +378,11 @@ dotted_name:
 global_stmt:
 | GLOBAL names { SSglobal $2 }
 ;
+
+nonlocal_stmt:
+| NONLOCAL names { SSnonlocal $2 }
+;
+
 names:
 | name             { [$1] }
 | name COMMA names { $1 :: $3 }
@@ -347,14 +403,21 @@ compound_stmt:
 | compound_stmt_ { mkstmt $startofs $endofs $1 }
 ;
 compound_stmt_:
-| if_stmt { $1 }
-| while_stmt { $1 }
-| for_stmt { $1 }
-| try_stmt { $1 }
-| with_stmt { $1 }
-| funcdef { $1 }
-| classdef { $1 }
-| decorated { $1 }
+| if_stmt       { $1 }
+| while_stmt    { $1 }
+| for_stmt      { $1 }
+| try_stmt      { $1 }
+| with_stmt     { $1 }
+| async_funcdef { $1 }
+| funcdef       { $1 }
+| classdef      { $1 }
+| decorated     { $1 }
+| async_stmt    { $1 }
+;
+
+async_stmt:
+| ASYNC with_stmt { Sasync (mkstmt $startofs($2) $endofs($2) $2) }
+| ASYNC for_stmt  { Sasync (mkstmt $startofs($2) $endofs($2) $2) }
 ;
 
 if_stmt:
@@ -438,13 +501,14 @@ old_test:
 ;
 
 old_lambdef:
-| LAMBDA             COLON old_test { Elambda((Ast.Loc.dummy, []), $3) }
+| LAMBDA             COLON old_test { Elambda(emptyvarargslist, $3) }
 | LAMBDA varargslist COLON old_test { Elambda($2, $4) }
 ;
 
 namedexpr_test:
 | test { $1 }
 | test COLON_EQ test { mkexpr $startofs $endofs (Enamed($1, $3)) }
+| test EQ test { mkexpr $startofs $endofs (Enamed($1, $3)) } (* for print *)
 ;
 
 test:
@@ -474,17 +538,17 @@ comparison:
 ;
 
 comp_op:
-| LT { Blt }
-| GT { Bgt }
-| EQ_EQ { Beq }
-| GT_EQ { Bge }
-| LT_EQ { Ble }
-| LT_GT { Bneq }
+| LT        { Blt }
+| GT        { Bgt }
+| EQ_EQ     { Beq }
+| GT_EQ     { Bge }
+| LT_EQ     { Ble }
+| LT_GT     { Bneq }
 | EXCLAM_EQ { Bneq }
-| IN     { Bin }
-| NOT IN { BnotIn }
-| IS     { Bis }
-| IS NOT { BisNot }
+| IN        { Bin }
+| NOT IN    { BnotIn }
+| IS        { Bis }
+| IS NOT    { BisNot }
 ;
 
 star_expr:
@@ -541,22 +605,28 @@ power:
 | primary STAR_STAR factor { mkexpr $startofs $endofs (Epower($1, $3)) }
 ;
 primary:
+|       _primary { $1 }
+| AWAIT _primary { mkprim $startofs $endofs (Pawait $2) }
+;
+_primary:
 | atom { mkprim $startofs $endofs $1 }
-| primary trailer 
+| _primary trailer
     { 
       let p = 
 	match $2 with
-	  TRattrref n -> Pattrref($1, n)
-	| TRsubscript el -> Psubscript($1, el)
-	| TRslice sil -> Pslice($1, sil)
-	| TRcall al -> Pcall($1, al)
-      in mkprim $startofs $endofs p
+        | TRattrref n    -> Pattrref($1, n)
+        | TRsubscript el -> Psubscript($1, el)
+        | TRslice sil    -> Pslice($1, sil)
+        | TRcall al      -> Pcall($1, al)
+      in
+      mkprim $startofs $endofs p
     }
 ;
 
 atom:
 | LPAREN               RPAREN { Ptuple [] }
-| LPAREN testlist_comp RPAREN { $2 }
+| LPAREN yield_expr    RPAREN { Pparen (mkprimexpr $startofs($2) $endofs($2) (Pyield $2.list)) }
+| LPAREN testlist_comp RPAREN { Pparen (mkprimexpr $startofs($2) $endofs($2) $2) }
 | LBRACKET               RBRACKET { Plistnull }
 | LBRACKET testlist_comp RBRACKET
     { 
@@ -609,12 +679,12 @@ test_:
 ;
 
 lambdef:
-| LAMBDA             COLON test { Elambda((Ast.Loc.dummy, []), $3) }
+| LAMBDA             COLON test { Elambda(emptyvarargslist, $3) }
 | LAMBDA varargslist COLON test { Elambda($2, $4) }
 ;
 
 trailer:
-| LPAREN         RPAREN { TRcall (Ast.Loc.dummy, [], None, None) }
+| LPAREN         RPAREN { TRcall emptyarglist }
 | LPAREN arglist RPAREN { TRcall $2 }
 | LBRACKET               RBRACKET { TRsubscript [] }
 | LBRACKET subscriptlist RBRACKET 
@@ -638,7 +708,8 @@ subscripts:
 ;
 
 subscript:
-| DOT DOT DOT { SIellipsis(get_loc $startofs $endofs) }
+(*| DOT DOT DOT { SIellipsis(get_loc $startofs $endofs) }*)
+| ELLIPSIS { SIellipsis(get_loc $startofs $endofs) }
 | test { SIexpr $1 }
 
 |      COLON      { SIproper(get_loc $startofs $endofs, None, None, None) }
@@ -708,25 +779,19 @@ test_star_expr:
 ;
 
 classdef:
-| CLASS name                       COLON suite { Sclassdef([], $2, (Ast.Loc.dummy, [], None, None), $4) }
-| CLASS name LPAREN arglist RPAREN COLON suite { Sclassdef([], $2, $4, $7) }
+| CLASS name                       COLON suite { Sclassdef([], $2, emptyarglist, $4) }
+| CLASS name LPAREN         RPAREN COLON suite { Sclassdef([], $2, (get_loc $startofs($3) $endofs($4), []), $6) }
+| CLASS name LPAREN arglist RPAREN COLON suite
+    { 
+      let _, l = $4 in
+      let loc = get_loc $startofs($3) $endofs($5) in
+      Sclassdef([], $2, (loc, l), $7)
+    }
 ;
 
 arglist:
-| al=arg_comma_list a=argument                                             { get_loc $symbolstartofs $endofs, al @ [a], None, None }
-| al=arg_comma_list a=argument COMMA                                       { get_loc $symbolstartofs $endofs, al @ [a], None, None }
-| al=arg_comma_list STAR t0=test cl=comma_arg_list                         { get_loc $symbolstartofs $endofs, al, Some (t0, cl), None }
-| al=arg_comma_list STAR t0=test cl=comma_arg_list COMMA STAR_STAR t1=test { get_loc $symbolstartofs $endofs, al, Some (t0, cl), Some t1 }
-| al=arg_comma_list                                      STAR_STAR t1=test { get_loc $symbolstartofs $endofs, al, None, Some t1 }
-;
-
-%inline comma_arg_list:
-| (* *)             { [] }
-| c=comma_arg_list_ { c }
-;
-comma_arg_list_:
-|                 COMMA argument { [$2] }
-| comma_arg_list_ COMMA argument { $1 @ [$3] }
+| al=arg_comma_list a=argument       { get_loc $symbolstartofs $endofs, al @ [a] }
+| al=arg_comma_list a=argument COMMA { get_loc $symbolstartofs $endofs, al @ [a] }
 ;
 %inline arg_comma_list:
 | (* *)             { [] }
@@ -737,10 +802,12 @@ arg_comma_list_:
 | arg_comma_list_ argument COMMA { $1 @ [$2] }
 
 argument:
-| test                  { get_loc $startofs $endofs, None, $1, None }
-| test EQ test          { get_loc $startofs $endofs, Some $1, $3, None }
-| test         comp_for { get_loc $startofs $endofs, None, $1, Some $2 }
-| test EQ test comp_for { get_loc $startofs $endofs, Some $1, $3, Some $4 }
+| test                  { Aarg(get_loc $startofs $endofs, $1, None) }
+| test EQ test          { Aarg(get_loc $startofs $endofs, $1, Some $3) }
+| test         comp_for { Acomp(get_loc $startofs $endofs, $1, $2) }
+| test COLON_EQ test    { Aassign(get_loc $startofs $endofs, $1, $3) }
+| STAR test             { Aargs(get_loc $startofs $endofs, $2) }
+| STAR_STAR test        { Akwargs(get_loc $startofs $endofs, $2) }
 ;
 
 comp_iter:
@@ -749,8 +816,12 @@ comp_iter:
 ;
 
 comp_for:
-| FOR exprlist IN or_test           { get_loc $startofs $endofs, $2, $4, None }
-| FOR exprlist IN or_test comp_iter { get_loc $startofs $endofs, $2, $4, Some $5 }
+|       sync_comp_for { get_loc $startofs $endofs, $1, false }
+| ASYNC sync_comp_for { get_loc $startofs $endofs, $2, true }
+;
+sync_comp_for:
+| FOR exprlist IN or_test           { $2, $4, None }
+| FOR exprlist IN or_test comp_iter { $2, $4, Some $5 }
 ;
 
 comp_if:
@@ -769,7 +840,7 @@ testlist1_star_expr:
 ;
 
 testlist1_:
-|                           test_ { [$1] }
+|                  test_ { [$1] }
 | testlist1_ COMMA test_ { $1 @ [$3] }
 ;
 

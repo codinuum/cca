@@ -368,7 +368,8 @@ module Statement =
       | With
       | FuncDef of name
       | ClassDef of name
-
+      | Async
+      | AsyncFuncDef of name
 
     let to_string = function
       | Simple        -> "Simple"
@@ -379,10 +380,13 @@ module Statement =
       | With          -> "With"
       | FuncDef name  -> "FuncDef:" ^ name
       | ClassDef name -> "ClassDef:" ^ name
+      | Async -> "Async"
+      | AsyncFuncDef name -> "AsyncFuncDef:" ^ name
 
     let anonymize = function
       | FuncDef name  -> FuncDef ""
       | ClassDef name -> ClassDef ""
+      | AsyncFuncDef name -> AsyncFuncDef ""
       | stmt          -> stmt
 
     let to_short_string ?(ignore_identifiers_flag=false) = 
@@ -395,6 +399,8 @@ module Statement =
       | With   -> mkstr 5
       | FuncDef name  -> combo 6 [name]
       | ClassDef name -> combo 7 [name]
+      | Async -> mkstr 8
+      | AsyncFuncDef name -> combo 9 [name]
 
     let to_tag stmt =
       let name, attrs =
@@ -407,6 +413,8 @@ module Statement =
 	| With          -> "WithStmt", []
 	| FuncDef name  -> "FuncDef", ["name",name]
 	| ClassDef name -> "ClassDef", ["name",name]
+        | Async             -> "Async", []
+        | AsyncFuncDef name -> "AsyncFuncDef", ["name",name]
       in
       name, attrs
       
@@ -429,6 +437,9 @@ module SimpleStatement =
       | Global
       | Exec
       | Assert
+      | AnnAssign
+      | RaiseFrom
+      | Nonlocal
 
     let to_string = function
       | Expr -> "Expr"
@@ -445,6 +456,9 @@ module SimpleStatement =
       | Global         -> "Global"
       | Exec           -> "Exec"
       | Assert         -> "Assert"
+      | AnnAssign      -> "AnnAssign"
+      | RaiseFrom      -> "RaiseFrom"
+      | Nonlocal       -> "Nonlocal"
 
     let to_short_string = function
       | Expr           -> mkstr 0 
@@ -461,6 +475,9 @@ module SimpleStatement =
       | Global         -> mkstr 11
       | Exec           -> mkstr 12
       | Assert         -> mkstr 13
+      | AnnAssign      -> mkstr 14
+      | RaiseFrom      -> mkstr 15
+      | Nonlocal       -> mkstr 16
 
     let to_tag sstmt =
       let name, attrs =
@@ -479,6 +496,9 @@ module SimpleStatement =
 	| Global         -> "GlobalStmt", []
 	| Exec           -> "ExecStmt", []
 	| Assert         -> "AssertStmt", []
+        | AnnAssign      -> "AnnAssignStmt", []
+        | RaiseFrom      -> "RaiseFromStmt", []
+        | Nonlocal       -> "NonlocalStmt", []
       in
       name, attrs
 
@@ -501,7 +521,7 @@ module Primary = struct
     | Subscription
     | Slicing
     | Call of tie_id
-	  
+    | Await
 
   let to_string = function
     | Name name    -> sprintf "Name:%s" name
@@ -518,6 +538,7 @@ module Primary = struct
     | Subscription -> "Subscription"
     | Slicing      -> "Slicing"
     | Call tid     -> "Call:" ^ (tid_to_string tid)
+    | Await        -> "Await"
 
   let anonymize ?(more=false) = function
     | Name name   -> Name ""
@@ -541,6 +562,7 @@ module Primary = struct
     | Subscription -> mkstr 11
     | Slicing      -> mkstr 12
     | Call tid     -> combo 13 [tid_to_string tid]
+    | Await        -> mkstr 14
 			      
   let to_tag prim =
     let name, attrs =
@@ -559,6 +581,7 @@ module Primary = struct
       | Subscription -> "Subscription", []
       | Slicing      -> "Slicing", []
       | Call tid     -> "Call", mktidattr tid
+      | Await        -> "Await", []
     in
     name, attrs
 
@@ -618,6 +641,10 @@ type t = (* Label *)
   | Arguments of tie_id
   | NamedArguments of name
   | Argument
+  | CompArgument
+  | AssignArgument
+  | StarArgument
+  | StarStarArgument
   | GenFor
   | GenIf
   | Inheritance
@@ -632,6 +659,10 @@ type t = (* Label *)
   | StarStar
   | Star
   | Named
+  | ReturnAnnotation
+  | Typed
+  | Dots of int
+  | AsyncGenFor
 
 let opt_to_string to_str = function
   | Some x -> to_str x
@@ -656,67 +687,46 @@ let literal_to_string = function
 let rec primary_to_string prim = primary_desc_to_string prim.Ast.prim_desc
 
 and primary_desc_to_string = function
-  | Ast.Pname name           -> "Pname(" ^ (name_to_string name) ^ ")"
-  | Ast.Pliteral lit         -> "Pliteral(" ^ (literal_to_string lit) ^ ")"
-  | Ast.Pparen expr          -> "Pparen(" ^ (expr_to_string expr) ^ ")"
-  | Ast.Ptuple exprs         -> "Ptuple" ^ (exprs_to_string exprs)
-  | Ast.Pyield exprs         -> "Pyield" ^ (exprs_to_string exprs)
-
-  | Ast.PcompT(expr, compfor) -> "PcompT(" ^ (expr_to_string expr) ^ "," ^ (compfor_to_string compfor) ^ ")"
-  | Ast.PcompL(expr, compfor) -> "PcompL(" ^ (expr_to_string expr) ^ "," ^ (compfor_to_string compfor) ^ ")"
-
+  | Ast.Pname name            -> sprintf "Pname(%s)" (name_to_string name)
+  | Ast.Pliteral lit          -> sprintf "Pliteral(%s)" (literal_to_string lit)
+  | Ast.Pparen expr           -> sprintf "Pparen(%s)" (expr_to_string expr)
+  | Ast.Ptuple exprs          -> "Ptuple" ^ (exprs_to_string exprs)
+  | Ast.Pyield exprs          -> "Pyield" ^ (exprs_to_string exprs)
+  | Ast.PcompT(expr, compfor) -> sprintf "PcompT(%s,%s)" (expr_to_string expr) (compfor_to_string compfor)
+  | Ast.PcompL(expr, compfor) -> sprintf "PcompL(%s,%s)" (expr_to_string expr) (compfor_to_string compfor)
   | Ast.Plist exprs -> "Plist" ^ (exprs_to_string exprs)
   | Ast.Plistnull -> "Plistnull"
   | Ast.Pdictorset dictorsetmaker -> "Pdictorset" ^ (dictorsetmaker_to_string dictorsetmaker)
   | Ast.Pdictnull -> "Pdictnull"
   | Ast.Pstrconv exprs -> "Pstrconv" ^ (exprs_to_string exprs)
-  | Ast.Pattrref(prim, name) -> 
-      "Pattrref(" ^ (primary_to_string prim) ^ "," ^ (name_to_string name) ^ ")"
-
-  | Ast.Psubscript(prim, exprs) ->
-      "Psubscript(" ^ (primary_to_string prim) ^ "," ^ 
-      (exprs_to_string exprs) ^ ")"
-
+  | Ast.Pattrref(prim, name) -> sprintf "Pattrref(%s,%s)" (primary_to_string prim) (name_to_string name)
+  | Ast.Psubscript(prim, exprs) -> sprintf "Psubscript(%s,%s)" (primary_to_string prim) (exprs_to_string exprs)
   | Ast.Pslice(prim, sliceitems) ->
-      "Pslice(" ^ (primary_to_string prim) ^ ",[" ^
-      (Xlist.to_string sliceitem_to_string ";" sliceitems) ^ "])"
-	
-  | Ast.Pcall(prim, arglist) ->
-      "Pcall(" ^ (primary_to_string prim) ^ "," ^ 
-      (arglist_to_string arglist) ^ ")"
+      sprintf "Pslice(%s,[%s])" (primary_to_string prim) (Xlist.to_string sliceitem_to_string ";" sliceitems)
+  | Ast.Pcall(prim, arglist) -> sprintf "Pcall(%s,%s)" (primary_to_string prim) (arglist_to_string arglist)
+  | Ast.Pawait prim -> sprintf "Pawait(%s)" (primary_to_string prim)
 
 and expr_to_string expr = 
   match expr.Ast.expr_desc with
-  | Ast.Eprimary prim -> "Eprimary(" ^ (primary_to_string prim) ^ ")"
-
-  | Ast.Epower(prim, expr) -> 
-      "Epower(" ^ (primary_to_string prim) ^ "," ^ (expr_to_string expr) ^ ")"
-
-  | Ast.Ebop(expr1, bop, expr2) -> 
-      "Ebop(" ^ (expr_to_string expr1) ^ "," ^ (bop_to_string bop) ^ "," ^
-      (expr_to_string expr2) ^ ")"
-
-  | Ast.Euop(uop, expr) -> 
-      "Euop(" ^ (uop_to_string uop) ^ "," ^ (expr_to_string expr) ^ ")"
+  | Ast.Eprimary prim -> sprintf "Eprimary(%s)" (primary_to_string prim)
+  | Ast.Epower(prim, expr) -> sprintf "Epower(%s,%s)" (primary_to_string prim) (expr_to_string expr)
+  | Ast.Ebop(expr1, bop, expr2) ->
+      sprintf "Ebop(%s,%s,%s)" (expr_to_string expr1) (bop_to_string bop) (expr_to_string expr2)
+  | Ast.Euop(uop, expr) -> sprintf "Euop(%s,%s)" (uop_to_string uop) (expr_to_string expr)
 
   | Ast.Elambda(params, expr) ->
-      "Elambda(" ^ 
+      "Elambda(" ^
       (match params with 
-        _, [] -> "" 
+      | _, [] -> "" 
       | _ -> parameters_to_string params) ^
       (expr_to_string expr)
 
   | Ast.Econd(expr1, expr2, expr3) ->
-      "Econd(" ^ 
-      (expr_to_string expr1) ^ "," ^
-      (expr_to_string expr2) ^ "," ^
-      (expr_to_string expr3) ^ ")"
-
-  | Ast.Estar expr -> "*"^(expr_to_string expr)
-
-  | Ast.Enamed(expr1, expr2) -> (expr_to_string expr1)^":="^(expr_to_string expr2)
-
-  | Ast.Efrom expr -> "from "^(expr_to_string expr)
+      sprintf "Econd(%s,%s,%s)" (expr_to_string expr1) (expr_to_string expr2) (expr_to_string expr3)
+  | Ast.Estar expr -> sprintf "Estar(%s)" (expr_to_string expr)
+  | Ast.Enamed(expr1, expr2) -> sprintf "Enamed(%s,%s)" (expr_to_string expr1) (expr_to_string expr2)
+  | Ast.Efrom expr -> sprintf "Efrom(%s)" (expr_to_string expr)
+  | Ast.Earg(expr1, expr2) -> sprintf "Earg(%s,%s)" (expr_to_string expr1) (expr_to_string expr2)
 
 and bop_to_string = function
   | Ast.Bmul    -> "Bmul"
@@ -763,18 +773,17 @@ and vararg_to_string = function
 and vargs_to_string vargs = "[" ^ (Xlist.to_string vararg_to_string ";" vargs) ^ "]"
 
 and fpdef_to_string = function
-  | Ast.Fname n -> "Fname(" ^ (name_to_string n) ^ ")"
-  | Ast.Flist(_, fpdefs) ->
-      "Flist[" ^ (Xlist.to_string fpdef_to_string ";" fpdefs) ^ "]"
+  | Ast.Fname n -> sprintf "Fname(%s)" (name_to_string n)
+  | Ast.Ftyped(_, name, expr) -> sprintf "Ftyped(%s,%s)" (name_to_string name) (expr_to_string expr)
+  | Ast.Flist(_, fpdefs) -> sprintf "Flist[%s]" (Xlist.to_string fpdef_to_string ";" fpdefs)
 
-and exprs_to_string exprs =
-  "[" ^ (Xlist.to_string expr_to_string ";" exprs) ^ "]"
+and exprs_to_string exprs = sprintf "[%s]" (Xlist.to_string expr_to_string ";" exprs)
 
-and compfor_to_string (_, exprs, expr, compiter_opt) =
-  "(" ^ 
-  (exprs_to_string exprs) ^ "," ^ (expr_to_string expr) ^ "," ^ 
-  (opt_to_string compiter_to_string compiter_opt) ^ 
-  ")"
+and compfor_to_string (_, (exprs, expr, compiter_opt), async) =
+  (if async then "async " else "")^
+  "for " ^ 
+  (exprs_to_string exprs) ^ " in " ^ (expr_to_string expr) ^ " " ^ 
+  (opt_to_string compiter_to_string compiter_opt)
 
 and compiter_to_string = function
   | Ast.Cfor gf -> "Cfor(" ^ (compfor_to_string gf) ^ ")"
@@ -828,37 +837,34 @@ and sliceitem_to_string = function
       (opt_to_string expr_to_string expr_opt3) ^ ")"
   | Ast.SIellipsis _ -> "SIellipsis"
 
-and arglist_to_string (_, args, tini, dini) =
-  "(" ^
-  (Xlist.to_string argument_to_string "," args) ^ "," ^
-  (opt_to_string 
-     (fun (e, al) -> 
-       (expr_to_string e)^(Xlist.to_string (fun a -> ","^(argument_to_string a)) "" al)
-     ) tini
-  ) ^ "," ^
-  (opt_to_string expr_to_string dini) ^ 
-  ")"
+and arglist_to_string (_, args) = sprintf "(%s)" (Xlist.to_string argument_to_string "," args)
 
-and argument_to_string (_, expr_opt, expr, compfor_opt) =
-  "(" ^
-  (opt_to_string expr_to_string expr_opt) ^ "," ^
-  (expr_to_string expr) ^ "," ^
-  (opt_to_string compfor_to_string compfor_opt) ^ 
-  ")"
-
+and argument_to_string = function
+  | Aarg(_, expr, expr_opt) -> begin
+      (expr_to_string expr)^
+      (match expr_opt with
+      | Some e -> "="^(expr_to_string e)
+      | _ -> "")
+  end
+  | Acomp(_, expr, compfor) -> (expr_to_string expr)^" "^(compfor_to_string compfor)
+  | Aassign(_, expr1, expr2) -> (expr_to_string expr1)^":="^(expr_to_string expr2)
+  | Aargs(_, expr) -> "*"^(expr_to_string expr)
+  | Akwargs(_, expr) -> "**"^(expr_to_string expr)
 
 let of_statement stmt =
   Statement
     (match stmt with
-    | Ast.Ssimple _                -> Statement.Simple
-    | Ast.Sif _                    -> Statement.If
-    | Ast.Swhile _                 -> Statement.While
-    | Ast.Sfor _                   -> Statement.For
-    | Ast.Stry _                   -> Statement.Try
-    | Ast.Stryfin _                -> Statement.Try
-    | Ast.Swith _                  -> Statement.With
-    | Ast.Sfuncdef(_, name, _, _)  -> Statement.FuncDef (conv_name name)
-    | Ast.Sclassdef(_, name, _, _) -> Statement.ClassDef (conv_name name)
+    | Ast.Ssimple _                        -> Statement.Simple
+    | Ast.Sif _                            -> Statement.If
+    | Ast.Swhile _                         -> Statement.While
+    | Ast.Sfor _                           -> Statement.For
+    | Ast.Stry _                           -> Statement.Try
+    | Ast.Stryfin _                        -> Statement.Try
+    | Ast.Swith _                          -> Statement.With
+    | Ast.Sasync _                         -> Statement.Async
+    | Ast.Sasync_funcdef(_, name, _, _, _) -> Statement.AsyncFuncDef (conv_name name)
+    | Ast.Sfuncdef(_, name, _, _, _)       -> Statement.FuncDef (conv_name name)
+    | Ast.Sclassdef(_, name, _, _)         -> Statement.ClassDef (conv_name name)
     )
 
 let of_simplestmt sstmt = 
@@ -866,8 +872,7 @@ let of_simplestmt sstmt =
     (match sstmt with
     | Ast.SSexpr _               -> SimpleStatement.Expr
     | Ast.SSassign _             -> SimpleStatement.Assignment AssignmentOperator.Eq
-    | Ast.SSaugassign(_, aop, _) -> 
-	SimpleStatement.Assignment (AssignmentOperator.of_aop aop)
+    | Ast.SSaugassign(_, aop, _) -> SimpleStatement.Assignment (AssignmentOperator.of_aop aop)
     | Ast.SSprint _              -> SimpleStatement.Print
     | Ast.SSprintchevron _       -> SimpleStatement.Print
     | Ast.SSdel _                -> SimpleStatement.Del
@@ -887,7 +892,11 @@ let of_simplestmt sstmt =
     | Ast.SSexec2 _              -> SimpleStatement.Exec
     | Ast.SSexec3 _              -> SimpleStatement.Exec
     | Ast.SSassert _             -> SimpleStatement.Assert
-    | Ast.SSassert2 _            -> SimpleStatement.Assert)
+    | Ast.SSassert2 _            -> SimpleStatement.Assert
+    | Ast.SSannassign _          -> SimpleStatement.AnnAssign
+    | Ast.SSraisefrom _          -> SimpleStatement.RaiseFrom
+    | Ast.SSnonlocal _           -> SimpleStatement.Nonlocal
+    )
 
 let of_bop bop = BinaryOperator (BinaryOperator.of_bop bop)
 
@@ -917,6 +926,7 @@ let of_primary p =
     | Ast.Psubscript _    -> Primary.Subscription
     | Ast.Pslice _        -> Primary.Slicing
     | Ast.Pcall (prim, _) -> Primary.Call (tid_of_primary prim)
+    | Ast.Pawait _        -> Primary.Await
     )
 
 
@@ -963,6 +973,10 @@ let rec to_string = function
   | Arguments tid         -> sprintf "Arguments:%s" (tid_to_string tid)
   | NamedArguments n      -> sprintf "NamedArguments:%s" n
   | Argument              -> "Argument"
+  | CompArgument          -> "CompArgument"
+  | AssignArgument        -> "AssignArgument"
+  | StarArgument          -> "StarArgument"
+  | StarStarArgument      -> "StarStarArgument"
   | GenFor                -> "GenFor"
   | GenIf                 -> "GenIf"
   | Inheritance           -> "Inheritance"
@@ -980,8 +994,17 @@ let rec to_string = function
   | StarStar -> "StarStar"
   | Star     -> "Star"
   | Named    -> "Named"
+  | ReturnAnnotation -> "ReturnAnnotation"
+  | Typed            -> "Typed"
+  | Dots i           -> sprintf "Dots:%d" i
+  | AsyncGenFor      -> "AsyncGenFor"
 
 let anonymize ?(more=false) = function
+  | CompArgument
+  | AssignArgument
+  | StarArgument
+  | StarStarArgument when more -> Argument
+  | AsyncGenFor when more -> GenFor
   | Primary p         -> Primary (Primary.anonymize ~more p)
   | Statement stmt    -> Statement (Statement.anonymize stmt)
   | FileInput n       -> FileInput ""
@@ -993,6 +1016,7 @@ let anonymize ?(more=false) = function
   | Decorator n       -> Decorator ""
   | Decorators n      -> Decorators ""
   | StringLiteral str -> StringLiteral ""
+  | Dots i            -> Dots 0
   | lab               -> lab
 
 let anonymize2 = anonymize ~more:true
@@ -1070,6 +1094,14 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | StarStar     -> mkstr 53
   | Star         -> mkstr 54
   | Named        -> mkstr 55
+  | ReturnAnnotation -> mkstr 56
+  | Typed            -> mkstr 57
+  | Dots i           -> combo 58 [string_of_int i]
+  | CompArgument          -> mkstr 59
+  | AssignArgument        -> mkstr 60
+  | StarArgument          -> mkstr 61
+  | StarStarArgument      -> mkstr 62
+  | AsyncGenFor           -> mkstr 63
 
 let to_tag l =
   let name, attrs =
@@ -1115,6 +1147,10 @@ let to_tag l =
     | Arguments tid         -> "Arguments", mktidattr tid
     | NamedArguments n      -> "NamedArguments", ["name",n]
     | Argument              -> "Argument", []
+    | CompArgument          -> "CompArgument", []
+    | AssignArgument        -> "AssignArgument", []
+    | StarArgument          -> "StarArgument", []
+    | StarStarArgument      -> "StarStarArgument", []
     | GenFor                -> "GenFor", []
     | GenIf                 -> "GenIf", []
     | Inheritance           -> "Inheritance", []
@@ -1129,6 +1165,10 @@ let to_tag l =
     | StarStar              -> "StarStar", []
     | Star                  -> "Star", []
     | Named                 -> "Named", []
+    | ReturnAnnotation      -> "ReturnAnnotation", []
+    | Typed                 -> "Typed", []
+    | Dots i                -> "Dots", ["ndots",string_of_int i]
+    | AsyncGenFor           -> "AsyncGenFor", []
 
     | FileInput n           -> "FileInput", ["name",n]
   in
@@ -1164,6 +1204,14 @@ let is_named_orig = function
     -> true
   | _ -> false
 
+let is_argument = function
+  | Argument
+  | CompArgument
+  | AssignArgument
+  | StarArgument
+  | StarStarArgument -> true
+  | _ -> false
+
 let is_compatible _ _ = false
 
 let is_order_insensitive = function
@@ -1174,7 +1222,6 @@ let relabel_allowed = function (* FIXME: should be tuned! *)
   | UnaryOperator _, UnaryOperator _
   | BinaryOperator _, BinaryOperator _
   | SimpleStatement _, SimpleStatement _ -> true
-
   | l1, l2 -> anonymize2 l1 = anonymize2 l2
 
 let move_disallowed _ = false

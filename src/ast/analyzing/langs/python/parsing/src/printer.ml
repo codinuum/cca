@@ -64,6 +64,8 @@ and pr_statement level stmt =
       pr_list pr_smallstmt pr_semicolon sstmts; 
       pr_newline()
 
+  | Sasync stmt -> pr_string "async "; pr_statement level stmt
+
   | Sif(cnd, thn, elifs, else_opt) ->
       pr_expr_suite level "if" (cnd, thn);
       pr_list (pr_elif level) pr_null elifs;
@@ -127,14 +129,36 @@ and pr_statement level stmt =
       pr_colon();
       pr_suite level suite
 
-  | Sfuncdef(decs, name, params, suite) ->
+  | Sasync_funcdef(decs, name, params, retann_opt, suite) ->
+      pr_indent level;
+      pr_list pr_decorator pr_null decs;
+      pr_string "async def ";
+      pr_name name;
+      pr_string "(";
+      pr_parameters params;
+      pr_string ")";
+      begin
+        match retann_opt with
+        | Some e -> pr_string "->"; pr_expr e
+        | _ -> ()
+      end;
+      pr_colon();
+      pr_suite level suite
+
+  | Sfuncdef(decs, name, params, retann_opt, suite) ->
       pr_indent level;
       pr_list pr_decorator pr_null decs;
       pr_string "def ";
       pr_name name;
       pr_string "(";
       pr_parameters params;
-      pr_string "):";
+      pr_string ")";
+      begin
+        match retann_opt with
+        | Some e -> pr_string "->"; pr_expr e
+        | _ -> ()
+      end;
+      pr_colon();
       pr_suite level suite
 
   | Sclassdef(decs, name, arglist, suite) ->
@@ -143,7 +167,8 @@ and pr_statement level stmt =
       pr_string "class ";
       pr_name name;
       (match arglist with
-      |	_, [], _, _ -> ()
+      | loc, [] when loc = Ast.Loc.dummy -> ()
+      |	_, [] -> pr_string "()"
       | _ -> pr_arglist arglist);
       pr_colon();
       pr_suite level suite
@@ -194,6 +219,17 @@ and pr_smallstmt sstmt =
       pr_equal();
       pr_testlist testlist
 
+  | SSannassign(targs, expr, testlist_opt) ->
+      pr_targs targs;
+      pr_colon();
+      pr_space();
+      pr_expr expr;
+      begin
+        match testlist_opt with
+        | Some testlist -> pr_space(); pr_testlist testlist
+        | _ -> ()
+      end
+
   | SSaugassign(targs, augop, testlist) ->
       pr_targs targs;
       pr_space();
@@ -227,6 +263,12 @@ and pr_smallstmt sstmt =
       pr_comma();
       pr_expr expr2;
 
+  | SSraisefrom(expr1, expr2) ->
+      pr_string "raise ";
+      pr_expr expr1;
+      pr_string " from ";
+      pr_expr expr2;
+
   | SSraise3(expr1, expr2, expr3) ->
       pr_string "raise ";
       pr_expr expr1;
@@ -241,15 +283,28 @@ and pr_smallstmt sstmt =
       pr_string "import ";
       pr_list pr_dottedname_as_name pr_comma dname_as_names
 
-  | SSfrom(dname, name_as_names) ->
+  | SSfrom(dots_opt, dname_opt, name_as_names) ->
       pr_string "from ";
-      pr_dottedname dname;
-      pr_string " import ";
-      (match name_as_names with
-	[] -> pr_string "*"
-      | _ -> pr_list pr_name_as_name pr_comma name_as_names)
+      begin
+        match dots_opt with
+        | Some (_, ndots) -> pr_string (String.make ndots '.'); pr_space()
+        | _ -> ()
+      end;
+      begin
+        match dname_opt with
+        | Some dname -> pr_dottedname dname; pr_space()
+        | _ -> ()
+      end;
+      pr_string "import ";
+      begin
+        match name_as_names with
+        | [] -> pr_string "*"
+        | _ -> pr_list pr_name_as_name pr_comma name_as_names
+      end
 
   | SSglobal names -> pr_string "global "; pr_names names
+
+  | SSnonlocal names -> pr_string "nonlocal "; pr_names names
 
   | SSexec expr -> pr_string "exec "; pr_expr expr
 
@@ -304,6 +359,7 @@ and pr_parameters (_, vargs) = pr_list pr_vararg pr_comma vargs
 
 and pr_fpdef = function 
   | Fname name -> pr_name name
+  | Ftyped(_, name, expr) -> pr_name name; pr_colon(); pr_expr expr
   | Flist(_, fpdefs) ->
       pr_string "("; pr_list pr_fpdef pr_comma fpdefs; pr_string ")"
 
@@ -343,9 +399,11 @@ and pr_expr expr =
 
   | Estar expr -> pr_string "*"; pr_expr expr
 
-  | Enamed(expr1, expr2) -> pr_expr expr1; pr_string " := "; pr_expr expr2
+  | Enamed(expr1, expr2) -> pr_expr expr1; pr_string ":="; pr_expr expr2
 
   | Efrom expr -> pr_string "from "; pr_expr expr
+
+  | Earg(expr1, expr2) -> pr_expr expr1; pr_string "="; pr_expr expr2 (* for print *)
 
 and pr_primary prim = _pr_primary prim.prim_desc
 
@@ -401,6 +459,8 @@ and _pr_primary = function
       pr_string "(";
       pr_arglist arglist;
       pr_string ")"
+
+  | Pawait prim -> pr_string "await "; pr_primary prim
 
 and pr_literal = function
   | Linteger str -> pr_string str
@@ -465,28 +525,21 @@ and pr_sliceitem = function
 
   | SIellipsis _ -> pr_string "..."
 
-and pr_arglist (_, args, tini, dini) =
-  pr_list pr_argument pr_comma args;
-  (match tini, dini with
-  | None, None -> ()
-  | Some (t, al), None -> 
-      pr_string "*"; 
-      pr_expr t; 
-      pr_list (fun a -> pr_comma(); pr_argument a) pr_null al
-  | None, Some d -> 
-      pr_string "**"; 
-      pr_expr d
-  | Some (t, al), Some d -> 
-      pr_string "*"; 
-      pr_expr t;
-      pr_list (fun a -> pr_comma(); pr_argument a) pr_null al;
-      pr_string ",**"; pr_expr d)
+and pr_arglist (_, args) = pr_list pr_argument pr_comma args
 
-
-and pr_argument (_, expr_opt, expr, compfor_opt) =
-  pr_opt (fun expr -> pr_expr expr; pr_equal()) expr_opt;
-  pr_expr expr;
-  pr_opt (fun compfor -> pr_space(); pr_compfor compfor) compfor_opt
+and pr_argument = function
+  | Aarg(_, expr, expr_opt) -> begin
+      pr_expr expr;
+      begin
+        match expr_opt with
+        | Some e -> pr_equal(); pr_expr e
+        | _ -> ()
+      end
+  end
+  | Acomp(_, expr, compfor) -> pr_expr expr; pr_space(); pr_compfor compfor
+  | Aassign(_, expr1, expr2) -> pr_expr expr1; pr_string ":="; pr_expr expr2
+  | Aargs(_, expr) -> pr_string "*"; pr_expr expr
+  | Akwargs(_, expr) -> pr_string "**"; pr_expr expr
 
 and pr_compiter = function
   | Cfor compfor -> pr_compfor compfor
@@ -497,7 +550,8 @@ and pr_compif (_, expr, compiter_opt) =
   pr_expr expr;
   pr_opt (fun compiter -> pr_space(); pr_compiter compiter) compiter_opt
 
-and pr_compfor (_, exprs, expr, compiter_opt) =
+and pr_compfor (_, (exprs, expr, compiter_opt), async) =
+  if async then pr_string "async ";
   pr_string "for ";
   pr_exprs exprs;
   pr_string " in ";
