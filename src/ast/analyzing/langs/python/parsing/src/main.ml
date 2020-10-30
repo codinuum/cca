@@ -25,12 +25,14 @@ open Common
 let compile_mode = ref false
 let filename = ref ""
 let arg_count = ref 0
+let dump_flag = ref false
 
 let _parser = new Lib.parser_c
 
 let _ = 
   Arg.parse 
     [
+     "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump result";
      "-w", Arg.Unit (fun () -> _parser#disable_with_stmt), "\tdisable with_statement feature";
     ] 
     (fun s -> incr arg_count; filename := s) 
@@ -59,10 +61,16 @@ let _ =
 
       Printf.printf "*** PARSED! ***\n";
 
-      BEGIN_INFO
-	Printer.pr_fileinput ast#fileinput;
+      if !dump_flag then begin
+        Printer.pr_fileinput ast#fileinput;
         Printf.printf "%d lines read\n" _parser#lines_read
-      END_INFO;
+      end
+      else begin
+        BEGIN_INFO
+	  Printer.pr_fileinput ast#fileinput;
+        Printf.printf "%d lines read\n" _parser#lines_read
+          END_INFO
+      end;
 
       exit 0
     done

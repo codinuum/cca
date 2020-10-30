@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* python/py_lib.ml *)
+(* py_lib.ml *)
 
 include Py_lib_base
 

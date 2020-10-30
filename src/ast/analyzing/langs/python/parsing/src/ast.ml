@@ -179,8 +179,9 @@ and dictelem_desc =
 | DEstarStar of expr
 
 and sliceitem = 
-  | SIexpr of expr 
-  | SIproper of loc * expr option * expr option * expr option 
+  | SIexpr of expr
+  | SI2 of loc * expr option * expr option
+  | SI3 of loc * expr option * expr option * expr option
   | SIellipsis of loc
 
 and arglist = loc * argument list

@@ -259,7 +259,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp longinteger = integer ['l' 'L']
 
   let regexp exponent = ['e' 'E'] ['+' '-']? digit+
-  let regexp intpart = digit+
+  let regexp intpart = digit ('_'? digit)*
   let regexp pointfloat = intpart? '.' digit+ | intpart '.'
   let regexp exponentfloat = (intpart|pointfloat) exponent
   let regexp floatnumber = pointfloat | exponentfloat

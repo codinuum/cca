@@ -95,7 +95,8 @@ file_input_:
 
 decorator:
 | AT dotted_name                       NEWLINE { get_loc $startofs $endofs($2), $2, emptyarglist }
-| AT dotted_name LPAREN         RPAREN NEWLINE { get_loc $startofs $endofs($4), $2, emptyarglist }
+| AT dotted_name LPAREN         RPAREN NEWLINE
+    { get_loc $startofs $endofs($4), $2, (get_loc $startofs($3) $endofs($4), []) }
 | AT dotted_name LPAREN arglist RPAREN NEWLINE { get_loc $startofs $endofs($5), $2, $4 }
 ;
 
@@ -168,7 +169,7 @@ tfpdef:
 ;
 
 fpdef:
-| name            { Fname $1 }
+| name                 { Fname $1 }
 | LPAREN fplist RPAREN { Flist(get_loc $startofs $endofs, $2) }
 ;
 
@@ -226,7 +227,7 @@ expr_stmt:
 | testlist_star_expr eq_testlists
     {
      match $2 with
-       last :: a -> SSassign($1 :: (List.rev a), last) 
+     | last :: a -> SSassign($1 :: (List.rev a), last)
      | _ -> parse_error $startofs $endofs "syntax error"
     }
 ;
@@ -654,7 +655,7 @@ strings:
 | stringliteral strings { $1 :: $2 }
 ;
 stringliteral:
-| SHORTSTRING { PSshort(get_loc $startofs $endofs, $1) }
+| SHORTSTRING                        { PSshort(get_loc $startofs $endofs, $1) }
 | LONGSTRING_BEGIN_S LONGSTRING_REST { PSlong(get_loc $startofs $endofs, $1 ^ $2) }
 | LONGSTRING_BEGIN_D LONGSTRING_REST { PSlong(get_loc $startofs $endofs, $1 ^ $2) }
 ;
@@ -712,15 +713,15 @@ subscript:
 | ELLIPSIS { SIellipsis(get_loc $startofs $endofs) }
 | test { SIexpr $1 }
 
-|      COLON      { SIproper(get_loc $startofs $endofs, None, None, None) }
-| test COLON      { SIproper(get_loc $startofs $endofs, Some $1, None, None) }
-|      COLON test { SIproper(get_loc $startofs $endofs, None, Some $2, None) }
-| test COLON test { SIproper(get_loc $startofs $endofs, Some $1, Some $3, None) }
+|      COLON      { SI2(get_loc $startofs $endofs, None, None) }
+| test COLON      { SI2(get_loc $startofs $endofs, Some $1, None) }
+|      COLON test { SI2(get_loc $startofs $endofs, None, Some $2) }
+| test COLON test { SI2(get_loc $startofs $endofs, Some $1, Some $3) }
 
-|      COLON      sliceop { SIproper(get_loc $startofs $endofs, None, None, $2) }
-| test COLON      sliceop { SIproper(get_loc $startofs $endofs, Some $1, None, $3) }
-|      COLON test sliceop { SIproper(get_loc $startofs $endofs, None, Some $2, $3) }
-| test COLON test sliceop { SIproper(get_loc $startofs $endofs, Some $1, Some $3, $4) }
+|      COLON      sliceop { SI3(get_loc $startofs $endofs, None, None, $2) }
+| test COLON      sliceop { SI3(get_loc $startofs $endofs, Some $1, None, $3) }
+|      COLON test sliceop { SI3(get_loc $startofs $endofs, None, Some $2, $3) }
+| test COLON test sliceop { SI3(get_loc $startofs $endofs, Some $1, Some $3, $4) }
 ;
 
 sliceop:

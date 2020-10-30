@@ -24,7 +24,7 @@ open Printf
 open Ast
 open Common
 
-let indent_unit = ref 4
+let indent_unit = ref 2
 
 let pr_string s = print_string s
 let pr_space() = print_string " "
@@ -54,8 +54,7 @@ let pr_dottedname dname = pr_list pr_name pr_period dname
 
 
 let rec pr_fileinput = function
-  | Fileinput(_, finput) ->
-      pr_list (pr_statement 0) pr_null finput
+  | Fileinput(_, finput) -> pr_list (pr_statement 0) pr_null finput
 
 and pr_statement level stmt =
   match stmt.stmt_desc with
@@ -90,20 +89,20 @@ and pr_statement level stmt =
       pr_string "try:";
       pr_suite level suite;
       pr_list
-	(function 
-	    EX _, suite -> 
+	(function
+	  | EX _, suite ->
 	      pr_indent level; pr_string "except:"; pr_suite level suite
 
 	  | EX1(_, expr), suite ->
-	      pr_indent level; 
-	      pr_string "except "; 
+	      pr_indent level;
+	      pr_string "except ";
 	      pr_expr expr;
 	      pr_colon();
 	      pr_suite level suite
 
 	  | EX2(_, expr, targ), suite ->
 	      pr_indent level;
-	      pr_string "except "; 
+	      pr_string "except ";
 	      pr_expr expr;
 	      pr_comma();
 	      pr_target targ;
@@ -169,7 +168,7 @@ and pr_statement level stmt =
       (match arglist with
       | loc, [] when loc = Ast.Loc.dummy -> ()
       |	_, [] -> pr_string "()"
-      | _ -> pr_arglist arglist);
+      | _ -> pr_string "("; pr_arglist arglist; pr_string ")");
       pr_colon();
       pr_suite level suite
 
@@ -205,7 +204,7 @@ and pr_expr_suite level kw (expr, suite) =
 and pr_exprs exprs = pr_list pr_expr pr_comma exprs
 
 and pr_testlist testlist = 
-  if testlist.yield then pr_string "yield";
+  if testlist.yield then pr_string "yield ";
   pr_list pr_expr pr_comma testlist.list
 
 and pr_targs ts = pr_exprs ts
@@ -214,12 +213,12 @@ and pr_smallstmt sstmt =
   match sstmt.sstmt_desc with
   | SSexpr exprs -> pr_list pr_expr pr_comma exprs
 
-  | SSassign(testlist_list, testlist) ->
+  | SSassign(testlist_list, testlist) -> begin
       pr_list pr_testlist pr_equal testlist_list;
       pr_equal();
       pr_testlist testlist
-
-  | SSannassign(targs, expr, testlist_opt) ->
+  end
+  | SSannassign(targs, expr, testlist_opt) -> begin
       pr_targs targs;
       pr_colon();
       pr_space();
@@ -229,61 +228,57 @@ and pr_smallstmt sstmt =
         | Some testlist -> pr_space(); pr_testlist testlist
         | _ -> ()
       end
-
-  | SSaugassign(targs, augop, testlist) ->
+  end
+  | SSaugassign(targs, augop, testlist) -> begin
       pr_targs targs;
       pr_space();
       pr_augop augop;
       pr_space();
       pr_testlist testlist
-
+  end
   | SSprint exprs -> pr_string "print "; pr_exprs exprs
 
-  | SSprintchevron(expr, exprs) ->
+  | SSprintchevron(expr, exprs) -> begin
       pr_string "print>>";
       pr_expr expr;
       pr_comma();
       pr_exprs exprs
-
-  | SSdel(targs) -> pr_string "del "; pr_targs targs
-
-  | SSpass -> pr_string "pass"
-  | SSbreak -> pr_string "break"
-  | SScontinue -> pr_string "continue"
-
+  end
+  | SSdel(targs)   -> pr_string "del "; pr_targs targs
+  | SSpass         -> pr_string "pass"
+  | SSbreak        -> pr_string "break"
+  | SScontinue     -> pr_string "continue"
   | SSreturn exprs -> pr_string "return "; pr_exprs exprs
+  | SSraise        -> pr_string "raise"
+  | SSraise1 expr  -> pr_string "raise "; pr_expr expr
 
-  | SSraise -> pr_string "raise"
-
-  | SSraise1 expr -> pr_string "raise "; pr_expr expr
-
-  | SSraise2(expr1, expr2) ->
+  | SSraise2(expr1, expr2) -> begin
       pr_string "raise ";
       pr_expr expr1;
       pr_comma();
       pr_expr expr2;
-
-  | SSraisefrom(expr1, expr2) ->
+  end
+  | SSraisefrom(expr1, expr2) -> begin
       pr_string "raise ";
       pr_expr expr1;
       pr_string " from ";
       pr_expr expr2;
-
-  | SSraise3(expr1, expr2, expr3) ->
+  end
+  | SSraise3(expr1, expr2, expr3) -> begin
       pr_string "raise ";
       pr_expr expr1;
       pr_comma();
       pr_expr expr2;
       pr_comma();
       pr_expr expr3;
-
+  end
   | SSyield exprs -> pr_string "yield "; pr_exprs exprs
 
-  | SSimport(dname_as_names) ->
+  | SSimport(dname_as_names) -> begin
       pr_string "import ";
       pr_list pr_dottedname_as_name pr_comma dname_as_names
-
-  | SSfrom(dots_opt, dname_opt, name_as_names) ->
+  end
+  | SSfrom(dots_opt, dname_opt, name_as_names) -> begin
       pr_string "from ";
       begin
         match dots_opt with
@@ -301,34 +296,33 @@ and pr_smallstmt sstmt =
         | [] -> pr_string "*"
         | _ -> pr_list pr_name_as_name pr_comma name_as_names
       end
-
-  | SSglobal names -> pr_string "global "; pr_names names
-
+  end
+  | SSglobal names   -> pr_string "global "; pr_names names
   | SSnonlocal names -> pr_string "nonlocal "; pr_names names
+  | SSexec expr      -> pr_string "exec "; pr_expr expr
 
-  | SSexec expr -> pr_string "exec "; pr_expr expr
-
-  | SSexec2(expr1, expr2) -> 
-      pr_string "exec "; 
+  | SSexec2(expr1, expr2) -> begin
+      pr_string "exec ";
       pr_expr expr1;
       pr_string " in ";
       pr_expr expr2
-
-  | SSexec3(expr1, expr2, expr3) ->
+  end
+  | SSexec3(expr1, expr2, expr3) -> begin
       pr_string "exec "; 
       pr_expr expr1;
       pr_string " in ";
       pr_expr expr2;
       pr_comma();
       pr_expr expr3
-
+  end
   | SSassert expr -> pr_string "assert "; pr_expr expr
 
-  | SSassert2(expr1, expr2) ->
+  | SSassert2(expr1, expr2) -> begin
       pr_string "assert ";
       pr_expr expr1;
       pr_comma();
       pr_expr expr2
+  end
 
 and pr_dottedname_as_name (dname, name_opt) =
   pr_dottedname dname;
@@ -340,7 +334,7 @@ and pr_name_as_name (name, name_opt) =
 
 and pr_suite level (_, stmts) =
     match stmts with
-      [{stmt_desc=(Ssimple _); stmt_loc=l} as sstmt] -> pr_statement 0 sstmt
+    | [{stmt_desc=(Ssimple _); stmt_loc=l} as sstmt] -> pr_statement 0 sstmt
     | _ ->
 	let level' = level + 1 in
 	pr_newline();
@@ -385,37 +379,30 @@ and pr_expr expr =
   | Elambda(params, expr) ->
       pr_string "lambda";
       (match params with
-	_, [] -> ()
+      | _, [] -> ()
       | _ -> pr_space(); pr_parameters params);
       pr_colon();
       pr_expr expr
 
   | Econd(expr1, expr2, expr3) ->
       pr_expr expr1;
-      pr_string "if";
+      pr_string " if ";
       pr_expr expr2;
-      pr_string "else";
+      pr_string " else ";
       pr_expr expr3
 
-  | Estar expr -> pr_string "*"; pr_expr expr
-
+  | Estar expr           -> pr_string "*"; pr_expr expr
   | Enamed(expr1, expr2) -> pr_expr expr1; pr_string ":="; pr_expr expr2
-
-  | Efrom expr -> pr_string "from "; pr_expr expr
-
-  | Earg(expr1, expr2) -> pr_expr expr1; pr_string "="; pr_expr expr2 (* for print *)
+  | Efrom expr           -> pr_string "from "; pr_expr expr
+  | Earg(expr1, expr2)   -> pr_expr expr1; pr_string "="; pr_expr expr2 (* for print *)
 
 and pr_primary prim = _pr_primary prim.prim_desc
 
 and _pr_primary = function
-  | Pname name -> pr_name name
-
+  | Pname name   -> pr_name name
   | Pliteral lit -> pr_literal lit
-	
-  | Pparen expr -> pr_string "("; pr_expr expr; pr_string ")"
-
+  | Pparen expr  -> pr_string "("; pr_expr expr; pr_string ")"
   | Ptuple exprs -> pr_string "(";  pr_exprs exprs; pr_string ")"
-
   | Pyield exprs -> pr_string "(yield"; pr_exprs exprs; pr_string ")"
 
   | PcompT(expr, compfor) ->
@@ -432,21 +419,13 @@ and _pr_primary = function
       pr_compfor compfor;
       pr_string "]"
 
-  | Plist exprs -> pr_string "["; pr_exprs exprs; pr_string "]"
-
-  | Plistnull -> pr_string "[]"
-
-  | Pdictorset dictorsetmaker -> 
-      pr_string "{"; pr_dictorsetmaker dictorsetmaker; pr_string "}"
-
-  | Pdictnull -> pr_string "{}"
-
-  | Pstrconv exprs -> pr_string "`"; pr_exprs exprs; pr_string "`"
-
-  | Pattrref(prim, name) -> pr_primary prim; pr_period(); pr_name name
-
-  | Psubscript(prim, exprs) ->
-      pr_primary prim; pr_string "["; pr_exprs exprs; pr_string "]"
+  | Plist exprs               -> pr_string "["; pr_exprs exprs; pr_string "]"
+  | Plistnull                 -> pr_string "[]"
+  | Pdictorset dictorsetmaker -> pr_string "{"; pr_dictorsetmaker dictorsetmaker; pr_string "}"
+  | Pdictnull                 -> pr_string "{}"
+  | Pstrconv exprs            -> pr_string "`"; pr_exprs exprs; pr_string "`"
+  | Pattrref(prim, name)      -> pr_primary prim; pr_period(); pr_name name
+  | Psubscript(prim, exprs)   -> pr_primary prim; pr_string "["; pr_exprs exprs; pr_string "]"
 
   | Pslice(prim, sliceitems) ->
       pr_primary prim; 
@@ -470,8 +449,8 @@ and pr_literal = function
   | Lstring pystrs -> 
       pr_list 
 	(function 
-	    PSlong(_, s) -> pr_string s
-	  | PSshort(_, s) -> pr_string s
+          | PSlong(_, s) -> pr_string s
+          | PSshort(_, s) -> pr_string s
 	) pr_space pystrs
 
 and pr_target x = pr_expr x
@@ -516,11 +495,17 @@ and pr_expr_opt expr_opt = pr_opt pr_expr expr_opt
 
 and pr_sliceitem = function
   | SIexpr expr -> pr_expr expr
-  | SIproper(_, expr_opt1, expr_opt2, expr_opt3) ->
-      pr_expr_opt expr_opt1; 
-      pr_colon(); 
-      pr_expr_opt expr_opt2; 
-      pr_colon(); 
+
+  | SI2(_, expr_opt1, expr_opt2) ->
+      pr_expr_opt expr_opt1;
+      pr_colon();
+      pr_expr_opt expr_opt2
+
+  | SI3(_, expr_opt1, expr_opt2, expr_opt3) ->
+      pr_expr_opt expr_opt1;
+      pr_colon();
+      pr_expr_opt expr_opt2;
+      pr_colon();
       pr_expr_opt expr_opt3
 
   | SIellipsis _ -> pr_string "..."
