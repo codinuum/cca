@@ -186,10 +186,10 @@ open Charpool
 
 module Type = struct
   type t =
-    | Byte | Short | Int | Long | Char 
+    | Byte | Short | Int | Long | Char
     | Float | Double
     | Boolean
-    | ClassOrInterface of name 
+    | ClassOrInterface of name
     | Class of name | Interface of name
     | Array of t (* other than array *) * dims
     | Void (* not a type (only for convenience) *)
@@ -210,7 +210,25 @@ module Type = struct
     | ClassOrInterface name
     | Class name
     | Interface name -> name
-    | Array(ty, _) -> get_name ty
+    | Array(ty, dims) -> begin
+        let dims_str = Printer.dims_to_short_string dims in
+        let ty_str =
+          try
+            get_name ty
+          with _ ->
+            match ty with
+            | Byte    -> "B"
+            | Short   -> "S"
+            | Int     -> "I"
+            | Long    -> "J"
+            | Char    -> "C"
+            | Float   -> "F"
+            | Double  -> "D"
+            | Boolean -> "Z"
+            | _ -> ""
+        in
+        ty_str^dims_str
+    end
     | _ -> raise Not_found
 
   let get_dimensions = function
