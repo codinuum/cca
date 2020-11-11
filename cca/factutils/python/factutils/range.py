@@ -19,12 +19,13 @@
 '''
 
 from functools import reduce
+import logging
 
 from .const import SUB_SEP
 
-import pathsetup
-import dp
+#import pathsetup
 
+logger = logging.getLogger()
 
 def compo_to_int(s):
     i = -1
@@ -32,11 +33,11 @@ def compo_to_int(s):
         i = int(s)
     except Exception as e:
         if s != 'U':
-            dp.warning(str(e))
+            logger.warning(str(e))
     return i
 
 
-class Range(dp.base):
+class Range(object):
     def __init__(self):
         self._valid = False
         self._encoded = None
@@ -52,14 +53,14 @@ class Range(dp.base):
         return self._enc
 
     def meet(self, other):
-        self.warning('not implemented')
+        logger.warning('not implemented')
         return None
 
     def overlaps(self, other):
         return self.meet(other) != None
 
     def contains(self, other):
-        self.warning('not implemented')
+        logger.warning('not implemented')
         return None
 
 
@@ -76,7 +77,7 @@ class LCRange(Range):
             ec = compo_to_int(compos[3])
             obj = LCRange(sl, sc, el, ec)
         except Exception as e:
-            dp.warning(str(e))
+            logger.warning(str(e))
         return obj
 
     def __init__(self, sl, sc, el, ec):
@@ -183,7 +184,7 @@ class ORange(Range):
             eo = compo_to_int(compos[1])
             obj = ORange(so, eo)
         except Exception as e:
-            dp.warning(str(e))
+            logger.warning(str(e))
         return obj
 
     def __init__(self, so, eo):
@@ -243,7 +244,7 @@ class LORange(ORange):
             eo = compo_to_int(compos[5])
             obj = LORange(sl, so, el, eo)
         except Exception as e:
-            dp.warning(str(e))
+            logger.warning(str(e))
         return obj
         
     def __init__(self, sl, so, el, eo):
@@ -311,7 +312,7 @@ class LCORange(LCRange, ORange):
             eo = compo_to_int(compos[5])
             obj = LCORange(sl, sc, so, el, ec, eo)
         except Exception as e:
-            dp.warning(str(e))
+            logger.warning(str(e))
         return obj
         
     def __init__(self, sl, sc, so, el, ec, eo):

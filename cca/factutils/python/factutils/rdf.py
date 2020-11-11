@@ -19,10 +19,11 @@
 '''
 
 import RDF
+import logging
 
-import pathsetup
-import dp
+#import pathsetup
 
+logger = logging.getLogger()
 
 def mkuri(s):
     return RDF.Uri(s)
@@ -33,7 +34,7 @@ def uri_split(uri):
     return ns, lname
 
 
-class RDFNode(dp.base):
+class RDFNode(object):
     def __init__(self, nd):
         self._valid = True
         self._node = nd
@@ -58,12 +59,12 @@ class Resource(RDFNode):
             RDFNode.__init__(self, nd)
         else:
             if uri != None:
-                if isinstance(uri, str):
-                    uri = uri.encode()
+                # if isinstance(uri, str):
+                #     uri = uri.encode()
                 try:
                     RDFNode.__init__(self, RDF.Node(uri_string=uri))
                 except:
-                    self.warning('uri="%s"(%s)' % (uri, str(type(uri))))
+                    logger.warning('uri="%s"(%s)' % (uri, str(type(uri))))
                     raise
             else:
                 RDFNode.__init__(self, RDF.Node()) # blank node

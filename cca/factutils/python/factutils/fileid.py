@@ -21,12 +21,14 @@
 import os
 import hashlib
 from functools import reduce
+import logging
 
 from .exn import Invalid_argument
 from .const import SUB_SEP, SUB_SUB_SEP
 
-import pathsetup
-import dp
+#import pathsetup
+
+logger = logging.getLogger()
 
 class FidEnc:
     FD  = 'FD'
@@ -98,9 +100,9 @@ def _compute_hash(algo, f, path=None):
             head = '%s\0' % path
             content = head + content
         else:
-            dp.warning('path not specified')
+            logger.warning('path not specified')
 
-    digest = h(content).hexdigest()
+    digest = h(content.encode()).hexdigest()
 
     return digest
 
@@ -112,7 +114,7 @@ def compute_hash(algo, fname):
         digest = _compute_hash(algo, f, path=fname)
 
     except Exception as e:
-#        dp.warning(str(e))
+#        logger.warning(str(e))
         raise
 
     finally:
@@ -144,7 +146,7 @@ def decode_string(encoded):
     return s
 
 
-class FileId(dp.base):
+class FileId(object):
     def __init__(self):
         self._valid = False
         self._encoded = None
@@ -195,7 +197,7 @@ class FileDigest(FileId):
             else:
                 self._valid = False
         except Exception as e:
-            self.warning(str(e))
+            logger.warning(str(e))
             self._valid = False
 
         if self._valid:
@@ -210,6 +212,9 @@ class FileDigest(FileId):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash(self._encoded)
+
     def get_algorithm(self):
         return self._algo
 
@@ -217,7 +222,7 @@ class FileDigest(FileId):
         return self._digest
 
 
-class Version(dp.base):
+class Version(object):
     @classmethod
     def from_encoded(cls, encoded):
         compos = encoded.split(SUB_SUB_SEP)
@@ -245,6 +250,9 @@ class Version(dp.base):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash(self._encoded)
+
     def is_valid(self):
         return self._valid
 
@@ -258,7 +266,7 @@ class Version(dp.base):
         return self._encoded
 
 
-class ProjRelPath(dp.base):
+class ProjRelPath(object):
     @classmethod
     def from_encoded(cls, encoded): # should be fixed
         proj_rel_path = decode_string(encoded)
@@ -281,11 +289,13 @@ class ProjRelPath(dp.base):
         res = False
         if isinstance(other, ProjRelPath):
             res = self._proj_rel_path == other._proj_rel_path
-
         return res
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.encode())
 
     def get_proj_root(self):
         return self._proj_root
@@ -347,6 +357,9 @@ class FileDesc(FileId):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self._encoded)
 
     def get_project(self):
         return self._proj

@@ -30,9 +30,11 @@ GUARD_NS = 'http://codinuum.com/fact/guard/'
 
 SRC_NS = 'http://codinuum.com/ontologies/2012/10/source-code-entity#'
 VER_NS = 'http://codinuum.com/ontologies/2012/10/versioning#'
+CHG_NS = 'http://codinuum.com/ontologies/2012/10/primitive-change#'
 CLONE_NS = 'http://codinuum.com/ontologies/2013/01/clone#'
 CCFX_NS = 'http://codinuum.com/ontologies/2015/02/ccfx#'
 SOOT_NS = 'http://codinuum.com/ontologies/2016/05/soot#'
+DELTA_NS = 'http://codinuum.com/ontologies/2016/05/delta#'
 
 CPP_NS = 'http://codinuum.com/ontologies/2019/02/cpp-entity#'
 C_NS = 'http://codinuum.com/ontologies/2012/10/c-entity#'
@@ -40,6 +42,7 @@ JAVA_NS = 'http://codinuum.com/ontologies/2012/10/java-entity#'
 V_NS = 'http://codinuum.com/ontologies/2012/10/verilog-entity#'
 PY_NS = 'http://codinuum.com/ontologies/2012/10/python-entity#'
 F_NS = 'http://codinuum.com/ontologies/2013/05/fortran-entity#'
+
 PA_NS = 'http://codinuum.com/ontologies/2013/05/performance-analysis#'
 FJPA_NS = 'http://codinuum.com/ontologies/2013/05/fujitsu-performance-analysis#'
 FPT_NS = 'http://codinuum.com/ontologies/2013/08/fortran-performance-tuning#'
@@ -52,6 +55,11 @@ NCC_NS = 'http://codinuum.com/ontologies/2014/06/ncc#'
 ICFGC_NS = 'http://codinuum.com/ontologies/2014/08/interprocedural-control-flow-c#'
 
 MET_NS = 'http://codinuum.com/ontologies/2014/09/source-code-metrics#'
+
+REF_NS = 'http://codinuum.com/ontologies/2015/10/refactoring#'
+JREF_NS = 'http://codinuum.com/ontologies/2015/10/java-refactoring#'
+CREF_NS = 'http://codinuum.com/ontologies/2015/10/c-refactoring#'
+
 
 def make_guard_ns(ns):
     return GUARD_NS+'?orig='+ns
@@ -68,9 +76,11 @@ PREFIX_TBL = { 'xsd'   : XSD_NS,
                'fb'    : FB_NS,
                'src'   : SRC_NS,
                'ver'   : VER_NS,
+               'chg'   : CHG_NS,
                'clone' : CLONE_NS,
                'ccfx'  : CCFX_NS,
                'soot'  : SOOT_NS,
+               'delta' : DELTA_NS,
                'c'     : C_NS,
                'cpp'   : CPP_NS,
                'java'  : JAVA_NS,
@@ -85,6 +95,9 @@ PREFIX_TBL = { 'xsd'   : XSD_NS,
                'ncc'   : NCC_NS,
                'icfgc' : ICFGC_NS,
                'guard' : GUARD_NS,
+               'ref'   : REF_NS,
+               'jref'  : JREF_NS,
+               'cref'  : CREF_NS,
 
                'ent'      : 'http://codinuum.com/fact/entity/',
                'ext'      : 'http://codinuum.com/fact/external-name/',
@@ -94,6 +107,9 @@ PREFIX_TBL = { 'xsd'   : XSD_NS,
                'gitrev'   : 'http://codinuum.com/fact/version/git/revision/',
                'variant'  : 'http://codinuum.com/fact/version/variant/',
                'fjpadata' : 'http://codinuum.com/fact/padata/fujitsu/',
+               'entpair'  : 'http://codinuum.com/fact/entity-pair/',
+               'chgpat'   : 'http://codinuum.com/fact/change-pattern/',
+               'chginst'  : 'http://codinuum.com/fact/change/',
 
                'missing'  : MISSING_ENT_NS,
                'gsrc'     : make_guard_ns(SRC_NS),

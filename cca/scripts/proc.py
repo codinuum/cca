@@ -20,17 +20,22 @@
 '''
 
 import os
-from subprocess import Popen, PIPE, call, CalledProcessError
+from subprocess import Popen, PIPE, CalledProcessError
 import subprocess
+import logging
 
 import pathsetup
-import dp
+from common import setup_logger
+
+logger = logging.getLogger()
+
 
 def system(cmd, cwd=None, quiet=False, rc_check=True):
     try:
         out = open('/dev/null', 'w') if quiet else None
 
-        rc = call(cmd, stdout=out, stderr=out, shell=True, close_fds=True, cwd=cwd)
+        p = subprocess.run(cmd, stdout=out, stderr=out, shell=True, close_fds=True, cwd=cwd)
+        rc = p.returncode
 
         if out:
             out.close()
@@ -39,25 +44,26 @@ def system(cmd, cwd=None, quiet=False, rc_check=True):
             return 0
         else:
             if rc_check:
-                dp.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, rc))
+                logger.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, rc))
             return 1
 
     except OSError as e:
-        dp.error('execution failed: %s' % e)
+        logger.error('execution failed: %s' % e)
 
-def check_output(cmd, rc_check=True):
+def check_output(cmd, cwd=None, rc_check=True):
     out = None
     try:
-        out = subprocess.check_output(cmd, shell=True,universal_newlines=True)
+        p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, universal_newlines=True)
+        out = p.stdout
 
     except CalledProcessError as e:
         if rc_check:
-            dp.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, e.returncode))
+            logger.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, e.returncode))
         out = e.output
 
     return out
 
-class PopenContext(dp.base):
+class PopenContext(object):
     def __init__(self, cmd, rc_check=True):
         self.cmd = cmd
         self.rc_check = rc_check
@@ -75,14 +81,14 @@ class PopenContext(dp.base):
         (exc, v, tr) = exc_info
 
         if exc == OSError:
-            self.error('execution failed: %s' % v)
+            logger.error('execution failed: %s' % v)
             return True
 
         elif exc == None:
             rc = self._po.returncode
             if rc and self.rc_check:
                 if rc != 0:
-                    self.warning('"%s": terminated abnormally (exitcode=%d)' % (self.cmd, rc))
+                    logger.warning('"%s": terminated abnormally (exitcode=%d)' % (self.cmd, rc))
             return True
 
         else:

@@ -21,14 +21,17 @@
 
 import os
 import re
+import logging
 
 import pathsetup
-import dp
 import Git2
 from factutils.fileid import HashAlgo, VerKind
 import ns
 from Git2 import shorten_sha
-from siteconf import PROJECTS_DIR
+from siteconf import PROJECTS_DIR, PROJECTS_DIR_NAME
+#from common import setup_logger
+
+logger = logging.getLogger()
 
 REL_INST_NS     = ns.NS_TBL['rel_ns']
 SVNREV_INST_NS  = ns.NS_TBL['svnrev_ns']
@@ -82,7 +85,7 @@ def pair_list_to_list(pair_list):
     return l
 
 
-class Config(dp.base):
+class Config(object):
     def __init__(self):
         self.proj_id     = UNKNOWN
         self.proj_path   = None
@@ -110,6 +113,7 @@ class Config(dp.base):
         self.ssl_server_trust_prompt = None
 
         self.lang = UNKNOWN
+        self.langs = []
 
         # for phylogeny 
         self.abbrev_list = []
@@ -127,8 +131,11 @@ class Config(dp.base):
         self.tag_table = {}
 
         self.include = []
+        self.exclude = []
 
         self.ver_tbl = None # short ver -> orig ver name
+
+        self.optout_tbl = {}
 
 
     def is_vkind_gitrev(self):
@@ -159,7 +166,7 @@ class Config(dp.base):
                     rev = int(version)
 
                 except ValueError:
-                    self.error('illegal revision name: "%s"' % version)
+                    logger.error('illegal revision name: "%s"' % version)
 
                 if rev >= 0:
                     ds = []
@@ -182,7 +189,7 @@ class Config(dp.base):
             dn = version
 
         else:
-            self.error('unsupported version kind: "%s"' % self.vkind)
+            logger.error('unsupported version kind: "%s"' % self.vkind)
 
         return dn
 
@@ -190,8 +197,16 @@ class Config(dp.base):
     def get_vkind(self, idx):
         return self.vkind
 
+    def mkver_for_fact(self, idx):
+        k = self.get_vkind(idx)
+        return k + ':' + self.vers[idx]
+
     def get_vkind_by_name(self, n):
         return self.vkind
+
+    def mkver_for_fact_by_name(self, name):
+        k = self.get_vkind_by_name(name)
+        return k + ':' + name
 
     def get_vkey(self, idx):
         return self.vkind + '_' + self.versions[idx]
@@ -258,7 +273,7 @@ class Config(dp.base):
             self.finalize_gitrev()
 
         else:
-            self.error('version kind not supported: "%s"' % self.vkind)
+            logger.error('version kind not supported: "%s"' % self.vkind)
 
         if len(self.vers) == 0:
             self.vers = self.versions
@@ -307,8 +322,8 @@ class Config(dp.base):
                         if parents:
                             for poid in [p.id for p in parents[0:1]]: # ignore merges
                                 if poid in oids:
-                                    self.debug('parent of {0}: {1}'.format(shorten_sha(poid.hex),
-                                                                           shorten_sha(h)))
+                                    logger.debug('parent of {0}: {1}'.format(shorten_sha(poid.hex),
+                                                                             shorten_sha(h)))
                                     ph = poid.hex
                                     grev0 = GITREV_INST_NS + ph
 
@@ -357,11 +372,11 @@ class Config(dp.base):
                             self.ver_tbl[shorten_sha(h)] = v
 
                         except Exception as e:
-                            self.warning(str(e))
+                            logger.warning(str(e))
 
             
         except Exception as e:
-            self.warning(str(e))
+            logger.warning(str(e))
 
 
     def check(self):
@@ -369,7 +384,7 @@ class Config(dp.base):
             for v in self.versions:
                 p = self.get_ver_dir(v)
                 if not os.path.exists(p):
-                    self.warning('does not exist: "%s"' % p)
+                    logger.warning('does not exist: "%s"' % p)
 
     def get_index(self, ver):
         for i in range(self.nversions):
@@ -418,3 +433,20 @@ class Config(dp.base):
             
 
         return s
+
+def select(env_var_name, l):
+    _n = os.getenv(env_var_name, '')
+    l_ = l
+    if _n:
+        try:
+            n = int(_n)
+            if n in l:
+                l_ = [n]
+            else:
+                logger.warning('invalid number: "%s"' % _n)
+                l_ = []
+        except Exception as e:
+            logger.warning('invalid number: "%s": %s' % (_n, e))
+            l_ = []
+
+    return l_

@@ -50,6 +50,8 @@ let is_edit xnode =
   | PxpD.T_element name -> is_edit_tag name
   | _ -> false
 
+exception Skip
+
 module IrreversibleFormat = struct
 
   type 'tree edit =
@@ -124,7 +126,6 @@ module IrreversibleFormat = struct
 
   let to_string d =
     if d = [] then "" else "\n" ^ (Xlist.to_string edit_to_string ";\n" d)
-
 
   let of_doc options tree_factory doc_root = (* delta doc -> Delta.IrreversibleFormat.t *)
 
@@ -202,6 +203,8 @@ module IrreversibleFormat = struct
 	    let v = get_attr xnode v_attr in
             let mctl = get_mctl_attr xnode in
 	    Dinsert_attr(mctl, path, attr, v)
+
+          else if is_file_edit_tag name then raise Skip
 
 	  else invalid_delta xnode ("scan_edit: invalid tag: " ^ name)
 
@@ -349,7 +352,7 @@ module IrreversibleFormat = struct
         end*)
 
     with
-      Invalid_delta err ->
+    | Invalid_delta err ->
 	Xprint.error
           "[%s %dL,%dC] invalid delta: %s" err.file err.line err.pos err.reason
 
@@ -641,6 +644,8 @@ module ReversibleFormat = struct
 	    let attr = get_attr xnode attr_attr in
 	    let v = get_attr xnode v_attr in
 	    Dinsert_attr(path1, path2, attr, v)
+
+          else if is_file_edit_tag name then raise Skip
 
 	  else invalid_delta xnode ("scan_edit: invalid tag: " ^ name)
 

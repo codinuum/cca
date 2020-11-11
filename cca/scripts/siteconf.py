@@ -1,20 +1,23 @@
+#!/usr/bin/env python3
 
+import sys
 import os
 
-HOME = os.environ['HOME']
+#CCA_HOME = '/opt/cca'
+CCA_HOME = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
 
-CCA_HOME = os.path.join(HOME, 'github', 'codinuum', 'cca')
+VIRTUOSO_DIR = '/opt/virtuoso'
+
+#
 
 SPARQL_ENDPOINT = 'http://localhost:8890/sparql'
 
 VIRTUOSO_DSN = 'local-virtuoso'
-VIRTUOSO_DRIVER = '/opt/virtuoso/lib/virtodbcu_r.so'
+VIRTUOSO_DRIVER = os.path.join(VIRTUOSO_DIR, 'lib/virtodbcu_r.so')
 VIRTUOSO_HOST = 'localhost'
 VIRTUOSO_PORT = 1111
 VIRTUOSO_USER = 'dba'
 VIRTUOSO_PW = 'xxx'
-
-VIRTUOSO_DIR = '/opt/virtuoso'
 
 GIT_REPO_BASE = ''
 

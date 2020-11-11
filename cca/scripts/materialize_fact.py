@@ -22,14 +22,18 @@
 import os.path
 import sys
 import re
+import logging
 
 import pathsetup
-import dp
 import project
 import sparql
 from ns import VER_NS, FB_NS
 import virtuoso
 from virtuoso import VIRTUOSO_PW, DEFAULT_PORT
+from common import setup_logger
+
+logger = logging.getLogger()
+
 
 MAX_VER_TRIPLES = 128
 
@@ -43,7 +47,7 @@ INSERT {
 
 INSERT_PAT = re.compile(r'insert', re.I)
 
-class Materializer(dp.base):
+class Materializer(object):
     def __init__(self, qdir, queries, proj_id,
                  method='odbc', pw=VIRTUOSO_PW, port=DEFAULT_PORT):
         self._query_dir = qdir
@@ -92,7 +96,7 @@ class Materializer(dp.base):
                        'ver_next_triples' : '\n'.join(triples) }
 
             q = VER_ORDER_QUERY % params
-            self.debug('query:\n%s' % q)
+            logger.debug('query:\n%s' % q)
             self._sparql.execute(q)
 
     def get_query(self, lang, name):
@@ -104,26 +108,26 @@ class Materializer(dp.base):
             query = INSERT_PAT.sub('WITH <%s>\nINSERT' % self._graph_uri, q, count=1).rstrip('\n ;')
             f.close()
         except Exception as e:
-            self.error(str(e))
+            logger.error(str(e))
         return query
 
 
     def materialize(self):
-        self.message('materializing for "%s"...' % self._proj_id)
+        logger.info('materializing for "%s"...' % self._proj_id)
 
-        self.message('materializing version order...')
+        logger.info('materializing version order...')
         self.insert_ver_next_triples()
 
         for lang in self._queries.keys():
 
             for qname in self._queries[lang]:
-                self.message('processing \"%s\" for %s...' % (qname, lang)),
+                logger.info('processing \"%s\" for %s...' % (qname, lang)),
                 sys.stdout.flush()
 
                 query = self.get_query(lang, qname)
                 self._sparql.execute(query)
 
-                self.message('done.')
+                logger.info('done.')
 
         virt = virtuoso.base(pw=self._pw, port=self._port)
         rc = virt.checkpoint()
@@ -147,7 +151,11 @@ def main(qdir, queries, desc, pw=VIRTUOSO_PW):
 
     args = parser.parse_args()
 
-    dp.debug_flag = args.debug
+    log_level = logging.INFO
+    if args.debug:
+        log_level = logging.DEBUG
+    setup_logger(logger, log_level)
+
 
     m = Materializer(qdir, queries, args.proj_id, pw=pw, port=args.port)
 

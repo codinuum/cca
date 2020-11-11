@@ -25,9 +25,12 @@ import subprocess
 import threading
 import select
 import time
+import logging
 
 import pathsetup
-import dp
+from common import setup_logger
+
+logger = logging.getLogger()
 
 #####
 
@@ -55,7 +58,7 @@ def dump_log(cmd_name, wid, sout_serr, wdir='.', timeout=TIMEOUT):
     sout, serr = sout_serr
     log = os.path.join(wdir, mklogname(cmd_name, wid))
 
-    f = open(log, 'w')
+    f = open(log, 'wb')
 
     running = True
 
@@ -116,10 +119,10 @@ def dump_log(cmd_name, wid, sout_serr, wdir='.', timeout=TIMEOUT):
 
             if nclosed >= nouts:
                 running = False
-                dp.message('[wid:%s] finished.' % wid)
+                logger.info('[wid:%s] finished.' % wid)
 
         except BaseException as e:
-            print(str(e))
+            logger.error('{}'.format(e))
             break
 
     f.close()
@@ -150,8 +153,11 @@ def main():
 
     (opt, args) = optparser.parse_args()
 
+    log_level = logging.INFO
     if opt.debug:
-        dp.debug_flag = True
+        log_level = logging.DEBUG
+
+    setup_logger(logger, log_level)
 
     target_dir = '.'
 
@@ -161,21 +167,21 @@ def main():
     dist_dir = os.path.dirname(sys.argv[0])
 
 
-    dp.message('command: "%s"' % opt.cmd)
+    logger.info('command: "%s"' % opt.cmd)
 
     w_cmd = ''
 
     if opt.cmd:
         w_cmd = os.path.join(dist_dir, opt.cmd)
     else:
-        dp.error('no command specified')
+        logger.error('no command specified')
 
 
     out_tbl = {}
 
     for i in range(opt.nprocs):
         wid = str(i)
-        dp.message('worker id: %s' % wid)
+        logger.info('worker id: %s' % wid)
 
         if w_cmd:
             arg = ''
@@ -188,7 +194,7 @@ def main():
 
             cmd = '%s %s -c work -w %s %s %s' % (w_cmd, arg, wid, engine_opt, target_dir)
             
-            dp.message('cmd: "%s"' % cmd)
+            logger.info('cmd: "%s"' % cmd)
 
             p = spawn(cmd)
             time.sleep(1)

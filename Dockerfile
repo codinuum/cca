@@ -2,8 +2,6 @@ FROM ubuntu:20.04
 
 MAINTAINER codinuum
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 RUN set -x && \
     useradd -r -s /bin/nologin cca && \
     mkdir -p /opt/cca/modules && \
@@ -16,7 +14,7 @@ COPY cca /opt/cca/
 RUN set -x && \
     cd /root && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             sudo \
             vim \
             opam \
@@ -74,7 +72,6 @@ RUN set -x && \
     make && \
     cd ast/analyzing && \
     cp -r bin etc /opt/cca/ && \
-
     cp modules/Mverilog*.cmxs /opt/cca/modules/ && \
     cp modules/Mpython*.cmxs /opt/cca/modules/ && \
     cp modules/Mjava*.cmxs /opt/cca/modules/ && \

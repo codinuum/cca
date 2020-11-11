@@ -22,16 +22,18 @@ import os.path
 import tempfile
 import gzip
 import RDF
+import logging
 
 from functools import reduce
 
-from const import SPEC_NS, PREDICATE_NS, RELEASE_NS, SVNREV_NS, GITREV_NS, GUARD_NS
-from rdf import Resource, Literal, Predicate, RDFNode
+from .const import SPEC_NS, PREDICATE_NS, RELEASE_NS, SVNREV_NS, GITREV_NS, GUARD_NS
+from .rdf import Resource, Literal, Predicate, RDFNode
 
 import pathsetup
-import dp
 
-class Statement(dp.base):
+logger = logging.getLogger()
+
+class Statement(object):
     def __init__(self, subject=None, predicate=None, object=None, **args):
         try:
             stmt = args['statement']
@@ -67,7 +69,7 @@ class Statement(dp.base):
 
 
 
-class Fact(dp.base):
+class Fact(object):
     def __init__(self, ns_tbl, large=False):
 
         if large:
@@ -220,17 +222,17 @@ class Fact(dp.base):
             path = tmp
 
         serializer = RDF.Serializer(name=fmt)
-        for (prefix, uri) in self.namespace_tbl.iteritems():
+        for (prefix, uri) in self.namespace_tbl.items():
             serializer.set_namespace(prefix, uri)
 
-        self.message('writing to "%s"...' % path)
+        logger.info('writing to "%s"...' % path)
         d = os.path.dirname(path)
         if d != '' and not os.path.exists(d):
-            self.warning('No such directory: "%s"' % d)
-            self.message('creating "%s"...' % d)
+            logger.warning('No such directory: "%s"' % d)
+            logger.info('creating "%s"...' % d)
             os.makedirs(d)
         serializer.serialize_model_to_file(path, self._model, base_uri=base_uri)
-        self.message('done.')
+        logger.info('done.')
 
         if gzipped_path:
             self._gzip(path, gzipped_path)
@@ -249,11 +251,11 @@ class Fact(dp.base):
             path = tmp
 
         parser = RDF.Parser(name=fmt)
-        self.message('reading "%s"...' % path)
+        logger.info('reading "%s"...' % path)
         parser.parse_into_model(self._model,
                                 'file://' + os.path.abspath(path),
                                 base_uri=base_uri)
-        self.message('done.')
+        logger.info('done.')
 
         if gzipped:
             os.unlink(tmp)

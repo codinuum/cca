@@ -21,13 +21,16 @@
 
 # Fortran namespaces added by Masatomo Hashimoto <m.hashimoto@riken.jp>
 
+import logging
+
 import pathsetup
-import dp
 from siteconf import SPARQL_ENDPOINT
 from virtuoso import ODBCDriver, VIRTUOSO_PW, VIRTUOSO_PORT, get_odbc_connect_string
 import ns
 from factutils.const import ENTITY_NS, VARIANT_NS, SVNREV_NS, GITREV_NS, RELEASE_NS
+from common import setup_logger
 
+logger = logging.getLogger()
 
 
 NAMESPACES = { 'xsd'  : ns.XSD_NS,
@@ -36,7 +39,7 @@ NAMESPACES = { 'xsd'  : ns.XSD_NS,
                'fb'   : ns.FB_NS,
                'src'  : ns.SRC_NS,
                'ver'  : ns.VER_NS,
-
+               'chg'  : ns.CHG_NS,
                'git'  : ns.GIT_NS,
 
                'ent'      : ENTITY_NS,
@@ -51,6 +54,9 @@ NAMESPACES = { 'xsd'  : ns.XSD_NS,
                'fpt'  : ns.FPT_NS,
 
                'fjpadata' : ns.PREFIX_TBL['fjpadata'],
+               'entpair'  : ns.PREFIX_TBL['entpair'],
+               'chgpat'   : ns.PREFIX_TBL['chgpat'],
+               'chginst'  : ns.PREFIX_TBL['chginst'],
            }
 
 
@@ -62,13 +68,13 @@ def get_localname(s):
             if s.startswith('http://'):
                 res = (s.split('/'))[-1].split('#')[-1]
         except Exception as e:
-            dp.warning(str(e))
+            logger.warning(str(e))
 
     return res
 
 
 
-class Driver(dp.base):
+class Driver(object):
     def __init__(self):
         self._ns_tbl = {}
         for (n, p) in NAMESPACES.items():
@@ -79,11 +85,11 @@ class Driver(dp.base):
         if v:
             try:
                 for p in self._ns_tbl.keys():
-                    if v.startswith(p):
+                    if str(v).startswith(p):
                         r = '%s:%s' % (self._ns_tbl[p], v[len(p):])
                         break
             except Exception as e:
-                dp.warning('"%s": %s' % (v, e))
+                logger.warning('"%s": %s' % (v, e))
 
         return r
 
@@ -112,6 +118,7 @@ class VirtuosoODBCDriver(ODBCDriver, Driver):
         return row
 
     def query(self, q, abbrev=False):
+        #logger.debug('query:\n{}'.format(q))
         for qvs, row in ODBCDriver.query(self, 'SPARQL\n'+q):
             yield qvs, self.conv_row(row, abbrev)
 
@@ -138,7 +145,7 @@ class VirtuosoHTTPDriver(Driver):
             ty = data['type']
             if ty == 'typed-literal':
                 dty = self.to_prefixed_form(data['datatype'])
-                self.debug('%s (%s)' % (v, dty))
+                logger.debug('%s (%s)' % (v, dty))
                 if dty == 'xsd:decimal':
                     v = float(v)
                 elif dty == 'xsd:integer':
@@ -209,7 +216,7 @@ def get_driver(method='http', pw=VIRTUOSO_PW, port=VIRTUOSO_PORT):
     elif method == 'odbc':
         driver = VirtuosoODBCDriver(pw=pw, port=port)
     else:
-        dp.error('unknown method: "%s"' % method)
+        logger.error('unknown method: "%s"' % method)
     return driver
 
 
@@ -229,12 +236,15 @@ def query():
 
     args = parser.parse_args()
 
-    dp.debug_flag = args.debug
+    log_level = logging.INFO
+    if args.debug:
+        log_level = logging.DEBUG
+    setup_logger(logger, log_level)
 
     qfile = args.query_file
 
-    dp.message('method: "%s"' % args.method)
-    dp.message('query:  "%s"' % qfile)
+    logger.info('method: "%s"' % args.method)
+    logger.info('query:  "%s"' % qfile)
 
 
     driver = get_driver(args.method)
@@ -255,7 +265,7 @@ def query():
             count += 1
 
     except Exception as e:
-        #dp.error(str(e))
+        #logger.error(str(e))
         raise
 
     print('%d rows' % count)

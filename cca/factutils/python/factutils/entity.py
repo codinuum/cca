@@ -18,7 +18,6 @@
   limitations under the License.
 '''
 
-
 import RDF
 
 from .const import ENTITY_NS, EXTERNAL_NS, SEP
@@ -29,9 +28,7 @@ from .fileid import FileDigest, FileDesc
 from . import fileid
 from . import range
 
-import pathsetup
-import dp
-
+#import pathsetup
 
 
 class External(Resource):

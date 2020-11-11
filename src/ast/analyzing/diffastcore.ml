@@ -879,7 +879,8 @@ class c options = object (self)
                 Sys.remove temp
 
               with
-                exn ->
+              | Delta_format.Skip -> ()
+              | exn ->
                   Xprint.error "failed to patch \"%s\"" apath;
                   OC.close ch;
                   Xfile.copy_file temp (apath^".error");

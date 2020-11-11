@@ -20,9 +20,11 @@
 '''
 
 import os
+import logging
 
 import pathsetup
-import dp
+
+logger = logging.getLogger()
 
 
 def get_confs():
@@ -38,12 +40,12 @@ def get_conf(name):
         m = __import__(name)
         return m.conf
     except Exception as e:
-        dp.warning('cannot find conf for "%s": %s' % (name, str(e)))
+        logger.warning('cannot find conf for "%s": %s' % (name, str(e)))
         try:
             m = __import__('cca_'+name)
             return m.conf
         except Exception as e:
-            dp.warning('cannot find conf for "%s": %s' % (name, str(e)))
+            logger.warning('cannot find conf for "%s": %s' % (name, str(e)))
             return None
     
 

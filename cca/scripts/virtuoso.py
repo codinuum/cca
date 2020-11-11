@@ -24,11 +24,10 @@ import time
 import threading
 import re
 import sys
+import logging
 
 import pathsetup
 from pathsetup import LOG_DIR
-import dp
-import log
 import proc
 from siteconf import (VIRTUOSO_HOST,
                       VIRTUOSO_PORT,
@@ -39,7 +38,9 @@ from siteconf import (VIRTUOSO_HOST,
                       VIRTUOSO_DIR)
 import ns
 from run_workers import spawn, dump_log
+from common import setup_logger
 
+logger = logging.getLogger()
 
 DEFAULT_MAX_FILES = 500
 
@@ -77,12 +78,21 @@ def get_odbc_connect_string(driver=VIRTUOSO_DRIVER,
 ODBC_CONNECT_STRING = get_odbc_connect_string(pwd=VIRTUOSO_PW)
 
 
-class ODBCDriver(dp.base):
+class ODBCDriver(object):
     def __init__(self, connect_string=ODBC_CONNECT_STRING):
-        self.message('using pypyodbc')
-        import pypyodbc as pyodbc
-        pyodbc.lowercase = False
-        self._db = pyodbc.connect(connect_string.encode('utf-8'), ansi=True, autocommit=True)
+        try:
+            import pyodbc
+            self._db = pyodbc.connect(connect_string, ansi=True, autocommit=True)
+            self._db.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
+            self._db.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
+            self._db.setdecoding(pyodbc.SQL_WMETADATA, encoding='utf-32le')
+            self._db.setencoding(encoding='utf-8')
+        except Exception as e:
+            logger.warning(str(e))
+            logger.warning('using pypyodbc')
+            import pypyodbc as pyodbc
+            pyodbc.lowercase = False
+            self._db = pyodbc.connect(connect_string, ansi=True, autocommit=True)
 
     def conv_row(self, row):
         d = {}
@@ -96,7 +106,7 @@ class ODBCDriver(dp.base):
 
     def query(self, query):
         cur = self._db.cursor()
-        for row in cur.execute(query.encode('utf-8')):
+        for row in cur.execute(query):
             vs = [d[0] for d in row.cursor_description]
             converted = ODBCDriver.conv_row(self, row)
             yield vs, converted
@@ -104,12 +114,12 @@ class ODBCDriver(dp.base):
 
     def execute(self, query):
         cur = self._db.cursor()
-        cur.execute(query.encode('utf-8'))
+        cur.execute(query)
         cur.close()
 
     def fetchone(self, query):
         cur = self._db.cursor()
-        row = cur.execute(query.encode('utf-8')).fetchone()
+        row = cur.execute(query).fetchone()
         if row:
             row = ODBCDriver.conv_row(self, row)
         cur.close()
@@ -117,13 +127,13 @@ class ODBCDriver(dp.base):
 
 
 def exec_cmd(cmd):
-    dp.debug('cmd: "%s"' % cmd)
+    logger.debug('cmd: "%s"' % cmd)
 
     return proc.system(cmd, quiet=True)
 
 
 def exec_cmd_n(cmd, n, logdir='.'):
-    dp.debug('cmd: "%s"' % cmd)
+    logger.debug('cmd: "%s"' % cmd)
 
     ps = []
     out_tbl = {}
@@ -153,7 +163,7 @@ def exec_cmd_n(cmd, n, logdir='.'):
 
 PID_PAT = re.compile('VIRT_PID=(?P<pid>[0-9]+)')
 
-class base(log.Logger):
+class base(object):
     def __init__(self,
                  dbdir=DB_DIR,
                  port=DEFAULT_PORT,
@@ -163,11 +173,9 @@ class base(log.Logger):
         prog_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
         logger_name = prog_name+'.'+__name__
 
-        log_dir = None
+        self.log_dir = None
         if daemonize:
-            log_dir = LOG_DIR
-
-        log.Logger.__init__(self, logger_name, log_dir)
+            self.log_dir = LOG_DIR
 
         self._driver = None
         self._dbdir = dbdir
@@ -209,7 +217,7 @@ class base(log.Logger):
         mt = os.path.getmtime(self._db_file)
         nt = time.time()
         b = (nt - mt) > thresh
-        dp.debug('%s' % b)
+        logger.debug('%s' % b)
         return b
 
 
@@ -241,11 +249,11 @@ class base(log.Logger):
         pid = self.get_pid()
         if pid:
             cmd = 'kill %s' % pid
-            self.message('killing virtuoso (PID=%s)...' % pid)
+            logger.info('killing virtuoso (PID=%s)...' % pid)
             exec_cmd(cmd)
             time.sleep(3)
         else:
-            self.warning('cannot obtain PID (virtuoso not running?)')
+            logger.warning('cannot obtain PID (virtuoso not running?)')
 
     def start_server(self):
         cmd = '%s -c %s +wait' % (SERVER_CMD,
@@ -319,7 +327,7 @@ class Loader(base):
         if nfiles % (maxfiles * nprocs) > 0:
             n += 1
 
-        self.message('{} files are divided into {} parts'.format(nfiles, n))
+        logger.info('{} files are divided into {} parts'.format(nfiles, n))
 
         rc = -1
 
@@ -333,15 +341,15 @@ class Loader(base):
             proc = lambda cmd: -1
 
         for i in range(n):
-            self.message('*** PART %d/%d ***' % (i+1, n))
+            logger.info('*** PART %d/%d ***' % (i+1, n))
 
             if i % RESTART_INTERVAL == 0 and i != 0:
-                self.message('restarting server...')
+                logger.info('restarting server...')
                 self.restart_server()
 
             rc = proc(cmd)
             if rc != 0:
-                self.warning('Failure')
+                logger.warning('Failure')
                 return -1
             time.sleep(1)
             self.checkpoint()

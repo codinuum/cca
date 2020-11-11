@@ -26,7 +26,6 @@ from datetime import datetime, timedelta, tzinfo
 import re
 
 import pathsetup
-import dp
 from factutils.fileid import FileDigest, HashAlgo
 
 
@@ -110,14 +109,14 @@ def objty_to_str(ty):
     return s
 
 
-class User(dp.base):
+class User(object):
     def __init__(self, u):
         self.name = u.name
         self.time = u.time
         self.offset = u.offset
         self.email = u.email
 
-class Commit(dp.base):
+class Commit(object):
     def __init__(self, c):
         self.oid = c.oid
         self.id = c.id
@@ -127,7 +126,7 @@ class Commit(dp.base):
         self.message_encoding = c.message_encoding
 
 
-class Repository(dp.base):
+class Repository(object):
     def __init__(self, repo_path, repo=None):
         if repo:
             self._repo = repo
@@ -137,18 +136,18 @@ class Repository(dp.base):
     # def pull(self):
     #     origin = self._repo.remotes['origin']
     #     stats = origin.fetch()
-    #     self.message('total objects: %s' % stats.total_objects)
+    #     logger.info('total objects: %s' % stats.total_objects)
     #     if stats.total_objects > 0:
     #         fetch_head = self._repo.revparse_single('FETCH_HEAD')
-    #         self.message('merging...')
+    #         logger.info('merging...')
     #         self._repo.merge(fetch_head.id)
-    #         self.message('done.')
+    #         logger.info('done.')
 
     def pull(self, remote_name='origin'):
         for remote in self._repo.remotes:
             if remote.name == remote_name:
                 stats = remote.fetch()
-                self.message('total objects: %s' % stats.total_objects)
+                logger.info('total objects: %s' % stats.total_objects)
                 remote_master_id = self._repo.lookup_reference('refs/remotes/origin/master').target
                 merge_result, _ = self._repo.merge_analysis(remote_master_id)
                 # Up to date, do nothing
@@ -164,7 +163,7 @@ class Repository(dp.base):
                     self._repo.merge(remote_master_id)
 
                     if self._repo.index.conflicts is not None:
-                        self.warning('conflicts: %s' % self._repo.index.conflicts)
+                        logger.warning('conflicts: %s' % self._repo.index.conflicts)
 
                     user = self._repo.default_signature
                     tree = self._repo.index.write_tree()
@@ -176,7 +175,7 @@ class Repository(dp.base):
                                                       [self._repo.head.target, remote_master_id])
                     self._repo.state_cleanup()
                 else:
-                    self.warning('Unknown merge analysis result')
+                    logger.warning('Unknown merge analysis result')
 
     def blame(self, path, h_, h, line_min, line_max):
         oid = self.get_commit(h).id
@@ -211,7 +210,7 @@ class Repository(dp.base):
         obj = self._get_obj(k)
         if obj:
             if obj.type != ty:
-                #self.debug('%s != %s' % (objty_to_str(obj.type), objty_to_str(ty)))
+                #logger.debug('%s != %s' % (objty_to_str(obj.type), objty_to_str(ty)))
                 raise (InvalidReference(k))
         else:
             raise (InvalidReference(k))
@@ -287,9 +286,9 @@ class Repository(dp.base):
                 changed.append((old_file, new_file))
 
         if changed:
-            self.message('%d changed source files found' % len(changed))
+            logger.info('%d changed source files found' % len(changed))
         else:
-            self.message('no changed source files found')
+            logger.info('no changed source files found')
 
         return changed
 
@@ -394,7 +393,7 @@ class Repository(dp.base):
                             l.append({'path':path_,'id':x.hex})
 
                 except Exception as e:
-                    self.warning(str(e))
+                    logger.warning(str(e))
                     continue
 
         traverse('', tree)

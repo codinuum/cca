@@ -102,6 +102,13 @@ let shift2_attr    = mktag "shift_"
 (* for partial application of move *)
 let move_control_attr = mktag "mctl"
 
+let is_file_edit_tag n =
+  n = add_file_tag ||
+  n = remove_file_tag ||
+  n = rename_file_tag ||
+  n = move_file_tag ||
+  n = change_file_tag
+
 
 type subtree_id = int
 

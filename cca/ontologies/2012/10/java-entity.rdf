@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <rdf:RDF xmlns="http://codinuum.com/ontologies/2012/10/java-entity#"
      xml:base="http://codinuum.com/ontologies/2012/10/java-entity"
-     xmlns:java="http://codinuum.com/ontologies/2012/10/java-entity#"
-     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
      xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
      xmlns:xml="http://www.w3.org/XML/1998/namespace"
      xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
-     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
-     xmlns:dc="http://purl.org/dc/elements/1.1/">
+     xmlns:java="http://codinuum.com/ontologies/2012/10/java-entity#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
     <owl:Ontology rdf:about="http://codinuum.com/ontologies/2012/10/java-entity">
         <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
         <dc:creator xml:lang="en">Codinuum Software Lab</dc:creator>
@@ -54,6 +54,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#inBlockStatement -->
+
+    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inBlockStatement">
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+    </owl:ObjectProperty>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#inClass -->
 
     <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inClass">
@@ -87,7 +95,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#inEnum -->
 
     <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inEnum">
-        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#inTypeDeclaration"/>
         <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
         <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#EnumDeclaration"/>
     </owl:ObjectProperty>
@@ -178,20 +186,10 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#inReturnType -->
-
-    <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inReturnType">
-        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
-        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
-        <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReturnType"/>
-    </owl:ObjectProperty>
-    
-
-
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#inStatement -->
 
     <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inStatement">
-        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#inBlockStatement"/>
         <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
         <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Statement"/>
     </owl:ObjectProperty>
@@ -227,7 +225,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#inVariableDeclaration -->
 
     <owl:ObjectProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#inVariableDeclaration">
-        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#containedIn"/>
+        <rdfs:subPropertyOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#inBlockStatement"/>
         <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
         <rdfs:range rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#LocalVariableDeclaration"/>
     </owl:ObjectProperty>
@@ -343,7 +341,10 @@
 
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#extendedName -->
 
-    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#extendedName"/>
+    <owl:DatatypeProperty rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#extendedName">
+        <rdfs:domain rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2000/01/rdf-schema#Literal"/>
+    </owl:DatatypeProperty>
     
 
 
@@ -420,6 +421,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#AccessModifier -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AccessModifier">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifier"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Add -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Add">
@@ -463,7 +472,32 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#AmbiguousMethodInvocation -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AmbiguousMethodInvocation">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodInvocation"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#AmbiguousMethodInvocationStatement -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AmbiguousMethodInvocationStatement">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodInvocationStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#AmbiguousName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AmbiguousName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Name"/>
     </owl:Class>
     
 
@@ -485,6 +519,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConditionalOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">&amp;&amp;</rdfs:label>
     </owl:Class>
@@ -504,6 +539,14 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AndAssignStatement">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AssignmentStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#AnnotDim -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AnnotDim">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
 
@@ -573,6 +616,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationSpecifier"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeBody"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeDeclaration"/>
     </owl:Class>
     
@@ -581,6 +638,34 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeElementDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeElementDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AnnotDim"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifiers"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ElementValue"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeMemberDeclaration"/>
     </owl:Class>
     
@@ -589,6 +674,13 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeMemberDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeMemberDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifiers"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
@@ -621,6 +713,48 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Arguments -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Arguments">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child4"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child5"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TupleNode"/>
     </owl:Class>
@@ -644,6 +778,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Primary"/>
     </owl:Class>
     
@@ -664,7 +799,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
                 <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#DimExpression"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -684,16 +819,16 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ArrayCreationInit">
         <owl:equivalentClass>
             <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
-                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ArrayInitializer"/>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
             <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
-                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ArrayInitializer"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ArrayCreation"/>
@@ -712,7 +847,50 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ArrayInitializer -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ArrayInitializer">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child4"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child5"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TupleNode"/>
     </owl:Class>
     
 
@@ -764,7 +942,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -774,6 +952,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#StatementExpression"/>
     </owl:Class>
@@ -787,7 +966,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Primary"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -838,6 +1017,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#BitAnd -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#BitAnd">
@@ -882,6 +1069,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
     </owl:Class>
     
@@ -987,6 +1175,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#CatchClause -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#CatchClause">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#CatchParameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Block"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
@@ -1007,10 +1209,23 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Catches -->
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#CatchParameter -->
 
-    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Catches">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#CatchClauseList"/>
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#CatchParameter">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifiers"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
@@ -1076,6 +1291,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassSpecifier"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassBody"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BlockStatement"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeDeclaration"/>
     </owl:Class>
@@ -1109,6 +1338,14 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassMemberDeclaration">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassBodyDeclaration"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassOrInterface -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassOrInterface">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
     </owl:Class>
     
 
@@ -1324,6 +1561,27 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ConstantDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ConstantDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableDeclarator"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifiers"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AnnotationTypeMemberDeclaration"/>
     </owl:Class>
     
@@ -1340,8 +1598,22 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ConstructorBody -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorBody">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BlockStatementList"/>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BlockStatement"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorInvocation"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#ListNode"/>
     </owl:Class>
     
 
@@ -1384,6 +1656,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Throws"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassBodyDeclaration"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodOrConstructor"/>
     </owl:Class>
     
@@ -1537,13 +1810,6 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Entity -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Entity">
-        <owl:equivalentClass>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
-                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
-            </owl:Restriction>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TextEntity"/>
     </owl:Class>
     
@@ -1583,6 +1849,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#EnumDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#EnumDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#EnumSpecifier"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#EnumBody"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeDeclaration"/>
     </owl:Class>
     
@@ -1636,6 +1916,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
     </owl:Class>
     
@@ -1644,7 +1925,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Expression -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Expression">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer"/>
     </owl:Class>
     
 
@@ -1700,6 +1981,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Primary"/>
     </owl:Class>
     
@@ -1770,6 +2052,13 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Finally -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Finally">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Block"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
@@ -1866,6 +2155,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#RelationalOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">&gt;=</rdfs:label>
     </owl:Class>
@@ -1889,6 +2179,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#RelationalOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">&gt;</rdfs:label>
     </owl:Class>
@@ -2012,6 +2303,13 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#InstanceInitializer -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#InstanceInitializer">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Block"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassBodyDeclaration"/>
     </owl:Class>
     
@@ -2083,6 +2381,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#InterfaceDeclaration -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceDeclaration">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceSpecifier"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceBody"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeDeclaration"/>
     </owl:Class>
     
@@ -2180,8 +2492,17 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#RelationalOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">&lt;=</rdfs:label>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
 
@@ -2286,6 +2607,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#RelationalOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">&lt;</rdfs:label>
     </owl:Class>
@@ -2316,7 +2638,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReturnType"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -2497,6 +2819,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
     </owl:Class>
     
@@ -2505,6 +2828,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Name -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Name">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#LeftHandSide"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Primary"/>
     </owl:Class>
     
@@ -2513,6 +2837,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#NameInvocation -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#NameInvocation">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Arguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorInvocation"/>
     </owl:Class>
     
@@ -2659,6 +2997,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConditionalOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">||</rdfs:label>
     </owl:Class>
@@ -2725,6 +3064,34 @@
         <owl:equivalentClass>
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Parameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Parameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Parameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child4"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Parameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child5"/>
                 <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Parameter"/>
             </owl:Restriction>
@@ -2870,6 +3237,27 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#PrimaryInvocation -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PrimaryInvocation">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Primary"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Arguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorInvocation"/>
     </owl:Class>
     
@@ -2936,6 +3324,13 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#PrimitiveType -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PrimitiveType">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Annotation"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
     </owl:Class>
     
@@ -2944,7 +3339,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Private -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Private">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifier"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AccessModifier"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">private</rdfs:label>
     </owl:Class>
     
@@ -2953,7 +3348,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Protected -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Protected">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifier"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AccessModifier"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">protected</rdfs:label>
     </owl:Class>
     
@@ -2962,7 +3357,7 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Public -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Public">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifier"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#AccessModifier"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">public</rdfs:label>
     </owl:Class>
     
@@ -3073,7 +3468,43 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Annotation"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ReferenceTypeList -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceTypeList">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#ListNode"/>
     </owl:Class>
     
 
@@ -3081,7 +3512,53 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#RelationalOp -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#RelationalOp">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Resource -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Resource">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifiers"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ResourceSpec -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ResourceSpec">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Resource"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#ListNode"/>
     </owl:Class>
     
 
@@ -3098,21 +3575,6 @@
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BranchingStatement"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">return</rdfs:label>
-    </owl:Class>
-    
-
-
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ReturnType -->
-
-    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ReturnType">
-        <owl:equivalentClass>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
-                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
-            </owl:Restriction>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
 
@@ -3160,6 +3622,7 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BinaryOp"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
     </owl:Class>
     
@@ -3441,6 +3904,13 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#StaticInitializer -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#StaticInitializer">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Block"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassBodyDeclaration"/>
     </owl:Class>
     
@@ -3508,6 +3978,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#SuperInvocation -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#SuperInvocation">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Arguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorInvocation"/>
     </owl:Class>
     
@@ -3690,6 +4174,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ThisInvocation -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ThisInvocation">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Arguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorInvocation"/>
     </owl:Class>
     
@@ -3715,6 +4213,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Throws">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceTypeList"/>
     </owl:Class>
     
 
@@ -3742,21 +4241,28 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#TryStatement">
         <owl:equivalentClass>
             <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#CatchClause"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Block"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
             <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Catches"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ResourceSpec"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
             <owl:Restriction>
-                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
                 <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Finally"/>
             </owl:Restriction>
@@ -3778,7 +4284,50 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#TypeArguments">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child4"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child5"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Type"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TupleNode"/>
     </owl:Class>
     
 
@@ -3786,6 +4335,20 @@
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#TypeBound -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#TypeBound">
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Interface"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
+                <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
@@ -3908,7 +4471,43 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child2"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child3"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child4"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
+        <owl:equivalentClass>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child5"/>
+                <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter"/>
+            </owl:Restriction>
+        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TupleNode"/>
     </owl:Class>
     
 
@@ -3946,6 +4545,14 @@
                 <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
             </owl:Restriction>
         </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#VariableInitializer">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
@@ -4040,5 +4647,5 @@
 
 
 
-<!-- Generated by the OWL API (version 4.2.8.20170104-2310) https://github.com/owlcs/owlapi -->
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
 
