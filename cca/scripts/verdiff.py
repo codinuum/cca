@@ -57,7 +57,7 @@ class TaskPool(tp.base):
                  fact_into_directory='',
                  fact_size_thresh=diffts.DEFAULT_FACT_SIZE_THRESH,
                  fact_for_cfg=False,
-                 fact_encoding=Enc.FDLC,
+                 fact_encoding=Enc.FDLCO,
                  fact_hash_algo=HashAlgo.MD5,
                  line_sim=False,
                  local_cache_name=None,
@@ -282,7 +282,7 @@ def compute(load_fact=False,
             fact_into_directory='',
             fact_size_thresh=diffts.DEFAULT_FACT_SIZE_THRESH,
             fact_for_cfg=False,
-            fact_encoding=Enc.FDLC,
+            fact_encoding=Enc.FDLCO,
             fact_hash_algo=HashAlgo.MD5,
             line_sim=False):
 

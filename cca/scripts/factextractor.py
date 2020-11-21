@@ -72,7 +72,7 @@ def compo_join(*compos):
 
 class base(object):
 
-    def __init__(self, proj_id, encoding=Enc.FDLC, algo=HashAlgo.MD5):
+    def __init__(self, proj_id, encoding=Enc.FDLCO, algo=HashAlgo.MD5):
 
         self._proj_id = proj_id
 

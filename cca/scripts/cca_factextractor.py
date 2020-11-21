@@ -40,7 +40,7 @@ class TaskPoolBase(tp.base, factextractor.base):
 
     def __init__(self, proj_id, basedir='.', working_dir='.', clear_cache=True,
                  factbase_dir=None, 
-                 encoding=Enc.FDLC, algo=HashAlgo.MD5,
+                 encoding=Enc.FDLCO, algo=HashAlgo.MD5,
                  fact_out_dir=None):
 
         factextractor.base.__init__(self, proj_id, encoding=encoding, algo=algo)
