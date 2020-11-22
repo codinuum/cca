@@ -30,12 +30,12 @@ import virtuoso
 from virtuoso import (VTMP_DIR,
                       DB_DIR,
                       GRAPH_URI_BASE,
-                      DEFAULT_PORT,
+                      VIRTUOSO_PORT,
                       DEFAULT_MAX_FILES,
                       VIRTUOSO_PW)
 
 
-def load(proj_id, db_dir, fact_dir, exts, port=DEFAULT_PORT, pw=VIRTUOSO_PW):
+def load(proj_id, db_dir, fact_dir, exts, port=VIRTUOSO_PORT, pw=VIRTUOSO_PW):
     graph_uri = GRAPH_URI_BASE+proj_id
 
     loader = virtuoso.Loader(db_dir, daemonize=False, pw=pw, port=port)

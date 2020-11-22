@@ -230,6 +230,12 @@ def query():
 
     parser.add_argument('-d', '--debug', dest='debug', action='store_true', help='enable debug printing')
 
+    parser.add_argument('--port', dest='port', default=VIRTUOSO_PORT,
+                        metavar='PORT', type=int, help='set port number')
+
+    parser.add_argument('--pw', dest='pw', metavar='PASSWORD', default=VIRTUOSO_PW,
+                        help='set password to access DB')
+
     parser.add_argument('-m', '--method', dest='method', default='odbc',
                         metavar='METHOD', type=str, help='execute query via METHOD (http|odbc)')
 
@@ -247,7 +253,7 @@ def query():
     logger.info('query:  "%s"' % qfile)
 
 
-    driver = get_driver(args.method)
+    driver = get_driver(args.method, pw=args.pw, port=args.port)
 
     count = 0
 

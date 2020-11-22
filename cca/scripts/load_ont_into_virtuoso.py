@@ -31,7 +31,7 @@ FACT_DIR = os.path.join(virtuoso.VTMP_DIR, 'ontologies')
 def load(db_dir, fact_dir,
          graph_uri=GRAPH_URI,
          rule_name=RULE_NAME,
-         port=virtuoso.DEFAULT_PORT,
+         port=virtuoso.VIRTUOSO_PORT,
          pw=virtuoso.VIRTUOSO_PW):
 
     rc = 0
