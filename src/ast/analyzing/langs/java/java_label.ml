@@ -3295,7 +3295,14 @@ let get_name lab =
 
     | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]
 
-    | _ -> raise Not_found
+    | HugeArray(sz, c) ->
+      let h = Xhash.digest_hex_of_string Xhash.MD5 c in
+      "HUGE_ARRAY_"^h
+
+    | _ -> begin
+        (*WARN_MSG "name not found: %s" (to_string lab);*)
+        raise Not_found
+    end
   in
   if n = "" then
     raise Not_found
