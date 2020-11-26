@@ -29,7 +29,7 @@ module Pxp_ev_parser   = Pxp_ev_parser
 module Pxp_event       = Pxp_event
 
 (* required by Mfortran.cmxs *)
-module Stream = Stdlib.Stream 
+module Stream = Stdlib.Stream
 let _ = Stream.from
 
 
@@ -105,7 +105,7 @@ class virtual base_c options = object (self)
   method is_processed_tree dtree_opt_ref tree =
     let cache_name =
       match tree#kind with
-      | Storage.K_GIT -> (Cache.make_cache_name_for_dir1 tree#id)
+      | Storage.K_GIT _ -> (Cache.make_cache_name_for_dir1 tree#id)
       | Storage.K_FS ->
           let dtree, _ = DTB.of_tree options false tree in
           dtree_opt_ref := Some dtree;
@@ -214,7 +214,7 @@ class virtual base_c options = object (self)
         | Triple.Lock_failed ->
             Xprint.warning "fact buffer is already locked."
       end
-      else if file#tree#kind <> Storage.K_GIT then begin
+      else begin
         List.iter
           (fun ver ->
             S._dump_source_path cache_path ver file#path

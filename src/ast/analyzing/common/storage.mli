@@ -15,10 +15,11 @@
 *)
 
 val open_temp_file : string -> (string * out_channel)
-type kind = K_DUMMY | K_FS | K_GIT
+type kind = K_DUMMY | K_FS | K_GIT of string | K_UNKNOWN
 val kind_fs : kind
-val kind_git : kind
+val kind_git : string -> kind
 val kind_dummy : kind
+val kind_unknown : kind
 val kind_to_string : kind -> string
 val kind_is_fs : kind -> bool
 val kind_is_git : kind -> bool
@@ -32,6 +33,7 @@ class type entry_t = object
   method entries     : entry_t list
   method file_digest : Xhash.t
   method dir_digest  : Xhash.t option
+  method get_content : unit -> string
 end
 
 val scan_dir : ?recursive:bool -> entry_t -> (entry_t -> unit) -> unit
@@ -68,7 +70,9 @@ class virtual tree : object
   method search_path : ?ignore_case:bool -> string -> string -> (entry_t * string) list
 end
 
-class file : ?digest_opt:(Xhash.t option) -> ?ignore_case:bool -> tree -> string -> object
+type obj_t = Tree of tree | Entry of entry_t
+
+class file : ?digest_opt:(Xhash.t option) -> ?ignore_case:bool -> obj_t -> string -> object
   method set_extra_ext : string -> unit
   method set_digest : Xhash.t -> unit
   method tree : tree

@@ -1760,17 +1760,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     }
   (* end of method get_diff_stat *)
 
-  method dump_diff_stat_ch tree1 tree2 (uidmapping : 'node_t UIDmapping.c) =
+  method dump_diff_stat_ch ?(short=false) tree1 tree2 (uidmapping : 'node_t UIDmapping.c) =
     let s = self#get_diff_stat tree1 tree2 uidmapping in
-    dump_diff_stat_ch s
+    dump_diff_stat_ch ~short s
 
-  method dump_diff_stat fname tree1 tree2 uidmapping =
-    Xfile.dump fname (self#dump_diff_stat_ch tree1 tree2 uidmapping)
+  method dump_diff_stat ?(short=false) fname tree1 tree2 uidmapping =
+    Xfile.dump fname (self#dump_diff_stat_ch ~short tree1 tree2 uidmapping)
 
-  method show_diff_stat tree1 tree2 uidmapping =
+  method show_diff_stat ?(short=false) tree1 tree2 uidmapping =
     if not options#viewer_flag then begin
-      print_string "*** STATISTICS ***\n";
-      self#dump_diff_stat_ch tree1 tree2 uidmapping stdout
+      self#dump_diff_stat_ch ~short tree1 tree2 uidmapping stdout
     end
   (* end of method show_diff_stat *)
 

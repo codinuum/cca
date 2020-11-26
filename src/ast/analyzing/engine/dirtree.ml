@@ -377,6 +377,14 @@ let pp1 tbl1 tbl2 =
 (* end of fun pp1 *)
 
 
+let rec path_split path =
+  let bn = Filename.basename path in
+  if bn = path then
+    [path]
+  else
+    List.concat [path_split (Filename.dirname path); [bn]]
+
+
 let compute_dissimilarity s1 s2 =
 
   let len1 = String.length s1 in
@@ -398,6 +406,35 @@ let compute_dissimilarity s1 s2 =
   let nchan = (List.length rel) + (List.length del) + (List.length ins) in
   let res = (float nchan) /. float(nmap) in
   res
+
+let find_rename_pats1 path1 path2 =
+  let a1 = Array.of_list (path_split path1) in
+  let a2 = Array.of_list (path_split path2) in
+  let mat, rel, del, ins = Adiff.adiff a1 a2 in
+  List.map (fun (i, j) -> String.lowercase_ascii a1.(i), String.lowercase_ascii a2.(j)) rel
+
+let find_rename_pats path_pair_list =
+  let freq_tbl = Hashtbl.create 0 in
+  List.iter
+    (fun (p1, p2) ->
+      List.iter
+        (fun src_dst ->
+          try
+            Hashtbl.replace freq_tbl src_dst ((Hashtbl.find freq_tbl src_dst)+1)
+          with Not_found ->
+            Hashtbl.add freq_tbl src_dst 1
+        ) (find_rename_pats1 p1 p2)
+    ) path_pair_list;
+  let l =
+    Hashtbl.fold
+      (fun src_dst freq l ->
+        if freq > 1 then
+          (src_dst, freq)::l
+        else
+          l
+      ) freq_tbl []
+  in
+  List.fast_sort (fun (_, i) (_, j) -> Stdlib.compare i j) l
 
 
 let pp2 tbl1 tbl2 =
@@ -1105,33 +1142,36 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
 
 let save_modified_list fname list =
   let csv = [
-    "old"; "new"; 
-    "change ratio"; 
-    "unmodified rate"; 
-    "deletes(groups)"; "inserts(groups)"; "relabels(groups)"; "moves(groups)"; 
-    "total changes"; 
-    "mapping size"; 
-    "units"; 
+    "original(path)"; "modified(path)";
+    "original(digest)"; "modified(digest)";
+    "change ratio";
+    "unmodified rate";
+    "deletes(groups)"; "inserts(groups)"; "relabels(groups)"; "moves(groups)";
+    "total changes";
+    "mapping size";
+    "similarity";
+    "units";
     "unmodified units";
     "size of structure preserving strict mapping";
     "average hunk size"
   ] ::
-    (List.map 
-       (fun (o, n, cr, ur, d, dg, i, ig, r, rg, m, mg, tc, ms, u, uu, spsm, ahs) -> 
-	 [o; n; cr; ur; 
-	  sprintf "%d(%d)" d dg; 
-	  sprintf "%d(%d)" i ig; 
-	  sprintf "%d(%d)" r rg; 
-	  sprintf "%d(%d)" m mg; 
-	  sprintf "%d" tc; 
-	  sprintf "%d" ms;
-	  sprintf "%d" u;
-	  sprintf "%d" uu;
-	  sprintf "%d" spsm;
-	  ahs;
-	]
+    (List.map
+       (fun (o, n, od, nd, cr, ur, d, dg, i, ig, r, rg, m, mg, tc, ms, sim, u, uu, spsm, ahs) ->
+	 [o; n; od; nd; cr; ur;
+          sprintf "%d(%d)" d dg;
+          sprintf "%d(%d)" i ig;
+          sprintf "%d(%d)" r rg;
+          sprintf "%d(%d)" m mg;
+          sprintf "%d" tc;
+          sprintf "%d" ms;
+          sim;
+          sprintf "%d" u;
+          sprintf "%d" uu;
+          sprintf "%d" spsm;
+          ahs;
+        ]
        ) list
-    ) 
+    )
   in
   Csv.save fname csv
 
@@ -1170,7 +1210,13 @@ let save_result dir modified_files =
 
   let och = open_out_gen [Open_creat; Open_wronly] 0o644 fname in
   fprintf och "%d\n" (List.length modified_files);
-  List.iter (fun (o, n) -> fprintf och "%s - %s\n" o#path n#path) modified_files;
+  List.iter
+    (fun (o, n) ->
+      if o#path = n#path then
+        fprintf och "%s\n" o#path
+      else
+        fprintf och "%s - %s\n" o#path n#path
+    ) modified_files;
   close_out och
 
 type info = { i_cache_path         : string;
@@ -1237,33 +1283,38 @@ let save_extra_result options ?get_cache_name
             SF.scan_diff_stat ~max_retry_count:options#max_retry_count stat_paths
           in
 	  if s.SF.s_total_changes > 0 then
-	    (o#path, n#path, 
-	     s.SF.s_change_ratio, 
-	     s.SF.s_unmodified_rate,
-	     s.SF.s_deletes,
-	     s.SF.s_deletes_gr,
-	     s.SF.s_inserts,
-	     s.SF.s_inserts_gr,
-	     s.SF.s_relabels,
-	     s.SF.s_relabels_gr,
-	     s.SF.s_moves,
-	     s.SF.s_moves_gr,
-	     s.SF.s_total_changes,
-	     s.SF.s_mapping,
-	     s.SF.s_units,
-	     s.SF.s_unmodified_units,
-	     s.SF.s_SPSM,
-	     s.SF.s_AHS
-	    ) :: m, 
-	    u
-	  else 
-	  m, (o, n)::u
-	with 
-	| S.Stat_not_found | Failure _ | Sys_error _ | Lang_base.Error _ ->
-	    DEBUG_MSG "cache not found: %s - %s" o#path n#path;
-	    (o#path, n#path, "-", "-", -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, "-")
-	    ::m, 
-	    u
+            let od = Xhash.to_hex o#digest in
+            let nd = Xhash.to_hex n#digest in
+            (o#path, n#path, od, nd,
+             s.SF.s_change_ratio,
+             s.SF.s_unmodified_rate,
+             s.SF.s_deletes,
+             s.SF.s_deletes_gr,
+             s.SF.s_inserts,
+             s.SF.s_inserts_gr,
+             s.SF.s_relabels,
+             s.SF.s_relabels_gr,
+             s.SF.s_moves,
+             s.SF.s_moves_gr,
+             s.SF.s_total_changes,
+             s.SF.s_mapping,
+             s.SF.s_similarity,
+             s.SF.s_units,
+             s.SF.s_unmodified_units,
+             s.SF.s_SPSM,
+             s.SF.s_AHS
+            ) :: m,
+            u
+          else
+            m, (o, n)::u
+        with
+        | S.Stat_not_found | Failure _ | Sys_error _ | Lang_base.Error _ ->
+            DEBUG_MSG "cache not found: %s - %s" o#path n#path;
+            let od = Xhash.to_hex o#digest in
+            let nd = Xhash.to_hex n#digest in
+            (o#path, n#path, od, nd, "-", "-", -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, "-", -1, -1, -1, "-")
+            ::m,
+            u
       ) ([], []) modified
   in
 
@@ -1339,17 +1390,17 @@ let dump_diff_stat options old_tree new_tree =
 
 
 
-class diff_result 
+class diff_result
     ~(cache_path:string)
-    ~(all_leaves1:node_t list) 
+    ~(all_leaves1:node_t list)
     ~(all_leaves2:node_t list)
-    ~(removed:node_t list) 
-    ~(added:node_t list) 
-    ~(modified:(node_t * node_t) list) 
+    ~(removed:node_t list)
+    ~(added:node_t list)
+    ~(modified:node_map)
     ~(renamed:node_map)
-    ~(moved:node_map) 
-    ~(copied:(node_t * node_t list) list) 
-    ~(glued:(node_t list * node_t) list) 
+    ~(moved:node_map)
+    ~(copied:(node_t * node_t list) list)
+    ~(glued:(node_t list * node_t) list)
     = 
   object
     method cache_path  = cache_path
@@ -1392,7 +1443,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
       Cache_not_found ->
 *)
 	if not options#viewer_flag then
-	  printf "comparing directory structures.%!";
+	  printf "comparing directory structures...\n";
 
 	let _ = Cache.prepare_cache_dir options cache_path in
 
@@ -1418,11 +1469,13 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	let _ = collapse_tree dtree1 in
 	let _ = collapse_tree dtree2 in
 
-	let modified, unmodified, renamed = 
+	let _modified, unmodified, renamed =
 	  compare_subtree options cache_path (dtree1, dtree2) 
 	in
 
-	let modified = union [modified; modified0] in
+	let _modified = union [_modified; modified0] in
+        let modified = new node_map in
+        modified#add_list _modified;
 
         unmodified0#add_map _unmodified0;
         unmodified0#add_list unmodified;
@@ -1434,6 +1487,9 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
         moved0#add_map _moved0;
         let moved = moved0 in
+
+        let dnps = ref [] in
+
         let pr1 = try options#fact_proj_roots.(0) with _ -> "" in
         let pr2 = try options#fact_proj_roots.(1) with _ -> "" in
         List.iter
@@ -1441,14 +1497,136 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
             let p1 = Triple.get_proj_rel_path pr1 n1#data#path in
             let p2 = Triple.get_proj_rel_path pr2 n2#data#path in
             if p1 <> p2 then begin
-              if (Filename.dirname p1) <> (Filename.dirname p2) then
+              let dn1 = Filename.dirname p1 in
+              let dn2 = Filename.dirname p2 in
+              if dn1 <> dn2 then begin
                 moved#add n1 n2;
+                dnps := (dn1, dn2)::!dnps
+              end;
               if (Filename.basename p1) <> (Filename.basename p2) then
                 renamed#add n1 n2;
             end
-          ) modified;
+          ) _modified;
 
-	let len = List.length modified in
+	let all_leaves1 = dtree1#get_whole_initial_leaves in
+	let all_leaves2 = dtree2#get_whole_initial_leaves in
+
+        let subtract l l0 =
+          let s = Xset.from_list l in
+          List.iter (Xset.remove s) l0;
+          Xset.to_list s
+        in
+
+	let glued1 =
+	  let glu1, _ = List.split glued in
+	  List.flatten glu1
+	in
+	let copied2 =
+	  let _, cop2 = List.split copied in
+	  List.flatten cop2
+	in
+
+        let get_removed_and_added () =
+	  let mapped1, mapped2 =
+	    let mod1, mod2 = modified#split in
+	    let sta1, sta2 = unmodified#split in
+	    let ren1, ren2 = renamed#split in
+	    let mov1, mov2 = moved#split in
+
+	    mod1 @ sta1 @ ren1 @ mov1 @ glued1,
+	    mod2 @ sta2 @ ren2 @ mov2 @ copied2
+	  in
+	  let removed = subtract all_leaves1 mapped1 in
+	  let added   = subtract all_leaves2 mapped2 in
+          removed, added
+        in
+        let removed, added = get_removed_and_added() in
+
+        let elaborated_flag = ref false in
+
+        let get_dns pr =
+          List.map
+            (fun n ->
+              let p = Triple.get_proj_rel_path pr n#data#path in
+              Filename.dirname p, n
+            )
+        in
+        (*let dnps1, dnps2 = List.split !dnps in*)
+        let cands1 = (*List.filter (fun (dn, _) -> List.mem dn dnps1)*) (get_dns pr1 removed) in
+        let cands2 = (*List.filter (fun (dn, _) -> List.mem dn dnps2)*) (get_dns pr2 added) in
+
+        if cands1 <> [] && cands2 <> [] then begin
+          let rename_pats = find_rename_pats !dnps in
+          if rename_pats <> [] then begin
+            printf "%d rename pattern(s) found:\n" (List.length rename_pats);
+            List.iter
+              (fun ((src, dst), freq) ->
+                printf "%s -> %s (%d)\n" src dst freq
+              ) rename_pats;
+            let substl =
+              List.map
+                (fun ((src, dst), _) ->
+                  Str.regexp_string src, dst
+                  ) rename_pats
+            in
+            let apply_subst dn_opt bn =
+              List.fold_left
+                (fun n (re, dst) ->
+                  if
+                    match dn_opt with
+                    | Some dn -> begin
+                        try
+                          let _ = Str.search_forward re dn 0 in
+                          true
+                        with Not_found -> false
+                    end
+                    | None -> true
+                  then
+                    Str.global_replace re dst n
+                  else
+                    n
+                ) bn substl
+            in
+            let is_renamed p1 p2 =
+              let dn1 = Filename.dirname p1 in
+              let dn2 = Filename.dirname p2 in
+              let bn1 = Filename.basename p1 in
+              let bn2 = Filename.basename p2 in
+              let dn_opt =
+                if dn1 = dn2 then
+                  None
+                else
+                  Some dn1
+              in
+              apply_subst dn_opt bn1 = bn2
+            in
+            List.iter
+              (fun (_, cand1) ->
+                List.iter
+                  (fun (_, cand2) ->
+                    let p1 = Triple.get_proj_rel_path pr1 cand1#data#path in
+                    let p2 = Triple.get_proj_rel_path pr2 cand2#data#path in
+                    if is_renamed (String.lowercase_ascii p1) (String.lowercase_ascii p2) then begin
+                      printf "rename candidate: %s -> %s\n" p1 p2;
+                      modified#add cand1 cand2;
+                      if (Filename.dirname p1) <> (Filename.dirname p2) then
+                        moved#add cand1 cand2;
+                      renamed#add cand1 cand2;
+                      elaborated_flag := true
+                    end
+                  ) cands2
+              ) cands1
+          end
+        end;
+
+        let removed, added =
+          if !elaborated_flag then
+            get_removed_and_added()
+          else
+            removed, added
+        in
+
+        let len = modified#size in
 
 	if options#viewer_flag then begin
 	  let mm = (len land 0xff00) lsr 8 in
@@ -1459,7 +1637,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	else 
 	  printf "done.\n";
 
-	let mkfiles2 = List.map (fun (nd1, nd2) -> mkfile tree1 nd1, mkfile tree2 nd2) in
+	(*let mkfiles2 = List.map (fun (nd1, nd2) -> mkfile tree1 nd1, mkfile tree2 nd2) in*)
 	let mkfiles1N = 
 	  List.map (fun (nd1, nds) -> mkfile tree1 nd1, List.map (mkfile tree2) nds)
 	in
@@ -1468,7 +1646,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	in
         let mkfilepair n1 n2 = mkfile tree1 n1, mkfile tree2 n2 in
 
-	let modified_files   = mkfiles2 modified in
+	let modified_files   = modified#map mkfilepair in
 
 	let unmodified_files = unmodified#map mkfilepair in
 	let renamed_files    = renamed#map mkfilepair in
@@ -1476,26 +1654,6 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	let copied_files     = mkfiles1N copied in 
 	let glued_files      = mkfilesN1 glued in 
 
-	let all_leaves1 = dtree1#get_whole_initial_leaves in
-	let all_leaves2 = dtree2#get_whole_initial_leaves in
-        
-	let glued1 = 
-	  let glu1, _ = List.split glued in
-	  List.flatten glu1
-	in
-	let copied2 =
-	  let _, cop2 = List.split copied in
-	  List.flatten cop2
-	in
-	let mapped1, mapped2 =
-	  let mod1, mod2 = List.split modified in
-	  let sta1, sta2 = unmodified#split in
-	  let ren1, ren2 = renamed#split in
-	  let mov1, mov2 = moved#split in
-
-	  mod1 @ sta1 @ ren1 @ mov1 @ glued1,
-	  mod2 @ sta2 @ ren2 @ mov2 @ copied2
-	in
 
         let all_files1 = mkfiles tree1 all_leaves1 in
         let all_files2 = mkfiles tree2 all_leaves2 in
@@ -1506,15 +1664,6 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  let paths = List.fast_sort Stdlib.compare paths in
 	  List.iter (fun p -> printf " %s\n" p) paths
 	END_DEBUG;
-
-        let subtract l l0 =
-          let s = Xset.from_list l in
-          List.iter (Xset.remove s) l0;
-          Xset.to_list s
-        in
-
-	let removed = subtract all_leaves1 mapped1 in
-	let added   = subtract all_leaves2 mapped2 in
 
 	let removed_files = mkfiles tree1 removed in
 	let added_files   = mkfiles tree2 added in
@@ -1535,12 +1684,12 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  let nfiles1 = List.length all_files1 in
 	  let nfiles2 = List.length all_files2 in
 
-	  Xprint.message "%d/%d modified files:" (List.length modified) nfiles1;
+	  Xprint.message "%d/%d modified files:" modified#size nfiles1;
           BEGIN_DEBUG
-	  List.iter 
-	    (fun (n1, n2) -> 
+	  modified#iter
+	    (fun n1 n2 ->
 	      DEBUG_MSG "[MOD] %s -> %s" n1#data#to_string n2#data#to_string
-	    ) modified
+	    )
           END_DEBUG;
 
 	  Xprint.message "%d/(%d) added files:" (List.length added) nfiles2;
@@ -1561,7 +1710,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
 	  Xprint.message "%d/%d renamed files:" renamed#size nfiles1;
           BEGIN_DEBUG
-	  renamed#iter 
+	  renamed#iter
 	    (fun n1 n2 -> 
 	      DEBUG_MSG "[REN] %s -> %s" n1#data#to_string n2#data#to_string
 	    )
@@ -1569,7 +1718,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
 	  Xprint.message "%d/%d moved files:" moved#size nfiles1;
           BEGIN_DEBUG
-	  moved#iter 
+	  moved#iter
 	    (fun n1 n2 -> 
 	      DEBUG_MSG "[MOV] %s -> %s" n1#data#to_string n2#data#to_string
 	    )
@@ -1595,7 +1744,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
 	  Xprint.message "%d/%d unmodified files:" unmodified#size nfiles1;
           BEGIN_DEBUG
-	  unmodified#iter 
+	  unmodified#iter
 	    (fun n1 n2 -> 
 	      DEBUG_MSG "[UNM] %s - %s" n1#data#to_string n2#data#to_string
 	    )
@@ -1697,8 +1846,8 @@ let fact_extractor options info =
 	else
 	  Xprint.verbose options#verbose_flag "dumping map fact to \"%s\"..." !map_path;
 
-	List.iter
-	  (fun (f1, f2) ->
+	info#modified#iter
+	  (fun f1 f2 ->
             let fid1, fid2 = mkfid1 f1, mkfid2 f2 in
             let fent1, fent2 = T.mkent fid1, T.mkent fid2 in
 	    fact_buf_for_mapping#add (fent1, T.p_mapped_neq_to, fent2);
@@ -1708,7 +1857,7 @@ let fact_extractor options info =
             fact_buf_for_mapping#add (stree_pair_ent, T.p_file_pair, fpent);
             fact_buf_for_mapping#add (fpent, T.p_orig_file, fent1);
             fact_buf_for_mapping#add (fpent, T.p_mod_file, fent2);
-	  ) info#modified;
+	  )
       end;
 
       if options#fact_for_changes_flag then begin
@@ -1766,15 +1915,15 @@ let fact_extractor options info =
 
 	  ) info#added;
 
-	List.iter
-	  (fun (n1, n2) ->
+	info#modified#iter
+	  (fun n1 n2 ->
 	    fact_buf_for_changes#add (mkfent1 n1, T.p_modified, mkfent2 n2);
 
             if need_locent then begin
 	      fact_buf_for_changes#add (get_locent1 n1, T.p_modified, get_locent2 n2)
             end
 
-	  ) info#modified;
+	  );
 
 	info#renamed#iter
 	  (fun n1 n2 ->
@@ -1872,8 +2021,8 @@ let fact_extractor options info =
             triple_add chg xml T.c_mov (mkfent1 n1) (mkfent2 n2)
 	  );
 
-	List.iter
-	  (fun (n1, n2) ->
+	info#modified#iter
+	  (fun n1 n2 ->
             if n1#data#is_auxfile && n2#data#is_auxfile then begin
               let chg = make_chg_inst Editop.Trel (mkfid1 n1) (mkfid2 n2) in
               let cch = n2#data#get_content_channel_for_xml() in
@@ -1881,7 +2030,7 @@ let fact_extractor options info =
               cch#close_in();
               triple_add chg xml T.c_rel (mkfent1 n1) (mkfent2 n2)
             end
-	  ) info#modified;
+	  );
 
       end;
 

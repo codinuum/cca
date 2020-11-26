@@ -344,8 +344,9 @@ class c options = object (self)
     let modified = info.DT.i_modified in
 
     if options#viewer_flag then
-      List.iter (fun (o, n) -> printf "%s - %s\n" o#fullpath n#fullpath) modified;
-
+      List.iter (fun (o, n) -> printf "%s - %s\n" o#fullpath n#fullpath) modified
+    else
+      printf "cache path: %s\n" info.DT.i_cache_path;
 
     let stat = SD.empty_diff_stat() in
 
@@ -499,13 +500,18 @@ class c options = object (self)
 
       self#verbose_msg "COMPUTING DIFFS FOR MODIFIED FILES...";
       let extra_unmodified = ref [] in
-      List.iter 
-	(fun p ->
-          try
-            if not (proc_modified p) then
-              extra_unmodified := p :: !extra_unmodified
-          with
-            Skip _ -> ()
+      printf "comparing files...\n";
+      let total = List.length modified in
+      List.iteri
+	(fun i p ->
+          begin
+            try
+              if not (proc_modified p) then
+                extra_unmodified := p :: !extra_unmodified
+            with
+              Skip _ -> ()
+          end;
+          printf " %d/%d (%.2f%%)\r%!" i total ((float (100*i))/.(float total))
 	) modified;
 
       (* extra source files *)
@@ -782,7 +788,7 @@ class c options = object (self)
       
       SD.dump_diff_stat info.DT.i_cache_path stat;
 
-      SD.show_diff_stat stat;
+      SD.show_diff_stat ~short:true stat;
 
       begin
         match fact_store with
@@ -848,7 +854,7 @@ class c options = object (self)
           List.iter
             (fun path ->
               let file =
-                new Storage.file (Fs.make options ~path:options#root_path ()) path
+                new Storage.file (Storage.Tree (Fs.make options ~path:options#root_path ())) path
               in
               let ext = file#get_extension in
               let lang = Lang.search options ext in

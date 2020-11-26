@@ -27,7 +27,7 @@ let help_sections = [
 
   `S "AUTHORS";
   `P "Thomas Gazagnaire   <thomas@gazagnaire.org>";
-  `P "Masatomo Hashimoto  <mstm@me.com>";
+  `P "Masatomo Hashimoto  <m.hashimoto@stair.center>";
 
   `S "BUGS";
   `P "Check bug reports at https://github.com/samoht/ocaml-git/issues.";
@@ -136,14 +136,10 @@ let verbose() =
   | Some Logs.Info -> true
   | _ -> false
 
-let sha1s_sep = Str.regexp_string ":"
-
 class diffast_args = object (self)
 
   method repo =
-    let doc = Arg.info [] ~docv:"REPO_PATH"
-        ~doc:"The repository path."
-    in
+    let doc = Arg.info [] ~docv:"REPO_PATH" ~doc:"The repository path." in
     let path =
       let cv x = Ok Fpath.(v x) in
       let pr = Fpath.pp in
@@ -156,6 +152,8 @@ class diffast_args = object (self)
   method external_parser = mk_flag ["parser:external"] "Rely on external parsers."
 
   method dump_delta = mk_flag ["dump:delta"] "Output delta."
+
+  method dump_fact = mk_flag ["dump:fact"] "Output fact."
 
   method disable_parser =
     mk_opt ["parser:disable"] "P,..." "Disable parsers."
@@ -185,10 +183,6 @@ class diffast_args = object (self)
     mk_opt ["fact:size-thresh"] "N" "Set fact buffer size threshold to N." 
       Arg.(some int) None
 
-  method yacfe_macros = 
-    mk_opt ["yacfe:macros"] "FILE" "Read yacfe macro specification FILE." 
-      Arg.(some string) None
-
   method local_cache_name =
     mk_opt ["local-cache-name"] "NAME" "Set local cache name to NAME."
       Arg.(some string) None
@@ -201,14 +195,14 @@ let get_opts
     ~external_parser
     ~disable_parser
     ~clearcache
-    ~dump_delta
     ~cache_dir_base
+    ~dump_delta
+    ~dump_fact
     ~fact_proj
     ~fact_size_thresh
     ~fact_enc
     ~fact_into_virtuoso
     ~fact_into_directory
-    ~yacfe_macros
     ~local_cache_name
     =
   let options = new Options.c in
@@ -235,49 +229,48 @@ let get_opts
     | Some p -> options#set_cache_dir_base p
     | None -> ()
   end;
-  options#set_fact_flag;
-  begin
-    match fact_size_thresh with
-    | Some n -> options#set_fact_size_threshold n
-    | None -> ()
-  end;
-  options#set_fact_algo Xhash.SHA1;
-  options#set_fact_for_changes_flag;
-  options#set_fact_for_mapping_flag;
-  options#set_fact_for_ast_flag;
-  begin
-    match fact_proj with
-    | Some p -> options#set_fact_proj p
-    | None -> ()
-  end;
-  begin
-    match fact_enc with
-    | Some e -> begin
-        match e with
-        | "FDO" ->   options#set_fact_enc Entity.FDO
-        | "FDLO" ->  options#set_fact_enc Entity.FDLO
-        | "FDLC" ->  options#set_fact_enc Entity.FDLC
-        | "FDLCO" -> options#set_fact_enc Entity.FDLCO
-        | e -> 
-            eprintf "[ERROR] invalid encoding \"%s\"\n" e;
-            exit 1
+
+  if dump_fact then begin
+    options#set_fact_flag;
+
+    begin
+      match fact_size_thresh with
+      | Some n -> options#set_fact_size_threshold n
+      | None -> ()
+    end;
+    options#set_fact_algo Xhash.SHA1;
+    options#set_fact_for_changes_flag;
+    options#set_fact_for_mapping_flag;
+    options#set_fact_for_ast_flag;
+    begin
+      match fact_proj with
+      | Some p -> options#set_fact_proj p
+      | None -> ()
+    end;
+    begin
+      match fact_enc with
+      | Some e -> begin
+          match e with
+          | "FDO" ->   options#set_fact_enc Entity.FDO
+          | "FDLO" ->  options#set_fact_enc Entity.FDLO
+          | "FDLC" ->  options#set_fact_enc Entity.FDLC
+          | "FDLCO" -> options#set_fact_enc Entity.FDLCO
+          | e ->
+              eprintf "[ERROR] invalid encoding \"%s\"\n" e;
+              exit 1
+      end
+      | None -> ()
+    end;
+    begin
+      match fact_into_virtuoso with
+      | Some p -> options#set_fact_into_virtuoso p
+      | None -> ()
+    end;
+    begin
+      match fact_into_directory with
+      | Some p -> options#set_fact_into_directory p
+      | None -> ()
     end
-    | None -> ()
-  end;
-  begin
-    match fact_into_virtuoso with
-    | Some p -> options#set_fact_into_virtuoso p
-    | None -> ()
-  end;
-  begin
-    match fact_into_directory with
-    | Some p -> options#set_fact_into_directory p
-    | None -> ()
-  end;
-  begin
-    match yacfe_macros with
-    | Some p -> options#set_yacfe_defs_builtins p
-    | None -> ()
   end;
   begin
     match local_cache_name with
@@ -301,21 +294,21 @@ let extract = {
 *)
   let sha1s =
     let doc = Arg.info ~docv:"SHA1" ~doc:"Git object." [] in
-    Arg.(non_empty & pos_right 0 (some string) [] & doc)
+    Arg.(non_empty & pos_right 0 string [] & doc)
   in
   let extract
-      external_parser disable_parser clearcache dump_delta
-      cache_dir_base fact_proj fact_into_virtuoso fact_into_directory fact_enc
-      fact_size_thresh yacfe_macros local_cache_name
+      external_parser disable_parser clearcache cache_dir_base dump_delta
+      fact_proj fact_into_virtuoso fact_into_directory fact_enc
+      fact_size_thresh local_cache_name
       root sha1s =
     run begin
 
       let options = 
         get_opts ~verbose:(verbose())
-          ~external_parser ~disable_parser ~clearcache ~dump_delta
-          ~cache_dir_base ~fact_proj ~fact_size_thresh ~fact_enc
+          ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
+          ~dump_fact:true ~fact_proj ~fact_size_thresh ~fact_enc
           ~fact_into_virtuoso ~fact_into_directory
-          ~yacfe_macros ~local_cache_name
+          ~local_cache_name
       in
       Lang.setup_options options;
 
@@ -324,26 +317,25 @@ let extract = {
         | Ok t -> begin
 
         let module GS = Git_storage.F(S) in
+        let repo_name = Fpath.to_string root in
         begin
           try
             Lwt_list.iter_s
-              (function
-                | Some sha1 ->
-                    options#set_fact_versions [|(Entity.V_GITREV, sha1)|];
-                    GS.make_obj options t [Hash.of_hex sha1] >>= fun objs -> begin
-                      let diffast = new Astcore.c (options :> Parser_options.c) in
-                      match objs with
-                      | [GS.Tree tree] -> begin
-                          diffast#extract_fact_from_dir tree;
-                          Lwt.return_unit
-                      end
-                      | [GS.File src] -> begin
-                          Logs.info (fun m -> m "not yet");
-                          Lwt.return_unit
-                      end
-                      | _ -> assert false
-                    end
-                | None -> Lwt.return_unit
+              (fun sha1 ->
+                options#set_fact_versions [|(Entity.V_GITREV, sha1)|];
+                GS.make_obj options repo_name t [Hash.of_hex sha1] >>= fun objs -> begin
+                  let diffast = new Astcore.c (options :> Parser_options.c) in
+                  match objs with
+                  | [GS.Tree tree] -> begin
+                      diffast#extract_fact_from_dir tree;
+                      Lwt.return_unit
+                  end
+                  | [GS.File src] -> begin
+                      Logs.info (fun m -> m "not yet");
+                      Lwt.return_unit
+                  end
+                  | _ -> assert false
+                end
               ) sha1s
           with
             exn -> 
@@ -356,55 +348,44 @@ let extract = {
   in
   Term.(mk extract $
         args#external_parser $ args#disable_parser $
-        args#clearcache $ args#dump_delta $
-        args#cache_dir_base $ args#fact_proj $ args#fact_into_virtuoso $
+        args#clearcache $ args#cache_dir_base $ args#dump_delta $
+        args#fact_proj $ args#fact_into_virtuoso $
         args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $ 
-        args#yacfe_macros $ args#local_cache_name $
+        args#local_cache_name $
         args#repo $ sha1s)
 }
 
 let diffast = {
   name = "diffast";
-  doc = "Compare source code ASTs based on a node-by-node basis.";
+  doc = "Compare abstract syntax trees node-by-node.";
   man = [];
   term =
   let recurse = mk_flag ["r";"recurse"] "Compare trees recursively." in
   let ignore_unmodified = mk_flag ["ignore-unmodified"] "Ignore unmodified files." in
   let args = new diffast_args in
   let sha1s =
-    let doc = Arg.info [] ~docv:"SHA1:SHA1" ~doc:"A pair of Git objects to be compared." in
-    Arg.(required & pos 1 (some string) None & doc)
+    let doc = Arg.info [] ~docv:"SHA1" ~doc:"Git object." in
+    Arg.(non_empty & pos_right 0 string [] & doc)
   in
   let diffast recurse ignore_unmodified
-      external_parser disable_parser clearcache dump_delta
-      cache_dir_base fact_proj fact_into_virtuoso fact_into_directory fact_enc
-      fact_size_thresh yacfe_macros local_cache_name
+      external_parser disable_parser clearcache cache_dir_base dump_delta
+      dump_fact fact_proj fact_into_virtuoso fact_into_directory fact_enc
+      fact_size_thresh local_cache_name
       root sha1s =
     run begin
 
-      let sha1_0, sha1_1 =
-        match Str.split sha1s_sep sha1s with
-        | [s0; s1] -> s0, s1
-        | _ -> begin
-            eprintf "[ERROR] invalid SHA1s: \"%s\"\n" sha1s;
-            exit 1
-        end
-      in
       let options = 
         get_opts ~verbose:(verbose())
-          ~external_parser ~disable_parser ~clearcache ~dump_delta
-          ~cache_dir_base ~fact_proj ~fact_size_thresh ~fact_enc
+          ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
+          ~dump_fact ~fact_proj ~fact_size_thresh ~fact_enc
           ~fact_into_virtuoso ~fact_into_directory
-          ~yacfe_macros ~local_cache_name
+          ~local_cache_name
       in
 
       if ignore_unmodified then
         options#set_ignore_unmodified_flag
       else
         options#clear_ignore_unmodified_flag;
-
-      options#set_fact_versions
-        [|(Entity.V_GITREV, sha1_0);(Entity.V_GITREV, sha1_1)|];
 
       if recurse then
         options#set_recursive_flag;
@@ -415,15 +396,51 @@ let diffast = {
         | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
         | Ok t -> begin
 
+        (match sha1s with
+        | [s0; s1] -> Lwt.return (s0, s1)
+        | s0::s1::_ -> begin
+            eprintf "[WARNING] only first two SHA1(s) used\n";
+            Lwt.return (s0, s1)
+        end
+        | [s1] -> begin
+            S.read_exn t (Hash.of_hex s1) >>= fun v ->
+              match v with
+              | Value.Commit commit -> begin
+                  match Commit.parents commit with
+                  | [] -> begin
+                      eprintf "[ERROR] specify another SHA1\n";
+                      exit 1
+                  end
+                  | h::_ -> begin
+                      let s0 = Hash.to_hex h in
+                      Lwt.return (s0, s1)
+                  end
+              end
+              | _ -> begin
+                  eprintf "[ERROR] specify another SHA1\n";
+                  exit 1
+              end
+        end
+        | [] -> begin
+            eprintf "[ERROR] specify SHA1(s)\n";
+            exit 1
+        end) >>= fun (sha1_0, sha1_1) ->
+
+        options#set_fact_versions [|(Entity.V_GITREV, sha1_0);(Entity.V_GITREV, sha1_1)|];
+
         let module GS = Git_storage.F(S) in
 
 	(*let dump_obj sha1 =
 	  S.read_exn t sha1 >>= fun v -> GS.dump_value sha1 v; Lwt.return_unit
 	in*)
 
+        let repo_name = Fpath.to_string root in
+
 	begin
           try
-            GS.make_obj options t [Hash.of_hex sha1_0; Hash.of_hex sha1_1] >>= fun objs -> begin
+            GS.make_obj options repo_name t [Hash.of_hex sha1_0; Hash.of_hex sha1_1] >>= fun objs -> begin
+
+              eprintf "comparing %s with %s...\n" sha1_0 sha1_1;
               
               match objs with
               | [GS.Tree tree0; GS.Tree tree1] -> begin
@@ -434,61 +451,91 @@ let diffast = {
                   end
                   else begin
                     let info = Dirtree.compare_trees options tree0 tree1 in
+                    eprintf "cache path: %s\n" info.Dirtree.i_cache_path;
 
                     let nmodified = List.length info.Dirtree.i_modified in
                     if nmodified > 0 then begin
-                      printf "%d modified files:\n" nmodified;
+                      printf "[%d modified files]\n" nmodified;
                       List.iter 
-                        (fun (f1, f2) -> printf "  %s --> %s\n" f1#path f2#path) 
-                        info.Dirtree.i_modified
+                        (fun (f1, f2) ->
+                          if f1#path = f2#path then
+                            printf "* %s\n" f1#path
+                          else
+                            printf "* %s --> %s\n" f1#path f2#path;
+                          printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
+                        ) info.Dirtree.i_modified
                     end;
                     let nrenamed = List.length info.Dirtree.i_renamed in
                     if nrenamed > 0 then begin
-                      printf "%d renamed files:\n" nrenamed;
+                      printf "[%d renamed files]\n" nrenamed;
                       List.iter 
-                        (fun (f1, f2) -> printf "  %s --> %s\n" f1#path f2#path) 
-                        info.Dirtree.i_renamed
+                        (fun (f1, f2) ->
+                          printf "* %s --> %s\n" f1#path f2#path;
+                          printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
+                        ) info.Dirtree.i_renamed
                     end;
                     let nmoved = List.length info.Dirtree.i_moved in
                     if nmoved > 0 then begin
-                      printf "%d moved files:\n" nmoved;
+                      printf "[%d moved files]\n" nmoved;
                       List.iter 
-                        (fun (f1, f2) -> printf "  %s --> %s\n" f1#path f2#path) 
-                        info.Dirtree.i_moved
+                        (fun (f1, f2) ->
+                          printf "* %s --> %s\n" f1#path f2#path;
+                          printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
+                        ) info.Dirtree.i_moved
                     end;
                     let nremoved = List.length info.Dirtree.i_removed in
                     if nremoved > 0 then begin
-                      printf "%d removed files:\n" nremoved;
-                      List.iter (fun f -> printf "  %s\n" f#path) info.Dirtree.i_removed
+                      printf "[%d removed files]\n" nremoved;
+                      List.iter
+                        (fun f ->
+                          printf "* %s\n" f#path;
+                          printf "  %s\n" (Xhash.to_hex f#digest)
+                        ) info.Dirtree.i_removed
                     end;
                     let nadded = List.length info.Dirtree.i_added in
                     if nadded > 0 then begin
-                      printf "%d added files:\n" nadded;
-                      List.iter (fun f -> printf "  %s\n" f#path) info.Dirtree.i_added
+                      printf "[%d added files]\n" nadded;
+                      List.iter
+                        (fun f ->
+                          printf "* %s\n" f#path;
+                          printf "  %s\n" (Xhash.to_hex f#digest)
+                        ) info.Dirtree.i_added
                     end;
                     let ncopied = List.length info.Dirtree.i_copied in
                     if ncopied > 0 then begin
-                      printf "%d copied files:\n" ncopied;
+                      printf "[%d copied files]\n" ncopied;
                       List.iter 
                         (fun (f, fs) -> 
-                          printf "  %s --> [%s]\n" 
-                            f#path (String.concat ";" (List.map (fun f -> f#path) fs))
+                          printf "* %s --> [%s]\n" f#path (String.concat ";" (List.map (fun f -> f#path) fs));
+                          printf "  %s %s\n" (Xhash.to_hex f#digest) (Xhash.to_hex (List.hd fs)#digest)
                         ) info.Dirtree.i_copied
                     end;
                     let nglued = List.length info.Dirtree.i_glued in
                     if nglued > 0 then begin
-                      printf "%d glued files:\n" nglued;
+                      printf "[%d glued files]\n" nglued;
                       List.iter 
                         (fun (fs, f) -> 
-                          printf "  [%s] --> %s\n" 
-                            (String.concat ";" (List.map (fun f -> f#path) fs)) f#path) 
-                        info.Dirtree.i_glued
+                          printf "* [%s] --> %s\n" (String.concat ";" (List.map (fun f -> f#path) fs)) f#path;
+                          printf "  %s %s\n" (Xhash.to_hex (List.hd fs)#digest) (Xhash.to_hex f#digest)
+                        ) info.Dirtree.i_glued
                     end
                   end;
                   Lwt.return_unit
               end
               | [GS.File src0; GS.File src1] -> begin
-                  Logs.info (fun m -> m "not yet");
+                  let diffast = new Diffastcore.c options in
+                  let cache_path = diffast#get_cache_path2 src0 src1 in
+                  let stat_paths = diffast#search_cache_for_stat cache_path in
+                  let dstat =
+	            if stat_paths <> [] && (not options#clear_cache_flag) then begin
+	              diffast#verbose_msg "cache found. skipping...";
+                      Stat.File.scan_diff_stat ~max_retry_count:options#max_retry_count
+                        stat_paths
+                    end
+	            else
+                      diffast#compare_files ~cache_path src0 src1
+                  in
+                  Stat.File.dump_diff_stat_ch ~short:true dstat stdout;
                   Lwt.return_unit
               end
               | _ -> begin
@@ -507,10 +554,10 @@ let diffast = {
   in
   Term.(mk diffast $ recurse $ ignore_unmodified $
         args#external_parser $ args#disable_parser $
-        args#clearcache $ args#dump_delta $
-        args#cache_dir_base $ args#fact_proj $ args#fact_into_virtuoso $
-        args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $ 
-        args#yacfe_macros $ args#local_cache_name $ 
+        args#clearcache $ args#cache_dir_base $ args#dump_delta $
+        args#dump_fact $ args#fact_proj $ args#fact_into_virtuoso $
+        args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $
+        args#local_cache_name $
         args#repo $ sha1s)
 }
 
@@ -713,6 +760,8 @@ let commands = List.map command [
     cat_file;
     ls_remote;
     ls_tree;
+    diffast;
+    extract;
     help;
   ]
 

@@ -32,7 +32,7 @@ module F (S: Git.Store.S) = struct
   let dir_sep_pat = Str.regexp_string Filename.dir_sep
 
 
-  class entry ~dirname ~name ~is_dir ~digest es : Storage.entry_t = object
+  class entry ~dirname ~name ~is_dir ~digest ?(blob_opt=None) es : Storage.entry_t = object
 
     method path = Filename.concat dirname name
     method dirname = dirname
@@ -40,6 +40,11 @@ module F (S: Git.Store.S) = struct
     method is_dir = is_dir
     method size = 0
     method file_digest = digest
+
+    method get_content() =
+      match blob_opt with
+      | Some blob -> Blob.to_string blob
+      | _ -> raise Not_found
 
     method dir_digest =
       if is_dir then
@@ -144,14 +149,14 @@ module F (S: Git.Store.S) = struct
       false
 
 
-  class tree options ?(cache=new path_entry_cache) t id root = object (self)
+  class tree options ?(cache=new path_entry_cache) kind t id root = object (self)
     inherit Storage.tree
 
     val local_path_tbl = Hashtbl.create 0 (* path -> local path *)
 
     method hash_algo = options#hash_algo
 
-    method kind = Storage.K_GIT
+    method kind = kind
 
     method id = id
 
@@ -217,27 +222,16 @@ module F (S: Git.Store.S) = struct
           end
       end
 
-    method private get_value ?(ignore_case=false) rpath =
+    method private get_content ?(ignore_case=false) rpath =
       let e = self#get_entry ~ignore_case rpath in
-      let h = Xhash.to_hex e#file_digest in
-      DEBUG_MSG "reading %s..." h;
-      let sha1 = Hash.of_hex h in
-      Lwt_main.run (S.read_exn t sha1)
+      e#get_content()
 
     method get_channel ?(ignore_case=false) rpath =
-      match self#get_value ~ignore_case rpath with
-        | Value.Blob blob -> begin
-            let str = Blob.to_string blob in
-            (* DEBUG_MSG "got file content:\n%s\n----------------" str; *)
-            let len = String.length str in
-            let ch = new Netchannels.input_string ~pos:0 ~len str in
-            ch
-        end
-        | _ -> 
-            failwith 
-              (Printf.sprintf
-                 "Git_storage.F.tree#get_channel: not a file: \"%s\"" rpath)
-
+      let str = self#get_content ~ignore_case rpath in
+      (* DEBUG_MSG "got file content:\n%s\n----------------" str; *)
+      let len = String.length str in
+      let ch = new Netchannels.input_string ~pos:0 ~len str in
+      ch
 
     method private _get_local_file path =
       try
@@ -257,40 +251,33 @@ module F (S: Git.Store.S) = struct
         self#keep_local_path path
 
     method get_local_file ?(ignore_case=false) path =
-      match self#get_value ~ignore_case path with
-      | Value.Blob blob -> begin
-          match self#_get_local_file path with
-          | Some local_path -> local_path
-          | None ->
-              let _str = Blob.to_string blob in
-              let ext = Xfile.get_extension path in
+      match self#_get_local_file path with
+      | Some local_path -> local_path
+      | None ->
+          let _str = self#get_content ~ignore_case path in
+          let ext = Xfile.get_extension path in
 
-              let str, filtered =
-                try
-                  let filt = self#get_filter_by_ext ext in
-                  let buf = Buffer.create 128 in
-                  List.iter
-                    (fun line ->
-                      Buffer.add_string buf (filt line);
-                      Buffer.add_string buf "\n"
-                    ) (Str.split (Str.regexp_string "\n") _str);
-                  Buffer.contents buf, true
-                with
-                  _ -> _str, false
-              in
+          let str, filtered =
+            try
+              let filt = self#get_filter_by_ext ext in
+              let buf = Buffer.create 128 in
+              List.iter
+                (fun line ->
+                  Buffer.add_string buf (filt line);
+                  Buffer.add_string buf "\n"
+                ) (Str.split (Str.regexp_string "\n") _str);
+              Buffer.contents buf, true
+            with
+              _ -> _str, false
+          in
 
-              let local_path, ch = Storage.open_temp_file path in
-              Xprint.verbose options#verbose_flag "writing to \"%s\"..." local_path;
-              output_string ch str;
-              close_out ch;
-              self#reg_local_file
-                ~keep:(options#keep_filtered_temp_file_flag && filtered) path local_path;
-              local_path
-      end
-      | _ -> 
-          failwith 
-            (Printf.sprintf
-               "Git_storage.F.tree#get_local_file: not a file: \"%s\"" path)
+          let local_path, ch = Storage.open_temp_file path in
+          Xprint.verbose options#verbose_flag "writing to \"%s\"..." local_path;
+          output_string ch str;
+          close_out ch;
+          self#reg_local_file
+            ~keep:(options#keep_filtered_temp_file_flag && filtered) path local_path;
+          local_path
 
     method free_local_file path =
       if self#is_kept_local_path path then
@@ -347,10 +334,16 @@ module F (S: Git.Store.S) = struct
     | `Dir -> true
     | _ -> false
 
-  type obj = Tree of tree | File of Blob.t
+  let is_dir_or_file e =
+    match e.Tree.perm with
+    | `Dir
+    | `Normal -> true
+    | _ -> false
+
+  type obj = Tree of tree | File of Storage.file
 
 
-  let make_obj options t sha1_list =
+  let make_obj options repo_name t sha1_list =
 
     let cache = new entry_cache in
 
@@ -377,7 +370,7 @@ module F (S: Git.Store.S) = struct
                   let path = Filename.concat dirname name in
 	          Lwt_list.map_s
 		    (fun e -> 
-		      let read = is_dir e in
+		      let read = is_dir_or_file e in
 
                       if read then
                         DEBUG_MSG "TO BE READ: \"%s\" %s" e.Tree.name (Hash.to_hex e.Tree.node);
@@ -393,7 +386,7 @@ module F (S: Git.Store.S) = struct
 		      return ent
 	      end
               | Value.Blob blob -> begin
-                  let ent = new entry ~dirname ~name ~is_dir:false ~digest [] in
+                  let ent = new entry ~dirname ~name ~is_dir:false ~digest ~blob_opt:(Some blob) [] in
                   (*cache#add sha1 dirname name ent;*)
 	          return ent
 	      end
@@ -417,7 +410,8 @@ module F (S: Git.Store.S) = struct
             let tree_sha1 = Commit.tree commit in
             make_entry _cache "" "" tree_sha1 >>= fun root ->
               let tree =
-                new tree options ~cache:_cache t (Hash.to_hex tree_sha1) root
+                let kind = Storage.kind_git repo_name in
+                new tree options ~cache:_cache kind t (Hash.to_hex tree_sha1) root
               in
               DEBUG_MSG "got tree for %s" (Hash.to_hex tree_sha1);
               return (Tree tree)
@@ -425,7 +419,8 @@ module F (S: Git.Store.S) = struct
         | Value.Tree _ -> begin
             make_entry _cache "" "" sha1 >>= fun root ->
               let tree =
-                new tree options ~cache:_cache t (Hash.to_hex sha1) root
+                let kind = Storage.kind_git repo_name in
+                new tree options ~cache:_cache kind t (Hash.to_hex sha1) root
               in
               DEBUG_MSG "got tree for %s" (Hash.to_hex sha1);
               return (Tree tree)
@@ -434,8 +429,12 @@ module F (S: Git.Store.S) = struct
             obj_of_sha1 (Tag.obj tag)
         end
         | Value.Blob blob -> begin
-            DEBUG_MSG "got blob for %s" (Hash.to_hex sha1);
-            return (File blob)
+            let h = Hash.to_hex sha1 in
+            let digest = Xhash.of_hex h in
+            DEBUG_MSG "got blob for %s" h;
+            let ent = new entry ~dirname:"" ~name:h ~is_dir:false ~digest ~blob_opt:(Some blob) [] in
+            let f = new Storage.file (Storage.Entry ent) h in
+            return (File f)
         end
     in
 

@@ -85,6 +85,8 @@ class entry options _root_path _path : Storage.entry_t =
         Xhash.digest_of_file options#hash_algo self#abspath
 
     method dir_digest = None
+
+    method get_content () = ""
         
 end (* of class Fs.entry *)
 
@@ -298,18 +300,18 @@ let file_of_path options path =
       Sys_error _ -> false
   in
   if is_dir then begin
-    new Storage.file (make options ~path ()) ""
+    new Storage.file (Storage.Tree (make options ~path ())) ""
   end
   else begin
     if options#root_path <> "" then begin
       DEBUG_MSG "root path=\"%s\"" options#root_path;
       let relpath = Xfile.relpath options#root_path path in
       if relpath <> path then
-        new Storage.file (make options ~path:options#root_path ()) relpath
+        new Storage.file (Storage.Tree (make options ~path:options#root_path ())) relpath
       else
-        new Storage.file (make options ()) apath
+        new Storage.file (Storage.Tree (make options ())) apath
     end
     else begin
-      new Storage.file (make options ()) apath
+      new Storage.file (Storage.Tree (make options ())) apath
     end
   end

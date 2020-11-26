@@ -1056,7 +1056,7 @@ module F (Label : Spec.LABEL_T) = struct
       DEBUG_MSG "\nEdits:\n%s\n" (edits#to_string);
 
       if options#verbose_flag then
-	edits#show_diff_stat tree1 tree2 uidmapping;
+	edits#show_diff_stat ~short:true tree1 tree2 uidmapping;
 
       let edits_copy = edits#copy in
       edits_copy#ungroup tree1 tree2;

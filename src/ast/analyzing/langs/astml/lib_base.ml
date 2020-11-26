@@ -55,7 +55,7 @@ let xexists file =
   let tree = file#tree in
   List.exists
     (fun ext ->
-      let f = new Storage.file tree (file#path^ext) in
+      let f = new Storage.file (Storage.Tree tree) (file#path^ext) in
       f#exists
     ) comp_ext_list
 
@@ -67,7 +67,7 @@ let check_comp file = (* AST -> (AST[.COMPRESSION] * IS_COMPRESSED * COMP_EXT) *
              file#path (Xlist.to_string (fun x -> x) "," comp_ext_list))
 
     | ext::rest ->
-	let f = new Storage.file file#tree (file#path^ext) in
+	let f = new Storage.file (Storage.Tree file#tree) (file#path^ext) in
 	if f#exists then 
 	  (f, ext <> "", ext) 
 	else 
@@ -300,7 +300,7 @@ class ext_tree_builder xpname options = object (self)
   method from_xnode = T.of_xnode options
 
   method private get_astml_file src = 
-    let astml_file = new Storage.file src#tree (src#path^Astml.extension) in
+    let astml_file = new Storage.file (Storage.Tree src#tree) (src#path^Astml.extension) in
     if xexists astml_file then
       astml_file
     else begin
