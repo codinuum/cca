@@ -66,6 +66,22 @@ The following create `ast/analyzing/bin/{parsesrc.opt,diffast.opt}`.
 
 They should be used via shell scripts `ast/analyzing/bin/{parsesrc,diffast}` to set some environment variables.
 
+## Using with Git
+
+If you have built DiffViewer, you can use it with Git. Add the following lines to your `.gitconfig`. Note that `PATH_TO_THIS_REPO` should be replaced by you r local path to this repository.
+
+    [diff]
+        tool = diffast
+    [difftool]
+        prompt = false
+    [difftool "diffast"]
+        cmd = PATH_TO_THIS_REPO/git_ext_diff "$LOCAL" "$REMOTE"
+    [alias]
+        diffast = difftool
+
+Then you should be able to use `git diffast` like `git diff`. You will be prompted to launch diffast for each source file comparison. Other file comparisons will be ignored.
+
+
 ## Building docker image
 
 The following command line creates a docker image named `cca`.  In the image, the framework is installed at `/opt/cca`.
