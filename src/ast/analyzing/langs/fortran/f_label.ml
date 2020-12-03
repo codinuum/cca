@@ -2157,6 +2157,7 @@ let relabel_allowed = function
   | DoConstruct _, ForallConstruct | ForallConstruct, DoConstruct _
   | LoopControl _, LoopControlWhile | LoopControlWhile, LoopControl _
   | LoopControl _, LoopControlConcurrent | LoopControlConcurrent, LoopControl _
+  | ExecutionPart, Block | Block, ExecutionPart (* only for mapping children *)
     -> true
   | l1, l2 -> 
       (is_expr l1 && is_expr l2) ||
