@@ -1318,14 +1318,14 @@ parameter_port_declaration_head:
 net_declaration:
    | h=net_declaration_head n=net_decl_assignments SEMICOLON 
        { 
-	 let nt, ss, ns, ndt = h in
+	 let stp, nt, ss, ns, ndt = h in
 	 let ids = n#get_identifiers in
-	 mknode $startpos $endpos (L.NetDeclaration ids) ([nt] @ ss @ ns @ ndt @ [n])
+	 mknode stp $endpos (L.NetDeclaration ids) ([nt] @ ss @ ns @ ndt @ [n])
        }
 ;
 
 net_declaration_head:
-   | net_decl_reset net_type strength_spec_opt net_scalared_opt net_data_type { $2, $3, $4, $5 }
+   | net_decl_reset net_type strength_spec_opt net_scalared_opt net_data_type { $symbolstartpos, $2, $3, $4, $5 }
 ;
 
 net_decl_reset:
@@ -1682,7 +1682,7 @@ data_declaration_var:
    | h=data_declaration_var_head l=variable_decl_assignment_list SEMICOLON
        { 
          let v = mknode $startpos(l) $endpos(l) L.VarDeclAssignments l in
-         mknode $startpos $endpos L.DataDeclarationVar (h @ [v])
+         mknode $symbolstartpos $endpos L.DataDeclarationVar (h @ [v])
        }
 ;
 
@@ -1690,7 +1690,7 @@ data_declaration_var_class:
    | h=data_declaration_var_head_class l=variable_decl_assignment_list SEMICOLON
        { 
          let v = mknode $startpos(l) $endpos(l) L.VarDeclAssignments l in
-         mknode $startpos $endpos L.DataDeclarationVarClass (h @ [v])
+         mknode $symbolstartpos $endpos L.DataDeclarationVarClass (h @ [v])
        }
 ;
 
@@ -2278,7 +2278,7 @@ instname_list:
 ;
 
 instname_paren:
-   | i=instname c=cellpin_list RPAREN { context_stack#pop; let l, ir = i in mknode $startpos $endpos l (ir @ c) }
+   | i=instname c=cellpin_list RPAREN { context_stack#pop; let l, ir = i in mknode $symbolstartpos $endpos l (ir @ c) }
 ;
 
 instname:
@@ -2986,7 +2986,7 @@ func_ref:
        }
    | class_scope_id_follows   id LPAREN pev_argument_list_opt RPAREN 
        { 
-	 mknode $startpos $endpos (L.expr (LE.TfCall $2)) ($1 @ [mknode $startpos($3) $endpos($5) L.Args $4]) 
+	 mknode $symbolstartpos $endpos (L.expr (LE.TfCall $2)) ($1 @ [mknode $startpos($3) $endpos($5) L.Args $4]) 
        }
 ;
 
@@ -4784,7 +4784,7 @@ property_port_list:
 ;
 
 property_port_item:
-   | h=property_port_item_head p=property_port_item_assignment { mknode $startpos $endpos L.PropertyPortItem (h @ [p]) }
+   | h=property_port_item_head p=property_port_item_assignment { mknode $symbolstartpos $endpos L.PropertyPortItem (h @ [p]) }
 ;
 
 property_port_item_head:
@@ -5331,8 +5331,8 @@ default_sequence:
 
 bins_or_options:
    | coverage_option { $1 }
-   | w=wildcard_opt b=bins_keyword id=id n=nbins_opt     EQ o=brace_open_range_list i=iff_opt { mknode $startpos $endpos (L.Bins(b, id)) (w @ n @ [o] @ i) }
-   | w=wildcard_opt b=bins_keyword id=id br=brackets_opt EQ t=trans_list            i=iff_opt { mknode $startpos $endpos (L.Bins(b, id)) (w @ br @ t @ i) }
+   | w=wildcard_opt b=bins_keyword id=id n=nbins_opt     EQ o=brace_open_range_list i=iff_opt { mknode $symbolstartpos $endpos (L.Bins(b, id)) (w @ n @ [o] @ i) }
+   | w=wildcard_opt b=bins_keyword id=id br=brackets_opt EQ t=trans_list            i=iff_opt { mknode $symbolstartpos $endpos (L.Bins(b, id)) (w @ br @ t @ i) }
    |                b=bins_keyword id=id n=nbins_opt     EQ d=default               i=iff_opt { mknode $startpos $endpos (L.Bins(b, id)) (n @ [d] @ i) }
    |                b=bins_keyword id=id                 EQ d=default_sequence      i=iff_opt { mknode $startpos $endpos (L.Bins(b, id)) (d::i) }
 ;
@@ -5643,7 +5643,7 @@ class_declaration:
        { 
 	 end_scope();
 	 let v, l, id = c in
-	 mknode $startpos $endpos (L.ClassDeclaration id) (v @ l @ p @ ce @ [mknode $startpos(ci) $endpos(ci) L.ClassBody ci] @ e)
+	 mknode $symbolstartpos $endpos (L.ClassDeclaration id) (v @ l @ p @ ce @ [mknode $startpos(ci) $endpos(ci) L.ClassBody ci] @ e)
        }
 ;
 
