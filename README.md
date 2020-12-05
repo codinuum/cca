@@ -30,6 +30,10 @@ Unfortunately, applying TED algorithms directly to wild ASTs is not feasible in 
 Therefore Diff/TS makes moderate use of a TED algorithm in a divide-and-conquer manner backed by elaborated heuristics to approximate tree edit distances.
 Nevertheless, Diff/AST still requires much time for non-trivial huge inputs. So it always caches the results.
 
+## Screenshots
+
+You can see the results of comparing some pairs of source files taken from [samples](samples) [here](https://codinuum.github.io/gallery-cca).
+
 ## Quick start
 
 You can instantly try Diff/AST by means of [Docker](https://www.docker.com/) and [a ready-made container image](https://hub.docker.com/r/codinuum/cca).
@@ -40,7 +44,7 @@ The following command line executes Diff/AST within a container to compare sampl
 
     $ ./cca.py diffast -c results samples/java/0/Test.java samples/java/1/Test.java
 
-Once you have built *DiffViewer*, you can inspect the AST differences in a viewer window. See `diffviewer/README.md` for details.
+Once you have built [DiffViewer](diffviewer), you can inspect the AST differences in a viewer window. See [`diffviewer/README.md`](diffviewer/README.md) for details.
 
     $ diffviewer/run.py -c results samples/java/0/Test.java samples/java/1/Test.java
 

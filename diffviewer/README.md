@@ -9,7 +9,7 @@
     $ npm install
     $ ./mkpkg.sh
 
-## Usage
+## Usage (macOS)
 
     $ ../src/ast/analyzing/bin/diffast [--cache PATH] PATH0 PATH1
     $ ./run.py [--cache PATH] PATH0 PATH1
