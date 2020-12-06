@@ -52,6 +52,7 @@ class type node_data_t = object ('self)
   method is_special      : bool
 
   method anonymized_label  : string
+  method more_anonymized_label : string
   method anonymized2_label : string
   method anonymized3_label : string
 
@@ -179,6 +180,7 @@ class type tree_t = object ('self)
 
   method make_anonymized_subtree_copy     : ?uids_left_named:(UID.t list) -> node_t -> 'self
   method make_anonymized2_subtree_copy    : ?uids_left_named:(UID.t list) -> node_t -> 'self
+  method make_anonymized3_subtree_copy    : ?uids_left_named:(UID.t list) -> node_t -> 'self
 
   method find_label                       : node_t -> node_t -> node_t list
 
@@ -353,6 +355,7 @@ module type LABEL_T = sig
   val of_elem_data     : string -> (string * string) list -> string -> t
 
   val relabel_allowed          : t * t -> bool
+  val quasi_eq                 : t -> t -> bool
   val is_compatible            : t -> t -> bool
   val is_order_insensitive     : t -> bool
   val move_disallowed          : t -> bool

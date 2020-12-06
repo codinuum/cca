@@ -20,8 +20,9 @@ open Printf
 let cost tree1 tree2 i j =
   let nd1 = tree1#get i in
   let nd2 = tree2#get j in
-
-  if i = 0 then (* insert *)
+  if i = 0 && j = 0 then
+    Stdlib.max_int
+  else if i = 0 then (* insert *)
     let f =
       if nd2#is_collapsed then
         nd2#data#weight
@@ -58,8 +59,9 @@ let cost tree1 tree2 i j =
 let semantic_cost tree1 tree2 i j =
   let nd1 = tree1#get i in
   let nd2 = tree2#get j in
-
-  if i = 0 then (* insert *)
+  if i = 0 && j = 0 then
+    Stdlib.max_int
+  else if i = 0 then (* insert *)
     let f =
       if nd2#is_collapsed then
         nd2#data#weight
@@ -92,15 +94,16 @@ let semantic_cost tree1 tree2 i j =
     end
     else (* relabel *)
       if nd1#data#relabel_allowed nd2#data then
-        if nd1#data#anonymized_label = nd2#data#anonymized_label then
+        if nd1#data#quasi_eq nd2#data then
+          4
+        else if nd1#data#anonymized_label = nd2#data#anonymized_label then
           5
         else if nd1#data#anonymized2_label = nd2#data#anonymized2_label then
           6
         else
           7
       else
-        Stdlib.max_int
-
+          100(*Stdlib.max_int*)
 
 let _find cost tree1 tree2 = Otreediff.ZS.Int.find cost tree1 tree2
 let find tree1 tree2 = _find cost tree1 tree2
@@ -398,28 +401,28 @@ let match_trees
     cenv
     tree1
     tree2
-    ?(root_check=true) 
-    uidmapping 
-    ref_uidmapping 
+    ?(root_check=true)
+    ?(semantic=false)
+    uidmapping
+    ref_uidmapping
     =
 
   BEGIN_DEBUG
-    DEBUG_MSG "|T1(root:%a)|=%d |T2(root:%a)|=%d" 
+    DEBUG_MSG "|T1(root:%a)|=%d |T2(root:%a)|=%d"
       UID.ps tree1#root#uid tree1#size UID.ps tree2#root#uid tree2#size;
     DEBUG_MSG "T1:\n%s\n" tree1#to_string;
     DEBUG_MSG "T2:\n%s\n" tree2#to_string
   END_DEBUG;
 
-  let eds, mapping, _ = find tree1 tree2 in
+  let eds, mapping, _ = (if semantic then sfind else find) tree1 tree2 in
   let deletes, inserts, relabels = Otreediff.Edit.seq_split eds in
 
   BEGIN_DEBUG
+    (*DEBUG_MSG "eds (raw):\n%s" (Otreediff.Edit.seq_to_string eds);*)
     let to_s1 i = UID.to_string (tree1#get i)#uid in
     let to_s2 j = UID.to_string (tree2#get j)#uid in
-    DEBUG_MSG "eds:\n%s" 
-      (Otreediff.Edit._seq_to_string to_s1 to_s2 eds);
-    DEBUG_MSG "mapping:\n%s" 
-      (Otreediff.Mapping._to_string to_s1 to_s2 mapping)
+    DEBUG_MSG "eds:\n%s" (Otreediff.Edit._seq_to_string to_s1 to_s2 eds);
+    DEBUG_MSG "mapping:\n%s" (Otreediff.Mapping._to_string to_s1 to_s2 mapping)
   END_DEBUG;
 
     let contain_root = 

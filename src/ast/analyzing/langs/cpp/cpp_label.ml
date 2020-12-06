@@ -1656,6 +1656,8 @@ let is_compatible _ _ = false
 let is_order_insensitive = function
   | _ -> false
 
+let quasi_eq _ _ = false
+
 let relabel_allowed = function
   | Identifier _, Identifier _ -> true
   | Identifier _, l | l, Identifier _ -> is_literal l

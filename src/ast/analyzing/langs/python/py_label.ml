@@ -1274,6 +1274,8 @@ let is_compatible _ _ = false
 let is_order_insensitive = function
   | _ -> false
 
+let quasi_eq _ _ = false
+
 let relabel_allowed = function (* FIXME: should be tuned! *)
   | Primary _, SimpleStatement _ | SimpleStatement _, Primary _
   | UnaryOperator _, Primary _ | Primary _, UnaryOperator _

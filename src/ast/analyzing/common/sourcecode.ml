@@ -320,7 +320,10 @@ module Tree (L : Spec.LABEL_T) = struct
       val _annotation = Obj.repr annot
       method _annotation = _annotation
 
-      method relabel_allowed (ndat : 'self) = 
+      method quasi_eq (ndat : 'self) =
+	L.quasi_eq lab (Obj.obj ndat#_label : L.t)
+
+      method relabel_allowed (ndat : 'self) =
 	L.relabel_allowed (lab, (Obj.obj ndat#_label : L.t))
 
       method is_compatible_with (ndat : 'self) =
@@ -337,8 +340,10 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method _anonymized_label = Obj.repr (L.anonymize lab)
 
+      (*method _more_anonymized_label = Obj.repr (L.anonymize ~more:true lab)*)
+
       val mutable anonymized_label = None
-      method anonymized_label = 
+      method anonymized_label =
 	match anonymized_label with
 	| None ->
 	    let alab = L.to_string (L.anonymize lab) in
@@ -346,9 +351,18 @@ module Tree (L : Spec.LABEL_T) = struct
 	    alab
 	| Some alab -> alab
 
+      val mutable more_anonymized_label = None
+      method more_anonymized_label =
+	match more_anonymized_label with
+	| None ->
+	    let alab = L.to_string (L.anonymize ~more:true lab) in
+	    more_anonymized_label <- Some alab;
+	    alab
+	| Some alab -> alab
+
       val mutable anonymized2_label = None
       method _anonymized2_label = Obj.repr (L.anonymize2 lab)
-      method anonymized2_label = 
+      method anonymized2_label =
 	match anonymized2_label with
 	| None ->
 	    let alab = L.to_string (L.anonymize2 lab) in
@@ -358,7 +372,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       val mutable anonymized3_label = None
       method _anonymized3_label = Obj.repr (L.anonymize3 lab)
-      method anonymized3_label = 
+      method anonymized3_label =
 	match anonymized3_label with
 	| None ->
 	    let alab = L.to_string (L.anonymize3 lab) in
@@ -790,6 +804,10 @@ module Tree (L : Spec.LABEL_T) = struct
 
     method make_anonymized2_subtree_copy ?(uids_left_named=[]) (nd : node_t) =
       let anonymize n = (Obj.obj n#data#_anonymized2_label : L.t) in
+      self#make_anonymizedx_subtree_copy anonymize ~uids_left_named nd
+
+    method make_anonymized3_subtree_copy ?(uids_left_named=[]) (nd : node_t) =
+      let anonymize n = (Obj.obj n#data#_anonymized3_label : L.t) in
       self#make_anonymizedx_subtree_copy anonymize ~uids_left_named nd
 
 

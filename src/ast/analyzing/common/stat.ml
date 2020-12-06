@@ -119,8 +119,8 @@ module File = struct
                      s_nnodes2          : int;
                      s_deletes          : int; s_deletes_gr  : int;
 	             s_inserts          : int; s_inserts_gr  : int;
-	             s_relabels         : int; s_relabels_gr : int;
-	             s_movrels          : int;
+	             s_relabels         : int; s_relabels_orig : int; s_relabels_gr : int;
+	             s_movrels          : int; s_movrels_orig : int;
 	             s_moves            : int; s_moves_gr    : int;
 	             s_mapping          : int;
 	             s_units            : int;
@@ -140,8 +140,8 @@ module File = struct
                                  s_nnodes2  = 0;
                                  s_deletes  = 0; s_deletes_gr  = 0;
 		                 s_inserts  = 0; s_inserts_gr  = 0;
-		                 s_relabels = 0; s_relabels_gr = 0;
-		                 s_movrels  = 0;
+		                 s_relabels = 0; s_relabels_orig = 0; s_relabels_gr = 0;
+		                 s_movrels  = 0; s_movrels_orig = 0;
 		                 s_moves    = 0; s_moves_gr    = 0;
 		                 s_mapping  = 0;
 		                 s_units    = 0;
@@ -167,8 +167,8 @@ module File = struct
           s_nnodes2  = 0;
           s_deletes  = 0; s_deletes_gr  = 0;
 	  s_inserts  = 0; s_inserts_gr  = 0;
-	  s_relabels = 0; s_relabels_gr = 0;
-	  s_movrels  = 0;
+	  s_relabels = 0; s_relabels_orig = 0; s_relabels_gr = 0;
+	  s_movrels  = 0; s_movrels_orig = 0;
 	  s_moves    = 0; s_moves_gr    = 0;
 	  s_mapping  = mapping;
 	  s_units    = units;
@@ -190,8 +190,8 @@ module File = struct
     "nnodes2 : %d\n\n" ^^
     "deletes(hunks) : %d(%d)\n" ^^
     "inserts(hunks) : %d(%d)\n" ^^
-    "relabels : %d(%d)\n" ^^
-    "mov+rels : %d\n" ^^
+    "relabels : %d(orig:%d)(%d)\n" ^^
+    "mov+rels : %d(orig:%d)\n" ^^
     "moves(hunks) : %d(%d)\n\n" ^^
     "total changes : %d\n" ^^
     "mapping size  : %d\n" ^^
@@ -210,8 +210,8 @@ module File = struct
     "nodes : %d -> %d\n" ^^
     "deletes(hunks) : %d(%d)\n" ^^
     "inserts(hunks) : %d(%d)\n" ^^
-    "relabels : %d\n" ^^
-    "mov+rels : %d\n" ^^
+    "relabels : %d (orig:%d)\n" ^^
+    "mov+rels : %d (orig:%d)\n" ^^
     "moves(hunks) : %d(%d)\n" ^^
     "total changes : %d\n" ^^
     "mapping size  : %d\n" ^^
@@ -223,8 +223,8 @@ module File = struct
         s.s_nnodes1 s.s_nnodes2
         s.s_deletes s.s_deletes_gr
         s.s_inserts s.s_inserts_gr
-        s.s_relabels (*s.s_relabels_gr*)
-        s.s_movrels
+        s.s_relabels s.s_relabels_orig(*s.s_relabels_gr*)
+        s.s_movrels s.s_movrels_orig
         s.s_moves s.s_moves_gr
         s.s_total_changes
         s.s_mapping
@@ -234,8 +234,8 @@ module File = struct
         s.s_nnodes1 s.s_nnodes2
         s.s_deletes s.s_deletes_gr
         s.s_inserts s.s_inserts_gr
-        s.s_relabels s.s_relabels_gr
-        s.s_movrels
+        s.s_relabels s.s_relabels_orig s.s_relabels_gr
+        s.s_movrels s.s_movrels_orig
         s.s_moves s.s_moves_gr
         s.s_total_changes
         s.s_mapping
@@ -253,15 +253,7 @@ module File = struct
   let dump_diff_stat fname s =
     Xfile.dump fname (dump_diff_stat_ch s)
 
-  let dump_sim_ch s ch =
-    (*let cost = s.s_total_changes in
-    if cost = 0 then
-      fprintf ch "%f\n" 1.0
-    else
-      let spm = s.s_mapping - s.s_moves - s.s_relabels + s.s_movrels in
-      let sim = float (spm * 2) /. float (s.s_nnodes1 + s.s_nnodes2) in
-      fprintf ch "%f\n" sim*)
-    fprintf ch "%s\n" s.s_similarity
+  let dump_sim_ch s ch = fprintf ch "%s\n" s.s_similarity
 
   type info = { 
       i_nodes      : int; 
@@ -311,12 +303,12 @@ module File = struct
     scan_paths ~max_retry_count
       (fun ch ->
         fscanf ch (diff_stat_fmt())
-	  (fun n1 n2 d dg i ig r rg rm m mg tc map sim cr u uu ur spsm mgsm spm mgm ahs ->
+	  (fun n1 n2 d dg i ig r ro rg rm rmo m mg tc map sim cr u uu ur spsm mgsm spm mgm ahs ->
 	    { s_nnodes1  = n1; s_nnodes2     = n2;
               s_deletes  = d;  s_deletes_gr  = dg;
 	      s_inserts  = i;  s_inserts_gr  = ig;
-	      s_relabels = r;  s_relabels_gr = rg;
-	      s_movrels  = rm;
+	      s_relabels = r;  s_relabels_orig = ro; s_relabels_gr = rg;
+	      s_movrels  = rm; s_movrels_orig = rmo;
 	      s_moves    = m;  s_moves_gr    = mg;
 	      s_mapping          = map;
 	      s_units            = u;

@@ -1048,6 +1048,7 @@ module Primary = struct
     | SimpleMethodInvocation name            -> SimpleMethodInvocation ""
     | SuperMethodInvocation name             -> SuperMethodInvocation ""
     | ClassSuperMethodInvocation name        -> ClassSuperMethodInvocation ""
+    | AmbiguousMethodInvocation name         -> AmbiguousMethodInvocation ""
     | TypeMethodInvocation(name, ident)      -> TypeMethodInvocation("", "")
     | ArrayCreationDims dims                 -> ArrayCreationDims 0
     | Paren tid                              -> Paren (anonymize_tid ~more tid)
@@ -1057,7 +1058,6 @@ module Primary = struct
     | TypeSuperMethodReference(name, ident)  -> TypeSuperMethodReference("", "")
     | TypeNewMethodReference name            -> TypeNewMethodReference ""
     | AmbiguousName name                     -> AmbiguousName ""
-    | AmbiguousMethodInvocation name         -> AmbiguousMethodInvocation ""
     | pri                                    -> pri
 
   let anonymize2 = function
@@ -1241,9 +1241,10 @@ module Expression = struct
     "Expression." ^ str
 
   let anonymize ?(more=false) = function
-    | Primary p             -> Primary (Primary.anonymize ~more p)
+    | Primary p                   -> Primary (Primary.anonymize ~more p)
+    (*| AssignmentOperator(ao, tid) when more -> AssignmentOperator(AssignmentOperator.Eq, anonymize_tid ~more tid)*)
     | AssignmentOperator(ao, tid) -> AssignmentOperator(ao, anonymize_tid ~more tid)
-    | expr                  -> expr
+    | expr                        -> expr
 
 
 
@@ -1876,9 +1877,9 @@ let anonymize ?(more=false) = function
   | IDstaticOnDemand name          -> IDstaticOnDemand ""
   | ElementDeclaration name        -> ElementDeclaration ""
   | FieldDeclarations name         -> FieldDeclarations ""
-  | ForInit tid                    -> ForInit (anonymize_tid tid)
-  | ForCond tid                    -> ForCond (anonymize_tid tid)
-  | ForUpdate tid                  -> ForUpdate (anonymize_tid tid)
+  | ForInit tid                    -> ForInit (anonymize_tid ~more tid)
+  | ForCond tid                    -> ForCond (anonymize_tid ~more tid)
+  | ForUpdate tid                  -> ForUpdate (anonymize_tid ~more tid)
   | InferredFormalParameter name   -> InferredFormalParameter ""
   | Resource(name, dims)           -> Resource("", 0)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
@@ -1887,7 +1888,7 @@ let anonymize ?(more=false) = function
 
   | WildcardBoundsExtends when more -> Wildcard
   | WildcardBoundsSuper when more   -> Wildcard
-  | CatchClause tid                 -> CatchClause (anonymize_tid tid)
+  | CatchClause tid                 -> CatchClause (anonymize_tid ~more tid)
 
   | lab                            -> lab
 
@@ -2449,6 +2450,24 @@ let is_compatible lab1 lab2 =
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
+  | _ -> false
+
+let quasi_eq lab1 lab2 =
+  match lab1, lab2 with
+  | Primary prim1, Primary prim2 -> begin
+      match prim1, prim2 with
+      | Primary.SimpleMethodInvocation n1, Primary.FieldAccess n2 -> begin
+          let n1_ = String.lowercase_ascii n1 in
+          let n2_ = String.lowercase_ascii n2 in
+          n1_ = "get"^n2_^"#0"
+      end
+      | Primary.FieldAccess n1, Primary.SimpleMethodInvocation n2 -> begin
+          let n1_ = String.lowercase_ascii n1 in
+          let n2_ = String.lowercase_ascii n2 in
+          n2_ = "get"^n1_^"#0"
+      end
+      | _ -> false
+  end
   | _ -> false
 
 let relabel_allowed (lab1, lab2) = 

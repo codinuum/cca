@@ -1460,19 +1460,20 @@ module F (Label : Spec.LABEL_T) = struct
               in (* cond0 *)
               DEBUG_MSG "cond0=%B" cond0;
 
-	      cond0 &&
-		try
-		  let pnd1 = nd1#initial_parent in
-		  let pnd2 = nd2#initial_parent in
-		  try
-		    let puid1' = uidmapping#find pnd1#uid in
+              cond0 &&
+              try
+                let pnd1 = nd1#initial_parent in
+                let pnd2 = nd2#initial_parent in
+                try
+                  let puid1' = uidmapping#find pnd1#uid in
 
-		    DEBUG_MSG "parent uidmapping: %a -> %a" UID.ps pnd1#uid UID.ps puid1';
+                  DEBUG_MSG "parent uidmapping: %a -> %a" UID.ps pnd1#uid UID.ps puid1';
 
-		    puid1' = pnd2#uid
+                  puid1' = pnd2#uid
 
-		  with Not_found ->
-		    let parent_cond = (List.assq pnd1 (relabels_checked @ matches_and_extra_matches_)) == pnd2 in
+                with Not_found ->
+                  let parent_cond = (List.assq pnd1 (relabels_checked @ matches_and_extra_matches_)) == pnd2 in
+                  DEBUG_MSG "parent_cond=%B" parent_cond;
 
 (*
 		    let n_nodes_of_same_cat nodes nd =
@@ -1504,35 +1505,35 @@ module F (Label : Spec.LABEL_T) = struct
 		    END_DEBUG;
 
 *)
+                    let n_nodes_of_same_cat_not_matched =
+                      let cs1 = Array.to_list pnd1#initial_children in
+                      let cs2 = Array.to_list pnd2#initial_children in
+                      let alab1 = nd1#data#_anonymized_label in
+                      let alab2 = nd2#data#_anonymized_label in
+                      let filt alab n = n#data#_anonymized_label = alab in
+                      let a1 = Array.of_list (List.map (fun n -> n#data#_label) (List.filter (filt alab1) cs1)) in
+                      let a2 = Array.of_list (List.map (fun n -> n#data#_label) (List.filter (filt alab2) cs2)) in
+                      let mat, _, _, _ = Adiff.adiff a1 a2 in
+                      (Array.length a1) + (Array.length a2) - ((List.length mat) * 2)
+                    in
+                    DEBUG_MSG "n_nodes_of_same_cat_not_matched=%d" n_nodes_of_same_cat_not_matched;
 
-		    let n_nodes_of_same_cat_not_matched =
-		      let cs1 = Array.to_list pnd1#initial_children in
-		      let cs2 = Array.to_list pnd2#initial_children in
-		      let alab1 = nd1#data#_anonymized_label in
-		      let alab2 = nd2#data#_anonymized_label in
-		      let filt alab n = n#data#_anonymized_label = alab in
-		      let a1 = Array.of_list (List.map (fun n -> n#data#_label) (List.filter (filt alab1) cs1)) in
-		      let a2 = Array.of_list (List.map (fun n -> n#data#_label) (List.filter (filt alab2) cs2)) in
-		      let mat, _, _, _ = Adiff.adiff a1 a2 in
-		      (Array.length a1) + (Array.length a2) - ((List.length mat) * 2)
-		    in
+                    let cat_cond = n_nodes_of_same_cat_not_matched = 2 in
 
-		    let cat_cond = n_nodes_of_same_cat_not_matched = 2 in
+                    let cond = parent_cond && cat_cond in
 
-		    let cond = parent_cond && cat_cond in
+                    BEGIN_DEBUG
+                      DEBUG_MSG "relabel: %a-%a (parent: %a-%a, num of children of same category not matched: %d)"
+                        UID.ps nd1#uid UID.ps nd2#uid
+                        UID.ps pnd1#uid UID.ps pnd2#uid
+                        n_nodes_of_same_cat_not_matched;
+                      DEBUG_MSG "parent_cond:%B cat_cond:%B --> filtered:%B" parent_cond cat_cond (not cond);
+                    END_DEBUG;
 
-		    BEGIN_DEBUG
-		      DEBUG_MSG "relabel: %a-%a (parent: %a-%a, num of children of same category not matched: %d)" 
-			UID.ps nd1#uid UID.ps nd2#uid
-			UID.ps pnd1#uid UID.ps pnd2#uid 
-			n_nodes_of_same_cat_not_matched;
-		      DEBUG_MSG "parent_cond:%B cat_cond:%B --> filtered:%B" parent_cond cat_cond (not cond);
-		    END_DEBUG;
-
-		    cond
-		with 
-		| Otreediff.Otree.Parent_not_found _
-		| Not_found -> false
+                    cond
+              with
+              | Otreediff.Otree.Parent_not_found _
+              | Not_found -> false
 
 	    ) (List.fast_sort (fun (n0, _) (n1, _) -> Stdlib.compare n1#gindex n0#gindex) relabels)
 	in
@@ -2387,117 +2388,150 @@ module F (Label : Spec.LABEL_T) = struct
           size_cond && (all_subtree_members_not_mapped || force_treediff) && (not go_down_cond)
         in
 
-	if use_treediff_cond then begin (* use tree diff *)
+        if use_treediff_cond then begin (* use tree diff *)
 
-	  if force_treediff then
-	    DEBUG_MSG "force_treediff=true";
+          if force_treediff then
+            DEBUG_MSG "force_treediff=true";
 
-	  let subtree1 = tree1#make_subtree_from_node nd1 in
-	  let subtree2 = tree2#make_subtree_from_node nd2 in
+          let subtree1 = tree1#make_subtree_from_node nd1 in
+          let subtree2 = tree2#make_subtree_from_node nd2 in
 
-	  nd1#hide_parent;
-	  nd2#hide_parent;
+          nd1#hide_parent;
+          nd2#hide_parent;
 
-	  let subroot1 = subtree1#root in
-	  let subroot2 = subtree2#root in
+          let subroot1 = subtree1#root in
+          let subroot2 = subtree2#root in
 	  
-	  let matches, extra_matches, relabels = 
-	    Treediff.match_trees cenv ~root_check:false subtree1 subtree2 uidmapping ref_uidmapping
-	  in
+          let matches, extra_matches, relabels =
+            Treediff.match_trees cenv ~root_check:false subtree1 subtree2 uidmapping ref_uidmapping
+          in
 
-	  let pseudo_matches = List.filter (fun (n1, n2) -> is_pseudo_match n1 n2) relabels in
+          let pseudo_matches = List.filter (fun (n1, n2) -> is_pseudo_match n1 n2) relabels in
 
-	  let nrelabels      = List.length relabels in
+          let nrelabels      = List.length relabels in
 
           BEGIN_DEBUG
-	    let nmatches       = List.length matches in
-	    let nextra_matches = List.length extra_matches in
-	    DEBUG_MSG "(by tree diff): match:%d extra_match:%d relabels:%d" 
-	      nmatches nextra_matches nrelabels;
+            let nmatches       = List.length matches in
+            let nextra_matches = List.length extra_matches in
+            DEBUG_MSG "(by tree diff): match:%d extra_match:%d relabels:%d"
+              nmatches nextra_matches nrelabels;
           END_DEBUG;
 
-	  let conv = Misc.conv_subtree_node_pairs tree1 tree2 in
+          let conv = Misc.conv_subtree_node_pairs tree1 tree2 in
 
-	  let amatches, aextra_matches, arelabels =
-	    if nrelabels > 0 then
-	      let uids_left_named1, uids_left_named2 = 
-		List.split
-		  (List.map 
-		     (fun (n1, n2) -> n1#uid, n2#uid) 
-		     (matches @ extra_matches @ pseudo_matches)
-		  )
-	      in
-	      try
-		let atree1 = 
-		  subtree1#make_anonymized2_subtree_copy ~uids_left_named:uids_left_named1 subroot1
-		in
-		let atree2 = 
-		  subtree2#make_anonymized2_subtree_copy ~uids_left_named:uids_left_named2 subroot2
-		in
+          let amatches, aextra_matches, arelabels =
+            if nrelabels > 0 then
+              let uids_left_named1, uids_left_named2 =
+                List.split
+                  (List.map
+                     (fun (n1, n2) -> n1#uid, n2#uid)
+                     (matches @ extra_matches @ pseudo_matches)
+                  )
+              in
+              try
+                let atree1 =
+                  subtree1#make_anonymized2_subtree_copy ~uids_left_named:uids_left_named1 subroot1
+                in
+                let atree2 =
+                  subtree2#make_anonymized2_subtree_copy ~uids_left_named:uids_left_named2 subroot2
+                in
 
-		DEBUG_MSG "anonymized trees: |T1(root:%a)|=%d |T2(root:%a)|=%d" 
-		  UID.ps uid1 atree1#size UID.ps uid2 atree2#size;
+                DEBUG_MSG "anonymized trees: |T1(root:%a)|=%d |T2(root:%a)|=%d"
+                  UID.ps uid1 atree1#size UID.ps uid2 atree2#size;
 
-		let acenv = new Comparison.c options atree1 atree2 in
+                let acenv = new Comparison.c options atree1 atree2 in
 
-		let m, em, r = 
-		  Treediff.match_trees acenv ~root_check:false atree1 atree2 
-		    (new UIDmapping.c acenv) (new UIDmapping.c acenv)
-		in
+                let m, em, r =
+                  Treediff.match_trees acenv ~root_check:false atree1 atree2
+                    (new UIDmapping.c acenv) (new UIDmapping.c acenv)
+                in
 
-		conv m, conv em, conv r
+                conv m, conv em, conv r
 
-	      with
-		Invalid_argument msg -> 
+              with
+                Invalid_argument msg ->
                   Xprint.error "%s" msg;
                   assert false
 
-	    else (* nrelabels = 0 *)
-	      matches, extra_matches, []
-	  in
+            else (* nrelabels = 0 *)
+              matches, extra_matches, []
+          in
 
-	  let arelabels = (* ??? *)
-	    List.filter 
-	      (fun (n1, n2) -> 
-		check_relabel options ~exact:true tree1 tree2 n1 n2 uidmapping
-	      ) arelabels
-	  in
+          let arelabels = (* ??? *)
+            List.filter
+              (fun (n1, n2) ->
+                check_relabel options ~exact:true tree1 tree2 n1 n2 uidmapping
+              ) arelabels
+          in
 
-	  List.iter
-	    (fun (nd1, nd2) ->
-	      let u1, u2 = nd1#uid, nd2#uid in
+          let no_cands_found = ref true in
 
-	      let bonus, is_ok =
-		if nd1#data#equals nd2#data then 
-		  calc_bonus nd1 nd2, true
-		else 
-		  cenv#eval_label_match nd1 nd2, relabel_allowed nd1 nd2
-	      in
-	      if is_ok then begin
+          List.iter
+            (fun (nd1, nd2) ->
+              let u1, u2 = nd1#uid, nd2#uid in
 
-		DEBUG_MSG "! glue cand (scan_down: by tree diff): %a-%a" UID.ps u1 UID.ps u2;
+              let bonus, is_ok =
+                if nd1#data#equals nd2#data then
+                  calc_bonus nd1 nd2, true
+                else
+                  cenv#eval_label_match nd1 nd2, relabel_allowed nd1 nd2
+              in
+              if is_ok then begin
+                no_cands_found := false;
 
-		let base = 
-		  if single_children (* is_unique_pair nd1 nd2 *) then 
-		    score_up 
-		  else 
-		    score_down 
-		in
+                DEBUG_MSG "! glue cand (scan_down: by tree diff): %a-%a" UID.ps u1 UID.ps u2;
 
-		DEBUG_MSG "base score: %d, bonus: %d" base bonus;
+                let base =
+                  if single_children (* is_unique_pair nd1 nd2 *) then
+                    score_up
+                  else
+                    score_down
+                in
 
-		let score = base + bonus in
-		add_cand "tree diff on subtrees" nd1 nd2 u1 u2 score
-	      end
+                DEBUG_MSG "base score: %d, bonus: %d" base bonus;
 
-	    ) (amatches @ aextra_matches @ arelabels);
+                let score = base + bonus in
+                add_cand "tree diff on subtrees" nd1 nd2 u1 u2 score
+              end
 
-	  nd1#unhide_parent;
-	  nd2#unhide_parent;
+            ) (amatches @ aextra_matches @ arelabels);
 
-	end (* of if the sizes of subtrees are moderate... *)
+          DEBUG_MSG "no_cands_found=%B" !no_cands_found;
 
-	else begin (* tree diff not used *)
+          if !no_cands_found then begin
+            let matches, extra_matches, relabels =
+              Treediff.match_trees cenv ~root_check:false ~semantic:true subtree1 subtree2 uidmapping ref_uidmapping
+            in
+            let relabels =
+              List.filter
+                (fun (n1, n2) ->
+                  check_relabel options ~exact:false tree1 tree2 n1 n2 uidmapping
+                ) relabels
+            in
+            List.iter
+              (fun (nd1, nd2) ->
+                let u1, u2 = nd1#uid, nd2#uid in
+                let bonus, is_ok = cenv#eval_label_match nd1 nd2, relabel_allowed nd1 nd2 in
+                if is_ok then begin
+                  DEBUG_MSG "! glue cand (scan_down: by tree diff): %a-%a" UID.ps u1 UID.ps u2;
+                  let base =
+                    if single_children (* is_unique_pair nd1 nd2 *) then
+                      score_up
+                    else
+                      score_down
+                  in
+                  DEBUG_MSG "base score: %d, bonus: %d" base bonus;
+                  let score = base + bonus in
+                  add_cand "weak tree diff on subtrees" nd1 nd2 u1 u2 score
+                end
+              ) relabels
+          end;
+
+          nd1#unhide_parent;
+          nd2#unhide_parent;
+
+        end (* of if the sizes of subtrees are moderate... *)
+        else begin (* tree diff not used or no cands found *)
 
 	  let cld1, cld2 =
 	    let idxs = ref [] in
