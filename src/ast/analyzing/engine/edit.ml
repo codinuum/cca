@@ -175,9 +175,9 @@ class seq options = object (self)
 
   method private _dump_diff_ch
       ~header ~footer ~formatters
-      ?(line_align=[]) 
-      (tree1 : 'tree_t) (tree2 : 'tree_t) 
-      ch 
+      ?(line_align=[])
+      (tree1 : 'tree_t) (tree2 : 'tree_t)
+      ch
       =
     let ignored1 = tree1#ignored_regions in
     let ignored2 = tree2#ignored_regions in

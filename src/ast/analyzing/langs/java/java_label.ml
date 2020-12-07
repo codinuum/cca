@@ -1841,7 +1841,7 @@ let anonymize ?(more=false) = function
   | Expression e                   -> Expression (Expression.anonymize ~more e)
   | Statement s                    -> Statement (Statement.anonymize ~more s)
   | Annotation a                   -> Annotation (Annotation.anonymize a)
-  | Modifier m                     -> Modifier (Modifier.anonymize m)
+  (*| Modifier m                     -> Modifier (Modifier.anonymize m)*)
   | NameInvocation name            -> NameInvocation ""
   | ElementValuePair name          -> ElementValuePair ""
   | Constructor(name, msig)        -> if true(*more*) then Constructor("", "") else Constructor("", msig)
@@ -1902,8 +1902,8 @@ let anonymize2 = function
   | VariableDeclarator _                                       -> Primary (Primary.Name "")
   | Interface _ | Enum _                                       -> Class ""
   | InterfaceBody _ | EnumBody _                               -> ClassBody ""
-  | Constructor _ | ConstructorBody _ | Method _ | MethodBody _ as lab ->
-      anonymize ~more:false lab
+  | Constructor _ | ConstructorBody _ | Method _ | MethodBody _ as lab -> anonymize ~more:false lab
+  | Modifier m -> Modifier (Modifier.anonymize m)
   | lab -> anonymize ~more:true lab
 
 let anonymize3 = function

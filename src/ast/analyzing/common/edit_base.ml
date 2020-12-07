@@ -1300,9 +1300,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method private dump_diff_ch
       ~header ~footer ~formatters
-      ?(line_align=[]) 
-      (tree1 : 'tree_t) (tree2 : 'tree_t) 
-      ch 
+      ?(line_align=[])
+      ?(minimal=true)
+      (tree1 : 'tree_t) (tree2 : 'tree_t)
+      ch
       =
 
     DEBUG_MSG "* DUMPING DIFF DATA (%d edit(s))\n" self#get_nedits;
@@ -1355,13 +1356,22 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 	      output_string ch (formatters#insert st ed segs)
 		
 	  | Relabel(movrel, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
-              let loc1 = Info.get_loc info1 in
-              let loc2 = Info.get_loc info2 in
-              let st1, ed1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
-              let st2, ed2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
-	      let segs1 = get_segments info1 excludes1 in
-	      let segs2 = get_segments info2 excludes2 in
-	      output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
+              let ok =
+                not minimal ||
+                let n1 = Info.get_node info1 in
+                let n2 = Info.get_node info2 in
+                n1#data#is_named_orig && n2#data#is_named_orig ||
+                n1#data#more_anonymized_label <> n2#data#more_anonymized_label
+              in
+              if ok then begin
+                let loc1 = Info.get_loc info1 in
+                let loc2 = Info.get_loc info2 in
+                let st1, ed1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
+                let st2, ed2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
+	        let segs1 = get_segments info1 excludes1 in
+	        let segs2 = get_segments info2 excludes2 in
+	        output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
+              end
 
 	  | Move(mid, _, (_, info1, _), (_, info2, _)) as mov ->
 	      let skip =
