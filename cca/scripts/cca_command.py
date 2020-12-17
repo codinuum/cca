@@ -66,15 +66,15 @@ def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
     log_base = os.path.join(WDIR,'time.{}-{}'.format(PHASE, PROJ_))
 
     gencmd = cmd_fmt % { 'log'    : log_base + '.generate',
-                         'subcmd' : '{} {} -c generate {} {}'.format(SUB_CMD_PATH, 
-                                                                     PROJ, 
+                         'subcmd' : '{} {} -c generate {} {}'.format(SUB_CMD_PATH,
                                                                      args.sargs,
+                                                                     PROJ,
                                                                      WDIR),
                          }
 
     sub_args = '{} -b {}'.format(PROJ, WDIR_BASE)
     if args.sargs != '':
-        sub_args += args.sargs
+        sub_args += ' '+args.sargs
 
     sub_args = '-a "{}"'.format(sub_args)
 
