@@ -92,17 +92,17 @@ def _compute_hash(algo, f, path=None):
     content = f.read()
 
     if algo == HashAlgo.GIT:
-        head = 'blob %d\0' % (len(content))
+        head = b'blob {}\0'.format(len(content))
         content = head + content
 
     elif algo == HashAlgo.PATH:
         if path:
-            head = '%s\0' % path
+            head = b'{}\0'.format(path)
             content = head + content
         else:
             logger.warning('path not specified')
 
-    digest = h(content.encode()).hexdigest()
+    digest = h(content).hexdigest()
 
     return digest
 
@@ -110,7 +110,7 @@ def compute_hash(algo, fname):
     digest = None
     f = None
     try:
-        f = open(fname, 'r')
+        f = open(fname, 'rb')
         digest = _compute_hash(algo, f, path=fname)
 
     except Exception as e:

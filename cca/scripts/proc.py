@@ -64,17 +64,19 @@ def check_output(cmd, cwd=None, rc_check=True):
     return out
 
 class PopenContext(object):
-    def __init__(self, cmd, rc_check=True):
+    def __init__(self, cmd, rc_check=True, stdout=PIPE, stderr=PIPE):
         self.cmd = cmd
         self.rc_check = rc_check
+        self.stdout = stdout
+        self.stderr = stderr
 
     def __enter__(self):
         self._po = Popen(self.cmd,
                          shell=True,
-                         stdout=PIPE,
-                         stderr=PIPE,
+                         stdout=self.stdout,
+                         stderr=self.stderr,
                          close_fds=True,
-                         universal_newlines=True)
+                         text=True)
         return self._po
 
     def __exit__(self, *exc_info):
