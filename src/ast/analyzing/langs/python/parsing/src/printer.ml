@@ -24,7 +24,7 @@ open Printf
 open Ast
 open Common
 
-let indent_unit = ref 4
+let indent_unit = ref 2
 
 let pr_string s = print_string s
 let pr_space() = print_string " "
@@ -54,8 +54,7 @@ let pr_dottedname dname = pr_list pr_name pr_period dname
 
 
 let rec pr_fileinput = function
-  | Fileinput(_, finput) ->
-      pr_list (pr_statement 0) pr_null finput
+  | Fileinput(_, finput) -> pr_list (pr_statement 0) pr_null finput
 
 and pr_statement level stmt =
   match stmt.stmt_desc with
@@ -63,6 +62,8 @@ and pr_statement level stmt =
       pr_indent level;
       pr_list pr_smallstmt pr_semicolon sstmts; 
       pr_newline()
+
+  | Sasync stmt -> pr_string "async "; pr_statement level stmt
 
   | Sif(cnd, thn, elifs, else_opt) ->
       pr_expr_suite level "if" (cnd, thn);
@@ -88,20 +89,20 @@ and pr_statement level stmt =
       pr_string "try:";
       pr_suite level suite;
       pr_list
-	(function 
-	    EX _, suite -> 
+	(function
+	  | EX _, suite ->
 	      pr_indent level; pr_string "except:"; pr_suite level suite
 
 	  | EX1(_, expr), suite ->
-	      pr_indent level; 
-	      pr_string "except "; 
+	      pr_indent level;
+	      pr_string "except ";
 	      pr_expr expr;
 	      pr_colon();
 	      pr_suite level suite
 
 	  | EX2(_, expr, targ), suite ->
 	      pr_indent level;
-	      pr_string "except "; 
+	      pr_string "except ";
 	      pr_expr expr;
 	      pr_comma();
 	      pr_target targ;
@@ -127,24 +128,47 @@ and pr_statement level stmt =
       pr_colon();
       pr_suite level suite
 
-  | Sfuncdef(decs, name, params, suite) ->
+  | Sasync_funcdef(decs, name, params, retann_opt, suite) ->
+      pr_indent level;
+      pr_list pr_decorator pr_null decs;
+      pr_string "async def ";
+      pr_name name;
+      pr_string "(";
+      pr_parameters params;
+      pr_string ")";
+      begin
+        match retann_opt with
+        | Some e -> pr_string "->"; pr_expr e
+        | _ -> ()
+      end;
+      pr_colon();
+      pr_suite level suite
+
+  | Sfuncdef(decs, name, params, retann_opt, suite) ->
       pr_indent level;
       pr_list pr_decorator pr_null decs;
       pr_string "def ";
       pr_name name;
       pr_string "(";
       pr_parameters params;
-      pr_string "):";
+      pr_string ")";
+      begin
+        match retann_opt with
+        | Some e -> pr_string "->"; pr_expr e
+        | _ -> ()
+      end;
+      pr_colon();
       pr_suite level suite
 
-  | Sclassdef(decs, name, exprs, suite) ->
+  | Sclassdef(decs, name, arglist, suite) ->
       pr_indent level;
       pr_list pr_decorator pr_null decs;
       pr_string "class ";
       pr_name name;
-      (match exprs with 
-	[] -> () 
-      | _ -> pr_string "("; pr_exprs exprs; pr_string ")");
+      (match arglist with
+      | loc, [] when loc = Ast.Loc.dummy -> ()
+      |	_, [] -> pr_string "()"
+      | _ -> pr_string "("; pr_arglist arglist; pr_string ")");
       pr_colon();
       pr_suite level suite
 
@@ -180,7 +204,7 @@ and pr_expr_suite level kw (expr, suite) =
 and pr_exprs exprs = pr_list pr_expr pr_comma exprs
 
 and pr_testlist testlist = 
-  if testlist.yield then pr_string "yield";
+  if testlist.yield then pr_string "yield ";
   pr_list pr_expr pr_comma testlist.list
 
 and pr_targs ts = pr_exprs ts
@@ -189,91 +213,116 @@ and pr_smallstmt sstmt =
   match sstmt.sstmt_desc with
   | SSexpr exprs -> pr_list pr_expr pr_comma exprs
 
-  | SSassign(testlist_list, testlist) ->
+  | SSassign(testlist_list, testlist) -> begin
       pr_list pr_testlist pr_equal testlist_list;
       pr_equal();
       pr_testlist testlist
-
-  | SSaugassign(targs, augop, testlist) ->
+  end
+  | SSannassign(targs, expr, testlist_opt) -> begin
+      pr_targs targs;
+      pr_colon();
+      pr_space();
+      pr_expr expr;
+      begin
+        match testlist_opt with
+        | Some testlist -> pr_space(); pr_testlist testlist
+        | _ -> ()
+      end
+  end
+  | SSaugassign(targs, augop, testlist) -> begin
       pr_targs targs;
       pr_space();
       pr_augop augop;
       pr_space();
       pr_testlist testlist
-
+  end
   | SSprint exprs -> pr_string "print "; pr_exprs exprs
 
-  | SSprintchevron(expr, exprs) ->
+  | SSprintchevron(expr, exprs) -> begin
       pr_string "print>>";
       pr_expr expr;
       pr_comma();
       pr_exprs exprs
-
-  | SSdel(targs) -> pr_string "del "; pr_targs targs
-
-  | SSpass -> pr_string "pass"
-  | SSbreak -> pr_string "break"
-  | SScontinue -> pr_string "continue"
-
+  end
+  | SSdel(targs)   -> pr_string "del "; pr_targs targs
+  | SSpass         -> pr_string "pass"
+  | SSbreak        -> pr_string "break"
+  | SScontinue     -> pr_string "continue"
   | SSreturn exprs -> pr_string "return "; pr_exprs exprs
+  | SSraise        -> pr_string "raise"
+  | SSraise1 expr  -> pr_string "raise "; pr_expr expr
 
-  | SSraise -> pr_string "raise"
-
-  | SSraise1 expr -> pr_string "raise "; pr_expr expr
-
-  | SSraise2(expr1, expr2) ->
+  | SSraise2(expr1, expr2) -> begin
       pr_string "raise ";
       pr_expr expr1;
       pr_comma();
       pr_expr expr2;
-
-  | SSraise3(expr1, expr2, expr3) ->
+  end
+  | SSraisefrom(expr1, expr2) -> begin
+      pr_string "raise ";
+      pr_expr expr1;
+      pr_string " from ";
+      pr_expr expr2;
+  end
+  | SSraise3(expr1, expr2, expr3) -> begin
       pr_string "raise ";
       pr_expr expr1;
       pr_comma();
       pr_expr expr2;
       pr_comma();
       pr_expr expr3;
-
+  end
   | SSyield exprs -> pr_string "yield "; pr_exprs exprs
 
-  | SSimport(dname_as_names) ->
+  | SSimport(dname_as_names) -> begin
       pr_string "import ";
       pr_list pr_dottedname_as_name pr_comma dname_as_names
-
-  | SSfrom(dname, name_as_names) ->
+  end
+  | SSfrom(dots_opt, dname_opt, name_as_names) -> begin
       pr_string "from ";
-      pr_dottedname dname;
-      pr_string " import ";
-      (match name_as_names with
-	[] -> pr_string "*"
-      | _ -> pr_list pr_name_as_name pr_comma name_as_names)
+      begin
+        match dots_opt with
+        | Some (_, ndots) -> pr_string (String.make ndots '.'); pr_space()
+        | _ -> ()
+      end;
+      begin
+        match dname_opt with
+        | Some dname -> pr_dottedname dname; pr_space()
+        | _ -> ()
+      end;
+      pr_string "import ";
+      begin
+        match name_as_names with
+        | [] -> pr_string "*"
+        | _ -> pr_list pr_name_as_name pr_comma name_as_names
+      end
+  end
+  | SSglobal names   -> pr_string "global "; pr_names names
+  | SSnonlocal names -> pr_string "nonlocal "; pr_names names
+  | SSexec expr      -> pr_string "exec "; pr_expr expr
 
-  | SSglobal names -> pr_string "global "; pr_names names
-
-  | SSexec expr -> pr_string "exec "; pr_expr expr
-
-  | SSexec2(expr1, expr2) -> 
-      pr_string "exec "; 
+  | SSexec2(expr1, expr2) -> begin
+      pr_string "exec ";
       pr_expr expr1;
       pr_string " in ";
       pr_expr expr2
-
-  | SSexec3(expr1, expr2, expr3) ->
+  end
+  | SSexec3(expr1, expr2, expr3) -> begin
       pr_string "exec "; 
       pr_expr expr1;
       pr_string " in ";
       pr_expr expr2;
       pr_comma();
       pr_expr expr3
-
+  end
   | SSassert expr -> pr_string "assert "; pr_expr expr
 
-  | SSassert2(expr1, expr2) ->
+  | SSassert2(expr1, expr2) -> begin
       pr_string "assert ";
       pr_expr expr1;
       pr_comma();
       pr_expr expr2
+  end
 
 and pr_dottedname_as_name (dname, name_opt) =
   pr_dottedname dname;
@@ -285,32 +334,27 @@ and pr_name_as_name (name, name_opt) =
 
 and pr_suite level (_, stmts) =
     match stmts with
-      [{stmt_desc=(Ssimple _); stmt_loc=l} as sstmt] -> pr_statement 0 sstmt
+    | [{stmt_desc=(Ssimple _); stmt_loc=l} as sstmt] -> pr_statement 0 sstmt
     | _ ->
 	let level' = level + 1 in
 	pr_newline();
 	pr_list (pr_statement level') pr_null stmts
 
+and pr_vararg = function
+  | VAarg(fpdef, expr_opt) -> begin
+      pr_fpdef fpdef;
+      pr_opt (fun expr -> pr_equal(); pr_expr expr) expr_opt
+  end
+  | VAargs(_, None)     -> pr_string "*"
+  | VAargs(_, (Some n)) -> pr_string "*"; pr_name n
+  | VAkwargs(_, n)      -> pr_string "**"; pr_name n
 
-and pr_parameters (_, vargs, tini, dini) = 
-  pr_vargs vargs;
-  (match tini, dini with
-  | None, None -> ()
-  | Some t, None -> pr_string "*"; pr_name t
-  | None, Some d -> pr_string "**"; pr_name d
-  | Some t, Some d -> 
-      pr_string "*"; pr_name t; pr_string ",**"; pr_name d)
-
-and pr_vargs vargs =
-  let pr_varg (fpdef, expr_opt) =
-    pr_fpdef fpdef;
-    pr_opt (fun expr -> pr_equal(); pr_expr expr) expr_opt
-  in
-  pr_list pr_varg pr_comma vargs
+and pr_parameters (_, vargs) = pr_list pr_vararg pr_comma vargs
 
 and pr_fpdef = function 
   | Fname name -> pr_name name
-  | Flist(_, fpdefs) -> 
+  | Ftyped(_, name, expr) -> pr_name name; pr_colon(); pr_expr expr
+  | Flist(_, fpdefs) ->
       pr_string "("; pr_list pr_fpdef pr_comma fpdefs; pr_string ")"
 
 and pr_decorator (_, dname, arglist) =
@@ -334,54 +378,54 @@ and pr_expr expr =
 
   | Elambda(params, expr) ->
       pr_string "lambda";
-      (match params with 
-	_, [], None, None -> () 
+      (match params with
+      | _, [] -> ()
       | _ -> pr_space(); pr_parameters params);
       pr_colon();
       pr_expr expr
 
   | Econd(expr1, expr2, expr3) ->
       pr_expr expr1;
-      pr_string "if";
+      pr_string " if ";
       pr_expr expr2;
-      pr_string "else";
+      pr_string " else ";
       pr_expr expr3
 
-and pr_primary prim =
-  match prim.prim_desc with
-  | Pname name -> pr_name name
+  | Estar expr           -> pr_string "*"; pr_expr expr
+  | Enamed(expr1, expr2) -> pr_expr expr1; pr_string ":="; pr_expr expr2
+  | Efrom expr           -> pr_string "from "; pr_expr expr
+  | Earg(expr1, expr2)   -> pr_expr expr1; pr_string "="; pr_expr expr2 (* for print *)
 
+and pr_primary prim = _pr_primary prim.prim_desc
+
+and _pr_primary = function
+  | Pname name   -> pr_name name
   | Pliteral lit -> pr_literal lit
-	
-  | Pparen expr -> pr_string "("; pr_expr expr; pr_string ")"
-
+  | Pparen expr  -> pr_string "("; pr_expr expr; pr_string ")"
   | Ptuple exprs -> pr_string "(";  pr_exprs exprs; pr_string ")"
-
   | Pyield exprs -> pr_string "(yield"; pr_exprs exprs; pr_string ")"
 
-  | Pcomp(expr, compfor) -> 
+  | PcompT(expr, compfor) ->
       pr_string "(";
       pr_expr expr;
       pr_space();
       pr_compfor compfor;
       pr_string ")"
 
-  | Plist listmaker -> 
-      pr_string "["; pr_listmaker listmaker; pr_string "]"
+  | PcompL(expr, compfor) ->
+      pr_string "[";
+      pr_expr expr;
+      pr_space();
+      pr_compfor compfor;
+      pr_string "]"
 
-  | Plistnull -> pr_string "[]"
-
-  | Pdictorset dictorsetmaker -> 
-      pr_string "{"; pr_dictorsetmaker dictorsetmaker; pr_string "}"
-
-  | Pdictnull -> pr_string "{}"
-
-  | Pstrconv exprs -> pr_string "`"; pr_exprs exprs; pr_string "`"
-
-  | Pattrref(prim, name) -> pr_primary prim; pr_period(); pr_name name
-
-  | Psubscript(prim, exprs) ->
-      pr_primary prim; pr_string "["; pr_exprs exprs; pr_string "]"
+  | Plist exprs               -> pr_string "["; pr_exprs exprs; pr_string "]"
+  | Plistnull                 -> pr_string "[]"
+  | Pdictorset dictorsetmaker -> pr_string "{"; pr_dictorsetmaker dictorsetmaker; pr_string "}"
+  | Pdictnull                 -> pr_string "{}"
+  | Pstrconv exprs            -> pr_string "`"; pr_exprs exprs; pr_string "`"
+  | Pattrref(prim, name)      -> pr_primary prim; pr_period(); pr_name name
+  | Psubscript(prim, exprs)   -> pr_primary prim; pr_string "["; pr_exprs exprs; pr_string "]"
 
   | Pslice(prim, sliceitems) ->
       pr_primary prim; 
@@ -395,6 +439,8 @@ and pr_primary prim =
       pr_arglist arglist;
       pr_string ")"
 
+  | Pawait prim -> pr_string "await "; pr_primary prim
+
 and pr_literal = function
   | Linteger str -> pr_string str
   | Llonginteger str -> pr_string str
@@ -403,16 +449,11 @@ and pr_literal = function
   | Lstring pystrs -> 
       pr_list 
 	(function 
-	    PSlong(_, s) -> pr_string s
-	  | PSshort(_, s) -> pr_string s
+          | PSlong(_, s) -> pr_string s
+          | PSshort(_, s) -> pr_string s
 	) pr_space pystrs
 
 and pr_target x = pr_expr x
-
-and pr_listmaker = function
-  | LMfor(expr, listfor) -> pr_expr expr; pr_space(); pr_listfor listfor
-
-  | LMtest exprs -> pr_exprs exprs
 
 and pr_listfor (_, exprs1, exprs2, listiter_opt) =
   pr_string "for ";
@@ -430,16 +471,16 @@ and pr_listiter = function
   | LIfor listfor -> pr_listfor listfor
   | LIif listif -> pr_listif listif
 
-and pr_dictorsetmaker = function
-  | DSMdict key_dats ->
-      pr_list
-	(fun (_, e1, e2) -> pr_expr e1; pr_colon(); pr_expr e2)
-	pr_comma key_dats
+and pr_dictelem delem =
+  match delem.delem_desc with
+  | DEkeyValue(e1, e2) -> pr_expr e1; pr_colon(); pr_expr e2
+  | DEstarStar e -> pr_string "**"; pr_expr e
 
-  | DSMdictC(e1, e2, compfor) ->
-      pr_expr e1;
-      pr_colon();
-      pr_expr e2;
+and pr_dictorsetmaker = function
+  | DSMdict key_dats -> pr_list pr_dictelem pr_comma key_dats
+
+  | DSMdictC(delem, compfor) ->
+      pr_dictelem delem;
       pr_space();
       pr_compfor compfor
 
@@ -454,37 +495,36 @@ and pr_expr_opt expr_opt = pr_opt pr_expr expr_opt
 
 and pr_sliceitem = function
   | SIexpr expr -> pr_expr expr
-  | SIproper(_, expr_opt1, expr_opt2, expr_opt3) ->
-      pr_expr_opt expr_opt1; 
-      pr_colon(); 
-      pr_expr_opt expr_opt2; 
-      pr_colon(); 
+
+  | SI2(_, expr_opt1, expr_opt2) ->
+      pr_expr_opt expr_opt1;
+      pr_colon();
+      pr_expr_opt expr_opt2
+
+  | SI3(_, expr_opt1, expr_opt2, expr_opt3) ->
+      pr_expr_opt expr_opt1;
+      pr_colon();
+      pr_expr_opt expr_opt2;
+      pr_colon();
       pr_expr_opt expr_opt3
 
   | SIellipsis _ -> pr_string "..."
 
-and pr_arglist (_, args, tini, dini) =
-  pr_list pr_argument pr_comma args;
-  (match tini, dini with
-  | None, None -> ()
-  | Some (t, al), None -> 
-      pr_string "*"; 
-      pr_expr t; 
-      pr_list (fun a -> pr_comma(); pr_argument a) pr_null al
-  | None, Some d -> 
-      pr_string "**"; 
-      pr_expr d
-  | Some (t, al), Some d -> 
-      pr_string "*"; 
-      pr_expr t;
-      pr_list (fun a -> pr_comma(); pr_argument a) pr_null al;
-      pr_string ",**"; pr_expr d)
+and pr_arglist (_, args) = pr_list pr_argument pr_comma args
 
-
-and pr_argument (_, expr_opt, expr, compfor_opt) =
-  pr_opt (fun expr -> pr_expr expr; pr_equal()) expr_opt;
-  pr_expr expr;
-  pr_opt (fun compfor -> pr_space(); pr_compfor compfor) compfor_opt
+and pr_argument = function
+  | Aarg(_, expr, expr_opt) -> begin
+      pr_expr expr;
+      begin
+        match expr_opt with
+        | Some e -> pr_equal(); pr_expr e
+        | _ -> ()
+      end
+  end
+  | Acomp(_, expr, compfor) -> pr_expr expr; pr_space(); pr_compfor compfor
+  | Aassign(_, expr1, expr2) -> pr_expr expr1; pr_string ":="; pr_expr expr2
+  | Aargs(_, expr) -> pr_string "*"; pr_expr expr
+  | Akwargs(_, expr) -> pr_string "**"; pr_expr expr
 
 and pr_compiter = function
   | Cfor compfor -> pr_compfor compfor
@@ -495,7 +535,8 @@ and pr_compif (_, expr, compiter_opt) =
   pr_expr expr;
   pr_opt (fun compiter -> pr_space(); pr_compiter compiter) compiter_opt
 
-and pr_compfor (_, exprs, expr, compiter_opt) =
+and pr_compfor (_, (exprs, expr, compiter_opt), async) =
+  if async then pr_string "async ";
   pr_string "for ";
   pr_exprs exprs;
   pr_string " in ";

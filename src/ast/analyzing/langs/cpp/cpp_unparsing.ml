@@ -849,6 +849,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | StorageClassSpecifierExtern       -> pr_string "extern"
   | StorageClassSpecifierMutable      -> pr_string "mutable"
   | StorageClassSpecifierRegister     -> pr_string "register"
+  | StorageClassSpecifierVaxGlobaldef -> pr_string "globaldef"
 
 (* FunctionSpecifier *)
   | FunctionSpecifier        -> pr_string "<function-specifier>"
@@ -1186,6 +1187,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ClosingBrace                      -> pr_rbrace()
   | OpeningBracket                    -> pr_lbracket()
   | ClosingBracket                    -> pr_rbracket()
+  | DummyBody                         -> ()
   | DummyDecl                         -> ()
   | DummyStmt                         -> ()
   | DummyExpr                         -> ()

@@ -686,6 +686,8 @@ let is_compatible _ _ = false
 let is_order_insensitive = function
   | _ -> false
 
+let quasi_eq _ _ = false
+
 let relabel_allowed (l1, l2) =
   let parser1, parser2 = l1.elem_parser, l2.elem_parser in
   if parser1 <> parser2 then

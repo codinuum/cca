@@ -186,10 +186,10 @@ open Charpool
 
 module Type = struct
   type t =
-    | Byte | Short | Int | Long | Char 
+    | Byte | Short | Int | Long | Char
     | Float | Double
     | Boolean
-    | ClassOrInterface of name 
+    | ClassOrInterface of name
     | Class of name | Interface of name
     | Array of t (* other than array *) * dims
     | Void (* not a type (only for convenience) *)
@@ -210,7 +210,25 @@ module Type = struct
     | ClassOrInterface name
     | Class name
     | Interface name -> name
-    | Array(ty, _) -> get_name ty
+    | Array(ty, dims) -> begin
+        let dims_str = Printer.dims_to_short_string dims in
+        let ty_str =
+          try
+            get_name ty
+          with _ ->
+            match ty with
+            | Byte    -> "B"
+            | Short   -> "S"
+            | Int     -> "I"
+            | Long    -> "J"
+            | Char    -> "C"
+            | Float   -> "F"
+            | Double  -> "D"
+            | Boolean -> "Z"
+            | _ -> ""
+        in
+        ty_str^dims_str
+    end
     | _ -> raise Not_found
 
   let get_dimensions = function
@@ -1030,6 +1048,7 @@ module Primary = struct
     | SimpleMethodInvocation name            -> SimpleMethodInvocation ""
     | SuperMethodInvocation name             -> SuperMethodInvocation ""
     | ClassSuperMethodInvocation name        -> ClassSuperMethodInvocation ""
+    | AmbiguousMethodInvocation name         -> AmbiguousMethodInvocation ""
     | TypeMethodInvocation(name, ident)      -> TypeMethodInvocation("", "")
     | ArrayCreationDims dims                 -> ArrayCreationDims 0
     | Paren tid                              -> Paren (anonymize_tid ~more tid)
@@ -1039,7 +1058,6 @@ module Primary = struct
     | TypeSuperMethodReference(name, ident)  -> TypeSuperMethodReference("", "")
     | TypeNewMethodReference name            -> TypeNewMethodReference ""
     | AmbiguousName name                     -> AmbiguousName ""
-    | AmbiguousMethodInvocation name         -> AmbiguousMethodInvocation ""
     | pri                                    -> pri
 
   let anonymize2 = function
@@ -1223,9 +1241,10 @@ module Expression = struct
     "Expression." ^ str
 
   let anonymize ?(more=false) = function
-    | Primary p             -> Primary (Primary.anonymize ~more p)
+    | Primary p                   -> Primary (Primary.anonymize ~more p)
+    (*| AssignmentOperator(ao, tid) when more -> AssignmentOperator(AssignmentOperator.Eq, anonymize_tid ~more tid)*)
     | AssignmentOperator(ao, tid) -> AssignmentOperator(ao, anonymize_tid ~more tid)
-    | expr                  -> expr
+    | expr                        -> expr
 
 
 
@@ -1822,7 +1841,7 @@ let anonymize ?(more=false) = function
   | Expression e                   -> Expression (Expression.anonymize ~more e)
   | Statement s                    -> Statement (Statement.anonymize ~more s)
   | Annotation a                   -> Annotation (Annotation.anonymize a)
-  | Modifier m                     -> Modifier (Modifier.anonymize m)
+  (*| Modifier m                     -> Modifier (Modifier.anonymize m)*)
   | NameInvocation name            -> NameInvocation ""
   | ElementValuePair name          -> ElementValuePair ""
   | Constructor(name, msig)        -> if true(*more*) then Constructor("", "") else Constructor("", msig)
@@ -1858,9 +1877,9 @@ let anonymize ?(more=false) = function
   | IDstaticOnDemand name          -> IDstaticOnDemand ""
   | ElementDeclaration name        -> ElementDeclaration ""
   | FieldDeclarations name         -> FieldDeclarations ""
-  | ForInit tid                    -> ForInit (anonymize_tid tid)
-  | ForCond tid                    -> ForCond (anonymize_tid tid)
-  | ForUpdate tid                  -> ForUpdate (anonymize_tid tid)
+  | ForInit tid                    -> ForInit (anonymize_tid ~more tid)
+  | ForCond tid                    -> ForCond (anonymize_tid ~more tid)
+  | ForUpdate tid                  -> ForUpdate (anonymize_tid ~more tid)
   | InferredFormalParameter name   -> InferredFormalParameter ""
   | Resource(name, dims)           -> Resource("", 0)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
@@ -1869,7 +1888,7 @@ let anonymize ?(more=false) = function
 
   | WildcardBoundsExtends when more -> Wildcard
   | WildcardBoundsSuper when more   -> Wildcard
-  | CatchClause tid                 -> CatchClause (anonymize_tid tid)
+  | CatchClause tid                 -> CatchClause (anonymize_tid ~more tid)
 
   | lab                            -> lab
 
@@ -1883,8 +1902,8 @@ let anonymize2 = function
   | VariableDeclarator _                                       -> Primary (Primary.Name "")
   | Interface _ | Enum _                                       -> Class ""
   | InterfaceBody _ | EnumBody _                               -> ClassBody ""
-  | Constructor _ | ConstructorBody _ | Method _ | MethodBody _ as lab ->
-      anonymize ~more:false lab
+  | Constructor _ | ConstructorBody _ | Method _ | MethodBody _ as lab -> anonymize ~more:false lab
+  | Modifier m -> Modifier (Modifier.anonymize m)
   | lab -> anonymize ~more:true lab
 
 let anonymize3 = function
@@ -2431,6 +2450,24 @@ let is_compatible lab1 lab2 =
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
+  | _ -> false
+
+let quasi_eq lab1 lab2 =
+  match lab1, lab2 with
+  | Primary prim1, Primary prim2 -> begin
+      match prim1, prim2 with
+      | Primary.SimpleMethodInvocation n1, Primary.FieldAccess n2 -> begin
+          let n1_ = String.lowercase_ascii n1 in
+          let n2_ = String.lowercase_ascii n2 in
+          n1_ = "get"^n2_^"#0"
+      end
+      | Primary.FieldAccess n1, Primary.SimpleMethodInvocation n2 -> begin
+          let n1_ = String.lowercase_ascii n1 in
+          let n2_ = String.lowercase_ascii n2 in
+          n2_ = "get"^n1_^"#0"
+      end
+      | _ -> false
+  end
   | _ -> false
 
 let relabel_allowed (lab1, lab2) = 
@@ -3277,7 +3314,14 @@ let get_name lab =
 
     | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]
 
-    | _ -> raise Not_found
+    | HugeArray(sz, c) ->
+      let h = Xhash.digest_hex_of_string Xhash.MD5 c in
+      "HUGE_ARRAY_"^h
+
+    | _ -> begin
+        (*WARN_MSG "name not found: %s" (to_string lab);*)
+        raise Not_found
+    end
   in
   if n = "" then
     raise Not_found

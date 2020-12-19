@@ -22,23 +22,26 @@ let open_temp_file rpath =
 type kind =
   | K_DUMMY
   | K_FS
-  | K_GIT
+  | K_GIT of string
+  | K_UNKNOWN
 
 let kind_fs = K_FS
-let kind_git = K_GIT
+let kind_git r = K_GIT r
 let kind_dummy = K_DUMMY
+let kind_unknown = K_UNKNOWN
 
 let kind_to_string = function
-  | K_DUMMY -> "dummy"
-  | K_FS    -> "fs"
-  | K_GIT   -> "git"
+  | K_DUMMY   -> "dummy"
+  | K_UNKNOWN -> "unknown"
+  | K_FS      -> "fs"
+  | K_GIT r   -> "git:"^r
 
 let kind_is_fs = function
-  | K_FS    -> true
+  | K_FS -> true
   | _ -> false
 
 let kind_is_git = function
-  | K_GIT   -> true
+  | K_GIT _ -> true
   | _ -> false
 
 class type entry_t = object
@@ -50,6 +53,7 @@ class type entry_t = object
   method entries     : entry_t list
   method file_digest : Xhash.t
   method dir_digest  : Xhash.t option
+  method get_content : unit -> string
 end (* of class type Storage.entry_t *)
 
 let rec scan_dir (* for files *)
@@ -189,11 +193,14 @@ class virtual tree = object (self)
 
 end (* of class Storage.tree *)
 
+type obj_t = Tree of tree | Entry of entry_t
 
-class file ?(digest_opt=None) ?(ignore_case=false) (t : tree) (_path : string) =
+class file ?(digest_opt=None) ?(ignore_case=false) (obj : obj_t) (_path : string) =
   let path =
     if ignore_case then
-      (t#get_entry ~ignore_case:true _path)#path
+      match obj with
+      | Tree t -> (t#get_entry ~ignore_case:true _path)#path
+      | Entry e -> e#path
     else
       _path
   in
@@ -209,17 +216,33 @@ class file ?(digest_opt=None) ?(ignore_case=false) (t : tree) (_path : string) =
   method set_digest d =
     digest_opt <- Some d
 
-  method tree          = t
-  method fullpath      = Xfile.normpath (Filename.concat t#id path)
+  method tree =
+    match obj with
+    | Tree t -> t
+    | _ -> raise Not_found
+
+  method fullpath =
+    match obj with
+    | Tree t -> Xfile.normpath (Filename.concat t#id path)
+    | _ -> path
+
   method path          = path
   method basename      = Filename.basename path
   method dirname       = Filename.dirname path
   method is_dir        = self#get_entry#is_dir
-  method exists        = t#exists path
-  method size          = self#get_entry#size
-  method kind          = t#kind
 
-  method digest        = 
+  method exists =
+    match obj with
+    | Tree t -> t#exists path
+    | Entry _ -> true
+
+  method size = self#get_entry#size
+  method kind =
+    match obj with
+    | Tree t -> t#kind
+    | Entry _ -> kind_unknown
+
+  method digest =
     match digest_opt with
     | Some d -> d
     | None -> self#get_entry#file_digest
@@ -229,12 +252,34 @@ class file ?(digest_opt=None) ?(ignore_case=false) (t : tree) (_path : string) =
     | None -> Xfile.get_extension path
     | Some x -> x
 
-  method get_entry       = t#get_entry path
-  method get_channel     = t#get_channel path
-  method get_local_file  = t#get_local_file path
-  method free_local_file = t#free_local_file path
+  method get_entry =
+    match obj with
+    | Tree t -> t#get_entry path
+    | Entry e -> e
 
-  method set_filter extl filt = t#set_filter extl filt
+  method get_channel =
+    match obj with
+    | Tree t -> t#get_channel path
+    | Entry e ->
+        let str = e#get_content() in
+        let len = String.length str in
+        let ch = new Netchannels.input_string ~pos:0 ~len str in
+        ch
+
+  method get_local_file =
+    match obj with
+    | Tree t -> t#get_local_file path
+    | _ -> raise Not_found
+
+  method free_local_file =
+    match obj with
+    | Tree t -> t#free_local_file path
+    | _ -> ()
+
+  method set_filter extl filt =
+    match obj with
+    | Tree t -> t#set_filter extl filt
+    | _ -> ()
 
 end (* of class Storage.file *)
 
@@ -248,6 +293,7 @@ class dummy_entry : entry_t = object
   method entries = []
   method file_digest  = ""
   method dir_digest = None
+  method get_content() = ""
 end
 
 let dummy_entry = new dummy_entry
@@ -268,5 +314,5 @@ let dummy_tree = new dummy_tree
 
 
 
-let stdin = new file dummy_tree "<stdin>"
+let stdin = new file (Tree dummy_tree) "<stdin>"
 

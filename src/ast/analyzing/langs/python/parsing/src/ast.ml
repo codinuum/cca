@@ -43,6 +43,7 @@ and statement = { stmt_desc: statement_desc; stmt_loc: loc }
 
 and statement_desc = 
   | Ssimple of simplestmt list
+  | Sasync of statement
   | Sif of expr * suite * (loc * expr * suite) list * (loc * suite) option
   | Swhile of expr * suite * (loc * suite) option
   | Sfor of target list * expr list * suite * (loc * suite) option
@@ -50,14 +51,16 @@ and statement_desc =
 	* (loc * suite) option
   | Stryfin of suite * (loc * suite)
   | Swith of (expr * target option) list * suite
-  | Sfuncdef of decorator list * name * parameters * suite
-  | Sclassdef of decorator list * name * expr list * suite
+  | Sasync_funcdef of decorator list * name * parameters * expr option * suite
+  | Sfuncdef of decorator list * name * parameters * expr option * suite
+  | Sclassdef of decorator list * name * arglist * suite
 
 and simplestmt = { sstmt_desc: simplestmt_desc; sstmt_loc: loc }
 
 and simplestmt_desc =
   | SSexpr of expr list
   | SSassign of testlist list * testlist
+  | SSannassign of target list * expr * testlist option
   | SSaugassign of target list * augop * testlist
   | SSprint of expr list
   | SSprintchevron of expr * expr list
@@ -70,10 +73,12 @@ and simplestmt_desc =
   | SSraise1 of expr
   | SSraise2 of expr * expr
   | SSraise3 of expr * expr * expr
+  | SSraisefrom of expr * expr
   | SSyield of expr list
   | SSimport of dottedname_as_name list
-  | SSfrom of dottedname * name_as_name list
+  | SSfrom of dots option * dottedname option * name_as_name list
   | SSglobal of name list
+  | SSnonlocal of name list
   | SSexec of expr
   | SSexec2 of expr * expr
   | SSexec3 of expr * expr * expr
@@ -89,9 +94,16 @@ and except = EX of loc | EX1 of loc * expr | EX2 of loc * expr * target
 
 and suite = loc * statement list
 
-and parameters = loc * (fpdef * expr option) list * name option * name option
+and dots = loc * int
 
-and fpdef = Fname of name | Flist of loc * fpdef list
+and parameters = loc * vararg list
+
+and vararg =
+| VAarg of fpdef * expr option
+| VAargs of loc * name option
+| VAkwargs of loc * name
+
+and fpdef = Fname of name | Flist of loc * fpdef list | Ftyped of loc * name * expr
 
 and decorator = loc * dottedname * arglist
 
@@ -104,29 +116,32 @@ and expr_desc =
   | Euop of uop * expr
   | Elambda of parameters * expr
   | Econd of expr * expr * expr
+  | Estar of expr
+  | Enamed of expr * expr
+  | Efrom of expr
+
+  | Earg of expr * expr
 
 and primary = { prim_desc: primary_desc; prim_loc: loc }
 
 and primary_desc = 
   | Pname of name
   | Pliteral of literal
-	
   | Pparen of expr
   | Ptuple of expr list
-
   | Pyield of expr list
-  | Pcomp of expr * compfor
-
-  | Plist of listmaker
+  | PcompT of expr * compfor
+  | PcompL of expr * compfor
+  | Plist of expr list
   | Plistnull
   | Pdictorset of dictorsetmaker
   | Pdictnull
   | Pstrconv of expr list
-
   | Pattrref of primary * name
   | Psubscript of primary * expr list
   | Pslice of primary * sliceitem list
   | Pcall of primary * arglist
+  | Pawait of primary
 
 and trailer = 
   | TRattrref of name
@@ -144,16 +159,6 @@ and literal =
 and pystring = PSlong of loc * string | PSshort of loc * string
 
 and target = expr
-(*
-  | Tname of name
-  | Ttuple of target list
-  | Tlist of target list
-  | Tattrref of primary * name
-  | Tsubscript of primary * expr list
-  | Tslice of primary * sliceitem list
-*)
-
-and listmaker = LMfor of expr * listfor | LMtest of expr list
 
 and listfor = loc * expr list * expr list * listiter option
 
@@ -161,26 +166,39 @@ and listif = loc * expr * listiter option
 
 and listiter = LIfor of listfor | LIif of listif
 
-and dictorsetmaker = 
-| DSMdict of (loc * expr * expr) list 
-| DSMdictC of expr * expr * compfor
+and dictorsetmaker =
+| DSMdict of dictelem list
+| DSMdictC of dictelem * compfor
 | DSMset of expr list
 | DSMsetC of expr * compfor
 
+and dictelem = { delem_desc : dictelem_desc; delem_loc : loc }
+
+and dictelem_desc =
+| DEkeyValue of expr * expr
+| DEstarStar of expr
+
 and sliceitem = 
-  | SIexpr of expr 
-  | SIproper of loc * expr option * expr option * expr option 
+  | SIexpr of expr
+  | SI2 of loc * expr option * expr option
+  | SI3 of loc * expr option * expr option * expr option
   | SIellipsis of loc
 
-and arglist = loc * argument list * (expr * argument list) option * expr option
+and arglist = loc * argument list
 
-and argument = loc * expr option * expr * compfor option
+and argument =
+  | Aarg of loc * expr * expr option
+  | Acomp of loc * expr * compfor
+  | Aassign of loc * expr * expr
+  | Aargs of loc * expr
+  | Akwargs of loc * expr
+
 
 and compiter = Cfor of compfor | Cif of compif
 
 and compif = loc * expr * compiter option
 
-and compfor = loc * expr list * expr * compiter option
+and compfor = loc * (expr list * expr * compiter option) * bool
 
 and augop =
   | AaddEq

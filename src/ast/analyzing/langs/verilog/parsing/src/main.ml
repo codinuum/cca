@@ -26,7 +26,7 @@ module Aux = Parser_aux
 let compile_mode = ref false
 let filename = ref ""
 let arg_count = ref 0
-
+let dump_flag = ref false
 
 let read_hint file =
   let _parser = new Lib.parser_c in
@@ -44,6 +44,7 @@ let _ =
      "-verbose", Arg.Unit (fun () -> _parser#set_verbose_flag), "\tdisplay verbose messages";
      "-I", Arg.String _parser#add_search_path, "PATH\tadd search path";
      "-k", Arg.Unit (fun () -> _parser#set_keep_going_flag), "\tcontinue parsing in spite of errors";
+     "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump AST";
      "-proj-root", Arg.String options#set_root_path, "P\tset project root path to P";
     ]
     (fun s -> incr arg_count; filename := s) 
@@ -88,9 +89,8 @@ let _ =
 	  _parser#parse_stdin
       in
 
-      BEGIN_INFO
+      if !dump_flag then
 	Printer.dump ast#root;
-      END_INFO;
 
       Printf.printf "*** PARSED! ***\n";
 

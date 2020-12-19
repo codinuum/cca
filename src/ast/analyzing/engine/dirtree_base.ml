@@ -134,10 +134,10 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
 
 type node_t = node_data Otree.node2
 
-class c options (root : node_t) is_top = object (self)
+class c options (root : node_t) ?(id="") is_top = object (self)
   inherit [ 'node ] Otree.otree2 ~hash:options#hash_algo root is_top as super
 
-  method id = root#data#id
+  method id = if id = "" then root#data#id else id
 
   method path idx = (self#get idx)#data#path
 
@@ -266,7 +266,7 @@ let of_tree options mktbl (tree : Storage.tree) =
     end
   in
   let root = tree#get_entry "" in
-  let dtree = new c options (file_to_node true root) true in
+  let dtree = new c options (file_to_node true root) ~id:tree#name true in
 
   if options#verbose_flag then
     printf "done.\n%!";
@@ -318,7 +318,7 @@ let get_cache_path_for_dir2 options old_tree new_tree =
 
 
 
-let mkfile t nd = new Storage.file t ~digest_opt:nd#data#content_digest nd#data#path
+let mkfile t nd = new Storage.file (Storage.Tree t) ~digest_opt:nd#data#content_digest nd#data#path
 
 let mkfiles t = List.map (mkfile t)
 

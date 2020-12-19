@@ -15,6 +15,20 @@ MLDIFF_OBJS = mldiff.cmo
 
 MLDIFF_OBJS_DEP = $(foreach f,$(MLDIFF_OBJS),$(MLDIFF_DIR)/$(f))
 
+COMMON_OBJS = key.cmo loc.cmo binding.cmo moveid.cmo adiff.cmo treediff.cmo \
+		astml.cmo entity.cmo storage.cmo cache.cmo \
+		hash_options.cmo fact_options.cmo fs_options.cmo base_options.cmo \
+		basic_options.cmo const.cmo misc.cmo engine_options.cmo \
+		delta_options.cmo parser_options.cmo options.cmo \
+		origin.cmo region.cmo range.cmo Lrange.cmo LCrange.cmo \
+		fragment.cmo GIDfragment.cmo LCfragment.cmo Lfragment.cmo \
+		spec_base.cmo spec.cmo \
+		triple.cmo info.cmo editop.cmo fs.cmo delta_base.cmo \
+		sourcecode.cmo proximity.cmo UIDmapping.cmo stat.cmo change_base.cmo \
+		delta_common.cmo delta_interpret.cmo delta_format.cmo delta.cmo \
+		fact_base.cmo comparison.cmo \
+		edit_base.cmo charpool.cmo lang_base.cmo lang.cmo
+
 COMMON_OBJS_P = key.cmo loc.cmo binding.cmo moveid.cmo adiff.cmo \
 		astml.cmo entity.cmo storage.cmo cache.cmo \
 		hash_options.cmo fact_options.cmo fs_options.cmo base_options.cmo \
@@ -26,10 +40,14 @@ COMMON_OBJS_P = key.cmo loc.cmo binding.cmo moveid.cmo adiff.cmo \
 		sourcecode.cmo stat.cmo fact_base.cmo \
 		charpool.cmo lang_base.cmo
 
+COMMON_OBJS_DEP = $(foreach f,$(COMMON_OBJS),$(COMMON_DIR)/$(f))
 COMMON_OBJS_DEP_P = $(foreach f,$(COMMON_OBJS_P),$(COMMON_DIR)/$(f))
 
+ENGINE_OBJS = edit.cmo pruned.cmo postprocessing.cmo flattreediff.cmo \
+		dirtree_base.cmo dirtree.cmo analyzing.cmo
 ENGINE_OBJS_P = dirtree_base.cmo
 
+ENGINE_OBJS_DEP = $(foreach f,$(ENGINE_OBJS),$(ENGINE_DIR)/$(f))
 ENGINE_OBJS_DEP_P = $(foreach f,$(ENGINE_OBJS_P),$(ENGINE_DIR)/$(f))
 
 LANGS_COMMON_OBJS = fname.cmo astloc.cmo layeredloc.cmo position.cmo ranges.cmo regions.cmo \

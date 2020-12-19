@@ -123,7 +123,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
 	"return",   RETURN;
 	"try",      TRY;
 	"while",    WHILE;
-	"yield",    YIELD
+	"yield",    YIELD;
+
+        "await",    AWAIT;
+        "async",    ASYNC;
+        "nonlocal", NONLOCAL;
       ] in 
     let keyword_table = Hashtbl.create (List.length keyword_list) in
     let _ = 
@@ -236,7 +240,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp shortstringitem_double = shortstringchar_double | escapeseq
 
   let regexp shortstring = '\'' shortstringitem_single* '\'' | '"' shortstringitem_double* '"'
-  let regexp stringprefix = "r" | "u" | "ur" | "R" | "U" | "UR" | "Ur" | "uR"
+  let regexp stringprefix =
+    "r" | "u" | "R" | "U" | "f" | "F" | "fr" | "Fr" | "fR" | "FR" |
+    "rf" | "rF" | "Rf" | "RF" | "ur" | "UR" | "Ur" | "uR" |
+    "b" | "B" | "br" | "Br" | "bR" | "BR" | "rb" | "rB" | "Rb" | "RB"
 
   let regexp string = stringprefix? shortstring
 
@@ -244,15 +251,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp longstring_start_double = stringprefix? longstring_double_quote
 
   let regexp hexdigit = ['0'-'9' 'a'-'f' 'A'-'F']
-  let regexp hexinteger = '0' ['x' 'X'] hexdigit+
-  let regexp octinteger = '0' ['o' 'O'] ['0'-'7']+
-  let regexp bininteger = '0' ['b' 'B'] ['0' '1']+
-  let regexp decimalinteger = '0' | ['1'-'9'] digit*
+  let regexp hexinteger = '0' ['x' 'X'] ('_'? hexdigit)+
+  let regexp octinteger = '0' ['o' 'O'] ('_'? ['0'-'7'])+
+  let regexp bininteger = '0' ['b' 'B'] ('_'? ['0' '1'])+
+  let regexp decimalinteger = '0' ('_'? '0')* | ['1'-'9'] ('_'? digit)*
   let regexp integer = decimalinteger | bininteger | octinteger | hexinteger
   let regexp longinteger = integer ['l' 'L']
 
   let regexp exponent = ['e' 'E'] ['+' '-']? digit+
-  let regexp intpart = digit+
+  let regexp intpart = digit ('_'? digit)*
   let regexp pointfloat = intpart? '.' digit+ | intpart '.'
   let regexp exponentfloat = (intpart|pointfloat) exponent
   let regexp floatnumber = pointfloat | exponentfloat
@@ -281,11 +288,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   string                  -> mktok (SHORTSTRING (Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 |   null_lines ->
-    let s = Ulexing.utf8_lexeme lexbuf in
-    DEBUG_MSG "[NULL_LINES] \"%s\"" s;
-    let st, ed = 
-      Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1
-    in
+    DEBUG_MSG "[NULL_LINES] \"%s\"" (Ulexing.utf8_lexeme lexbuf);
+    let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
     DEBUG_MSG "[NULL_LINES]: region: %d-%d" st ed;
     env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
     if scanner_env#in_paren then 
@@ -352,6 +356,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   ">>=" -> mktok GT_GT_EQ lexbuf
 |   "<<=" -> mktok LT_LT_EQ lexbuf
 |   "**=" -> mktok STAR_STAR_EQ lexbuf
+|   ":="  -> mktok COLON_EQ lexbuf
+
+|   "->"  -> mktok MINUS_GT lexbuf
+|   "..." -> mktok ELLIPSIS lexbuf
 
 |   '+' -> mktok PLUS lexbuf
 |   '-' -> mktok MINUS lexbuf
@@ -488,5 +496,3 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
 end (* of functor Ulexer.F *)
-
-

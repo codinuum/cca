@@ -377,6 +377,6 @@ class c = object (self)
 
   initializer
     clone_map_file_name <- "clone_map"^gmap_ext;
-    cache_dir_base <- Filename.concat (Filename.concat (Misc.get_home_dir()) ".diffts") "cache"
+    cache_dir_base <- Filename.concat (Filename.concat (Misc.get_home_dir()) ".cca") "cache"
 
 end (* of class Parser_options.c *)

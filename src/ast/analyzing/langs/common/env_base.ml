@@ -92,7 +92,7 @@ class ['src] c = object (self)
             self#verbose_msg "searching current dir (\"%s\") for \"%s\"..." src#file#dirname p;
             let ap = Xfile.normpath (Filename.concat src#file#dirname p) in
             if src#tree#exists ~ignore_case ap then begin
-              let f = new Storage.file ~ignore_case src#tree ap in
+              let f = new Storage.file ~ignore_case (Storage.Tree src#tree) ap in
               raise (File_found f)
             end
           with
@@ -108,14 +108,14 @@ class ['src] c = object (self)
                   self#verbose_msg "searching \"%s\" for \"%s\"..." p0 p;
 	          let path = Xfile.normpath (Filename.concat p0 p) in
 	          if tree#exists ~ignore_case path then begin
-                    let f = new Storage.file ~ignore_case tree path in
+                    let f = new Storage.file ~ignore_case (Storage.Tree tree) path in
 	            raise (File_found f)
 	          end
                 ) search_path_list
             end
             else begin
               if tree#exists ~ignore_case p then begin
-                let f = new Storage.file ~ignore_case tree p in
+                let f = new Storage.file ~ignore_case (Storage.Tree tree) p in
                 raise (File_found f)
               end
             end
@@ -136,7 +136,7 @@ class ['src] c = object (self)
               else begin
                 let moveon =
                   match tree#kind with
-                  | Storage.K_GIT -> true
+                  | Storage.K_GIT _ -> true
                   | Storage.K_FS -> tree#id <> ""
                   | _ -> false
                 in
@@ -145,7 +145,7 @@ class ['src] c = object (self)
                   let dent_file_l = 
                     List.map
                       (fun (dent, path) ->
-                        dent, new Storage.file ~ignore_case tree path
+                        dent, new Storage.file ~ignore_case (Storage.Tree tree) path
                       ) dent_path_l
                   in
                   dent_file_list := dent_file_l @ !dent_file_list

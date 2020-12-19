@@ -15,7 +15,7 @@ COMPFLAGS_OPT = $(INCLS)
 
 include ../subs.mk
 
-OBJS = $(ENGINE_OBJS_P)
+OBJS = $(ENGINE_OBJS)
 
 OBJS_OPT = $(OBJS:.cmo=.cmx)
 

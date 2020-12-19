@@ -2150,6 +2150,8 @@ let is_compatible _ _ = false
 let is_order_insensitive = function
   | _ -> false
 
+let quasi_eq _ _ = false
+
 let relabel_allowed = function
   | Stmt _, Stmt _
   | IfConstruct, CaseConstruct | CaseConstruct, IfConstruct
@@ -2157,6 +2159,7 @@ let relabel_allowed = function
   | DoConstruct _, ForallConstruct | ForallConstruct, DoConstruct _
   | LoopControl _, LoopControlWhile | LoopControlWhile, LoopControl _
   | LoopControl _, LoopControlConcurrent | LoopControlConcurrent, LoopControl _
+  | ExecutionPart, Block | Block, ExecutionPart (* only for mapping children *)
     -> true
   | l1, l2 -> 
       (is_expr l1 && is_expr l2) ||

@@ -831,7 +831,7 @@ let anonymize ?(more=false) = function
     | ForInitItemDT id                         -> ForInitItemDT ""
     | CycleDelay s                             -> CycleDelay ""
     | CycleDelayId id                          -> CycleDelayId ""
-    | InstName id                              -> InstName id
+    | InstName id                              -> InstName ""
     | ClockingEvent id                         -> ClockingEvent ""
     | CycleDelayRange s                        -> CycleDelayRange ""
     | CycleDelayRangeId id                     -> CycleDelayRangeId ""
@@ -1889,6 +1889,8 @@ let is_compatible _ _ = false
 
 let is_order_insensitive = function
   | _ -> false
+
+let quasi_eq _ _ = false
 
 let relabel_allowed = function
   | ModuleDeclaration _, ModuleDeclaration _
