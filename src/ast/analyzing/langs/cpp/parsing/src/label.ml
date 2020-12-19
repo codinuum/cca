@@ -465,6 +465,7 @@ type t =
   | StorageClassSpecifierExtern
   | StorageClassSpecifierMutable
   | StorageClassSpecifierRegister
+  | StorageClassSpecifierVaxGlobaldef
 
 (* FunctionSpecifier *)
   | FunctionSpecifier
@@ -699,6 +700,7 @@ type t =
   | ClosingBrace
   | OpeningBracket
   | ClosingBracket
+  | DummyBody
   | DummyDecl
   | DummyStmt
   | DummyExpr
@@ -1199,6 +1201,7 @@ let to_string = function
   | StorageClassSpecifierExtern       -> "StorageClassSpecifierExtern"
   | StorageClassSpecifierMutable      -> "StorageClassSpecifierMutable"
   | StorageClassSpecifierRegister     -> "StorageClassSpecifierRegister"
+  | StorageClassSpecifierVaxGlobaldef -> "StorageClassSpecifierVaxGlobaldef"
 
 (* FunctionSpecifier *)
   | FunctionSpecifier        -> "FunctionSpecifier"
@@ -1431,6 +1434,7 @@ let to_string = function
   | ClosingBrace                   -> "ClosingBrace"
   | OpeningBracket                 -> "OpeningBracket"
   | ClosingBracket                 -> "ClosingBracket"
+  | DummyBody                      -> "DummyBody"
   | DummyDecl                      -> "DummyDecl"
   | DummyStmt                      -> "DummyStmt"
   | DummyExpr                      -> "DummyExpr"
@@ -1938,6 +1942,7 @@ let to_simple_string = function
   | StorageClassSpecifierExtern       -> "extern"
   | StorageClassSpecifierMutable      -> "mutable"
   | StorageClassSpecifierRegister     -> "register"
+  | StorageClassSpecifierVaxGlobaldef -> "globaldef"
 
 (* FunctionSpecifier *)
   | FunctionSpecifier        -> "<function-specifier>"
@@ -2172,6 +2177,7 @@ let to_simple_string = function
   | ClosingBrace                   -> "}"
   | OpeningBracket                 -> "["
   | ClosingBracket                 -> "]"
+  | DummyBody                      -> "<dummy-body>"
   | DummyDecl                      -> "<dummy-decl>"
   | DummyStmt                      -> "<dummy-stmt>"
   | DummyExpr                      -> "<dummy-expr>"
@@ -2692,6 +2698,7 @@ let to_tag : t -> string * (string * string) list = function
   | StorageClassSpecifierExtern       -> "StorageClassSpecifierExtern", []
   | StorageClassSpecifierMutable      -> "StorageClassSpecifierMutable", []
   | StorageClassSpecifierRegister     -> "StorageClassSpecifierRegister", []
+  | StorageClassSpecifierVaxGlobaldef -> "StorageClassSpecifierVaxGlobaldef", []
 
 (* FunctionSpecifier *)
   | FunctionSpecifier        -> "FunctionSpecifier", []
@@ -2927,6 +2934,7 @@ let to_tag : t -> string * (string * string) list = function
   | ClosingBrace                   -> "ClosingBrace", []
   | OpeningBracket                 -> "OpeningBracket", []
   | ClosingBracket                 -> "ClosingBracket", []
+  | DummyBody                      -> "DummyBody", []
   | DummyDecl                      -> "DummyDecl", []
   | DummyStmt                      -> "DummyStmt", []
   | DummyExpr                      -> "DummyExpr", []

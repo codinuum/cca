@@ -1186,7 +1186,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
         marginal_complete_free_cont_count > 0 ||
         (fixed_comment_count = 0) && 
         (
-         (exclam_comment_count > 0 && amp_count > 0 && marginal_amp_count <> amp_count) ||
+         (exclam_comment_count > 0 &&
+          amp_count > 0 &&
+          (marginal_amp_count = amp_count || marginal_amp_count + free_cont_count = amp_count)
+         ) ||
          (letter_cont_field_count > 0)
         )
       in
@@ -1693,14 +1696,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#clear_letter_cont_field;
     let max_line_length = env#current_source#max_line_length in
     if genv#pos <= max_line_length then begin
-      DEBUG_MSG "'&' found at pos %d (<= max_line_length(%d))"
-        genv#pos max_line_length;
-
+      DEBUG_MSG "'&' found at pos %d (<= max_line_length(%d))" genv#pos max_line_length;
       genv#incr_free_cont_count;
       genv#set_free_cont_flag
     end
-    else
-      genv#incr_marginal_amp_count;
+    else begin
+      DEBUG_MSG "'&' found at pos %d (> max_line_length(%d))" genv#pos max_line_length;
+      genv#incr_marginal_amp_count
+    end;
     genv#incr_amp_count;
     genv#add_to_pos 1;
     scan_stmt genv form lexbuf
@@ -2092,7 +2095,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let genv = new guess_env in
     let form = scan_label_field genv SF.Fixed ulexbuf in
     DEBUG_MSG "form=%s" (SF.to_string form);
-    DEBUG_MSG "genv:\n%s" genv#to_string;
+    DEBUG_MSG "genv:%s" genv#to_string;
     let final_form =
       if form = SF.Fixed then begin
         if genv#is_false_fixed_source_form then

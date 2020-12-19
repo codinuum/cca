@@ -37,6 +37,7 @@ let rawtoken_to_string = function
   | MARKER               -> "MARKER"
   | DUMMY_STMT           -> "DUMMY_STMT"
   | DUMMY_EXPR           -> "DUMMY_EXPR"
+  | DUMMY_BODY           -> "DUMMY_BODY"
   | DUMMY_DTOR           -> "DUMMY_DTOR"
   | DUMMY_TYPE           -> "DUMMY_TYPE"
   | BRACE_LEVEL lv       -> sprintf "BRACE_LEVEL:%d" lv
@@ -56,6 +57,7 @@ let rawtoken_to_string = function
   | OP_MACRO s           -> sprintf "OP_MACRO:%s" s
   | PARAM_DECL_MACRO s   -> sprintf "PARAM_DECL_MACRO:%s" s
   | PARAMS_MACRO s       -> sprintf "PARAMS_MACRO:%s" s
+  | PARAMS_BODY_MACRO s  -> sprintf "PARAMS_BODY_MACRO:%s" s
   | ARG_MACRO s          -> sprintf "ARG_MACRO:%s" s
   | ARGS_MACRO s         -> sprintf "ARGS_MACRO:%s" s
   | NEW_INIT_MACRO s     -> sprintf "NEW_INIT_MACRO:%s" s
@@ -92,6 +94,7 @@ let rawtoken_to_string = function
   | IDENT_TM s            -> sprintf "IDENT_TM:%s" s
   | IDENT_IM s            -> sprintf "IDENT_IM:%s" s
   | IDENT_PM s            -> sprintf "IDENT_PM:%s" s
+  | IDENT_PBM s           -> sprintf "IDENT_PBM:%s" s
   | IDENT_CM s            -> sprintf "IDENT_CM:%s" s
   | IDENT_LM s            -> sprintf "IDENT_LM:%s" s
   | IDENT_LPAREN s        -> sprintf "IDENT_LPAREN:%s" s
@@ -428,6 +431,8 @@ let rawtoken_to_string = function
   | DOXYGEN_CMD s -> "DOXYGEN_CMD:"^s
   | DOXYGEN_LINE s -> "DOXYGEN_LINE:"^s
 
+  | VAX_GLOBALDEF -> "VAX_GLOBALDEF"
+
   | OBJC_AUTORELEASEPOOL -> "OBJC_AUTORELEASEPOOL"
   | OBJC_AVAILABLE    -> "OBJC_ABAILABLE"
   | OBJC_CATCH        -> "OBJC_CATCH"
@@ -474,6 +479,7 @@ let rawtoken_to_repr = function
   | MARKER               -> ""
   | DUMMY_STMT           -> ""
   | DUMMY_EXPR           -> ""
+  | DUMMY_BODY           -> ""
   | DUMMY_DTOR           -> ""
   | DUMMY_TYPE           -> ""
   | BRACE_LEVEL _        -> ""
@@ -492,7 +498,8 @@ let rawtoken_to_repr = function
   | OP_MACRO s           -> s
   | PARAM_DECL_MACRO s   -> s
   | PARAMS_MACRO s       -> s
-  | ARG_MACRO s         -> s
+  | PARAMS_BODY_MACRO s  -> s
+  | ARG_MACRO s          -> s
   | ARGS_MACRO s         -> s
   | NEW_INIT_MACRO s     -> s
   | ATTR_MACRO s         -> s
@@ -528,6 +535,7 @@ let rawtoken_to_repr = function
   | IDENT_TM s            -> s
   | IDENT_IM s            -> s
   | IDENT_PM s            -> s
+  | IDENT_PBM s           -> s
   | IDENT_CM s            -> s
   | IDENT_LM s            -> s
   | IDENT_LPAREN s        -> s
@@ -767,8 +775,8 @@ let rawtoken_to_repr = function
   | PERC_GT               -> "%>"
   | PERC_COLON            -> "%:"
   | PERC_COLON_PERC_COLON -> "%:%:"
-  | SEMICOLON false       -> ";"
-  | SEMICOLON true        -> ""
+  | SEMICOLON false       -> ""
+  | SEMICOLON true        -> ";"
   | COLON                 -> ":"
   | ELLIPSIS              -> "..."
   | QUEST                 -> "?"
@@ -865,6 +873,8 @@ let rawtoken_to_repr = function
 
   | DOXYGEN_CMD s -> s
   | DOXYGEN_LINE s -> s
+
+  | VAX_GLOBALDEF -> "globaldef"
 
   | OBJC_AUTORELEASEPOOL -> "@autoreleasepool"
   | OBJC_AVAILABLE    -> "@available"

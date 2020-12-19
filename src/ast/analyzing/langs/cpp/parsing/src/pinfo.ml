@@ -57,6 +57,7 @@ type pp_if_section_info = {
     mutable i_broken                : bool;
     mutable i_paren_closing         : bool;
     mutable i_func_head             : bool;
+    mutable i_func_body             : bool;
     mutable i_semicolon             : bool;
     mutable i_comma                 : bool;
     mutable i_cond_expr             : bool;
@@ -101,6 +102,7 @@ let pp_if_section_info_to_string {
   i_broken=b;
   i_paren_closing=pcl;
   i_func_head=fh;
+  i_func_body=fb;
   i_semicolon=s;
   i_comma=cm;
   i_cond_expr=ce;
@@ -113,6 +115,7 @@ let pp_if_section_info_to_string {
      "broken",    b;
      ")",         pcl;
      "func_head", fh;
+     "func_body", fb;
      ";",         s;
      ",",         cm;
      "?",         ce;
@@ -148,6 +151,7 @@ let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=None) ?(pp_else=None) 
   i_broken=false;
   i_paren_closing=false;
   i_func_head=false;
+  i_func_body=false;
   i_semicolon=false;
   i_comma=false;
   i_cond_expr=false;
@@ -998,6 +1002,7 @@ module Name = struct
       | Enumerator of Type.t_
       | MacroObj
       | MacroFun
+      | Label
 
     let rec kind_to_string = function
       | Namespace _  -> "Namespace"
@@ -1020,6 +1025,7 @@ module Name = struct
       | Enumerator ty -> sprintf "Enumerator:%s" (Type.to_string_ ty)
       | MacroObj     -> "MacroObj"
       | MacroFun     -> "MacroFun"
+      | Label        -> "Label"
 
     let rec type_of_kind = function
       | Template k   -> type_of_kind k
@@ -1124,11 +1130,14 @@ module Name = struct
 
     method iter (f : ident -> Spec.c -> unit) = Hashtbl.iter f _tbl
 
-    method register ?(templatize=true) i spec =
+    method register ?(templatize=true) ?(replace=false) i spec =
       DEBUG_MSG "@%s: %s => %s" (Scope.to_string scope) i spec#to_string;
       if templatize && Scope.is_template scope then
         spec#templatize();
-      Hashtbl.add _tbl i spec
+      if replace then
+        Hashtbl.replace _tbl i spec
+      else
+        Hashtbl.add _tbl i spec
 
     method remove_macro i =
       Hashtbl.filter_map_inplace
@@ -1354,7 +1363,7 @@ module Name = struct
       try
         Stack.iter
           (fun frm ->
-            DEBUG_MSG "%s" frm#to_string;
+            (*DEBUG_MSG "%s" frm#to_string;*)
             try
               raise (Found (frm#find ?filt:(Some filt) n))
             with

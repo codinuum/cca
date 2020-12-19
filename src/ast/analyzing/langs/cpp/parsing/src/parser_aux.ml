@@ -104,6 +104,7 @@ class pstat = object (self)
   val mutable end_of_sizeof_flag = false
   val mutable end_of_handler_head_flag = false
   val mutable cast_head_flag = false
+  val mutable end_of_broken_decl_section_flag = false
 
   val paren_stack = Stack.create()
   val brace_stack = Stack.create()
@@ -183,6 +184,7 @@ class pstat = object (self)
     end_of_sizeof_flag <- false;
     end_of_handler_head_flag <- false;
     cast_head_flag <- false;
+    end_of_broken_decl_section_flag <- false;
     Stack.clear paren_stack;
     Stack.clear brace_stack;
     Stack.clear templ_param_arg_stack;
@@ -719,6 +721,18 @@ class pstat = object (self)
 
   method end_of_handler_head_flag = end_of_handler_head_flag
 
+  method set_end_of_broken_decl_section_flag () =
+    DEBUG_MSG "end_of_broken_decl_section_flag set";
+    end_of_broken_decl_section_flag <- true
+
+  method clear_end_of_broken_decl_section_flag () =
+    if end_of_broken_decl_section_flag then begin
+      DEBUG_MSG "end_of_broken_decl_section_flag cleared";
+      end_of_broken_decl_section_flag <- false
+    end
+
+  method end_of_broken_decl_section_flag = end_of_broken_decl_section_flag
+
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
     sizeof_ty_flag <- true
@@ -1154,6 +1168,18 @@ class pstat = object (self)
     with
       _ -> false
 
+  method set_func_body_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_func_body <- true
+
+  method get_func_body_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_func_body
+    with
+      _ -> false
+
   method set_semicolon_info () =
     let info = Stack.top pp_if_section_stack in
     DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
@@ -1269,7 +1295,12 @@ class pstat = object (self)
     DEBUG_MSG "closing paren...";
     let k = Stack.pop paren_stack in
     let _ = k in
-    DEBUG_MSG "paren closed (%s)" (paren_kind_to_string k)
+    DEBUG_MSG "paren closed (%s)" (paren_kind_to_string k);
+    begin
+      try
+        DEBUG_MSG "top became %s" (paren_kind_to_string (self#paren_stack_top))
+      with _ -> ()
+    end
 
   method paren_level = Stack.length paren_stack
   method paren_stack_top = Stack.top paren_stack
@@ -1675,12 +1706,12 @@ class env = object (self)
   method register_macro_obj i (nd : Ast.node) =
     DEBUG_MSG "i=%s" i;
     let spec = new N.Spec.c nd#loc i N.Spec.MacroObj in
-    top_frame#register i spec
+    top_frame#register ~replace:true i spec
 
   method register_macro_fun i (nd : Ast.node) =
     DEBUG_MSG "i=%s" i;
     let spec = new N.Spec.c nd#loc i N.Spec.MacroFun in
-    top_frame#register i spec
+    top_frame#register ~replace:true i spec
 
   method undef_macro i =
     top_frame#remove_macro i
@@ -1976,6 +2007,15 @@ class env = object (self)
         frm#register qn spec
       ) (Ast.qn_type_list_of_simple_decl nd)
 
+  method register_label ?(replace=false) (nd : Ast.node) =
+    DEBUG_MSG "nd=%s" (L.to_string nd#label);
+    let frm = stack#top in
+    let i = nd#get_name in
+    if replace || try (frm#find i)#kind != N.Spec.Label with _ -> true then begin
+      let spec = new N.Spec.c nd#loc i N.Spec.Label in
+      frm#register ~replace i spec
+    end
+
   method register_resolved_macro name nd =
     DEBUG_MSG "%s" name;
     Hashtbl.add resolved_macro_tbl name nd
@@ -2223,6 +2263,10 @@ class env = object (self)
   method clear_end_of_handler_head_flag = pstat#clear_end_of_handler_head_flag
   method end_of_handler_head_flag = pstat#end_of_handler_head_flag
 
+  method set_end_of_broken_decl_section_flag = pstat#set_end_of_broken_decl_section_flag
+  method clear_end_of_broken_decl_section_flag = pstat#clear_end_of_broken_decl_section_flag
+  method end_of_broken_decl_section_flag = pstat#end_of_broken_decl_section_flag
+
   method set_trailing_retty_flag = pstat#set_trailing_retty_flag
   method clear_trailing_retty_flag = pstat#clear_trailing_retty_flag
   method trailing_retty_flag = pstat#trailing_retty_flag
@@ -2256,6 +2300,8 @@ class env = object (self)
   method get_paren_closing_info = pstat#get_paren_closing_info
   method set_func_head_info = pstat#set_func_head_info
   method get_func_head_info = pstat#get_func_head_info
+  method set_func_body_info = pstat#set_func_body_info
+  method get_func_body_info = pstat#get_func_body_info
   method set_semicolon_info = pstat#set_semicolon_info
   method clear_semicolon_info = pstat#clear_semicolon_info
   method get_semicolon_info = pstat#get_semicolon_info

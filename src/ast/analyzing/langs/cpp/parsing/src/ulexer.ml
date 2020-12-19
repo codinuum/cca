@@ -129,14 +129,14 @@ let regexp s_char = [^'"' '\\' '\013' '\010'] | escape_sequence | universal_char
 let regexp d_char = [^' ' '(' ')' '\\' '\009' '\011' '\012' '\013' '\010']
 let regexp r_char = '.' (* !!! *)
 
-let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator))+
+let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|',')|line_terminator)+
 let regexp d_char_sequence = d_char+
 let regexp r_char_sequence = r_char+
 
 let regexp raw_string_head = encoding_prefix? 'R' '"' d_char_sequence? '('
 let regexp raw_string_tail = ')' d_char_sequence? '"'
 
-let regexp string_literal = encoding_prefix? '"' s_char_sequence? '"' | '@' '"' s_char_sequence? '"'
+let regexp string_literal = encoding_prefix? '"' s_char_sequence? '"' | '@' '"' s_char_sequence? '"' | '`' s_char_sequence '`'
 
 let regexp boolean_literal = "false" | "true"
 
@@ -233,7 +233,7 @@ let find_objc_keyword s =
   try
     _find_objc_keyword s
   with
-    Not_found -> OBJC_UNKNOWN s
+    Not_found -> (*OBJC_UNKNOWN*)IDENT s
 
 
 let _find_pp_keyword =
@@ -462,7 +462,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |  "/*" ->
     let st = Ulexing.lexeme_start lexbuf in
     let sl, sc = get_position st in
-    block_comment (st, sl, sc) lexbuf
+    begin
+      try
+        block_comment (st, sl, sc) lexbuf
+      with
+        e -> begin
+          let pos = Ulexing.lexeme_start lexbuf in
+          let l, c = env#current_pos_mgr#get_position pos in
+          let mes = Printf.sprintf "failed to handle block comment (%dL,%dC)" l c in
+          raise (Parserlib_base.Parse_error("", mes))
+        end
+    end
 
 |  "/**/" ->
     let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in

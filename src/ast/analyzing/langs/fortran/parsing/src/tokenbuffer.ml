@@ -605,6 +605,18 @@ module F (Stat : Aux.STATE_T) = struct
                   tok := IDENTIFIER s
                 end
               end
+          | WRITE s when begin
+              last_tok == RPAREN &&
+              peek_next() == LPAREN &&
+              env#in_io_control_context
+          end -> begin
+              DEBUG_MSG "')' WRITE --> ')' ';' WRITE";
+              Common.parse_warning_loc !loc "lack of SEMICOLON";
+              let spos, _ = Loc.to_lexposs !loc in
+              tokensrc#prepend (!tok, !loc);
+              tok := SEMICOLON;
+              loc := loc_of_lexposs spos spos
+          end
           | OPERATOR s | ASSIGNMENT s | READ s | WRITE s -> begin
               if not env#in_only_context then begin
                 DEBUG_MSG "<keyword> --> <identifier>";
@@ -1556,8 +1568,17 @@ module F (Stat : Aux.STATE_T) = struct
 
     begin 
       match !tok with
+      | IDENTIFIER s | PP_IDENTIFIER s when begin
+          peek_next() == LPAREN &&
+          match last_tok with
+          | IMPLICIT _ -> true
+          | _ -> env#in_implicit_context && not env#in_letter_context
+      end -> begin
+          DEBUG_MSG "IMPLICIT <identifier>|<pp-identifier> --> IMPLICIT <pp-macro-id:type-spec>";
+          tok := PP_MACRO_ID(M.K_TYPE_SPEC, s)
+      end
       | LPAREN -> begin (* '(' --> <lparen-XXX> *)
-	  if env#in_implicit_context then begin
+          if env#in_implicit_context then begin
             let single_lparen = ref true in
             let level = ref 1 in
             let nth = ref 2 in
@@ -1829,6 +1850,15 @@ module F (Stat : Aux.STATE_T) = struct
               tok := IDENTIFIER s
           end
           | _ -> ()
+      end
+      | ACCEPT s when begin
+          is_head_of_stmt_ && peek_next() == COLON ||
+          match last_tok with
+          | ELSE _ | END_IF _ -> true
+          | _ -> false
+      end -> begin
+        DEBUG_MSG "<keyword> --> <identifier>";
+        tok := IDENTIFIER s
       end
       | _ -> ()
     end;
@@ -2369,6 +2399,17 @@ module F (Stat : Aux.STATE_T) = struct
               let t, l = discard() in
               tok := RPAREN;
               loc := l
+          end
+          | CHAR_LITERAL _ when env#current_source#lang_config#is_free_source_form -> begin
+              match last_tok with
+              | COMMA -> begin
+                  DEBUG_MSG "',' EOL --> ','";
+                  Common.parse_warning_loc !loc "ignoring EOL after ','";
+                  let t, l = discard() in
+                  tok := t;
+                  loc := l
+              end
+              | _ -> ()
           end
           | _ -> ()
       end

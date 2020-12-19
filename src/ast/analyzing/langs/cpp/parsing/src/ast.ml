@@ -1297,6 +1297,22 @@ and qn_type_list_of_simple_decl (nd : node) =
             ) l
       end
   end
+  | PpIfSection _ -> begin
+      let if_itl = try qn_type_list_of_simple_decl ((nd#nth_child 0)#nth_child 1) with _ -> [] in
+      let elif_itl =
+        List.flatten
+          (Xlist.filter_map
+             (fun x -> try Some (qn_type_list_of_simple_decl (x#nth_child 1)) with _ -> None)
+             (nd#nth_children 1))
+      in
+      let else_itl =
+        List.flatten
+          (Xlist.filter_map
+             (fun x -> try Some (qn_type_list_of_simple_decl (x#nth_child 1)) with _ -> None)
+             (nd#nth_children 2))
+      in
+      if_itl @ elif_itl @ else_itl
+  end
   | DeclarationMacro _ -> []
   | _ -> invalid_arg "Cpp.Ast.qn_type_list_of_simple_decl"
 
@@ -1392,6 +1408,7 @@ and qn_wrap_of_mem_declarator (nd : node) =
   match nd#label with
   | MemberDeclaratorDecl -> qn_wrap_of_declarator (nd#nth_child 0)
   | MemberDeclaratorBitField i -> i, fun x -> x
+  | PpDefine _ -> "", fun x -> x
   | _ -> invalid_arg "Cpp.Ast.qn_wrap_of_mem_declarator"
 
 and qn_wrap_of_declarator (nd : node) =
@@ -1504,6 +1521,11 @@ and qn_wrap_of_declarator (nd : node) =
             match x#label with
             | L.Identifier s -> s
             | L.ParamDeclMacro i -> mk_macro_id i
+            | L.PpIfSection _ -> begin
+               match ((x#nth_child 0)#nth_child 1)#label with
+               | L.Identifier s -> s
+               | _ -> assert false
+            end
             | _ -> assert false
           ) (nd#nth_children 1)
       in

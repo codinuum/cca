@@ -449,6 +449,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | StorageClassSpecifierExtern       -> mkstr2 288
   | StorageClassSpecifierMutable      -> mkstr2 289
   | StorageClassSpecifierRegister     -> mkstr2 471
+  | StorageClassSpecifierVaxGlobaldef -> mkstr2 646
   | FunctionSpecifier        -> mkstr2 290
   | FunctionSpecifierVirtual -> mkstr2 291
   | ExplicitSpecifier        -> mkstr2 292
@@ -790,6 +791,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | MsAttributeSpecifier -> mkstr2 643
   | UnsignedInt  -> mkstr2 644
   | UnsignedLong -> mkstr2 645
+  | DummyBody -> mkstr2 647
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -886,6 +888,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | StorageClassSpecifierExtern         when more -> StorageClassSpecifier
   | StorageClassSpecifierMutable        when more -> StorageClassSpecifier
   | StorageClassSpecifierRegister       when more -> StorageClassSpecifier
+  | StorageClassSpecifierVaxGlobaldef   when more -> StorageClassSpecifier
   | VirtSpecifierFinal                  when more -> VirtSpecifier
   | VirtSpecifierOverride               when more -> VirtSpecifier
   | VirtSpecifierMacro _                when more -> VirtSpecifier
@@ -1919,6 +1922,7 @@ let is_decl_spec = function
   | StorageClassSpecifierExtern
   | StorageClassSpecifierMutable
   | StorageClassSpecifierRegister
+  | StorageClassSpecifierVaxGlobaldef
 
   | SimpleTypeSpecifier _
   | DecltypeSpecifier
@@ -2091,6 +2095,7 @@ let is_initializer = function
   | _ -> false
 
 let is_body = function
+  | DummyBody
   | FunctionBody
   | FunctionBodyDefault
   | FunctionBodyDelete
@@ -2609,6 +2614,7 @@ let of_elem_data =
     "StorageClassSpecifierExtern",       (fun a -> StorageClassSpecifierExtern);
     "StorageClassSpecifierMutable",      (fun a -> StorageClassSpecifierMutable);
     "StorageClassSpecifierRegister",     (fun a -> StorageClassSpecifierRegister);
+    "StorageClassSpecifierVaxGlobaldef", (fun a -> StorageClassSpecifierVaxGlobaldef);
 
 (* FunctionSpecifier *)
     "FunctionSpecifier",        (fun a -> FunctionSpecifier);
@@ -2731,6 +2737,7 @@ let of_elem_data =
     "OpeningBracket", (fun a -> OpeningBracket);
     "ClosingBracket", (fun a -> ClosingBracket);
 
+    "DummyBody", (fun a -> DummyBody);
     "DummyDecl", (fun a -> DummyDecl);
     "DummyStmt", (fun a -> DummyStmt);
     "DummyExpr", (fun a -> DummyExpr);

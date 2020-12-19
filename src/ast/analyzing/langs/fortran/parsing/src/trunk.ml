@@ -25,6 +25,7 @@ module PB  = Parserlib_base
 module C   = Context
 module TB  = Tokenbuffer
 module PPD = Labels.PpDirective
+module N   = Pinfo.Name
 
 open Compat
 
@@ -48,12 +49,26 @@ module F (Stat : Aux.STATE_T) = struct
     let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
     EOF None, loc
 
+  let make_eol_token ulexbuf = 
+    let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
+    let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
+    EOL, loc
+
   let make_end_fragment_token ulexbuf = 
     let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
     let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
     let ext = env#current_loc_layers_encoded in
     Loc.extend loc ext;
     let qt = END_FRAGMENT, loc in
+    DEBUG_MSG "%s" (Token.qtoken_to_string qt);
+    qt
+
+  let make_end_module_token ulexbuf = 
+    let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
+    let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
+    let ext = env#current_loc_layers_encoded in
+    Loc.extend loc ext;
+    let qt = END_MODULE "END MODULE", loc in
     DEBUG_MSG "%s" (Token.qtoken_to_string qt);
     qt
 
@@ -1601,10 +1616,25 @@ module F (Stat : Aux.STATE_T) = struct
               | Some eol -> tbuf#prebuf_add eol
               | None -> ()
             end;
-            DEBUG_MSG "adding end_fragment token...";
-            let end_fragment_token = make_end_fragment_token current_ulexbuf in
-            (*Printf.printf "! 1507 %s\n%!" (Token.qtoken_to_string end_fragment_token);*)
-            tbuf#prebuf_add end_fragment_token;
+            begin
+              DEBUG_MSG "current scope: %s" (N.ScopingUnit.to_string env#current_frame#scope);
+              match env#current_frame#scope with
+              | N.ScopingUnit.Module _ when begin
+                  match tbuf#get_last_rawtok with
+                  | END_MODULE _ | END _ -> false
+                  | _ -> true
+              end -> begin
+                  DEBUG_MSG "adding end_module token...";
+                  let end_module_token = make_end_module_token current_ulexbuf in
+                  tbuf#prebuf_add end_module_token;
+                  tbuf#prebuf_add (make_eol_token current_ulexbuf)
+              end
+              | _ -> begin
+                  DEBUG_MSG "adding end_fragment token...";
+                  let end_fragment_token = make_end_fragment_token current_ulexbuf in
+                  tbuf#prebuf_add end_fragment_token
+              end
+            end;
             tbuf#prebuf_add (make_eof_token current_ulexbuf);
             finished <- true
           end

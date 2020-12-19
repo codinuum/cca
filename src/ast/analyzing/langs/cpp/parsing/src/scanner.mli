@@ -32,6 +32,9 @@ val split_at_comma : T.token list -> T.token list list
 val contained_in_list : T.token list -> T.token list -> bool
 *)
 
+val is_params_body_macro : string -> bool
+val is_params_body_macro_ident : string -> bool
+
 class type c_t = object
   method keep_flag : bool
   method clear_keep_flag : unit -> unit
@@ -60,7 +63,7 @@ class type c_t = object
       ?from:int -> ?level:int -> ?filt:(T.token -> bool) -> T.token option -> bool * int * T.token list
   method peek_rawtoken_up_to_rparen_none : unit -> int * T.token list
   method peek_rawtoken_up_to_group_end :
-      ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> unit -> int * T.token list
+      ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> ?until:(T.token -> bool) -> unit -> int * T.token list
   method peek_rawtoken_up_to_section_end : ?from:int -> unit -> int
   method peek_rawtoken_up_to_end_of_qualified_id : ?from:int -> ?ini_tlv:int -> unit -> int
   method peek_rawtoken_up_to_rparen_split_at_comma :
@@ -76,6 +79,7 @@ class type c_t = object
 
   method lookup_name : string -> Pinfo.Name.Spec.c
   method is_type : ?weak:bool -> string -> bool
+  method is_label : string -> bool
   method is_templ : string -> bool
   method is_val : string -> bool
   method _is_val : string -> bool
