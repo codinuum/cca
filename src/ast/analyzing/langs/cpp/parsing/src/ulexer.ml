@@ -126,17 +126,20 @@ let regexp hexadecimal_floating_literal =
 let regexp floating_literal = decimal_floating_literal | hexadecimal_floating_literal
 
 let regexp s_char = [^'"' '\\' '\013' '\010'] | escape_sequence | universal_character_name
+let regexp s_char_no_bq = [^'`' '"' '\\' '\013' '\010']
 let regexp d_char = [^' ' '(' ')' '\\' '\009' '\011' '\012' '\013' '\010']
 let regexp r_char = '.' (* !!! *)
 
 let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|',')|line_terminator)+
+let regexp s_char_sequence_no_bq = (s_char_no_bq)+
 let regexp d_char_sequence = d_char+
 let regexp r_char_sequence = r_char+
 
 let regexp raw_string_head = encoding_prefix? 'R' '"' d_char_sequence? '('
 let regexp raw_string_tail = ')' d_char_sequence? '"'
 
-let regexp string_literal = encoding_prefix? '"' s_char_sequence? '"' | '@' '"' s_char_sequence? '"' | '`' s_char_sequence '`'
+let regexp string_literal = encoding_prefix? '"' s_char_sequence? '"' | '@' '"' s_char_sequence? '"' |
+'`' s_char_sequence_no_bq '`'
 
 let regexp boolean_literal = "false" | "true"
 
@@ -425,6 +428,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | Some x -> mklexpos x
       | None -> mklexpos (Ulexing.lexeme_start ulexbuf)
     in
+    let _ = DEBUG_MSG "%s" (Token.rawtoken_to_string rawtok) in
+    env#clear_lex_line_head_flag();
     let ed_pos = mklexpos ((Ulexing.lexeme_end ulexbuf) - 1) in
     rawtok, st_pos, ed_pos
 
@@ -445,14 +450,20 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if env#lex_pp_line_flag then begin
       env#exit_lex_pp_line();
       env#exit_lex_ms_asm_line();
-      mktok NEWLINE lexbuf
+      let tok = mktok NEWLINE lexbuf in
+      env#set_lex_line_head_flag();
+      tok
     end
     else if env#lex_ms_asm_line_flag then begin
       env#exit_lex_ms_asm_line();
-      mktok END_ASM lexbuf
+      let tok = mktok END_ASM lexbuf in
+      env#set_lex_line_head_flag();
+      tok
     end
-    else
+    else begin
+      env#set_lex_line_head_flag();
       _token lexbuf
+    end
 
 |  '\\' line_terminator -> _token lexbuf
 
@@ -481,13 +492,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |  pp_keyword ->
     let kwd = Ulexing.utf8_lexeme lexbuf in
-    let r = find_pp_keyword kwd in
-    let r =
-      match r with
-      | PP_UNKNOWN s when env#asm_flag -> IDENT s
-      | _ -> env#enter_lex_pp_line(); r
-    in
-    mktok r lexbuf
+    DEBUG_MSG "kwd=%s" kwd;
+    if env#lex_pp_line_flag || env#lex_ms_asm_line_flag || env#lex_line_head_flag then
+      let r = find_pp_keyword kwd in
+      let r =
+        match r with
+        | PP_UNKNOWN s when env#asm_flag -> IDENT s
+        | _ -> env#enter_lex_pp_line(); r
+      in
+      mktok r lexbuf
+    else
+      mktok (IDENT kwd) lexbuf
 
 
 |  integer_literal ->
@@ -654,12 +669,16 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   line_terminator ->
     if env#lex_pp_line_flag then begin
       env#exit_lex_pp_line();
-      mktok NEWLINE lexbuf
+      let tok = mktok NEWLINE lexbuf in
+      env#set_lex_line_head_flag();
+      tok
     end
-    else
+    else begin
       let cloc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
       add_comment_region cloc;
+      env#set_lex_line_head_flag();
       _token lexbuf
+    end
 
 |  '\\' line_terminator -> line_comment st lexbuf
 

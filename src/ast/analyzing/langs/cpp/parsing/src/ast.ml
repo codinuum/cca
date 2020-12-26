@@ -1389,7 +1389,11 @@ and qn_type_of_func_def (nd : node) =
 and qn_wrap_of_init_declarator (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | InitDeclarator -> qn_wrap_of_declarator (nd#nth_child 0)
+  | InitDeclarator -> begin
+      match nd#nth_children 1 with
+      | [d] -> qn_wrap_of_declarator d
+      | _ -> assert false
+  end
   | PpIfSection _ -> begin
       let ns =
         ((nd#nth_child 0)#nth_child 1)::

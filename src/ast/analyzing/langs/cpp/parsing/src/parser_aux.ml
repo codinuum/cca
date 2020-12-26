@@ -1233,6 +1233,18 @@ class pstat = object (self)
     with
       _ -> false
 
+  method set_lack_of_dtor_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_lack_of_dtor <- true
+
+  method get_lack_of_dtor_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_lack_of_dtor
+    with
+      _ -> false
+
   method get_pp_if_compl_info () =
     try
       let info = Stack.top pp_if_section_stack in
@@ -1494,6 +1506,7 @@ class env = object (self)
   val mutable saved_stack = new N.stack
   val mutable top_frame = new N.stack_frame N.Scope.Top
 
+  val mutable lex_line_head_flag = true
   val mutable lex_pp_line_flag = false
   val mutable lex_ms_asm_line_flag = false
   val mutable pp_define_flag = false
@@ -2033,6 +2046,16 @@ class env = object (self)
   method find_pending_macro name =
     Hashtbl.find pending_macro_tbl name
 
+  method set_lex_line_head_flag () =
+    DEBUG_MSG "lex_line_head_flag set";
+    lex_line_head_flag <- true
+
+  method clear_lex_line_head_flag () =
+    DEBUG_MSG "lex_line_head_flag cleared";
+    lex_line_head_flag <- false
+
+  method lex_line_head_flag = lex_line_head_flag
+
   method enter_lex_pp_line () =
     DEBUG_MSG "entering lex_pp_line";
     lex_pp_line_flag <- true
@@ -2311,6 +2334,8 @@ class env = object (self)
   method get_cond_expr_info = pstat#get_cond_expr_info
   method set_asm_info = pstat#set_asm_info
   method get_asm_info = pstat#get_asm_info
+  method set_lack_of_dtor_info = pstat#set_lack_of_dtor_info
+  method get_lack_of_dtor_info = pstat#get_lack_of_dtor_info
   method set_cond_sub_info = pstat#set_cond_sub_info
   method get_cond_sub_info = pstat#get_cond_sub_info
   method get_pp_if_compl_info = pstat#get_pp_if_compl_info

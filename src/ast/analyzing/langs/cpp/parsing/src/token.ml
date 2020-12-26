@@ -198,6 +198,9 @@ let rawtoken_to_string = function
   | PP_IF_CLOSING         -> "PP_IF_CLOSING"
   | PP_IFDEF_CLOSING      -> "PP_IFDEF_CLOSING"
   | PP_IFNDEF_CLOSING     -> "PP_IFNDEF_CLOSING"
+  | PP_IF_CLOSE_OPEN      -> "PP_IF_CLOSE_OPEN"
+  | PP_IFDEF_CLOSE_OPEN   -> "PP_IFDEF_CLOSE_OPEN"
+  | PP_IFNDEF_CLOSE_OPEN  -> "PP_IFNDEF_CLOSE_OPEN"
   | BAR_BAR_BROKEN i      -> "BAR_BAR_BROKEN:"^i
   | AMP_AMP_BROKEN i      -> "AMP_AMP_BROKEN:"^i
   | COMMA_BROKEN          -> "COMMA_BROKEN"
@@ -639,6 +642,9 @@ let rawtoken_to_repr = function
   | PP_IF_CLOSING         -> "#if"
   | PP_IFDEF_CLOSING      -> "#ifdef"
   | PP_IFNDEF_CLOSING     -> "#ifndef"
+  | PP_IF_CLOSE_OPEN      -> "#if"
+  | PP_IFDEF_CLOSE_OPEN   -> "#ifdef"
+  | PP_IFNDEF_CLOSE_OPEN  -> "#ifndef"
   | BAR_BAR_BROKEN i      -> i
   | AMP_AMP_BROKEN i      -> i
   | COMMA_BROKEN          -> ","

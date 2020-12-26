@@ -30,7 +30,7 @@ let decode_ident =
   let pat = Str.regexp "[0-9]+" in
   Str.replace_first pat ""
 
-type pp_if_cond = PP_IF of string | PP_IFDEF of ident | PP_IFNDEF of ident
+type pp_if_cond = PP_IF of string * Obj.t list | PP_IFDEF of ident | PP_IFNDEF of ident
 type pp_if_cond_sub = PP_NONE | PP_CLOSING
 
 type pp_compl = {
@@ -63,10 +63,11 @@ type pp_if_section_info = {
     mutable i_cond_expr             : bool;
     mutable i_asm                   : bool;
     mutable i_pp_if_compl           : pp_compl;
+    mutable i_lack_of_dtor          : bool;
   }
 
 let pp_if_cond_to_string = function
-  | PP_IF s     -> sprintf "#if(%s)" s
+  | PP_IF(s, _) -> sprintf "#if(%s)" s
   | PP_IFDEF s  -> sprintf "#ifdef(%s)" s
   | PP_IFNDEF s -> sprintf "#ifndef(%s)" s
 
@@ -108,6 +109,7 @@ let pp_if_section_info_to_string {
   i_cond_expr=ce;
   i_asm=a;
   i_pp_if_compl=cmpl;
+  i_lack_of_dtor=lod;
 } =
   let l =
     ["odd",       o;
@@ -120,6 +122,7 @@ let pp_if_section_info_to_string {
      ",",         cm;
      "?",         ce;
      "asm",       a;
+     "lack_of_dtor", lod;
    ] in
   let flags = String.concat "" (List.map (fun (k, v) -> "["^k^"]") (List.filter (fun (k, v) -> v) l)) in
   sprintf "{%s%s@%d;%s,%s;%sLv{:%d;Lv(:%d;Lv<:%d;\"{\":%d;\"}\":%d;%s%s%s%s}"
@@ -157,9 +160,10 @@ let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=None) ?(pp_else=None) 
   i_cond_expr=false;
   i_asm=false;
   i_pp_if_compl={c_brace=0;c_paren=0};
+  i_lack_of_dtor=false;
 }
 
-let dummy_info = make_pp_if_section_info 0 C.TOP C.INI 0 0 0 (PP_IF "")
+let dummy_info = make_pp_if_section_info 0 C.TOP C.INI 0 0 0 (PP_IF("", []))
 
 
 module ElaboratedType = struct

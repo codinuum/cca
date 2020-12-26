@@ -362,6 +362,7 @@ class parser_c = object (self)
       | T_PP_IFDEF_B -> "PP_IFDEF_B"
       | T_PP_IFDEF_C -> "PP_IFDEF_C"
       | T_PP_IFDEF_CB -> "PP_IFDEF_CB"
+      | T_PP_IFDEF_CLOSE_OPEN -> "PP_IFDEF_CLOSE_OPEN"
       | T_PP_IFDEF_CLOSING -> "PP_IFDEF_CLOSING"
       | T_PP_IFDEF_COND -> "PP_IFDEF_COND"
       | T_PP_IFDEF_COND_ -> "PP_IFDEF_COND_"
@@ -380,6 +381,7 @@ class parser_c = object (self)
       | T_PP_IFNDEF_B -> "PP_IFNDEF_B"
       | T_PP_IFNDEF_C -> "PP_IFNDEF_C"
       | T_PP_IFNDEF_CB -> "PP_IFNDEF_CB"
+      | T_PP_IFNDEF_CLOSE_OPEN -> "PP_IFNDEF_CLOSE_OPEN"
       | T_PP_IFNDEF_CLOSING -> "PP_IFNDEF_CLOSING"
       | T_PP_IFNDEF_COND -> "PP_IFNDEF_COND"
       | T_PP_IFNDEF_COND_ -> "PP_IFNDEF_COND_"
@@ -397,6 +399,7 @@ class parser_c = object (self)
       | T_PP_IF_B -> "PP_IF_B"
       | T_PP_IF_C -> "PP_IF_C"
       | T_PP_IF_CB -> "PP_IF_CB"
+      | T_PP_IF_CLOSE_OPEN -> "PP_IF_CLOSE_OPEN"
       | T_PP_IF_CLOSING -> "PP_IF_CLOSING"
       | T_PP_IF_COND -> "PP_IF_COND"
       | T_PP_IF_COND_ -> "PP_IF_COND_"
@@ -759,6 +762,7 @@ class parser_c = object (self)
       | N_list_pp_param_elif_group_ -> "list(pp_param_elif_group)"
       | N_list_pp_stmt_elif_group_ -> "list(pp_stmt_elif_group)"
       | N_list_pp_stmt_elif_group_broken_ -> "list(pp_stmt_elif_group_broken)"
+      | N_list_pp_stmt_elif_group_close_open_ -> "list(pp_stmt_elif_group_close_open)"
       | N_list_pp_stmt_elif_group_closing_ -> "list(pp_stmt_elif_group_closing)"
       | N_list_pp_spec_elif_group_ -> "list(pp_spec_elif_group)"
       | N_list_pp_str_elif_group_ -> "list(pp_str_elif_group)"
@@ -1048,6 +1052,7 @@ class parser_c = object (self)
       | N_pp_ifx_b -> "pp_ifx_b"
       | N_pp_ifx_c -> "pp_ifx_c"
       | N_pp_ifx_cb -> "pp_ifx_cb"
+      | N_pp_ifx_close_open -> "pp_ifx_close_open"
       | N_pp_ifx_closing -> "pp_ifx_closing"
       | N_pp_ifx_cond -> "pp_ifx_cond"
       | N_pp_ifx_cond_ -> "pp_ifx_cond_"
@@ -1123,15 +1128,19 @@ class parser_c = object (self)
       | N_pp_spec_if_section -> "pp_spec_if_section"
       | N_pp_stmt_elif_group -> "pp_stmt_elif_group"
       | N_pp_stmt_elif_group_broken -> "pp_stmt_elif_group_broken"
+      | N_pp_stmt_elif_group_close_open -> "pp_stmt_elif_group_close_open"
       | N_pp_stmt_elif_group_closing -> "pp_stmt_elif_group_closing"
       | N_pp_stmt_else_group -> "pp_stmt_else_group"
       | N_pp_stmt_else_group_broken -> "pp_stmt_else_group_broken"
+      | N_pp_stmt_else_group_close_open -> "pp_stmt_else_group_close_open"
       | N_pp_stmt_else_group_closing -> "pp_stmt_else_group_closing"
       | N_pp_stmt_if_group -> "pp_stmt_if_group"
       | N_pp_stmt_if_group_broken -> "pp_stmt_if_group_broken"
+      | N_pp_stmt_if_group_close_open -> "pp_stmt_if_group_close_open"
       | N_pp_stmt_if_group_closing -> "pp_stmt_if_group_closing"
       | N_pp_stmt_if_section -> "pp_stmt_if_section"
       | N_pp_stmt_if_section_broken -> "pp_stmt_if_section_broken"
+      | N_pp_stmt_if_section_close_open -> "pp_stmt_if_section_close_open"
       | N_pp_stmt_if_section_closing -> "pp_stmt_if_section_closing"
       | N_pp_str_elif_group -> "pp_str_elif_group"
       | N_pp_str_else_group -> "pp_str_else_group"
@@ -1592,6 +1601,17 @@ class parser_c = object (self)
                 env#enter_enum_head();
                 raise Exit
             end
+            (*| I.X (I.N N_equality_expression), _, x -> begin
+                begin
+                  match x with
+                  | I.X (I.T T_EQ_EQ) | I.X (I.T T_EXCLAM_EQ) -> begin
+                      scanner#ctx_expr();
+                      scanner#ctx_ini();
+                  end
+                  | _ -> ()
+                end;
+                raise Exit
+            end*)
             | I.X (I.N N_fold_expression), _, I.X (I.T T_FOLD_LPAREN) -> begin
                 scanner#push_context();
                 scanner#push_sub_context();
@@ -1986,6 +2006,10 @@ class parser_c = object (self)
                 scanner#ctx_ini();
                 raise Exit
             end*)
+            | I.X (I.N N_noptr_declarator), _, I.X (I.T T_RBRACKET) -> begin
+                scanner#ctx_end_of_id_expr();
+                raise Exit
+            end
             | I.X (I.N N_noptr_abstract_declarator), _, I.X (I.T T_TY_LPAREN) -> begin
                 env#stack#enter_params();
                 raise Exit
@@ -2017,6 +2041,7 @@ class parser_c = object (self)
                     scanner#ctx_top();
                 env#set_end_of_params_flag();
                 env#stack#exit_params();
+                env#clear_ty_param_key_flag();
                 raise Exit
             end
             | I.X (I.N N_handler), _, I.X (I.T T_TY_LPAREN) -> begin
@@ -2618,8 +2643,10 @@ class parser_c = object (self)
                             raise Exit
                         end
                         | _, I.X (I.N N_function_body), _, _, _ -> begin
-                            scanner#ctx_reset();
-                            env#clear_in_body_brace_flag();
+                            if env#stack#block_level = 0 then begin
+                              scanner#ctx_reset();
+                              env#clear_in_body_brace_flag();
+                            end;
                             raise Exit
                         end
                         | _, I.X (I.N N_function_definition), _, _, _ -> begin
@@ -2806,11 +2833,15 @@ class parser_c = object (self)
                   | I.X (I.N N_cast_key), I.X (I.T T_TEMPL_LT) -> env#enter_templ_arg false
                   | I.X (I.N N_cast_key), I.X (I.T T_TEMPL_GT) -> env#exit_templ_arg()
                   | I.X (I.N N_postfix_expression), I.X (I.T T_RPAREN) -> env#set_expr_flag()
-                  | I.X (I.T T_TY_LPAREN), I.X (I.T T_TY_LPAREN) when not env#sizeof_ty_flag -> env#set_cast_head_flag()
+                  | I.X (I.T T_TY_LPAREN), I.X (I.T T_TY_LPAREN) when begin
+                      not env#sizeof_ty_flag && scanner#prev_rawtoken2 != T.SIZEOF
+                  end -> env#set_cast_head_flag()
                   | I.X (I.T T_TY_LPAREN), I.X (I.T T_RPAREN) -> begin
                       scanner#ctx_expr();
-                      env#set_end_of_cast_type_flag();
-                      env#clear_cast_head_flag();
+                      if env#cast_head_flag then begin
+                        env#set_end_of_cast_type_flag();
+                        env#clear_cast_head_flag()
+                      end;
                   end
                   | _ -> ()
                 end;
@@ -3706,6 +3737,22 @@ class parser_c = object (self)
                 raise Exit
             end
 
+            | I.X (I.N N_pp_stmt_if_group_close_open), rhs, I.X (I.T T_RBRACE) -> begin
+                scanner#ctx_top();
+                scanner#ctx_ini();
+                raise Exit
+            end
+            | I.X (I.N N_pp_stmt_elif_group_close_open), rhs, I.X (I.T T_RBRACE) -> begin
+                scanner#ctx_top();
+                scanner#ctx_ini();
+                raise Exit
+            end
+            | I.X (I.N N_pp_stmt_else_group_close_open), rhs, I.X (I.T T_RBRACE) -> begin
+                scanner#ctx_top();
+                scanner#ctx_ini();
+                raise Exit
+            end
+
             | I.X (I.N N_pp_ifstmt_if_group_closing), rhs, I.X (I.T T_RPAREN) -> begin
                 env#set_paren_closing_info();
                 raise Exit
@@ -3738,6 +3785,19 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_enum_if_group_closing), rhs, I.X (I.T T_RBRACE) -> begin
             end*)
+
+            | I.X (I.N N_pp_init_if_group), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_init_elif_group), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_init_else_group), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
 
             | I.X (I.N N_pp_decl_if_group_broken), rhs, I.X (I.T T_LBRACE) -> begin
                 if List.nth rhs (i-2) = I.X (I.T T_EQ) then begin

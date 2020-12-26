@@ -28,6 +28,6 @@ module F : functor (Stat : Parser_aux.STATE_T) -> sig
   val mklexpos : int -> Lexing.position
   val offsets_to_loc : int -> int -> Astloc.t
 
-  val mktok : ?st_opt:(int option) -> 'a -> Ulexing.lexbuf -> 'a * Lexing.position * Lexing.position
+  val mktok : ?st_opt:(int option) -> Tokens_.token -> Ulexing.lexbuf -> Tokens_.token * Lexing.position * Lexing.position
 
 end
