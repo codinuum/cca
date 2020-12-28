@@ -21142,7 +21142,7 @@ module F (Stat : Aux.STATE_T) = struct
           List.for_all
             (function
               | [T.IDENT _|IDENT_V _] -> true
-              | [T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE] -> true (* should be an identifier *)
+              | [T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|THIS] -> true (* should be an identifier *)
               | [T.EXCLAM x] when x = "not" -> true
               | [T.IDENT x; IDENT y] when is_param_decl_macro x || is_param_decl_macro y -> true
               | [T.IDENT x; IDENT y] when is_id_macro x || is_id_macro y -> true
@@ -21169,7 +21169,7 @@ module F (Stat : Aux.STATE_T) = struct
             List.map
               (function
                 | [T.IDENT i|IDENT_V i] -> i
-                | [T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|EXCLAM _ as rt] -> Token.rawtoken_to_repr rt
+                | [T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|THIS|EXCLAM _ as rt] -> Token.rawtoken_to_repr rt
                 | _ -> assert false
               ) ll
           in
@@ -21209,6 +21209,7 @@ module F (Stat : Aux.STATE_T) = struct
                     | T.CLASS -> T.IDENT_V "class", sp, ep
                     | T.EXPLICIT -> T.IDENT_V "explicit", sp, ep
                     | T.TEMPLATE -> T.IDENT_V "template", sp, ep
+                    | T.THIS -> T.IDENT_V "this", sp, ep
                     | T.EXCLAM s -> T.IDENT_V s, sp, ep
                     | _ -> tok
                   in
@@ -21230,12 +21231,12 @@ module F (Stat : Aux.STATE_T) = struct
                             self#conv_nth_token (function T.IDENT x,s,e -> T.IDENT_ x,s,e | x -> x) (nth_j-1);
                             conv_ids()
                           end
-                          | NEW | CATCH | FINAL | CLASS | EXPLICIT | TEMPLATE | EXCLAM _ as rt when begin
+                          | NEW | CATCH | FINAL | CLASS | EXPLICIT | TEMPLATE | THIS | EXCLAM _ as rt when begin
                               chk_id (Token.rawtoken_to_repr rt)
                           end -> begin
                             self#conv_nth_token
                               (function
-                                | (T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|EXCLAM _ as rt),s,e ->
+                                | (T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|THIS|EXCLAM _ as rt),s,e ->
                                     T.IDENT_ (Token.rawtoken_to_repr rt),s,e
                                 | x -> x
                               ) (nth_j-1);
@@ -21249,12 +21250,12 @@ module F (Stat : Aux.STATE_T) = struct
                                 self#conv_nth_token (function T.IDENT x,s,e -> T.IDENT_ x,s,e | x -> x) (nth_j-1);
                                 conv_ids()
                               end
-                              | NEW | CATCH | FINAL | CLASS | EXPLICIT | TEMPLATE | EXCLAM _ as rt when begin
+                              | NEW | CATCH | FINAL | CLASS | EXPLICIT | TEMPLATE | THIS | EXCLAM _ as rt when begin
                                   chk_id (Token.rawtoken_to_repr rt)
                               end -> begin
                                 self#conv_nth_token
                                   (function
-                                    | (T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|EXCLAM _ as rt),s,e ->
+                                    | (T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|THIS|EXCLAM _ as rt),s,e ->
                                         T.IDENT_ (Token.rawtoken_to_repr rt),s,e
                                     | x -> x
                                   ) (nth_j-1);
@@ -21275,7 +21276,7 @@ module F (Stat : Aux.STATE_T) = struct
                         | _ -> chk_id x
                       end
                   end -> conv_ids()
-                  | NEW | CATCH | FINAL | CLASS | EXPLICIT | TEMPLATE | EXCLAM _ as rt when begin
+                  | NEW | CATCH | FINAL | CLASS | EXPLICIT | TEMPLATE | THIS | EXCLAM _ as rt when begin
                       let x_j_1 = self#peek_nth_rawtoken (nth_j+1) in
                       match self#peek_nth_rawtoken (nth_j+2) with
                       | EOF when (match x_j_1 with IDENT _ -> true | _ -> false) -> false
@@ -22254,6 +22255,7 @@ module F (Stat : Aux.STATE_T) = struct
                   | _ -> false
               end -> true
               | LPAREN when self#peek_rawtoken() == RPAREN -> true
+              | PP_LPAREN | COMMA when env#pp_params_flag -> true
               | _ -> begin
                   match self#peek_rawtoken() with
                   | EQ | LBRACKET | QUEST | COLON -> true
