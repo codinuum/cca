@@ -168,12 +168,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       pr_string "# "; pr_int j; pad1(); pr_string s;
       pr_string (String.concat " " (List.map string_of_int jl))
   end
-  | PpIf        -> pr_string "#if "; pb#pr_a pad1 pr_node_ children
+  | PpIf _      -> pr_string "#if "; pb#pr_a pad1 pr_node_ children
   | PpIfdef i   -> pr_string "#ifdef "; pr_id i
   | PpIfndef i  -> pr_string "#ifndef "; pr_id i
-  | PpElif      -> pr_string "#elif "; pb#pr_a pad1 pr_node_ children
-  | PpElse      -> pr_string "#else"
-  | PpEndif     -> pr_string "#endif"
+  | PpElif _    -> pr_string "#elif "; pb#pr_a pad1 pr_node_ children
+  | PpElse _    -> pr_string "#else"
+  | PpEndif _   -> pr_string "#endif"
   | PpUnknown s -> pr_string "#"; pr_string s
   | PpImport s  -> pr_string "#import "; pr_string s
 
@@ -201,9 +201,9 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       force_newline()
     end
 
-  | PpIfGroup      -> pb#pr_a pr_cut pr_node_ children
-  | PpElifGroup    -> pb#pr_a pr_cut pr_node_ children
-  | PpElseGroup    -> pb#pr_a pr_cut pr_node_ children
+  | PpIfGroup _    -> pb#pr_a pr_cut pr_node_ children
+  | PpElifGroup _  -> pb#pr_a pr_cut pr_node_ children
+  | PpElseGroup _  -> pb#pr_a pr_cut pr_node_ children
   | PpStringized s -> pr_string s
   | PpMacroParam s -> pr_string s
 
@@ -1179,6 +1179,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       pr_seq();
       if has_rparen then pr_rparen()
   end
+  | FunctionHeadMacro i               -> pr_id i
   | AccessSpecAnnot i                 -> pr_id i
   | EnumeratorMacroInvocation i       -> pr_macro_invocation i
   | CvMacro i                         -> pr_id i

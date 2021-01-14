@@ -886,9 +886,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 	if (List.length movs) > 1 then begin
           List.iter
             (function
-	      | Move(m, _, _, _) ->
+	      | Move(m, _, (u1, _, _), (u2, _ ,_)) ->
                   let m' = mid_gen#gen in
-                  DEBUG_MSG "%a -> %a" MID.ps !m MID.ps m';
+                  DEBUG_MSG "%a (%a-%a) -> %a" MID.ps !m UID.ps u1 UID.ps u2 MID.ps m';
                   m := m';
                   Hashtbl.add mov_gr_tbl m' mid
               | _ -> assert false
@@ -1361,6 +1361,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 let n1 = Info.get_node info1 in
                 let n2 = Info.get_node info2 in
                 n1#data#is_named_orig && n2#data#is_named_orig ||
+                (not n1#data#is_named || not n2#data#is_named) ||
                 n1#data#more_anonymized_label <> n2#data#more_anonymized_label
               in
               if ok then begin
@@ -2492,7 +2493,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   let se2 = gensubedits tree2 n2 in
                   DEBUG_MSG "number of subedits: %a->%d, %a->%d" 
                     UID.ps u1 (List.length se1) UID.ps u2 (List.length se2);
-                  List.iter2 
+                  List.iter2
                     (fun (u1, i1, e1) (u2, i2, e2) -> 
                       DEBUG_MSG "adding move: mid=%a %a --> %a%!" MID.ps !mid
                         UID.ps u1 UID.ps u2;

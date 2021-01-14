@@ -25,7 +25,6 @@ let lang_prefix = Astml.cpp_prefix
 
 let np () n = if n = "" then "" else "("^n^")"
 
-
 type macro_kind =
   | ObjectLike
   | FunctionLike of string list * string (* parameter_list * va_args *)
@@ -71,14 +70,14 @@ type t =
   | PpPragma of string
   | PpNull
   | PpMarker of int * string * int list
-  | PpIf
+  | PpIf of string
   | PpIfdef of ident
   | PpIfndef of ident
-  | PpElif
-  | PpElse
-  | PpEndif
+  | PpElif of string
+  | PpElse of string
+  | PpEndif of string
   | PpUnknown of string
-  | PpIfSection of int
+  | PpIfSection of int * string
   | PpIfSectionFuncDef of ident
   | PpIfSectionAltFuncDef
   | PpIfSectionBroken
@@ -88,9 +87,9 @@ type t =
   | PpIfSectionCondExpr
   | PpIfSectionLogicalAnd
   | PpIfSectionLogicalOr
-  | PpIfGroup
-  | PpElifGroup
-  | PpElseGroup
+  | PpIfGroup of string
+  | PpElifGroup of string
+  | PpElseGroup of string
   | PpStringized of string
   | PpMacroParam of ident
   | PpImport of string
@@ -691,6 +690,7 @@ type t =
   | DeclSpecifierSeq
   | TypeSpecifierSeq
   | FunctionHead
+  | FunctionHeadMacro of ident
   | AccessSpecAnnot of ident
   | EnumeratorMacroInvocation of ident
   | AccessSpecMacro of ident
@@ -821,14 +821,14 @@ let to_string = function
   | PpNull                   -> "PpNull"
   | PpMarker(j, s, jl)       -> sprintf "PpMarker:%d:%s:%s" j s
         (String.concat ":" (List.map string_of_int jl))
-  | PpIf                     -> "PpIf"
+  | PpIf x                   -> "PpIf:"^x
   | PpIfdef i                -> "PpIfdef:"^i
   | PpIfndef i               -> "PpIfndef:"^i
-  | PpElif                   -> "PpElif"
-  | PpElse                   -> "PpElse"
-  | PpEndif                  -> "PpEndif"
+  | PpElif x                 -> "PpElif:"^x
+  | PpElse x                 -> "PpElse:"^x
+  | PpEndif x                -> "PpEndif:"^x
   | PpUnknown s              -> "PpUnknown:"^s
-  | PpIfSection j            -> sprintf "PpIfSection:%d" j
+  | PpIfSection(j, s)        -> sprintf "PpIfSection:%d:%s" j s
   | PpIfSectionFuncDef i     -> "PpIfSectionFuncDef:"^i
   | PpIfSectionAltFuncDef    -> "PpIfSectionAltFuncDef"
   | PpIfSectionBroken        -> "PpIfSectionBroken"
@@ -838,9 +838,9 @@ let to_string = function
   | PpIfSectionCondExpr      -> "PpIfSectionCondExpr"
   | PpIfSectionLogicalAnd    -> "PpIfSectionLogicalAnd"
   | PpIfSectionLogicalOr     -> "PpIfSectionLogicalOr"
-  | PpIfGroup                -> "PpIfGroup"
-  | PpElifGroup              -> "PpElifGroup"
-  | PpElseGroup              -> "PpElseGroup"
+  | PpIfGroup x              -> "PpIfGroup:"^x
+  | PpElifGroup x            -> "PpElifGroup:"^x
+  | PpElseGroup x            -> "PpElseGroup:"^x
   | PpStringized s           -> "PpStringized:"^s
   | PpMacroParam s           -> "PpMacroParam:"^s
   | PpImport s               -> "PpImport:"^s
@@ -1425,6 +1425,7 @@ let to_string = function
   | DeclSpecifierSeq               -> "DeclSpecifierSeq"
   | TypeSpecifierSeq               -> "TypeSpecifierSeq"
   | FunctionHead                   -> "FunctionHead"
+  | FunctionHeadMacro i            -> "FunctionHeadMacro:"^i
   | AccessSpecAnnot i              -> "AccessSpecAnnot:"^i
   | EnumeratorMacroInvocation i    -> "EnumeratorMacroInvocation:"^i
   | AccessSpecMacro i              -> "AccessSpecMacro:"^i
@@ -1557,14 +1558,14 @@ let to_simple_string = function
   | PpNull                   -> "#"
   | PpMarker(j, s, jl)       -> sprintf "# %d %s %s" j s
         (String.concat " " (List.map string_of_int jl))
-  | PpIf                     -> "#if"
+  | PpIf _                   -> "#if"
   | PpIfdef i                -> "#ifdef "^i
   | PpIfndef i               -> "#ifndef "^i
-  | PpElif                   -> "#elif"
-  | PpElse                   -> "#else"
-  | PpEndif                  -> "#endif"
+  | PpElif _                 -> "#elif"
+  | PpElse _                 -> "#else"
+  | PpEndif _                -> "#endif"
   | PpUnknown s              -> "#"^s
-  | PpIfSection j            -> sprintf "<if-section:%d>" j
+  | PpIfSection(j, x)        -> sprintf "<if-section:%d:%s>" j x
   | PpIfSectionFuncDef i     -> i
   | PpIfSectionAltFuncDef    -> "<if-section-alt-func-def>"
   | PpIfSectionBroken        -> "<if-section-broken>"
@@ -1574,9 +1575,9 @@ let to_simple_string = function
   | PpIfSectionCondExpr      -> "<if-section-cond-expr>"
   | PpIfSectionLogicalAnd    -> "<if-section-logical-and>"
   | PpIfSectionLogicalOr     -> "<if-section-logical-or>"
-  | PpIfGroup                -> "<if-group>"
-  | PpElifGroup              -> "<elif-group>"
-  | PpElseGroup              -> "<else-group>"
+  | PpIfGroup x              -> sprintf "<if-group:%s>" x
+  | PpElifGroup x            -> sprintf "<elif-group:%s>" x
+  | PpElseGroup x            -> sprintf "<else-group:%s>" x
   | PpStringized s           -> s
   | PpMacroParam s           -> s
   | PpImport s               -> "#import "^s
@@ -2168,6 +2169,7 @@ let to_simple_string = function
   | DeclSpecifierSeq               -> "<decl-specifier-seq>"
   | TypeSpecifierSeq               -> "<type-specifier-seq>"
   | FunctionHead                   -> "<function-head>"
+  | FunctionHeadMacro i            -> i
   | AccessSpecAnnot i              -> i
   | EnumeratorMacroInvocation i    -> i
   | AccessSpecMacro i              -> i
@@ -2301,14 +2303,14 @@ let to_tag : t -> string * (string * string) list = function
                                              "file_name",s;
                                              "flags",
                                              (String.concat ":" (List.map string_of_int jl))]
-  | PpIf                     -> "PpIf", []
+  | PpIf x                   -> "PpIf", ["cond",x]
   | PpIfdef i                -> "PpIfdef", ["ident",i]
   | PpIfndef i               -> "PpIfndef", ["ident",i]
-  | PpElif                   -> "PpElif", []
-  | PpElse                   -> "PpElse", []
-  | PpEndif                  -> "PpEndif", []
+  | PpElif x                 -> "PpElif", ["cond",x]
+  | PpElse x                 -> "PpElse", ["cond",x]
+  | PpEndif x                -> "PpEndif", ["cond",x]
   | PpUnknown s              -> "PpUnknown", ["line",s]
-  | PpIfSection j            -> "PpIfSection", if j = 0 then [] else ["level",string_of_int j]
+  | PpIfSection(j, x)        -> "PpIfSection", if j = 0 && x = "" then [] else ["level",string_of_int j;"cond",x]
   | PpIfSectionFuncDef i     -> "PpIfSectionFuncDef", ["ident",i]
   | PpIfSectionAltFuncDef    -> "PpIfSectionAltFuncDef", []
   | PpIfSectionBroken        -> "PpIfSectionBroken", []
@@ -2318,9 +2320,9 @@ let to_tag : t -> string * (string * string) list = function
   | PpIfSectionCondExpr      -> "PpIfSectionCondExpr", []
   | PpIfSectionLogicalAnd    -> "PpIfSectionLogicalAnd", []
   | PpIfSectionLogicalOr     -> "PpIfSectionLogicalOr", []
-  | PpIfGroup                -> "PpIfGroup", []
-  | PpElifGroup              -> "PpElifGroup", []
-  | PpElseGroup              -> "PpElseGroup", []
+  | PpIfGroup x              -> "PpIfGroup", ["cond",x]
+  | PpElifGroup x            -> "PpElifGroup", ["cond",x]
+  | PpElseGroup x            -> "PpElseGroup", ["cond",x]
   | PpStringized s           -> "PpStringized", ["ident",s]
   | PpMacroParam s           -> "PpMacroParam", ["ident",s]
   | PpImport s               -> "PpImport", ["line",s]
@@ -2925,6 +2927,7 @@ let to_tag : t -> string * (string * string) list = function
   | DeclSpecifierSeq               -> "DeclSpecifierSeq", []
   | TypeSpecifierSeq               -> "TypeSpecifierSeq", []
   | FunctionHead                   -> "FunctionHead", []
+  | FunctionHeadMacro i            -> "FunctionHeadMacro", ["ident",i]
   | AccessSpecAnnot i              -> "AccessSpecAnnot", ["ident",i]
   | EnumeratorMacroInvocation i    -> "EnumeratorMacroInvocation", ["ident",i]
   | AccessSpecMacro i              -> "AccessSpecMacro", ["ident",i]
@@ -3144,6 +3147,26 @@ let get_name : t -> string = function
   | FunctionBodyMacroInvocation n
   | LambdaCaptureMacroInvocation n
     -> n
+
+  | PpInclude x -> x
+
+  (*| Char     -> "char"
+  | Char8_t  -> "char8_t"
+  | Char16_t -> "char16_t"
+  | Char32_t -> "char32_t"
+  | Wchar_t  -> "wchar_t"
+  | Bool     -> "bool"
+  | Short    -> "short"
+  | Int      -> "int"
+  | Long     -> "long"
+  | Signed   -> "signed"
+  | Unsigned -> "unsigned"
+  | Float    -> "float"
+  | Double   -> "double"
+  | Void     -> "void"
+  | UnsignedInt -> "unsigned int"
+  | UnsignedLong -> "unsigned long"*)
+
   | _ -> raise Not_found
 
 let get_name_opt lab =

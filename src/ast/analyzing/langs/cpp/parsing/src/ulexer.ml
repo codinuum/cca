@@ -130,7 +130,7 @@ let regexp s_char_no_bq = [^'`' '"' '\\' '\013' '\010']
 let regexp d_char = [^' ' '(' ')' '\\' '\009' '\011' '\012' '\013' '\010']
 let regexp r_char = '.' (* !!! *)
 
-let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|',')|line_terminator)+
+let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']')|line_terminator [^'#'])+
 let regexp s_char_sequence_no_bq = (s_char_no_bq)+
 let regexp d_char_sequence = d_char+
 let regexp r_char_sequence = r_char+
@@ -251,9 +251,9 @@ let _find_pp_keyword =
      "#if",      PP_IF;
      "#ifdef",   PP_IFDEF;
      "#ifndef",  PP_IFNDEF;
-     "#elif",    PP_ELIF;
-     "#else",    PP_ELSE;
-     "#endif",   PP_ENDIF;
+     "#elif",    PP_ELIF (ref "");
+     "#else",    PP_ELSE (ref "");
+     "#endif",   PP_ENDIF (ref "");
      "#import",  PP_IMPORT;
     ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in

@@ -179,132 +179,132 @@ let pp1 tbl1 tbl2 =
       | [], _ -> not_resolved2 := nodes2
 
       | [nd1], [nd2] ->
-	  if nd1#data#label = nd2#data#label then
-	    if nd1#data#path = nd2#data#path then begin
+          if nd1#data#label = nd2#data#label then
+            if nd1#data#path = nd2#data#path then begin
 
-	      DEBUG_MSG "[ISO] %s -> %s" 
-		nd1#data#to_string nd2#data#to_string;
+              DEBUG_MSG "[ISO] %s -> %s"
+                nd1#data#to_string nd2#data#to_string;
 
-	      unmodified := (nd1, nd2) :: !unmodified
+              unmodified := (nd1, nd2) :: !unmodified
 
-	    end
-	    else begin
+            end
+            else begin
 
-	      DEBUG_MSG "[MOVE] %s -> %s" 
-		nd1#data#to_string nd2#data#to_string;
+              DEBUG_MSG "[MOVE] %s -> %s"
+                nd1#data#to_string nd2#data#to_string;
 
-	      moved := (nd1, nd2) :: !moved
+              moved := (nd1, nd2) :: !moved
 
-	    end
-	  else begin
-	    DEBUG_MSG "[RENAME] %s -> %s" 
-	      nd1#data#to_string nd2#data#to_string;
+            end
+          else begin
+            DEBUG_MSG "[RENAME] %s -> %s"
+              nd1#data#to_string nd2#data#to_string;
 
-	    renamed := (nd1, nd2) :: !renamed
-                
-	  end
+            renamed := (nd1, nd2) :: !renamed
+
+          end
 
       | _ ->
-	  let name_tbl1 = split (fun n -> n#data#label) nodes1 in
-	  let name_tbl2 = split (fun n -> n#data#label) nodes2 in
+          let name_tbl1 = split (fun n -> n#data#label) nodes1 in
+          let name_tbl2 = split (fun n -> n#data#label) nodes2 in
 
-	  let rpath_tbl2 = Hashtbl.create 0 in
-	  List.iter 
-	    (fun nd -> 
-	      Hashtbl.add rpath_tbl2 nd#data#path nd;
-	    ) nodes2;
+          let rpath_tbl2 = Hashtbl.create 0 in
+          List.iter
+            (fun nd ->
+              Hashtbl.add rpath_tbl2 nd#data#path nd;
+            ) nodes2;
 
-	  Hashtbl.iter
-	    (fun name nds1 ->
-	      try
-		let nds2 = Hashtbl.find name_tbl2 name in (* nds1 and nds2 share name *)
+          Hashtbl.iter
+            (fun name nds1 ->
+              try
+                let nds2 = Hashtbl.find name_tbl2 name in (* nds1 and nds2 share name *)
 
-		let rest1 = ref [] in
+                let rest1 = ref [] in
 
-		List.iter
-		  (fun nd1 ->
-		    let rpath1 = nd1#data#path in
+                List.iter
+                  (fun nd1 ->
+                    let rpath1 = nd1#data#path in
 
-		    try
-		      let nd2 = Hashtbl.find rpath_tbl2 rpath1 in
+                    try
+                      let nd2 = Hashtbl.find rpath_tbl2 rpath1 in
 
-		      DEBUG_MSG "[ISO] %s -> %s" 
-			nd1#data#to_string nd2#data#to_string;
+                      DEBUG_MSG "[ISO] %s -> %s"
+                        nd1#data#to_string nd2#data#to_string;
 
-		      unmodified := (nd1, nd2) :: !unmodified
+                      unmodified := (nd1, nd2) :: !unmodified
 
-		    with 
+                    with
                       Not_found -> rest1 := nd1 :: !rest1
-				       
-		  ) nds1;
 
-		let rest2 = 
-		  let _, p = List.split !unmodified in
-		  List.filter (fun n -> not (List.mem n p)) nds2 
-		in
+                  ) nds1;
 
-		match !rest1, rest2 with
-		| [], [] -> ()
+                let rest2 =
+                  let _, p = List.split !unmodified in
+                  List.filter (fun n -> not (List.mem n p)) nds2
+                in
 
-		| [], nds -> (* copy from unmodified? *)
-		    begin
-		      match nds1 with
-		      | nd1::_ ->
+                match !rest1, rest2 with
+                | [], [] -> ()
 
-			  DEBUG_MSG "[COPY] %s -> [%s]" 
-			    nd1#data#to_string
-			    (Xlist.to_string (fun n -> n#data#to_string) ";" nds);
+                | [], nds -> (* copy from unmodified? *)
+                    begin
+                      match nds1 with
+                      | nd1::_ ->
 
-			  copied := (nd1, nds) :: !copied;
-			  Hashtbl.remove name_tbl1 name;
-			  Hashtbl.remove name_tbl2 name
-			  
-		      | [] -> ()
-		    end
+	                  DEBUG_MSG "[COPY] %s -> [%s]"
+                            nd1#data#to_string
+                            (Xlist.to_string (fun n -> n#data#to_string) ";" nds);
 
-		| nds, [] -> (* glue to unmodified? *)
-		    begin
-		      match nds2 with
-		      | nd2::_ ->
+                          copied := (nd1, nds) :: !copied;
+                          Hashtbl.remove name_tbl1 name;
+                          Hashtbl.remove name_tbl2 name
 
-			  DEBUG_MSG "[GLUE] [%s] -> %s" 
-			    (Xlist.to_string (fun n -> n#data#to_string) ";" nds)
-			    nd2#data#to_string;
+                      | [] -> ()
+                    end
 
-			  glued := (nds, nd2) :: !glued;
-			  Hashtbl.remove name_tbl1 name;
-			  Hashtbl.remove name_tbl2 name
+                | nds, [] -> (* glue to unmodified? *)
+                    begin
+                      match nds2 with
+                      | nd2::_ ->
 
-		      | [] -> ()
-		    end
+                          DEBUG_MSG "[GLUE] [%s] -> %s"
+                            (Xlist.to_string (fun n -> n#data#to_string) ";" nds)
+                            nd2#data#to_string;
 
-		| [nd1], [nd2] ->
+                          glued := (nds, nd2) :: !glued;
+                          Hashtbl.remove name_tbl1 name;
+                          Hashtbl.remove name_tbl2 name
 
-		    DEBUG_MSG "[MOVE] %s -> %s" 
-		      nd1#data#to_string nd2#data#to_string;
+                      | [] -> ()
+                    end
 
-		    moved := (nd1, nd2) :: !moved;
+                | [nd1], [nd2] ->
 
-		    Hashtbl.remove name_tbl1 name;
-		    Hashtbl.remove name_tbl2 name
+                    DEBUG_MSG "[MOVE] %s -> %s"
+                      nd1#data#to_string nd2#data#to_string;
 
-		| _ -> (* settle later *)
-		    Hashtbl.replace name_tbl1 name !rest1;
-		    Hashtbl.replace name_tbl2 name rest2
+                    moved := (nd1, nd2) :: !moved;
 
-	      with 
+                    Hashtbl.remove name_tbl1 name;
+                    Hashtbl.remove name_tbl2 name
+
+                | _ -> (* settle later *)
+                    Hashtbl.replace name_tbl1 name !rest1;
+                    Hashtbl.replace name_tbl2 name rest2
+
+              with 
                 Not_found -> () (* renamed? *)
-		  
-	    ) name_tbl1;
-	  
-	  Hashtbl.iter
-	    (fun name nds1 ->
-	      not_resolved1 := nds1 @ !not_resolved1
-	    ) name_tbl1;
-	  Hashtbl.iter
-	    (fun name nds2 ->
-	      not_resolved2 := nds2 @ !not_resolved2
-	    ) name_tbl2
+
+            ) name_tbl1;
+
+          Hashtbl.iter
+            (fun name nds1 ->
+              not_resolved1 := nds1 @ !not_resolved1
+            ) name_tbl1;
+          Hashtbl.iter
+            (fun name nds2 ->
+              not_resolved2 := nds2 @ !not_resolved2
+            ) name_tbl2
     end;
 
 (*
@@ -436,6 +436,8 @@ let find_rename_pats path_pair_list =
   in
   List.fast_sort (fun (_, i) (_, j) -> Stdlib.compare i j) l
 
+let hyphen_pat = Str.regexp_string "-"
+let repl_hyphen = Str.global_replace hyphen_pat Filename.dir_sep
 
 let pp2 tbl1 tbl2 =
   let modified = ref [] in
@@ -446,7 +448,7 @@ let pp2 tbl1 tbl2 =
       (fun d nds ->
 	List.iter 
 	  (fun nd ->
-	    Hashtbl.add new_tbl (String.lowercase_ascii nd#data#path) nd
+	    Hashtbl.add new_tbl (repl_hyphen (String.lowercase_ascii nd#data#path)) nd
 	  ) nds
       ) tbl;
     new_tbl
@@ -598,7 +600,7 @@ let pp2 tbl1 tbl2 =
     ) tbl1;
 
   !modified
-(* end of func p2 *)
+(* end of func pp2 *)
 
   
 

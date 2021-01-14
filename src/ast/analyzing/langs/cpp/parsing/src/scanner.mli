@@ -97,6 +97,7 @@ class type c_t = object
   method check_if_macro_arg : T.token list -> bool
   method check_if_macro_args : T.token list list -> bool
 
+  method is_func_head : ?from:int -> ?head:T.token -> unit -> bool
   method is_ps_lparen : ?from:int -> unit -> bool
   method is_lparen : ?from:int -> ?ignore_pp:bool -> unit -> bool
 

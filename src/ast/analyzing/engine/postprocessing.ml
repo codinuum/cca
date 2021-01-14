@@ -2671,19 +2671,21 @@ module F (Label : Spec.LABEL_T) = struct
 	  occur_tbl_create occur_tbl2 cld2a;
 
 	  let has_different_repetition_pattern =
-	    try
-	      Hashtbl.iter
-		(fun alab2 counts2 ->
-		  try
-		    let counts1 = Hashtbl.find occur_tbl1 alab2 in
-		    if counts1 <> counts2 then
-		      raise Found
-		  with
-		    Not_found -> ()
-	      	) occur_tbl2;
-	      false
-	    with
-	      Found -> true
+            let xs = ref [] in
+	    Hashtbl.iter
+	      (fun alab2 counts2 ->
+		try
+		  let counts1 = Hashtbl.find occur_tbl1 alab2 in
+		  if counts1 <> counts2 then
+		    xs := alab2 :: !xs
+		with
+		  Not_found -> ()
+	      ) occur_tbl2;
+            List.exists
+              (fun alab ->
+                let filt n = not n#is_leaf && n#data#_anonymized_label = alab in
+                Array.exists filt cld1a || Array.exists filt cld2a
+              ) !xs
 	  in
 
 	  DEBUG_MSG "has_different_repetition_pattern: %B" has_different_repetition_pattern;
@@ -5059,8 +5061,19 @@ end;
         end
       )
 
+  let is_mid (MID.MOVE x) = x >= 0
+  let get_level nd =
+    let rec count nd =
+      try
+        (count nd#parent) + 1
+      with
+        Otreediff.Otree.Parent_not_found _ -> 1
+    in
+    count nd
+  let make_level_mid nd = MID.MOVE (-(get_level nd))
+
   (* eliminate false moves *)
-  let eliminate_false_moves tree1 tree2 edits uidmapping =
+  let eliminate_false_moves options tree1 tree2 edits uidmapping =
     DEBUG_MSG "* ELIMINATING FALSE MOVES...\n";
 
     DEBUG_MSG "uidmapping:\n%s\n" uidmapping#to_string;
@@ -5074,58 +5087,58 @@ end;
 
     edits#iter_moves
       (function
-	| Edit.Move(mid, kind, (uid1, info1, _), (uid2, info2, _)) -> 
-	    let sz1 = Info.get_size info1 in
-	    let sz2 = Info.get_size info2 in
-	    assert (sz1 = sz2);
+        | Edit.Move(mid, kind, (uid1, info1, _), (uid2, info2, _)) ->
+    let sz1 = Info.get_size info1 in
+    let sz2 = Info.get_size info2 in
+    assert (sz1 = sz2);
 
-	    let nd1 = Info.get_node info1 in
-	    let nd2 = Info.get_node info2 in
+    let nd1 = Info.get_node info1 in
+    let nd2 = Info.get_node info2 in
 
-	    DEBUG_MSG "checking %a %a-%a (%a-%a)" MID.ps !mid UID.ps uid1 UID.ps uid2 GI.ps nd1#gindex GI.ps nd2#gindex;
+    DEBUG_MSG "checking %a %a-%a (%a-%a)" MID.ps !mid UID.ps uid1 UID.ps uid2 GI.ps nd1#gindex GI.ps nd2#gindex;
 
-	    begin
-	      try
-		let ndpairs = Hashtbl.find move_mem_tbl !mid in
-		Hashtbl.replace move_mem_tbl !mid ((nd1, nd2)::ndpairs)
-	      with
-		Not_found -> Hashtbl.add move_mem_tbl !mid [nd1, nd2]
-	    end;
-	    begin
-	      try
-		let rt1, rt2 = Hashtbl.find move_top_tbl !mid in
-		if nd1#gindex > rt1#gindex then
-		  Hashtbl.replace move_top_tbl !mid (nd1, nd2)
-	      with
-		Not_found -> Hashtbl.add move_top_tbl !mid (nd1, nd2)
-	    end;
+    begin
+     try
+       let ndpairs = Hashtbl.find move_mem_tbl !mid in
+       Hashtbl.replace move_mem_tbl !mid ((nd1, nd2)::ndpairs)
+     with
+       Not_found -> Hashtbl.add move_mem_tbl !mid [nd1, nd2]
+    end;
+    begin
+      try
+	let rt1, rt2 = Hashtbl.find move_top_tbl !mid in
+	if nd1#gindex > rt1#gindex then
+	  Hashtbl.replace move_top_tbl !mid (nd1, nd2)
+      with
+        Not_found -> Hashtbl.add move_top_tbl !mid (nd1, nd2)
+    end;
 
-	    if not (Xset.mem crossing_checked !mid) then begin
-	      Xset.add crossing_checked !mid;
-	      try
-		uidmapping#iter_crossing_or_incompatible_mapping nd1 nd2
-		  (fun u1 u2 ->
+    if not (Xset.mem crossing_checked !mid) then begin
+      Xset.add crossing_checked !mid;
+      try
+        uidmapping#iter_crossing_or_incompatible_mapping nd1 nd2
+          (fun u1 u2 ->
 
-		    let n1 = tree1#search_node_by_uid u1 in
-		    let n2 = tree2#search_node_by_uid u2 in
+            let n1 = tree1#search_node_by_uid u1 in
+            let n2 = tree2#search_node_by_uid u2 in
 (*
 		    DEBUG_MSG "!!!  crossing: %a-%a (%a-%a)" UID.ps u1 UID.ps u2 GI.ps n1#gindex GI.ps n2#gindex;
 *)
-		    match edits#find12 u1 u2 with
-		    | [] | [Edit.Relabel _] ->
-			if (not (is_ghost_node n1)) && (not (is_ghost_node n2)) then begin
-			  DEBUG_MSG "-->  crossing_with_untouched: %a-%a" UID.ps u1 UID.ps u2;
-			  Xset.add crossing_with_untouched !mid;
-			  raise Break
-			end
-		    | eds -> ()
+            match edits#find12 u1 u2 with
+            | [] | [Edit.Relabel _] ->
+                if (not (is_ghost_node n1)) && (not (is_ghost_node n2)) then begin
+                  DEBUG_MSG "-->  crossing_with_untouched: %a-%a" UID.ps u1 UID.ps u2;
+                  Xset.add crossing_with_untouched !mid;
+                  raise Break
+                end
+            | eds -> ()
 (*			List.iter (fun e -> DEBUG_MSG "!!!    %s" (Edit.to_string e)) eds *)
-		  )
-	      with
-		Break -> ()
-	    end
+  )
+      with
+        Break -> ()
+    end
 
-	| _ -> assert false
+| _ -> assert false
 
       ); (* edits#iter_moves *)
 
@@ -5203,7 +5216,6 @@ end;
 	    (Xlist.to_string (fun n -> GI.to_string n#gindex) ";" nds2)
 	) sorted_move_tops
     END_DEBUG;
-
 
     let extra_move_elements = Xset.create 0 in
     List.iter
@@ -5326,81 +5338,125 @@ end;
     let mtree2 = new Otreediff.Otree.otree mroot2 in
 
 (* EXPERIMENTAL!!! *)
-    let mid_count_tbl = Hashtbl.create 0 in
-    List.iter 
-      (fun (mid, _, _) -> 
-	try
-	  let c = Hashtbl.find mid_count_tbl mid in
-	  Hashtbl.replace mid_count_tbl mid (c+1)
-	with
-	  Not_found -> Hashtbl.add mid_count_tbl mid 2
-      ) extra_move_element_list;
+    Xprint.verbose options#verbose_flag "performing experimental false move detection...";
+    let true_moves =
+      if Misc.check_hard_tree_size_limit options mtree1#size mtree2#size then begin
+        let mk x =
+          let l = ref [] in
+          let rec do_scan nd =
+            Array.iter do_scan nd#children;
+            l := nd#data#mid :: (make_level_mid nd) :: !l
+          in
+          do_scan x;
+          !l
+        in
+        let a1 = Array.map mk children1 in
+        let a2 = Array.map mk children2 in
+        BEGIN_DEBUG
+          let pr i x = DEBUG_MSG "%d: [%s]" i (String.concat ";" (List.map MID.to_string x)) in
+          DEBUG_MSG "a1:";
+          Array.iteri pr a1;
+          DEBUG_MSG "a2:";
+          Array.iteri pr a2;
+        END_DEBUG;
+        let m, rs, ds, is = Adiff.adiff a1 a2 in
+        DEBUG_MSG "|m|=%d" (List.length m);
+        let s = Xset.create 0 in
+        let proc a i =
+          DEBUG_MSG "%d: [%s]" i (String.concat ";" (List.map MID.to_string a.(i)));
+          List.iter
+            (fun x ->
+              if is_mid x then
+                Xset.add s x
+            ) a.(i)
+        in
+        DEBUG_MSG "rel:";
+        List.iter (fun (i, j) -> proc a1 i; proc a2 j) rs;
+        DEBUG_MSG "del:";
+        List.iter (proc a1) ds;
+        DEBUG_MSG "ins:";
+        List.iter (proc a2) is;
+        DEBUG_MSG "%d true moves found" (Xset.length s);
+        Xset.to_list s
+      end
+      else begin
+        let mid_count_tbl = Hashtbl.create 0 in
+        List.iter
+          (fun (mid, _, _) ->
+	    try
+	      let c = Hashtbl.find mid_count_tbl mid in
+	      Hashtbl.replace mid_count_tbl mid (c+1)
+	    with
+	      Not_found -> Hashtbl.add mid_count_tbl mid 2
+          ) extra_move_element_list;
 
-    let modify_weight n =
-      try
-	let c = Hashtbl.find mid_count_tbl n#data#mid in
-	n#data#set_weight (n#data#weight /. (float c))
-      with
-	Not_found -> ()
+        let modify_weight n =
+          try
+	    let c = Hashtbl.find mid_count_tbl n#data#mid in
+	    n#data#set_weight (n#data#weight /. (float c))
+          with
+	    Not_found -> ()
+        in
+        mtree1#fast_scan_all modify_weight;
+        mtree2#fast_scan_all modify_weight;
+
+        BEGIN_DEBUG
+          DEBUG_MSG "* mid tree 1:\n%s" mtree1#to_string;
+        DEBUG_MSG "* mid tree 2:\n%s" mtree2#to_string;
+        END_DEBUG;
+
+        let cost t1 t2 i j =
+          let nd1 = t1#get i in
+          let nd2 = t2#get j in
+          let w1 = nd1#data#weight in
+          let w2 = nd2#data#weight in
+
+          if j = 0 then (* delete *)
+	    w1
+          else if i = 0 then (* insert *)
+	    w2
+          else
+	    if nd1#data#equals nd2#data then
+	      0.0
+	    else (* relabel *)
+	      w1 +. w2
+        in
+
+        let eds, map, _ = Otreediff.ZS.Float.find cost mtree1 mtree2 in
+
+        BEGIN_DEBUG
+          DEBUG_MSG "eds:\n%s"
+	  (Otreediff.Edit.seq_to_string eds);
+        DEBUG_MSG "mapping:\n%s"
+	  (Otreediff.Mapping.to_string map)
+          END_DEBUG;
+
+        let true_moves =
+          List.fold_left
+	    (fun l ed ->
+	      if Otreediff.Edit.isdel ed then
+	        let i = Otreediff.Edit.get_del_idx ed in
+	        let m = (mtree1#get i)#data#mid in
+	        if not (List.mem m l) then
+	          m :: l
+	        else
+	          l
+
+	      else if Otreediff.Edit.isrel ed then
+	        let i = Otreediff.Edit.get_rel_idx1 ed in
+	        let m = (mtree1#get i)#data#mid in
+	        if not (List.mem m l) then
+	          m :: l
+	        else
+	          l
+
+	      else
+	        l
+	    ) [] eds
+        in
+        true_moves
+      end
     in
-    mtree1#fast_scan_all modify_weight;
-    mtree2#fast_scan_all modify_weight;
-
-    BEGIN_DEBUG
-      DEBUG_MSG "* mid tree 1:\n%s" mtree1#to_string;
-      DEBUG_MSG "* mid tree 2:\n%s" mtree2#to_string;
-    END_DEBUG;
-
-    let cost t1 t2 i j = 
-      let nd1 = t1#get i in
-      let nd2 = t2#get j in
-      let w1 = nd1#data#weight in
-      let w2 = nd2#data#weight in
-
-      if j = 0 then (* delete *)
-	w1
-      else if i = 0 then (* insert *)
-	w2
-      else
-	if nd1#data#equals nd2#data then
-	  0.0
-	else (* relabel *)
-	  w1 +. w2
-    in
-
-    let eds, map, _ = Otreediff.ZS.Float.find cost mtree1 mtree2 in
-
-    BEGIN_DEBUG
-      DEBUG_MSG "eds:\n%s" 
-	(Otreediff.Edit.seq_to_string eds);
-      DEBUG_MSG "mapping:\n%s" 
-	(Otreediff.Mapping.to_string map)
-    END_DEBUG;
-
-    let true_moves = 
-      List.fold_left
-	(fun l ed -> 
-	  if Otreediff.Edit.isdel ed then
-	    let i = Otreediff.Edit.get_del_idx ed in
-	    let m = (mtree1#get i)#data#mid in
-	    if not (List.mem m l) then
-	      m :: l
-	    else
-	      l
-
-	  else if Otreediff.Edit.isrel ed then
-	    let i = Otreediff.Edit.get_rel_idx1 ed in
-	    let m = (mtree1#get i)#data#mid in
-	    if not (List.mem m l) then
-	      m :: l
-	    else
-	      l
-
-	  else
-	    l
-	) [] eds
-    in
-            
     DEBUG_MSG "true moves: [%s]"
       (Xlist.to_string MID.to_string ";" 
 	 (List.fast_sort Stdlib.compare true_moves));
@@ -5515,9 +5571,7 @@ end;
       DEBUG_MSG "edits:\n%s\n" edits#to_string;
     END_DEBUG;
    
-
-    eliminate_false_moves tree1 tree2 edits uidmapping;
-
+    eliminate_false_moves options tree1 tree2 edits uidmapping;
 
     BEGIN_DEBUG
       DEBUG_MSG "* AFTER FALSE MOVE ELIMINATION *";
@@ -5632,7 +5686,7 @@ end;
 
         uidmapping#set_starting_uid_pairs_for_glueing starting_pairs;
         let removed_pairs, added_pairs =
-if not options#no_glue_flag then begin
+          if not options#no_glue_flag then begin
           let removed_pairs, added_pairs, _ =
             let is_move n1 n2 = 
               edits#mem_mov12 n1#uid n2#uid || is_crossing_with_untouched n1 n2
@@ -5642,9 +5696,9 @@ if not options#no_glue_flag then begin
               uidmapping (new UIDmapping.c cenv)
           in
           removed_pairs, added_pairs
-end
-else
-  [], []
+          end
+          else
+            [], []
         in
         BEGIN_DEBUG
           DEBUG_MSG "removed_pairs:";
@@ -6655,28 +6709,28 @@ end;
 	    let children_uids1 = List.map (fun nd -> nd#uid) children1 in
 	    let children_uids2 = List.map (fun nd -> nd#uid) children2 in
 
-	    let is_mov1 u =
-	      let b =
-		try
-		  let v = uidmapping#find u in
-		  List.memq v children_uids2
-		with 
-		  Not_found -> false
-	      in
-	      DEBUG_MSG "[grouping] is_mov1: %a --> %B" UID.ps u b;
-	      b
-	    in
-	    let is_mov2 u = 
-	      let b = 
-		try
-		  let v = uidmapping#inv_find u in
-		  List.memq v children_uids1
-		with 
-		  Not_found -> false
-	      in
-	      DEBUG_MSG "[grouping] is_mov2: %a --> %B" UID.ps u b;
-	      b
-	    in
+            let is_mov1 u =
+              let b =
+                try
+                  let v = uidmapping#find u in
+                  List.memq v children_uids2
+                with
+                  Not_found -> false
+              in
+              DEBUG_MSG "%a --> %B" UID.ps u b;
+              b
+            in
+            let is_mov2 u =
+              let b =
+                try
+                  let v = uidmapping#inv_find u in
+                  List.memq v children_uids1
+                with
+                  Not_found -> false
+              in
+              DEBUG_MSG "%a --> %B" UID.ps u b;
+              b
+            in
 
             let filt1' n = filt1 is_mov1 n || check_hunk_boundary nd1 n(*!!!!!*) in
             let filt2' n = filt2 is_mov2 n || check_hunk_boundary nd2 n(*!!!!!*) in

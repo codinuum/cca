@@ -212,6 +212,7 @@ class parser_c = object (self)
       | T_FOLD_LPAREN -> "FOLD_LPAREN"
       | T_FOR -> "FOR"
       | T_FRIEND -> "FRIEND"
+      | T_FUNC_HEAD_MACRO -> "FUNC_HEAD_MACRO"
       | T_GNU_ASM -> "GNU_ASM"
       | T_GNU_ATTR -> "GNU_ATTR"
       | T_GOTO -> "GOTO"
@@ -375,6 +376,7 @@ class parser_c = object (self)
       | T_PP_IFDEF_P -> "PP_IFDEF_P"
       | T_PP_IFDEF_S -> "PP_IFDEF_S"
       | T_PP_IFDEF_SHIFT -> "PP_IFDEF_SHIFT"
+      | T_PP_IFDEF_X -> "PP_IFDEF_X"
       | T_PP_IFNDEF -> "PP_IFNDEF"
       | T_PP_IFNDEF_A -> "PP_IFNDEF_A"
       | T_PP_IFNDEF_ATTR -> "PP_IFNDEF_ATTR"
@@ -394,6 +396,7 @@ class parser_c = object (self)
       | T_PP_IFNDEF_P -> "PP_IFNDEF_P"
       | T_PP_IFNDEF_S -> "PP_IFNDEF_S"
       | T_PP_IFNDEF_SHIFT -> "PP_IFNDEF_SHIFT"
+      | T_PP_IFNDEF_X -> "PP_IFNDEF_X"
       | T_PP_IF_A -> "PP_IF_A"
       | T_PP_IF_ATTR -> "PP_IF_ATTR"
       | T_PP_IF_B -> "PP_IF_B"
@@ -412,6 +415,7 @@ class parser_c = object (self)
       | T_PP_IF_P -> "PP_IF_P"
       | T_PP_IF_S -> "PP_IF_S"
       | T_PP_IF_SHIFT -> "PP_IF_SHIFT"
+      | T_PP_IF_X -> "PP_IF_X"
       | T_PP_IMPORT -> "PP_IMPORT"
       | T_PP_INCLUDE -> "PP_INCLUDE"
       | T_PP_LINE -> "PP_LINE"
@@ -529,9 +533,13 @@ class parser_c = object (self)
       | N__pp_func_head_if_group -> "_pp_func_head_if_group"
       | N__pp_func_head_if_section -> "_pp_func_head_if_section"
       | N__pp_idtor_if_section -> "_pp_idtor_if_section"
+      | N__pp_eor_elif_group -> "_pp_ior_elif_group"
       | N__pp_ior_elif_group -> "_pp_ior_elif_group"
+      | N__pp_eor_else_group -> "_pp_ior_else_group"
       | N__pp_ior_else_group -> "_pp_ior_else_group"
+      | N__pp_eor_if_group -> "_pp_ior_if_group"
       | N__pp_ior_if_group -> "_pp_ior_if_group"
+      | N__pp_eor_if_section -> "_pp_ior_if_section"
       | N__pp_ior_if_section -> "_pp_ior_if_section"
       | N__pp_land_elif_group -> "_pp_land_elif_group"
       | N__pp_land_else_group -> "_pp_land_else_group"
@@ -706,6 +714,7 @@ class parser_c = object (self)
       | N_linkage_specification -> "linkage_specification"
       | N_list_INT_LITERAL_ -> "list(INT_LITERAL)"
       | N_list__pp_func_head_elif_group_ -> "list(_pp_func_head_elif_group)"
+      | N_list__pp_eor_elif_group_ -> "list(_pp_eor_elif_group)"
       | N_list__pp_ior_elif_group_ -> "list(_pp_ior_elif_group)"
       | N_list__pp_land_elif_group_ -> "list(_pp_land_elif_group)"
       | N_list__pp_lor_elif_group_ -> "list(_pp_lor_elif_group)"
@@ -1065,6 +1074,7 @@ class parser_c = object (self)
       | N_pp_ifx_p -> "pp_ifx_p"
       | N_pp_ifx_s -> "pp_ifx_s"
       | N_pp_ifx_shift -> "pp_ifx_shift"
+      | N_pp_ifx_x -> "pp_ifx_x"
       | N_pp_init_elif_group -> "pp_init_elif_group"
       | N_pp_init_else_group -> "pp_init_else_group"
       | N_pp_init_if_group -> "pp_init_if_group"
@@ -1509,6 +1519,18 @@ class parser_c = object (self)
                 env#set_semicolon_info();
                 raise Exit
             end
+            | I.X (I.N N_pp_p_if_group), _, I.X (I.T T_COMMA) -> begin
+                env#set_comma_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_p_elif_group), _, I.X (I.T T_COMMA) -> begin
+                env#set_comma_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_p_else_group), _, I.X (I.T T_COMMA) -> begin
+                env#set_comma_info();
+                raise Exit
+            end
             | I.X (I.N N_pp_expr_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
                 raise Exit
@@ -1876,7 +1898,7 @@ class parser_c = object (self)
             | I.X (I.N N_pp_func_head_if_group_broken), _, I.X (I.T T_LBRACE) -> begin
                 if
                   match scanner#peek_rawtoken() with
-                  | PP_ELIF | PP_ELSE -> true
+                  | PP_ELIF _ | PP_ELSE _ -> true
                   | _ -> try env#pp_if_section_top_info.Pinfo.i_broken with _ -> false
                 then begin
                   begin
@@ -2155,7 +2177,7 @@ class parser_c = object (self)
                     | sn, I.X (I.N N_pp_decl_if_group), _, _, _ -> begin
                         begin
                           match scanner#peek_rawtoken() with
-                          | PP_ELSE | PP_ELIF | PP_ENDIF -> env#set_semicolon_info()
+                          | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
                           | _ -> ()
                         end;
                         raise Exit
@@ -2163,7 +2185,7 @@ class parser_c = object (self)
                     | sn, I.X (I.N N_pp_decl_elif_group), _, _, _ -> begin
                         begin
                           match scanner#peek_rawtoken() with
-                          | PP_ELSE | PP_ELIF | PP_ENDIF -> env#set_semicolon_info()
+                          | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
                           | _ -> ()
                         end;
                         raise Exit
@@ -2171,7 +2193,7 @@ class parser_c = object (self)
                     | sn, I.X (I.N N_pp_decl_else_group), _, _, _ -> begin
                         begin
                           match scanner#peek_rawtoken() with
-                          | PP_ELSE | PP_ELIF | PP_ENDIF -> env#set_semicolon_info()
+                          | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
                           | _ -> ()
                         end;
                         raise Exit
@@ -2345,7 +2367,7 @@ class parser_c = object (self)
                     | sn, I.X (I.N N_pp_stmt_if_group_broken), _, _, _ -> begin
                         begin
                           match scanner#peek_rawtoken() with
-                          | PP_ELSE | PP_ELIF -> env#set_comma_info()
+                          | PP_ELSE _ | PP_ELIF _ -> env#set_comma_info()
                           | _ -> ()
                         end;
                         raise Exit
@@ -2583,7 +2605,7 @@ class parser_c = object (self)
                 end;
                 begin
                   match scanner#peek_rawtoken() with
-                  | PP_ENDIF -> ()
+                  | PP_ENDIF _ -> ()
                   | _ ->
                       let sn = I.current_state_number menv_ in
                       ctx_start_of_stmt sn
@@ -3195,6 +3217,19 @@ class parser_c = object (self)
                     end
                     | _ -> ()
                   );
+                if not env#stack#at_enum then
+                  iter_items ~ith:5 menv_
+                    (function
+                      | _, I.X (I.N N_compound_statement), _, _, _ -> begin
+                          ctx_start_of_stmt sn;
+                          raise Exit
+                      end
+                      | _, I.X (I.N N__statement_seq), _, _, _ -> begin
+                          ctx_start_of_stmt sn;
+                          raise Exit
+                      end
+                      | _ -> ()
+                    );
                 iter_items ~ith:2 menv_
                   (function
                     | sn, I.X (I.N N_pp_func_body_if_section), _, _, _ -> begin
@@ -3394,13 +3429,14 @@ class parser_c = object (self)
                   match scanner#prev_rawtoken3 with
                   | COMMA_BROKEN | EQ -> ()
                   | _ ->
+                      let sn = I.current_state_number menv_ in
                       iter_items_w ~from_ith:4 ~to_ith:5 menv_
                         (function
-                          | sn, I.X (I.N N_compound_statement), _, _, _ -> begin
+                          | _, I.X (I.N N_compound_statement), _, _, _ -> begin
                               ctx_start_of_stmt sn;
                               raise Exit
                           end
-                          | sn, I.X (I.N N__statement_seq), _, _, _ -> begin
+                          | _, I.X (I.N N__statement_seq), _, _, _ -> begin
                               ctx_start_of_stmt sn;
                               raise Exit
                           end
@@ -3757,6 +3793,11 @@ class parser_c = object (self)
                 env#set_paren_closing_info();
                 raise Exit
             end
+            | I.X (I.N N_pp_ifstmt_if_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+
             | I.X (I.N N_pp_args_if_group_closing), rhs, I.X (I.T T_RPAREN) -> begin
                 env#set_paren_closing_info();
                 raise Exit
@@ -3806,7 +3847,7 @@ class parser_c = object (self)
                 end else if
                   List.nth rhs 1 = I.X (I.T T_IDENT_V) && begin
                     match scanner#peek_rawtoken() with
-                    | PP_ELIF | PP_ELSE -> true
+                    | PP_ELIF _ | PP_ELSE _ -> true
                     | _ -> false
                   end
                 then begin
@@ -3818,7 +3859,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_stmt_if_group_broken), _, I.X (I.T T_LBRACE) -> begin
                 match scanner#peek_rawtoken() with
-                | PP_ELIF | PP_ELSE -> begin
+                | PP_ELIF _ | PP_ELSE _ -> begin
                     scanner#enter_block();
                     DEBUG_MSG "!!! info=%s" (Pinfo.pp_if_section_info_to_string env#pp_if_section_top_info);
                     env#set_broken_info();
@@ -3828,7 +3869,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_stmt_if_group_broken), _, I.X (I.T T_COMMA_BROKEN) -> begin
                 match scanner#peek_rawtoken() with
-                | PP_ELIF | PP_ELSE -> begin
+                | PP_ELIF _ | PP_ELSE _ -> begin
                     DEBUG_MSG "!!! info=%s" (Pinfo.pp_if_section_info_to_string env#pp_if_section_top_info);
                     env#set_broken_info();
                     raise Exit
@@ -3837,7 +3878,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_class_head_if_group_broken), _, I.X (I.T T_CLASS_LBRACE) -> begin
                 match scanner#peek_rawtoken() with
-                | PP_ELIF | PP_ELSE -> begin
+                | PP_ELIF _ | PP_ELSE _ -> begin
                     DEBUG_MSG "!!! info=%s" (Pinfo.pp_if_section_info_to_string env#pp_if_section_top_info);
                     env#set_broken_info();
                     raise Exit
