@@ -27,6 +27,7 @@ import bz2
 import csv
 import xml.parsers.expat as expat
 import random
+import json
 import logging
 
 import pathsetup
@@ -35,11 +36,13 @@ import diffinfo
 import sim
 import proc
 from factextractor import Enc, HashAlgo, compute_hash
-from common import setup_logger
+from common import setup_logger, normpath
 
 #####
 
 logger = logging.getLogger()
+
+STATS_JSON = 'stats.json'
 
 AUXFILE_EXTS = ['.jj', '.jjt', '.properties']
 
@@ -169,12 +172,11 @@ def count_nodes(files, cache_dir_base=None,
         if not load_fact:
             incomplete_opt = ' -incompleteinfo'
 
-        cmd = '{}{} -parseonly{}{} {}'.format(diffts.diffast_cmd, incomplete_opt, cache_opt, fact_opt, f)
+        cmd = '{}{} -parseonly{}{} {}'.format(diffts.diffast_cmd, incomplete_opt, cache_opt, fact_opt, normpath(f))
 
         logger.info('cmd="{}"'.format(cmd))
 
-        pc = proc.PopenContext(cmd)
-        with pc as p:
+        with proc.PopenContext(cmd, stderr=None) as p:
             (stdout_data, stderr_data) = p.communicate()
             for line in stdout_data.split('\n'):
                 m = nodes_pat.search(line)
@@ -187,7 +189,6 @@ def count_nodes(files, cache_dir_base=None,
                         break
                     except:
                         logger.warning('not an integer: "{}"'.format(g[0]))
-
 
     return c
 
@@ -431,6 +432,7 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
                'moved'      : moved,
                'copied'     : copied,
                'glued'      : glued,
+               'cache_dir'  : cache_dir,
               }
 
     return result
@@ -524,6 +526,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
 
 def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
               include=[],
+              exclude=[],
               ignore1=[], ignore2=[],
               load_fact=False,
               fact_dir=None,
@@ -559,6 +562,12 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     if include:
         filt = lambda x: any(x.startswith(p) for p in include)
 
+    if exclude:
+        if include:
+            filt = lambda x: any(x.startswith(p) for p in include) and all(not x.startswith(p) for p in exclude)
+        else:
+            filt = lambda x: all(not x.startswith(p) for p in exclude)
+
     logger.info('"{}" - "{}" cache_dir_base="{}"'.format(dir1, dir2, cache_dir_base))
 
     cost      = 0
@@ -566,7 +575,11 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     nnodes    = 0
     nnodes1   = 0
     nnodes2   = 0
+    ndeletes  = 0
+    ninserts  = 0
     nrelabels = 0
+    nmovrels  = 0
+    nmoves    = 0
 
     line_sim_sum   = 0.0
     line_sim_count = 0
@@ -590,6 +603,16 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
                     keep_going=keep_going)
 
     logger.info('"{}" - "{}" get_info finished'.format(dir1, dir2))
+
+    stats_json = os.path.join(info['cache_dir'], STATS_JSON)
+
+    if os.path.exists(stats_json):
+        logger.info('cached stats found: "{}"'.format(stats_json))
+        try:
+            with open(stats_json) as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning('{}'.format(str(e)))
 
     get_rel1 = lambda x: x
     get_rel2 = lambda x: x
@@ -801,6 +824,8 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             )
 
             c = r['cost']
+            #c = r['ndeletes'] + r['ninserts'] + r['nrelabels'] + r['nmoves']
+
             m = r['nmappings']
             
 
@@ -834,7 +859,11 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
 
             cost += c
             nmappings += m
+            ndeletes  += r['ndeletes']
+            ninserts  += r['ninserts']
             nrelabels += r['nrelabels']
+            nmovrels  += r['nmovrels']
+            nmoves    += r['nmoves']
 
                 
     except Exception as e:
@@ -849,17 +878,27 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
 
     logger.info('"{}" - "{}" --> {} comparisons ({} min.)'.format(dir1, dir2, ncomp, m))
 
-    res = {'cost'         : cost, 
-           'ncomparisons' : ncomp, 
-           'nmappings'    : nmappings, 
-           'nnodes1'      : nnodes1, 
-           'nnodes2'      : nnodes2, 
-           'nnodes'       : nnodes, 
+    res = {'cost'         : cost,
+           'ncomparisons' : ncomp,
+           'nmappings'    : nmappings,
+           'nnodes1'      : nnodes1,
+           'nnodes2'      : nnodes2,
+           'nnodes'       : nnodes,
+           'ndeletes'     : ndeletes,
+           'ninserts'     : ninserts,
            'nrelabels'    : nrelabels,
+           'nmovrels'     : nmovrels,
+           'nmoves'       : nmoves,
            }
 
     if line_sim and line_sim_count > 0:
         res['line_sim'] = line_sim_sum / line_sim_count
+
+    try:
+        with open(stats_json, 'w') as f:
+            json.dump(res, f)
+    except Exception as e:
+        logger.warning('{}'.format(str(e)))
 
     return res
 

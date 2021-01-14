@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os.path
 import logging
 
 LOGGING_FORMAT = '[%(asctime)s][%(levelname)s][%(module)s][%(funcName)s] %(message)s'
@@ -18,3 +19,8 @@ def setup_logger(logger, log_level=DEFAULT_LOGGING_LEVEL, log_file=None):
         logging.basicConfig(format=LOGGING_FORMAT, level=log_level)
 
 
+def normpath(path):
+    p = os.path.normpath(path)
+    if ' ' in p:
+        p = "'"+p+"'"
+    return p
