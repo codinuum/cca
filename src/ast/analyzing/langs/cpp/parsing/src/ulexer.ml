@@ -465,7 +465,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       _token lexbuf
     end
 
-|  '\\' line_terminator -> _token lexbuf
+|  '\\' white_space* line_terminator -> _token lexbuf
 
 |  "//" ->
     line_comment (Ulexing.lexeme_start lexbuf) lexbuf

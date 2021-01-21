@@ -6426,8 +6426,9 @@ template:
 
 expr_macro_call:
 | i=IDENT_EM ml=macro_args { mknode $startpos $endpos (L.ExpressionMacroInvocation i) ml }
-| i=IDENT_EM SS_LPAREN sl=statement_seq RPAREN
-    { mknode $startpos $endpos (L.StatementMacroInvocation i) sl }
+| i=IDENT_EM SS_LPAREN sl=statement_seq RPAREN { mknode $startpos $endpos (L.ExpressionMacroInvocation i) sl }
+| i=IDENT_EM SS_LPAREN sl=statement_seq COMMA ioption(MARKER) statement_seq RPAREN
+    { mknode $startpos $endpos (L.ExpressionMacroInvocation i) sl }
 ;
 
 defined_macro_expression:
@@ -9459,6 +9460,14 @@ stmts_macro_arg:
       last#add_suffix ";";
       _reloc_end $endpos(sc) last;
       sl @ [s]
+    }
+| sl=stmts_macro_arg sc=SEMICOLON p=pp_stmt_if_section s=stmt_macro_arg
+    { 
+      ignore sc;
+      let last = Xlist.last sl in
+      last#add_suffix ";";
+      _reloc_end $endpos(sc) last;
+      sl @ [p;s]
     }
 ;
 stmt_macro_arg:

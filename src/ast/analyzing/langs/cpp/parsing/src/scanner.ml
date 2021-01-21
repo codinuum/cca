@@ -18749,6 +18749,12 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       DEBUG_MSG "@";
                       geto()
                     end
+                    else if
+                      env#macro_arg_flag && is_semicolon prev_rawtoken
+                    then begin
+                      DEBUG_MSG "@";
+                      token
+                    end
                     else begin
                       DEBUG_MSG "@";
                       gete()
