@@ -242,26 +242,26 @@ let find_objc_keyword s =
 let _find_pp_keyword =
   let keyword_list =
     [
-     "#include", PP_INCLUDE;
-     "#define",  PP_DEFINE;
-     "#undef",   PP_UNDEF;
-     "#line",    PP_LINE;
-     "#error",   PP_ERROR;
-     "#pragma",  PP_PRAGMA;
-     "#if",      PP_IF;
-     "#ifdef",   PP_IFDEF;
-     "#ifndef",  PP_IFNDEF;
-     "#elif",    PP_ELIF (ref "");
-     "#else",    PP_ELSE (ref "");
-     "#endif",   PP_ENDIF (ref "");
-     "#import",  PP_IMPORT;
+     "#include", (fun () -> PP_INCLUDE);
+     "#define",  (fun () -> PP_DEFINE);
+     "#undef",   (fun () -> PP_UNDEF);
+     "#line",    (fun () -> PP_LINE);
+     "#error",   (fun () -> PP_ERROR);
+     "#pragma",  (fun () -> PP_PRAGMA);
+     "#if",      (fun () -> PP_IF);
+     "#ifdef",   (fun () -> PP_IFDEF);
+     "#ifndef",  (fun () -> PP_IFNDEF);
+     "#elif",    (fun () -> PP_ELIF (ref ""));
+     "#else",    (fun () -> PP_ELSE (ref ""));
+     "#endif",   (fun () -> PP_ENDIF (ref ""));
+     "#import",  (fun () -> PP_IMPORT);
     ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in
   let _ =
     List.iter (fun (kwd, tok) -> StringHashtbl.add keyword_table kwd tok)
       keyword_list
   in
-  fun s -> StringHashtbl.find keyword_table (normalize_pp_keyword s)
+  fun s -> (StringHashtbl.find keyword_table (normalize_pp_keyword s))()
   (*let keyword_map =
     List.fold_left (fun m (kwd, tok) -> StringMap.add kwd tok m) StringMap.empty keyword_list
   in

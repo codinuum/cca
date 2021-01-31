@@ -23259,6 +23259,7 @@ module F (Stat : Aux.STATE_T) = struct
             then begin
               if not (is_pp_endif (self#peek_rawtoken())) then begin
                 if env#in_body_brace_flag && env#in_body_brace_level = 0 && env#stack#block_level = 1 then begin
+                  DEBUG_MSG "@";
                   let info = env#pp_if_section_top_info in
                   self#prepend_token (mk T.NEWLINE);
                   begin
