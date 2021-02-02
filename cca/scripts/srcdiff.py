@@ -764,6 +764,8 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     nmappings += nunmodified0 + nmoved0 + nrenamed0
     cost += nadded + ncopied + nremoved + nglued
 
+    ndeletes += nremoved + nglued
+    ninserts += nadded + ncopied
 
     logger.info('nnodes={}, nmappings={}, cost={}'.format(nnodes, nmappings, cost))
 
