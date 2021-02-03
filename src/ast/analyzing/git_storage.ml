@@ -18,8 +18,7 @@
 open Lwt
 open Printf
 
-
-module F (S: Git.Store.S) = struct
+module F (S: Git.S) = struct
 
   module Hash   = S.Hash
   module Value  = S.Value
@@ -300,7 +299,7 @@ module F (S: Git.Store.S) = struct
 
 
   let dump_value sha1 = function
-    | Value.Commit commit -> begin
+    | Git.Value.Commit commit -> begin
         printf "COMMIT: %s\n" (Hash.to_hex sha1);
         printf "  PARENT(S): %s\n"
           (String.concat " " (List.map Hash.to_hex (Commit.parents commit)));
@@ -309,33 +308,33 @@ module F (S: Git.Store.S) = struct
         printf "  MESSAGE: \"%s\"\n" (Commit.message commit);
         printf "  TREE: %s\n" (Hash.to_hex (Commit.tree commit))
     end
-    | Value.Blob blob -> begin
+    | Git.Value.Blob blob -> begin
         printf "BLOB: %s\n" (Hash.to_hex sha1)
     end
-    | Value.Tag tag -> begin
+    | Git.Value.Tag tag -> begin
         printf "TAG: \"%s\":%s\n" (Tag.tag tag) (Hash.to_hex sha1);
         printf "  OBJECT: %s\n" (Hash.to_hex (Tag.obj tag));
         printf "  KIND: \"%s\"\n"
           (match Tag.kind tag with
-          | Tag.Blob -> "Blob" | Tag.Commit -> "Commit" | Tag.Tag -> "Tag"
-          | Tag.Tree -> "Tree");
+          | Git.Tag.Blob -> "Blob" | Git.Tag.Commit -> "Commit" | Git.Tag.Tag -> "Tag"
+          | Git.Tag.Tree -> "Tree");
         printf "  TAGGER: \"%s\"\n"
           (match Tag.tagger tag with None -> "" | Some u -> u.User.name);
         printf "  MESSAGE: \"%s\"\n" (Tag.message tag);
     end
-    | Value.Tree tree -> begin
+    | Tree tree -> begin
         printf "TREE:%s\n" (Hash.to_hex sha1);
         printf "  ENTRIES:\n";
-        List.iter (fun e -> printf "    %s\n" e.Tree.name) (Tree.to_list tree)
+        List.iter (fun e -> printf "    %s\n" e.Git.Tree.name) (Tree.to_list tree)
     end
 
   let is_dir e =
-    match e.Tree.perm with
+    match e.Git.Tree.perm with
     | `Dir -> true
     | _ -> false
 
   let is_dir_or_file e =
-    match e.Tree.perm with
+    match e.Git.Tree.perm with
     | `Dir
     | `Normal -> true
     | _ -> false
@@ -360,9 +359,9 @@ module F (S: Git.Store.S) = struct
           if read then begin
             S.read_exn t sha1 >>= fun v -> begin
 	      match v with
-	      | Value.Commit c -> make_entry _cache "" "" (Commit.tree c)
+	      | Git.Value.Commit c -> make_entry _cache "" "" (Commit.tree c)
 
-	      | Value.Tree tree -> begin
+	      | Git.Value.Tree tree -> begin
 	          let filt e =
                     (*is_dir e || options#check_extension e.Tree.name*)
                     true
@@ -375,7 +374,7 @@ module F (S: Git.Store.S) = struct
                       if read then
                         DEBUG_MSG "TO BE READ: \"%s\" %s" e.Tree.name (Hash.to_hex e.Tree.node);
 
-		      make_entry _cache ~read path e.Tree.name e.Tree.node
+		      make_entry _cache ~read path e.Git.Tree.name e.Git.Tree.node
 
 		    ) (List.filter filt (Tree.to_list tree))
 		    >>= fun es ->
@@ -385,12 +384,12 @@ module F (S: Git.Store.S) = struct
                       _cache#add path ent;
 		      return ent
 	      end
-              | Value.Blob blob -> begin
+              | Git.Value.Blob blob -> begin
                   let ent = new entry ~dirname ~name ~is_dir:false ~digest ~blob_opt:(Some blob) [] in
                   (*cache#add sha1 dirname name ent;*)
 	          return ent
 	      end
-              | Value.Tag _ -> 
+              | Git.Value.Tag _ -> 
                   raise (Invalid_argument "make_entry: Tag")
 	    end
           end
@@ -406,7 +405,7 @@ module F (S: Git.Store.S) = struct
       let _cache = new path_entry_cache in
 
       S.read_exn t sha1 >>= function
-        | Value.Commit commit -> begin
+        | Git.Value.Commit commit -> begin
             let tree_sha1 = Commit.tree commit in
             make_entry _cache "" "" tree_sha1 >>= fun root ->
               let tree =
@@ -416,7 +415,7 @@ module F (S: Git.Store.S) = struct
               DEBUG_MSG "got tree for %s" (Hash.to_hex tree_sha1);
               return (Tree tree)
         end
-        | Value.Tree _ -> begin
+        | Git.Value.Tree _ -> begin
             make_entry _cache "" "" sha1 >>= fun root ->
               let tree =
                 let kind = Storage.kind_git repo_name in
@@ -425,10 +424,10 @@ module F (S: Git.Store.S) = struct
               DEBUG_MSG "got tree for %s" (Hash.to_hex sha1);
               return (Tree tree)
         end
-        | Value.Tag tag -> begin
+        | Git.Value.Tag tag -> begin
             obj_of_sha1 (Tag.obj tag)
         end
-        | Value.Blob blob -> begin
+        | Git.Value.Blob blob -> begin
             let h = Hash.to_hex sha1 in
             let digest = Xhash.of_hex h in
             DEBUG_MSG "got blob for %s" h;
