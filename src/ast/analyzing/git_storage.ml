@@ -372,7 +372,7 @@ module F (S: Git.S) = struct
 		      let read = is_dir_or_file e in
 
                       if read then
-                        DEBUG_MSG "TO BE READ: \"%s\" %s" e.Tree.name (Hash.to_hex e.Tree.node);
+                        DEBUG_MSG "TO BE READ: \"%s\" %s" e.Git.Tree.name (Hash.to_hex e.Git.Tree.node);
 
 		      make_entry _cache ~read path e.Git.Tree.name e.Git.Tree.node
 
