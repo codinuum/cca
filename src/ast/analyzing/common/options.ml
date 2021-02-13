@@ -40,15 +40,15 @@ class c = object (self)
   val mutable revindex = 0
 
 
-  val mutable get_cache_name_for_file2 = 
+  val mutable get_cache_name_for_file2 =
     fun (file1 : Storage.file) (file1 : Storage.file) -> ""
 
   method set_get_cache_name_for_file2 f = get_cache_name_for_file2 <- f
   method get_cache_name_for_file2 = get_cache_name_for_file2
 
   method get_cache_path_for_file2 file1 file2 =
-    let p = 
-      Cache.create_cache_path self (self#get_cache_name_for_file2 file1 file2) 
+    let p =
+      Cache.create_cache_path self (self#get_cache_name_for_file2 file1 file2)
     in
     if local_cache_name = "" then
       p
@@ -58,7 +58,7 @@ class c = object (self)
   method get_cache_path_for_dir_digest2 d1 d2 =
     let h1 = Xhash.to_hex d1 in
     let h2 = Xhash.to_hex d2 in
-    let p = 
+    let p =
       Cache.create_cache_path self (Cache.make_cache_name_for_dir2 h1 h2)
     in
     if local_cache_name = "" then

@@ -158,7 +158,7 @@ class type tree_t = object ('self)
                                             int *                             (* size *)
                                             int *                             (* num of known origns *)
                                             float *                           (* coverage *)
-                                            (node_t, node_t list) Hashtbl.t * 
+                                            (node_t, node_t list) Hashtbl.t *
                                             int *                             (* num of known endings *)
                                             float *                           (* coverage *)
                                             (node_t, node_t list) Hashtbl.t

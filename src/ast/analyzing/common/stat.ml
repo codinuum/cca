@@ -46,9 +46,9 @@ exception Malformed_stat of string
 let fscanf ic =
   let ib = Scanf.Scanning.from_channel ic in
   Scanf.bscanf ib
-	
-  
-let scan ?(max_retry_count=10) scanner path = 
+
+
+let scan ?(max_retry_count=10) scanner path =
   let rec _scan n path (scanner : in_channel -> 'a) =
     try
       let ch = open_in path in
@@ -57,23 +57,23 @@ let scan ?(max_retry_count=10) scanner path =
 	begin
 	  try
 	    close_in ch
-	  with 
+	  with
 	    Sys_error s -> WARN_MSG s
 	end;
 	res
       with
       | Scanf.Scan_failure _
-      | Failure _ 
+      | Failure _
       | End_of_file
-      | Invalid_argument _ -> 
+      | Invalid_argument _ ->
 	  (try
 	    close_in ch;
 	  with _ -> ());
 	  raise (Malformed_stat path)
-    with 
+    with
     | Sys_error s -> (* WARN_MSG s; *) raise Stat_not_found
     | Malformed_stat _ ->
-	if n > max_retry_count then 
+	if n > max_retry_count then
 	  raise Stat_not_found
 	else begin
 	  Xprint.warning "malformed cache \"%s\": retrying...(%d)" path n;
@@ -96,16 +96,16 @@ let scan_paths ?(max_retry_count=10) scanner paths =
           try
             scan_path x.Cache.sr_path
           with
-            _ -> 
-              Unix.sleep 1; 
+            _ ->
+              Unix.sleep 1;
               doit (count-1) ps
       end
       | x::xs -> begin
           try
             scan_path x.Cache.sr_path
           with
-            _ -> 
-              Unix.sleep 1; 
+            _ ->
+              Unix.sleep 1;
               doit (count-1) xs
       end
   in
@@ -158,11 +158,11 @@ module File = struct
 		               }
 
 
-  let make_diff_stat 
-      ?(mapping=0) 
+  let make_diff_stat
+      ?(mapping=0)
       ?(units=0)
       ?(unmodified_units=0)
-      () 
+      ()
       = { s_nnodes1  = 0;
           s_nnodes2  = 0;
           s_deletes  = 0; s_deletes_gr  = 0;
@@ -255,21 +255,21 @@ module File = struct
 
   let dump_sim_ch s ch = fprintf ch "%s\n" s.s_similarity
 
-  type info = { 
-      i_nodes      : int; 
-      i_units      : int; 
+  type info = {
+      i_nodes      : int;
+      i_units      : int;
       i_LOC        : int;
       i_missed_LOC : int;
     }
 
   let dummy_info = {
-    i_nodes      = 0; 
-    i_units      = 0; 
+    i_nodes      = 0;
+    i_units      = 0;
     i_LOC        = 0;
     i_missed_LOC = 0;
-  }  
+  }
 
-  let info_fmt () = 
+  let info_fmt () =
     "nodes: %d\n" ^^
     "units: %d\n" ^^
     "LOC: %d\n" ^^
@@ -277,11 +277,11 @@ module File = struct
 
 
   let mkinfo n u l m =
-    { i_nodes      = n; 
-      i_units      = u; 
+    { i_nodes      = n;
+      i_units      = u;
       i_LOC        = l;
       i_missed_LOC = m;
-    }  
+    }
 
   let dump_info_ch info ch =
     let fmt = info_fmt() in
@@ -332,10 +332,10 @@ module File = struct
       (fun ch ->
         fscanf ch (info_fmt())
 	  (fun nnodes nunits tloc mloc ->
-	    { i_nodes      = nnodes; 
-	      i_units      = nunits; 
-	      i_LOC        = tloc; 
-	      i_missed_LOC = mloc; 
+	    { i_nodes      = nnodes;
+	      i_units      = nunits;
+	      i_LOC        = tloc;
+	      i_missed_LOC = mloc;
 	    }
 	  )
       ) paths
@@ -445,7 +445,7 @@ module Dir = struct
     let fmt = info_fmt() in
     fprintf ch fmt
       dtree#id
-      dtree#initial_size 
+      dtree#initial_size
       (List.length dtree#get_whole_initial_leaves)
       ast_nodes
 

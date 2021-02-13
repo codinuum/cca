@@ -15,8 +15,8 @@ _CONFIGS_DIR = os.path.join(CCA_HOME, 'configs')
 CONFIGS_DIR = os.getenv('CCA_CONFIGS_DIR', _CONFIGS_DIR)
 FACTUTILS_DIR = os.path.join(CCA_HOME, 'factutils', 'python')
 
-dirs = [ CONFIGS_DIR, 
-         FACTUTILS_DIR, 
+dirs = [ CONFIGS_DIR,
+         FACTUTILS_DIR,
          ]
 
 for d in dirs:

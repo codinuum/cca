@@ -2,7 +2,7 @@
 
 
 '''
-  A naive implementation of task pool 
+  A naive implementation of task pool
 
   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
@@ -181,7 +181,7 @@ class base(object):
             f = open(lock_path, 'w')
             try:
                 fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                self.__task_tbl[taskid] = f 
+                self.__task_tbl[taskid] = f
                 logger.debug('task set "%s" is locked' % taskid)
             except IOError as e:
                 if e.errno == errno.EACCES or e.errno == errno.EAGAIN:
@@ -209,7 +209,7 @@ class base(object):
             except IOError as e:
                 f.close()
                 logger.warning(str(e))
-                
+
         except KeyError:
             logger.warning('task set "%s" is not locked' % taskid)
         except Exception as e:
@@ -227,7 +227,7 @@ class base(object):
             else:
                 self.__LOCK_OK = False
             return
-        
+
         self.__LOCK_OK = True
         self.__consecutive_lock_failure_count = 0
 
@@ -274,7 +274,7 @@ class base(object):
             logger.warning(str(e))
             self.unlock_task(taskid)
             return
-            
+
 
     def pick_up_task(self, wid=''):
         l = os.listdir(self.__task_dir)
@@ -283,7 +283,7 @@ class base(object):
             w = ''
             if wid:
                 w = '<wid:%s> ' % wid
-            
+
             logger.info('%spicking up "%s"' % (w, t))
             self.do_task(t)
 
@@ -349,7 +349,7 @@ class base(object):
         self.pick_up_results()
         logger.info('finished.')
 
-        
+
 #####
 
 def test():

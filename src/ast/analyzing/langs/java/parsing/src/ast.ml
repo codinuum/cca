@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * AST for the Java Language 
+(*
+ * AST for the Java Language
  *
  * ast.ml
  *
@@ -35,7 +35,7 @@ type loc = Loc.t
 
 
 
-type identifier_attribute = 
+type identifier_attribute =
   | IApackage
   | IAclass of string
   | IAinterface of string
@@ -51,7 +51,7 @@ type identifier_attribute =
   | IAexpression
   | IAarray
 
-let iattr_to_str = function 
+let iattr_to_str = function
   | IApackage     -> "package"
   | IAclass s     -> "class"^(if s = "" then "" else ":"^s)
   | IAinterface s -> "interface"^(if s = "" then "" else ":"^s)
@@ -137,7 +137,7 @@ let is_resolved = function
   | _ -> false
 
 let is_inner lname =
-  String.contains lname '$' 
+  String.contains lname '$'
 
 let split_inner lname = (* parent * rest *)
   let idx = String.index lname '$' in
@@ -169,8 +169,8 @@ let get_resolved_name = function
   | _ -> raise Not_found
 
 type name = { n_desc : name_desc; n_loc : loc; }
-and name_desc = 
-  | Nsimple of name_attribute ref * identifier 
+and name_desc =
+  | Nsimple of name_attribute ref * identifier
   | Nqualified of name_attribute ref * name * identifier
   | Nerror of string
 
@@ -301,14 +301,14 @@ and assignment_operator_desc =
   | AOxorEq
   | AOorEq
 
-type unary_operator = 
-  | UOpostIncrement 
-  | UOpostDecrement 
-  | UOpreIncrement 
+type unary_operator =
+  | UOpostIncrement
+  | UOpostDecrement
+  | UOpreIncrement
   | UOpreDecrement
-  | UOpositive 
-  | UOnegative 
-  | UOcomplement 
+  | UOpositive
+  | UOnegative
+  | UOcomplement
   | UOnot
 
 type binary_operator =
@@ -336,7 +336,7 @@ and javatype_desc =
 
   | Tvoid (* not a type (only for convenience) *)
 
-and type_spec = 
+and type_spec =
   | TSname of annotation list * name
   | TSapply of annotation list * name * type_arguments
 
@@ -354,22 +354,22 @@ and wildcard = annotation list * wildcard_bounds option
 
 and type_arguments = { tas_type_arguments : type_argument list; tas_loc : loc; }
 
-and throws = { th_exceptions : javatype list; 
+and throws = { th_exceptions : javatype list;
 		th_loc        : loc;
 	      }
 
 and extends_class = { exc_class : javatype;
-		       exc_loc   : loc 
+		       exc_loc   : loc
 		     }
-and extends_interfaces = { exi_interfaces : javatype list; 
+and extends_interfaces = { exi_interfaces : javatype list;
 			    exi_loc        : loc;
 			  }
 
-and implements = { im_interfaces : javatype list; 
+and implements = { im_interfaces : javatype list;
 		    im_loc        : loc;
 		  }
 
-and formal_parameter = 
+and formal_parameter =
     { fp_modifiers              : modifiers option;
       fp_type                   : javatype;
       fp_variable_declarator_id : variable_declarator_id;
@@ -380,7 +380,7 @@ and formal_parameter =
 and modifiers = { ms_modifiers : modifier list; ms_loc : loc; }
 
 and modifier = { m_desc : modifier_desc; m_loc : loc; }
-and modifier_desc = 
+and modifier_desc =
   | Mpublic
   | Mprotected
   | Mprivate
@@ -396,14 +396,14 @@ and modifier_desc =
   | Mdefault
 
 and variable_initializer = { vi_desc : variable_initializer_desc; vi_loc : loc; }
-and variable_initializer_desc = 
-  | VIexpression of expression 
+and variable_initializer_desc =
+  | VIexpression of expression
   | VIarray of array_initializer
   | VIerror of string
 
 and array_initializer = variable_initializer list
 
-and variable_declarator = 
+and variable_declarator =
     { vd_variable_declarator_id : variable_declarator_id;
       vd_variable_initializer   : variable_initializer option;
       vd_is_local               : bool ref;
@@ -433,13 +433,13 @@ and type_parameters = { tps_type_parameters : type_parameter list;
 
 and type_variable = identifier
 
-and type_parameter = { tp_type_variable : type_variable; 
+and type_parameter = { tp_type_variable : type_variable;
                        tp_annotations   : annotation list;
 		       tp_type_bound    : type_bound option;
 		       tp_loc           : loc;
 		     }
 
-and type_bound = { tb_reference_type    : javatype; 
+and type_bound = { tb_reference_type    : javatype;
 		   tb_additional_bounds : additional_bound list;
 		   tb_loc               : loc;
 		 }
@@ -457,16 +457,16 @@ and enum_constant = { ec_annotations : annotations;
 		      ec_loc         : loc;
 		    }
 
-and class_body = 
+and class_body =
     { cb_class_body_declarations : class_body_declaration list;
       cb_loc                     : loc;
     }
 
-and class_body_declaration = { cbd_desc : class_body_declaration_desc; 
+and class_body_declaration = { cbd_desc : class_body_declaration_desc;
 			       cbd_loc  : loc;
 			     }
 
-and class_body_declaration_desc = 
+and class_body_declaration_desc =
   | CBDfield of field_declaration
   | CBDmethod of method_header * block option
   | CBDclass of class_declaration
@@ -481,7 +481,7 @@ and field_declaration = { fd_modifiers            : modifiers option;
 			  fd_type                 : javatype;
 			  fd_variable_declarators : variable_declarators;
 			  fd_loc                  : loc;
-			} 
+			}
 
 and method_header = { mh_modifiers       : modifiers option;
 		      mh_type_parameters : type_parameters option;
@@ -504,7 +504,7 @@ and constructor_declaration = { cnd_modifiers       : modifiers option;
 				cnd_loc             : loc;
 			      }
 
-and constructor_body = 
+and constructor_body =
     { cnb_explicit_constructor_invocation : explicit_constructor_invocation option;
       cnb_block                           : block_statement list;
       cnb_loc                             : loc;
@@ -512,7 +512,7 @@ and constructor_body =
 
 and arguments = { as_arguments : argument list; as_loc : loc; }
 
-and explicit_constructor_invocation = 
+and explicit_constructor_invocation =
     { eci_desc : explicit_constructor_invocation_desc;
       eci_loc  : loc
     }
@@ -531,7 +531,7 @@ and interface_declaration_head = {
     ifh_loc                : loc;
   }
 
-and interface_declaration = { ifd_desc : interface_declaration_desc; 
+and interface_declaration = { ifd_desc : interface_declaration_desc;
 			      ifd_loc  : loc; }
 
 and interface_declaration_desc =
@@ -584,8 +584,8 @@ and interface_member_declaration =
   | IMDinterface of interface_declaration
   | IMDempty
 
-and block_statement = { bs_desc  : block_statement_desc; 
-			bs_loc   : loc; 
+and block_statement = { bs_desc  : block_statement_desc;
+			bs_loc   : loc;
 		      }
 and block_statement_desc =
   | BSlocal of local_variable_declaration
@@ -593,7 +593,7 @@ and block_statement_desc =
   | BSstatement of statement
   | BSerror of string
 
-and local_variable_declaration = 
+and local_variable_declaration =
     { lvd_modifiers            : modifiers option;
       lvd_type                 : javatype;
       lvd_variable_declarators : variable_declarators;
@@ -603,8 +603,8 @@ and local_variable_declaration =
 
 and block = { b_block_statements : block_statement list; b_loc : loc; }
 
-and statement = { s_desc  : statement_desc; 
-		  s_loc   : loc; 
+and statement = { s_desc  : statement_desc;
+		  s_loc   : loc;
 		}
 and statement_desc =
   | Sblock of block
@@ -623,8 +623,8 @@ and statement_desc =
   | SifThen of expression * statement
   | SifThenElse of expression * statement * statement
   | Swhile of expression * statement
-  | Sfor of 
-      for_init option * expression option * statement_expression list 
+  | Sfor of
+      for_init option * expression option * statement_expression list
 	* statement
   | SforEnhanced of formal_parameter * expression * statement
   | Sassert1 of expression
@@ -632,7 +632,7 @@ and statement_desc =
   | Serror of string
 
 and statement_expression = { se_desc : statement_expression_desc; se_loc : loc; }
-and statement_expression_desc = 
+and statement_expression_desc =
   | SEassignment of assignment
   | SEpreIncrement of expression
   | SEpreDecrement of expression
@@ -643,12 +643,12 @@ and statement_expression_desc =
   | SEerror of string
 
 and for_init = { fi_desc : for_init_desc; fi_loc : loc; }
-and for_init_desc = 
+and for_init_desc =
   | FIstatement of statement_expression list
   | FIlocal of local_variable_declaration
 
 and primary = { mutable p_desc : primary_desc; p_loc : loc; }
-and primary_desc = 
+and primary_desc =
   | Pname of name
   | Pliteral of literal
   | PclassLiteral of javatype
@@ -672,38 +672,38 @@ and method_reference_desc =
   | MRtypeSuper of name * type_arguments option * identifier
   | MRtypeNew of javatype * type_arguments option
 
-and array_creation_expression = 
+and array_creation_expression =
   | ACEtype of javatype * dim_expr list * dims
   | ACEtypeInit of javatype * dims * array_initializer
 
 and dim_expr = { de_desc : expression; de_loc : loc; }
 
-and class_instance_creation = { cic_desc : class_instance_creation_desc; 
+and class_instance_creation = { cic_desc : class_instance_creation_desc;
 				cic_loc  : loc;
 			      }
 and class_instance_creation_desc =
-  | CICunqualified of 
-      type_arguments option * 
-	javatype * 
-	arguments * 
+  | CICunqualified of
+      type_arguments option *
+	javatype *
+	arguments *
 	class_body option
-  | CICqualified of 
-      primary * 
-	type_arguments option * 
-	identifier * 
-	type_arguments option * 
-	arguments * 
+  | CICqualified of
+      primary *
+	type_arguments option *
+	identifier *
+	type_arguments option *
+	arguments *
 	class_body option
-  | CICnameQualified of 
-      name * 
-	type_arguments option * 
-	identifier * 
-	type_arguments option * 
-	arguments * 
+  | CICnameQualified of
+      name *
+	type_arguments option *
+	identifier *
+	type_arguments option *
+	arguments *
 	class_body option
 
 
-and field_access = 
+and field_access =
   | FAprimary of primary * identifier
   | FAsuper of identifier
   | FAclassSuper of name (* of type *) * identifier
@@ -714,22 +714,22 @@ and method_invocation_desc =
   | MImethodName of name (* of method *) * arguments
   | MIprimary of primary * type_arguments option * identifier * arguments
   | MItypeName of name * type_arguments option * identifier * arguments
-  | MIsuper of 
+  | MIsuper of
       loc (* of super *) * type_arguments option * identifier * arguments
-  | MIclassSuper of 
+  | MIclassSuper of
       loc (* of class *) * loc (* of super *) *
       name (* of type *) * type_arguments option * identifier * arguments
 
 and array_access = { aa_desc : array_access_desc; aa_loc : loc; }
-and array_access_desc = 
+and array_access_desc =
   | AAname of name (* of expression *) * expression
   | AAprimary of primary * expression
 
 and argument = expression
 
 and expression = { e_desc : expression_desc; e_loc : loc; }
-and expression_desc = 
-  | Eprimary of primary 
+and expression_desc =
+  | Eprimary of primary
   | Eunary of unary_operator * expression
   | Ebinary of binary_operator * expression * expression
   | Ecast of javatype * expression
@@ -740,9 +740,9 @@ and expression_desc =
   | Eerror of string
 
 and lambda_params = { lp_desc : lambda_params_desc; lp_loc : loc; }
-and lambda_params_desc = 
+and lambda_params_desc =
   | LPident of identifier
-  | LPformal of formal_parameter list 
+  | LPformal of formal_parameter list
   | LPinferred of (loc * identifier) list
 
 and lambda_body = LBexpr of expression | LBblock of block
@@ -770,8 +770,8 @@ and left_hand_side = expression
 
 and constant_expression = expression (* where ... *)
 
-and switch_label_desc = 
-  | SLconstant of constant_expression 
+and switch_label_desc =
+  | SLconstant of constant_expression
   | SLdefault
 
 and switch_label = { sl_desc : switch_label_desc; sl_loc : loc; }
@@ -812,21 +812,21 @@ and resource =
       r_loc                    : loc;
     }
 
-type package_declaration = { pd_annotations : annotations; 
-			     pd_name        : name; 
+type package_declaration = { pd_annotations : annotations;
+			     pd_name        : name;
 			     pd_loc         : loc;
 			   }
 
 type import_declaration = { id_desc : import_declaration_desc; id_loc : loc; }
-and import_declaration_desc = 
-  | IDsingle of name (* of type *) 
+and import_declaration_desc =
+  | IDsingle of name (* of type *)
   | IDtypeOnDemand of name (* of package or type *)
   | IDsingleStatic of name (* of type *) * identifier
   | IDstaticOnDemand of name (* of package or type *)
 
 type type_declaration = { td_desc : type_declaration_desc; td_loc : loc; }
-and type_declaration_desc = 
-  | TDclass of class_declaration 
+and type_declaration_desc =
+  | TDclass of class_declaration
   | TDinterface of interface_declaration
   | TDempty
 
@@ -931,8 +931,8 @@ and proc_class_instance_creation f cic =
 and proc_class_body_declaration f cbd =
   match cbd.cbd_desc with
   | CBDfield fd -> proc_field_declaration f fd
-  | CBDmethod(mh, b_op) -> 
-      proc_method_header f mh; 
+  | CBDmethod(mh, b_op) ->
+      proc_method_header f mh;
       proc_op proc_block f b_op
   | CBDclass cd -> proc_class_declaration f cd
   | CBDinterface id -> proc_interface_declaration f id
@@ -1031,7 +1031,7 @@ and proc_statement f s =
       proc_op proc_expression f e_op;
       List.iter (proc_statement_expression f) ses;
       proc_statement f s0
-  | SforEnhanced(fp, e, s0) -> 
+  | SforEnhanced(fp, e, s0) ->
       proc_formal_parameter f fp;
       proc_expression f e;
       proc_statement f s0
@@ -1200,7 +1200,7 @@ and proc_wildcard f (al, wb) =
 
 and proc_wildcard_bounds f wb =
   match wb.wb_desc with
-  | WBextends ty 
+  | WBextends ty
   | WBsuper ty -> proc_type f ty
 
 and proc_type_arguments f targs =
@@ -1258,7 +1258,7 @@ and proc_type_declaration f td =
 
 let proc_import_declaration f id =
   match id.id_desc with
-  | IDsingle n 
+  | IDsingle n
   | IDtypeOnDemand n
   | IDsingleStatic(n, _)
   | IDstaticOnDemand n -> f n

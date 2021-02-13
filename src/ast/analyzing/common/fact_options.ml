@@ -76,11 +76,11 @@ class c = object (self)
   method clear_fact_for_delta_flag = fact_for_delta_flag <- false
 
   method fact_compress_flag = fact_compress_flag
-  method set_fact_compress_flag = 
+  method set_fact_compress_flag =
     fact_compress_flag <- true;
     fact_compression <- Compression.gzip
 
-  method clear_fact_compress_flag = 
+  method clear_fact_compress_flag =
     fact_compress_flag <- false;
     fact_compression <- Compression.none
 
@@ -97,7 +97,7 @@ class c = object (self)
   method set_fact_enc x = fact_enc <- x
 
   method fact_algo = fact_algo
-  method set_fact_algo x = 
+  method set_fact_algo x =
     fact_algo <- x;
     self#set_hash_algo x
 

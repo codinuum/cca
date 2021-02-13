@@ -200,7 +200,7 @@ module StringHashtbl = Hashtbl.Make (StringHash)
 
 let _find_objc_keyword =
   let keyword_list =
-    [ 
+    [
       "@class",        OBJC_CLASS;
       "@interface",    OBJC_INTERFACE;
       "@end",          OBJC_END;
@@ -224,11 +224,11 @@ let _find_objc_keyword =
       "@required",     OBJC_REQUIRED;
       "@autoreleasepool", OBJC_AUTORELEASEPOOL;
       "@available",    OBJC_AVAILABLE;
-    ] in 
+    ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in
-  let _ = 
+  let _ =
     List.iter (fun (kwd, tok) -> StringHashtbl.add keyword_table kwd tok)
-      keyword_list 
+      keyword_list
   in
   fun s -> StringHashtbl.find keyword_table s
 
@@ -271,7 +271,7 @@ let find_pp_keyword s =
   try
     _find_pp_keyword s
   with
-    Not_found -> PP_UNKNOWN s        
+    Not_found -> PP_UNKNOWN s
 
 
 let _find_keyword =
@@ -391,7 +391,7 @@ let _find_keyword =
      "_asm"             , MS_ASM "_asm";
    ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in
-  let _ = 
+  let _ =
     List.iter (fun (kwd, tok) -> StringHashtbl.add keyword_table kwd tok)  keyword_list
   in
   StringHashtbl.find keyword_table

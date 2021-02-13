@@ -211,9 +211,9 @@ let _ =
       A.cpp_prefix,     A.cpp_ns;
     ]
   in
-  List.iter 
+  List.iter
     (fun (prefix, _uri) ->
-      let uri = 
+      let uri =
 	if Xstring.endswith _uri "/" then
 	  _uri
 	else if Xstring.endswith _uri "#" then
@@ -229,7 +229,7 @@ let format_xsd lname =
   try
     sprintf "<%s%s>" (Hashtbl.find ns_tbl xsd_prefix) lname
   with
-    Not_found -> 
+    Not_found ->
       WARN_MSG "undefined prefix \"%s\"" xsd_prefix;
       ""
 
@@ -249,7 +249,7 @@ let p_guard = function
 	try
 	  let u = Hashtbl.find ns_tbl prefix in
 	  make_uri (sprintf "%s?orig=%s%s" guard_ns u local)
-	with 
+	with
 	  Not_found ->
 	    WARN_MSG "undefined prefix \"%s\"" prefix;
 	    raise (Invalid_QName (node_to_string qn))
@@ -372,7 +372,7 @@ let l_false = make_literal "false"
 exception Proj_root_not_set
 *)
 
-let get_proj_rel_path proj_root path = 
+let get_proj_rel_path proj_root path =
   Xfile.relpath proj_root path
 
 let encode_path proj_root path =
@@ -397,7 +397,7 @@ let _encode_fid options ?(force_PVF=false) ~digest ~path proj_root (vkind, versi
 	Entity.sub_sub_sep^
 	(Xstring.encode version)
       in
-      (if options#fact_proj = "" then 
+      (if options#fact_proj = "" then
 	[ ver_str; path_str ]
       else
 	[ Xstring.encode options#fact_proj; ver_str; path_str ]
@@ -434,7 +434,7 @@ let ___make_file_entity enc_str fid_str =
 
 let __make_file_entity options ?(force_PVF=false) ~digest ~path proj_root (vkind, version) =
   let enc_str = get_enc_str options ~force_PVF () in
-  let file_id_str = 
+  let file_id_str =
     _encode_fid options ~force_PVF ~digest ~path proj_root (vkind, version)
   in
   ___make_file_entity enc_str file_id_str
@@ -455,7 +455,7 @@ let make_file_entity ?(force_PVF=false) options ast =
 
 let _make_binding options ~digest ~path proj_root (vkind, version) bid =
   let enc = options#fact_enc in
-  let enc_str = 
+  let enc_str =
     if Entity.is_FD_encoding enc then
 	Entity.encoding_to_string Entity.FD
     else if Entity.is_PVF_encoding enc then
@@ -463,7 +463,7 @@ let _make_binding options ~digest ~path proj_root (vkind, version) bid =
     else
       raise (Invalid_argument "Triple._make_binding")
   in
-  let file_id_str = 
+  let file_id_str =
     _encode_fid options ~digest ~path proj_root (vkind, version)
   in
   make_qname binding_prefix (String.concat Entity.sep [enc_str; file_id_str; BID.to_raw bid])
@@ -512,12 +512,12 @@ let make_binding ?(loc_opt=None) options tree bid =
 let __make_srctree_entity options (vkind, version) =
   let proj = options#fact_proj in
   let enc_str = Entity.encoding_to_string Entity.PV in
-  let ver_str = 
+  let ver_str =
     (Entity.vkind_to_string vkind)^
     Entity.sub_sub_sep^
     (Xstring.encode version)
   in
-  let id = 
+  let id =
     String.concat Entity.sub_sep [ Xstring.encode proj; ver_str ]
   in
   String.concat Entity.sep [enc_str; id]
@@ -572,7 +572,7 @@ let get_range_str enc loc =
 	  int_to_str loc.Loc.end_offset;
 	]
 
-    | Entity.FD | Entity.PVF -> 
+    | Entity.FD | Entity.PVF ->
 	WARN_MSG "file entity encoding is used";
 	[]
     | Entity.PV ->
@@ -628,7 +628,7 @@ let make_entity options tree nd =
   else
     mkent (_make_entity options tree nd)
 
-let make_entity_pair id1 id2 = 
+let make_entity_pair id1 id2 =
   make_qname entity_pair_prefix (String.concat Entity.sep [id1; id2])
 
 
@@ -638,12 +638,12 @@ let format_node = function
       try
 	let u = Hashtbl.find ns_tbl prefix in
 	sprintf "<%s%s>" u local
-      with 
+      with
 	Not_found ->
 	  WARN_MSG "undefined prefix \"%s\"" prefix;
 	  raise (Invalid_QName (node_to_string qn))
   end
-  | N_Literal(s, ty) -> 
+  | N_Literal(s, ty) ->
       sprintf "\"%s\"%s" s (let t = format_lit_ty ty in if t = "" then "" else "^^"^t)
 
   | N_Blank s -> sprintf "_:%s" s
@@ -675,7 +675,7 @@ let make_rdf_list resource_a =
     add (!bn, p_rdf_first, resource_a.(!cur));
     bn0, !triples
   end
-  
+
 
 exception File_exists of string
 
@@ -685,7 +685,7 @@ class dumper_gen ?(overwrite=true) ?(comp=C.none) (dest : Xchannel.Destination.t
 
   method _printf fmt =
     Printf.ksprintf (fun s -> ignore (ch#output_ s 0 (String.length s))) fmt
-	
+
   method output_triple tri =
     try
       self#_printf "%s .\n" (format_triple tri)
@@ -698,7 +698,7 @@ class dumper_gen ?(overwrite=true) ?(comp=C.none) (dest : Xchannel.Destination.t
   end (* of class Triple.dumper_gen *)
 
 class dumper ?(overwrite=true) ?(comp=C.none) fname =
-  let filename = 
+  let filename =
     if not (Xstring.endswith fname comp#ext) then
       fname^comp#ext
     else
@@ -774,7 +774,7 @@ let filter_sql_error =
     Str.global_replace pat "password <***>" msg
   in
   filt
-  
+
 
 let read_odbc_conf fname =
   let path = Parser_options.search_conf_file fname in
@@ -819,7 +819,7 @@ let _output_triples_into_virtuoso options odbc_connection triples =
   let sbuf = Buffer.create 0 in
   assert (options#fact_into_virtuoso <> "");
   let uri = options#fact_into_virtuoso in
-  Buffer.add_string sbuf 
+  Buffer.add_string sbuf
     (sprintf "DB.DBA.TTLP_MT (file_to_string_output ('%s'), '', '%s', 0, 2, 2)" temp_file uri);
   let q = Buffer.contents sbuf in
   let rc, _ = odbc_connection#execute q in
@@ -835,7 +835,7 @@ let _output_triples_into_virtuoso options odbc_connection triples =
   Sys.remove temp_file
 
 
-  
+
 class buffer_base options = object (self)
   val buf = Xset.create 0
   val mutable is_closed = false
@@ -846,12 +846,12 @@ class buffer_base options = object (self)
 
   method length = Xset.length buf
 
-  method add (tri : t) = 
+  method add (tri : t) =
     if self#length >= options#fact_size_threshold then
       self#flush;
     Xset.add buf tri
 
-  method add_group (tri_list : t list) = 
+  method add_group (tri_list : t list) =
     let len = List.length tri_list in
 
     if len > options#fact_size_threshold then
@@ -873,7 +873,7 @@ let dummy_buffer = new buffer_base (new Parser_options.c)
 class buffer options ?(overwrite=true) path = object (self)
   inherit buffer_base options
 
-  val dumper = 
+  val dumper =
     try
       new dumper ~overwrite ~comp:options#fact_compression path
     with
@@ -890,27 +890,27 @@ class buffer options ?(overwrite=true) path = object (self)
       dumper#close;
       is_closed <- true
     end
-      
+
 end (* of class Triple.buffer *)
 
 
-let _create_cache_path_lv2 base_dir cache_name = 
+let _create_cache_path_lv2 base_dir cache_name =
   let sub0 = String.sub cache_name 0 2 in
   let sub1, sub2 =
-    if sub0 = "d." then 
+    if sub0 = "d." then
       String.sub cache_name 2 2, String.sub cache_name 4 1
-    else 
+    else
       sub0, String.sub cache_name 2 1
   in
-  let res = 
+  let res =
     Filename.concat
-      (Filename.concat 
+      (Filename.concat
 	 (Filename.concat base_dir sub1) sub2)
-      cache_name 
+      cache_name
   in
   res
 
-class buffer_directory options cache_name = 
+class buffer_directory options cache_name =
   let dir = _create_cache_path_lv2 options#fact_into_directory cache_name in
   object (self)
     inherit buffer_base options
@@ -930,7 +930,7 @@ class buffer_directory options cache_name =
         self#flush;
         is_closed <- true
       end
-      
+
   end (* of class Triple.buffer_directory *)
 
 
@@ -938,7 +938,7 @@ class buffer_odbc options conf_file_name = object (self)
   inherit buffer_base options
 
   val odbc_connection = _connect_odbc conf_file_name
-	  
+
   method virtual flush : unit
 
   method close =
@@ -1005,16 +1005,16 @@ let to_dot_ch triples ch =
 
   List.iter (fun (s, p, o) -> reg s; reg o) triples;
 
-  Xprint.message "to_dot_ch: %d nodes and %d edges found" 
+  Xprint.message "to_dot_ch: %d nodes and %d edges found"
     !node_count (List.length triples);
 
   fprintf ch "digraph fact {\n";
   Hashtbl.iter
-    (fun n id -> 
+    (fun n id ->
       fprintf ch "%d [label=\"%s\"];\n" id n
     ) node_tbl;
-  List.iter 
-    (fun (s, p, o) -> 
+  List.iter
+    (fun (s, p, o) ->
       fprintf ch "%d -> %d [label=\"%s\"];\n" (get_nid s) (get_nid o) p
     ) triples;
   fprintf ch "}\n"

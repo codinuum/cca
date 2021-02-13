@@ -143,14 +143,14 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
           cands := (nd1, nd2) :: !cands
       in
 
-      Hashtbl.iter 
+      Hashtbl.iter
 	(fun lab nds1 ->
 	  try
 	    let nds2 = Hashtbl.find ltbl2 lab in
 	    match nds1, nds2 with
 	    | [nd1], [nd2] -> add_cand (nd1, nd2)
 	    | nd1::_, nd2::_ ->
-		DEBUG_MSG "[%s] vs [%s] --> abort" 
+		DEBUG_MSG "[%s] vs [%s] --> abort"
 		  (Xlist.to_string (fun n -> UID.to_string n#uid) ";" nds1)
 		  (Xlist.to_string (fun n -> UID.to_string n#uid) ";" nds2)
 	    | _ -> assert false
@@ -175,14 +175,14 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
 	  in
 	  List.iter (f nltbl1) nodes1;
 	  List.iter (f nltbl2) nodes2;
-	  Hashtbl.iter 
+	  Hashtbl.iter
 	    (fun nl nds1 ->
 	      try
 	        let nds2 = Hashtbl.find nltbl2 nl in
 	        match nds1, nds2 with
 	        | [nd1], [nd2] -> add_cand (nd1, nd2)
 	        | nd1::_, nd2::_ ->
-		    DEBUG_MSG "[%s] vs [%s] --> abort" 
+		    DEBUG_MSG "[%s] vs [%s] --> abort"
 		      (Xlist.to_string (fun n -> UID.to_string n#uid) ";" nds1)
 		      (Xlist.to_string (fun n -> UID.to_string n#uid) ";" nds2)
 	        | _ -> assert false
@@ -193,10 +193,10 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
       end;
 
       !cands
-  in    
+  in
 
-  DEBUG_MSG "cands: [%s]" 
-    (Xlist.to_string 
+  DEBUG_MSG "cands: [%s]"
+    (Xlist.to_string
        (fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) ";" final_cands);
 
   final_cands
@@ -206,7 +206,7 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
 let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
 
   BEGIN_DEBUG
-    DEBUG_MSG "|T1(root=%a)|=%d |T2(root=%a)|=%d" 
+    DEBUG_MSG "|T1(root=%a)|=%d |T2(root=%a)|=%d"
     UID.ps tree1#root#uid tree1#size UID.ps tree2#root#uid tree2#size;
     DEBUG_MSG "T1:\n%s\n" tree1#to_string;
     DEBUG_MSG "T2:\n%s\n" tree2#to_string
@@ -230,8 +230,8 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
     DEBUG_MSG "ref_matches:";
     List.iter (fun (n1, n2) -> DEBUG_MSG "%s - %s" n1#to_string n2#to_string) !ref_matches;
 (*
-  List.iter 
-  (fun (n1, n2) -> DEBUG_MSG "%a-%a" GI.ps n1#gindex GI.ps n2#gindex) 
+  List.iter
+  (fun (n1, n2) -> DEBUG_MSG "%a-%a" GI.ps n1#gindex GI.ps n2#gindex)
   (List.fast_sort (fun (n1, _) (n2, _) -> Stdlib.compare n1#gindex n2#gindex) !ref_matches)
  *)
   END_DEBUG;
@@ -242,7 +242,7 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
     let rec scan (nd1, nd2) =
 
       if nd1#data#equals nd2#data then
-	matches := (nd1, nd2)::!matches 
+	matches := (nd1, nd2)::!matches
       else
 	if nd1#data#relabel_allowed nd2#data then
 	  relabels := (nd1, nd2)::!relabels;
@@ -256,10 +256,10 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
 
       let mat, rel, _, _ = Adiff.adiff cdat1 cdat2 in
 
-      List.iter 
-	scan 
-	(List.map 
-	   (fun (i1, i2) -> 
+      List.iter
+	scan
+	(List.map
+	   (fun (i1, i2) ->
 	     try
 	       c1.(i1), c2.(i2)
 	     with Invalid_argument _ -> assert false
@@ -276,13 +276,13 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
       try
         let pnd1 = nd1#parent in
         let pnd2 = nd2#parent in
-        
+
         if not (List.memq pnd1 ref_matches1 || List.memq pnd2 ref_matches2) then
           if pnd1#data#eq pnd2#data then begin
             matches' := (pnd1, pnd2) :: !matches';
             check_parents pnd1 pnd2
           end
-          else 
+          else
             if pnd1#data#relabel_allowed pnd2#data then begin
 	      relabels := (pnd1, pnd2) :: !relabels;
 	      check_parents pnd1 pnd2
@@ -352,14 +352,14 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
       DEBUG_MSG "matches':";
       List.iter (fun (n1, n2) -> DEBUG_MSG "%s - %s" n1#to_string n2#to_string) !matches';
 (*
-  List.iter 
-  (fun (n1, n2) -> DEBUG_MSG "%a-%a" GI.ps n1#gindex GI.ps n2#gindex) 
+  List.iter
+  (fun (n1, n2) -> DEBUG_MSG "%a-%a" GI.ps n1#gindex GI.ps n2#gindex)
   (List.fast_sort (fun (n1, _) (n2, _) -> Stdlib.compare n1#gindex n2#gindex) !matches')
  *)
     END_DEBUG;
 
     matches := !ref_matches @ !matches'
-				
+
   end;
 
 
@@ -384,10 +384,10 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
   let extra_matches =
     find_glue_cands tree1 tree2 !deletes !inserts matches_tbl
   in
-(*    
+(*
       BEGIN_DEBUG
-      List.iter 
-      (fun (n1, n2) -> 
+      List.iter
+      (fun (n1, n2) ->
       DEBUG_MSG "%a-%a" GI.ps n1#gindex GI.ps n2#gindex
       ) !matches
       END_DEBUG;
@@ -397,7 +397,7 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
 
 
 
-let match_trees 
+let match_trees
     cenv
     tree1
     tree2
@@ -425,7 +425,7 @@ let match_trees
     DEBUG_MSG "mapping:\n%s" (Otreediff.Mapping._to_string to_s1 to_s2 mapping)
   END_DEBUG;
 
-    let contain_root = 
+    let contain_root =
       Otreediff.Mapping.mem_elem tree1#root#index tree2#root#index mapping
     in
 
@@ -433,20 +433,20 @@ let match_trees
 
       if contain_root || not root_check then begin
 
-	let matches = 
-	  Otreediff.Mapping.filter 
-	    (fun i j -> 
+	let matches =
+	  Otreediff.Mapping.filter
+	    (fun i j ->
 	      not (List.mem (i, j) relabels)
-	    ) mapping 
+	    ) mapping
 	in
 
-	let matches = 
+	let matches =
 	  List.map (fun (i, j) -> tree1#get i, tree2#get j) matches
 	in
 	let matches_tbl = Hashtbl.create 0 in
 	List.iter (fun (n1, n2) -> Hashtbl.add matches_tbl n1#uid n2#uid) matches;
 
-	let relabels = 
+	let relabels =
 	  List.map (fun (i, j) -> tree1#get i, tree2#get j) relabels
 	in
 	let deletes = List.map tree1#get deletes in
@@ -456,13 +456,13 @@ let match_trees
 	let rel1, rel2 = List.split relabels in
 
 	(* get more matches! *)
-	let extra_matches = 
+	let extra_matches =
 	  find_glue_cands tree1 tree2 (deletes @ rel1) (inserts @ rel2) matches_tbl
 	in
 
 	DEBUG_MSG "extra_matches: [%s]"
-	  (Xlist.to_string 
-	     (fun (nd1, nd2) -> 
+	  (Xlist.to_string
+	     (fun (nd1, nd2) ->
 	       sprintf "%a-%a" UID.ps nd1#uid UID.ps nd2#uid) ";" extra_matches);
 
 
@@ -472,7 +472,7 @@ let match_trees
 
 	let context_tbl = Hashtbl.create 0 in (* (node * node) -> (node * node) list *)
 
-	let get_adjacency_score nd1 nd2 = 
+	let get_adjacency_score nd1 nd2 =
 	  let s, ref_pairs = cenv#_get_adjacency_score nd1 nd2 in
 
 	  if ref_pairs <> [] then
@@ -480,13 +480,13 @@ let match_trees
 
 	  let ext = ref 0 in
 	  tree1#fast_scan_whole_initial_subtree nd1
-	    (fun nd -> 
+	    (fun nd ->
 	      try
 		let u' = uidmapping#find_settled nd#uid in
 		let n' = tree2#search_node_by_uid u' in
 		if tree2#initial_subtree_mem nd2 n' then
 		  incr ext
-	      with 
+	      with
 		Not_found -> ()
 	    );
 	  let sz1 = tree1#whole_initial_subtree_size nd1 in
@@ -497,29 +497,29 @@ let match_trees
 	let ref_extra_matches = ref [] in
 
 	let promoted_extra_matches = ref [] in
-	
+
 	let extra_matches_ =
 	  List.filter
 	    (fun (nd1, nd2) ->
 
-	      let cands2, bad_rel2 = 
+	      let cands2, bad_rel2 =
 		try
 		  let n2 = List.assq nd1 relabels in
 		  if n2 == nd2 then
 		    [|nd2|], []
 		  else
 		    [|n2; nd2|], [(nd1, n2)]
-		with 
+		with
 		  Not_found -> [|nd2|], []
 	      in
-	      let cands1, bad_rel1 = 
+	      let cands1, bad_rel1 =
 		try
 		  let n1 = List.assq nd2 inv_relabels in
 		  if n1 == nd1 then
 		    [|nd1|], []
 		  else
 		    [|n1; nd1|], [(n1, nd2)]
-		with 
+		with
 		  Not_found -> [|nd1|], []
 	      in
 
@@ -537,14 +537,14 @@ let match_trees
 		    [nd1, cands2.(0)]
 		  else if sz1 > 1 && sz2 = 1 then
 		    [cands1.(0), nd2]
-		  else 
+		  else
 		    [(nd1, cands2.(0)); (cands1.(0), nd2)]
 		in
 		DEBUG_MSG "extra_match %a-%a conflicts with relabel(s) %s"
-		  UID.ps nd1#uid UID.ps nd2#uid 
-		  (String.concat ", " 
-		     (List.map 
-			(fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) 
+		  UID.ps nd1#uid UID.ps nd2#uid
+		  (String.concat ", "
+		     (List.map
+			(fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid)
 			conflicts))
 		  END_DEBUG;
 
@@ -559,9 +559,9 @@ let match_trees
 		in
 
 		DEBUG_MSG "selected: %s"
-		  (String.concat ", " 
-		     (List.map 
-			(fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) 
+		  (String.concat ", "
+		     (List.map
+			(fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid)
 			selected));
 
 		List.fold_left
@@ -573,7 +573,7 @@ let match_trees
 			bad_relabels := bad_rel1 @ bad_rel2;
 			begin
 			  try
-			    ref_extra_matches := 
+			    ref_extra_matches :=
 			      (Hashtbl.find context_tbl (n1, n2)) @ !ref_extra_matches
 			  with
 			    Not_found -> ()
@@ -591,16 +591,16 @@ let match_trees
 	in (* extra_matches_ *)
 
 
-	let relabels_ = 
-	  List.filter 
-	    (fun (nd1, nd2) -> not (List.mem (nd1, nd2) !bad_relabels)) 
+	let relabels_ =
+	  List.filter
+	    (fun (nd1, nd2) -> not (List.mem (nd1, nd2) !bad_relabels))
 	    relabels
 	in
-	
+
 	(* checking confliction of ref_extra_matches *)
 	let more_extra_matches = ref [] in
-	let inv_ref_extra_matches = 
-	  List.map (fun (n1, n2) -> n2, n1) !ref_extra_matches 
+	let inv_ref_extra_matches =
+	  List.map (fun (n1, n2) -> n2, n1) !ref_extra_matches
 	in
 	let filt (nd1, nd2) =
 	  let score = ref (-1.0) in
@@ -615,13 +615,13 @@ let match_trees
 	      if not b then begin
 		more_extra_matches := (nd1, nd1') :: !more_extra_matches;
 
-		DEBUG_MSG "%a-%a vs %a-%a: score=%f < score'=%f" 
+		DEBUG_MSG "%a-%a vs %a-%a: score=%f < score'=%f"
 		  UID.ps nd1#uid UID.ps nd2#uid UID.ps nd1#uid UID.ps nd1'#uid !score score'
 
 	      end;
 	      b
 	    end
-	  with 
+	  with
 	    Not_found -> true) &&
 	  (try
 	    let nd2' = List.assq nd2 inv_ref_extra_matches in
@@ -635,12 +635,12 @@ let match_trees
 	      if not b then begin
 		more_extra_matches := (nd2', nd2) :: !more_extra_matches;
 
-		DEBUG_MSG "%a-%a vs %a-%a: score=%f < score'=%f" 
+		DEBUG_MSG "%a-%a vs %a-%a: score=%f < score'=%f"
 		  UID.ps nd1#uid UID.ps nd2#uid UID.ps nd2'#uid UID.ps nd2#uid !score score'
 	      end;
 	      b
 	    end
-	  with 
+	  with
 	    Not_found -> true)
 	in
 
@@ -649,9 +649,9 @@ let match_trees
 	let _final_relabels = List.filter filt relabels_ in
 
 
-	let ex_mat, ex_rel = 
-	  List.partition 
-	    (fun (n1, n2) -> n1#data#eq n2#data) 
+	let ex_mat, ex_rel =
+	  List.partition
+	    (fun (n1, n2) -> n1#data#eq n2#data)
 	    (!promoted_extra_matches @ !more_extra_matches)
 	in
 
@@ -660,8 +660,8 @@ let match_trees
 
 	BEGIN_DEBUG
 	let to_str m =
-	  Xlist.to_string 
-	    (fun (n1, n2) -> 
+	  Xlist.to_string
+	    (fun (n1, n2) ->
 	      sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid
 	    ) ";" m
 	in

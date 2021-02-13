@@ -13,9 +13,9 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * command line driver for Patch/AST
- * 
+ *
  * patchast.ml
  *
  *)
@@ -32,7 +32,7 @@ let options = new Options.c
 let verbose_msg fmt = Xprint.verbose options#verbose_flag fmt
 
 
-let usage_msg = 
+let usage_msg =
   sprintf "Usage: %s [OPTIONS] FILE DELTA\nOPTIONS:" Xprint.cmd_name
 
 let set_verbose_mode_flag() =
@@ -54,7 +54,7 @@ let filenames = ref []
 
 
 
-let speclist = 
+let speclist =
   [
    "-version", Arg.Set show_version_flag, "\tshow version";
 
@@ -71,7 +71,7 @@ let speclist =
    "-weak", Arg.Unit (fun () -> options#set_weak_flag), "\tweaken node equation and node permutation detection";
  ]
 
-let _ = 
+let _ =
   Arg.parse
     speclist
     (fun s -> filenames := s :: !filenames)
@@ -84,13 +84,13 @@ let _ =
   end
 
 
-let delta, file = 
-  match !filenames with 
+let delta, file =
+  match !filenames with
   | d::f::[] -> d, f
   | _ -> Arg.usage speclist usage_msg; exit 1
 
 
-let astcore = 
+let astcore =
   let _ = Lang.setup_options options in
   new Diffastcore.c options
 
@@ -101,14 +101,14 @@ let patch file delta =
 
   let sw = new Misc.stopwatch in
 
-  if options#verbose_flag then 
+  if options#verbose_flag then
     sw#start;
 
   let ext = options#get_extension file in
 
   if options#is_valid_extension ext then begin
     let f = Fs.file_of_path options file in
-    let dumper = 
+    let dumper =
       astcore#patch_file
         ~fail_on_error:(not options#keep_going_flag) ~reverse:!reverse_flag f delta
     in
@@ -151,7 +151,7 @@ let patch_dir dir bundle =
 
   let sw = new Misc.stopwatch in
 
-  if options#verbose_flag then 
+  if options#verbose_flag then
     sw#start;
 
   options#set_root_path dir;
@@ -174,7 +174,7 @@ let _ =
       patch_dir file delta
     else
       patch file delta
-  with 
+  with
   | Xfile.No_such_file_or_directory s -> Xprint.error "%s: no such file or directory" s; exit 1
   | Xfile.No_extension f              -> Xprint.error "have no file extension: \"%s\"" f; exit 1
   | Lang_base.Error msg               -> Xprint.error "%s" msg; exit 1

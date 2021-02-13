@@ -51,7 +51,7 @@ class node_map = object (self : 'self)
   method map : 'a. (node_t -> node_t -> 'a) -> 'a list = fun f ->
     let l = ref [] in
     self#iter
-      (fun n1 n2 -> 
+      (fun n1 n2 ->
         l := (f n1 n2) :: !l
       );
     !l
@@ -86,14 +86,14 @@ let pp0 tree1 tree2 dtbl1 dtbl2 tbl1 tbl2 =
   let iter_mem_pairs nmap nd1 nd2 =
     let mems1, mems2 = ref [], ref [] in
     tree1#fast_scan_whole_initial_subtree nd1
-      (fun n -> 
+      (fun n ->
         if n#data#is_file then begin
           mems1 := n :: !mems1;
           del1 n
         end
       );
     tree2#fast_scan_whole_initial_subtree nd2
-      (fun n -> 
+      (fun n ->
         if n#data#is_file then begin
           mems2 := n :: !mems2;
           del2 n
@@ -105,7 +105,7 @@ let pp0 tree1 tree2 dtbl1 dtbl2 tbl1 tbl2 =
   let unmodified = new node_map in
   let renamed    = new node_map in
   let moved      = new node_map in
-  
+
   Hashtbl.iter
     (fun d nds1 ->
       try
@@ -117,21 +117,21 @@ let pp0 tree1 tree2 dtbl1 dtbl2 tbl1 tbl2 =
 	    if nd1#data#label = nd2#data#label then begin
 	      if nd1#data#path = nd2#data#path then begin
 
-	        DEBUG_MSG "[ISO] %s -> %s" 
+	        DEBUG_MSG "[ISO] %s -> %s"
 		  nd1#data#to_string nd2#data#to_string;
 
                 iter_mem_pairs unmodified nd1 nd2
 	      end
 	      else begin
 
-	        DEBUG_MSG "[MOVE] %s -> %s" 
+	        DEBUG_MSG "[MOVE] %s -> %s"
 		  nd1#data#to_string nd2#data#to_string;
 
                 iter_mem_pairs moved nd1 nd2
 	      end
             end
 	    else begin
-	      DEBUG_MSG "[RENAME] %s -> %s" 
+	      DEBUG_MSG "[RENAME] %s -> %s"
 	        nd1#data#to_string nd2#data#to_string;
 
               iter_mem_pairs renamed nd1 nd2
@@ -163,12 +163,12 @@ let pp1 tbl1 tbl2 =
     let not_resolved2 = ref [] in
 
     BEGIN_DEBUG
-      List.iter 
-      (fun n -> 
+      List.iter
+      (fun n ->
 	DEBUG_MSG "nodes1: %s" n#data#to_string
       ) nodes1;
-      List.iter 
-      (fun n -> 
+      List.iter
+      (fun n ->
 	DEBUG_MSG "nodes2: %s" n#data#to_string
       ) nodes2
     END_DEBUG;
@@ -292,7 +292,7 @@ let pp1 tbl1 tbl2 =
                     Hashtbl.replace name_tbl1 name !rest1;
                     Hashtbl.replace name_tbl2 name rest2
 
-              with 
+              with
                 Not_found -> () (* renamed? *)
 
             ) name_tbl1;
@@ -316,7 +316,7 @@ let pp1 tbl1 tbl2 =
       (List.length !moved)
       (List.length !copied)
       (List.length !glued);
-*)	
+*)
     !not_resolved1, !not_resolved2,
     !unmodified,
     !renamed,
@@ -349,8 +349,8 @@ let pp1 tbl1 tbl2 =
 
         List.iter
           (fun p ->
-            List.iter 
-              (fun (n1, n2) -> 
+            List.iter
+              (fun (n1, n2) ->
                 n1#prune;
                 n2#prune
               ) p
@@ -367,7 +367,7 @@ let pp1 tbl1 tbl2 =
 	  Hashtbl.remove tbl2 d
 	else
 	  Hashtbl.replace tbl2 d not_resolved2
-      with 
+      with
       | Not_found -> ()
 (*      | _ -> assert false *)
 
@@ -446,7 +446,7 @@ let pp2 tbl1 tbl2 =
     let new_tbl = Hashtbl.create 0 in
     Hashtbl.iter
       (fun d nds ->
-	List.iter 
+	List.iter
 	  (fun nd ->
 	    Hashtbl.add new_tbl (repl_hyphen (String.lowercase_ascii nd#data#path)) nd
 	  ) nds
@@ -457,7 +457,7 @@ let pp2 tbl1 tbl2 =
   let tbl1 = conv_tbl tbl1 in
   let tbl2 = conv_tbl tbl2 in
 
-  Hashtbl.iter 
+  Hashtbl.iter
     (fun rpath nd1 ->
       let d1 = nd1#data#content_digest in
       try
@@ -473,7 +473,7 @@ let pp2 tbl1 tbl2 =
 	  Hashtbl.remove tbl1 rpath;
 	  Hashtbl.remove tbl2 rpath
 	end
-      with 
+      with
         Not_found -> ()
     ) tbl1;
 
@@ -485,7 +485,7 @@ let pp2 tbl1 tbl2 =
 	try
 	  let ns = Hashtbl.find new_tbl name in
 	  Hashtbl.replace new_tbl name (n::ns)
-	with 
+	with
           Not_found -> Hashtbl.add new_tbl name [n]
       ) tbl;
     new_tbl
@@ -554,9 +554,9 @@ let pp2 tbl1 tbl2 =
 	      done;
 
 	      let i' = min_tbl2.(j) in
-	      
+
 	      if min_tbl1.(i') = j then begin
-		
+
 		let nd1 = List.nth nds1 i' in
 		let nd2 = List.nth nds2 j in
 
@@ -578,7 +578,7 @@ let pp2 tbl1 tbl2 =
 
 	    let nds1' = List.filter (fun n -> not (List.mem n !pruned1)) nds1 in
 	    let nds2' = List.filter (fun n -> not (List.mem n !pruned2)) nds2 in
-	    
+
 	    begin
 	      match nds1', nds2' with
 		[nd1], [nd2] ->
@@ -595,14 +595,14 @@ let pp2 tbl1 tbl2 =
 	      | _ -> ()
 	    end
 
-      with 
+      with
         Not_found -> ()
     ) tbl1;
 
   !modified
 (* end of func pp2 *)
 
-  
+
 
 let analyze tree1 tree2 eds mapping iso =
   let subs = ref [] in
@@ -618,7 +618,7 @@ let analyze tree1 tree2 eds mapping iso =
   let relabels = ref [] in
 
   let mk_subtree_pairs nd1 nd2 =
-    
+
     DEBUG_MSG "%s<content_digest:%s><digest:%s> - %s<content_digest:%s><digest:%s>"
       nd1#data#path nd1#data#content_digest_string nd1#data#digest_string
       nd2#data#path nd2#data#content_digest_string nd2#data#digest_string;
@@ -631,12 +631,12 @@ let analyze tree1 tree2 eds mapping iso =
       FATAL_MSG "list length mismatch";
       exit 1
     end
-    else 
+    else
       let res = List.combine !l1 !l2 in
-      
+
       BEGIN_DEBUG
-	List.iter 
-	  (fun (n1, n2) -> 
+	List.iter
+	  (fun (n1, n2) ->
 	    DEBUG_MSG "[UNMODIFIED(SUB)] %s - %s" n1#data#path n2#data#path
 	  ) res
       END_DEBUG;
@@ -645,7 +645,7 @@ let analyze tree1 tree2 eds mapping iso =
   in
 
   let proc_one = function
-    | Otreediff.Edit.Relabel(i1, i2) -> 
+    | Otreediff.Edit.Relabel(i1, i2) ->
 	relabels := (i1, i2)::!relabels;
 	let nd1, nd2 = tree1#get i1, tree2#get i2 in
 	let lab1, lab2 = nd1#data#label, nd2#data#label in
@@ -654,31 +654,31 @@ let analyze tree1 tree2 eds mapping iso =
 
 	if lab1 = lab2 then
 	  if dig1 = dig2 then begin (* impossible: relabel concerns label + digest *)
-	    FATAL_MSG "impossible: %s<%s> %s<%s>" 
+	    FATAL_MSG "impossible: %s<%s> %s<%s>"
 	      lab1 nd1#data#digest_string lab2 nd2#data#digest_string;
 	    exit 1
 	  end
 	  else (* modified? *)
-	    
-	    if 
+
+	    if
 	      nd1#data#is_dir && nd2#data#is_dir then begin
 		if nd1 != tree1#root && nd2 != tree2#root then begin
-	    
+
 		  DEBUG_MSG "[SUB] \"%s(%s)\" --> \"%s(%s)\""
-		    (tree1#path i1) (UID.to_string nd1#uid) 
+		    (tree1#path i1) (UID.to_string nd1#uid)
 		    (tree2#path i2) (UID.to_string nd2#uid);
 
 		  subs := (nd1, nd2)::!subs
 		end
 	    end
-	    else 
+	    else
 	      if nd1#is_collapsed then
 		expand1 := nd1::!expand1
-	      else 
+	      else
 		if nd2#is_collapsed then
 		  expand2 := nd2::!expand2
 		else begin (* impossible: digest of expanded node is cleared *)
-		  FATAL_MSG "impossible %s<%s> %s<%s>" 
+		  FATAL_MSG "impossible %s<%s> %s<%s>"
 		    lab1 nd1#data#digest_string lab2 nd2#data#digest_string;
 		  exit 1
 		end
@@ -689,12 +689,12 @@ let analyze tree1 tree2 eds mapping iso =
 	      if nd1#data#is_file && nd2#data#is_file then
 		if nd1#data#content_digest = nd2#data#content_digest then begin
 
-		  DEBUG_MSG "[RENAMED] \"%s\" --> \"%s\"" 
+		  DEBUG_MSG "[RENAMED] \"%s\" --> \"%s\""
 		    (tree1#path i1) (tree2#path i2);
-		
+
 		  renamed_pairs := (nd1, nd2)::!renamed_pairs
 		end
-		else 
+		else
 		  () (* different files *)
 
 	      else begin
@@ -707,13 +707,13 @@ let analyze tree1 tree2 eds mapping iso =
 	      expand2 := nd2::!expand2
 	    end
 
-	  else 
+	  else
 	    if nd1#is_collapsed && nd2#is_collapsed then begin
-	      if nd1 != tree1#root && nd2 != tree2#root then begin 
+	      if nd1 != tree1#root && nd2 != tree2#root then begin
 
 		(* this trial may result in a waste of time... *)
 		DEBUG_MSG "[SUB] \"%s(%a)\" --> \"%s(%a)\""
-		  (tree1#path i1) UID.ps nd1#uid 
+		  (tree1#path i1) UID.ps nd1#uid
 		  (tree2#path i2) UID.ps nd2#uid;
 
 		subs := (nd1, nd2)::!subs
@@ -737,29 +737,29 @@ let analyze tree1 tree2 eds mapping iso =
 	DEBUG_MSG "[ADDED] \"%s\"" (tree2#path i);
 
 	if nd#is_collapsed then expand2 := nd::!expand2
-  in 
+  in
   Otreediff.Edit.seq_iter proc_one eds;
 
   DEBUG_MSG "analyzing from the mapping...";
 
-  Otreediff.Mapping.iter 
+  Otreediff.Mapping.iter
     (fun i j ->
       let nd1, nd2 = tree1#get i, tree2#get j in
       let c1, c2 = nd1#data#content_digest, nd2#data#content_digest in
 
       if nd1#data#is_file && nd2#data#is_file then
 	if List.mem (i, j) !relabels then () (* already processed above *)
-	else 
+	else
 	  if c1 = c2 then begin
 
-	    DEBUG_MSG "[UNMODIFIED] %s - %s" 
+	    DEBUG_MSG "[UNMODIFIED] %s - %s"
 	      (tree1#path i) (tree2#path j);
 
 	    unmodified_pairs := (nd1, nd2)::!unmodified_pairs
 	  end
 	  else begin
 
-	    DEBUG_MSG "[MODIFIED] %s - %s" 
+	    DEBUG_MSG "[MODIFIED] %s - %s"
 	      (tree1#path i) (tree2#path j);
 
 	    modified_pairs := (nd1, nd2)::!modified_pairs
@@ -780,54 +780,54 @@ let analyze tree1 tree2 eds mapping iso =
   let iso1, iso2 = iso, List.map (fun i -> Otreediff.Mapping.find i mapping) iso in
 
   DEBUG_MSG "prune(isomorphic): tree1[%s] tree2:[%s]"
-  (Xlist.to_string string_of_int "," iso1) 
+  (Xlist.to_string string_of_int "," iso1)
   (Xlist.to_string string_of_int "," iso2);
 
-  if iso1 = [tree1#root#index] 
+  if iso1 = [tree1#root#index]
   then tree1#root#prune_all_children
   else tree1#prune iso1;
 
-  if iso2 = [tree2#root#index] 
+  if iso2 = [tree2#root#index]
   then tree2#root#prune_all_children
   else tree2#prune iso2;
 *)
 
   BEGIN_DEBUG
     DEBUG_MSG "MODIFIED:";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
 	nd1#data#to_string nd2#data#to_string) !modified_pairs;
     DEBUG_MSG "UNMODIFIED:";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
 	nd1#to_string nd2#to_string) !unmodified_pairs;
 
     DEBUG_MSG "UNMODIFIED(SUB):";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
 	nd1#to_string nd2#to_string) !unmodified_pairs_sub;
     DEBUG_MSG "RENAMED:";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
 	nd1#to_string nd2#to_string) !renamed_pairs;
   END_DEBUG;
 
-  let to_be_pruned = 
-    !modified_pairs @ 
-    !unmodified_pairs @ 
+  let to_be_pruned =
+    !modified_pairs @
+    !unmodified_pairs @
     !renamed_pairs @
     !dir_pairs_to_be_pruned
   in
   let prn1, prn2 = List.split to_be_pruned in
 
   DEBUG_MSG "prune: tree1[\n%s\n]\n tree2:[\n%s\n]"
-    (Xlist.to_string (fun nd -> nd#to_string) "\n" prn1) 
+    (Xlist.to_string (fun nd -> nd#to_string) "\n" prn1)
     (Xlist.to_string (fun nd -> nd#to_string) "\n" prn2);
 
   tree1#prune_nodes prn1;
   tree2#prune_nodes prn2;
 
-  !subs, 
-  !modified_pairs, 
-  !expand1, 
-  !expand2, 
-  !unmodified_pairs @ !unmodified_pairs_sub, 
+  !subs,
+  !modified_pairs,
+  !expand1,
+  !expand2,
+  !unmodified_pairs @ !unmodified_pairs_sub,
   !renamed_pairs
 (* end of func analyze *)
 
@@ -854,26 +854,26 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
       FATAL_MSG "nleaves: %d != %d" len1 len2;
       exit 1
     end;
-    List.iter2 
-      (fun lf1 lf2 -> 
+    List.iter2
+      (fun lf1 lf2 ->
 	if lf1#data#content_digest = lf2#data#content_digest then
 	  unmodified_pairs_iso := (lf1, lf2)::!unmodified_pairs_iso
 	else modified_pairs_iso := (lf1, lf2)::!modified_pairs_iso
       ) leaves1 leaves2
   in
 
-  List.iter 
+  List.iter
     (fun nd1 ->
       try
-	List.iter 
-	  (fun nd2 -> 
+	List.iter
+	  (fun nd2 ->
 	    let dat1, dat2 = nd1#data, nd2#data in
 	    let lab1, lab2 = dat1#label, dat2#label in
 	    let ctt1, ctt2 = dat1#content_digest, dat2#content_digest in
 
 	    if dat1#is_file && dat2#is_file then
 	      if ctt1 = ctt2 then
-		if lab1 = lab2 then begin 
+		if lab1 = lab2 then begin
 
 		  DEBUG_MSG "[UNMODIFIED] \"%s\"--\"%s\"" nd1#data#path nd2#data#path;
 
@@ -887,7 +887,7 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
 		  renamed_pairs := (nd1, nd2)::!renamed_pairs;
 		  raise Found
 		  end
-	      else 
+	      else
 		if lab1 = lab2 then begin
 
 		  DEBUG_MSG "[MODIFIED] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
@@ -895,7 +895,7 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
 		  modified_pairs := (nd1, nd2)::!modified_pairs;
 		  raise Found
 		end
-		else 
+		else
 		  () (* different files *)
 	    else
 	      if dat1#is_dir && dat2#is_dir then
@@ -907,7 +907,7 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
 		    isos := (nd1, nd2)::!isos;
 		    raise Found
 		  end
-		  else 
+		  else
 		    if lab1 = lab2 then begin
 
 		      DEBUG_MSG "[SUB] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
@@ -917,7 +917,7 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
 		    end
 		    else ()
 		else ()
-		
+
 	  ) nl2
       with Found -> ()
     ) nl1;
@@ -930,18 +930,18 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
     DEBUG_MSG "T1:\n%s" tree1#to_string;
     DEBUG_MSG "T2:\n%s" tree2#to_string;
     DEBUG_MSG "MODIFIED:";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" nd1#to_string nd2#to_string) 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" nd1#to_string nd2#to_string)
       !modified_pairs;
     DEBUG_MSG "UNMODIFIED:";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" nd1#to_string nd2#to_string) 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" nd1#to_string nd2#to_string)
       !unmodified_pairs;
     DEBUG_MSG "RENAMED:";
-    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" nd1#to_string nd2#to_string) 
+    List.iter (fun (nd1, nd2) -> printf "%s -- %s\n" nd1#to_string nd2#to_string)
       !renamed_pairs;
   END_DEBUG;
 
   let extend pairs pairs0 =
-    List.fold_left 
+    List.fold_left
       (fun ps p ->
 	let _, nd = p in
 	let _, nds = List.split ps in
@@ -950,13 +950,13 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
       ) pairs pairs0
   in
 
-  let to_be_pruned = 
-    extend (extend !unmodified_pairs !renamed_pairs) !modified_pairs 
+  let to_be_pruned =
+    extend (extend !unmodified_pairs !renamed_pairs) !modified_pairs
   in
 
-  DEBUG_MSG "to_be_pruned: [%s]" 
-    (Xlist.to_string 
-       (fun (n1, n2) -> 
+  DEBUG_MSG "to_be_pruned: [%s]"
+    (Xlist.to_string
+       (fun (n1, n2) ->
 	 sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) "; " to_be_pruned);
 
   let prn1, prn2 = List.split to_be_pruned in
@@ -969,17 +969,17 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
 
   let subs1, subs2 = List.split !subs in
   let isos1, isos2 = List.split !isos in
-  let expnd1 = 
-    List.filter 
-      (fun nd -> 
+  let expnd1 =
+    List.filter
+      (fun nd ->
 	nd#is_collapsed && not (List.memq nd subs1) && not (List.memq nd isos1)
-      ) nl1 
+      ) nl1
   in
-  let expnd2 = 
-    List.filter 
-      (fun nd -> 
+  let expnd2 =
+    List.filter
+      (fun nd ->
 	nd#is_collapsed && not (List.memq nd subs2) && not (List.memq nd isos2)
-      ) nl2 
+      ) nl2
   in
   !subs, !modified_pairs, expnd1, expnd2, !unmodified_pairs, !renamed_pairs
 (* end of func compare_node_lists *)
@@ -1015,8 +1015,8 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
     DEBUG_MSG "T2:\n%s" tree2#to_string
   END_DEBUG;
 
-  let subs, modified_pairs, expnd1, expnd2, unmodified_pairs, renamed_pairs = 
-    if  
+  let subs, modified_pairs, expnd1, expnd2, unmodified_pairs, renamed_pairs =
+    if
       nchldrn1 > !tree_width_limit || nchldrn2 > !tree_width_limit ||
       tree1#size > !tree_size_limit || tree2#size > !tree_size_limit
     then begin
@@ -1025,37 +1025,37 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
     end
     else begin
       DEBUG_MSG "doing tree comparison...";
-      let edits, mapping, iso = 
-	if tree1#is_flat && tree2#is_flat 
-	then 
+      let edits, mapping, iso =
+	if tree1#is_flat && tree2#is_flat
+	then
 	  Flattreediff.find ~rely_on_rel:false tree1 tree2
-	else 
-	  Treediff.find tree1 tree2 
+	else
+	  Treediff.find tree1 tree2
       in
-      if options#dots_flag then 
-	Otreediff.Lib.to_dot 
-	  (Filename.concat dot_dir (sprintf "%d.%s.dir.dot" counter#value cid)) 
+      if options#dots_flag then
+	Otreediff.Lib.to_dot
+	  (Filename.concat dot_dir (sprintf "%d.%s.dir.dot" counter#value cid))
 	  tree1 tree2 edits mapping [];
 
       analyze tree1 tree2 edits mapping iso
     end
   in
 
-  let subtrees = 
-    List.map 
-      (fun (nd1, nd2) -> 
+  let subtrees =
+    List.map
+      (fun (nd1, nd2) ->
 	let t1, t2 = new c options nd1 false, new c options nd2 false in
 	t1#expand_root; t1#root#hide_parent; t1#init;
 	t2#expand_root; t2#root#hide_parent; t2#init;
 	t1, t2
-      ) subs 
+      ) subs
   in
-  let sub_modified_pairs_l, sub_unmodified_pairs_l, sub_renamed_pairs_l = 
-    Xlist.split3 (List.map (compare_subtree options dot_dir) subtrees) 
+  let sub_modified_pairs_l, sub_unmodified_pairs_l, sub_renamed_pairs_l =
+    Xlist.split3 (List.map (compare_subtree options dot_dir) subtrees)
   in
-  let sub_modified_pairs, sub_unmodified_pairs, sub_renamed_pairs = 
-    List.flatten sub_modified_pairs_l, 
-    List.flatten sub_unmodified_pairs_l, 
+  let sub_modified_pairs, sub_unmodified_pairs, sub_renamed_pairs =
+    List.flatten sub_modified_pairs_l,
+    List.flatten sub_unmodified_pairs_l,
     List.flatten sub_renamed_pairs_l
   in
 
@@ -1099,8 +1099,8 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
       DEBUG_MSG "tree_size_limit = %d" !tree_size_limit
     END_DEBUG;
 
-    let subs, modified_pairs, expnd1, expnd2, unmodified_pairs, renamed_pairs = 
-      if  
+    let subs, modified_pairs, expnd1, expnd2, unmodified_pairs, renamed_pairs =
+      if
 	nchldrn1 > !tree_width_limit || nchldrn2 > !tree_width_limit ||
 	tree1#size > !tree_size_limit || tree2#size > !tree_size_limit
       then begin
@@ -1109,19 +1109,19 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
       end
       else begin
 	DEBUG_MSG "doing tree comparison...";
-	let edits, mapping, iso = 
-	  if tree1#is_flat && tree2#is_flat 
-	  then 
+	let edits, mapping, iso =
+	  if tree1#is_flat && tree2#is_flat
+	  then
 	    Flattreediff.find ~rely_on_rel:false tree1 tree2
-	  else 
-	    Treediff.find tree1 tree2 
+	  else
+	    Treediff.find tree1 tree2
 	in
-	let _ = 
-	  if options#dots_flag then 
-	    Otreediff.Lib.to_dot 
-	      (Filename.concat dot_dir 
-		 (sprintf "%d.%s.dir.dot" counter#value cid)) 
-	      tree1 tree2 edits mapping [] 
+	let _ =
+	  if options#dots_flag then
+	    Otreediff.Lib.to_dot
+	      (Filename.concat dot_dir
+		 (sprintf "%d.%s.dir.dot" counter#value cid))
+	      tree1 tree2 edits mapping []
 	in
 	analyze tree1 tree2 edits mapping iso
       end
@@ -1136,8 +1136,8 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
 
   DEBUG_MSG "finished";
 
-  !modified @ sub_modified_pairs, 
-  !unmodified @ sub_unmodified_pairs, 
+  !modified @ sub_modified_pairs,
+  !unmodified @ sub_unmodified_pairs,
   !renamed @ sub_renamed_pairs
 (* end of func compare_subtree *)
 
@@ -1179,16 +1179,16 @@ let save_modified_list fname list =
 
 
 let save_files_list1N fname list =
-  let csv = 
+  let csv =
     ["old"; "new..."] ::
-    (List.map (fun (o, ns) -> o#path :: (List.map (fun n -> n#path) ns)) list) 
+    (List.map (fun (o, ns) -> o#path :: (List.map (fun n -> n#path) ns)) list)
   in
   Csv.save fname csv
 
 let save_files_listN1 fname list =
-  let csv = 
+  let csv =
     ["old..."; "new"] ::
-    (List.map (fun (os, n) -> (List.map (fun o -> o#path) os) @ [n#path]) list) 
+    (List.map (fun (os, n) -> (List.map (fun o -> o#path) os) @ [n#path]) list)
   in
   Csv.save fname csv
 
@@ -1199,7 +1199,7 @@ let save_files_list2 fname list =
 
 
 let save_files_list lab fname list =
-  Xfile.dump fname 
+  Xfile.dump fname
     (fun ch ->
       fprintf ch "%s\n" lab;
       List.iter (fun f -> fprintf ch "%s\n" f#path) list)
@@ -1259,29 +1259,29 @@ let save_extra_result options ?get_cache_name
 
   DEBUG_MSG "saving: \"%s\"" fname_modified;
 
-  let modified', extra_unmodified = 
+  let modified', extra_unmodified =
     List.fold_left
-      (fun (m, u) (o, n) -> 
+      (fun (m, u) (o, n) ->
 	try
-	  let cache_path = 
+	  let cache_path =
             match get_cache_name with
             | Some f -> Cache.create_cache_path options (f o n)
-            | None -> options#get_cache_path_for_file2 o n 
+            | None -> options#get_cache_path_for_file2 o n
           in
 
           DEBUG_MSG "cache_path: \"%s\"" cache_path;
 
-          let stat_paths = 
-            (Cache.search_cache : 
-               ?completion:bool -> 
-                 ?local_cache_name:string -> 
+          let stat_paths =
+            (Cache.search_cache :
+               ?completion:bool ->
+                 ?local_cache_name:string ->
                    string -> string -> Cache.search_result list)
-              ~local_cache_name:options#local_cache_name 
-              cache_path 
-              S.stat_file_name 
+              ~local_cache_name:options#local_cache_name
+              cache_path
+              S.stat_file_name
           in
 
-	  let s = 
+	  let s =
             SF.scan_diff_stat ~max_retry_count:options#max_retry_count stat_paths
           in
 	  if s.SF.s_total_changes > 0 then
@@ -1358,26 +1358,26 @@ let load_result dir =
   try
     let ich = open_in fname in
     let f = fun s1 s2 -> res := (s1, s2)::!res in
-    let _ = 
+    let _ =
       try
 	length := int_of_string(input_line ich)
-      with 
-	Failure "int_of_string" -> 
+      with
+	Failure "int_of_string" ->
 	  begin close_in ich; raise Cache_not_found end
       | End_of_file -> begin close_in ich; raise Cache_not_found end
     in
-    let result = 
+    let result =
       try
 	while true do
 	  Scanf.sscanf (input_line ich) "%s - %s" f;
 	  incr count;
 	done; []
       with End_of_file -> !res
-    in 
+    in
     close_in ich;
     if !length <> !count then raise Cache_not_found;
     result
-  with Sys_error s -> 
+  with Sys_error s ->
     if s = (sprintf "\"%s\": no such file or directory" fname)
     then raise Cache_not_found
     else error "%s" s
@@ -1403,7 +1403,7 @@ class diff_result
     ~(moved:node_map)
     ~(copied:(node_t * node_t list) list)
     ~(glued:(node_t list * node_t) list)
-    = 
+    =
   object
     method cache_path  = cache_path
     method all_leaves1 = all_leaves1
@@ -1420,7 +1420,7 @@ class diff_result
 let null_fact_extractor opts rinfo = ()
 
 (* comparing directory structures *)
-let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 = 
+let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
   try
     let dtree1, tbl1 = of_tree options true tree1 in
     let dtree2, tbl2 = of_tree options true tree2 in
@@ -1437,7 +1437,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
       raise Cache_not_found;
 
       let result = load_result cache_path in
-      if !viewer_flag then 
+      if !viewer_flag then
 	printf "%c%c%c%!"
 	  Options.viewer_mode_status_OK (char_of_int 0) (char_of_int 0);
       result
@@ -1472,7 +1472,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	let _ = collapse_tree dtree2 in
 
 	let _modified, unmodified, renamed =
-	  compare_subtree options cache_path (dtree1, dtree2) 
+	  compare_subtree options cache_path (dtree1, dtree2)
 	in
 
 	let _modified = union [_modified; modified0] in
@@ -1636,14 +1636,14 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  printf "%c%!" Const.viewer_mode_status_OK;
 	  printf "%c%c%!" (char_of_int mm) (char_of_int ll)
 	end
-	else 
+	else
 	  printf "done.\n";
 
 	(*let mkfiles2 = List.map (fun (nd1, nd2) -> mkfile tree1 nd1, mkfile tree2 nd2) in*)
-	let mkfiles1N = 
+	let mkfiles1N =
 	  List.map (fun (nd1, nds) -> mkfile tree1 nd1, List.map (mkfile tree2) nds)
 	in
-	let mkfilesN1 = 
+	let mkfilesN1 =
 	  List.map (fun (nds, nd2) -> List.map (mkfile tree1) nds, mkfile tree2 nd2)
 	in
         let mkfilepair n1 n2 = mkfile tree1 n1, mkfile tree2 n2 in
@@ -1653,8 +1653,8 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	let unmodified_files = unmodified#map mkfilepair in
 	let renamed_files    = renamed#map mkfilepair in
 	let moved_files      = moved#map mkfilepair in
-	let copied_files     = mkfiles1N copied in 
-	let glued_files      = mkfilesN1 glued in 
+	let copied_files     = mkfiles1N copied in
+	let glued_files      = mkfilesN1 glued in
 
 
         let all_files1 = mkfiles tree1 all_leaves1 in
@@ -1673,10 +1673,10 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
 	save_result cache_path modified_files;
 
-        let diff_result = 
+        let diff_result =
           new diff_result ~cache_path
-            ~all_leaves1 ~all_leaves2 
-            ~removed ~added ~modified ~renamed 
+            ~all_leaves1 ~all_leaves2
+            ~removed ~added ~modified ~renamed
             ~moved ~copied ~glued
         in
         fact_extractor options diff_result;
@@ -1696,16 +1696,16 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
 	  Xprint.message "%d/(%d) added files:" (List.length added) nfiles2;
           BEGIN_DEBUG
-	  List.iter 
-	    (fun n -> 
+	  List.iter
+	    (fun n ->
 	      DEBUG_MSG "[ADD] %s" n#data#to_string
 	    ) added
           END_DEBUG;
 
 	  Xprint.message "%d/%d removed files:" (List.length removed) nfiles1;
           BEGIN_DEBUG
-	  List.iter 
-	    (fun n -> 
+	  List.iter
+	    (fun n ->
 	      DEBUG_MSG "[REM] %s" n#data#to_string
 	    ) removed
           END_DEBUG;
@@ -1713,7 +1713,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  Xprint.message "%d/%d renamed files:" renamed#size nfiles1;
           BEGIN_DEBUG
 	  renamed#iter
-	    (fun n1 n2 -> 
+	    (fun n1 n2 ->
 	      DEBUG_MSG "[REN] %s -> %s" n1#data#to_string n2#data#to_string
 	    )
           END_DEBUG;
@@ -1721,15 +1721,15 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  Xprint.message "%d/%d moved files:" moved#size nfiles1;
           BEGIN_DEBUG
 	  moved#iter
-	    (fun n1 n2 -> 
+	    (fun n1 n2 ->
 	      DEBUG_MSG "[MOV] %s -> %s" n1#data#to_string n2#data#to_string
 	    )
           END_DEBUG;
 
 	  Xprint.message "%d/(%d) copied files:" (List.length copied2) nfiles2;
           BEGIN_DEBUG
-	  List.iter 
-	    (fun (n1, ns2) -> 
+	  List.iter
+	    (fun (n1, ns2) ->
 	      DEBUG_MSG "[CPY] %s ->" n1#data#to_string;
 	      List.iter (fun n -> DEBUG_MSG "[CPY]   %s" n#data#to_string) ns2
 	    ) copied
@@ -1737,8 +1737,8 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
 	  Xprint.message "%d/%d glued files:" (List.length glued1) nfiles1;
           BEGIN_DEBUG
-	  List.iter 
-	    (fun (ns1, n2) -> 
+	  List.iter
+	    (fun (ns1, n2) ->
 	      List.iter (fun n -> DEBUG_MSG "[GLU] %s" n#data#to_string) ns1;
 	      DEBUG_MSG "[GLU]   -> %s" n2#data#to_string
 	    ) glued
@@ -1747,7 +1747,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  Xprint.message "%d/%d unmodified files:" unmodified#size nfiles1;
           BEGIN_DEBUG
 	  unmodified#iter
-	    (fun n1 n2 -> 
+	    (fun n1 n2 ->
 	      DEBUG_MSG "[UNM] %s - %s" n1#data#to_string n2#data#to_string
 	    )
           END_DEBUG;
@@ -1769,7 +1769,7 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 	  }
 	in
 	info
-  with 
+  with
     To_be_skipped -> begin
       Xprint.message "no relevant source files found.";
       exit 0
@@ -2054,7 +2054,7 @@ let fact_extractor options info =
 let compare_dirs options dir1 dir2 = (* comparing directory structures *)
   let mkprefix d = if Filename.is_relative d then Filename.concat (Unix.getcwd()) d else d in
   let prefix1 = mkprefix dir1 in
-  let prefix2 = mkprefix dir2 in 
+  let prefix2 = mkprefix dir2 in
   let tree1 = new Fs.tree options prefix1 in
   let tree2 = new Fs.tree options prefix2 in
   compare_trees options tree1 tree2

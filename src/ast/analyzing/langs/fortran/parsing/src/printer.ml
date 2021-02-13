@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * A pretty printer for Fortran
  *
  * printer.ml
@@ -37,7 +37,7 @@ let subtree_to_string root =
   in
   doit "" root;
   Buffer.contents buf
-  
+
 
 let to_string root =
   let buf = Buffer.create 0 in

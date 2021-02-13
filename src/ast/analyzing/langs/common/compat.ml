@@ -74,7 +74,7 @@ module Ulexing = struct
 
   let utf8_sub_lexeme_length lexbuf pos len =
     ULB.utf8_sub_string_length (lexbuf.start + pos) len lexbuf.ulb
-    
+
   (* "Internal" interface *)
   let start lexbuf =
     lexbuf.start <- lexbuf.pos;
@@ -84,7 +84,7 @@ module Ulexing = struct
   let mark  lexbuf i =
     lexbuf.marked_pos <- lexbuf.pos;
     lexbuf.marked_val <- i
-      
+
   let backtrack lexbuf =
     lexbuf.pos <- lexbuf.marked_pos;
     lexbuf.marked_val
@@ -94,7 +94,7 @@ module Ulexing = struct
 
   let eof = (-1)
 
-  let refill lexbuf = 
+  let refill lexbuf =
     try
       (* Delete all characters in ulexbuf before the current lexeme: *)
       if lexbuf.start > 0 then (
@@ -113,14 +113,14 @@ module Ulexing = struct
 	  (* We cannot modify the buffer as the original Ulexing implementation
 	   *)
 	  eof
-	  
+
 
   let next lexbuf =
     let ulb = lexbuf.ulb in
     let i =
       if lexbuf.pos = ulb.ULB.ulb_chars_len then
 	refill lexbuf
-      else 
+      else
 	ulb.ULB.ulb_chars.(lexbuf.pos)
     in
     if i <> eof then lexbuf.pos <- lexbuf.pos + 1;

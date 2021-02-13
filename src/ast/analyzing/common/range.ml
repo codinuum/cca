@@ -67,7 +67,7 @@ module F (Pos : POSITION_T) = struct
 
     method of_string str =
       match Str.split (Str.regexp_string "-") str with
-      | [s;e] -> 
+      | [s;e] ->
 	  _start#of_string s;
 	  _end#of_string e
 
@@ -88,7 +88,7 @@ module F (Pos : POSITION_T) = struct
     let st = pos_max st1 st2 in
     let ed = pos_min ed1 ed2 in
     Pos.leq st ed
-    
+
 
   let load = Loader.load (fun () -> new c)
 

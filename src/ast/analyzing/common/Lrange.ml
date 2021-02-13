@@ -30,7 +30,7 @@ module Line : (Range.POSITION_T with type value = int) = struct
     method is_valid      = _value >= 0
     method value         = _value
     method to_string     = string_of_int _value
-    method of_string str = 
+    method of_string str =
       try
 	_value <- (int_of_string str)
       with _ -> raise (Invalid_format str)

@@ -34,7 +34,7 @@ opt: $(OBJS_OPT)
 debug: $(OBJS)
 
 clean:
-	$(RM) *~ *.o *.cm* 
+	$(RM) *~ *.o *.cm*
 	$(RM) -r $(DEP)
 
 ifneq ($(MAKECMDGOALS), clean)

@@ -26,7 +26,7 @@ class c ini = object (self)
 
   method fuse =
     let sorted =
-      List.fast_sort 
+      List.fast_sort
 	(fun (st0, _) (st1, _) -> Stdlib.compare st0 st1)
 	ranges
     in

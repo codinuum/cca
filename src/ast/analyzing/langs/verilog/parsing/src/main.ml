@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * A parser for SystemVerilog
  *
  * main.ml
@@ -38,8 +38,8 @@ let _parser = new Lib.parser_c
 
 let options = new Basic_options.c
 
-let _ = 
-  Arg.parse 
+let _ =
+  Arg.parse
     [
      "-verbose", Arg.Unit (fun () -> _parser#set_verbose_flag), "\tdisplay verbose messages";
      "-I", Arg.String _parser#add_search_path, "PATH\tadd search path";
@@ -47,8 +47,8 @@ let _ =
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump AST";
      "-proj-root", Arg.String options#set_root_path, "P\tset project root path to P";
     ]
-    (fun s -> incr arg_count; filename := s) 
-    ("usage: " ^ Filename.basename (Sys.argv.(0)) 
+    (fun s -> incr arg_count; filename := s)
+    ("usage: " ^ Filename.basename (Sys.argv.(0))
      ^ " [OPTIONS] [FILE]\noptions are:")
 
 let _ =
@@ -66,8 +66,8 @@ let _ =
       in
       Some (read_hint f)
     in
-    begin 
-      match macrotbl_opt with 
+    begin
+      match macrotbl_opt with
       | Some tbl -> tbl#set_readonly
       | None -> ()
     end;
@@ -76,13 +76,13 @@ let _ =
 
     while true do
 
-      begin 
+      begin
         match macrotbl_opt with
         | Some tbl -> _parser#set_predefined_macrotbl macrotbl_opt
         | None -> ()
       end;
 
-      let ast = 
+      let ast =
 	if !compile_mode then
 	  _parser#parse_file file
 	else
@@ -114,10 +114,10 @@ let _ =
 
       exit 0
     done
-  with 
+  with
   (*| Sys_error msg
-  | Failure msg 
-    -> 
+  | Failure msg
+    ->
       Xprint.error ~out:stdout "%s" msg*)
 
   | Parse_error(head, msg) -> Xprint.error ~out:stdout ~head "%s" msg

@@ -107,7 +107,7 @@ class FactMerger(object):
                 logger.info('"{}" removed'.format(current))
 
             self._current_temp_file = None
-        
+
     def rotate(self):
         self._rotate_count += 1
         self.load()
@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     parser.add_argument('cache_dir_base', type=str, help='cache dir base')
     parser.add_argument('out_dir', type=str, help='output dir')
-    parser.add_argument('--temp-file-size', dest='temp_file_size', 
+    parser.add_argument('--temp-file-size', dest='temp_file_size',
                         default=DEFAULT_TEMP_FILE_SIZE, metavar='N', type=int,
                         help='maximum temp file size (in bytes) for RDF loader')
 
@@ -177,4 +177,4 @@ if __name__ == '__main__':
     loader = DefaultFactLoader(args.out_dir)
 
     load(loader, args.cache_dir_base, args.temp_file_size)
-        
+

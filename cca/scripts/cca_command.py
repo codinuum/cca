@@ -81,16 +81,16 @@ def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
     run_workers_cmd_path = os.path.join(DIST_DIR, 'run_workers.py')
 
     workcmd = cmd_fmt % { 'log'   : log_base + '.work',
-                          'subcmd' : '{} -n {} -c {} {} {}'.format(run_workers_cmd_path, 
-                                                                   NPROCS, 
-                                                                   SUB_CMD_NAME, 
-                                                                   sub_args, 
+                          'subcmd' : '{} -n {} -c {} {} {}'.format(run_workers_cmd_path,
+                                                                   NPROCS,
+                                                                   SUB_CMD_NAME,
+                                                                   sub_args,
                                                                    WDIR),
                           }
 
     collcmd = cmd_fmt % { 'log'   : log_base + '.collect',
-                          'subcmd' : '{} {} -c collect -b {} {} {}'.format(SUB_CMD_PATH, 
-                                                                           PROJ, 
+                          'subcmd' : '{} {} -c collect -b {} {} {}'.format(SUB_CMD_PATH,
+                                                                           PROJ,
                                                                            WDIR_BASE,
                                                                            args.sargs,
                                                                            WDIR),

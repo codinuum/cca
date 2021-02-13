@@ -161,10 +161,10 @@ def do_cmd(cmd):
         stat = proc.system(cmd)
         if stat == 0:
             break
-        
+
         time.sleep(1)
         logger.info('retrying...({}) cmd="{}"'.format(i, cmd))
-        
+
 
 #####
 
@@ -296,7 +296,7 @@ def read_file(r, name_pat_list, stat_paths, retry_count=RETRY_COUNT):
                     set_value(r, name, pat, l)
             f.close()
             break
-        
+
         except IOError as e:
             logger.warning(str(e))
             logger.info('retrying...({})'.format(count))
@@ -339,8 +339,8 @@ def read_dir_info_file(stat_paths, retry_count=RETRY_COUNT):
 
 
 def read_file_diff_stat_file(stat_paths, retry_count=RETRY_COUNT):
-    r = { 'cost'      : 0, 
-          'nmappings' : 0, 
+    r = { 'cost'      : 0,
+          'nmappings' : 0,
           'ninserts'  : 0,
           'ndeletes'  : 0,
           'nrelabels' : 0,
@@ -422,7 +422,7 @@ def diffts(diff_cmd, file1, file2,
 
 
     if load_fact or stat_paths==[] or not usecache:
-    
+
         logger.info('diff_cmd: {}'.format(diff_cmd))
 
         prep_opt = ''
@@ -468,7 +468,7 @@ def diffts(diff_cmd, file1, file2,
 
                 if fact_proj_roots:
                     fact_opt += ' {}'.format(get_fact_proj_roots_opt(fact_proj_roots))
-                    
+
                 if fact_into_virtuoso:
                     fact_opt += ' -fact:into-virtuoso {}'.format(fact_into_virtuoso)
 
@@ -523,9 +523,9 @@ def diffts(diff_cmd, file1, file2,
 
         proc.system(cmd, quiet=quiet)
 
-    r = { 
-        'cost'      : 0, 
-        'nmappings' : 0, 
+    r = {
+        'cost'      : 0,
+        'nmappings' : 0,
         'ninserts'  : 0,
         'ndeletes'  : 0,
         'nrelabels' : 0,
@@ -580,9 +580,9 @@ def main():
     argparser.add_argument('-d', '--debug', action='store_true', dest='debug',
                            default=False, help='enable debug output')
 
-    argparser.add_argument('-p', '--nopreprune', action='store_false', dest='preprune', 
+    argparser.add_argument('-p', '--nopreprune', action='store_false', dest='preprune',
                            default=True, help='disable prepruning')
-    argparser.add_argument('-m', '--noprematch', action='store_false', dest='prematch', 
+    argparser.add_argument('-m', '--noprematch', action='store_false', dest='prematch',
                            default=True, help='disable prematching')
     argparser.add_argument('-c', '--cachebase', dest='cachebase', metavar='PATH',
                            default=None, help='set cache base to PATH')

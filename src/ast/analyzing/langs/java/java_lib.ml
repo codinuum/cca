@@ -24,11 +24,11 @@ module DF        = Delta_format.Format
 
 let sprintf = Printf.sprintf
 
-let elaborate_edits 
+let elaborate_edits
     options
-    (cenv : (Tree.node_t, Tree.c) Comparison.c) 
-    uidmapping 
-    edits 
+    (cenv : (Tree.node_t, Tree.c) Comparison.c)
+    uidmapping
+    edits
     =
   let mkfilt = Edit.mkfilt Fact.getlab in
   let is_field               = mkfilt Label.is_field in
@@ -43,7 +43,7 @@ let elaborate_edits
     is_field_access;
     is_variabledeclaration;
     is_name;
-  |] 
+  |]
   in
   let handle_weak = not options#dump_delta_flag in
   Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters
@@ -55,10 +55,10 @@ class tree_patcher options tree_factory = object
   method _patch = DF._patch options tree_factory
 
   method patch = DF.patch options tree_factory
-    
+
 end
 
-let _ = 
+let _ =
   Lang.register Sjava.parser_name
     (new Lang.c
        ~make_tree_comparator:(new Analyzing.tree_comparator)

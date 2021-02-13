@@ -91,9 +91,9 @@ class LCRange(Range):
         self._end_line = el
         self._end_col = ec
         self._enc = 'LC'
-        self._encoded = SUB_SEP.join([str(x) for x in [self._start_line, 
-                                                       self._start_col, 
-                                                       self._end_line, 
+        self._encoded = SUB_SEP.join([str(x) for x in [self._start_line,
+                                                       self._start_col,
+                                                       self._end_line,
                                                        self._end_col]])
 
     def __eq__(self, other):
@@ -134,19 +134,19 @@ class LCRange(Range):
         return (sl, sc, el, ec)
 
     def __str__(self):
-        s = '%dL,%dC-%dL,%dC' % (self._start_line, 
-                                 self._start_col, 
-                                 self._end_line, 
+        s = '%dL,%dC-%dL,%dC' % (self._start_line,
+                                 self._start_col,
+                                 self._end_line,
                                  self._end_col)
         return s
-        
+
     def meet(self, other):
         m = None
         if isinstance(other, LCRange):
-            (sl, sc, el, ec) = LCRange._meet((self._start_line, 
-                                              self._start_col, 
-                                              self._end_line, 
-                                              self._end_col), 
+            (sl, sc, el, ec) = LCRange._meet((self._start_line,
+                                              self._start_col,
+                                              self._end_line,
+                                              self._end_col),
                                              (other._start_line,
                                               other._start_col,
                                               other._end_line,
@@ -155,7 +155,7 @@ class LCRange(Range):
             m = LCRange(sl, sc, el, ec)
             if not m.is_valid():
                 m = None
-            
+
         return m
 
     def contains(self, other):
@@ -204,7 +204,7 @@ class ORange(Range):
         return res
 
     def __str__(self):
-        s = '%d-%d' % (self._start_offset, 
+        s = '%d-%d' % (self._start_offset,
                        self._end_offset)
         return s
 
@@ -246,7 +246,7 @@ class LORange(ORange):
         except Exception as e:
             logger.warning(str(e))
         return obj
-        
+
     def __init__(self, sl, so, el, eo):
         Range.__init__(self)
         valid0 = sl <= el and so <= eo
@@ -255,9 +255,9 @@ class LORange(ORange):
         ORange.__init__(self, so, eo)
         self._valid = self._valid and valid0
         self._enc = 'LO'
-        self._encoded = SUB_SEP.join([str(x) for x in [self._start_line, 
+        self._encoded = SUB_SEP.join([str(x) for x in [self._start_line,
                                                        self._start_offset,
-                                                       self._end_line, 
+                                                       self._end_line,
                                                        self._end_offset]])
 
 
@@ -270,9 +270,9 @@ class LORange(ORange):
                                                self._end_offset == other._end_offset])
 
     def __str__(self):
-        s = '%dL(%d)-%dL(%d)' % (self._start_line, 
+        s = '%dL(%d)-%dL(%d)' % (self._start_line,
                                  self._start_offset,
-                                 self._end_line, 
+                                 self._end_line,
                                  self._end_offset)
         return s
 
@@ -314,17 +314,17 @@ class LCORange(LCRange, ORange):
         except Exception as e:
             logger.warning(str(e))
         return obj
-        
+
     def __init__(self, sl, sc, so, el, ec, eo):
         LCRange.__init__(self, sl, sc, el, ec)
         valid0 = self._valid
         ORange.__init__(self, so, eo)
         self._valid = self._valid and valid0
         self._enc = 'LCO'
-        self._encoded = SUB_SEP.join([str(x) for x in [self._start_line, 
-                                                       self._start_col, 
+        self._encoded = SUB_SEP.join([str(x) for x in [self._start_line,
+                                                       self._start_col,
                                                        self._start_offset,
-                                                       self._end_line, 
+                                                       self._end_line,
                                                        self._end_col,
                                                        self._end_offset]])
 
@@ -340,10 +340,10 @@ class LCORange(LCRange, ORange):
                                                self._end_offset == other._end_offset])
 
     def __str__(self):
-        s = '%dL,%dC(%d)-%dL,%dC(%d)' % (self._start_line, 
-                                         self._start_col, 
+        s = '%dL,%dC(%d)-%dL,%dC(%d)' % (self._start_line,
+                                         self._start_col,
                                          self._start_offset,
-                                         self._end_line, 
+                                         self._end_line,
                                          self._end_col,
                                          self._end_offset)
         return s
@@ -352,9 +352,9 @@ class LCORange(LCRange, ORange):
     def meet(self, other):
         m = None
         if isinstance(other, LCORange):
-            slc = (self._start_line, 
-                   self._start_col, 
-                   self._end_line, 
+            slc = (self._start_line,
+                   self._start_col,
+                   self._end_line,
                    self._end_col)
 
             olc = (other._start_line,

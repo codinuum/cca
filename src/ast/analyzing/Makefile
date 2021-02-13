@@ -83,7 +83,7 @@ OTHER_OBJS_DEP = $(UTIL_OBJS_DEP) \
 		$(COMMON_OBJS_DEP) \
 		$(ENGINE_OBJS_DEP) \
 		$(LANG_COMMON_OBJS_DEP) \
-		$(LANG_OBJS_DEP) 
+		$(LANG_OBJS_DEP)
 
 #DIFFAST_LIB_OPT = $(DIFFAST_LIB:.cma=.cmxa)
 
@@ -137,8 +137,8 @@ subs-production:
 	done
 
 git-production: subs-production
-git-production: PACKAGES := $(PACKAGES_GIT_DIFFAST) 
-git-production: $(GIT_DIFFAST_CMD_OPT) 
+git-production: PACKAGES := $(PACKAGES_GIT_DIFFAST)
+git-production: $(GIT_DIFFAST_CMD_OPT)
 
 
 opt: subs-opt $(DIFFAST_CMD_OPT) git-opt $(PATCHAST_CMD_OPT) $(PARSESRC_CMD_OPT) $(SIMAST_CMD_OPT)
@@ -148,8 +148,8 @@ ws-opt: PACKAGES := $(PACKAGES_WS)
 ws-opt: $(DIFFAST_WS_OPT)
 
 git-opt: subs-opt
-git-opt: PACKAGES := $(PACKAGES_GIT_DIFFAST) 
-git-opt: $(GIT_DIFFAST_CMD_OPT) 
+git-opt: PACKAGES := $(PACKAGES_GIT_DIFFAST)
+git-opt: $(GIT_DIFFAST_CMD_OPT)
 
 
 subs-opt:
@@ -230,7 +230,7 @@ $(GIT_DIFFAST_CMD_OPT): $(OTHER_OBJS_DEP_OPT) $(GIT_DIFFAST_OBJS_OPT)
 
 debug: subs-debug $(DIFFAST_CMD) $(GIT_DIFFAST_CMD) $(PATCHAST_CMD) $(PARSESRC_CMD) $(SIMAST_CMD) #$(DIFFAST_WS)
 
-subs-debug: 
+subs-debug:
 	for d in $(SUBS); do \
 	  if ! $(MAKE) -C $$d debug; then \
 	    break; \

@@ -38,20 +38,20 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let loc_to_str = Astloc.to_string ~short:false
 
   let get_part_names =
-    Xlist.filter_map 
+    Xlist.filter_map
       (fun nd ->
         match nd#label with
         | L.PartName n -> Some n
         | _ -> None
-      ) 
+      )
 
   let get_name_of_part_names nodes =
     String.concat "%" (get_part_names nodes)
 
 
   let separate_image_selectors node_list = (* image-selectors * others *)
-    List.partition 
-      (fun nd -> 
+    List.partition
+      (fun nd ->
         match nd#label with
         | L.ImageSelector -> true
         | _ -> false
@@ -71,7 +71,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
             match env#lookup_name ~afilt:N.Spec.is_data_object_spec name with
             | [] -> raise Not_found
             | s::_ -> s
-      in 
+      in
       let f' =
         try
           let tname = I.TypeSpec.get_name (N.Spec.get_data_object_spec dspec)#type_spec in
@@ -116,7 +116,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       let name = node#get_name in
       match env#lookup_name ~afilt:N.Spec.is_data_object_spec name with
       | [] -> node#set_info (I.make (env#lookup_name name))
-      | spec::_ as specs -> 
+      | spec::_ as specs ->
           begin
             try
               let dospec = N.Spec.get_data_object_spec spec in
@@ -195,11 +195,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
           spec
         else
           find_resolved_spec rest
-    
+
 
   let get_rank_of_name name =
-    let filt s = 
-      N.Spec.has_data_object_attr s || N.Spec.has_decl s || N.Spec.is_function s 
+    let filt s =
+      N.Spec.has_data_object_attr s || N.Spec.has_decl s || N.Spec.is_function s
     in
     match env#lookup_name ~afilt:filt name with
     | [] -> I.Rank.unknown
@@ -212,7 +212,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           with
             Failure _ -> I.Rank.unknown
         with
-          Not_found -> 
+          Not_found ->
             match spec with
             | N.Spec.IntrinsicFunction pspec ->
                 pspec#rank
@@ -236,7 +236,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           with
             Failure _ -> I.Rank.unknown
         with
-          Not_found -> 
+          Not_found ->
             match spec with
             | N.Spec.IntrinsicFunction pspec ->
                 pspec#rank
@@ -264,15 +264,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | L.Ambiguous Ambiguous.Subobject
         -> get_rank_of_part_ref_elems node#children
 
-      | L.Constant (Constant.BozLiteralConstant _ 
-      | Constant.CharLiteralConstant _ 
-      | Constant.ComplexLiteralConstant _ 
-      | Constant.IntLiteralConstant _ 
-      | Constant.LogicalLiteralConstant _ 
+      | L.Constant (Constant.BozLiteralConstant _
+      | Constant.CharLiteralConstant _
+      | Constant.ComplexLiteralConstant _
+      | Constant.IntLiteralConstant _
+      | Constant.LogicalLiteralConstant _
       | Constant.RealLiteralConstant _ ) -> I.Rank.zero
 
       | L.Name name
-      | L.PartName name 
+      | L.PartName name
       | L.VariableName name
       | L.FunctionReference name
       | L.Constant (Constant.NamedConstant name) -> get_rank_of_name name
@@ -313,11 +313,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     r
 
 (*
-  In an array-section with no section-subscript-list, 
-   the rank of the array is the rank of the part-ref with nonzero rank; 
+  In an array-section with no section-subscript-list,
+   the rank of the array is the rank of the part-ref with nonzero rank;
 
-  otherwise, 
-   the rank of the array section is the number of subscript triplets and 
+  otherwise,
+   the rank of the array section is the number of subscript triplets and
    vector subscripts in the section subscript list.
  *)
   and get_rank_of_part_ref_elems nds =
@@ -342,12 +342,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
             else begin (* <name-part><list-part> *)
               let count =
                 List.fold_left
-                  (fun c nd -> 
+                  (fun c nd ->
                     let cond, err =
                       if L.is_subscript_triplet nd#label then
                         true, false
                       else
-                        let r = get_rank nd in 
+                        let r = get_rank nd in
                         if I.Rank.is_non_zero r then
                           true, false
                         else
@@ -377,9 +377,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | [_]
       | [] -> I.Rank.mk 0
     in
-    let rank = 
+    let rank =
       try
-        get nds 
+        get nds
       with
         Exit -> I.Rank.unknown
     in
@@ -405,12 +405,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
           match a#label with
           | L.AttrSpec s -> begin
               match s with
-              | AttrSpec.Allocatable 
+              | AttrSpec.Allocatable
               | AttrSpec.Pointer     ->  raise Exit
               | _ -> ()
           end
           | l -> begin
-              WARN_MSG "invalid label: %s" (L.to_string l); 
+              WARN_MSG "invalid label: %s" (L.to_string l);
               assert false
           end
         ) attr_specs;
@@ -432,12 +432,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
 
 
-  let disambiguate_part_ref_elem nd = 
+  let disambiguate_part_ref_elem nd =
     DEBUG_MSG "disambiguating: %s" nd#to_string;
     match nd#label with
     | L.Ambiguous a -> begin
         match a with
-        | Ambiguous.Designator n -> 
+        | Ambiguous.Designator n ->
             nd#relab (L.PartName n);
             set_binding nd
 
@@ -484,15 +484,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> assert false
     end
 
-  let disambiguate_data_object 
+  let disambiguate_data_object
       ?(mklab=fun n -> L.Name n)
-      ?(defer=true) 
-      ?(check_const=false) 
-      name node 
+      ?(defer=true)
+      ?(check_const=false)
+      name node
       =
     DEBUG_MSG "disambiguating: %s (defer=%B check_const=%B)" node#to_string defer check_const;
 
-    let default_lab = 
+    let default_lab =
       if check_const then
         L.Ambiguous (Ambiguous.NamedDataObject name)
       else if env#macro_defined name then
@@ -501,7 +501,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         mklab name
     in
     let afilt x =
-      N.Spec.has_data_object_spec x || 
+      N.Spec.has_data_object_spec x ||
       N.Spec.has_procedure_spec x ||
       N.Spec.has_object_spec x ||
       N.Spec.is_intrinsic_procedure x
@@ -548,7 +548,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
               else
                 mklab name
             with
-              Not_found -> 
+              Not_found ->
                 if env#macro_defined name then
                   L.PpMacroId name
                 else
@@ -570,7 +570,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
               default_lab
           end
       end
-      | [] -> 
+      | [] ->
           DEBUG_MSG "spec not found";
           default_lab
     in
@@ -593,7 +593,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     node#relab (mklab name)
 
 
-  let disambiguate_array_element node = 
+  let disambiguate_array_element node =
     List.iter disambiguate_part_ref_elem node#children;
     relab_subobject (fun n -> L.ArrayElement n) node;
     set_binding_of_subobject node
@@ -603,7 +603,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     match node#label with
     | L.Ambiguous Ambiguous.Tuple -> begin
         node#relab L.AllocateShapeSpecList;
-        List.iter 
+        List.iter
           (fun spec ->
             match spec#label with
             | L.Ambiguous (Ambiguous.TripletOrRange) -> begin
@@ -624,12 +624,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | L.Ambiguous Ambiguous.Tuple -> begin
         let spec_flag = ref false in
         let remapping_flag = ref false in
-        List.iter 
+        List.iter
           (fun spec ->
             if L.is_ambiguous spec#label then begin
               match spec#children_labels with
-              | [_] -> 
-                  spec_flag := true; 
+              | [_] ->
+                  spec_flag := true;
                   spec#relab L.BoundsSpec
 
               | [lower,L.Ambiguous Ambiguous.First;upper,L.Ambiguous Ambiguous.Second] ->
@@ -637,7 +637,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                   spec#relab L.BoundsRemapping;
                   spec#set_children (lower#children @ upper#children)
 
-              | [_;_] -> 
+              | [_;_] ->
                   remapping_flag := true;
                   spec#relab L.BoundsRemapping
 
@@ -667,7 +667,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           disambiguate_data_object ~mklab:(fun n -> L.VariableName n) n node
       end
       | [d,(L.Ambiguous (Ambiguous.Designator n) as dl);tpl,L.Ambiguous Ambiguous.Tuple] -> begin
-          let nd = 
+          let nd =
             new Ast.node ~lloc:node#lloc ~children:[d] ~info:node#info dl
           in
           disambiguate_data_object n nd;
@@ -725,7 +725,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           disambiguate_data_object ~mklab:(fun n -> L.VariableName n) n node
       end
       | [d,(L.Ambiguous (Ambiguous.Designator n) as dl);tpl,L.Ambiguous Ambiguous.Tuple] -> begin
-          let nd = 
+          let nd =
             new Ast.node ~lloc:node#lloc ~children:[d] ~info:node#info dl
           in
           disambiguate_data_object n nd;
@@ -806,9 +806,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
             | L.Ambiguous a -> begin
                 match a with
                 | Ambiguous.Deferred -> spec#relab L.DeferredShapeSpec
-                | Ambiguous.Assumed -> 
+                | Ambiguous.Assumed ->
                     parse_warning_loc spec#loc "component-array-spec shall not contain assumed-shape-spec"
-                | Ambiguous.AssumedSize -> 
+                | Ambiguous.AssumedSize ->
                     parse_warning_loc spec#loc "component-array-spec shall not contain assumed-size-spec"
                 | _ -> begin
                     WARN_MSG "invalid label: %s (%s)" (L.to_string spec#label) (loc_to_str spec#loc);
@@ -870,8 +870,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
                 match spec#label with
                 | L.Ambiguous a -> begin
                     match a with
-                    | Ambiguous.Deferred    -> 
-                        parse_warning_loc spec#loc "assumed-size-spec shall not contain deferred-shape-spec"; 
+                    | Ambiguous.Deferred    ->
+                        parse_warning_loc spec#loc "assumed-size-spec shall not contain deferred-shape-spec";
                         Some spec
                     | Ambiguous.Assumed     -> begin
                         match spec#children with
@@ -893,12 +893,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
         end
         else begin
           DEBUG_MSG "is not assumed-size-spec";
-          List.iter 
+          List.iter
             (fun spec ->
               match spec#label with
               | L.Ambiguous a -> begin
                   match a with
-                  | Ambiguous.Deferred    -> 
+                  | Ambiguous.Deferred    ->
                       if is_deferred then
                         spec#relab L.DeferredShapeSpec
                       else
@@ -906,7 +906,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
                   | Ambiguous.Assumed -> spec#relab L.AssumedShapeSpec
 
-                  | Ambiguous.AssumedSize -> 
+                  | Ambiguous.AssumedSize ->
                       parse_warning_loc spec#loc "'*' shall not occur except in assumed-size-spec"
 
                   | _ -> begin
@@ -1000,12 +1000,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   (*
-    (C623) array-element: 
-    Every part-ref shall have rank zero and the last part-ref shall contain a subscript-list. 
+    (C623) array-element:
+    Every part-ref shall have rank zero and the last part-ref shall contain a subscript-list.
 
-    (C624) array-section: 
-    Exactly one part-ref shall have nonzero rank, and either the final part-ref shall have 
-    a section- subscript-list with nonzero rank, another part-ref shall have nonzero rank, 
+    (C624) array-section:
+    Exactly one part-ref shall have nonzero rank, and either the final part-ref shall have
+    a section- subscript-list with nonzero rank, another part-ref shall have nonzero rank,
     or the complex-part-designator shall be an array.
    *)
   let check_part_ref_elems nds =
@@ -1023,8 +1023,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
             else begin (* <name-part><list-part>) *)
               let is_zero, is_non_zero =
                 try
-                  List.fold_left 
-                    (fun (is_z, is_n) nd -> 
+                  List.fold_left
+                    (fun (is_z, is_n) nd ->
                       if L.is_subscript_triplet nd#label then
                         raise Exit
                       else
@@ -1045,11 +1045,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | [_] | [] -> is_elem, is_sect
     in
     let nds = snd (separate_image_selectors nds) in
-    let is_elem, is_sect = 
+    let is_elem, is_sect =
       match nds with
       | [_] | [] -> false, false
       | _ ->
-          check (true, false) nds 
+          check (true, false) nds
     in
     DEBUG_MSG "is_elem:%B is_sect:%B" is_elem is_sect;
     is_elem, is_sect
@@ -1073,13 +1073,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let mkdesig = function
     | [] -> "", []
-    | p -> 
-        let n = 
+    | p ->
+        let n =
           let lnd = Xlist.last p in
             try
-              lnd#get_name 
+              lnd#get_name
             with
-              _ -> 
+              _ ->
                 parse_warning_loc lnd#loc "invalid procedure-designator";
                 ""
           in
@@ -1094,7 +1094,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let disambiguate_variable ?(mklab=fun n -> L.Name n) ?(defer=true) node =
     BEGIN_DEBUG
       DEBUG_MSG "disambiguating: %s (defer=%B)" node#to_string defer;
-      List.iteri 
+      List.iteri
         (fun i x -> DEBUG_MSG "disambiguating: child[%d]: %s" i x#to_string)
         node#children;
     END_DEBUG;
@@ -1125,15 +1125,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | L.Ambiguous Ambiguous.Tuple -> begin (* array-element or array-section or substring *)
               DEBUG_MSG "array-element or array-section or substring";
               let is_section_subscript lab =
-                let b = 
+                let b =
                   L.is_subscript_triplet lab || not (L.is_ambiguous_triplet_or_range lab)
                 in
                 DEBUG_MSG "is_section_subscript: %s -> %B" (L.to_string lab) b;
                 b
               in
-              if 
-                (List.length last#children) > 1 || 
-                List.exists (fun n -> is_section_subscript n#label) last#children 
+              if
+                (List.length last#children) > 1 ||
+                List.exists (fun n -> is_section_subscript n#label) last#children
               then begin (* last -> part-name or section-subscript *)
                 DEBUG_MSG "the last is part-name or section-subscript";
                 disambiguate_part_ref_elem last
@@ -1159,7 +1159,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                     end
                 end
                 | _ -> begin
-                    WARN_MSG "invalid label: %s (%s)" 
+                    WARN_MSG "invalid label: %s (%s)"
                       (L.to_string last2#label) (loc_to_str last2#loc);
                     assert false
                 end
@@ -1181,7 +1181,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         let _prefix0, _last0 = Xlist.partition_at_last node#children in
         let prefix0, last0, imgs =
           match _last0#label with
-          | L.ImageSelector ->  
+          | L.ImageSelector ->
               let prefix1, last1 = Xlist.partition_at_last _prefix0 in
               prefix1, last1, [_last0]
           | _ -> _prefix0, _last0, []
@@ -1201,9 +1201,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
             if is_elem then begin
               node#relab L.Substring;
               let aname = get_name_of_part_names prefix0 in
-              let parent = 
-                new Ast.node 
-                  ~lloc:(lloc_of_nodes prefix) ~children:prefix0 (L.ArrayElement aname) 
+              let parent =
+                new Ast.node
+                  ~lloc:(lloc_of_nodes prefix) ~children:prefix0 (L.ArrayElement aname)
               in
               set_binding_of_subobject parent;
               node#set_children (parent :: last0 :: imgs)
@@ -1222,9 +1222,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
               | _ ->
                   node#relab L.Substring;
                   let cname = get_name_of_part_names prefix0 in
-                  let parent = 
-                    new Ast.node 
-                      ~lloc:(lloc_of_nodes prefix) ~children:prefix0 (L.StructureComponent cname) 
+                  let parent =
+                    new Ast.node
+                      ~lloc:(lloc_of_nodes prefix) ~children:prefix0 (L.StructureComponent cname)
                   in
                   set_binding_of_subobject parent;
                   node#set_children (parent :: last0 :: imgs)
@@ -1241,7 +1241,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
               relab_subobject (fun n -> L.ArraySection n) node;
               set_binding_of_subobject node
             end
-            else 
+            else
               let aaname = get_name_of_part_names node#children in
               default ~label:(L.Ambiguous (Ambiguous.ArrayAccess aaname)) ()
         end
@@ -1258,8 +1258,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
         | last_label -> begin
             WARN_MSG "%s" (Xlist.to_string (fun (_, x) -> L.to_string x) ";" l);
-            failwith 
-              (sprintf "Disambg.disambiguate_variable: invalid label: %s [%s]" 
+            failwith
+              (sprintf "Disambg.disambiguate_variable: invalid label: %s [%s]"
                  (L.to_string last_label) (loc_to_str last#loc))
         end
     end
@@ -1337,27 +1337,27 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let find_linda_keyword =
     let keyword_list =
-      [ 
+      [
         "in",      LindaCall.In;
         "inp",     LindaCall.Inp;
         "rd",      LindaCall.Rd;
         "rdp",     LindaCall.Rdp;
         "out",     LindaCall.Out;
         "eval",    LindaCall.Eval;
-      ] in 
+      ] in
     let keyword_table = Hashtbl.create (List.length keyword_list) in
-    let _ = 
-      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-        keyword_list 
+    let _ =
+      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+        keyword_list
     in
-    let find s = 
+    let find s =
       Hashtbl.find keyword_table (String.lowercase_ascii s)
     in
     find
 
   let disambiguate_linda_call node =
     match node#children_labels with
-    | [_,L.Ambiguous (Ambiguous.Designator n);tpl,L.Ambiguous Ambiguous.Tuple] 
+    | [_,L.Ambiguous (Ambiguous.Designator n);tpl,L.Ambiguous Ambiguous.Tuple]
     | [_,L.PartName n;tpl,L.SectionSubscriptList _]
       -> begin
         try
@@ -1384,8 +1384,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | L.Ambiguous _ -> begin
         let contain_linda_formal =
           try
-            visit 
-              (fun nd -> 
+            visit
+              (fun nd ->
                 match nd#label with
                 | L.LindaFormal -> raise Exit
                 | _ -> ()
@@ -1575,7 +1575,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     match node#label with
     | L.Constant c -> begin
         match c with
-        | Constant.IntLiteralConstant s 
+        | Constant.IntLiteralConstant s
         | Constant.RealLiteralConstant s -> s
         | _ -> raise Not_found
     end
@@ -1589,7 +1589,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         match node#children with
         | [nd] -> begin
             match nd#label with
-            | L.Constant Constant.IntLiteralConstant s 
+            | L.Constant Constant.IntLiteralConstant s
             | L.Constant Constant.RealLiteralConstant s -> sign^s
             | _ -> raise Not_found
         end
@@ -1616,10 +1616,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> ()
 
 
-  let disambiguate_ac_value_or_io_item 
-      implied_do_lab 
-      mk_implied_do_control_lab 
-      node 
+  let disambiguate_ac_value_or_io_item
+      implied_do_lab
+      mk_implied_do_control_lab
+      node
       =
     DEBUG_MSG "disambiguating:\n%s" (Printer.subtree_to_string node);
     let nds_to_str = Xlist.to_string (fun n -> L.to_string n#label) ";" in
@@ -1655,13 +1655,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   let disambiguate_ac_value node =
-    disambiguate_ac_value_or_io_item 
+    disambiguate_ac_value_or_io_item
       L.AcImpliedDo
       (fun v -> L.AcImpliedDoControl v)
       node
 
   let disambiguate_io_item node =
-    disambiguate_ac_value_or_io_item 
+    disambiguate_ac_value_or_io_item
       L.IoImpliedDo
       (fun v -> L.IoImpliedDoControl v)
       node
@@ -1777,7 +1777,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         | L.ProcName name -> set_binding_of_subprogram_reference ~defer node
 
         | _ -> ()
-      ) 
+      )
 
 
   let disambiguate_pp_section f pp_section_node =
@@ -1790,22 +1790,22 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let rec doit node =
       match node#label with
       | L.ProgramUnit pu -> begin
-          match pu with 
-          | ProgramUnit.FunctionSubprogram n -> 
-              node#relab 
+          match pu with
+          | ProgramUnit.FunctionSubprogram n ->
+              node#relab
                 (L.InternalSubprogram (InternalSubprogram.FunctionSubprogram n))
-          | ProgramUnit.SubroutineSubprogram n -> 
-              node#relab 
+          | ProgramUnit.SubroutineSubprogram n ->
+              node#relab
                 (L.InternalSubprogram (InternalSubprogram.SubroutineSubprogram n))
           | _ -> ()
       end
       | L.ModuleSubprogram is -> begin (* impossible? *)
-          match is with 
-          | ModuleSubprogram.FunctionSubprogram n -> 
-              node#relab 
+          match is with
+          | ModuleSubprogram.FunctionSubprogram n ->
+              node#relab
                 (L.InternalSubprogram (InternalSubprogram.FunctionSubprogram n))
-          | ModuleSubprogram.SubroutineSubprogram n -> 
-              node#relab 
+          | ModuleSubprogram.SubroutineSubprogram n ->
+              node#relab
                 (L.InternalSubprogram (InternalSubprogram.SubroutineSubprogram n))
       end
       | L.PpBranch -> begin
@@ -1822,21 +1822,21 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let rec doit node =
       match node#label with
       | L.ProgramUnit pu -> begin
-          match pu with 
-          | ProgramUnit.FunctionSubprogram n -> 
+          match pu with
+          | ProgramUnit.FunctionSubprogram n ->
               node#relab (L.ModuleSubprogram (ModuleSubprogram.FunctionSubprogram n))
 
-          | ProgramUnit.SubroutineSubprogram n -> 
+          | ProgramUnit.SubroutineSubprogram n ->
               node#relab (L.ModuleSubprogram (ModuleSubprogram.SubroutineSubprogram n))
           | _ -> ()
       end
       | L.InternalSubprogram is -> begin (* impossible? *)
-          match is with 
-          | InternalSubprogram.FunctionSubprogram n -> 
-              node#relab 
+          match is with
+          | InternalSubprogram.FunctionSubprogram n ->
+              node#relab
                 (L.ModuleSubprogram (ModuleSubprogram.FunctionSubprogram n))
-          | InternalSubprogram.SubroutineSubprogram n -> 
-              node#relab 
+          | InternalSubprogram.SubroutineSubprogram n ->
+              node#relab
                 (L.ModuleSubprogram (ModuleSubprogram.SubroutineSubprogram n))
       end
       | L.PpBranch -> begin
@@ -1902,8 +1902,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let lv_to_string lv = "<"^(Xlist.to_string (fun x -> x) ":" lv)^">" in
 
     let tpl_to_string (dc, nd, lv, blk, b_opt, lab) =
-      sprintf "(%s, %s, %s, %s, %s, %s)" 
-        dc#to_string 
+      sprintf "(%s, %s, %s, %s, %s, %s)"
+        dc#to_string
         nd#to_string
         (lv_to_string lv) (* nonblock do level *)
         (blk_to_string blk)
@@ -1934,7 +1934,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       DEBUG_MSG "PUSH! %s" (tpl_to_string tpl);
       Stack.push tpl stack
     in
-    let pop() = 
+    let pop() =
       let tpl = Stack.pop stack in
       DEBUG_MSG "POP! %s" (tpl_to_string tpl);
       let (_, _, _, blk, b_opt, _) = tpl in
@@ -1983,8 +1983,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
               let lab' = get_do_label nd#label in
               let blk' = new Ast.node L.DoBlock in
-              let cnt' = 
-                new Ast.node ~lloc:nd#lloc ~children:[nd; blk'] (L.DoConstruct nd#get_var_opt) 
+              let cnt' =
+                new Ast.node ~lloc:nd#lloc ~children:[nd; blk'] (L.DoConstruct nd#get_var_opt)
               in
               add_new_block cnt' blk';
               if lab' <> lab || (lab' = "" && lab = "") then begin
@@ -2064,7 +2064,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                             end
                           done;
                           []
-                        with 
+                        with
                           Outermost l' -> l'
                       end
                       else begin
@@ -2080,7 +2080,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                     l
                   end
                 with
-                  Not_found -> 
+                  Not_found ->
                     add_to_blk blk nd;
                     l
               end
@@ -2102,7 +2102,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                 end
                 else begin
                   if not_parsing_partially then
-                    parse_warning_loc nd#loc "misplaced end-do-stmt"; 
+                    parse_warning_loc nd#loc "misplaced end-do-stmt";
                   l
                 end
               end
@@ -2210,7 +2210,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 (*
     begin
       List.iter2
-        (fun x y -> 
+        (fun x y ->
           if x != y then begin
             Xprint.message "%s != %s" x#to_string y#to_string;
             assert false
@@ -2226,20 +2226,20 @@ module F (Stat : Parser_aux.STATE_T) = struct
         spcs, excs @ dtvs
     in
 
-    let specs = 
-      List.fold_left 
-        (fun l nd -> 
+    let specs =
+      List.fold_left
+        (fun l nd ->
           set_pp_context Context.Tspecification_part nd;
           nd :: l
         ) [] spcs'
     in
     let execs =
       List.fold_left
-      (fun l nd -> 
+      (fun l nd ->
         set_pp_context Context.Texecution_part nd;
-        if 
-          L.is_specification_part_construct nd#label && 
-          not (L.is_execution_part_construct nd#label) 
+        if
+          L.is_specification_part_construct nd#label &&
+          not (L.is_execution_part_construct nd#label)
         then
           parse_warning_loc nd#loc "invalid construct order: %s" (L.to_simple_string nd#label);
         nd :: l
@@ -2309,16 +2309,16 @@ module F (Stat : Parser_aux.STATE_T) = struct
            match nd#label with
            | L.FormatItem item -> begin
                if F_format_item.is_bare_vfe item && nd#nchildren = 1 then begin
-                 let finalized' = 
-                   match r_opt with 
-                   | Some x -> x :: finalized 
+                 let finalized' =
+                   match r_opt with
+                   | Some x -> x :: finalized
                    | _ -> finalized
                  in
                  (finalized', Some nd)
                end
                else begin
                  begin
-                   match r_opt with 
+                   match r_opt with
                    | Some x -> nd#add_children_l x#children
                    | None -> ()
                  end;
@@ -2326,9 +2326,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
                end
            end
            | _ -> begin
-               let finalized' = 
-                 match r_opt with 
-                 | Some x -> x::finalized 
+               let finalized' =
+                 match r_opt with
+                 | Some x -> x::finalized
                  | _ -> finalized
                in
                (nd :: finalized', None)
@@ -2349,7 +2349,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         try
           Hashtbl.find name_tbl x
         with
-          Not_found -> 
+          Not_found ->
             let s = Xset.create 0 in
             Hashtbl.add name_tbl x s;
             s
@@ -2364,7 +2364,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           with
             Not_found -> ()
       end
-      | L.Ambiguous (Ambiguous.GenericSpecOrUseName n), [] 
+      | L.Ambiguous (Ambiguous.GenericSpecOrUseName n), []
       | L.GenericSpec (GenericSpec.Name n), _ -> add_name n n
 
       | L.OnlyList, onlys -> List.iter collect_name onlys
@@ -2373,11 +2373,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     let only_nds =
       match ro_opt with
-      | Some nds -> 
-          List.iter collect_name nds; 
+      | Some nds ->
+          List.iter collect_name nds;
           nds
-      | None -> 
-          env#register_used_module mod_name; 
+      | None ->
+          env#register_used_module mod_name;
           []
     in
 
@@ -2420,13 +2420,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
                   if only_nds = [] then
                     env#register_name n (finder n)
                   else
-                    Xset.iter 
-                      (fun x -> env#register_name x (finder n)) 
-                      (Hashtbl.find name_tbl n) 
+                    Xset.iter
+                      (fun x -> env#register_name x (finder n))
+                      (Hashtbl.find name_tbl n)
                 end
               with
                 Not_found -> assert false
-                  
+
             ) dom;
           Hashtbl.iter (fun n _ -> Xset.remove dom n) name_tbl;
           DEBUG_MSG "dom: {%s}" (Xlist.to_string (fun x -> x) "," (Xset.to_list dom));

@@ -55,31 +55,31 @@ class parser_c = object (self)
       ast#set_ignored_LOC (env#ignored_regions#get_LOC);
 *)
       ast
-    with 
+    with
     | Parsing.Parse_error ->
 	let l, c = env#current_pos_mgr#get_current_position in
-        fail_to_parse 
+        fail_to_parse
           ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
           "syntax error"
 
 
   initializer
-    let module S = struct 
+    let module S = struct
       let env      = env
-    end 
+    end
     in
     let module U = Ulexer.F (S) in
     let module P = Parser.Make (S) in
     parser_main <- PB.mkparser P.main;
     scanner <- new U.scanner;
-    _parse <- 
+    _parse <-
       (fun () ->
 	try
 	  self#__parse
 	with
 	| P.Error ->
 	    let l, c = env#current_pos_mgr#get_current_position in
-            fail_to_parse 
+            fail_to_parse
               ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
               "syntax error"
       )

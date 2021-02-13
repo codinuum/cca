@@ -522,7 +522,7 @@ class env = object (self)
   method set_java_lang_spec_JLS2    = java_lang_spec <- JLS2
 
 
-  method set_current_package_name n = 
+  method set_current_package_name n =
     current_package_name <- n
 
   method current_package_name = current_package_name
@@ -540,14 +540,14 @@ class env = object (self)
     DEBUG_MSG "POP(%d)" (Stack.length stack);
     try
       ignore (Stack.pop stack)
-    with 
+    with
       Stack.Empty ->
 	raise (Internal_error "Parser_aux.end_scope: stack empty")
 
   method current_frame =
     try
       Stack.top stack
-    with 
+    with
       Stack.Empty ->
 	raise (Internal_error "Parser_aux.current_frame: stack empty")
 
@@ -596,7 +596,7 @@ class env = object (self)
 
 
   method register_identifier ?(qualify=false) ?(skip=0) ident attr =
-    DEBUG_MSG "REGISTER(%d): \"%s\" -> %s" 
+    DEBUG_MSG "REGISTER(%d): \"%s\" -> %s"
       ((Stack.length stack) - skip) ident (iattr_to_str attr);
 
     let frame = self#get_frame ~skip attr in
@@ -631,12 +631,12 @@ class env = object (self)
 	    let filtered = List.filter afilt attrs in
 	    if filtered <> [] then
 	      raise (Attrs_found filtered)
-	  with 
+	  with
 	    Not_found -> ()
 	) stack;
       raise Not_found
-    with 
-      Attrs_found attrs -> 
+    with
+      Attrs_found attrs ->
 	if attrs = [] then
 	  raise Not_found
 	else begin
@@ -742,9 +742,9 @@ class env = object (self)
     let res =
       if is_simple name then begin
 	try
-	  let afilt = function 
-	    | IAclass _ | IAinterface _ | IAtypename _ 
-            | IAtypeparameter 
+	  let afilt = function
+	    | IAclass _ | IAinterface _ | IAtypename _
+            | IAtypeparameter
               -> true
 	    | _ -> false
 	  in
@@ -763,7 +763,7 @@ class env = object (self)
 	    try
 	      let res = classtbl#resolve ss in
 	      R_deferred(ss, frms, res)
-	    with 
+	    with
 	      Not_found -> R_deferred(ss, frms, "")
       end
       else begin (* qualified name: unresolved inner class or FQN *)
@@ -772,14 +772,14 @@ class env = object (self)
 	  let res = classtbl#resolve_qualified_type_name qname in
 	  DEBUG_MSG "resolved: %s --> %s" qname res;
 	  R_resolved res
-	with 
+	with
 	  Not_found ->
             let s = replace_dot_with_dollar ss in
 	    let frms = self#copy_current_stack in
 	    try
 	      let res = classtbl#resolve s in
 	      R_deferred(s, frms, res)
-	    with 
+	    with
 	      Not_found -> R_deferred(ss, frms, "")
       end
     in
@@ -841,10 +841,10 @@ class env = object (self)
 	      (fun frame ->
 		try
 		  match frame#find lname with
-		  | IAclass s | IAinterface s | IAtypename s -> 
+		  | IAclass s | IAinterface s | IAtypename s ->
                       raise (Str_found s)
 		  | _ -> ()
-		with 
+		with
 		  Not_found -> ()
 	      ) frames;
 	    raise Not_found
@@ -880,7 +880,7 @@ class env = object (self)
 	  end
 	  else
 	    resolve_lname id
-	with 
+	with
 	  Not_found ->
             (*warning_msg "name not resolved: %s" id;*)
             (*sprintf "/*[unresolved]*/%s" id*)
@@ -894,10 +894,10 @@ class env = object (self)
       try (* not yet (only class names are resolved) *)
 	let fqn = classtbl#resolve ident in
 	NAtype (R_deferred(ident, self#copy_current_stack, fqn))
-      with 
-	Not_found -> 
+      with
+	Not_found ->
 	  (* lookup_name ident *)
-	  NAunknown (* NApackage *) 
+	  NAunknown (* NApackage *)
     in
     let check1() =
       DEBUG_MSG "checking...";
@@ -919,7 +919,7 @@ class env = object (self)
         end
         | IAtypeparameter -> NAtype (R_resolved ident)
 	| _ -> assert false
-      with 
+      with
 	Not_found -> check2()
     in
     attr := check1()
@@ -945,7 +945,7 @@ class env = object (self)
         DEBUG_MSG "spath=%s" spath;
         DEBUG_MSG "ppath=%s" ppath;
         DEBUG_MSG "_path=%s" _path;
-          
+
 	if self#current_source#tree#is_dir ppath then begin
 
           if not (classtbl#is_package prefix) then begin
@@ -1012,7 +1012,7 @@ module F (Stat : STATE_T) = struct
     let start_line, start_char = pos_mgr#get_position start_offset in
     let end_line, end_char = pos_mgr#get_position end_offset in
 (*
-    DEBUG_MSG "%d:%d-%d:%d(%d-%d)" 
+    DEBUG_MSG "%d:%d-%d:%d(%d-%d)"
       start_line start_char end_line end_char start_offset end_offset;
 *)
     (start_line, start_char), (end_line, end_char), start_offset, end_offset
@@ -1023,13 +1023,13 @@ module F (Stat : STATE_T) = struct
     let loc = Loc.make ~fname:pos_mgr#filename so eo sl sc el ec in
     loc
 
-  let parse_error start_offset end_offset msg = 
+  let parse_error start_offset end_offset msg =
     let (sl, sc), (el, ec), so, eo = get_range start_offset end_offset in
     let line, char = env#current_pos_mgr#get_position (eo + 1) in
     let head = sprintf "[%d:%d]" line char in
     fail_to_parse ~head msg
 
-  let parse_error_loc loc (fmt : ('a, unit, string, 'b) format4) : 'a = 
+  let parse_error_loc loc (fmt : ('a, unit, string, 'b) format4) : 'a =
     let head = sprintf "[%s]" (Loc.to_string loc) in
     Printf.ksprintf (fail_to_parse ~head) fmt
 
@@ -1130,15 +1130,15 @@ module F (Stat : STATE_T) = struct
   let _simple_name_to_expr loc n = _mkexpr loc (Eprimary (_simple_name_to_prim loc n))
   let mkpkgdecl loc a n = { pd_annotations=a; pd_name=n; pd_loc=loc }
   let _mkcbd loc d = { cbd_desc=d; cbd_loc=loc }
-  let mkfd loc ms ty vds = { fd_modifiers=ms; 
-			     fd_type=ty; 
-			     fd_variable_declarators=vds; 
+  let mkfd loc ms ty vds = { fd_modifiers=ms;
+			     fd_type=ty;
+			     fd_variable_declarators=vds;
 			     fd_loc=loc;
 			   }
 
-  let mkec loc annots id args cb = { ec_annotations=annots; 
-				     ec_identifier=id; 
-				     ec_arguments=args; 
+  let mkec loc annots id args cb = { ec_annotations=annots;
+				     ec_identifier=id;
+				     ec_arguments=args;
 				     ec_class_body=cb;
 				     ec_loc=loc
 				   }
@@ -1194,12 +1194,12 @@ module F (Stat : STATE_T) = struct
 	match env#inner_most_class with
 	| IAclass s | IAinterface s | IAtypename s -> s^sep^id
 	| _ -> raise Not_found
-      with 
+      with
 	Not_found ->
 	  let pname = env#current_package_name in
-	  if pname = "" then 
-	    id 
-	  else 
+	  if pname = "" then
+	    id
+	  else
 	    pname^"."^id
     in
     DEBUG_MSG "\"%s\" -> \"%s\"" id fqn;
@@ -1282,7 +1282,7 @@ module F (Stat : STATE_T) = struct
           begin
             try
               List.iter
-                (fun a -> 
+                (fun a ->
 	          match a with
 	          | IAclass s | IAinterface s | IAtypename s -> raise (Str_found s)
                   | IAtypeparameter -> raise (Str_found id)
@@ -1304,7 +1304,7 @@ module F (Stat : STATE_T) = struct
 	  Not_found -> begin
 	    try
 	      env#classtbl#resolve id
-	    with 
+	    with
 	      Not_found -> begin
 		try
 		  let s_path = env#classtbl#get_source_dir#path in
@@ -1313,7 +1313,7 @@ module F (Stat : STATE_T) = struct
 		    id
 		  else
 		    raise Not_found
-		with 
+		with
 		  Not_found ->
                     try
                       env#classtbl#resolve id
@@ -1471,11 +1471,11 @@ module F (Stat : STATE_T) = struct
   let mktyarg so eo d = _mktyarg (get_loc so eo) d
   let mktyparam so eo (al, tvar) tb = { tp_type_variable=tvar;
                                         tp_annotations=al;
-                                        tp_type_bound=tb; 
+                                        tp_type_bound=tb;
                                         tp_loc=(get_loc so eo);
 				      }
-  let _mktb loc rty ab = { tb_reference_type=rty; 
-			    tb_additional_bounds=ab; 
+  let _mktb loc rty ab = { tb_reference_type=rty;
+			    tb_additional_bounds=ab;
 			    tb_loc=loc;
 			  }
   let mktb so eo rty ab = _mktb (get_loc so eo) rty ab
@@ -1644,8 +1644,8 @@ module F (Stat : STATE_T) = struct
   let mkexc so eo c = { exc_class=c; exc_loc=(get_loc so eo) }
   let mkexi so eo ifs = { exi_interfaces=ifs; exi_loc=(get_loc so eo) }
   let mkim so eo ifs = { im_interfaces=ifs; im_loc=(get_loc so eo) }
-  let mkeb so eo ecs cbds = { eb_enum_constants=ecs; 
-			      eb_class_body_declarations=cbds; 
+  let mkeb so eo ecs cbds = { eb_enum_constants=ecs;
+			      eb_class_body_declarations=cbds;
 			      eb_loc=(get_loc so eo)
 			    }
   let mkvd so eo vdid vdini = { vd_variable_declarator_id=vdid;
@@ -1696,8 +1696,8 @@ module F (Stat : STATE_T) = struct
       parse_error_loc loc "syntax error: %s" s
 
 
-  let mklvd so eo ms ty vds = { lvd_modifiers=ms; 
-				lvd_type=ty; 
+  let mklvd so eo ms ty vds = { lvd_modifiers=ms;
+				lvd_type=ty;
 				lvd_variable_declarators=vds;
 				lvd_loc=(get_loc so eo)
 			      }

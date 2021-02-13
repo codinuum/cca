@@ -19,7 +19,7 @@ module PB = Parserlib_base
 
 type java_language_specification =
   | JLSx
-  | JLS2 
+  | JLS2
   | JLS3
 
 exception Internal_error of string
@@ -61,7 +61,7 @@ let pkg_to_path, path_to_pkg =
   let dot_pat = Str.regexp_string "." in
   let sep_pat = Str.regexp Filename.dir_sep in
 
-  let pkg_to_path pkg = 
+  let pkg_to_path pkg =
     Str.global_replace dot_pat Filename.dir_sep pkg
   in
   let path_to_pkg path =

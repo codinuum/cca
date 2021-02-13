@@ -147,7 +147,7 @@ module type T = sig
 end
 
 
-let conv_loc 
+let conv_loc
     { Ast.Loc.filename     = fn;
       Ast.Loc.start_offset = so;
       Ast.Loc.end_offset   = eo;
@@ -155,7 +155,7 @@ let conv_loc
       Ast.Loc.start_char   = sc;
       Ast.Loc.end_line     = el;
       Ast.Loc.end_char     = ec;
-    } = 
+    } =
   Loc.make ~fname:fn so eo sl sc el ec
 
 open Charpool
@@ -177,8 +177,8 @@ end
 module PpDirective = struct
   include Labels.PpDirective
 
-  let branch_to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in 
+  let branch_to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in
     function
       | If c     -> mkstr_str 0 c
       | Elif c   -> mkstr_str 2 c
@@ -191,8 +191,8 @@ module PpDirective = struct
     | Error m   -> mkstr_str 0 m
     | Warning m -> mkstr_str 2 m
 
-  let _to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in 
+  let _to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in
     function
       | Define(n, b)  -> mkstr_strs 0 [n;b]
       | Undef n       -> combo 2 [n]
@@ -208,8 +208,8 @@ end
 module ProgramUnit = struct
   include Labels.ProgramUnit
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in
     function
       | FunctionSubprogram n   -> combo 0 [n]
       | SubroutineSubprogram n -> combo 1 [n]
@@ -223,8 +223,8 @@ end
 module InternalSubprogram = struct
   include Labels.InternalSubprogram
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in
     function
       | FunctionSubprogram n   -> combo 0 [n]
       | SubroutineSubprogram n -> combo 1 [n]
@@ -234,8 +234,8 @@ end
 module ModuleSubprogram = struct
   include Labels.ModuleSubprogram
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in
     function
       | FunctionSubprogram n   -> combo 0 [n]
       | SubroutineSubprogram n -> combo 1 [n]
@@ -244,7 +244,7 @@ end
 
 module IntentSpec = struct
   include Labels.IntentSpec
-      
+
   let to_short_string ?(ignore_identifiers_flag=false) = function
     | In    -> mkstr 0
     | Out   -> mkstr 1
@@ -276,7 +276,7 @@ module AttrSpec = struct
     | Volatile     -> mkstr 17
 
     | Automatic    -> mkstr 18
-    | Static       -> mkstr 19    
+    | Static       -> mkstr 19
 
     | Codimension  -> mkstr 20
     | Contiguous   -> mkstr 21
@@ -314,7 +314,7 @@ end
 module Stmt = struct
   include Labels.Stmt
 
-  let _to_short_string ?(ignore_identifiers_flag=false) = 
+  let _to_short_string ?(ignore_identifiers_flag=false) =
     let combo2 = combo2 ~ignore_identifiers_flag in function
     | AllocatableStmt          -> mkstr2 0
     | AllocateStmt             -> mkstr2 1
@@ -480,7 +480,7 @@ end
 module Ambiguous = struct
   include Labels.Ambiguous
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
+  let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
     | Tuple            -> mkstr 0
     | Primary          -> mkstr 1
@@ -509,8 +509,8 @@ end
 module Constant = struct
   include Labels.Constant
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | BozLiteralConstant s         -> catstr [mkstr 0; s]
     | CharLiteralConstant s        -> catstr [mkstr 1; s]
     | IntLiteralConstant s         -> catstr [mkstr 2; s]
@@ -527,7 +527,7 @@ end
 
 module IntrinsicOperator = struct
   include Labels.IntrinsicOperator
-      
+
   let to_short_string ?(ignore_identifiers_flag=false) = function
     | AND    -> mkstr 0
     | OR     -> mkstr 1
@@ -559,8 +559,8 @@ end
 module DefinedOperator = struct
   include Labels.DefinedOperator
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | DefinedOp s       -> combo 0 [s]
     | DefinedUnaryOp s  -> combo 1 [s]
     | DefinedBinaryOp s -> combo 2 [s]
@@ -583,8 +583,8 @@ module OclDirective = struct
     | Sthen -> mkstr 1
     | Selse -> mkstr 2
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | ERROR                            -> mkstr 0
     | ArrayFusion                      -> mkstr 2
     | EndArrayFusion                   -> mkstr 3
@@ -630,15 +630,15 @@ module OclDirective = struct
     | Noreduction                      -> mkstr 43
     | LoopNointerchange                -> mkstr 44
 
-    | Noarraypad n                     -> combo 45 [n] 
+    | Noarraypad n                     -> combo 45 [n]
 
-    | ArraySubscript ns                -> combo 46 ns 
-    | LoopInterchange ns               -> combo 47 ns 
-    | Novrec ns                        -> combo 48 ns 
-    | CacheSubsectorAssign ns          -> combo 49 ns 
-    | Norecurrence ns                  -> combo 50 ns 
-    | Independent ns                   -> combo 51 ns 
-    | Temp ns                          -> combo 52 ns 
+    | ArraySubscript ns                -> combo 46 ns
+    | LoopInterchange ns               -> combo 47 ns
+    | Novrec ns                        -> combo 48 ns
+    | CacheSubsectorAssign ns          -> combo 49 ns
+    | Norecurrence ns                  -> combo 50 ns
+    | Independent ns                   -> combo 51 ns
+    | Temp ns                          -> combo 52 ns
 
     | PrefetchIteration i              -> catstr [mkstr 53; string_of_int i]
     | PrefetchIterationL2 i            -> catstr [mkstr 54; string_of_int i]
@@ -671,9 +671,9 @@ module OclDirective = struct
 
     | LoopPartParallel                 -> mkstr 76
     | LoopNopartParallel               -> mkstr 77
-    | FirstPrivate ns                  -> combo 78 ns 
-    | LastPrivate ns                   -> combo 79 ns 
-    | TempPrivate ns                   -> combo 80 ns 
+    | FirstPrivate ns                  -> combo 78 ns
+    | LastPrivate ns                   -> combo 79 ns
+    | TempPrivate ns                   -> combo 80 ns
     | ParallelCyclic i_opt             -> catstr ((mkstr 81)::(opt_to_list_map string_of_int i_opt))
 
 end
@@ -992,8 +992,8 @@ module OmpDirective = struct
     | C_do        -> mkstr 2
     | C_taskgroup -> mkstr 3
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | ERROR                -> mkstr 0
     | Barrier              -> mkstr 1
     | Do false             -> mkstr 2
@@ -1081,8 +1081,8 @@ end
 module OmpConstruct = struct
   include Labels.OmpConstruct
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
       | Atomic(a_opt, false) -> catstr ((mkstr 0)::(opt_to_list_map OmpDirective.atomic_sub_to_simple_string a_opt))
       | Critical n_opt    -> combo 1 (opt_to_list n_opt)
       | Do false          -> mkstr 2
@@ -1183,8 +1183,8 @@ module AccDirective = struct
     | Capture -> mkstr 2
     | Update  -> mkstr 3
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
       | ERROR           -> mkstr 0
       | Atomic a_opt    -> catstr ((mkstr 1)::(opt_to_list_map atomic_sub_to_simple_string a_opt))
       | Parallel        -> mkstr 2
@@ -1214,8 +1214,8 @@ end
 module AccConstruct = struct
   include Labels.AccConstruct
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    (*let combo = combo ~ignore_identifiers_flag in*) function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    (*let combo = combo ~ignore_identifiers_flag in*) function
       | Atomic a_opt -> catstr ((mkstr 0)::(opt_to_list_map AccDirective.atomic_sub_to_simple_string a_opt))
       | Parallel     -> mkstr 1
       | Kernels      -> mkstr 2
@@ -1243,8 +1243,8 @@ end
 module TypeSpec = struct
   include Labels.TypeSpec
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Character         -> mkstr 0
     | Complex           -> mkstr 1
     | DoublePrecision   -> mkstr 2
@@ -1270,8 +1270,8 @@ module GenericSpec = struct
     | RK_unformatted -> mkstr 2
     | RK_weird n     -> combo 3 [n]
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Assignment           -> mkstr 0
     | Name n               -> combo 1 [n]
     | DefinedOperator op   -> catstr [mkstr 2; DefinedOperator.to_short_string op]
@@ -1284,8 +1284,8 @@ end
 module IoControlSpec = struct
   include Labels.IoControlSpec
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Unit             -> mkstr 0
     | Fmt              -> mkstr 1
     | Rec              -> mkstr 2
@@ -1316,8 +1316,8 @@ end
 module InquireSpec = struct
   include Labels.InquireSpec
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Unit            -> mkstr 0
     | File            -> mkstr 1
     | Iostat          -> mkstr 2
@@ -1358,7 +1358,7 @@ module InquireSpec = struct
     | Recordsize      -> mkstr 36
     | Recordtype      -> mkstr 37
     | Share           -> mkstr 38
-    
+
     | Asynchronous -> mkstr 39
     | Decimal      -> mkstr 40
     | Encoding     -> mkstr 41
@@ -1377,8 +1377,8 @@ end
 module ConnectSpec = struct
   include Labels.ConnectSpec
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Unit            -> mkstr 0
     | Iostat          -> mkstr 1
     | File            -> mkstr 2
@@ -1415,7 +1415,7 @@ module ConnectSpec = struct
     | Title             -> mkstr 32
     | Useropen          -> mkstr 33
     | Type              -> mkstr 34
-    
+
     | Asynchronous -> mkstr 35
     | Decimal      -> mkstr 36
     | Encoding     -> mkstr 37
@@ -1430,8 +1430,8 @@ end
 module CloseSpec = struct
   include Labels.CloseSpec
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Unit    -> mkstr 0
     | Iostat  -> mkstr 1
     | Status  -> mkstr 2
@@ -1446,8 +1446,8 @@ end
 module PositionSpec = struct
   include Labels.PositionSpec
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Unit        -> mkstr 0
     | Iostat      -> mkstr 1
     | Err lab     -> combo 2 [lab]
@@ -1458,15 +1458,15 @@ end
 module Format = struct
   include Labels.Format
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
-    let combo = combo ~ignore_identifiers_flag in function 
+  let to_short_string ?(ignore_identifiers_flag=false) =
+    let combo = combo ~ignore_identifiers_flag in function
     | Expr         -> mkstr 0
     | ListDirected -> mkstr 1
     | Label lab    -> combo 2 [lab]
 
 end
 
-module PrefixSpec = struct 
+module PrefixSpec = struct
   include Labels.PrefixSpec
 
   let to_short_string ?(ignore_identifiers_flag=false) = function
@@ -1608,8 +1608,8 @@ end
 include Label
 
 
-let to_short_string ?(ignore_identifiers_flag=false) = 
-  let combo2 = combo2 ~ignore_identifiers_flag in function 
+let to_short_string ?(ignore_identifiers_flag=false) =
+  let combo2 = combo2 ~ignore_identifiers_flag in function
   | DUMMY                             -> mkstr2 0
   | EMPTY                             -> mkstr2 1
   | ERROR _                           -> mkstr2 2
@@ -1621,7 +1621,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | CaseConstruct                     -> mkstr2 8
   | DoConstruct v_opt                 -> combo2 9 (opt_to_list v_opt)
   | ForallConstruct                   -> mkstr2 10
-  | IfConstruct                       -> mkstr2 11 
+  | IfConstruct                       -> mkstr2 11
   | WhereConstruct                    -> mkstr2 12
   | DerivedTypeDef n                  -> combo2 13 [n]
   | ArrayElement n                    -> combo2 14 [n]
@@ -1841,7 +1841,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | Allocation n             -> combo2 199 [n]
   | AllocateShapeSpec        -> mkstr2 200
   | AllocateShapeSpecList    -> mkstr2 201
-  
+
   | PpBranchDerivedType          -> mkstr2 202
   | PpBranchEndType              -> mkstr2 203
   | SelectTypeConstruct          -> mkstr2 204
@@ -1972,14 +1972,14 @@ let annotation_to_string = Annotation.to_string
 let is_hunk_boundary _ _ = false (* not yet *)
 
 (* These labels are collapsible whether they are leaves or not. *)
-let forced_to_be_collapsible lab = 
+let forced_to_be_collapsible lab =
   false
 
 
-let is_collapse_target options lab = 
-  if options#no_collapse_flag then 
+let is_collapse_target options lab =
+  if options#no_collapse_flag then
     false
-  else 
+  else
     match lab with
     | PpDirective _
     | OclDirective _
@@ -1991,13 +1991,13 @@ let is_collapse_target options lab =
     | InternalSubprogram _
     | ModuleSubprogram _
     | Stmt _
-    | CaseConstruct   
+    | CaseConstruct
     | DoConstruct _
-    | ForallConstruct 
-    | IfConstruct     
-    | WhereConstruct  
+    | ForallConstruct
+    | IfConstruct
+    | WhereConstruct
     | SelectTypeConstruct
-    | AssociateConstruct 
+    | AssociateConstruct
     | BlockConstruct
     | CriticalConstruct
 
@@ -2063,7 +2063,7 @@ let is_collapse_target options lab =
 
       -> true
 
-    | _ -> false      
+    | _ -> false
 
 
 let is_to_be_notified = function
@@ -2076,16 +2076,16 @@ let is_to_be_notified = function
   | InternalSubprogram _
   | ModuleSubprogram _
   | Stmt _
-  | CaseConstruct   
-  | DoConstruct _    
-  | ForallConstruct 
-  | IfConstruct     
-  | WhereConstruct  
+  | CaseConstruct
+  | DoConstruct _
+  | ForallConstruct
+  | IfConstruct
+  | WhereConstruct
   | SelectTypeConstruct
   | AssociateConstruct
   | BlockConstruct
   | CriticalConstruct
-  | DerivedTypeDef _  
+  | DerivedTypeDef _
   | InterfaceBlock _
   | EnumDef
     -> true
@@ -2101,9 +2101,9 @@ let is_sequence = function
   | Block
   | InterfaceBody
   | SpecificationPart
-  | ExecutionPart    
-  | SubprogramPart   
-  | ImplicitPart     
+  | ExecutionPart
+  | SubprogramPart
+  | ImplicitPart
   | Fragment
   | TypeBoundProcedurePart
     -> true
@@ -2124,7 +2124,7 @@ let is_boundary = function
 
 
 let is_primary = function
-  | Constant _ 
+  | Constant _
   | Name _
   | FunctionReference _
   | ArrayConstructor
@@ -2161,7 +2161,7 @@ let relabel_allowed = function
   | LoopControl _, LoopControlConcurrent | LoopControlConcurrent, LoopControl _
   | ExecutionPart, Block | Block, ExecutionPart (* only for mapping children *)
     -> true
-  | l1, l2 -> 
+  | l1, l2 ->
       (is_expr l1 && is_expr l2) ||
       (anonymize2 l1 = anonymize2 l2)
 
@@ -2179,14 +2179,14 @@ let has_names lab =
   try
     ignore (get_names lab);
     true
-  with 
+  with
     Not_found -> false
 
 let has_a_name lab =
   try
     ignore (get_name lab);
     true
-  with 
+  with
     Not_found -> false
 
 let is_named lab =
@@ -2218,7 +2218,7 @@ let getlab nd = (Obj.obj nd#data#_label : t)
 
 
 
-let cannot_be_keyroot nd = 
+let cannot_be_keyroot nd =
   match getlab nd with
   | Program
   | ProgramUnit _
@@ -2267,12 +2267,12 @@ let is_pp_define = function
   | _ -> false
 
 let is_pp_include = function
-  | PpDirective 
+  | PpDirective
       {PpDirective.pp_label=PpDirective.Include _} -> true
   | _ -> false
 
 let get_pp_include_path = function
-  | PpDirective 
+  | PpDirective
       {PpDirective.pp_label=PpDirective.Include h} -> HeaderFile.to_path h
   | _ -> raise Not_found
 
@@ -2333,8 +2333,8 @@ let is_subprogram_part = function
   | _ -> false
 
 let is_external_subprogram = function
-  | ProgramUnit 
-      (ProgramUnit.FunctionSubprogram _ | 
+  | ProgramUnit
+      (ProgramUnit.FunctionSubprogram _ |
       ProgramUnit.SubroutineSubprogram _) -> true
   | _ -> false
 

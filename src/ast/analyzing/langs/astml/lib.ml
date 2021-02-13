@@ -28,7 +28,7 @@ let make_comparator = new Analyzing.tree_comparator
 
 let _ =
   Lang.register Sastml.parser_name
-    (new Lang.c 
+    (new Lang.c
        ~make_tree_comparator:make_comparator
        ~make_tree_builder:(new tree_builder)
        ~get_cache_key:file_digest_hex
@@ -41,7 +41,7 @@ let _ =
 let _ =
   Lang.register_external Sastml.parser_name Sastml.xparser_name_ccx
     (fun subname name ->
-      new Lang.c 
+      new Lang.c
         ~subname
         ~make_tree_comparator:make_comparator
         ~make_tree_builder:(new ext_tree_builder subname)

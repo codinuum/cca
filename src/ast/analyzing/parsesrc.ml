@@ -84,14 +84,14 @@ let set_fact_version str =
 
 let set_fact_proj s = options#set_fact_proj s
 
-let set_fact_proj_root s = 
+let set_fact_proj_root s =
   options#set_fact_proj_roots
     (Array.of_list ((Array.to_list options#fact_proj_roots) @ [s]))
 
 
 let usage_msg = sprintf "usage: %s [OPTIONS] FILE..\nOPTIONS:" Xprint.cmd_name
 
-let speclist = 
+let speclist =
   [
    "-version", Arg.Set show_version_flag, "\tshow version";
    "-verbose", Arg.Unit (fun () -> options#set_verbose_flag), "\tdisplay verbose messages";
@@ -101,7 +101,7 @@ let speclist =
    "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing in spite of errors";
 
 
-   "-keep-filtered-temp-file", Arg.Unit (fun () -> options#set_keep_filtered_temp_file_flag), 
+   "-keep-filtered-temp-file", Arg.Unit (fun () -> options#set_keep_filtered_temp_file_flag),
    "\tkeep filtered temporary file";
 
    "-parser:external", Arg.Unit set_external_parser_flags, "\t\trely on external parsers";
@@ -115,7 +115,7 @@ let speclist =
    "-dump:ast:compress", Arg.Unit set_dump_compressed_ast_flags, "\tdump compressed AST";
 
 (* cache *)
-   "-cache", Arg.String options#set_cache_dir_base, 
+   "-cache", Arg.String options#set_cache_dir_base,
    sprintf "DIR\tcache dir base (default: %s)" options#cache_dir_base;
 
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
@@ -124,7 +124,7 @@ let speclist =
    "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
    "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
 
-   (*"-localcachename", Arg.String options#set_local_cache_name, 
+   (*"-localcachename", Arg.String options#set_local_cache_name,
    sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;*)
 
 
@@ -175,12 +175,12 @@ let speclist =
 *)
    "-yacfe:if0",    Arg.Unit (fun () -> options#clear_ignore_if0_flag), "\t\tparse code in '#if 0' block";
 
-   "-incompleteinfo", Arg.Unit (fun () -> options#set_incomplete_info_flag), 
+   "-incompleteinfo", Arg.Unit (fun () -> options#set_incomplete_info_flag),
    "\tsome parts of info are omitted in AST (for counting nodes only)";
 
  ]
 
-let _ = 
+let _ =
   try
     Arg.parse
       speclist
@@ -192,7 +192,7 @@ let _ =
 
 let _ =
   if options#fact_into_virtuoso <> "" && options#fact_into_directory <> "" then begin
-    Xprint.error "options -fact:into-virtuoso and -fact:into-directory are mutually exclusive"; 
+    Xprint.error "options -fact:into-virtuoso and -fact:into-directory are mutually exclusive";
     exit 1
   end
 
@@ -204,7 +204,7 @@ let _ =
   end
 
 
-let astcore = 
+let astcore =
   let _ = Lang_base.setup_options options in
   new Astcore.c options
 
@@ -242,9 +242,9 @@ let _ =
       let last_proj_root = ref "" in
       let last_version = ref Entity.unknown_version in
 
-      Array.iteri 
-        (fun i f -> 
-	  let pr = 
+      Array.iteri
+        (fun i f ->
+	  let pr =
 	    try
               last_proj_root := options#fact_proj_roots.(i);
               !last_proj_root

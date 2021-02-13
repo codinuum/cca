@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * AST for C/C++
  *
  * cpp/tree.ml
@@ -206,13 +206,13 @@ let of_ast options ast =
 (*
   let mktid nd =
     Lang.mktid
-      (if options#incomplete_info_flag then 
-        "" 
-      else 
+      (if options#incomplete_info_flag then
+        ""
+      else
         Xhash.to_hex (new c options nd false)#digest)
-      (if options#incomplete_info_flag then 
-        "" 
-      else 
+      (if options#incomplete_info_flag then
+        ""
+      else
         nd#data#anonymized_label)
   in
 *)

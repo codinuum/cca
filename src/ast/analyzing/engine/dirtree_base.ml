@@ -57,10 +57,10 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
 
     val mutable digest = None
     method digest = digest
-    method set_digest d = 
+    method set_digest d =
       match _digest with
       | None ->
-          digest <- Some d; 
+          digest <- Some d;
           _digest <- Some d
       | Some d ->
           digest <- Some d
@@ -102,7 +102,7 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
       | None -> "")
 
     method to_string = self#id
-    method to_rep = 
+    method to_rep =
       sprintf "%s%s" entry#name
 	(match self#digest, self#content_digest with
 	| None, None -> ""
@@ -154,24 +154,24 @@ let _tbl_add tbl d nd =
   try
     let nds = Hashtbl.find tbl d in
     Hashtbl.replace tbl d (nd::nds)
-  with 
+  with
     Not_found -> Hashtbl.add tbl d [nd]
 
 
-let collapse_tree tree = 
+let collapse_tree tree =
   let tbl = Hashtbl.create 0 in
-  tree#scan_all 
-    (fun nd -> 
-      if nd == tree#root then 
+  tree#scan_all
+    (fun nd ->
+      if nd == tree#root then
 	tree#set_digest_of_root
       else
 	if not nd#is_leaf then begin
 	  tree#collapse_node nd;
 
-	  DEBUG_MSG "collapsed \"%s/\" digest=%s" 
+	  DEBUG_MSG "collapsed \"%s/\" digest=%s"
 	    nd#data#label nd#data#digest_string;
 
-          _tbl_add tbl nd#data#digest nd 
+          _tbl_add tbl nd#data#digest nd
 	end
     );
   tree#init;
@@ -192,10 +192,10 @@ let of_tree options mktbl (tree : Storage.tree) =
 
     let name = entry#name in
 
-    if 
-      (not is_top) && 
-      (name = Filename.current_dir_name || name = Filename.parent_dir_name) 
-    then 
+    if
+      (not is_top) &&
+      (name = Filename.current_dir_name || name = Filename.parent_dir_name)
+    then
       raise To_be_skipped;
 
 
@@ -203,8 +203,8 @@ let of_tree options mktbl (tree : Storage.tree) =
 
       let obj = new node_data tree entry in
 
-      let nodes = 
-        Xlist.filter_map 
+      let nodes =
+        Xlist.filter_map
           (fun e ->
             try
               Some (file_to_node false e)
@@ -213,16 +213,16 @@ let of_tree options mktbl (tree : Storage.tree) =
             | exn ->
                 Xprint.warning "%s" (Printexc.to_string exn);
                 None
-          ) entry#entries 
+          ) entry#entries
       in
 
-      if nodes = [] then 
+      if nodes = [] then
 	raise To_be_skipped;
 
       DEBUG_MSG "dirname=\"%s\" name=\"%s\" <DIR>" entry#dirname name;
 
       let cmp nd1 nd2 = compare nd1#data#label nd2#data#label in
-      let nd = 
+      let nd =
         let children = Array.of_list (List.fast_sort cmp nodes) in
 	Otree.create_node2 uid_gen obj children
       in
@@ -255,7 +255,7 @@ let of_tree options mktbl (tree : Storage.tree) =
 
 	let nd = Otree.create_leaf2 uid_gen ndat in
 
-	if mktbl then 
+	if mktbl then
           _tbl_add tbl di nd;
 
 	nd
@@ -272,7 +272,7 @@ let of_tree options mktbl (tree : Storage.tree) =
     printf "done.\n%!";
 
   dtree, tbl
-  
+
 
 let of_dir options mktbl path =
   let fstree = new Fs.tree options path in
@@ -284,7 +284,7 @@ let split get_key l = (* 'a list -> (key, 'a list) Hashtbl.t *)
     try
       let l = Hashtbl.find tbl k in
       Hashtbl.replace tbl k (v::l)
-    with 
+    with
       Not_found -> Hashtbl.add tbl k [v]
   in
   let key_tbl = Hashtbl.create 0 in
@@ -293,7 +293,7 @@ let split get_key l = (* 'a list -> (key, 'a list) Hashtbl.t *)
 
 
 
-let get_cache_path1 options dtree = 
+let get_cache_path1 options dtree =
   options#get_cache_path_for_dir_digest1 dtree#digest
 
 let get_cache_path2 options dtree1 dtree2 =
@@ -304,7 +304,7 @@ let get_cache_path_for_dir1 options tree =
   try
     let dtree, _ = of_tree options false tree in
     get_cache_path1 options dtree
-  with 
+  with
     To_be_skipped -> "<n/a>"
 
 
@@ -313,7 +313,7 @@ let get_cache_path_for_dir2 options old_tree new_tree =
     let dtree1, _ = of_tree options false old_tree in
     let dtree2, _ = of_tree options false new_tree in
     get_cache_path2 options dtree1 dtree2
-  with 
+  with
     To_be_skipped -> "<n/a>"
 
 
@@ -342,7 +342,7 @@ let _extract_fact fact_buf options pr kv all_leaves =
   fact_buf#add (stree_ent, T.p_is_a, T.c_srctree);
 
   List.iter
-    (fun nd -> 
+    (fun nd ->
       let ent = fent_of_nd options pr kv nd in
       fact_buf#add (ent, T.p_is_a, T.c_file);
       fact_buf#add (ent, T.p_in_srctree, stree_ent);
@@ -367,11 +367,11 @@ let _extract_fact fact_buf options pr kv all_leaves =
     ) all_leaves;
 
   stree_id, stree_ent
-    
+
 
 let extract_fact options ~dtree_opt ~proj_root ~version tree =
   try
-    let dtree = 
+    let dtree =
       match dtree_opt with
       | Some dt -> dt
       | None -> let dt, _ = of_tree options false tree in dt
@@ -400,7 +400,7 @@ let extract_fact options ~dtree_opt ~proj_root ~version tree =
 
     cache_path, dtree, all_files
 
-  with 
+  with
   | To_be_skipped -> begin
       Xprint.message "no relevant source files found.";
       exit 0

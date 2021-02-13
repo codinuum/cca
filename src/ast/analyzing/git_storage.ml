@@ -51,8 +51,8 @@ module F (S: Git.S) = struct
       else
         None
 
-    method entries = 
-      DEBUG_MSG "name=\"%s\" entries=[%s]" 
+    method entries =
+      DEBUG_MSG "name=\"%s\" entries=[%s]"
         name (String.concat ";" (List.map (fun e -> e#name) es));
       es
 
@@ -69,7 +69,7 @@ module F (S: Git.S) = struct
         try
           Hashtbl.find sha1_tbl sha1
         with
-          Not_found -> 
+          Not_found ->
             let t = Hashtbl.create 0 in
             Hashtbl.add sha1_tbl sha1 t;
             t
@@ -87,14 +87,14 @@ module F (S: Git.S) = struct
           Not_found -> begin
             let e0_opt =
               Hashtbl.fold
-                (fun key e x_opt -> 
+                (fun key e x_opt ->
                   match x_opt with
                   | Some _ -> x_opt
                   | None ->
                       let rec conv dn x =
                         let dn' = Filename.concat dn x#name in
                         let es = List.map (conv dn') x#entries in
-                        new entry ~dirname:dn ~name:x#name ~is_dir:x#is_dir ~digest:x#file_digest es 
+                        new entry ~dirname:dn ~name:x#name ~is_dir:x#is_dir ~digest:x#file_digest es
                       in
                       Some (conv dirname e)
                 ) tbl None
@@ -288,8 +288,8 @@ module F (S: Git.S) = struct
               Sys.remove lpath;
               Hashtbl.remove local_path_tbl path;
             with
-            | _ -> 
-                failwith 
+            | _ ->
+                failwith
                   (Printf.sprintf
                      "Git_storage.F.tree#free_local_file: failed to remove \"%s\"" lpath)
         end
@@ -368,7 +368,7 @@ module F (S: Git.S) = struct
                   in
                   let path = Filename.concat dirname name in
 	          Lwt_list.map_s
-		    (fun e -> 
+		    (fun e ->
 		      let read = is_dir_or_file e in
 
                       if read then
@@ -389,7 +389,7 @@ module F (S: Git.S) = struct
                   (*cache#add sha1 dirname name ent;*)
 	          return ent
 	      end
-              | Git.Value.Tag _ -> 
+              | Git.Value.Tag _ ->
                   raise (Invalid_argument "make_entry: Tag")
 	    end
           end

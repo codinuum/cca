@@ -26,29 +26,29 @@ let sprintf = Printf.sprintf
 
 (*** pruned nodes ***)
 
-type kind = 
-  | Isomorphic 
-  | Migratory (* relative move *) 
+type kind =
+  | Isomorphic
+  | Migratory (* relative move *)
   | Other
 
 type gindex = GI.t
 
-type 'node_t t = 
-    kind ref 
+type 'node_t t =
+    kind ref
       * UID.t * (gindex (* leftmost *) * gindex) (* for old tree *)
       * UID.t * (gindex (* leftmost *) * gindex) (* for new tree *)
       * ('node_t Info.t) (* for old tree *)
       * ('node_t Info.t) (* for new tree *)
 
 let kind_to_string = function
-  | Isomorphic -> "ISOMORPHIC" 
-  | Migratory  -> "MIGRATORY" 
+  | Isomorphic -> "ISOMORPHIC"
+  | Migratory  -> "MIGRATORY"
   | Other      -> "OTHER"
 
-let to_string (kind, uid1, (lgi1, gi1), uid2, (lgi2, gi2), info1, info2) = 
+let to_string (kind, uid1, (lgi1, gi1), uid2, (lgi2, gi2), info1, info2) =
   let s = kind_to_string !kind in
   sprintf "[PRUNED(%s)]: (%s:%d-%d)%s -> (%s:%d-%d)%s" s
-    (UID.to_string uid1) lgi1 gi1 (Info.to_string info1) 
+    (UID.to_string uid1) lgi1 gi1 (Info.to_string info1)
     (UID.to_string uid2) lgi2 gi2 (Info.to_string info2)
 
 let to_string_short (kind, uid1, (lgi1, gi1), uid2, _, _, _) =
@@ -56,18 +56,18 @@ let to_string_short (kind, uid1, (lgi1, gi1), uid2, _, _, _) =
 
 let is_single (_, _, (lgi1, gi1), _, _, _, _) = lgi1 = gi1
 
-let make_isomorphic uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 = 
+let make_isomorphic uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 =
   (ref Isomorphic, uid1, lgi_gi1, uid2, lgi_gi2, info1, info2)
-let make_migratory uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 = 
+let make_migratory uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 =
   (ref Migratory, uid1, lgi_gi1, uid2, lgi_gi2, info1, info2)
-let make_other uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 = 
+let make_other uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 =
   (ref Other, uid1, lgi_gi1, uid2, lgi_gi2, info1, info2)
 
 
 class ['node_t, 'tree_t] nodes = object (self)
   val mutable list = ([] : 'node_t t list)
 
-  method add_pruned pruned = 
+  method add_pruned pruned =
     DEBUG_MSG "adding %s" (to_string_short pruned);
     list <- list @ [pruned]
 
@@ -106,22 +106,22 @@ class ['node_t, 'tree_t] nodes = object (self)
     in
     !s
 
-  method set_kind uid1 uid2 kind = 
+  method set_kind uid1 uid2 kind =
     self#iter
-      (fun (s, u1, _, u2, _, _, _) -> 
+      (fun (s, u1, _, u2, _, _, _) ->
 	if u1 = uid1 && u2 = uid2 then s := kind)
 
 (* does pruned subtree (old) contain node_data? *)
-  method mem1 (tree1 : 'tree_t) (nd : 'node_t) = 
+  method mem1 (tree1 : 'tree_t) (nd : 'node_t) =
     DEBUG_MSG "is_whole=%B" tree1#is_whole;
     let uid = nd#uid in
     self#exists
-      (function 
+      (function
 	  (kind, uid', (lgi, gi), _, _, info', _) ->
 	    match !kind with
 	      Other -> uid' = uid
 	    | _ ->
-		let b2 = 
+		let b2 =
 		  try
 		    let gidx = nd#gindex in
 		    lgi <= gidx && gidx <= gi
@@ -131,16 +131,16 @@ class ['node_t, 'tree_t] nodes = object (self)
       )
 
 (* does pruned subtree (new) contain node_data? *)
-  method mem2 (tree2 : 'tree_t) (nd : 'node_t) = 
+  method mem2 (tree2 : 'tree_t) (nd : 'node_t) =
     DEBUG_MSG "is_whole=%B" tree2#is_whole;
     let uid = nd#uid in
     self#exists
-      (function 
+      (function
 	  (kind, _, _, uid', (lgi, gi), _, info') ->
 	    match !kind with
 	      Other -> uid' = uid
-	    | _ -> 
-		let b2 = 
+	    | _ ->
+		let b2 =
 		  try
 		    let gidx = nd#gindex in
 		    lgi <= gidx && gidx <= gi
@@ -150,10 +150,10 @@ class ['node_t, 'tree_t] nodes = object (self)
       )
 
 
-  method to_string = sprintf 
-      "%d pruned node(s):\n%s" (List.length list) 
-      (Xlist.to_string 
-	 (fun p -> sprintf "%s" (to_string p)) 
+  method to_string = sprintf
+      "%d pruned node(s):\n%s" (List.length list)
+      (Xlist.to_string
+	 (fun p -> sprintf "%s" (to_string p))
 	 "\n" list)
 
 end (* of class Pruned.nodes *)

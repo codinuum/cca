@@ -30,9 +30,9 @@ let sprintf = Printf.sprintf
 
 
 module Rank = struct
-  type t = 
-    | Rnone 
-    | Runknown 
+  type t =
+    | Rnone
+    | Runknown
     | Rzero
     | Rnon_zero
     | Rnon_zero_n of int
@@ -49,7 +49,7 @@ module Rank = struct
   let unknown = Runknown
   let zero = Rzero
   let non_zero = Rnon_zero
-  let mk i = 
+  let mk i =
     if i = 0 then
       Rzero
     else
@@ -69,7 +69,7 @@ end (* of module Rank *)
 
 
 module TypeSpec = struct
-  type t = 
+  type t =
     | Unknown
     | Integer
     | Real
@@ -104,8 +104,8 @@ module TypeSpec = struct
     | PpBranchTypeSpec ts -> "PpBranchTypeSpec"
 
   let get_name = function
-    | Type n          
-    | Derived n       
+    | Type n
+    | Derived n
     | PpMacroTypeSpec n
     | Structure n
     | Class n
@@ -128,7 +128,7 @@ module TypeSpec = struct
         | TypeSpec.Class n           -> Class n
         | TypeSpec.PpMacroTypeSpec n -> PpMacroTypeSpec n
     end
-    | lab -> 
+    | lab ->
         failwith (sprintf "Pinfo.TypeSpec.of_label: not a TypeSpec: %s" (L.to_string lab))
 
   let is_resolved = function
@@ -158,8 +158,8 @@ module ProcInterface = struct
     | L.Name n     -> InterfaceName n
     | L.TypeSpec _ as t -> DeclarationTypeSpec (TypeSpec.of_label t)
 
-    | lab -> 
-        failwith 
+    | lab ->
+        failwith
           (sprintf "Pinfo.ProcInterface.of_label: not a Name or TypeSpec: %s" (L.to_string lab))
 
   let is_interface_name = function
@@ -172,7 +172,7 @@ end (* of module ProcInterface *)
 module Name = struct
 
   module IntentSpec = struct
-    type t = 
+    type t =
       | NoIntent
       | In
       | Out
@@ -193,9 +193,9 @@ module Name = struct
 
 
   module AccessSpec = struct
-    type t = 
-      | NoAccessSpec 
-      | Private 
+    type t =
+      | NoAccessSpec
+      | Private
       | Public
 
     let to_string = function
@@ -217,7 +217,7 @@ module Name = struct
 
 
   module Dimension = struct
-    type t = 
+    type t =
       | NoDimension
       | ExplicitShape of int
       | AssumedShape of int
@@ -237,10 +237,10 @@ module Name = struct
 
     let get_rank = function
       | NoDimension     -> 0
-      | ExplicitShape r 
-      | AssumedShape r  
-      | DeferredShape r 
-      | AssumedSize r   
+      | ExplicitShape r
+      | AssumedShape r
+      | DeferredShape r
+      | AssumedSize r
       | ArraySpec r
         -> r
       | AssumedRank -> failwith "Pinfo.Name.Dimension.get_rank: assumed-rank"
@@ -254,7 +254,7 @@ module Name = struct
       | L.AssumedRankArray     -> AssumedRank
       | L.ExplicitShapeComponentArray r -> ExplicitShape r
       | L.DeferredShapeComponentArray r -> DeferredShape r
-      | lab -> 
+      | lab ->
           warning_msg "invalid array-spec: %s" (L.to_string lab);
           NoDimension
 
@@ -264,7 +264,7 @@ module Name = struct
 
 
   module Codimension = struct
-    type t = 
+    type t =
       | NoCodimension
       | ExplicitCoshape
       | DeferredCoshape
@@ -277,7 +277,7 @@ module Name = struct
     let of_label = function
       | L.ExplicitCoshapeCoarray -> ExplicitCoshape
       | L.DeferredCoshapeCoarray -> DeferredCoshape
-      | lab -> 
+      | lab ->
           warning_msg "invalid coarray-spec: %s" (L.to_string lab);
           NoCodimension
 
@@ -288,8 +288,8 @@ module Name = struct
 
   module Attribute = struct
 
-    class accessibility = object (self : 'self) 
-      val mutable access_spec = AccessSpec.NoAccessSpec        
+    class accessibility = object (self : 'self)
+      val mutable access_spec = AccessSpec.NoAccessSpec
 
       method access_spec             = access_spec
       method set_access_spec s       = access_spec <- s
@@ -588,7 +588,7 @@ module Name = struct
     end (* of class Name.Attribute.c *)
 
 
-  end (* of module Name.Attribute *) 
+  end (* of module Name.Attribute *)
 
   module Spec = struct
 
@@ -596,7 +596,7 @@ module Name = struct
       | Lunknown
       | Limplicit of Loc.t option
       | Lexplicit of Loc.t
-            
+
     let loc_of_decl_to_string = function
       | Lunknown -> "[unknown]"
       | Limplicit loc_opt -> begin
@@ -685,18 +685,18 @@ module Name = struct
       ospec#set_attr a;
       ospec
 
-    class data_object_spec 
-        ?(loc_of_decl=Lunknown) 
-        ?(bid_opt=None) 
+    class data_object_spec
+        ?(loc_of_decl=Lunknown)
+        ?(bid_opt=None)
         ?(type_spec=TypeSpec.Unknown)
-        () 
-        = 
+        ()
+        =
       object
         inherit spec_base ~loc_of_decl ~bid_opt () as super
         inherit full_attr_spec as super_attr
 
         val mutable type_spec = type_spec
-            
+
         method set_type_spec ty = type_spec <- ty
         method type_spec = type_spec
 
@@ -781,8 +781,8 @@ module Name = struct
       | LindaOperation             -> "LindaOperation"
       | Object ospec               -> "Object"^ospec#to_string
 
-    let filter_out_ambiguous = 
-      List.filter 
+    let filter_out_ambiguous =
+      List.filter
         (function
           | Unknown | ModuleEntity -> false
           | _ -> true
@@ -801,8 +801,8 @@ module Name = struct
       | IntrinsicFunction _
       | IntrinsicSubroutine
       | FunctionSubprogram _
-      | SubroutineSubprogram _ 
-      | Generic _              
+      | SubroutineSubprogram _
+      | Generic _
       | Procedure _
         -> true
       | _ -> false
@@ -836,12 +836,12 @@ module Name = struct
 
     let rec contain_generic = function
       | [] -> false
-      | spec::rest -> 
+      | spec::rest ->
           if is_generic spec then
             true
           else
             contain_generic rest
-      
+
     let is_module = function
       | Module _ -> true
       | _ -> false
@@ -1015,10 +1015,10 @@ module Name = struct
     let mkintrinsicfunc pspec = IntrinsicFunction pspec
     let mkobject ospec        = Object ospec
 
-    let mkdobj 
-        ?(loc_of_decl=Lunknown) 
-        ?(bid_opt=None) 
-        ?(type_spec=TypeSpec.Unknown) 
+    let mkdobj
+        ?(loc_of_decl=Lunknown)
+        ?(bid_opt=None)
+        ?(type_spec=TypeSpec.Unknown)
         attr_opt =
       let spec = new data_object_spec ~loc_of_decl ~bid_opt ~type_spec () in
       begin
@@ -1067,7 +1067,7 @@ module Name = struct
       end
       | _ -> fail()
 
-    let is_public nspec = 
+    let is_public nspec =
       AccessSpec.is_public (get_access_spec nspec)
 
 
@@ -1138,7 +1138,7 @@ module Name = struct
         DEBUG_MSG "c=%d" c;
         let rec chk = function
           | [] -> false
-          | (f, t)::rest -> 
+          | (f, t)::rest ->
               let fc = Char.code f in
               let tc = Char.code t in
               DEBUG_MSG "from=%d to=%d" fc tc;
@@ -1151,10 +1151,10 @@ module Name = struct
         chk letter_spec_list
 
       method to_string =
-        sprintf "%s:%s" 
-          (TypeSpec.to_string type_spec) 
-          (Xlist.to_string 
-             (fun (c0, c1) -> 
+        sprintf "%s:%s"
+          (TypeSpec.to_string type_spec)
+          (Xlist.to_string
+             (fun (c0, c1) ->
                if c0 = c1 then
                  sprintf "%c" c0
                else
@@ -1174,11 +1174,11 @@ module Name = struct
           DEBUG_MSG "%c-%c" fh th;
           Some (fh, th)
       end
-      | l -> 
+      | l ->
           warning_msg "not a letter-spec: %s" (L.to_simple_string l);
           None
 
-            
+
 
   end (* of module ImplicitSpec *)
 
@@ -1209,7 +1209,7 @@ module Name = struct
 
     method iter f = Hashtbl.iter f tbl
 
-    method add_used_module (m : name) = 
+    method add_used_module (m : name) =
       let m_ = String.lowercase_ascii m in
       if not (List.mem m_ used_module_list) then
         used_module_list <- m_ :: used_module_list
@@ -1217,7 +1217,7 @@ module Name = struct
     method iter_used_modules f = List.iter f used_module_list
 
     method has_open_module_use = used_module_list <> []
-        
+
     method default_accessibility = default_accessibility
 
     method set_default_accessibility_public =
@@ -1230,7 +1230,7 @@ module Name = struct
     method scope = scope
 
 
-    method post_find n = 
+    method post_find n =
       DEBUG_MSG "name=\"%s\"" n;
       let c = Char.code (Char.lowercase_ascii n.[0]) in
       let rec find = function
@@ -1242,7 +1242,7 @@ module Name = struct
             else
               find rest
       in
-      let il = 
+      let il =
         match implicit_spec_list with
         | None -> default_implicit_spec_list
         | Some [] -> []
@@ -1268,9 +1268,9 @@ module Name = struct
 
 (*
     method post_find_all n =
-      try 
-        [self#post_find n] 
-      with 
+      try
+        [self#post_find n]
+      with
         Not_found -> (* [] *)
           let l = ref [] in
           self#iter_used_modules (fun m -> l := (Spec.External(m, String.lowercase_ascii n)) :: !l);
@@ -1309,23 +1309,23 @@ module Name = struct
       in
 
       let specs = self#_find_all n_ in
-      let attrs = 
-        Xlist.filter_map 
-          (fun s -> 
-            try 
+      let attrs =
+        Xlist.filter_map
+          (fun s ->
+            try
               Some (Spec.get_data_object_attr s)
             with
               Not_found -> None
-          ) specs 
+          ) specs
       in
-      let aattrs = 
+      let aattrs =
         Xlist.filter_map
           (fun s ->
             try
               Some (Spec.get_object_attr s)
             with
               Not_found -> None
-          ) specs 
+          ) specs
       in
 
       match spec with
@@ -1338,7 +1338,7 @@ module Name = struct
               try
                 dospec#attr
               with
-                Not_found -> 
+                Not_found ->
                   let a = new Attribute.c in
                   dospec#set_attr a;
                   a
@@ -1406,7 +1406,7 @@ module Name = struct
 
       | _ -> tbl_add n_ spec
 
-          
+
 
     method fold : 'a. (name -> Spec.t -> 'a -> 'a) -> 'a -> 'a =
       fun f ini -> Hashtbl.fold f tbl ini
@@ -1534,29 +1534,29 @@ module Name = struct
     [
      (* intrinsic functions *)
      new Spec.intrinsic_procedure_spec (Rank.mk 0),
-     [ 
-       "abs";     
-       "achar";    
-       "acos";  
-       "acosh";  
-       "adjustl";  
-       "adjustr";  
-       "aimag"; 
-       "aint";  
-       "allocated"; 
-       "alog";  
-       "alog10";  
-       "amax0";  
-       "amax1";  
-       "amin0";  
-       "amin1";  
+     [
+       "abs";
+       "achar";
+       "acos";
+       "acosh";
+       "adjustl";
+       "adjustr";
+       "aimag";
+       "aint";
+       "allocated";
+       "alog";
+       "alog10";
+       "amax0";
+       "amax1";
+       "amin0";
+       "amin1";
        "amod";
-       "anint"; 
-       "asin";  
-       "associated"; 
-       "atan";  
-       "atan2"; 
-       "atanh"; 
+       "anint";
+       "asin";
+       "associated";
+       "atan";
+       "atan2";
+       "atanh";
        "bessel_j0";
        "bessel_j1";
        "bessel_jn";
@@ -1567,18 +1567,18 @@ module Name = struct
        "bgt";
        "ble";
        "blt";
-       "bit_size"; 
+       "bit_size";
        "cabs";
        "ccos";
-       "ceiling"; 
+       "ceiling";
        "cexp";
-       "char";     
+       "char";
        "clog";
-       "cmplx"; 
+       "cmplx";
        "command_argument_count";
-       "conjg"; 
-       "cos";   
-       "cosh";  
+       "conjg";
+       "cos";
+       "cosh";
        "csin";
        "csqrt";
        "dabs";
@@ -1586,13 +1586,13 @@ module Name = struct
        "dasin";
        "datan";
        "datan2";
-       "dble";  
+       "dble";
        "dcos";
        "dcosh";
        "ddim";
        "dexp";
-       "digits";      
-       "dim";     
+       "digits";
+       "dim";
        "dint";
        "dlog";
        "dlog10";
@@ -1608,146 +1608,146 @@ module Name = struct
        "dsqrt";
        "dtan";
        "dtanh";
-       "dot_product"; 
-       "dprod";   
-       "epsilon";     
+       "dot_product";
+       "dprod";
+       "epsilon";
        "erf";
        "erfc";
        "erfc_scaled";
-       "exp";   
+       "exp";
        "exponent";
        "extends_type_of";
-       "float";        
-       "floor";   
-       "fraction";     
+       "float";
+       "floor";
+       "fraction";
        "gamma";
-       "huge";        
+       "huge";
        "hypot";
        "iabs";
-       "iachar";   
-       "iand";     
-       "ibclr";    
-       "ibits";    
-       "ibset";    
-       "ichar";    
+       "iachar";
+       "iand";
+       "ibclr";
+       "ibits";
+       "ibset";
+       "ichar";
        "idim";
        "idint";
        "idnint";
-       "ieor";     
+       "ieor";
        "ifix";
        "image_index";
-       "index";    
-       "int";   
-       "ior";      
-       "ishft";    
-       "ishftc";   
+       "index";
+       "int";
+       "ior";
+       "ishft";
+       "ishftc";
        "isign";
        "is_contiguous";
        "is_iostat_end";
        "is_iostat_eor";
-       "kind";               
+       "kind";
        "leadz";
-       "len"; 
-       "len_trim"; 
-       "lge";      
-       "lgt";      
-       "lle";      
-       "llt";      
-       "log";   
-       "log_gamma";   
-       "log10"; 
-       "logical"; 
+       "len";
+       "len_trim";
+       "lge";
+       "lgt";
+       "lle";
+       "llt";
+       "log";
+       "log_gamma";
+       "log10";
+       "logical";
        "maskl";
        "maskr";
-       "max";     
-       "max0";     
-       "max1";     
-       "maxexponent"; 
+       "max";
+       "max0";
+       "max1";
+       "maxexponent";
        "merge_bits";
-       "min";     
-       "min0";     
-       "min1";     
-       "minexponent"; 
-       "mod";     
-       "modulo";  
-       "nearest";      
+       "min";
+       "min0";
+       "min1";
+       "minexponent";
+       "mod";
+       "modulo";
+       "nearest";
        "new_line";
-       "nint";  
+       "nint";
        "not";
        "num_images";
-       "precision";   
+       "precision";
        "present";
-       "radix";       
-       "range";       
-       "real";  
-       "repeat";   
-       "rrspacing";    
+       "radix";
+       "range";
+       "real";
+       "repeat";
+       "rrspacing";
        "same_type_as";
-       "scale";        
-       "scan";     
-       "selected_char_kind";  
-       "selected_int_kind";  
-       "selected_real_kind"; 
-       "set_exponent"; 
+       "scale";
+       "scan";
+       "selected_char_kind";
+       "selected_int_kind";
+       "selected_real_kind";
+       "set_exponent";
        "shifta";
        "shiftl";
        "shiftr";
-       "sign";    
-       "sin";   
-       "sinh";  
-       "size";      
+       "sign";
+       "sin";
+       "sinh";
+       "size";
        "sngl";
-       "spacing";      
-       "sqrt";  
+       "spacing";
+       "sqrt";
        "storage_size";
-       "tan";   
-       "tanh";  
-       "tiny";        
+       "tan";
+       "tanh";
+       "tiny";
        "trailz";
-       "trim";     
+       "trim";
        "verify";
      ];
      new Spec.intrinsic_procedure_spec (Rank.mk 2),
-     [ "transpose";        
+     [ "transpose";
      ];
      new Spec.intrinsic_procedure_spec (Rank.unknown),
      [
-      "all";     
-      "any"; 
-      "btest";    
-      "count";   
-      "cshift"; 
+      "all";
+      "any";
+      "btest";
+      "count";
+      "cshift";
       "eoshift";
       "findloc";
       "fstat";
       "iall";
       "iany";
       "iparity";
-      "lbound";    
-      "lcobound";    
-      "matmul";      
-      "maxloc"; 
-      "maxval";  
-      "merge";  
-      "minloc"; 
-      "minval";  
+      "lbound";
+      "lcobound";
+      "matmul";
+      "maxloc";
+      "maxval";
+      "merge";
+      "minloc";
+      "minval";
       "norm2";
-      "pack";   
+      "pack";
       "parity";
       "popcnt";
       "poppar";
-      "product"; 
-      "reshape"; 
-      "shape";     
-      "spread"; 
-      "sum";  
+      "product";
+      "reshape";
+      "shape";
+      "spread";
+      "sum";
       "this_image";
-      "transfer"; 
-      "ubound";    
+      "transfer";
+      "ubound";
       "ucobound";
-      "unpack"; 
+      "unpack";
     ];
-   ] 
+   ]
 
   let intrinsic_subroutine_list =
     [
@@ -1783,7 +1783,7 @@ module Name = struct
       "omp_set_schedule";
       "omp_unset_lock";
       "omp_unset_nest_lock";
-    ] 
+    ]
 
   let omp_function_list =
     [ "omp_get_active_level";
@@ -1813,7 +1813,7 @@ module Name = struct
       "omp_test_lock";
       "omp_test_nest_lock";
       "omp_get_num_threads";
-    ] 
+    ]
 
   let linda_operation_list =
     [ "in";
@@ -2100,7 +2100,7 @@ module Name = struct
       "snglq";
 
 (* for VMS *)
-      "iargcount"; 
+      "iargcount";
 
 (* for HPF *)
       "number_of_processors";
@@ -2454,10 +2454,10 @@ module Name = struct
 
   let const_derived_type tname = const_x (TypeSpec.Derived tname)
 
-  let const_derived_type_array1 tname = 
+  let const_derived_type_array1 tname =
     const_x ~dim:(Dimension.explicit_shape 1) (TypeSpec.Derived tname)
 
-  let const_int_array1() = 
+  let const_int_array1() =
     const_x ~dim:(Dimension.explicit_shape 1) TypeSpec.Integer
 
   let derived_type0 n =
@@ -2465,14 +2465,14 @@ module Name = struct
     let frm = new frame (ScopingUnit.mkderivedtypedef n) in
     Spec.mkderivedtype (Spec.mkframev ~add:frm#add ~find:frm#find) obj
 
-  let intrinsic_function0() = 
+  let intrinsic_function0() =
     let spec = new Spec.intrinsic_procedure_spec (Rank.mk 0) in
     Spec.mkintrinsicfunc spec
 
 
   let intrinsic_module_list =
     [
-     "iso_fortran_env", 
+     "iso_fortran_env",
      [ "atomic_int_kind"              , const_int();
        "atomic_logical_kind"          , const_int();
        "character_kinds"              , const_int_array1();
@@ -2504,7 +2504,7 @@ module Name = struct
        "compiler_options"             , intrinsic_function0();
        "compiler_version"             , intrinsic_function0();
      ];
-     "iso_c_binding", 
+     "iso_c_binding",
      [ "c_associated"          , intrinsic_function0();
        "c_f_pointer"           , Spec.intrinsic_subroutine;
        "c_f_procpointer"       , Spec.intrinsic_subroutine;
@@ -2558,7 +2558,7 @@ module Name = struct
        "c_null_ptr"            , const_derived_type "c_ptr";
        "c_null_funptr"         , const_derived_type "c_funptr";
      ];
-     "ieee_exceptions", 
+     "ieee_exceptions",
      [ "ieee_flag_type"        , derived_type0 "ieee_flag_type";
        "ieee_invalid"          , const_derived_type "ieee_flag_type";
        "ieee_overflow"         , const_derived_type "ieee_flag_type";
@@ -2577,7 +2577,7 @@ module Name = struct
        "ieee_support_flag"     , intrinsic_function0();
        "ieee_support_halting"  , intrinsic_function0();
      ];
-     "ieee_arithmetic", 
+     "ieee_arithmetic",
      [ "ieee_class_type"                , derived_type0 "ieee_class_type";
        "ieee_signaling_nan"             , const_derived_type "ieee_class_type";
        "ieee_quiet_nan"                 , const_derived_type "ieee_class_type";
@@ -2625,7 +2625,7 @@ module Name = struct
        "ieee_unordered"                 , intrinsic_function0();
        "ieee_value"                     , intrinsic_function0();
      ];
-     "ieee_features", 
+     "ieee_features",
      [ "ieee_features_type"  , derived_type0 "ieee_features_type";
        "ieee_data_type"      , const_derived_type "ieee_features_type";
        "ieee_denormal"       , const_derived_type "ieee_features_type";
@@ -2639,13 +2639,13 @@ module Name = struct
        "ieee_sqrt"           , const_derived_type "ieee_features_type";
        "ieee_underflow_flag" , const_derived_type "ieee_features_type";
      ];
-     "omp_lib_kinds", 
+     "omp_lib_kinds",
      [ "omp_lock_kind"      , const_int();
        "omp_nest_lock_kind" , const_int();
        "omp_proc_bind_kind" , const_int();
        "omp_sched_kind"     , const_int();
      ];
-     "omp_lib", 
+     "omp_lib",
      [ "omp_version"          , const_int();
        "omp_sched_static"     , const_int();
        "omp_sched_dynamic"    , const_int();
@@ -2656,10 +2656,10 @@ module Name = struct
        "omp_proc_bind_master" , const_int();
        "omp_proc_bind_close"  , const_int();
        "omp_proc_bind_spread" , const_int();
-     ] @ 
-     (List.map (fun x -> x, Spec.intrinsic_subroutine) omp_subroutine_list) @ 
+     ] @
+     (List.map (fun x -> x, Spec.intrinsic_subroutine) omp_subroutine_list) @
      (List.map (fun x -> x, intrinsic_function0()) omp_function_list);
-     "openacc", 
+     "openacc",
      [ "openacc_version"       , const_int();
        "acc_get_num_devices"   , intrinsic_function0();
        "acc_set_device_type"   , Spec.intrinsic_subroutine;
@@ -2693,7 +2693,7 @@ module Name = struct
   let make_module mod_name frm =
     let mkdom() =
       let s = Xset.create 0 in
-      frm#iter 
+      frm#iter
         (fun nm spc ->
           let is_public =
             try
@@ -2712,7 +2712,7 @@ module Name = struct
 
 
 
-  let make_toplevel_frame() = 
+  let make_toplevel_frame() =
     let frm = new frame ScopingUnit.Program in
 
     List.iter
@@ -2721,17 +2721,17 @@ module Name = struct
         List.iter (fun fn -> frm#add fn spec) list
       ) intrinsic_function_list;
 
-    List.iter 
-      (fun fn -> frm#add fn Spec.IntrinsicSubroutine) 
+    List.iter
+      (fun fn -> frm#add fn Spec.IntrinsicSubroutine)
       intrinsic_subroutine_list;
 
-    List.iter 
-      (fun fn -> frm#add fn Spec.LindaOperation) 
+    List.iter
+      (fun fn -> frm#add fn Spec.LindaOperation)
       linda_operation_list;
 
     List.iter
       (fun lst ->
-        List.iter 
+        List.iter
           (fun fn -> frm#add fn (Spec.make_public_subroutine())) lst
       )
       [ omp_subroutine_list;
@@ -2740,13 +2740,13 @@ module Name = struct
 
     List.iter
       (fun lst ->
-        List.iter 
+        List.iter
           (fun fn -> frm#add fn (Spec.make_public_function())) lst
-      ) 
-      [ omp_function_list; 
-        linda_function_list; 
-        gnu_function_list; 
-        compaq_function_list; 
+      )
+      [ omp_function_list;
+        linda_function_list;
+        gnu_function_list;
+        compaq_function_list;
         mpi_function_list;
       ];
 
@@ -2831,7 +2831,7 @@ let iter_data_object f = function
   | PossibleNameSpecs nspecs -> ()
 
 
-let is_public info = 
+let is_public info =
   let fail() = failwith "Pinfo.is_public" in
   match info with
   | NoInfo -> fail()

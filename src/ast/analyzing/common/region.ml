@@ -34,7 +34,7 @@ module Loader = struct
 	      begin
 		try
 		  reg#of_string line
-		with 
+		with
 		  Invalid_format s -> WARN_MSG "invalid format: %s" s
 	      end;
 	      l := reg::!l

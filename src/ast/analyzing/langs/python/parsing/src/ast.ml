@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * AST for the Python programming language 
+(*
+ * AST for the Python programming language
  *
  * ast.ml
  *
@@ -41,13 +41,13 @@ and testlist = { list: expr list; comma: bool; mutable yield: bool }
 
 and statement = { stmt_desc: statement_desc; stmt_loc: loc }
 
-and statement_desc = 
+and statement_desc =
   | Ssimple of simplestmt list
   | Sasync of statement
   | Sif of expr * suite * (loc * expr * suite) list * (loc * suite) option
   | Swhile of expr * suite * (loc * suite) option
   | Sfor of target list * expr list * suite * (loc * suite) option
-  | Stry of suite * (except * suite) list * (loc * suite) option 
+  | Stry of suite * (except * suite) list * (loc * suite) option
 	* (loc * suite) option
   | Stryfin of suite * (loc * suite)
   | Swith of (expr * target option) list * suite
@@ -124,7 +124,7 @@ and expr_desc =
 
 and primary = { prim_desc: primary_desc; prim_loc: loc }
 
-and primary_desc = 
+and primary_desc =
   | Pname of name
   | Pliteral of literal
   | Pparen of expr
@@ -143,7 +143,7 @@ and primary_desc =
   | Pcall of primary * arglist
   | Pawait of primary
 
-and trailer = 
+and trailer =
   | TRattrref of name
   | TRsubscript of expr list
   | TRslice of sliceitem list
@@ -178,7 +178,7 @@ and dictelem_desc =
 | DEkeyValue of expr * expr
 | DEstarStar of expr
 
-and sliceitem = 
+and sliceitem =
   | SIexpr of expr
   | SI2 of loc * expr option * expr option
   | SI3 of loc * expr option * expr option * expr option
@@ -214,8 +214,8 @@ and augop =
   | ApowEq
   | AfdivEq
 
-and bop = 
-  | Bmul | Bdiv | Bfdiv | Bmod | Badd | Bsub 
+and bop =
+  | Bmul | Bdiv | Bfdiv | Bmod | Badd | Bsub
   | BshiftL | BshiftR
   | Beq | Bneq | Blt | Bgt | Ble | Bge
   | BbitAnd | BbitOr | BbitXor | Band | Bor

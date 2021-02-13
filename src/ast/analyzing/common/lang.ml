@@ -64,7 +64,7 @@ type ('node, 'tree) edits_t = ('node, 'tree) Edit_base.seq_base
 type ('node, 'tree) cmp_t = ('node, 'tree) Comparison.c
 type uidmapping_t = node_t UIDmapping.c
 
-class type lang_t = 
+class type lang_t =
   object
     method name                 : string
     method subname              : string
@@ -86,19 +86,19 @@ class type lang_t =
 
 class c
     ?(subname="")
-    ~make_tree_builder 
+    ~make_tree_builder
     ~make_tree_comparator
-    ~extract_change 
+    ~extract_change
     ~extract_fact
     ?(get_cache_key=(fun f -> Xhash.to_hex f#digest))
     ?(node_filter=(fun _ _ -> true))
     ?(node_pair_filter=(fun _ _ _ -> true))
     ?(elaborate_edits=None)
     ?(make_tree_patcher=(new make_null_tree_patcher))
-    name 
-    = 
+    name
+    =
   object (self : 'self)
-      
+
     constraint 'self = #lang_t
 
     method name                 = name
@@ -116,28 +116,28 @@ class c
 
     initializer
       _make_tree_comparator <- make_tree_comparator (self :> lang_t)
-          
+
     method make_tree_comparator = _make_tree_comparator
     method extract_change       = extract_change
     method node_pair_filter     = node_pair_filter
     method elaborate_edits      = elaborate_edits
 
-    method private make_tree_factory options = 
+    method private make_tree_factory options =
       new tree_factory options (make_tree_builder options)
 
-    method make_tree_patcher options = 
+    method make_tree_patcher options =
       make_tree_patcher options (self#make_tree_factory options)
 
-    method has_elaborate_edits = 
-      match elaborate_edits with 
-      | Some _ -> true 
+    method has_elaborate_edits =
+      match elaborate_edits with
+      | Some _ -> true
       | None -> false
   end
 
 
 let _extract_mapping_fact options uidmapping filter path tree1 tree2 =
 
-  let fact_buf = 
+  let fact_buf =
     let into_virtuoso = options#fact_into_virtuoso <> "" in
     let into_directory = options#fact_into_directory <> "" in
     if into_virtuoso then begin
@@ -148,18 +148,18 @@ let _extract_mapping_fact options uidmapping filter path tree1 tree2 =
       let cache_name = Cache.get_cache_name options (Filename.dirname path) in
       new Triple.buffer_directory options cache_name
     else
-      new Triple.buffer ~overwrite:false options path 
+      new Triple.buffer ~overwrite:false options path
   in
 
   let add tri = fact_buf#add tri in
 
   let mkent1, mkent2 = make_mkent_pair options tree1 tree2 in
 
-  let f settled = 
+  let f settled =
     fun uid1 uid2 ->
       let nd1 = tree1#search_node_by_uid uid1 in
       let nd2 = tree2#search_node_by_uid uid2 in
-      
+
       if (filter nd1 nd2) then begin
 	let ent1 = mkent1 nd1 in
 	let ent2 = mkent2 nd2 in
@@ -194,20 +194,20 @@ let _extract_mapping_fact options uidmapping filter path tree1 tree2 =
 		  | Some d -> d
 		  | None ->
 		      let subtree1 = tree1#_make_subtree nd1 in
-		      subtree1#digest 
+		      subtree1#digest
 		in
-		let d2 = 
+		let d2 =
 		  match nd2#data#_digest with
 		  | Some d -> d
 		  | None ->
 		      let subtree2 = tree2#_make_subtree nd2 in
-		      subtree2#digest 
+		      subtree2#digest
 		in
 		if d1 = d2 then
 		  add (ent1, Triple.p_mapped_eq_to, ent2)
 		else
 		  add (ent1, Triple.p_mapped_neq_to, ent2)
-*) 
+*)
 	end
 
       end
@@ -235,7 +235,7 @@ let extract_mapping_fact options lang uidmapping path tree1 tree2 =
     with
       Triple.File_exists mes -> Xprint.warning "%s" mes
   end;
-    
+
   if options#fact_for_mapping_restricted_flag then
     if restricted_flag_backup then
       options#set_fact_restricted_flag
@@ -278,8 +278,8 @@ let register_external, register, search, setup_options
     let get_cache_key = lang#get_cache_key in
     let cache_key1 = get_cache_key file1 in
     let cache_key2 = get_cache_key file2 in
-    let cache_name = 
-      Cache.make_cache_name_for_file2 cache_key1 cache_key2 
+    let cache_name =
+      Cache.make_cache_name_for_file2 cache_key1 cache_key2
     in
     cache_name
   in
@@ -292,4 +292,4 @@ let register_external, register, search, setup_options
   (_register disabled_ps funcs_tbl),
   search,
   setup_options
-     
+

@@ -28,15 +28,15 @@ class c file = object (self)
   inherit Source_base.c file as super
 
   val mutable lang_spec = SV2009
-    
+
   method lang_spec = lang_spec
-  method set_lang_spec_v2005 = 
-    match lang_spec with 
+  method set_lang_spec_v2005 =
+    match lang_spec with
     | SV2009 | SV2005 -> lang_spec <- V2005
     | _ -> ()
 
-  method set_lang_spec_sv2005 = 
-    match lang_spec with 
+  method set_lang_spec_sv2005 =
+    match lang_spec with
     | SV2009 -> lang_spec <- SV2005
     | _ -> ()
 

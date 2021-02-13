@@ -30,17 +30,17 @@ let decomp ext ifile ofile =
     DEBUG_MSG "command=\"%s\"" cmd;
     let _ = Sys.command cmd in
     DEBUG_MSG "done."
-  with 
-    Not_found -> 
+  with
+    Not_found ->
       failwith (Printf.sprintf "decomp: unsupported compression: %s" ext)
 
 
-let extensions = 
+let extensions =
   List.flatten
-    (List.map 
-       (fun base_ext -> 
-	 List.map 
-	   (fun comp_ext -> 
+    (List.map
+       (fun base_ext ->
+	 List.map
+	   (fun comp_ext ->
 	     base_ext^comp_ext
 	   ) comp_ext_list
        ) [Astml.extension; Astml.ccs_ext])

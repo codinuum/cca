@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * 
+(*
+ *
  * astcore.ml
  *
  *)
@@ -62,7 +62,7 @@ class virtual base_c options = object (self)
       Hashtbl.add tbl fp file
     end
 
-  method private _extra_source_files tbl = 
+  method private _extra_source_files tbl =
     Hashtbl.fold (fun _ f l -> f :: l) tbl []
 
   method add_extra_source_file  = self#_add_extra_source_file extra_source_file_tbl
@@ -80,26 +80,26 @@ class virtual base_c options = object (self)
   method extra_source_files2 = self#_extra_source_files extra_source_file_tbl2
 
 
-  method verbose_msg : 'a. ('a, unit, string, unit) format4 -> 'a = 
+  method verbose_msg : 'a. ('a, unit, string, unit) format4 -> 'a =
     Xprint.verbose options#verbose_flag
 
   method get_cache_path1 = options#get_cache_path_for_file1
 
 
   method search_cache_for_info cache_path =
-    let paths = 
-      Cache.search_cache 
-        ~local_cache_name:options#local_cache_name 
-        cache_path 
-        S.info_file_name 
+    let paths =
+      Cache.search_cache
+        ~local_cache_name:options#local_cache_name
+        cache_path
+        S.info_file_name
     in
     paths
 
   method search_cache_for_stat cache_path =
-    Cache.search_cache 
-      ~completion:true 
-      ~local_cache_name:options#local_cache_name 
-      cache_path 
+    Cache.search_cache
+      ~completion:true
+      ~local_cache_name:options#local_cache_name
+      cache_path
       S.stat_file_name
 
   method is_processed_tree dtree_opt_ref tree =
@@ -130,34 +130,34 @@ class virtual base_c options = object (self)
 
   method private mkfragfilepath cache_path fname revindex =
     sprintf "%s-%d" (Filename.concat cache_path fname) revindex
-  
+
   method private dump_fragment mode path nds_tbl =
     let l = ref [] in
     Hashtbl.iter
       (fun nd nds ->
 	let sz = (* nodes originated from macros excluded *)
-	  List.fold_left 
-	    (fun s n -> 
+	  List.fold_left
+	    (fun s n ->
 	      if n#data#not_frommacro then s + 1 else s
-	    ) 0 nds 
-	in 
+	    ) 0 nds
+	in
 	let gids = List.map (fun n -> n#gindex) nds in
 	let frag = GIDfragment.from_list gids in
 	let ndat = nd#data in
 	l := [(match mode with M_ORIGIN -> "ORIGIN" | M_ENDING -> "ENDING");
-	      (match mode with M_ORIGIN -> ndat#origin | M_ENDING -> ndat#ending); 
-	      Loc.to_string ndat#src_loc; 
-	      string_of_int sz; 
+	      (match mode with M_ORIGIN -> ndat#origin | M_ENDING -> ndat#ending);
+	      Loc.to_string ndat#src_loc;
+	      string_of_int sz;
 	      ndat#label;
 	      frag#to_string;
 	    ]::!l
       ) nds_tbl;
     let get_sz line = int_of_string (List.nth line 3) in
-    let csv = 
-      List.fast_sort 
-	(fun x y -> 
+    let csv =
+      List.fast_sort
+	(fun x y ->
 	  Stdlib.compare (get_sz y) (get_sz x)
-	) !l 
+	) !l
     in
     Csv.save path csv
 
@@ -172,8 +172,8 @@ class virtual base_c options = object (self)
       ?(get_cache_dir_only=false)
       file
       =
-    let r = 
-      self#_parse_file 
+    let r =
+      self#_parse_file
         ~fact_store
         ~show_info
         ~proj_root ~version ~versions
@@ -223,7 +223,7 @@ class virtual base_c options = object (self)
     end
 
 
-  method _parse_file 
+  method _parse_file
       ?(fact_store=None)
       ?(show_info=false)
       ?(proj_root="")
@@ -242,22 +242,22 @@ class virtual base_c options = object (self)
     end
     else begin
       let info_paths = self#search_cache_for_info cache_path in
-      if 
-	info_paths <> [] && 
-	not 
+      if
+	info_paths <> [] &&
+	not
           (
            options#dump_ast_flag ||
            (*options#dump_src_flag ||*)
            (*options#dump_origin_flag ||*)
            options#clear_cache_flag
-          ) 
+          )
       then begin
 
         if show_info then
           self#verbose_msg "using caches%s:\n%s"
-            (if options#local_cache_name = "" then 
-              "" 
-            else 
+            (if options#local_cache_name = "" then
+              ""
+            else
               sprintf " (local cache name: %s)" options#local_cache_name)
             (Xlist.to_string
                (fun x -> "\""^x.Cache.sr_cache_path^"\"") "\n" info_paths);
@@ -314,7 +314,7 @@ class virtual base_c options = object (self)
         let info = SF.get_tree_info tree in
 
         if show_info then begin
-	  SF.dump_info_ch info stdout; 
+	  SF.dump_info_ch info stdout;
 	  flush stdout
         end;
 
@@ -364,8 +364,8 @@ class virtual base_c options = object (self)
         with
         | _ -> Entity.unknown_version
       in
-      let cache_path, dtree, files = 
-        DTB.extract_fact options ~dtree_opt:(!dtree_opt_ref) ~proj_root ~version tree 
+      let cache_path, dtree, files =
+        DTB.extract_fact options ~dtree_opt:(!dtree_opt_ref) ~proj_root ~version tree
       in
       let ast_nodes = ref 0 in
 
@@ -382,7 +382,7 @@ class virtual base_c options = object (self)
           (fun file ->
             self#parse_file_and_handle_info ~head fact_store proj_root version file
               (fun info -> ast_nodes := !ast_nodes + info.SF.i_nodes)
-          ) 
+          )
       in
       proc ~head:"[dir]" files;
 

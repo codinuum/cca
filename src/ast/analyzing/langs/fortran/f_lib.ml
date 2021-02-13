@@ -40,7 +40,7 @@ let elaborate_edits
     is_entity_decl;
     is_part_name;
     is_var_name;
-  |] 
+  |]
   in
   Edit.adjust_renames options cenv uidmapping edits filters
 

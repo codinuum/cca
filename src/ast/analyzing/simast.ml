@@ -63,7 +63,7 @@ let clear_prematch_flags() =
 
 let usage_msg = sprintf "usage: %s [OPTIONS] FILE..\nOPTIONS:" Xprint.cmd_name
 
-let speclist = 
+let speclist =
   [
    "-version", Arg.Set show_version_flag, "\tshow version";
    "-verbose", Arg.Unit (fun () -> options#set_verbose_flag), "\tdisplay verbose messages";
@@ -78,7 +78,7 @@ let speclist =
    "-dump:src:out", Arg.String set_dump_src_out, "FILE\tdump unparsed AST into file";
 
 (* cache *)
-   "-cache", Arg.String options#set_cache_dir_base, 
+   "-cache", Arg.String options#set_cache_dir_base,
    sprintf "DIR\tcache dir base (default: %s)" options#cache_dir_base;
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
    "-clearcache", Arg.Unit (fun () -> options#set_clear_cache_flag), "\tclear cache dir";
@@ -86,18 +86,18 @@ let speclist =
 
 (* algorithm *)
 (*
-   "-limit", Arg.Int options#set_tree_size_limit_percent, 
+   "-limit", Arg.Int options#set_tree_size_limit_percent,
    sprintf "N\ttree size limit (%%) (default: %d)" options#tree_size_limit_percent;
 
-   "-thresh", Arg.Int options#set_tree_size_threshold, 
+   "-thresh", Arg.Int options#set_tree_size_threshold,
    sprintf "N\ttree size threshold (default: %d)" options#tree_size_threshold;
 
-   "-hardlimit", Arg.Int options#set_hard_tree_size_limit, 
+   "-hardlimit", Arg.Int options#set_hard_tree_size_limit,
    sprintf "N\thard tree size limit (default: %d)" options#hard_tree_size_limit;
 
    "-multinodematch", Arg.Unit (fun () -> options#set_multi_node_match_flag), "\tmaintain multiple node matches";
 
-   "-preprune", Arg.Int options#set_preprune_threshold, 
+   "-preprune", Arg.Int options#set_preprune_threshold,
    sprintf "N\tpre-prune size threshold (default: %d)" options#preprune_threshold;
 *)
    "-nopreprune", Arg.Unit (fun () -> options#clear_preprune_flag), "\tdisable pre-pruning";
@@ -108,36 +108,36 @@ let speclist =
 
    "-noee", Arg.Unit (fun () -> options#set_no_enclave_elim_flag), "\tdisable enclave elimination";
 (*
-   "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold, 
+   "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold,
    sprintf "N\tthreshold for algorithm selection (default: %d)" options#match_algo_threshold;
 *)
    "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nocollapse", Arg.Unit (fun () -> options#set_no_collapse_flag), "\tdisable collapsing";
 (*
-   "-ignore-huge-arrays", Arg.Unit (fun () -> options#set_ignore_huge_arrays_flag), 
-   sprintf "\t\tignore huge arrays (default:%s)" 
+   "-ignore-huge-arrays", Arg.Unit (fun () -> options#set_ignore_huge_arrays_flag),
+   sprintf "\t\tignore huge arrays (default:%s)"
      (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 *)
-   "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag), 
-   sprintf "\tdo not ignore huge arrays (default:%s)" 
+   "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag),
+   sprintf "\tdo not ignore huge arrays (default:%s)"
      (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 
-   "-huge-array-thresh", Arg.Int options#set_huge_array_threshold, 
+   "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
    sprintf "N\thuge array size threshold (default: %d)" options#huge_array_threshold;
 (*
-   "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold, 
+   "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
    sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
 *)
    "-nomovrel", Arg.Unit (fun () -> options#set_no_movrel_flag), "\tdisable movrel generation";
 (*
-   "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold, 
+   "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
    sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;
 
-   "-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold, 
+   "-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold,
    sprintf "R\tmovrel ratio threshold (default: %f)" options#movrel_ratio_threshold;
 
-   "-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold, 
+   "-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold,
    sprintf "R\tmapped neighbours difference threshold (default: %f)" options#mapped_neighbours_difference_threshold;
 *)
    "-nounm", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
@@ -148,7 +148,7 @@ let speclist =
 
  ]
 
-let _ = 
+let _ =
   Arg.parse
     speclist
     (fun s -> filenames := s::!filenames)
@@ -161,7 +161,7 @@ let _ =
   end
 
 
-let astcore = 
+let astcore =
   let _ = Lang.setup_options options in
   new Diffastcore.c options
 
@@ -182,13 +182,13 @@ let _ =
                 Array.of_list filename_list
         in
 
-	Array.iteri 
-	  (fun i f -> 
+	Array.iteri
+	  (fun i f ->
             let file = Fs.file_of_path options f in
 
             if file#exists then begin
 
-              let show_info = 
+              let show_info =
                 not (options#dump_src_flag && options#dump_src_out = "")
               in
               try
@@ -220,8 +220,8 @@ let _ =
     exit 0
   end
 
-let new_file, old_file = 
-  match !filenames with 
+let new_file, old_file =
+  match !filenames with
   | n::o::[] -> Fs.file_of_path options n, Fs.file_of_path options o
   | [x] -> begin
       if !get_cache_dir_only then begin
@@ -243,14 +243,14 @@ let new_file, old_file =
 	exit 0
       end
   end
-  | _ -> 
-      Arg.usage speclist usage_msg; 
+  | _ ->
+      Arg.usage speclist usage_msg;
       exit 1
 
-let _ = 
-  if new_file = old_file && not !get_cache_dir_only then begin 
+let _ =
+  if new_file = old_file && not !get_cache_dir_only then begin
     printf "same file or directory\n";
-    exit 0 
+    exit 0
   end
 
 
@@ -285,7 +285,7 @@ let _ =
       end
     end
 
-  with 
+  with
 (*
   | A.No_differences_found            -> printf "1.0\n"
 *)

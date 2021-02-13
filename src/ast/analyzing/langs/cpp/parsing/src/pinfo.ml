@@ -537,7 +537,7 @@ object (self)
     let cvq = ref "" in
     if self#is_restrict then
       cvq := !cvq ^ "r";
-    if self#is_volatile then    
+    if self#is_volatile then
       cvq := !cvq ^ "V";
     if self#is_const then
       cvq := !cvq ^ "K";

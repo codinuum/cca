@@ -41,11 +41,11 @@ LOG_BUFSIZE = 256
 #####
 
 def spawn(cmd):
-    sproc = subprocess.Popen(cmd, 
-                             bufsize=BUFSIZE, 
-                             shell=True, 
-                             stdout=subprocess.PIPE, 
-                             stderr=subprocess.PIPE, 
+    sproc = subprocess.Popen(cmd,
+                             bufsize=BUFSIZE,
+                             shell=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
                              close_fds=True)
     return sproc
 
@@ -70,7 +70,7 @@ def dump_log(cmd_name, wid, sout_serr, wdir='.', timeout=TIMEOUT):
     prev_out = None
     out = None
     count = 0
-    
+
     nclosed = 0
 
     while running:
@@ -104,7 +104,7 @@ def dump_log(cmd_name, wid, sout_serr, wdir='.', timeout=TIMEOUT):
                 count = 0
             else:
                 out = None
-                
+
             prev_out = out
 
             if out:
@@ -138,10 +138,10 @@ def main():
 
     optparser = OptionParser(usage)
 
-    optparser.add_option('-c', '--cmd', dest='cmd', 
+    optparser.add_option('-c', '--cmd', dest='cmd',
                          help='set command to CMD', metavar='CMD')
 
-    optparser.add_option('-a', '--arg', action='callback', callback=store_carg, nargs=1, 
+    optparser.add_option('-a', '--arg', action='callback', callback=store_carg, nargs=1,
                          dest='cargs', type='string', default='',
                          help='set ARGS for sub command', metavar='ARGS')
 
@@ -193,13 +193,13 @@ def main():
 #                engine_opt = '-e %s' % opt.engine
 
             cmd = '%s %s -c work -w %s %s %s' % (w_cmd, arg, wid, engine_opt, target_dir)
-            
+
             logger.info('cmd: "%s"' % cmd)
 
             p = spawn(cmd)
             time.sleep(1)
 
-            out_tbl[wid] = (p.stdout, p.stderr) 
+            out_tbl[wid] = (p.stdout, p.stderr)
 
 
     for wid in out_tbl.keys():

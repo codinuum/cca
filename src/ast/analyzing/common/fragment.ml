@@ -35,11 +35,11 @@ module F (Pos : Range.POSITION_T) = struct
       _excluded <- exc
 
     method root     = _root
-    method excluded = _excluded 
+    method excluded = _excluded
 
-    method to_string = 
+    method to_string =
       if _rep = "" then begin
-	_rep <- Printf.sprintf "%s~%s" 
+	_rep <- Printf.sprintf "%s~%s"
 	    _root#to_string
 	    (Xlist.to_string (fun r -> r#to_string) "," _excluded);
 	_rep
@@ -61,10 +61,10 @@ module F (Pos : Range.POSITION_T) = struct
 	    )
 
       | _ -> raise (Invalid_format str)
-	    
+
 
   end (* of class Fragment.F.c *)
 
   let load = Region.Loader.load (fun () -> new c)
-  
+
 end (* of module Fragment.F *)

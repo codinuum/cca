@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * A pretty printer for the Java Language 
+(*
+ * A pretty printer for the Java Language
  *
  * printer.ml
  *
@@ -62,7 +62,7 @@ let pr_block_begin_tall() = pr_block_begin BStall
  * 14: ++expr  --expr  +expr  -expr  ~  !
  * 13: new  (type)expr
  * 12: *  /  %
- * 11: +  - 
+ * 11: +  -
  * 10: <<  >>  >>>
  *  9: <  >  >=  <=  instanceof
  *  8: ==  !=
@@ -73,7 +73,7 @@ let pr_block_begin_tall() = pr_block_begin BStall
  *  3: ||
  *  2: ?:
  *  1: =  +=  -=  *=  /=  %=  >>=  <<=  >>>=  &=  ^=  |=
- * 
+ *
  *)
 
 let get_precedence = function
@@ -92,7 +92,7 @@ let get_precedence_of_expression e =
   | Eunary(op, _) ->
       (match op with
       | UOpostIncrement | UOpostDecrement -> 15
-      | UOpreIncrement | UOpreDecrement | UOpositive | UOnegative 
+      | UOpreIncrement | UOpreDecrement | UOpositive | UOnegative
       | UOcomplement | UOnot -> 14)
   | Ebinary(op, _, _) ->
       (match op with
@@ -107,8 +107,8 @@ let get_precedence_of_expression e =
       | BOand -> 4
       | BOor -> 3)
   | Eprimary({ p_desc=Pname _}) -> 15
-  | Eprimary({ p_desc=PclassInstanceCreation _}) 
-  | Eprimary({ p_desc=ParrayCreationExpression _}) 
+  | Eprimary({ p_desc=PclassInstanceCreation _})
+  | Eprimary({ p_desc=ParrayCreationExpression _})
   | Ecast _ -> 13
   | Einstanceof _ -> 9
   | Econd _ -> 2
@@ -148,7 +148,7 @@ let name_attribute_to_string = function
 let rec name_to_simple_string name =
   match name.n_desc with
   | Nsimple(attr, sn) -> sn
-  | Nqualified(attr, n, sn) -> 
+  | Nqualified(attr, n, sn) ->
       sprintf "%s.%s" (name_to_simple_string n) sn
   | Nerror s -> s
 
@@ -184,7 +184,7 @@ let dims_to_short_string dims =
 
 let rec type_to_short_string ?(resolve=true) dims ty =
   let dim_str = dims_to_short_string dims in
-  let base = 
+  let base =
     match ty.ty_desc with
     | Tprimitive(a, p) -> begin
         (annotations_to_string a)^
@@ -242,8 +242,8 @@ and annotations_to_string ?(show_attr=false) = function
 and annotation_to_string ?(show_attr=false) a =
   match a.a_desc with
   | Anormal(name, pairs) ->
-      let ps = 
-        String.concat "," 
+      let ps =
+        String.concat ","
           (List.map (fun { evp_desc=(id, ev) } -> sprintf "%s=" id) pairs)
       in
       String.concat "" ["@";name_to_string ~show_attr name;"(";ps;")"]
@@ -254,7 +254,7 @@ and annotation_to_string ?(show_attr=false) a =
 
 
 and type_arguments_to_short_string tyargs =
-  sprintf "<%s>" 
+  sprintf "<%s>"
     (list_to_string type_argument_to_short_string "," tyargs.tas_type_arguments)
 
 and type_argument_to_short_string ?(resolve=true) ta =
@@ -291,9 +291,9 @@ let rec type_to_string ?(resolve=false) ?(show_attr=true) ty =
   end
   | TclassOrInterface tspecs
   | Tclass tspecs
-  | Tinterface tspecs 
+  | Tinterface tspecs
     -> (list_to_string (type_spec_to_string ~resolve ~show_attr) "." tspecs)
-      
+
   | Tarray(ty, dims)  ->
       (type_to_string ~resolve ~show_attr ty)^(dims_to_string dims)
 
@@ -313,14 +313,14 @@ and type_spec_to_string ?(resolve=false) ?(show_attr=true) name =
       in
       (annotations_to_string ~show_attr al)^sn
 
-  | TSapply(al, n, tyargs) -> 
-      sprintf "%s%s%s" 
+  | TSapply(al, n, tyargs) ->
+      sprintf "%s%s%s"
         (annotations_to_string ~show_attr al)
         (name_to_string ~show_attr n)
         (type_arguments_to_string ~resolve ~show_attr tyargs)
 
 and type_arguments_to_string ?(resolve=false) ?(show_attr=true) tyargs =
-  sprintf "<%s>" 
+  sprintf "<%s>"
     (list_to_string
        (type_argument_to_string ~resolve ~show_attr) "," tyargs.tas_type_arguments)
 
@@ -347,7 +347,7 @@ let pr_dims dims = pr_string (dims_to_string dims)
 
 let pr_type ty = pr_string (type_to_string ty)
 
-let pr_types = pr_hovlist pr_comma pr_type 
+let pr_types = pr_hovlist pr_comma pr_type
 
 let pr_literal lit =
   pr_string
@@ -372,7 +372,7 @@ let pr_unary_operator op =
   | UOcomplement    -> "~"
   | UOnot           -> "!")
 
-let pr_binary_operator op = 
+let pr_binary_operator op =
   pr_string
   (match op with
   | BOmul     -> "*"
@@ -469,7 +469,7 @@ and pr_method_reference mr =
       pr_option pr_type_arguments tas_opt;
       pr_string "new"
 
-and pr_expressions prec pr_sep = pr_hovlist pr_sep (pr_expression prec) 
+and pr_expressions prec pr_sep = pr_hovlist pr_sep (pr_expression prec)
 
 and pr_argument_list args = pr_expressions 0 pr_comma args.as_arguments
 
@@ -490,7 +490,7 @@ and pr_modifier m =
   | Mdefault      -> pr_string "default"
 
 
-and pr_modifiers ms = 
+and pr_modifiers ms =
   open_hbox(); pr_list pr_space pr_modifier ms.ms_modifiers; close_box()
 
 and pr_annotation a =
@@ -500,15 +500,15 @@ and pr_annotation a =
       pr_name name;
       pr_lparen();
       pr_vlist pr_comma
-	(fun { evp_desc=(id, ev) } -> 
-          pr_id id; pr_string "="; pr_element_value ev) 
+	(fun { evp_desc=(id, ev) } ->
+          pr_id id; pr_string "="; pr_element_value ev)
         pairs;
       pr_rparen()
 
   | Amarker name -> pr_string "@"; pr_name name
 
-  | AsingleElement(name, ev) -> 
-      pr_string "@"; 
+  | AsingleElement(name, ev) ->
+      pr_string "@";
       pr_name name;
       pr_lparen();
       pr_element_value ev;
@@ -518,7 +518,7 @@ and pr_element_value ev =
   match ev.ev_desc with
   | EVconditional e -> pr_expression 0 e
   | EVannotation a -> pr_annotation a
-  | EVarrayInit evs -> 
+  | EVarrayInit evs ->
       pr_string "{";
       pr_list pr_comma pr_element_value evs;
       pr_string "}"
@@ -566,15 +566,15 @@ and pr_type_arguments tyargs =
 and pr_array_creation_expression = function
   | ACEtype(ty, des, dims) ->
       let des = List.map (fun de -> de.de_desc) des in
-      pr_string "new "; pr_type ty; pr_string "["; 
+      pr_string "new "; pr_type ty; pr_string "[";
       pr_expressions 0 (fun () -> pr_string "][") des; pr_string "]";
       pr_dims dims
   | ACEtypeInit(ty, dims, ai) ->
       pr_string "new "; pr_type ty; pr_dims dims;
       pr_string "{"; pr_array_initializer ai; pr_string "}"
 
-and pr_method_invocation mi = 
-  open_box 0; 
+and pr_method_invocation mi =
+  open_box 0;
   let _ = match mi.mi_desc with
   | MImethodName(n, args) ->
       pr_name n; pr_lparen(); pr_argument_list args; pr_string ")";
@@ -641,7 +641,7 @@ and pr_lambda_params params =
   match params.lp_desc with
   | LPident id     -> pr_id id
   | LPformal fps   -> pr_lparen(); pr_formal_parameters fps; pr_rparen()
-  | LPinferred ids -> 
+  | LPinferred ids ->
       pr_lparen(); List.iter (fun (_, id) -> pr_id id) ids;pr_rparen()
 
 and pr_lambda_body prec = function
@@ -653,7 +653,7 @@ and pr_array_access aa =
   match aa.aa_desc with
   | AAname(n, e) -> pr_name n; pr_string "["; pr_expression 0 e; pr_string "]"
   | AAprimary(p, e) ->
-      pr_primary (get_precedence "[]") p; 
+      pr_primary (get_precedence "[]") p;
       pr_string "["; pr_expression 0 e; pr_string "]"
 
 and pr_lhs lhs = pr_expression 0 lhs
@@ -665,7 +665,7 @@ and pr_assignment(lhs, aop, e) =
   pr_expression precedence_of_assignment_operators e;
   close_box()
 
-and pr_variable_initializer vi = 
+and pr_variable_initializer vi =
   match vi.vi_desc with
   | VIexpression e -> pr_expression 0 e
   | VIarray ai -> pr_array_initializer ai
@@ -677,18 +677,18 @@ and pr_variable_declarator_id(id, dims) = pr_id id; pr_dims dims
 
 and pr_variable_declarator vd =
   pr_variable_declarator_id vd.vd_variable_declarator_id;
-  pr_string " ="; pr_break 1 indent; 
+  pr_string " ="; pr_break 1 indent;
   pr_option pr_variable_initializer vd.vd_variable_initializer
 
 
-and pr_variable_declarators vds = 
+and pr_variable_declarators vds =
   pr_list pr_comma pr_variable_declarator vds
 
-and pr_formal_parameter fp = 
-  pr_option pr_modifiers fp.fp_modifiers; 
-  pr_type fp.fp_type; 
+and pr_formal_parameter fp =
+  pr_option pr_modifiers fp.fp_modifiers;
+  pr_type fp.fp_type;
   if fp.fp_variable_arity then pr_string "...";
-  pad 1; 
+  pad 1;
   pr_variable_declarator_id fp.fp_variable_declarator_id
 
 and pr_formal_parameters = function
@@ -706,17 +706,17 @@ and pr_throws_op = function
 
 and pr_method_header mh =
   open_box 0;
-  begin 
-    match mh.mh_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1 
+  begin
+    match mh.mh_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1
   end;
   pr_option pr_type_parameters mh.mh_type_parameters;
-  pr_type mh.mh_return_type; pad 1; pr_id mh.mh_name; 
+  pr_type mh.mh_return_type; pad 1; pr_id mh.mh_name;
   pr_lparen(); pr_formal_parameters mh.mh_parameters; pr_rparen();
   pr_throws_op mh.mh_throws;
   close_box()
 
 
-and pr_block_statement sty bs = 
+and pr_block_statement sty bs =
   match bs.bs_desc with
   | BSlocal lvd -> pr_local_variable_declaration_statement lvd
   | BSclass cd -> pr_class_declaration cd
@@ -730,11 +730,11 @@ and pr_statement sty s =
   | Sblock b -> pr_block sty b
   | Sempty -> pr_semicolon()
   | Sexpression se -> pr_expression_statement se
-  | Sswitch(e, sb) -> 
-      pr_string "switch("; pr_expression 0 e; pr_rparen(); 
+  | Sswitch(e, sb) ->
+      pr_string "switch("; pr_expression 0 e; pr_rparen();
       pr_switch_block sty sb
-  | Sdo(s, e) -> 
-      pr_string "do "; pr_statement sty s; 
+  | Sdo(s, e) ->
+      pr_string "do "; pr_statement sty s;
       pr_string "while("; pr_expression 0 e; pr_string ")"
   | Sbreak id_opt -> begin
       match id_opt with
@@ -751,7 +751,7 @@ and pr_statement sty s =
       | None -> pr_string "return;"
       | Some e -> pr_string "return "; pr_expression 0 e; pr_semicolon()
   end
-  | Ssynchronized(e, b) -> 
+  | Ssynchronized(e, b) ->
       pr_string "synchronized ("; pr_expression 0 e; pr_rparen();
       pr_block sty b
   | Sthrow e -> pr_string "throw "; pr_expression 0 e; pr_semicolon()
@@ -772,14 +772,14 @@ and pr_statement sty s =
       | _ -> () (* impossible *)
   end
   | Slabeled(id, s) -> pr_id id; pr_string ": "; pr_statement sty s
-  | SifThen(e, s) -> 
+  | SifThen(e, s) ->
       pr_string "if ("; pr_expression 0 e; pr_rparen(); pr_space(); pr_statement_short s;
-  | SifThenElse(e, s1, s2) -> 
+  | SifThenElse(e, s1, s2) ->
       pr_string "if ("; pr_expression 0 e; pr_rparen(); pr_space();
       pr_statement_short s1; pr_string " else"; pr_space(); pr_statement_short s2;
   | Swhile(e, s) -> pr_string "while ("; pr_expression 0 e; pr_rparen(); pr_space();
       pr_statement_short s
-  | Sfor(fi_op, e_op, ses, s) -> 
+  | Sfor(fi_op, e_op, ses, s) ->
       let pr_fi_op = function Some fi -> pr_for_init fi | None -> () in
       let pr_e_op = function  Some e -> pr_expression 0 e | None -> () in
       pr_string "for (";
@@ -787,7 +787,7 @@ and pr_statement sty s =
       pr_e_op e_op; pr_semicolon();
       pr_statement_expression_list ses; pr_rparen(); pr_space();
       pr_statement_short s
-  | SforEnhanced(fp, e, s) -> 
+  | SforEnhanced(fp, e, s) ->
       pr_string "for (";
       pr_formal_parameter fp;
       pr_string ":";
@@ -797,7 +797,7 @@ and pr_statement sty s =
       pr_statement_short s
 
   | Sassert1 e -> pr_string "assert "; pr_expression 0 e; pr_semicolon()
-  | Sassert2(e1, e2) -> pr_string "assert "; pr_expression 0 e1; 
+  | Sassert2(e1, e2) -> pr_string "assert "; pr_expression 0 e1;
       pr_string ":"; pr_expression 0 e2; pr_semicolon()
 
   | Serror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
@@ -812,16 +812,16 @@ and pr_resource_spec rs =
   pr_rparen()
 
 and pr_resource r =
-  pr_option pr_modifiers r.r_modifiers; 
-  pr_type r.r_type; 
-  pad 1; 
+  pr_option pr_modifiers r.r_modifiers;
+  pr_type r.r_type;
+  pad 1;
   pr_variable_declarator_id r.r_variable_declarator_id;
   pad 1; pr_string "="; pad 1;
   pr_expression 0 r.r_expr
 
-and pr_catch_clause sty c = 
-  pr_string "catch ("; 
-  pr_catch_formal_parameter c.c_formal_parameter; 
+and pr_catch_clause sty c =
+  pr_string "catch (";
+  pr_catch_formal_parameter c.c_formal_parameter;
   pr_rparen();
   pr_block sty c.c_block
 
@@ -832,7 +832,7 @@ and pr_catch_formal_parameter cfp =
   pr_variable_declarator_id cfp.cfp_variable_declarator_id
 
 and pr_finally sty f =
-  pr_string "finally"; 
+  pr_string "finally";
   pr_block sty f.f_block
 
 and pr_finally_short f = pr_finally BSshort f
@@ -846,28 +846,28 @@ and pr_switch_label sl =
   | SLconstant ce -> pr_string "case "; pr_expression 0 ce; pr_string ":"
   | SLdefault -> pr_string "default:"
 
-and pr_switch_block sty sb = 
+and pr_switch_block sty sb =
   pr_block_begin_short();
   pr_list pr_space (pr_switch_block_stmt_grp sty) sb.sb_switch_block_stmt_grps;
   pr_block_end()
 
 and pr_switch_block_stmt_grp sty (sls, bss) =
   open_box 0;
-  pr_list pr_newline pr_switch_label sls; 
+  pr_list pr_newline pr_switch_label sls;
   pr_break 1 indent;
   open_vbox 0;
   pr_list pr_space (pr_block_statement sty) bss;
   close_box();
   close_box()
 
-and pr_local_variable_declaration_statement lvd = 
+and pr_local_variable_declaration_statement lvd =
   pr_local_variable_declaration lvd; pr_semicolon()
 
 and pr_local_variable_declaration lvd =
   open_box 0;
   pr_option pr_modifiers lvd.lvd_modifiers;
-  pr_type lvd.lvd_type; 
-  pad 1; 
+  pr_type lvd.lvd_type;
+  pad 1;
   pr_variable_declarators lvd.lvd_variable_declarators;
   close_box()
 
@@ -879,10 +879,10 @@ and pr_for_init fi =
 and pr_expression_statement se =
   pr_statement_expression se; pr_semicolon()
 
-and pr_statement_expression_list ses = 
+and pr_statement_expression_list ses =
   pr_list pr_comma pr_statement_expression ses
 
-and pr_statement_expression se = 
+and pr_statement_expression se =
   match se.se_desc with
   | SEassignment a -> pr_assignment a
   | SEpreIncrement e ->
@@ -898,7 +898,7 @@ and pr_statement_expression se =
 
   | SEerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
-and pr_block_statements sty bss = 
+and pr_block_statements sty bss =
   pr_list pr_space (pr_block_statement sty) bss
 
 and pr_block_statements_tall bss = pr_block_statements BStall bss
@@ -908,20 +908,20 @@ and pr_block_tall b = pr_block BStall b
 and pr_block sty b =
   match b.b_block_statements with
   | [] -> pr_string " {}"
-  | bss -> 
+  | bss ->
       pr_block_begin sty; pr_block_statements_tall bss; pr_block_end()
 
 and pr_method_declaration mh body_opt =
-  pr_method_header mh; 
+  pr_method_header mh;
   pr_option pr_block_short body_opt
 
-and pr_field_declaration fd = 
+and pr_field_declaration fd =
   open_box 0;
   begin
-    match fd.fd_modifiers with 
+    match fd.fd_modifiers with
     | None -> () | Some ms -> pr_modifiers ms; pr_space()
   end;
-  pr_type fd.fd_type; pr_space(); 
+  pr_type fd.fd_type; pr_space();
   pr_variable_declarators fd.fd_variable_declarators; pr_semicolon();
   close_box()
 
@@ -929,7 +929,7 @@ and pr_interface_method_declaration amd =
   pr_method_header amd.amd_method_header;
   pr_option pr_block_short amd.amd_body
 
-and pr_class_body_declaration cbd = 
+and pr_class_body_declaration cbd =
   match cbd.cbd_desc with
   | CBDfield fd -> pr_field_declaration fd
   | CBDmethod(mh, b) -> pr_method_declaration mh b
@@ -952,7 +952,7 @@ and pr_interface_body ib =
   match ib.ib_member_declarations with
   | [] -> pr_string " {}"
   | ib ->
-      pr_block_begin_tall(); 
+      pr_block_begin_tall();
       pr_list pr_space pr_interface_member_declaration ib;
       pr_block_end()
 
@@ -980,7 +980,7 @@ and pr_annotation_type_body atb =
   match atb.atb_member_declarations with
   | [] -> pr_string " {}"
   | eds ->
-      pr_block_begin_tall(); 
+      pr_block_begin_tall();
       pr_list pr_space pr_annotation_type_member_declaration eds;
       pr_block_end()
 
@@ -991,8 +991,8 @@ and pr_annotation_type_member_declaration atmd =
   | ATMDconstant cd -> pr_constant_declaration cd
   | ATMDelement(ms_opt, ty, id, dl, dv_opt) ->
       open_box 0;
-      begin 
-	match ms_opt with None -> () | Some ms -> pr_modifiers ms; pad 1 
+      begin
+	match ms_opt with None -> () | Some ms -> pr_modifiers ms; pad 1
       end;
       pr_type ty; pad 1; pr_id id; pr_string "()";
       pr_list pr_space pr_annot_dim dl;
@@ -1025,64 +1025,64 @@ and pr_explicit_constructor_invocation eci =
       pr_primary (get_precedence ".") p;
       pr_string ".";
       pr_option pr_type_arguments tyargs;
-      pr_string "super"; pr_arguments args; 
+      pr_string "super"; pr_arguments args;
       pr_semicolon()
   | ECIname(n, tyargs, args) ->
       pr_name n;
       pr_string ".";
       pr_option pr_type_arguments tyargs;
-      pr_string "super"; pr_arguments args; 
+      pr_string "super"; pr_arguments args;
       pr_semicolon()
   | ECIerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 and pr_constructor_body cnb =
   match cnb.cnb_explicit_constructor_invocation, cnb.cnb_block with
-  | Some eci, [] -> 
-      pr_block_begin_tall(); 
-      pr_explicit_constructor_invocation eci; 
+  | Some eci, [] ->
+      pr_block_begin_tall();
+      pr_explicit_constructor_invocation eci;
       pr_block_end()
-  | Some eci, bss -> 
-      pr_block_begin_tall(); 
-      pr_explicit_constructor_invocation eci; 
-      pr_block_statements_tall bss; 
+  | Some eci, bss ->
+      pr_block_begin_tall();
+      pr_explicit_constructor_invocation eci;
+      pr_block_statements_tall bss;
       pr_block_end()
   | None, [] -> pr_string " {}"
-  | None, bss -> 
-      pr_block_begin_short(); 
+  | None, bss ->
+      pr_block_begin_short();
       pr_block_statements_tall bss; pr_block_end()
 
 and pr_constructor_declaration cnd =
   open_box 0;
-  begin 
-    match cnd.cnd_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1 
+  begin
+    match cnd.cnd_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1
   end;
   pr_option pr_type_parameters cnd.cnd_type_parameters;
-  pr_id cnd.cnd_name; pr_lparen(); 
+  pr_id cnd.cnd_name; pr_lparen();
   pr_formal_parameters cnd.cnd_parameters; pr_rparen();
   pr_throws_op cnd.cnd_throws;
   close_box();
   pr_constructor_body cnd.cnd_body
 
 
-and pr_class_body_declarations cbds = 
+and pr_class_body_declarations cbds =
   pr_list pr_space pr_class_body_declaration cbds
 
 and pr_class_body cb =
   match cb.cb_class_body_declarations with
   | [] -> pr_string " {}"
-  | body -> 
-      pr_block_begin_tall(); 
-      pr_class_body_declarations body; 
+  | body ->
+      pr_block_begin_tall();
+      pr_class_body_declarations body;
       pr_block_end()
 
 and pr_enum_body eb =
   match eb.eb_enum_constants, eb.eb_class_body_declarations with
   | [], [] -> pr_string " {}"
-  | ecs, body -> 
+  | ecs, body ->
       pr_block_begin_short();
       pr_enum_constants ecs;
-      pr_class_body_declarations body; 
-      pr_block_end()      
+      pr_class_body_declarations body;
+      pr_block_end()
 
 and pr_arguments args = pr_lparen(); pr_argument_list args; pr_rparen()
 
@@ -1095,20 +1095,20 @@ and pr_enum_constant ec =
   (match ec.ec_class_body with | None -> () | Some body -> pr_class_body body)
 
 and pr_extends_class exc =
-  pr_break 1 indent; 
-  pr_string "extends "; 
+  pr_break 1 indent;
+  pr_string "extends ";
   pr_type exc.exc_class
 
 and pr_extends_interfaces exi =
-  pr_break 1 indent; 
-  pr_string "extends "; 
+  pr_break 1 indent;
+  pr_string "extends ";
   pr_types exi.exi_interfaces
 
 and pr_implements im =
-    pr_break 1 indent; 
-    pr_string "implements "; 
+    pr_break 1 indent;
+    pr_string "implements ";
     pr_types im.im_interfaces
-  
+
 and pr_implements_op = function
   | None -> ()
   | Some cls -> pr_implements cls
@@ -1155,35 +1155,35 @@ let pr_type_declarations = pr_list pr_newline pr_type_declaration
 
 let pr_package_declaration pd =
   pr_annotations pd.pd_annotations;
-  pr_string "package "; 
-  pr_name pd.pd_name; 
+  pr_string "package ";
+  pr_name pd.pd_name;
   pr_semicolon()
 
 let pr_import_declaration id =
   match id.id_desc with
   | IDsingle n -> pr_string "import "; pr_name n; pr_semicolon()
   | IDtypeOnDemand n -> pr_string "import "; pr_name n; pr_string ".*;"
-  | IDsingleStatic(n, i) -> 
-      pr_string "import static "; 
+  | IDsingleStatic(n, i) ->
+      pr_string "import static ";
       pr_name n; pr_string ".";
       pr_id i;
       pr_semicolon()
-  | IDstaticOnDemand n -> 
+  | IDstaticOnDemand n ->
       pr_string "import static "; pr_name n; pr_string ".*;"
 
 let pr_import_declarations = pr_list pr_newline pr_import_declaration
 
-let pr_compilation_unit { cu_package=pd_op; cu_imports=ids; cu_tydecls=tds } = 
-  let _ = 
-    match pd_op with 
-    | Some pd -> pr_package_declaration pd; pr_newline() 
-    | None -> () 
+let pr_compilation_unit { cu_package=pd_op; cu_imports=ids; cu_tydecls=tds } =
+  let _ =
+    match pd_op with
+    | Some pd -> pr_package_declaration pd; pr_newline()
+    | None -> ()
   in
-  let _ = 
-    match ids with 
-    | [] -> () 
+  let _ =
+    match ids with
+    | [] -> ()
     | _ -> pr_import_declarations ids; pr_newline()
   in
-  pr_type_declarations tds; 
+  pr_type_declarations tds;
   pr_newline()
-    
+

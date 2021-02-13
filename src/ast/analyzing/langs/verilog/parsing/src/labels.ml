@@ -17,7 +17,7 @@
 open Common
 open Label_common
 
-type wirespec = 
+type wirespec =
   | WS_NORMAL
   | WS_UNRESOLVED
 
@@ -127,7 +127,7 @@ module OverloadOperator = struct
       | Assign -> "Assign"
     in
     "OverloadOperator."^(conv oo)
-			   
+
   let to_simple_string = function
     | Add    -> "+"
     | Incr   -> "++"
@@ -167,7 +167,7 @@ module OverloadOperator = struct
     in
     name^tail, []
 
-  let to_tag_name oo = 
+  let to_tag_name oo =
     let n, _ = to_tag oo in
     n
 
@@ -239,7 +239,7 @@ module AssignmentOperator = struct
     in
     name^tail, []
 
-  let to_tag_name ao = 
+  let to_tag_name ao =
     let n, _ = to_tag ao in
     n
 
@@ -260,7 +260,7 @@ module IncOrDecOperator = struct
       | PostDecr -> "PostDecr"
     in
     "IncOrDecOperator."^(conv ido)
-			   
+
   let to_simple_string = function
     | PreIncr  -> "++()"
     | PreDecr  -> "--()"
@@ -277,14 +277,14 @@ module IncOrDecOperator = struct
     in
     name, []
 
-  let to_tag_name ido = 
+  let to_tag_name ido =
     let n, _ = to_tag ido in
     n
 
 end (* of module IncOrDecOperator *)
 
 module UnaryOperator = struct
-  type t = 
+  type t =
     | Plus
     | Minus
     | Not
@@ -593,7 +593,7 @@ module SystemTask = struct
     | Unit    -> "$unit"
     | Warning -> "$warning"
     | Anonymous -> "<anonymous>"
-      
+
   let get_name = to_simple_string
 
   let to_tag st =
@@ -654,8 +654,8 @@ module Qualifier = struct
     | Rand        -> "rand"
     | Randc       -> "randc"
     | Automatic   -> "automatic"
-      
-  let to_tag q = 
+
+  let to_tag q =
     let tail = "Qualifier" in
     let name =
       match q with
@@ -723,7 +723,7 @@ module NetType = struct
     | Wor     -> "wor"
 
     | Anonymous -> "<anonymous>"
-      
+
   let to_tag nt =
     let tail = "NetType" in
     let name =
@@ -777,7 +777,7 @@ module PortDirection = struct
     | ConstRef -> "const_ref"
 
     | Anonymous -> "<anonymous>"
-      
+
   let to_tag pd =
     let tail = "PortDirection" in
     let name =
@@ -834,7 +834,7 @@ module Gate = struct
     | Or   -> "or"
     | Xnor -> "xnor"
     | Xor  -> "xor"
-      
+
     | Anonymous -> "<anonymous>"
 
   let gate_to_tag = function
@@ -938,10 +938,10 @@ module DataType = struct
     "DataType."^(conv dt)
 
   let get_name = function
-    | PsType id          
-    | VirtualInterface id 
-    | PsCovergroup id    
-    | ClassScopeType id   
+    | PsType id
+    | VirtualInterface id
+    | PsCovergroup id
+    | ClassScopeType id
     | Named id            -> id
     | _                   -> raise Not_found
 
@@ -972,7 +972,7 @@ module DataType = struct
     | ClassType           -> "<class_type>"
     | Named id            -> id
     | Implicit            -> "<implicit>"
-      
+
   let to_tag dt =
     let tail = "DataType" in
     let name, attrs =
@@ -1138,9 +1138,9 @@ module Expression = struct
     | ClassNewA             -> "new()"
 
   let get_name = function
-    | Tagged id             
-    | SystemFCall id        
-    | TfCall id             
+    | Tagged id
+    | SystemFCall id
+    | TfCall id
     | MethodCall id         -> id
     | SystemTCall st        -> SystemTask.get_name st
     | _                     -> raise Not_found
@@ -1150,7 +1150,7 @@ module Expression = struct
     | RealNumber s
     | TimeNumber s -> s
     | _ -> raise Not_found
-      
+
   let to_tag e =
     let tail = "" in
     let name, attrs =
@@ -1232,7 +1232,7 @@ module EventExpression = struct
     | Iff     -> "iff"
     | Or      -> "or"
     | Multi   -> "<multi>"
-      
+
   let to_tag ee =
     let tail = "EventExpr" in
     let name =
@@ -1338,7 +1338,7 @@ module PropertyExpression = struct
     | If                       -> "if"
     | Case                     -> "case"
     | Spec                     -> "<spec>"
-      
+
   let to_tag pe =
     let tail = "PropertyExpr" in
     let name =
@@ -1416,7 +1416,7 @@ module SequenceExpression = struct
     | Throughout -> "throughout"
     | Within     -> "within"
     | Clocking   -> "clocking"
-      
+
   let to_tag se =
     let tail = "SequenceExpr" in
     let name =
@@ -1464,10 +1464,10 @@ module Statement = struct
     | Labeled of identifier
     | BlockingAssignment
     | NonBlockingAssignment
-    | Assign   
-    | Deassign 
-    | Force    
-    | Release  
+    | Assign
+    | Deassign
+    | Force
+    | Release
     | Case
     | Casex
     | Casez
@@ -1550,9 +1550,9 @@ module Statement = struct
     "Statement."^(conv stmt)
 
   let get_name = function
-    | Labeled id              
-    | ParBlock(id, _)         
-    | SeqBlock id             
+    | Labeled id
+    | ParBlock(id, _)
+    | SeqBlock id
     | Randsequence id         -> id
     | Expr e                  -> Expression.get_name e
     | _                       -> raise Not_found
@@ -1600,7 +1600,7 @@ module Statement = struct
     | ExpectProperty          -> "expect"
     | Expr e                  -> Expression.to_simple_string e
     | PExpr pe                -> PropertyExpression.to_simple_string pe
-      
+
   let to_tag stmt =
     let tail = "Stmt" in
     let name, attrs =
@@ -1742,7 +1742,7 @@ module CompilerDirective = struct
     | Endcelldefine           -> "`endcelldefine"
     | Unconnected_drive        -> "`unconnected_drive"
     | Nounconnected_drive      -> "`nounconnected_drive"
-      
+
   let get_name = function
     | Define id
     | Undef id
@@ -1848,7 +1848,7 @@ module Strength = struct
       | Anonymous -> "Anonymous"
     in
     name^tail, []
-  
+
 end
 
 module SimpleImmediateAssertion = struct

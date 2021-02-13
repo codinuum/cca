@@ -113,7 +113,7 @@ module type T = sig
 end
 
 
-let conv_loc 
+let conv_loc
     { Ast.Loc.filename     = fn;
       Ast.Loc.start_offset = so;
       Ast.Loc.end_offset   = eo;
@@ -121,7 +121,7 @@ let conv_loc
       Ast.Loc.start_char   = sc;
       Ast.Loc.end_line     = el;
       Ast.Loc.end_char     = ec;
-    } = 
+    } =
   Loc.make ~fname:fn so eo sl sc el ec
 
 open Charpool
@@ -130,8 +130,8 @@ open Charpool
 include Label
 
 
-let to_short_string ?(ignore_identifiers_flag=false) = 
-  let combo2 = combo2 ~ignore_identifiers_flag in function 
+let to_short_string ?(ignore_identifiers_flag=false) =
+  let combo2 = combo2 ~ignore_identifiers_flag in function
   | DUMMY               -> mkstr2 0
   | EMPTY               -> mkstr2 1
   | AMBIGUOUS_CONSTRUCT -> mkstr2 2
@@ -1369,14 +1369,14 @@ let annotation_to_string = Annotation.to_string
 let is_hunk_boundary _ _ = false (* not yet *)
 
 (* These labels are collapsible whether they are leaves or not. *)
-let forced_to_be_collapsible lab = 
+let forced_to_be_collapsible lab =
   false
 
 
-let is_collapse_target options lab = 
-  if options#no_collapse_flag then 
+let is_collapse_target options lab =
+  if options#no_collapse_flag then
     false
-  else 
+  else
     match lab with
     | PpIfSection _
     | PpIfSectionFuncDef _
@@ -1522,7 +1522,7 @@ let is_collapse_target options lab =
 
       -> true
 
-    | _ -> false      
+    | _ -> false
 
 
 let is_to_be_notified = function
@@ -1722,14 +1722,14 @@ let has_names lab =
   try
     ignore (get_names lab);
     true
-  with 
+  with
     Not_found -> false
 
 let has_a_name lab =
   try
     ignore (get_name lab);
     true
-  with 
+  with
     Not_found -> false
 
 let is_named lab =
@@ -1748,7 +1748,7 @@ let getlab nd = (Obj.obj nd#data#_label : t)
 
 
 
-let cannot_be_keyroot nd = 
+let cannot_be_keyroot nd =
   match getlab nd with
   | TranslationUnit
   | TemplateDeclaration

@@ -13,9 +13,9 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * A Diff/Patch Tool for Source Code
- * 
+ *
  * diffastcore.ml
  *
  *)
@@ -50,7 +50,7 @@ class c options = object (self)
     begin
       let extra = builder#extra_source_files in
       match options#fact_versions with
-      | [|v1;v2|] -> 
+      | [|v1;v2|] ->
           if version = v1 then
             self#add_extra_source_files1 ext extra
           else if version = v2 then
@@ -78,7 +78,7 @@ class c options = object (self)
 
     tree
 
-  method _parse_file 
+  method _parse_file
       ?(fact_store=None)
       ?(show_info=false)
       ?(proj_root="")
@@ -97,22 +97,22 @@ class c options = object (self)
     end
     else begin
       let info_paths = self#search_cache_for_info cache_path in
-      if 
-	info_paths <> [] && 
-	not 
+      if
+	info_paths <> [] &&
+	not
           (
            options#dump_ast_flag ||
            options#dump_src_flag ||
            options#dump_origin_flag ||
            options#clear_cache_flag
-          ) 
+          )
       then begin
 
         if show_info then
           self#verbose_msg "using caches%s:\n%s"
-            (if options#local_cache_name = "" then 
-              "" 
-            else 
+            (if options#local_cache_name = "" then
+              ""
+            else
               sprintf " (local cache name: %s)" options#local_cache_name)
             (Xlist.to_string
                (fun x -> "\""^x.Cache.sr_cache_path^"\"") "\n" info_paths);
@@ -155,7 +155,7 @@ class c options = object (self)
         end;
 
 	if options#dump_ast_flag || options#dump_src_flag then begin
-          
+
 	  if options#dump_ast_flag then begin
 	    let fname_astml = file#fullpath^Astml.extension in
             match Misc.find_file_name_with_exts fname_astml Sastml.extensions with
@@ -167,7 +167,7 @@ class c options = object (self)
 
           if options#dump_src_flag then begin
             let opening = options#dump_src_out <> "" in
-            let ch = 
+            let ch =
               if opening then
                 open_out options#dump_src_out
               else
@@ -183,14 +183,14 @@ class c options = object (self)
 	  let origin_file = Filename.concat cache_path options#origin_file_name in
 	  let ending_file = Filename.concat cache_path options#ending_file_name in
 
-	  DEBUG_MSG "dumping origins: nctms_file=\"%s\" revindex=%d" 
+	  DEBUG_MSG "dumping origins: nctms_file=\"%s\" revindex=%d"
             options#nctms_file options#revindex;
 
-	  DEBUG_MSG "dumping origins: origin_file=\"%s\" ending_file=\"%s\"" 
+	  DEBUG_MSG "dumping origins: origin_file=\"%s\" ending_file=\"%s\""
 	    origin_file ending_file;
 
 	  let bufsize = file#size in
-	  let (nnodes, nknown, cov, nds_tbl, nknown_ending, cov_ending, nds_tbl_ending) = 
+	  let (nnodes, nknown, cov, nds_tbl, nknown_ending, cov_ending, nds_tbl_ending) =
 	    tree#dump_origin bufsize options#nctms_file options#revindex origin_file ending_file
 	  in
 	  self#verbose_msg "origins saved in \"%s\"" origin_file;
@@ -200,8 +200,8 @@ class c options = object (self)
 	  self#dump_coverage cov_file (nknown, nnodes, cov);
 	  self#verbose_msg "coverage(origin) saved in \"%s\"" cov_file;
 
-	  let frag_file = 
-            self#mkfragfilepath cache_path options#fragment_file_name options#revindex 
+	  let frag_file =
+            self#mkfragfilepath cache_path options#fragment_file_name options#revindex
           in
 	  self#dump_fragment M_ORIGIN frag_file nds_tbl;
 	  self#verbose_msg "fragments(origin) saved in \"%s\"" frag_file;
@@ -210,8 +210,8 @@ class c options = object (self)
 	  self#dump_coverage cov_file_ending (nknown_ending, nnodes, cov_ending);
 	  self#verbose_msg "coverage(ending) saved in \"%s\"" cov_file_ending;
 
-	  let frag_file_ending = 
-	    self#mkfragfilepath cache_path options#fragment_file_name_ending options#revindex 
+	  let frag_file_ending =
+	    self#mkfragfilepath cache_path options#fragment_file_name_ending options#revindex
 	  in
 	  self#dump_fragment M_ENDING frag_file_ending nds_tbl_ending;
 	  self#verbose_msg "fragments(ending) saved in \"%s\"" frag_file_ending
@@ -227,7 +227,7 @@ class c options = object (self)
         let info = SF.get_tree_info tree in
 
         if show_info then begin
-	  SF.dump_info_ch info stdout; 
+	  SF.dump_info_ch info stdout;
 	  flush stdout
         end;
 
@@ -354,14 +354,14 @@ class c options = object (self)
 
       let fact_store =
         if options#fact_flag then
-          let _fact_store = 
-            new Fact_base.fact_store ~lock:false options info.DT.i_cache_path 
+          let _fact_store =
+            new Fact_base.fact_store ~lock:false options info.DT.i_cache_path
           in
           Some _fact_store
         else
           None
       in
-      
+
 
       let proc_unmodified (o, n) =
         self#parse_file_and_handle_info ~head:"[unmodified]" fact_store old_proj_root old_version o
@@ -399,7 +399,7 @@ class c options = object (self)
           );
         self#parse_file_and_handle_info ~head:"[moved]" fact_store new_proj_root new_version n
           (fun finfo2 ->
-            stat.SD.s_nnodes2          <- stat.SD.s_nnodes2          + finfo2.SF.i_nodes;  
+            stat.SD.s_nnodes2          <- stat.SD.s_nnodes2          + finfo2.SF.i_nodes;
           )
       in
       let proc_removed f =
@@ -439,7 +439,7 @@ class c options = object (self)
             let dstat =
 	      if stat_paths <> [] && (not options#clear_cache_flag) then begin
 	        self#verbose_msg "cache found. skipping...";
-                SF.scan_diff_stat ~max_retry_count:options#max_retry_count 
+                SF.scan_diff_stat ~max_retry_count:options#max_retry_count
                   stat_paths
               end
 	      else
@@ -451,20 +451,20 @@ class c options = object (self)
 
 	    self#update_stat stat dstat
 
-	  with 
+	  with
 	  | Failure msg                 -> Xprint.warning ~head:(proj_head^"[FAILURE]") "%s" msg
           | Lang_base.Error msg         -> Xprint.warning ~head:(proj_head^"[LANG]") "%s" msg
 	  | Lang_base.Parse_error(head, msg) -> Xprint.warning ~head:(proj_head^head) "%s" msg
-	  | S.Stat_not_found -> 
+	  | S.Stat_not_found ->
               Xprint.warning ~head:(proj_head^"[modified]") "cache not found: %s - %s" o#fullpath n#fullpath
 
-          | S.Malformed_stat path -> 
+          | S.Malformed_stat path ->
 	      Xprint.warning ~head:(proj_head^"[modified]") "malformed cache: %s" path
 
-          | Astml.External_parser_not_found pname -> 
+          | Astml.External_parser_not_found pname ->
               Xprint.warning ~head:(proj_head^"[modified]") "external parser not found: %s" pname
 (*
-	  | A.No_differences_found -> 
+	  | A.No_differences_found ->
 	      Xprint.warning "no differences found";
 	      proc_unmodified (o, n);
               is_modified := false
@@ -555,7 +555,7 @@ class c options = object (self)
               let l2 = Hashtbl.find dtbl2 d in
 
               match l1, l2 with
-              | [f1], [f2] -> 
+              | [f1], [f2] ->
                   if f1#path = f2#path then
                     unmodified := (f1, f2) :: !unmodified
                   else if f1#dirname = f2#dirname then
@@ -568,7 +568,7 @@ class c options = object (self)
                   let p1 = f1#path in
                   let c =
                     List.fold_left
-                      (fun l f2 -> 
+                      (fun l f2 ->
                         if f2#path = p1 then begin
                           unmodified := (f1, f2) :: !unmodified;
                           l
@@ -584,7 +584,7 @@ class c options = object (self)
                   let p2 = f2#path in
                   let g =
                     List.fold_left
-                      (fun l f1 -> 
+                      (fun l f1 ->
                         if f1#path = p2 then begin
                           unmodified := (f1, f2) :: !unmodified;
                           l
@@ -647,7 +647,7 @@ class c options = object (self)
 
                       let rn1 = ref [] in
                       let rn2 = ref [] in
-                      
+
                       let rec balance = function
                         | [], [] -> ()
                         | [], l2 -> begin
@@ -660,7 +660,7 @@ class c options = object (self)
                             | f2::_ -> glued := (l1, f2) :: !glued
                             | [] -> assert false
                         end
-                        | h1::t1, h2::t2 -> 
+                        | h1::t1, h2::t2 ->
                             renamed := (h1, h2) :: !renamed;
                             rn1 := h1 :: !rn1;
                             rn2 := h2 :: !rn2;
@@ -680,7 +680,7 @@ class c options = object (self)
                           ) dntbl1 []
                       in
                       let f2s'' = Hashtbl.fold (fun _ f2s l -> f2s @ l) dntbl2 [] in
-                      
+
                       let mv1 = ref [] in
                       let mv2 = ref [] in
 
@@ -699,14 +699,14 @@ class c options = object (self)
                             | f2::_ -> glued := (l1, f2) :: !glued
                             | [] -> assert false
                         end
-                        | h1::t1, h2::t2 -> 
+                        | h1::t1, h2::t2 ->
                             moved := (h1, h2) :: !moved;
                             mv1 := h1 :: !mv1;
                             mv2 := h2 :: !mv2;
                             balance (t1, t2)
                       in
                       balance (f1s'', f2s'')
-                        
+
             with
               Not_found -> deleted_cands := l1 @ !deleted_cands
           ) dtbl1;
@@ -725,7 +725,7 @@ class c options = object (self)
 
         let deleted =
           Hashtbl.fold
-            (fun p f1 l -> 
+            (fun p f1 l ->
               try
                 let f2 = Hashtbl.find ptbl2 p in
                 modified := (f1, f2) :: !modified;
@@ -763,7 +763,7 @@ class c options = object (self)
 
         self#verbose_msg "COMPUTING DIFFS FOR EXTRA MODIFIED FILES...";
         let extra_unmodified = ref [] in
-        List.iter 
+        List.iter
 	  (fun p ->
             try
               if not (proc_modified p) then
@@ -785,7 +785,7 @@ class c options = object (self)
 
       info.DT.i_modified   <- (Xlist.subtract info.DT.i_modified !extra_unmodified) @ extra_modified;
       info.DT.i_unmodified <- info.DT.i_unmodified @ !extra_unmodified @ extra_extra_unmodified;
-      
+
       SD.dump_diff_stat info.DT.i_cache_path stat;
 
       SD.show_diff_stat ~short:true stat;

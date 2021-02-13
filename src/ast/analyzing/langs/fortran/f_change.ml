@@ -68,38 +68,38 @@ module F (L : F_label.T) = struct
   let is_sect_subscr_list nd   = L.is_section_subscript_list (getlab nd)
   let is_ambiguous nd          = L.is_ambiguous (getlab nd)
 
-  let is_if nd = 
-    is_if_stmt nd || 
-    is_arithmetic_if_stmt nd || 
-    is_if_then_stmt nd || 
+  let is_if nd =
+    is_if_stmt nd ||
+    is_arithmetic_if_stmt nd ||
+    is_if_then_stmt nd ||
     is_else_if_stmt nd
 
   let is_if_cond nd =
     try
       let pnd = nd#initial_parent in
       is_if pnd && is_expr nd
-    with 
+    with
       _ -> false
 
   let is_then_branch nd =
     try
       let pnd = nd#initial_parent in
       is_if_then_stmt pnd && is_block nd
-    with 
+    with
       _ -> false
 
   let is_else_if_branch nd =
     try
       let pnd = nd#initial_parent in
       is_else_if_stmt pnd && is_block nd
-    with 
+    with
       _ -> false
 
   let is_else_branch nd =
     try
       let pnd = nd#initial_parent in
       is_else_stmt pnd && is_block nd
-    with 
+    with
       _ -> false
 
 (* *)
@@ -108,7 +108,7 @@ module F (L : F_label.T) = struct
     try
       let u = tree#get_nearest_containing_unit nd#uid in
       u#data#label
-    with 
+    with
       Not_found -> ""
 
 
@@ -131,7 +131,7 @@ module F (L : F_label.T) = struct
   let get_desc2 tree1 tree2 nd1 nd2 =
     let ids1 = tree1#get_ident_use_list nd1#gindex in
     let ids2 = tree2#get_ident_use_list nd2#gindex in
-    sprintf "%s%s%s -> %s%s%s" 
+    sprintf "%s%s%s -> %s%s%s"
       nd1#data#label (ids_to_str ids1) (subtree_to_str tree1 nd1)
       nd2#data#label (ids_to_str ids2) (subtree_to_str tree2 nd2)
 
@@ -143,7 +143,7 @@ module F (L : F_label.T) = struct
   class c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2 = object(self)
     inherit CB.c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2
 
-    method make_changes_list () = 
+    method make_changes_list () =
       let mkt_del = self#mkt_deleted ~category:Triple.ghost in
       let mkt_ins = self#mkt_inserted ~category:Triple.ghost in
       let mkt_mod = self#mkt_modified ~category:Triple.ghost in
@@ -152,7 +152,7 @@ module F (L : F_label.T) = struct
       let mkt_mov = self#mkt_moved_to ~category:Triple.ghost in
       let mkt_odrchg = self#mkt_order_changed ~category:Triple.ghost in
 (*      let mkt_chgcard _ = [] in *)
-      [ 
+      [
 (* case-construct *)
 	"case-construct removed",  Smedium, (self#make_delete_st is_case_construct), mkt_del;
 	"case-construct added",    Smedium, (self#make_insert_st is_case_construct), mkt_ins;

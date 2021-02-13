@@ -1610,10 +1610,10 @@ class env = object (self)
     stack#find_namespace n
 
   method lookup_obj n =
-    stack#find_obj n    
+    stack#find_obj n
 
   method lookup_type n =
-    stack#find_type n    
+    stack#find_type n
 
   method set_obj_external_name ?(prefix="") i (nd : Ast.node) =
     let p = stack#get_prefix ~prefix ~ns_only:true () in

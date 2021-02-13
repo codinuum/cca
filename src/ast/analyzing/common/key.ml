@@ -28,7 +28,7 @@ let is_pair_key k = match k with Kpair _ -> true | _ -> false
 
 let to_string ?(opr=(fun o -> "")) = function
   | Kany    -> "ANY_KEY"
-  | Kpair (o1, o2) -> 
+  | Kpair (o1, o2) ->
       let s1 = opr o1 in
       let s2 = opr o2 in
       "PAIR_KEY"^(if s1 = "" && s2 = "" then "" else "("^s1^","^s2^")")

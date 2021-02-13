@@ -43,7 +43,7 @@ let char_pool = (* 126 safe characters *)
 let char_pool_len = Array.length char_pool
 
 let catstr strl = String.concat sep0 strl
-    
+
 let mkstr idx = char_to_string char_pool.(idx)
 
 let encode_ids ?(ignore_identifiers_flag=false) id_list =

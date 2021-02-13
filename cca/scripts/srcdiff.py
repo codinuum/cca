@@ -90,10 +90,10 @@ def read_info(info_paths):
     return i['nnodes']
 
 
-def count_nodes(files, cache_dir_base=None, 
-                load_fact=False, 
-                fact_dir=None, 
-                fact_versions=[], 
+def count_nodes(files, cache_dir_base=None,
+                load_fact=False,
+                fact_dir=None,
+                fact_versions=[],
                 fact_proj='',
                 fact_proj_roots=[],
                 fact_for_ast=False,
@@ -211,7 +211,7 @@ def read_stat2(fname, roots=[]):
     try:
         f = open(fname)
         reader = csv.reader(f)
-        
+
         for row in reader:
             logger.debug('row={}'.format(row))
             if len(roots) > 1:
@@ -257,7 +257,7 @@ def read_stat_except_first(fname, root=None):
     try:
         f = open(fname)
         reader = csv.reader(f)
-        
+
         for row in reader:
             logger.debug('row={}'.format(row))
 
@@ -283,7 +283,7 @@ def read_stat_except_last(fname, root=None):
     try:
         f = open(fname)
         reader = csv.reader(f)
-        
+
         for row in reader:
             logger.debug('row={}'.format(row))
 
@@ -468,7 +468,7 @@ def null_astml(astml_path):
         xmlparser.StartElementHandler = start_element
         xmlparser.ParseFile(f)
         f.close()
-        
+
     except NotNull:
         return False
 
@@ -479,7 +479,7 @@ def null_astml(astml_path):
 
     return b
 
-    
+
 def has_AST(f):
     b = False
     for astml_ext in astml_exts:
@@ -799,8 +799,8 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             if line_sim:
                 line_sim_sum += sim.line_sim(file1, file2)
                 line_sim_count += 1
-                
-            r = diff(file1, file2, 
+
+            r = diff(file1, file2,
                      cache_dir_base=cache_dir_base,
                      load_fact=load_fact,
                      fact_dir=fact_dir,
@@ -829,7 +829,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             #c = r['ndeletes'] + r['ninserts'] + r['nrelabels'] + r['nmoves']
 
             m = r['nmappings']
-            
+
 
             logger.info('"{}" - "{}": CMR=({}/{})'.format(file1, file2, c, m))
 
@@ -867,7 +867,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             nmovrels  += r['nmovrels']
             nmoves    += r['nmoves']
 
-                
+
     except Exception as e:
         logger.warning('{}'.format(str(e)))
 
@@ -937,19 +937,19 @@ def test_diff_dirs():
     if args.debug:
         log_level = logging.DEBUG
     setup_logger(logger, log_level)
-        
+
     mode = args.mode
 
     logger.info('mode: "{}"'.format(mode))
 
-    
+
     diff = None
 
     if mode == 'diffast':
         diff = diffast
     else:
         logger.error('illegal mode: "{}"'.format(mode))
-        
+
 
     res = diff_dirs(diff, args.dir1, args.dir2,
                     use_sim=args.use_sim,

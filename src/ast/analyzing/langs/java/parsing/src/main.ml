@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * A parser for the Java Language 
+(*
+ * A parser for the Java Language
  *
  * main.ml
  *
@@ -28,8 +28,8 @@ let arg_count = ref 0
 let dump_flag = ref false
 let keep_going_flag = ref false
 
-let _ = 
-  Arg.parse 
+let _ =
+  Arg.parse
     [
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump result";
      "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tparse tolerantly";
@@ -51,7 +51,7 @@ let _ =
     let _parser = new Lib.parser_c in
     _parser#_set_keep_going_flag !keep_going_flag;
     while true do
-      let ast = 
+      let ast =
 	if !compile_mode then
 	  _parser#parse_file (Fs.file_of_path options !filename)
 	else
@@ -73,9 +73,9 @@ let _ =
 
       exit 0
     done
-  with 
+  with
   | Sys_error msg
-  | Failure msg 
+  | Failure msg
     -> Xprint.error "%s" msg; exit 1
 
   | Parse_error(head, msg) -> Xprint.error ~head "%s" msg; exit 1

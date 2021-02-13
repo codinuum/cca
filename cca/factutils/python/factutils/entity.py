@@ -42,7 +42,7 @@ class External(Resource):
             else:
                 Resource.__init__(self, EXTERNAL_NS + '???')
                 self._valid = False
-        
+
     def __str__(self):
         return '<%s>' % self.get_uri()
 
@@ -149,10 +149,10 @@ class SourceCodeEntity(Resource):
                 except Exception as e:
                     #self.warning(str(e))
                     self._valid = False
-                
+
             else:
                 self._valid = False
-            
+
         else:
             self._valid = False
 
@@ -182,7 +182,7 @@ class SourceCodeEntity(Resource):
         if self._file_id == other._file_id:
             b = self._range.contains(other._range)
 #            self.debug('%s vs %s --> %s' % (self.get_range(), other.get_range(), b))
-        
+
         return b
 
     def is_file(self):

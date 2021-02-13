@@ -57,16 +57,16 @@ class type entry_t = object
 end (* of class type Storage.entry_t *)
 
 let rec scan_dir (* for files *)
-    ?(recursive=true) 
-    dent 
-    (f : entry_t -> unit)  
+    ?(recursive=true)
+    dent
+    (f : entry_t -> unit)
     =
   List.iter
     (fun ent ->
       try
         if ent#is_dir then
           if recursive then
-            scan_dir ent f 
+            scan_dir ent f
           else
             ()
         else
@@ -82,7 +82,7 @@ let rec scan_dir_for_dirs exists dent (f : entry_t -> unit) =
       if exists ent#path then
         if ent#is_dir then begin
           f ent;
-          scan_dir_for_dirs exists ent f 
+          scan_dir_for_dirs exists ent f
         end
     ) dent#entries
 
@@ -104,7 +104,7 @@ class converter filt = object (self)
         end
         | c -> Buffer.add_char buf c
       ) contents;
-    if eof then 
+    if eof then
       Netbuffer.add_string obuf (filt (Buffer.contents buf))
 
 end
@@ -123,7 +123,7 @@ class virtual tree = object (self)
   method virtual get_entry       : ?ignore_case:bool -> string -> entry_t (* "" means root *)
   method virtual get_channel     : ?ignore_case:bool -> string -> Netchannels.in_obj_channel
   method virtual get_local_file  : ?ignore_case:bool -> string -> string
-  method virtual free_local_file : string -> unit 
+  method virtual free_local_file : string -> unit
 
   val kept_local_path_set = (Xset.create 0 : string Xset.t) (* path to be kept *)
 
@@ -247,7 +247,7 @@ class file ?(digest_opt=None) ?(ignore_case=false) (obj : obj_t) (_path : string
     | Some d -> d
     | None -> self#get_entry#file_digest
 
-  method get_extension   = 
+  method get_extension   =
     match extra_ext with
     | None -> Xfile.get_extension path
     | Some x -> x

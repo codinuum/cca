@@ -24,10 +24,10 @@ module Path  = Otreediff.Path
 
 module OutChannel = struct
 
-  type t = 
-    | Pervasives of out_channel 
+  type t =
+    | Pervasives of out_channel
     | XChannel of Xchannel.out_channel
-          
+
   let of_pervasives ch = Pervasives ch
   let of_xchannel ch = XChannel ch
 
@@ -68,7 +68,7 @@ class type node_data_t_shared = object ('self)
   method relabel_allowed    : 'self -> bool
   method quasi_eq           : 'self -> bool
   method to_be_notified  : bool
-  
+
   method eq             : 'self -> bool (* label *)
   method equals         : 'self -> bool (* label and digest *)
   method subtree_equals : 'self -> bool (* label and _digest (subtree) *)
@@ -85,17 +85,17 @@ class type node_data_t_shared = object ('self)
 
   method is_anonymous : bool
 
-  method is_named           : bool   
-  method is_named_orig      : bool   
+  method is_named           : bool
+  method is_named_orig      : bool
 
-  method get_name           : string 
+  method get_name           : string
 
-  method _anonymized_label  : Obj.t  
-  method _anonymized2_label : Obj.t  
-  method _anonymized3_label : Obj.t  
+  method _anonymized_label  : Obj.t
+  method _anonymized2_label : Obj.t
+  method _anonymized3_label : Obj.t
 
-  method is_partition       : bool   
-  method is_boundary        : bool   
+  method is_partition       : bool
+  method is_boundary        : bool
 
   method set_mid         : MID.t -> unit
   method mid             : MID.t
@@ -130,7 +130,7 @@ class type [ 'node ] tree_t_shared = object ('self)
 
   method parser_name               : string
   method get_digest                : 'node -> Xhash.t
-  method set_source_path           : string -> unit      
+  method set_source_path           : string -> unit
   method source_path               : string
   method set_ignored_regions       : (int * int) list -> unit
   method ignored_regions           : (int * int) list

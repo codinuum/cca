@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * A pretty printer for the Python programming language 
+(*
+ * A pretty printer for the Python programming language
  *
  * printer.ml
  *
@@ -60,7 +60,7 @@ and pr_statement level stmt =
   match stmt.stmt_desc with
   | Ssimple sstmts ->
       pr_indent level;
-      pr_list pr_smallstmt pr_semicolon sstmts; 
+      pr_list pr_smallstmt pr_semicolon sstmts;
       pr_newline()
 
   | Sasync stmt -> pr_string "async "; pr_statement level stmt
@@ -70,7 +70,7 @@ and pr_statement level stmt =
       pr_list (pr_elif level) pr_null elifs;
       pr_else_opt level else_opt
 
-  | Swhile(cnd, suite, else_opt) -> 
+  | Swhile(cnd, suite, else_opt) ->
       pr_expr_suite level "while" (cnd, suite);
       pr_else_opt level else_opt
 
@@ -181,14 +181,14 @@ and pr_with_item (expr, targ_opt) =
   end
 
 
-and pr_else_opt level = 
-  pr_opt 
-    (fun (_, suite) -> 
+and pr_else_opt level =
+  pr_opt
+    (fun (_, suite) ->
       pr_indent level; pr_string "else:"; pr_suite level suite)
 
-and pr_finally_opt level = 
-  pr_opt 
-    (fun (_, suite) -> 
+and pr_finally_opt level =
+  pr_opt
+    (fun (_, suite) ->
       pr_indent level; pr_string "finally:"; pr_suite level suite)
 
 and pr_elif level (_, expr, suite) = pr_expr_suite level "elif" (expr, suite)
@@ -203,7 +203,7 @@ and pr_expr_suite level kw (expr, suite) =
 
 and pr_exprs exprs = pr_list pr_expr pr_comma exprs
 
-and pr_testlist testlist = 
+and pr_testlist testlist =
   if testlist.yield then pr_string "yield ";
   pr_list pr_expr pr_comma testlist.list
 
@@ -308,7 +308,7 @@ and pr_smallstmt sstmt =
       pr_expr expr2
   end
   | SSexec3(expr1, expr2, expr3) -> begin
-      pr_string "exec "; 
+      pr_string "exec ";
       pr_expr expr1;
       pr_string " in ";
       pr_expr expr2;
@@ -351,7 +351,7 @@ and pr_vararg = function
 
 and pr_parameters (_, vargs) = pr_list pr_vararg pr_comma vargs
 
-and pr_fpdef = function 
+and pr_fpdef = function
   | Fname name -> pr_name name
   | Ftyped(_, name, expr) -> pr_name name; pr_colon(); pr_expr expr
   | Flist(_, fpdefs) ->
@@ -428,13 +428,13 @@ and _pr_primary = function
   | Psubscript(prim, exprs)   -> pr_primary prim; pr_string "["; pr_exprs exprs; pr_string "]"
 
   | Pslice(prim, sliceitems) ->
-      pr_primary prim; 
-      pr_string "["; 
+      pr_primary prim;
+      pr_string "[";
       pr_list pr_sliceitem pr_comma sliceitems;
       pr_string "]"
-	
+
   | Pcall(prim, arglist) ->
-      pr_primary prim; 
+      pr_primary prim;
       pr_string "(";
       pr_arglist arglist;
       pr_string ")"
@@ -446,9 +446,9 @@ and pr_literal = function
   | Llonginteger str -> pr_string str
   | Lfloatnumber str -> pr_string str
   | Limagnumber str -> pr_string str
-  | Lstring pystrs -> 
-      pr_list 
-	(function 
+  | Lstring pystrs ->
+      pr_list
+	(function
           | PSlong(_, s) -> pr_string s
           | PSshort(_, s) -> pr_string s
 	) pr_space pystrs
@@ -467,7 +467,7 @@ and pr_listif (_, expr, listiter_opt) =
   pr_expr expr;
   pr_opt (fun listiter -> pr_space(); pr_listiter listiter) listiter_opt
 
-and pr_listiter = function 
+and pr_listiter = function
   | LIfor listfor -> pr_listfor listfor
   | LIif listif -> pr_listif listif
 
@@ -582,7 +582,7 @@ and pr_bop = function
   | Bin -> pr_string " in "
   | BnotIn -> pr_string " not in "
 
-and pr_uop = function 
+and pr_uop = function
   | Upositive -> pr_string "+"
   | Unegative -> pr_string "-"
   | Ucomplement -> pr_string "~"

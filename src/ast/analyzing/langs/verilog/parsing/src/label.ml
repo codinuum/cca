@@ -197,9 +197,9 @@ type t =
     | InitialConstruct
     | FinalConstruct
     | AlwaysConstruct of AlwaysSpec.t
-    | ConcurrentAssertionItemLabeled of identifier 
+    | ConcurrentAssertionItemLabeled of identifier
     | ConcurrentAssertionStmt of ConcurrentAssertion.t
-    | DeferredImmediateAssertionItemLabeled of identifier 
+    | DeferredImmediateAssertionItemLabeled of identifier
     | DeferredImmediateAssertionStmt of DeferredImmediateAssertion.t
     | SimpleImmediateAssertionStmt of SimpleImmediateAssertion.t
     | CheckerInstantiation of identifier
@@ -293,7 +293,7 @@ type t =
     | SelectBinsEmpty
     | Bins of BinsSpec.t * identifier
     | BinsSelection of BinsSpec.t * identifier
-    | BinsExpressionVar of identifier 
+    | BinsExpressionVar of identifier
     | BinsExpression of identifier * identifier
     | NBins
     | SelCondBinsof
@@ -1822,14 +1822,14 @@ let get_identifiers = function
   | NetDeclaration ids
   | ModportDeclaration ids
   | GenvarDeclaration ids
-  | NetDeclAssignments ids 
-  | ParamAssignments ids 
+  | NetDeclAssignments ids
+  | ParamAssignments ids
   | LocalParameterDeclaration ids
   | ParameterDeclaration ids
     -> ids
   | _ -> raise Not_found
 
-let get_identifier lab = 
+let get_identifier lab =
   DEBUG_MSG "\"%s\"" (to_string lab);
   match lab with
   | Expr e -> Expression.get_identifier e
@@ -1853,7 +1853,7 @@ let get_identifier lab =
   | EndLabel id
   | ClassType id
   | ArgsDotted id
-  | ClassScopeId id 
+  | ClassScopeId id
   | EnumNameDeclaration id
   | Variable id
   | PackageImportItem id
@@ -1915,7 +1915,7 @@ let get_identifier lab =
   | CrossItem id
   | Bins(_, id)
   | BinsSelection(_, id)
-  | BinsExpressionVar id 
+  | BinsExpressionVar id
   | BinsExpression(_, id)
   | CoverageEventWith id
   | HierarchicalBtfIdentifier id

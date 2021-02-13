@@ -33,13 +33,13 @@ open Common
 let mk_macro_id i = "`"^i
 let mk_macro_call_id i = "`"^i^"()"
 
-class node 
-    ?(lloc=LLoc.dummy) 
-    ?(children=[]) 
+class node
+    ?(lloc=LLoc.dummy)
+    ?(children=[])
     ?(info=I.NoInfo)
     ?(pvec=[])
-    lab 
-    = 
+    lab
+    =
   object (self : 'self)
     val mutable encoded = ""
     val mutable parent = None
@@ -181,7 +181,7 @@ class node
       match children with
       | [] -> ()
       | [_] -> children <- []
-      | _ -> 
+      | _ ->
           match (List.rev children) with
           | _ :: t -> children <- (List.rev t)
           | _ -> assert false
@@ -194,8 +194,8 @@ class node
 
     method to_string =
       sprintf "<%s>%s%s%s"
-        (L.to_string label) 
-        (lloc#to_string ?short:(Some true) ()) 
+        (L.to_string label)
+        (lloc#to_string ?short:(Some true) ())
         (match info with
         | I.NoInfo -> ""
         | _ -> sprintf ": <<%s>>" (I.to_string info)

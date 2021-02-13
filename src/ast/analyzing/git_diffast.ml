@@ -163,7 +163,7 @@ class diffast_args = object (self)
       let pr = Fpath.pp in
       Arg.conv ~docv:"<path>" (cv, pr)
     in
-    Arg.(required & pos 0 (some path) None & doc ) 
+    Arg.(required & pos 0 (some path) None & doc )
 
   method clearcache = mk_flag ["clearcache"] "Clear diff cache."
 
@@ -181,34 +181,34 @@ class diffast_args = object (self)
     mk_opt ["cache"] "DIR" "Set cache dir base to DIR."
       Arg.(some string) None
 
-  method fact_proj = 
-    mk_opt ["fact:project"] "ID" "Set project ID." 
+  method fact_proj =
+    mk_opt ["fact:project"] "ID" "Set project ID."
       Arg.(some string) None
 
-  method fact_into_virtuoso = 
-    mk_opt ["fact:into-virtuoso"] "URI" "Output fact into graph <URI> in virtuoso." 
+  method fact_into_virtuoso =
+    mk_opt ["fact:into-virtuoso"] "URI" "Output fact into graph <URI> in virtuoso."
       Arg.(some string) None
 
-  method fact_into_directory = 
-    mk_opt ["fact:into-directory"] "DIR" "Output fact into directory DIR." 
+  method fact_into_directory =
+    mk_opt ["fact:into-directory"] "DIR" "Output fact into directory DIR."
       Arg.(some string) None
 
-  method fact_enc = 
-    mk_opt ["fact:encoding"] "ENC" "Set fact encoding to ENC (FDO|FDLC|FDLO|FDLCO)." 
+  method fact_enc =
+    mk_opt ["fact:encoding"] "ENC" "Set fact encoding to ENC (FDO|FDLC|FDLO|FDLCO)."
       Arg.(some string) (Some "FDLCO")
 
-  method fact_size_thresh = 
-    mk_opt ["fact:size-thresh"] "N" "Set fact buffer size threshold to N." 
+  method fact_size_thresh =
+    mk_opt ["fact:size-thresh"] "N" "Set fact buffer size threshold to N."
       Arg.(some int) None
 
   method local_cache_name =
     mk_opt ["local-cache-name"] "NAME" "Set local cache name to NAME."
       Arg.(some string) None
 
-    
+
 end (* of class diffast_options *)
 
-let get_opts 
+let get_opts
     ~verbose
     ~external_parser
     ~disable_parser
@@ -302,7 +302,7 @@ let extract = {
   name = "extract";
   doc = "Extract fact from Git object.";
   man = [];
-  term = 
+  term =
   let args = new diffast_args in
 (*
   let sha1 =
@@ -321,7 +321,7 @@ let extract = {
       root sha1s =
     run begin
 
-      let options = 
+      let options =
         get_opts ~verbose:(verbose())
           ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
           ~dump_fact:true ~fact_proj ~fact_size_thresh ~fact_enc
@@ -356,7 +356,7 @@ let extract = {
                 end
               ) sha1s
           with
-            exn -> 
+            exn ->
 	      eprintf "[EXCEPTION] %s\n%s\n"
                 (Printexc.to_string exn) (Printexc.get_backtrace());
 	      Lwt.return_unit
@@ -368,7 +368,7 @@ let extract = {
         args#external_parser $ args#disable_parser $
         args#clearcache $ args#cache_dir_base $ args#dump_delta $
         args#fact_proj $ args#fact_into_virtuoso $
-        args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $ 
+        args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $
         args#local_cache_name $
         args#repo $ sha1s)
 }
@@ -392,7 +392,7 @@ let diffast = {
       root sha1s =
     run begin
 
-      let options = 
+      let options =
         get_opts ~verbose:(verbose())
           ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
           ~dump_fact ~fact_proj ~fact_size_thresh ~fact_enc
@@ -459,7 +459,7 @@ let diffast = {
             GS.make_obj options repo_name t [Hash.of_hex sha1_0; Hash.of_hex sha1_1] >>= fun objs -> begin
 
               eprintf "comparing %s with %s...\n" sha1_0 sha1_1;
-              
+
               match objs with
               | [GS.Tree tree0; GS.Tree tree1] -> begin
 
@@ -474,7 +474,7 @@ let diffast = {
                     let nmodified = List.length info.Dirtree.i_modified in
                     if nmodified > 0 then begin
                       printf "[%d modified files]\n" nmodified;
-                      List.iter 
+                      List.iter
                         (fun (f1, f2) ->
                           if f1#path = f2#path then
                             printf "* %s\n" f1#path
@@ -486,7 +486,7 @@ let diffast = {
                     let nrenamed = List.length info.Dirtree.i_renamed in
                     if nrenamed > 0 then begin
                       printf "[%d renamed files]\n" nrenamed;
-                      List.iter 
+                      List.iter
                         (fun (f1, f2) ->
                           printf "* %s --> %s\n" f1#path f2#path;
                           printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
@@ -495,7 +495,7 @@ let diffast = {
                     let nmoved = List.length info.Dirtree.i_moved in
                     if nmoved > 0 then begin
                       printf "[%d moved files]\n" nmoved;
-                      List.iter 
+                      List.iter
                         (fun (f1, f2) ->
                           printf "* %s --> %s\n" f1#path f2#path;
                           printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
@@ -522,8 +522,8 @@ let diffast = {
                     let ncopied = List.length info.Dirtree.i_copied in
                     if ncopied > 0 then begin
                       printf "[%d copied files]\n" ncopied;
-                      List.iter 
-                        (fun (f, fs) -> 
+                      List.iter
+                        (fun (f, fs) ->
                           printf "* %s --> [%s]\n" f#path (String.concat ";" (List.map (fun f -> f#path) fs));
                           printf "  %s %s\n" (Xhash.to_hex f#digest) (Xhash.to_hex (List.hd fs)#digest)
                         ) info.Dirtree.i_copied
@@ -531,8 +531,8 @@ let diffast = {
                     let nglued = List.length info.Dirtree.i_glued in
                     if nglued > 0 then begin
                       printf "[%d glued files]\n" nglued;
-                      List.iter 
-                        (fun (fs, f) -> 
+                      List.iter
+                        (fun (fs, f) ->
                           printf "* [%s] --> %s\n" (String.concat ";" (List.map (fun f -> f#path) fs)) f#path;
                           printf "  %s %s\n" (Xhash.to_hex (List.hd fs)#digest) (Xhash.to_hex f#digest)
                         ) info.Dirtree.i_glued
@@ -562,7 +562,7 @@ let diffast = {
               end
             end
           with
-            exn -> 
+            exn ->
 	      eprintf "[EXCEPTION] %s\n%s\n" (Printexc.to_string exn) (Printexc.get_backtrace());
 	      Lwt.return_unit
 	end

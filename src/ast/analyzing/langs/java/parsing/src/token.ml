@@ -15,7 +15,7 @@
 *)
 (* token.ml *)
 
-open Tokens_ 
+open Tokens_
 
 module PB = Parserlib_base
 
@@ -94,7 +94,7 @@ let rawtoken_to_string = function
   | GT_GT_EQ    -> "GT_GT_EQ"
   | GT_GT_GT_EQ -> "GT_GT_GT_EQ"
 
-  (* keywords *)	
+  (* keywords *)
   | ABSTRACT _     -> "ABSTRACT"
   | ASSERT _       -> "ASSERT"
   | BOOLEAN _      -> "BOOLEAN"
@@ -123,7 +123,7 @@ let rawtoken_to_string = function
   | IMPORT _       -> "IMPORT"
   | INSTANCEOF _   -> "INSTANCEOF"
   | INT _          -> "INT"
-  | INTERFACE _    -> "INTERFACE" 
+  | INTERFACE _    -> "INTERFACE"
   | LONG _         -> "LONG"
   | NATIVE _       -> "NATIVE"
   | NEW _          -> "NEW"
@@ -222,7 +222,7 @@ let rawtoken_to_orig = function
   | GT_GT_EQ    -> ">>="
   | GT_GT_GT_EQ -> ">>>="
 
-  (* keywords *)	
+  (* keywords *)
   | ABSTRACT _       -> "abstract"
   | ASSERT _         -> "assert"
   | BOOLEAN _        -> "boolean"
@@ -285,7 +285,7 @@ let to_string (pos_mgr : Position.manager) (tok, st, ed) =
 
 let to_rawtoken = PB.token_to_rawtoken
 let to_lexposs  = PB.token_to_lexposs
-let decompose   = PB.decompose_token 
+let decompose   = PB.decompose_token
 let create      = PB.make_token
 
 let to_orig t = rawtoken_to_orig (to_rawtoken t)

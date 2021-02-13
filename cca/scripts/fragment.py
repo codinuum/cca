@@ -68,13 +68,13 @@ class Fragment(object): # sorted set of GNIDs
                 n0 = int(n0s)
             if n1s:
                 n1 = int(n1s)
-            
+
             result = (n0, n1)
 
             self.__ptr = m.end()
         else:
             raise StopIteration
-        
+
         logger.debug(result)
 
         return result
@@ -97,7 +97,7 @@ class Fragment(object): # sorted set of GNIDs
                 self.__cur += 1
 
         return result
-            
+
 
     def __iter__(self):
         self.reset()
@@ -125,7 +125,7 @@ class Fragment(object): # sorted set of GNIDs
 
             if c > 0:
                 result += '-' + str(elems[-1])
-        
+
         return Fragment(result)
 
     from_list = staticmethod(from_list)

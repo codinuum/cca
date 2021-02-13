@@ -56,18 +56,18 @@ let _apply_to_vkey_v vkind ver =
     fun f -> ()
 
 
-let create_fact_buf 
-    options 
+let create_fact_buf
+    options
     ?(acquire_lock=(fun () -> ()))
     ?(fact_file_path="")
     ?(cache_name="")
-    ~into_virtuoso 
-    ~into_directory 
-    cache_path 
+    ~into_virtuoso
+    ~into_directory
+    cache_path
     =
   let fact_file_path =
     if fact_file_path = "" then
-      Filename.concat cache_path Stat.fact_file_name 
+      Filename.concat cache_path Stat.fact_file_name
     else
       fact_file_path
   in
@@ -108,7 +108,7 @@ let create_fact_buf
       try
 	new Triple.buffer ~overwrite:false options fact_file_path
       with
-      | Triple.File_exists s -> 
+      | Triple.File_exists s ->
 	  Xprint.warning "file exists: \"%s\"" s;
 	  Triple.dummy_buffer
     end
@@ -118,9 +118,9 @@ let create_fact_buf
 
 
   class fact_store ?(lock=true) options cache_path =
-    let fact_file_path = 
-      Filename.concat cache_path Stat.fact_file_name 
-    in 
+    let fact_file_path =
+      Filename.concat cache_path Stat.fact_file_name
+    in
     let _ = DEBUG_MSG "cache_path: %s" cache_path in
     let _ = DEBUG_MSG "fact_file_path: %s" fact_file_path in
     let cache_name = Cache.get_cache_name options cache_path in
@@ -136,20 +136,20 @@ let create_fact_buf
 
       method id = ""
 
-      method warning_msg : 'a. ('a, unit, string, unit) format4 -> 'a = 
+      method warning_msg : 'a. ('a, unit, string, unit) format4 -> 'a =
         Xprint.warning ~head:(if self#id = "" then "" else "["^self#id^"]") ~out:stderr
 
-      method verbose_msg : 'a. ('a, unit, string, unit) format4 -> 'a = 
+      method verbose_msg : 'a. ('a, unit, string, unit) format4 -> 'a =
         Xprint.verbose options#verbose_flag
 
 
-      val fact_buf = 
-        create_fact_buf 
-          options 
-          ~acquire_lock ~fact_file_path ~into_virtuoso ~into_directory 
+      val fact_buf =
+        create_fact_buf
+          options
+          ~acquire_lock ~fact_file_path ~into_virtuoso ~into_directory
           cache_path
 
-      val a_fact_buf_tbl = 
+      val a_fact_buf_tbl =
         if into_virtuoso || into_directory then begin
 	  let tbl = new unified_fact_buffer_tbl in
 	  if into_virtuoso then
@@ -157,7 +157,7 @@ let create_fact_buf
 	  else if into_directory then
 	    tbl#add "" (new Triple.buffer_directory options cache_name);
 	  tbl
-        end 
+        end
         else
 	  new separate_fact_buffer_tbl
 
@@ -183,7 +183,7 @@ let create_fact_buf
 	  try
 	    let buf = a_fact_buf_tbl#find key in
 	    buf#add_group tri_list
-	  with 
+	  with
 	  | Not_found -> begin
 	      let buf =
 		try
@@ -303,15 +303,15 @@ module F (L : Spec.LABEL_T) = struct
       nd
     else
       try
-	Array.iter 
-	  (fun n -> 
+	Array.iter
+	  (fun n ->
 	    try
 	      raise (Node_found (find_node is_x n))
-	    with 
+	    with
 	      Not_found -> ()
 	  ) nd#initial_children;
 	raise Not_found
-      with 
+      with
 	Node_found res -> res
 
   let get_surrounding_xxxs is_xxx nd =
@@ -323,7 +323,7 @@ module F (L : Spec.LABEL_T) = struct
 	if is_xxx plab then
 	  xxxs := p::!xxxs;
 	scan p
-      with 
+      with
 	Otreediff.Otree.Parent_not_found _ -> ()
     in
     scan nd;
@@ -338,7 +338,7 @@ module F (L : Spec.LABEL_T) = struct
 	  p
 	else
 	  scan p
-      with 
+      with
 	Otreediff.Otree.Parent_not_found _ -> raise Not_found
     in
     scan nd
@@ -348,7 +348,7 @@ module F (L : Spec.LABEL_T) = struct
 
 
 
-  class extractor_base options cache_path tree = 
+  class extractor_base options cache_path tree =
     let enc = options#fact_enc in
   object (self)
 
@@ -425,15 +425,15 @@ module F (L : Spec.LABEL_T) = struct
 	    try
 	      let xxx = get_nearest_surrounding_xxx is_xxx nd in
 	      self#add (ent, pred, self#mkentity xxx);
-	    with 
+	    with
 	      Not_found -> ()
       end
 
-    method scanner_body_before_subscan 
-	(nd : Spec.node_t) (lab : L.t) (entity : Triple.node) 
+    method scanner_body_before_subscan
+	(nd : Spec.node_t) (lab : L.t) (entity : Triple.node)
 	= ()
-    method scanner_body_after_subscan 
-	(nd : Spec.node_t) (lab : L.t) (entity : Triple.node) 
+    method scanner_body_after_subscan
+	(nd : Spec.node_t) (lab : L.t) (entity : Triple.node)
 	= ()
 
     val hash_algo = Xhash.algo_to_string Xhash.MD5 (* currently MD5 is used *)
@@ -452,9 +452,9 @@ module F (L : Spec.LABEL_T) = struct
       let is_ghost = Triple.is_ghost_node entity in
 
       if is_ghost then begin
-	let entl = 
+	let entl =
 	  Array.fold_left
-	    (fun l n -> 
+	    (fun l n ->
 	      l @ (self#scan ~parent_ent n)
 	    ) [] nd#initial_children
 	in
@@ -482,7 +482,7 @@ module F (L : Spec.LABEL_T) = struct
 	let ent_a =
 	  Array.of_list
 	    (Array.fold_left
-	       (fun l n -> 
+	       (fun l n ->
 		 l @ (self#scan ~parent_ent:(Some entity) n)
 	       ) [] nd#initial_children
 	    )

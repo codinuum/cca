@@ -327,8 +327,8 @@ class FileDesc(FileId):
 
     def __init__(self, proj, ver, rel_path):
         FileId.__init__(self)
-        self._valid = reduce(lambda x,y: x and y, [isinstance(ver, Version), 
-                                                   ver.is_valid(), 
+        self._valid = reduce(lambda x,y: x and y, [isinstance(ver, Version),
+                                                   ver.is_valid(),
                                                    isinstance(rel_path, ProjRelPath) or rel_path == None])
         self._proj = proj
         self._ver = ver
@@ -337,14 +337,14 @@ class FileDesc(FileId):
         self._encoded = None
         if self._valid:
             if self._proj_rel_path:
-                self._encoded = SUB_SEP.join([encode_string(self._proj), 
+                self._encoded = SUB_SEP.join([encode_string(self._proj),
                                               self._ver.encode(),
                                               self._proj_rel_path.encode()])
 
             else:
-                self._encoded = SUB_SEP.join([encode_string(self._proj), 
+                self._encoded = SUB_SEP.join([encode_string(self._proj),
                                               self._ver.encode()])
-                
+
 
 
     def __eq__(self, other):

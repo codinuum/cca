@@ -96,14 +96,14 @@ end
 
 
 
-let conv_loc 
+let conv_loc
     { Ast.Loc.start_offset = so;
       Ast.Loc.end_offset   = eo;
       Ast.Loc.start_line   = sl;
       Ast.Loc.start_char   = sc;
       Ast.Loc.end_line     = el;
       Ast.Loc.end_char     = ec;
-    } = 
+    } =
   Loc.make so eo sl sc el ec
 
 open Charpool
@@ -221,17 +221,17 @@ module TimingCheck = struct
   include Ls.TimingCheck
 
   let anonymize = function
-    | Setup     
-    | Hold      
-    | Recovery  
-    | Removal   
-    | Skew      
-    | Setuphold 
-    | Recrem    
-    | Timeskew  
-    | Fullskew  
-    | Period    
-    | Width     
+    | Setup
+    | Hold
+    | Recovery
+    | Removal
+    | Skew
+    | Setuphold
+    | Recrem
+    | Timeskew
+    | Fullskew
+    | Period
+    | Width
     | Nochange  -> Anonymous
     | x         -> x
 
@@ -273,12 +273,12 @@ module SystemTask = struct
     | Unit    -> mkstr 4
     | Warning -> mkstr 5
     | Anonymous -> mkstr 6
-      
+
 end (* of module SystemTask *)
 
 module Qualifier = struct
   include Ls.Qualifier
-      
+
   let to_short_string = function
     | Protected   -> mkstr 0
     | Local       -> mkstr 1
@@ -297,15 +297,15 @@ module NetType = struct
   let anonymize = function
       | Supply0
       | Supply1
-      | Tri    
-      | Tri0   
-      | Tri1   
-      | Triand 
-      | Trior  
-      | Trireg 
-      | Wand   
-      | Wire   
-      | Uwire   
+      | Tri
+      | Tri0
+      | Tri1
+      | Triand
+      | Trior
+      | Trireg
+      | Wand
+      | Wire
+      | Uwire
       | Wor     -> Anonymous
       | x       -> x
 
@@ -354,13 +354,13 @@ module Gate = struct
 
   let anonymize = function
     | Gate _
-    | And  
-    | Buf  
-    | Nand 
-    | Nor  
-    | Not  
-    | Or   
-    | Xnor 
+    | And
+    | Buf
+    | Nand
+    | Nor
+    | Not
+    | Or
+    | Xnor
     | Xor  -> Anonymous
     | x    -> x
 
@@ -410,7 +410,7 @@ module DataType = struct
     | Named id            -> Named ""
     | dt                  -> dt
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
+  let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
     | Byte                -> mkstr 0
     | Shortint            -> mkstr 1
@@ -455,7 +455,7 @@ module Expression = struct
     | MethodCall id         -> MethodCall ""
     | e                     -> e
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
+  let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
     | IntegralNumber s      -> mkstr_str 0 s
     | RealNumber s          -> mkstr_str 2 s
@@ -499,7 +499,7 @@ end (* of module Expression *)
 
 module EventExpression = struct
   include Ls.EventExpression
-      
+
   let to_short_string = function
     | Posedge -> mkstr 0
     | Negedge -> mkstr 1
@@ -512,7 +512,7 @@ end (* of module EventExpression *)
 
 module PropertyExpression = struct
   include Ls.PropertyExpression
-      
+
   let to_short_string = function
     | Not                      -> mkstr 0
     | Strong                   -> mkstr 1
@@ -545,7 +545,7 @@ end (* of module PropertyExpression *)
 
 module SequenceExpression = struct
   include Ls.SequenceExpression
-      
+
   let to_short_string = function
     | Concat     -> mkstr 0
     | Repetition -> mkstr 1
@@ -581,7 +581,7 @@ module Statement = struct
     | Expr e                  -> Expr (Expression.anonymize e)
     | stmt                    -> stmt
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
+  let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
     | Empty                   -> mkstr 0
     | OperatorAssignment ao   -> catstr [mkstr 1; AssignmentOperator.to_string ao]
@@ -645,7 +645,7 @@ module CompilerDirective = struct
     | Default_trireg_strength s -> Default_trireg_strength ""
     | cd                        -> cd
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
+  let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
     | Define id                 -> combo 0 [id]
     | Undef id                  -> combo 1 [id]
@@ -679,16 +679,16 @@ module Strength = struct
   include Ls.Strength
 
   let anonymize = function
-    | HIGHZ0       
-    | HIGHZ1       
-    | LARGE        
-    | MEDIUM       
-    | SMALL        
-    | PULL0        
-    | PULL1        
-    | STRONG0      
-    | STRONG1      
-    | WEAK0        
+    | HIGHZ0
+    | HIGHZ1
+    | LARGE
+    | MEDIUM
+    | SMALL
+    | PULL0
+    | PULL1
+    | STRONG0
+    | STRONG1
+    | WEAK0
     | WEAK1        -> Anonymous
     | x            -> x
 
@@ -706,7 +706,7 @@ module Strength = struct
     | WEAK1        -> mkstr 10
 
     | Anonymous -> mkstr 11
-  
+
 end
 
 module SimpleImmediateAssertion = struct
@@ -723,8 +723,8 @@ module DeferredImmediateAssertion = struct
   include Ls.DeferredImmediateAssertion
 
   let anonymize = function
-    | Assert s 
-    | Assume s 
+    | Assert s
+    | Assume s
     | Cover  s -> Anonymous
     | x        -> x
 
@@ -946,26 +946,26 @@ let anonymize3 = anonymize ~more:true
 
 
 
-let to_short_string ?(ignore_identifiers_flag=false) = 
+let to_short_string ?(ignore_identifiers_flag=false) =
     let combo2 = combo2 ~ignore_identifiers_flag in function
     | Dummy                                    -> mkstr2 0
     | Error                                    -> mkstr2 1
     | Empty                                    -> mkstr2 2
     | SourceText                               -> mkstr2 3
     | LibraryText                              -> mkstr2 4
-    | CompilerDirective cd                     -> 
+    | CompilerDirective cd                     ->
 	catstr [mkstr2 5; CompilerDirective.to_short_string ~ignore_identifiers_flag cd]
 
-    | ModuleDeclaration(mspec, id)             -> 
+    | ModuleDeclaration(mspec, id)             ->
 	catstr ([mkstr2 6; ModuleSpec.to_short_string mspec] @ (encode_ids [id]))
 
     | UdpDeclaration id                        -> combo2 7 [id]
     | NetDeclaration ids                       -> combo2 8 ids
     | BindDirective id                         -> combo2 9 [id]
-    | Expr e                                   -> 
+    | Expr e                                   ->
 	catstr [mkstr2 10; Expression.to_short_string ~ignore_identifiers_flag e]
 
-    | Stmt stmt                                -> 
+    | Stmt stmt                                ->
 	catstr [mkstr2 11; Statement.to_short_string ~ignore_identifiers_flag stmt]
 
     | NetType nt                               -> catstr [mkstr2 12; NetType.to_short_string nt]
@@ -1006,7 +1006,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
     | EndLabel id                              -> combo2 47 [id]
     | EndLabelNew                              -> mkstr2 48
     | ClassType id                             -> combo2 49 [id]
-    | DataType dt                              -> 
+    | DataType dt                              ->
 	catstr [mkstr2 50; DataType.to_short_string ~ignore_identifiers_flag dt]
     | Signed                                   -> mkstr2 51
     | Unsigned                                 -> mkstr2 52
@@ -1254,13 +1254,13 @@ let to_short_string ?(ignore_identifiers_flag=false) =
     | PackageExportDeclaration                 -> mkstr2 305
     | DpiImport s                              -> mkstr2_str 306 s
 
-    | DpiExportFunc(s, id)                     -> 
-	let strs, no_digest = encode_strs [s] in 
+    | DpiExportFunc(s, id)                     ->
+	let strs, no_digest = encode_strs [s] in
 	let idx = if no_digest then 308 else 307 in
 	catstr ((mkstr2 idx)::(strs @ (encode_ids [id])))
 
-    | DpiExportTask(s, id)                     -> 
-	let strs, no_digest = encode_strs [s] in 
+    | DpiExportTask(s, id)                     ->
+	let strs, no_digest = encode_strs [s] in
 	let idx = if no_digest then 310 else 309 in
 	catstr ((mkstr2 idx)::(strs @ (encode_ids [id])))
 
@@ -1363,7 +1363,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
     | SequentialBody                           -> mkstr2 409
     | CombinationalBody                        -> mkstr2 410
     | UdpInitialStmt(id, s)                    ->
-	let strs, no_digest = encode_strs [s] in 
+	let strs, no_digest = encode_strs [s] in
 	let idx = if no_digest then 412 else 411 in
 	catstr ((mkstr2 idx)::((encode_ids [id]) @ strs))
 
@@ -1423,14 +1423,14 @@ let to_short_string ?(ignore_identifiers_flag=false) =
 let is_hunk_boundary _ _ = false (* not yet *)
 
 (* These labels are collapsible whether they are leaves or not. *)
-let forced_to_be_collapsible lab = 
+let forced_to_be_collapsible lab =
   false
 
 
-let is_collapse_target options lab = 
-  if options#no_collapse_flag then 
+let is_collapse_target options lab =
+  if options#no_collapse_flag then
     false
-  else 
+  else
     match lab with
     | ModuleDeclaration _
     | UdpDeclaration _
@@ -1469,7 +1469,7 @@ let is_collapse_target options lab =
     | ConfigDeclaration _
 
 (* module_declaration related *)
-    | PackageImportDecls 
+    | PackageImportDecls
     | ParamPorts
     | Ports
     | Ranges
@@ -1568,10 +1568,10 @@ let is_collapse_target options lab =
     | ClockingBody
 
 (* data_type related *)
-    | DataType ( 
-      DataType.Struct 
-    | DataType.Union 
-    | DataType.Enum 
+    | DataType (
+      DataType.Struct
+    | DataType.Union
+    | DataType.Enum
     | DataType.VirtualInterface _
     | DataType.PsType _
     | DataType.ClassScopeType _
@@ -1597,7 +1597,7 @@ let is_collapse_target options lab =
 
       -> true
 
-    | _ -> false      
+    | _ -> false
 
 
 let is_to_be_notified = function
@@ -1717,13 +1717,13 @@ let is_sequence = function
 
 (* for fact extraction *)
 
-let get_category lab = 
+let get_category lab =
   let name, _ = to_tag lab in
   name
 
 
-let get_name lab = 
-  let n = 
+let get_name lab =
+  let n =
     match lab with
     | CompilerDirective cd     -> CompilerDirective.get_name cd
     | Expr e                   -> Expression.get_name e
@@ -1743,86 +1743,86 @@ let get_name lab =
     | DelayValue id
     | PackageScope id
     | PackageImport id
-    | EndLabel id                            
-    | ClassType id                           
-    | ArgsDotted id                          
-    | ClassScopeId id                        
-    | EnumNameDeclaration id                 
-    | Variable id                            
-    | PackageImportItem id                   
-    | VariableDeclAssignment id              
-    | GenBlockId id                          
-    | NetSig id                              
-    | Port id                                
-    | InterfacePort id                       
-    | ModportIdentifier id                   
-    | PatternId id                           
-    | PatternTagged id                       
-    | ForInitItemDT id                       
-    | CycleDelayId id                        
-    | InstName id                            
-    | ClockingEvent id                       
-    | CycleDelayRangeId id                   
-    | ConcurrentAssertionItemLabeled id                      
-    | DeferredImmediateAssertionItemLabeled id                     
-    | CheckerInstantiation id                
-    | GenvarIterationAssign(_, id)                 
-    | GenvarIterationIncOrDec(_, id)                 
-    | GenvarIdDecl id                        
-    | GenvarInitId id                        
-    | SpecparamAssignmentId id                     
-    | SpecparamAssignmentPulseControl id           
-    | InputOrOutputId id                     
-    | InterfaceIdentifier id                 
-    | ProgramDeclaration id                  
-    | InterfaceDeclaration id                
-    | InterfaceDeclarationExtern id          
-    | PackageDeclaration id                  
-    | FunctionDeclaration id                 
-    | FunctionPrototype id                   
-    | FuncId id                              
-    | FuncIdVoid id                          
-    | TfIdScoped id                         
-    | TaskDeclaration id                     
-    | TaskPrototype id                       
-    | TfPortItemAssignment id               
-    | TfVariableIdentifier id               
-    | CheckerDeclaration id                  
-    | PropertyDeclaration id                 
-    | PropertyPortItemAssignment id          
-    | SequenceDeclaration id                 
-    | LetDeclaration id                      
-    | TypeDeclaration id                     
-    | ScopedType id                          
-    | TypeIdentifier id                      
-    | VirtualInterfaceDeclaration id         
-    | ModportItem id                         
-    | ModportClockingDecl id                 
-    | ModportSimplePort id                   
-    | ModportSimplePortDot id                
-    | ModportTfPort id                       
-    | CovergroupDeclaration id               
-    | CoverPointLabeled id                   
-    | CoverCrossLabeled id                   
-    | CrossItem id                           
-    | Bins(_, id)                         
-    | BinsSelection(_, id)                
-    | BinsExpressionVar id                
-    | CoverageEventWith id                
-    | HierarchicalBtfIdentifier id        
-    | DpiExportFunc(_, id)               
-    | DpiExportTask(_, id)               
-    | DpiImportLabel id                  
-    | ClassDeclaration id                 
-    | ClassConstraint id                  
+    | EndLabel id
+    | ClassType id
+    | ArgsDotted id
+    | ClassScopeId id
+    | EnumNameDeclaration id
+    | Variable id
+    | PackageImportItem id
+    | VariableDeclAssignment id
+    | GenBlockId id
+    | NetSig id
+    | Port id
+    | InterfacePort id
+    | ModportIdentifier id
+    | PatternId id
+    | PatternTagged id
+    | ForInitItemDT id
+    | CycleDelayId id
+    | InstName id
+    | ClockingEvent id
+    | CycleDelayRangeId id
+    | ConcurrentAssertionItemLabeled id
+    | DeferredImmediateAssertionItemLabeled id
+    | CheckerInstantiation id
+    | GenvarIterationAssign(_, id)
+    | GenvarIterationIncOrDec(_, id)
+    | GenvarIdDecl id
+    | GenvarInitId id
+    | SpecparamAssignmentId id
+    | SpecparamAssignmentPulseControl id
+    | InputOrOutputId id
+    | InterfaceIdentifier id
+    | ProgramDeclaration id
+    | InterfaceDeclaration id
+    | InterfaceDeclarationExtern id
+    | PackageDeclaration id
+    | FunctionDeclaration id
+    | FunctionPrototype id
+    | FuncId id
+    | FuncIdVoid id
+    | TfIdScoped id
+    | TaskDeclaration id
+    | TaskPrototype id
+    | TfPortItemAssignment id
+    | TfVariableIdentifier id
+    | CheckerDeclaration id
+    | PropertyDeclaration id
+    | PropertyPortItemAssignment id
+    | SequenceDeclaration id
+    | LetDeclaration id
+    | TypeDeclaration id
+    | ScopedType id
+    | TypeIdentifier id
+    | VirtualInterfaceDeclaration id
+    | ModportItem id
+    | ModportClockingDecl id
+    | ModportSimplePort id
+    | ModportSimplePortDot id
+    | ModportTfPort id
+    | CovergroupDeclaration id
+    | CoverPointLabeled id
+    | CoverCrossLabeled id
+    | CrossItem id
+    | Bins(_, id)
+    | BinsSelection(_, id)
+    | BinsExpressionVar id
+    | CoverageEventWith id
+    | HierarchicalBtfIdentifier id
+    | DpiExportFunc(_, id)
+    | DpiExportTask(_, id)
+    | DpiImportLabel id
+    | ClassDeclaration id
+    | ClassConstraint id
     | ExternTfDeclaration id
-    | Notifier id                         
-    | Delayed id                          
-    | OverloadDeclaration(_, id)          
-    | ClockingDeclaration id              
-    | ClockingDeclAssign id               
-    | Production id                       
-    | ProductionItem id                   
+    | Notifier id
+    | Delayed id
+    | OverloadDeclaration(_, id)
+    | ClockingDeclaration id
+    | ClockingDeclAssign id
+    | Production id
+    | ProductionItem id
     | AttrSpec id
     | UdpPort id
     | UdpOutputDeclaration id
@@ -1832,7 +1832,7 @@ let get_name lab =
     | ConfigDeclaration id
     | CellId id
     | LibraryIdentifier id
-    | CellClause id                       
+    | CellClause id
     | InstanceIdentifier id
     | TopModuleIdentifier id
     | LibraryDeclaration id
@@ -1852,14 +1852,14 @@ let get_name lab =
     n
 
 let get_names = function
-  | NetDeclaration ids            
-  | LocalParameterDeclaration ids 
-  | ParameterDeclaration ids      
-  | GenvarDeclaration ids         
-  | ModportDeclaration ids        
-  | NetDeclAssignments ids        
-  | ParamAssignments ids          
-    -> 
+  | NetDeclaration ids
+  | LocalParameterDeclaration ids
+  | ParameterDeclaration ids
+  | GenvarDeclaration ids
+  | ModportDeclaration ids
+  | NetDeclAssignments ids
+  | ParamAssignments ids
+    ->
       if ids = [] then
 	raise Not_found
       else
@@ -1949,7 +1949,7 @@ let of_elem_data name attrs _ = Dummy (* not yet *)
 
 let getlab nd = (Obj.obj nd#data#_label : t)
 
-let cannot_be_keyroot nd = 
+let cannot_be_keyroot nd =
   match getlab nd with
   | SourceText
   | LibraryText
@@ -2014,7 +2014,7 @@ let is_case_item = function
   | CaseItem
   | CaseItemDefault -> true
   | _ -> false
-    
+
 let is_case_cond = function
   | CaseConds -> true
   | _ -> false

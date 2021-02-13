@@ -39,12 +39,12 @@ class ['node_t] node_proximity = object
   method set_primary_prox p   = primary_prox <- p
   method set_secondary_prox p = secondary_prox <- p
 
-  method primary_pivot = 
+  method primary_pivot =
     match primary_pivot with
     | None -> raise Not_found
     | Some piv -> piv
 
-  method secondary_pivot = 
+  method secondary_pivot =
     match secondary_pivot with
     | None -> raise Not_found
     | Some piv -> piv
@@ -70,14 +70,14 @@ let get_proximity ?(extra=null_uid_tbl) tree1 tree2 (uidmapping : Spec.uidmappin
   for i = lai1 downto 0 do
     let ui = ancs1.(i)#uid in
     try
-      let u, high_conf = 
+      let u, high_conf =
 	try
 	  let x = uidmapping#find ui in
 	  x, true
-	with 
+	with
 	  Not_found ->
 	    let x = Hashtbl.find extra ui in
-	    DEBUG_MSG "(%a,%a): pivot derived from extra map" 
+	    DEBUG_MSG "(%a,%a): pivot derived from extra map"
 	      UID.ps nd1#uid UID.ps nd2#uid;
 	    x, false
       in
@@ -87,12 +87,12 @@ let get_proximity ?(extra=null_uid_tbl) tree1 tree2 (uidmapping : Spec.uidmappin
 	  let n = tree2#search_node_by_uid u in
 	  _cands := (high_conf, ni, n, i + j) :: !_cands
       done
-    with 
+    with
       Not_found -> ()
   done;
 
   let cands =
-    List.fast_sort 
+    List.fast_sort
       (fun (_, _, _, p0) (_, _, _, p1) -> Pervasives.compare p1 p0)
       !_cands
   in
@@ -101,7 +101,7 @@ let get_proximity ?(extra=null_uid_tbl) tree1 tree2 (uidmapping : Spec.uidmappin
     | [] -> ()
     | (high, n1, n2, p)::rest ->
 
-	DEBUG_MSG "(%a,%a): prox=%d pivot=(%a,%a) (confidence=%s)" 
+	DEBUG_MSG "(%a,%a): prox=%d pivot=(%a,%a) (confidence=%s)"
 	  UID.ps nd1#uid UID.ps nd2#uid p UID.ps n1#uid UID.ps n2#uid
 	  (if high then "high" else "low");
 

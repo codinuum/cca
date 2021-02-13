@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * A parser for Fortran
  *
  * main.ml
@@ -36,7 +36,7 @@ let filename = ref ""
 let arg_count = ref 0
 let outfile = ref ""
 
-let error msg = 
+let error msg =
   print_string "[ERROR] ";
   print_string msg; print_newline(); exit 0
 
@@ -48,8 +48,8 @@ let read_hint file =
 
 let _parser = new Lib.parser_c
 
-let _ = 
-  Arg.parse 
+let _ =
+  Arg.parse
     [
      "-verbose", Arg.Unit (fun () -> _parser#set_verbose_flag), "\tdisplay verbose messages";
      "-I", Arg.String _parser#add_search_path, "PATH\tadd search path";
@@ -58,9 +58,9 @@ let _ =
      "-parse-d-lines", Arg.Unit (fun () -> _parser#set_parse_d_lines_flag), "\tparse d-lines as code";
      "-max-line-length", Arg.Int _parser#set_max_line_length, "N\tset max line length to N";
      "-ignore-include", Arg.Unit (fun () -> _parser#set_ignore_include_flag), "\tignore include lines";
-    ] 
-    (fun s -> incr arg_count; filename := s) 
-    ("usage: " ^ Filename.basename (Sys.argv.(0)) 
+    ]
+    (fun s -> incr arg_count; filename := s)
+    ("usage: " ^ Filename.basename (Sys.argv.(0))
      ^ " [OPTIONS] [SRC]\noptions are:")
 
 let _ =
@@ -73,13 +73,13 @@ let _ =
     let macrotbl_opt = None in
 (*
     let macrotbl_opt =
-      let f = 
-	Fs.file_of_path options (Filename.concat (Filename.dirname (Sys.argv.(0))) "standard.f") 
+      let f =
+	Fs.file_of_path options (Filename.concat (Filename.dirname (Sys.argv.(0))) "standard.f")
       in
       Some (read_hint f)
     in
 *)
-    begin match macrotbl_opt with 
+    begin match macrotbl_opt with
     | Some tbl -> tbl#set_readonly
     | None -> ()
     end;
@@ -95,7 +95,7 @@ let _ =
       | None -> ()
       end;
 
-      let ast = 
+      let ast =
 	if !compile_mode then
 	  _parser#parse_file file
 	else
@@ -130,7 +130,7 @@ let _ =
 
       exit 0
     done
-  with 
+  with
   | Sys_error msg -> Xprint.error "%s" msg
   | Failure msg -> Xprint.error ~head:"[FAILURE]" "%s" msg
 

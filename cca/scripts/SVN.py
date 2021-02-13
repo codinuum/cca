@@ -24,7 +24,7 @@ import shutil
 import pysvn
 from urllib.request import url2pathname
 from urllib.parse import urlparse
-import datetime 
+import datetime
 import re
 import logging
 
@@ -105,7 +105,7 @@ class Repository(object):
 
 
     def get_head_rev(self):
-        entries = self.svn_cli.info2(self._svn_url, 
+        entries = self.svn_cli.info2(self._svn_url,
                                      revision=pysvn.Revision(pysvn.opt_revision_kind.head),
                                      recurse=False)
         for (p, info) in entries:
@@ -127,7 +127,7 @@ class Repository(object):
             return root
 
         return None
-        
+
 
     def get_kind(self, item, revnum):
         rev = pysvn.Revision(pysvn.opt_revision_kind.number, revnum)
@@ -160,7 +160,7 @@ class Repository(object):
                                   diff_options=options,
                                   #use_git_diff_format=git,
     )
-        
+
         if delta != '' and outfile != None:
             f = None
             try:
@@ -171,7 +171,7 @@ class Repository(object):
             finally:
                 if f:
                     f.close()
-        
+
         return delta
 
     def get_changed_items(self, revnum1, revnum2):
@@ -272,10 +272,10 @@ class Repository(object):
         else:
             rev = pysvn.Revision(pysvn.opt_revision_kind.head)
 
-        self.svn_cli.checkout(url, 
-                              dest, 
+        self.svn_cli.checkout(url,
+                              dest,
                               recurse=True,
-                              revision=rev, 
+                              revision=rev,
                               ignore_externals=False)
 
     def mkdir(self, d, verbose=False):
@@ -289,7 +289,7 @@ class Repository(object):
                 p = os.path.dirname(d)
                 self.mkdir(p)
                 os.mkdir(d)
- 
+
 
     def checkout_source(self, path, revnum=None, verbose=False):
         revnum_s = str(revnum)
@@ -346,7 +346,7 @@ def get_log(path):
                         rmap[rev] = {message}
                 except KeyError:
                     lmap[author] = {rev:{message}}
-                    
+
     except pysvn.ClientError as e:
         logger.warning(str(e))
 
@@ -373,7 +373,7 @@ def blame(path):
             rev = _rev.number
 
 #            print('rev={} author={}'.format(rev, author))
-            
+
             num = d['number'] + 1
             last_col = max(len(d['line']) - 1, 0)
 

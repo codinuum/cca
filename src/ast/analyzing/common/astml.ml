@@ -58,7 +58,7 @@ let parser_tbl = (* PREFIX * NS *)
     python_prefix,  python_ns;
     verilog_prefix, verilog_ns;
     fortran_prefix, fortran_ns;
-    
+
     cx_prefix,      cx_ns;
     ccx_prefix,     ccx_ns;
     cpp_prefix,     cpp_ns;
@@ -67,12 +67,12 @@ let parser_tbl = (* PREFIX * NS *)
 
 let get_prefix_by_ns ns =
   let rec loop = function
-    | (p, ns')::rest -> 
+    | (p, ns')::rest ->
 	if ns = ns' then
 	  p
 	else
 	  loop rest
-    | [] -> 
+    | [] ->
 	raise Not_found
   in
   loop parser_tbl
@@ -146,9 +146,9 @@ let str_lit_to_path s =
 let to_elem_data lang_prefix to_tag ?(strip=false) loc lab =
   let add_lang_prefix = add_prefix lang_prefix in
   let name, _attrs = to_tag lab in
-  let attrs = 
-    List.map 
-      (fun (a, v) -> 
+  let attrs =
+    List.map
+      (fun (a, v) ->
         (if strip then a else add_lang_prefix a),
         v
       ) _attrs
@@ -159,7 +159,7 @@ let to_elem_data lang_prefix to_tag ?(strip=false) loc lab =
     else
       (location_attr_name, Loc.to_attr_value loc) :: attrs
   in
-  (if strip then name else add_lang_prefix name), 
+  (if strip then name else add_lang_prefix name),
   attrs,
   ""
 

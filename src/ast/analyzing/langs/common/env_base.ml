@@ -47,12 +47,12 @@ class ['src] c = object (self)
     (Stack.length source_stack) > 1
 
 
-  method add_extra_source_file (f : Storage.file) = 
+  method add_extra_source_file (f : Storage.file) =
     let fp = f#fullpath in
     if not (Hashtbl.mem extra_source_file_tbl fp) then
       Hashtbl.add extra_source_file_tbl fp f
 
-  method extra_source_files = 
+  method extra_source_files =
     Hashtbl.fold (fun _ f l -> f :: l) extra_source_file_tbl []
 
 
@@ -74,7 +74,7 @@ class ['src] c = object (self)
 
 
   method set_search_path_list l = search_path_list <- l
-  method add_search_path p = 
+  method add_search_path p =
     if not (List.mem p search_path_list) then begin
       DEBUG_MSG "adding %s" p;
       search_path_list <- p :: search_path_list
@@ -142,7 +142,7 @@ class ['src] c = object (self)
                 in
                 if moveon then begin
                   let dent_path_l = tree#search_path ~ignore_case "" p in
-                  let dent_file_l = 
+                  let dent_file_l =
                     List.map
                       (fun (dent, path) ->
                         dent, new Storage.file ~ignore_case (Storage.Tree tree) path
@@ -168,8 +168,8 @@ class ['src] c = object (self)
               let max_len = ref 0 in
               let min_len = ref max_int in
               let l =
-                List.map 
-                  (fun (dent, f) -> 
+                List.map
+                  (fun (dent, f) ->
                     let len = String.length (Xfile.common_dir_path [f#path;cur_path]) in
                     let n = String.length f#path in
                     if len >= !max_len then begin
@@ -181,8 +181,8 @@ class ['src] c = object (self)
                   ) !dent_file_list
               in
               let dir_file_list =
-                Xlist.filter_map 
-                  (fun (d, f, len, n) -> 
+                Xlist.filter_map
+                  (fun (d, f, len, n) ->
                     if len = !max_len && n = !min_len then
                       Some (d#path, f)
                     else
@@ -190,14 +190,14 @@ class ['src] c = object (self)
                   ) l
               in
               match dir_file_list with
-              | [p, f] -> 
+              | [p, f] ->
                   self#verbose_msg "adding search path: \"%s\"" p;
-                  self#add_search_path p; 
+                  self#add_search_path p;
                   [f]
               | _ -> List.map (fun (p, f) -> f) dir_file_list
           end
         end
-      with 
+      with
         File_found file -> [file]
 
     in
@@ -236,7 +236,7 @@ class ['src] c = object (self)
   method clear_lines_read = lines_read <- 0;
   method add_lines_read n = lines_read <- lines_read + n
 
-  method current_source = 
+  method current_source =
     try
       Stack.top source_stack
     with
@@ -256,7 +256,7 @@ class ['src] c = object (self)
     Xset.add source_paths src#path;
     enter_source_callback src
 
-  method exit_source = 
+  method exit_source =
     DEBUG_MSG "called";
     try
       let src = Stack.pop source_stack in

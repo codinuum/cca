@@ -30,7 +30,7 @@ class loc_stack = object
     List.rev !lr
 
   method get_level =
-    Stack.length stack  
+    Stack.length stack
 
   method to_string =
     let buf = Buffer.create 0 in
@@ -39,7 +39,7 @@ class loc_stack = object
         Buffer.add_string buf (Printf.sprintf "[%s]" (Astloc.to_string ~short:true l))
       ) stack;
     Buffer.contents buf
-    
+
 
   method init =
     Stack.clear stack
@@ -58,7 +58,7 @@ let decode_layers str =
     (*DEBUG_MSG "decoding \"%s\"" str;*)
     List.map (fun s -> ref (Astloc.from_rep s)) (Str.split sep_pat str)
   end
-    
+
 
 class c ?(layers=[]) loc = object (self)
   val mutable locs = ((ref loc)::layers : Astloc.t ref list)
@@ -79,7 +79,7 @@ class c ?(layers=[]) loc = object (self)
   method get_loc =
     match locs with
     | lr::_ -> Astloc.get_stripped !lr
-    | _ -> assert false 
+    | _ -> assert false
 
   method get_loc_of_level lv =
     try
@@ -118,7 +118,7 @@ end (* class Layeredloc.c *)
 
 let dummy = new c Astloc.dummy
 
-let layers_eq ls0 ls1 = 
+let layers_eq ls0 ls1 =
   try
     List.for_all2 (fun lr0 lr1 -> !lr0 = !lr1) ls0 ls1
   with
@@ -129,7 +129,7 @@ let get_common_layers (lloc0 : c) (lloc1 : c) =
     let ls0 = List.rev (lloc0#get_layers lv) in
     let ls1 = List.rev (lloc1#get_layers lv) in
     let rec doit common = function
-      | x0::xs0, x1::xs1 -> 
+      | x0::xs0, x1::xs1 ->
           if !x0 = !x1 then
             doit (x0::common) (xs0, xs1)
           else
@@ -150,7 +150,7 @@ let merge (lloc0 : c) (lloc1 : c) =
   else
     let common = get_common_layers lloc0 lloc1 in
     let lv = List.length common in
-    DEBUG_MSG "lv=%d common=%s" lv 
+    DEBUG_MSG "lv=%d common=%s" lv
       (Xlist.to_string (fun x -> Astloc.to_string ~show_ext:true !x) "; " common);
     let loc0 = lloc0#get_loc_of_level lv in
     let loc1 = lloc1#get_loc_of_level lv in
@@ -158,12 +158,12 @@ let merge (lloc0 : c) (lloc1 : c) =
     DEBUG_MSG "loc1=%s (lv=%d)" (Astloc.to_string ~show_ext:true loc1) lv;
     new c ~layers:common (Astloc.merge loc0 loc1)
 
-  
+
 let dump_llocs llocs =
   if (List.length llocs) > 0 then begin
     let sorted =
-      List.fast_sort 
-	(fun lloc0 lloc1 -> 
+      List.fast_sort
+	(fun lloc0 lloc1 ->
           let lv = get_common_level lloc0 lloc1 in
           let loc0 = lloc0#get_loc_of_level lv in
           let loc1 = lloc1#get_loc_of_level lv in
@@ -178,7 +178,7 @@ let dump_llocs llocs =
 
 let lines_of_llocs llocs =
   List.fold_left
-    (fun n lloc -> 
+    (fun n lloc ->
       let loc = lloc#get_loc in
       n + loc.Astloc.end_line - loc.Astloc.start_line + 1
     ) 0 llocs

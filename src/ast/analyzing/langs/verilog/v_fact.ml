@@ -45,7 +45,7 @@ module F (L : V_label.T) = struct
     inherit extractor_base options cache_path tree as super
 
     method id = "Verilog"
-      
+
     method scanner_body_after_subscan nd lab entity =
 
       if node_filter options nd then begin

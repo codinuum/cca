@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * A lexer (utf-8) for SystemVerilog (IEEE-1800-2009)
  *
  * ulexer.ml
@@ -30,7 +30,7 @@ open Compat
 
 let find_pp_keyword =
   let keyword_list =
-    [ 
+    [
       "`line",                PP_LINE;
       "`else",                PP_ELSE;
       "`elsif",               PP_ELSIF;
@@ -43,9 +43,9 @@ let find_pp_keyword =
       "`error",               PP_ERROR;
       "`timescale",           PP_TIMESCALE;
 
-      "`default_decay_time",      PP_DEFAULT_DECAY_TIME; 
-      "`default_trireg_strength", PP_DEFAULT_TRIREG_STRENGTH; 
-      "`delay_mode_distributed",  PP_DELAY_MODE_DISTRIBUTED; 
+      "`default_decay_time",      PP_DEFAULT_DECAY_TIME;
+      "`default_trireg_strength", PP_DEFAULT_TRIREG_STRENGTH;
+      "`delay_mode_distributed",  PP_DELAY_MODE_DISTRIBUTED;
       "`delay_mode_path",         PP_DELAY_MODE_PATH;
       "`delay_mode_unit",         PP_DELAY_MODE_UNIT;
       "`delay_mode_zero",         PP_DELAY_MODE_ZERO;
@@ -64,16 +64,16 @@ let find_pp_keyword =
   "`protected",           PP_PROTECTED;
   "`endprotected",        PP_ENDPROTECTED;
  *)
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       Hashtbl.find keyword_table s
-    with 
+    with
       Not_found -> PP_IDENTIFIER s
   in
   find
@@ -82,7 +82,7 @@ let find_pp_keyword =
 
 let find_syscall_keyword =
   let keyword_list =
-    [ 
+    [
       "$error",     ST_ERROR;   (* SV2005 *)
       "$fatal",     ST_FATAL;   (* SV2005 *)
       "$info",      ST_INFO;    (* SV2005 *)
@@ -102,16 +102,16 @@ let find_syscall_keyword =
       "$period",    TC_PERIOD;
       "$width",     TC_WIDTH;
       "$nochange",  TC_NOCHANGE;
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       Hashtbl.find keyword_table s
-    with 
+    with
       Not_found -> SYSCALL s
   in
   find
@@ -119,7 +119,7 @@ let find_syscall_keyword =
 
 let find_keyword =
   let keyword_list =
-    [ 
+    [
       "accept_on",           ACCEPT_ON;      (* SV2009 *)
       "alias",               ALIAS;          (* SV2005 *)
       "always",              ALWAYS Ls.AlwaysSpec.NORMAL;
@@ -372,16 +372,16 @@ let find_keyword =
       "xnor",                XNOR;
       "xor",                 XOR;
 
-  ] in 
+  ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       Hashtbl.find keyword_table s
-    with 
+    with
       Not_found -> IDENTIFIER s
   in
   find
@@ -404,7 +404,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let offsets_to_loc st ed =
     env#current_pos_mgr#offsets_to_loc st ed
 
-  let lexing_error lexbuf msg = 
+  let lexing_error lexbuf msg =
     let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
     fail_to_parse ~head:(Loc.to_string ~prefix:"[" ~suffix:"]" loc) msg
 
@@ -450,7 +450,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let regexp exponent = ['e' 'E']
 
-  let regexp real_number = 
+  let regexp real_number =
     unsigned_number '.' unsigned_number
 | unsigned_number ('.' unsigned_number)? exponent sign? unsigned_number
 
@@ -507,14 +507,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
     qt
 
   let mktok ?(start_opt=None) ?(end_opt=None) rawtok ulexbuf =
-    let st = 
+    let st =
       match start_opt with
-      | None -> Ulexing.lexeme_start ulexbuf 
+      | None -> Ulexing.lexeme_start ulexbuf
       | Some x -> x
     in
-    let ed = 
+    let ed =
       match end_opt with
-      | None -> (Ulexing.lexeme_end ulexbuf) - 1 
+      | None -> (Ulexing.lexeme_end ulexbuf) - 1
       | Some x -> x
     in
     let st_pos = ofs_to_pos st in
@@ -528,11 +528,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
       env#comment_regions#add loc
 
 
-  let rec token = 
+  let rec token =
     let in_pragma = ref false in
     lexer
 |   white_space -> token lexbuf
-|   line_terminator -> 
+|   line_terminator ->
     if !in_pragma then begin
       in_pragma := false;
       mktok EOL lexbuf
@@ -549,7 +549,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   "/**/" ->
     let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
     env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
-    token lexbuf 
+    token lexbuf
 
 |   "`define" ->
     let st = Ulexing.lexeme_start lexbuf in
@@ -710,7 +710,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   "-incdir" -> mktok INCDIR lexbuf
 
-|   identifier_or_keyword -> 
+|   identifier_or_keyword ->
     mktok (find_keyword (Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 
@@ -720,40 +720,40 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let p = Loc.decr_lexpos ed in
     make_qtoken EOF p p
 
-|   _ -> 
+|   _ ->
     lexing_error lexbuf (Printf.sprintf "invalid symbol(%s)" (Ulexing.utf8_lexeme lexbuf))
-      
+
 
   and traditional_comment st = lexer
-|   "*/" -> 
-    env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1)); 
+|   "*/" ->
+    env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1));
     token lexbuf
 
 |   _ -> traditional_comment st lexbuf
 
   and line_comment st = lexer
-|   line_terminator -> 
-    env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1)); 
+|   line_terminator ->
+    env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1));
     token lexbuf
 
 |   _ -> line_comment st lexbuf
 
 
   and pre_pp_macro_arguments = lexer
-|   '(' -> 
-    Ulexing.rollback lexbuf; 
+|   '(' ->
+    Ulexing.rollback lexbuf;
     true
-|   _ -> 
+|   _ ->
     Ulexing.rollback lexbuf;
     false
 
-  and pp_macro_arguments paren_lv args arg = 
-    let _ = 
-      DEBUG_MSG "paren_lv:%d args=[%s] arg={%s}" 
-        paren_lv (String.concat "," args) arg 
+  and pp_macro_arguments paren_lv args arg =
+    let _ =
+      DEBUG_MSG "paren_lv:%d args=[%s] arg={%s}"
+        paren_lv (String.concat "," args) arg
     in
     lexer
-|   '(' white_space* -> 
+|   '(' white_space* ->
     if paren_lv = 0 then
       pp_macro_arguments (paren_lv+1) args arg lexbuf
     else
@@ -771,13 +771,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       pp_macro_arguments (paren_lv-1) args (arg^")") lexbuf
 
-|   ',' white_space* -> 
+|   ',' white_space* ->
     if paren_lv = 1 then
       pp_macro_arguments paren_lv (arg::args) "" lexbuf
     else
       pp_macro_arguments paren_lv args (arg^",") lexbuf
 (*
-|   char_start_double -> 
+|   char_start_double ->
     let s = Ulexing.utf8_lexeme lexbuf in
     pp_char_double paren_lv args (arg^s) lexbuf
 *)
@@ -786,7 +786,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     pp_macro_arguments paren_lv args (arg^s) lexbuf
 
 
-  and pp_define st_pos id params_opt body body_st stat = 
+  and pp_define st_pos id params_opt body body_st stat =
     let mem_param p =
       match params_opt with
       | Some params -> List.mem p params
@@ -794,11 +794,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     in
     lexer
 
-|   white_space* -> 
+|   white_space* ->
 (*    let s = Ulexing.utf8_lexeme lexbuf in *)
     begin
       match stat with
-      | D_id -> 
+      | D_id ->
           if id <> "" then
             let body_st' = Ulexing.lexeme_end lexbuf in
             pp_define st_pos id params_opt body body_st' D_body lexbuf
@@ -811,7 +811,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   line_concat -> pp_define st_pos id params_opt body body_st stat lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
     let body_ =
@@ -848,7 +848,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     begin
       match stat with
       | D_id -> pp_define st_pos s params_opt body body_st stat lexbuf
-      | D_params -> 
+      | D_params ->
           let params_opt' =
             match params_opt with
             | None -> assert false
@@ -856,7 +856,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           in
           pp_define st_pos id params_opt' body body_st stat lexbuf
 
-      | D_body -> 
+      | D_body ->
           let body' =
             if mem_param s then
               String.concat "" [body;"{";s;"}"]
@@ -868,7 +868,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_define st_pos id params_opt (body^s) body_st stat lexbuf
     end
 
-|   '(' -> 
+|   '(' ->
     begin
       match stat with
       | D_id -> pp_define st_pos id (Some []) body body_st D_params lexbuf
@@ -876,7 +876,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_define st_pos id params_opt body body_st stat lexbuf
     end
 
-|   ',' -> 
+|   ',' ->
     begin
       match stat with
       | D_body -> pp_define st_pos id params_opt (body^",") body_st stat lexbuf
@@ -891,7 +891,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_define st_pos id params_opt body body_st stat lexbuf
     end
 
-|   _ -> 
+|   _ ->
     let s = Ulexing.utf8_lexeme lexbuf in
     begin
       match stat with
@@ -902,7 +902,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and pp_undef st_pos id stat = lexer
 |   line_concat -> pp_undef st_pos id stat lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
     let pp_qtoken = make_qtoken (PP_UNDEF__IDENT id) st_pos ed_pos in
@@ -910,7 +910,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#lex_undefine_macro id;
     pp_qtoken
 
-|   identifier_or_keyword -> 
+|   identifier_or_keyword ->
     let s = Ulexing.utf8_lexeme lexbuf in
     begin
       match stat with
@@ -918,7 +918,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_undef st_pos id stat lexbuf
     end
 
-|   _ -> 
+|   _ ->
 (*    let s = Ulexing.utf8_lexeme lexbuf in *)
     begin
       match stat with

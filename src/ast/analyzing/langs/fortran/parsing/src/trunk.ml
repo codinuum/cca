@@ -44,17 +44,17 @@ module F (Stat : Aux.STATE_T) = struct
   open Stat
 
 
-  let make_eof_token ulexbuf = 
+  let make_eof_token ulexbuf =
     let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
     let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
     EOF None, loc
 
-  let make_eol_token ulexbuf = 
+  let make_eol_token ulexbuf =
     let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
     let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
     EOL, loc
 
-  let make_end_fragment_token ulexbuf = 
+  let make_end_fragment_token ulexbuf =
     let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
     let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
     let ext = env#current_loc_layers_encoded in
@@ -63,7 +63,7 @@ module F (Stat : Aux.STATE_T) = struct
     DEBUG_MSG "%s" (Token.qtoken_to_string qt);
     qt
 
-  let make_end_module_token ulexbuf = 
+  let make_end_module_token ulexbuf =
     let ofs = (Ulexing.lexeme_start ulexbuf) - 1 in
     let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
     let ext = env#current_loc_layers_encoded in
@@ -77,17 +77,17 @@ module F (Stat : Aux.STATE_T) = struct
   let pp_marker_qtoken = PP_MARKER,  Loc.dummy
 
   let in_name_context_for_composite last_tok tok =
-    DEBUG_MSG "last_tok=%s tok=%s" 
+    DEBUG_MSG "last_tok=%s tok=%s"
       (Token.rawtoken_to_string last_tok) (Token.rawtoken_to_string tok);
     let in_name_context =
       let last_cond = TBF.get_last_cond last_tok tok in
       let paren_cond =
-	env#in_paren_context && 
+	env#in_paren_context &&
 	(match tok with
 	| KIND _ | LEN _ (*| STAT _*)
 	| INTENT_SPEC _ -> false
         | DOUBLE_PRECISION _ | DOUBLE _ | DOUBLE_COMPLEX _ | CHARACTER _
-        | TYPE _ | BYTE _ 
+        | TYPE _ | BYTE _
         (*| INTEGER _ | REAL _ | COMPLEX _ | LOGICAL _*) | KINDED_TYPE_SPEC _
         | PP_MACRO_TYPE_SPEC _ (*| ERRMSG _*) (*| SOURCE _ | MOLD _*)| ALLOC_OPT_EXPR _
           -> not env#in_allocate_context
@@ -99,7 +99,7 @@ module F (Stat : Aux.STATE_T) = struct
 	| KIND _ | LEN _ (*| STAT _*) -> not env#in_paren_context
 	| _ -> false
       in
-      let intent_cond = 
+      let intent_cond =
 	match tok with
 	| INTENT_SPEC _ -> not env#in_intent_context
 	| _ -> false
@@ -111,12 +111,12 @@ module F (Stat : Aux.STATE_T) = struct
       in
       let character_cond =
         match tok with
-        | KIND _ | LEN _ 
+        | KIND _ | LEN _
         | PUBLIC _ | PRIVATE _
         | PARAMETER _ | ALLOCATABLE _ | DIMENSION _ | CODIMENSION _ | INTENT _
         (*| EXTERNAL _ | PROTECTED _ | VALUE _ | VOLATILE _*) | SIMPLE_ATTR _
         | INTRINSIC _ | OPTIONAL _ | POINTER _ | SAVE _ | TARGET _
-        | ASYNCHRONOUS _ 
+        | ASYNCHRONOUS _
           -> false
         | _ -> env#in_character_context
       in
@@ -126,7 +126,7 @@ module F (Stat : Aux.STATE_T) = struct
         | _ -> false
       in
 
-      let do_cond = 
+      let do_cond =
 (*        TBF.get_do_cond tok*)
         match last_tok with
         | DO _ -> begin
@@ -168,9 +168,9 @@ module F (Stat : Aux.STATE_T) = struct
 
       let if_action_cond = TBF.get_if_action_cond last_tok tok in
 
-      last_cond || 
+      last_cond ||
       ((env#in_name_context || paren_cond) && (not if_action_cond)) ||
-      env#in_io_control_context || 
+      env#in_io_control_context ||
       env#in_array_ctor_context ||
       kind_len_stat_cond ||
       intent_cond ||
@@ -178,7 +178,7 @@ module F (Stat : Aux.STATE_T) = struct
       character_cond ||
       edit_desc_cond ||
       do_cond ||
-      type_spec_cond || 
+      type_spec_cond ||
       misc_cond
     in
 
@@ -195,8 +195,8 @@ module F (Stat : Aux.STATE_T) = struct
     Buffer.add_string sbuf (string_of_int (Ulexing.get_pos ulexbuf));
     Buffer.add_string sbuf "\nbuf: [";
 (*
-    Array.iter 
-      (fun i -> 
+    Array.iter
+      (fun i ->
         if i > 0 then
           Buffer.add_char sbuf (Char.chr i);
       )
@@ -241,7 +241,7 @@ module F (Stat : Aux.STATE_T) = struct
     method prepend tok_loc =
       DEBUG_MSG "prepending %s" (Token.qtoken_to_string tok_loc);
       prebuf#prepend tok_loc
-        
+
     method partial_parser_selector = partial_parser_selector
 
     method get_last_rawtok = last_rawtok
@@ -259,41 +259,41 @@ module F (Stat : Aux.STATE_T) = struct
     method get_last_offsets = Loc.to_offsets last_loc
     method get_prev_offsets = Loc.to_offsets prev_loc
 
-    method get_last_taken = 
+    method get_last_taken =
       DEBUG_MSG "%s" (Token.rawtoken_to_string last_taken);
       last_taken
 
-    method set_last_taken tok = 
+    method set_last_taken tok =
       last_taken <- _last_taken;
       _last_taken <- tok
 
-    method get_last_taken_loc = 
+    method get_last_taken_loc =
       DEBUG_MSG "%s" (Loc.to_string last_taken_loc);
       last_taken_loc
 
-    method set_last_taken_loc loc = 
+    method set_last_taken_loc loc =
       last_taken_loc <- _last_taken_loc;
       _last_taken_loc <- loc
 
-    method get_last_taken_no_pp_branch = 
+    method get_last_taken_no_pp_branch =
       DEBUG_MSG "%s" (Token.rawtoken_to_string last_taken_no_pp_branch);
       last_taken_no_pp_branch
 
-    method _get_last_taken_no_pp_branch = 
+    method _get_last_taken_no_pp_branch =
       DEBUG_MSG "%s" (Token.rawtoken_to_string _last_taken_no_pp_branch);
       _last_taken_no_pp_branch
 
-    method set_last_taken_no_pp_branch tok = 
+    method set_last_taken_no_pp_branch tok =
       last_taken_no_pp_branch <- _last_taken_no_pp_branch;
-      DEBUG_MSG "last_taken_no_pp_branch --> %s" 
+      DEBUG_MSG "last_taken_no_pp_branch --> %s"
         (Token.rawtoken_to_string last_taken_no_pp_branch);
       _last_taken_no_pp_branch <- tok
 
-    method get_last_taken_no_pp_branch_loc = 
+    method get_last_taken_no_pp_branch_loc =
       DEBUG_MSG "%s" (Loc.to_string last_taken_no_pp_branch_loc);
       last_taken_no_pp_branch_loc
 
-    method set_last_taken_no_pp_branch_loc loc = 
+    method set_last_taken_no_pp_branch_loc loc =
       last_taken_no_pp_branch_loc <- _last_taken_no_pp_branch_loc;
       _last_taken_no_pp_branch_loc <- loc
 
@@ -317,32 +317,32 @@ module F (Stat : Aux.STATE_T) = struct
         );
       !c
 
-    method prebuf_add qtoken = 
+    method prebuf_add qtoken =
       DEBUG_MSG "adding %s" (Token.qtoken_to_string qtoken);
       DEBUG_MSG "prebuf (size=%d):\n%s" self#prebuf_size self#prebuf_to_string;
       prebuf#add qtoken
 
     method prebuf_add_queue (q : Token.qtoken_t Xqueue.c) =
       BEGIN_DEBUG
-	q#iter 
-	(fun (tok, _) -> 
+	q#iter
+	(fun (tok, _) ->
 	  DEBUG_MSG "adding %s" (Token.rawtoken_to_string tok)
 	);
         DEBUG_MSG "prebuf (size=%d):\n%s" self#prebuf_size self#prebuf_to_string
       END_DEBUG;
       q#transfer prebuf
 
-    method prebuf_take = 
+    method prebuf_take =
       DEBUG_MSG "prebuf (size=%d):\n%s" self#prebuf_size self#prebuf_to_string;
       try
 	prebuf#take
-      with 
+      with
 	Xqueue.Empty -> raise TB.Empty
 
-    method prebuf_peek = 
+    method prebuf_peek =
       try
 	prebuf#peek
-      with 
+      with
 	Xqueue.Empty -> raise TB.Empty
 
     method prebuf_peek_nth n =
@@ -363,8 +363,8 @@ module F (Stat : Aux.STATE_T) = struct
 
     method prebuf_to_string =
       let buf = Buffer.create 0 in
-      prebuf#iter 
-	(fun t -> 
+      prebuf#iter
+	(fun t ->
 	  Buffer.add_string buf (sprintf "%s\n" (Token.qtoken_to_string t))
 	);
       Buffer.contents buf
@@ -373,8 +373,8 @@ module F (Stat : Aux.STATE_T) = struct
       prebuf#filter f
 
     method prebuf_remove_marker =
-      prebuf#filter 
-        (fun (tok, _) -> 
+      prebuf#filter
+        (fun (tok, _) ->
 	  match tok with
 	  | MARKER -> false
 	  | _ -> true
@@ -386,20 +386,20 @@ module F (Stat : Aux.STATE_T) = struct
 
       let marker_count = ref 0 in
       prebuf#replace
-	(fun tok_loc -> 
+	(fun tok_loc ->
           let tok, _ = tok_loc in
 	  match tok with
 	  | MARKER when not pp -> begin
               incr marker_count;
               if !marker_count = nth then
-                qtoken 
+                qtoken
               else
                 tok_loc
           end
 	  | PP_MARKER when pp -> begin
               incr marker_count;
               if !marker_count = nth then
-                qtoken 
+                qtoken
               else
                 tok_loc
           end
@@ -435,7 +435,7 @@ module F (Stat : Aux.STATE_T) = struct
 
           | MARKER when pp -> new_prebuf#add qtoken
           | PP_MARKER when not pp -> new_prebuf#add qtoken
-                
+
 	  | _ -> new_prebuf#add qtoken
 	);
       prebuf <- new_prebuf
@@ -466,7 +466,7 @@ module F (Stat : Aux.STATE_T) = struct
   let hide_macro id =
     env#macrotbl#hide id;
     env#lex_macrotbl#hide id;
-    fun () -> 
+    fun () ->
       env#macrotbl#expose id;
       env#lex_macrotbl#expose id
 
@@ -490,12 +490,12 @@ module F (Stat : Aux.STATE_T) = struct
     method in_included = (Stack.length ulexbuf_stack) > 1
 
     method enter_source (src : Source.c) =
-      let ulbuf = 
+      let ulbuf =
         let file = src#file in
         let form = U.guess_source_form file in
 
-        env#verbose_msg 
-          "setting source form of \"%s\" to %s" 
+        env#verbose_msg
+          "setting source form of \"%s\" to %s"
           file#path (Common.SourceForm.to_string form);
 
         src#set_source_form form;
@@ -521,9 +521,9 @@ module F (Stat : Aux.STATE_T) = struct
 
       let last_loc = tbuf#get_last_taken_loc in
 
-      let adjust = 
+      let adjust =
         if st.Lexing.pos_fname = last_loc.Loc.filename then
-          ln - last_loc.Loc.end_line - 1 
+          ln - last_loc.Loc.end_line - 1
         else
           0
       in
@@ -531,7 +531,7 @@ module F (Stat : Aux.STATE_T) = struct
 
       let incomplete =
         match tbuf#get_last_taken with
-        | LPAREN 
+        | LPAREN
           -> true
         | _ -> false
       in
@@ -564,7 +564,7 @@ module F (Stat : Aux.STATE_T) = struct
         in
         tbuf#prebuf_add qtoken
       end;
-      
+
       begin
         match tok with
         | SLASH_SLASH -> begin
@@ -576,7 +576,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      tbuf#prebuf_add qtoken
         end
         | SLASH_RPAREN -> begin
-            DEBUG_MSG "in_format_context:%B\nin_array_ctor_context:%B" 
+            DEBUG_MSG "in_format_context:%B\nin_array_ctor_context:%B"
               env#in_format_context env#in_array_ctor_context;
 
 	    if env#in_format_context || not env#in_array_ctor_context then begin
@@ -640,7 +640,7 @@ module F (Stat : Aux.STATE_T) = struct
 	        in
 	        begin
 		  List.iter
-		    (fun o -> 
+		    (fun o ->
 		      let t = Obj.obj o in
                       DEBUG_MSG "t=%s" (Token.rawtoken_to_string t);
                       add t
@@ -659,7 +659,7 @@ module F (Stat : Aux.STATE_T) = struct
                 let nmarkers = tbuf#prebuf_count_markers in
 	        self#peek_stmt nmarkers buf orig_qtoken;
 	        buf#add (EOP, Loc.dummy);
-                
+
                 DEBUG_MSG "peeked stmt:";
 	        buf#dump;
 
@@ -682,14 +682,14 @@ module F (Stat : Aux.STATE_T) = struct
                           match tbuf#partial_parser_selector (C.type_declaration_stmt()) with
                           | [_parser] -> begin
                               DEBUG_MSG "parsing with type_declaration_stmt parser";
-                              let macro_qtoken = 
-                                PB.make_qtoken (PP_MACRO_ID(Macro.K_TYPE_SPEC, str)) st ed 
+                              let macro_qtoken =
+                                PB.make_qtoken (PP_MACRO_ID(Macro.K_TYPE_SPEC, str)) st ed
                               in
                               buf#replace_first macro_qtoken;
                               try
                                 env#reset_stat;
-		                let _ = 
-                                  buf#parse_by ~cache:false _parser 
+		                let _ =
+                                  buf#parse_by ~cache:false _parser
                                 in (* successfully parsed *)
 		                tbuf#prebuf_replace1 ~nth:nmarkers macro_qtoken;
                               with
@@ -699,8 +699,8 @@ module F (Stat : Aux.STATE_T) = struct
                                   | [_parser] -> begin
                                       try
                                         env#reset_stat;
-		                        let _ = 
-                                          buf#parse_by _parser 
+		                        let _ =
+                                          buf#parse_by _parser
                                         in (* successfully parsed *)
 
                                         env#recover ~remove:true C.tempkey;
@@ -727,8 +727,8 @@ module F (Stat : Aux.STATE_T) = struct
 		                          let q = get_qtoken_queue() in
 		                          tbuf#prebuf_replace ~nth:nmarkers q
                                       end
-                                      | e -> 
-                                          FATAL_MSG "exception raised: %s" 
+                                      | e ->
+                                          FATAL_MSG "exception raised: %s"
                                             (Printexc.to_string e)
                                   end
                                   | _ -> assert false
@@ -783,10 +783,10 @@ module F (Stat : Aux.STATE_T) = struct
                         ) l.Macro.ln_raw params args
                     with
                       Invalid_argument _ ->
-                        Common.fail_to_parse 
+                        Common.fail_to_parse
                           ~head:(sprintf "[%s:%d:%d]"
-                                   env#current_filename 
-                                   ln 
+                                   env#current_filename
+                                   ln
                                    (st.Lexing.pos_cnum - st.Lexing.pos_bol))
                           (sprintf "invalid number of macro arguments: %s" id)
 
@@ -800,11 +800,11 @@ module F (Stat : Aux.STATE_T) = struct
             recover()
         end
 
-        (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _*) 
+        (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _*)
         | PREFIX_SPEC _
-        | PROGRAM _ | FUNCTION _ | SUBROUTINE _ | BLOCK _ | BLOCK_DATA _ 
+        | PROGRAM _ | FUNCTION _ | SUBROUTINE _ | BLOCK _ | BLOCK_DATA _
         | MODULE _ | SUBMODULE _
-        | FUNCTION_HEAD _ | SUBROUTINE_HEAD _ 
+        | FUNCTION_HEAD _ | SUBROUTINE_HEAD _
           -> begin
             self#check_BOPU;
             tbuf#prebuf_add qtoken
@@ -815,7 +815,7 @@ module F (Stat : Aux.STATE_T) = struct
         end
 
         (*| INTEGER _ | REAL _ | COMPLEX _ | LOGICAL _*) | KINDED_TYPE_SPEC _
-        | CHARACTER _ | DOUBLE _ | DOUBLE_PRECISION _ | DOUBLE_COMPLEX _ | TYPE _ 
+        | CHARACTER _ | DOUBLE _ | DOUBLE_PRECISION _ | DOUBLE_COMPLEX _ | TYPE _
         | PP_IDENTIFIER _
           -> begin
             DEBUG_MSG "checking BOPU line: %s" (Token.rawtoken_to_string tok);
@@ -879,18 +879,18 @@ module F (Stat : Aux.STATE_T) = struct
           DEBUG_MSG "%d markers found" nmarkers;
 
 	  self#peek_stmt nmarkers buf token;
-          
+
           DEBUG_MSG "peeked:";
           buf#dump;
 
           let contains_subprogram_keyword =
             try
               buf#iter
-                (fun (tok, _) -> 
+                (fun (tok, _) ->
 	          match tok with
                   | FUNCTION _ | SUBROUTINE _ | PREFIX_SPEC _
                   | FUNCTION_HEAD _ | SUBROUTINE_HEAD _
-                  (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _*) -> 
+                  (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _*) ->
                       raise Exit
                   | _ -> ()
                 );
@@ -922,9 +922,9 @@ module F (Stat : Aux.STATE_T) = struct
     method private check_BOPU_pp_branch token =
       DEBUG_MSG "%s" (Token.qtoken_to_string token);
 
-      let last_tok = 
+      let last_tok =
         match Token.qtoken_to_rawtoken token with
-        | PP_BRANCH _ -> tbuf#_get_last_taken_no_pp_branch 
+        | PP_BRANCH _ -> tbuf#_get_last_taken_no_pp_branch
         | _ -> assert false
       in
       let is_head_of_stmt = TBF.is_head_of_stmt last_tok in
@@ -954,7 +954,7 @@ module F (Stat : Aux.STATE_T) = struct
           let contains_subprogram_keyword =
             try
               buf#iter
-                (fun (tok, _) -> 
+                (fun (tok, _) ->
 	          match tok with
                   | FUNCTION _ | SUBROUTINE _ | MODULE _ | SUBMODULE _ | BLOCK_DATA _ | PROGRAM _
                   | PREFIX_SPEC _
@@ -1071,8 +1071,8 @@ module F (Stat : Aux.STATE_T) = struct
                             Invalid_argument _ ->
                               Common.fail_to_parse
                                 ~head:(Printf.sprintf "[%s:%d:%d]"
-                                         env#current_filename 
-                                         st.Lexing.pos_lnum 
+                                         env#current_filename
+                                         st.Lexing.pos_lnum
                                          (st.Lexing.pos_cnum - st.Lexing.pos_bol))
                                 "invalid number of macro arguments"
 
@@ -1126,7 +1126,7 @@ module F (Stat : Aux.STATE_T) = struct
             DEBUG_MSG "buf#get_list (%d):" (List.length buf_as_list);
             BEGIN_DEBUG
               List.iter
-                (fun (tok, _) -> 
+                (fun (tok, _) ->
                   DEBUG_MSG "  %s" (Token.rawtoken_to_string tok))
                 buf_as_list
             END_DEBUG;
@@ -1151,11 +1151,11 @@ module F (Stat : Aux.STATE_T) = struct
             | [(LOGICAL_LITERAL _, _)]
             | [(HOLLERITH _, _)]
             | [(INT_LITERAL _, _);(DOT, _)]
-            | [(DOT, _);(INT_LITERAL _, _)] 
+            | [(DOT, _);(INT_LITERAL _, _)]
               -> tbuf#prebuf_add (PB.make_qtoken (PP_MACRO_CONST ida) st ed)
 
-            | (DATA_EDIT_DESC _, _)::_     
-            | (POSITION_EDIT_DESC _, _)::_ 
+            | (DATA_EDIT_DESC _, _)::_
+            | (POSITION_EDIT_DESC _, _)::_
                 -> tbuf#prebuf_add (PB.make_qtoken (PP_MACRO_ID(Macro.K_GENERAL, ida)) st ed)
 
             | (IDENTIFIER id', _)::_ when id' = id -> (* e.g. macro for swapping arguments *)
@@ -1166,7 +1166,7 @@ module F (Stat : Aux.STATE_T) = struct
 
             | xs ->
                 buf#add (PB.make_qtoken EOP Loc.dummy_lexpos Loc.dummy_lexpos);
-                
+
                 (*let rec is_concat = function
                   | x :: (PP_CONCAT,_) :: rest -> is_concat rest
                   | [x] -> true
@@ -1348,15 +1348,15 @@ module F (Stat : Aux.STATE_T) = struct
 
             | FUNCTION _ | SUBROUTINE _ | PREFIX_SPEC _
             | FUNCTION_HEAD _ | SUBROUTINE_HEAD _
-            (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _*) -> 
+            (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _*) ->
                 raise Exit
 
             | _ -> incr n
           end
         done
       with
-      | Ulexing.Error -> 
-          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf); 
+      | Ulexing.Error ->
+          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf);
           if self#in_included then begin
             self#exit_source;
             self#handle_macro_line_sub nmarkers
@@ -1385,7 +1385,7 @@ module F (Stat : Aux.STATE_T) = struct
 	    match tok with
 	    | EOF _ | EOL | SEMICOLON ->
 	        if !marker_found then begin
-		  buf#add (EOL, Loc.dummy); 
+		  buf#add (EOL, Loc.dummy);
 		  raise Exit
 	        end
 	        else begin
@@ -1417,13 +1417,13 @@ module F (Stat : Aux.STATE_T) = struct
 
 	    | _ ->
                 if !marker_found then
-                  buf#add qtoken; 
+                  buf#add qtoken;
                 incr n
 	  end
         done
-      with 
-      | Ulexing.Error -> 
-          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf); 
+      with
+      | Ulexing.Error ->
+          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf);
           if self#in_included then begin
             self#exit_source;
             self#peek_stmt ~nth:(!n) ~count:(!marker_count) nmarkers buf orig_token
@@ -1493,15 +1493,15 @@ module F (Stat : Aux.STATE_T) = struct
             | INCLUDE__FILE _ | OPTIONS__OPTS _ -> incr n
 
 	    | _ -> begin
-                buf#add qtoken; 
+                buf#add qtoken;
                 incr n
             end
 	  end
         done;
         0
-      with 
+      with
       | Ulexing.Error -> begin
-          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf); 
+          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf);
           if self#in_included then begin
             self#exit_source;
             self#peek_up_to_non_pp
@@ -1542,7 +1542,7 @@ module F (Stat : Aux.STATE_T) = struct
         DEBUG_MSG "taking from lexer...";
 	let qtoken = U.token ~pending_EOL:(!pending_EOL_ref) current_ulexbuf in
         let tok, loc = qtoken in
-        DEBUG_MSG "lexer --> %s[%s]" 
+        DEBUG_MSG "lexer --> %s[%s]"
           (Token.rawtoken_to_string tok) (Loc.to_string ~show_ext:true loc);
 
         match tok with
@@ -1550,7 +1550,7 @@ module F (Stat : Aux.STATE_T) = struct
             begin
               match o_opt with
               | None -> pending_EOL_ref := None
-              | Some o -> 
+              | Some o ->
                   let eol = Obj.obj o in
                   DEBUG_MSG "pending_EOL: %s" (Token.qtoken_to_string eol);
                   pending_EOL_ref := Some eol
@@ -1566,7 +1566,7 @@ module F (Stat : Aux.STATE_T) = struct
           BEGIN_DEBUG
             let ofs = (Ulexing.lexeme_start current_ulexbuf) - 1 in
             let loc = env#current_pos_mgr#offsets_to_loc ofs ofs in
-            DEBUG_MSG "Ulexing.Error raised at %s" (Loc.to_string loc); 
+            DEBUG_MSG "Ulexing.Error raised at %s" (Loc.to_string loc);
             DEBUG_MSG "\n%s" (ulexbuf_to_string current_ulexbuf)
           END_DEBUG;
 
@@ -1583,7 +1583,7 @@ module F (Stat : Aux.STATE_T) = struct
             omp_endif_opt := Some qtoken;
             tbuf#prebuf_add qtoken
           end;
-            
+
           if self#in_included then begin
             self#exit_source;
             env#clear_token_feeded;
@@ -1638,14 +1638,14 @@ module F (Stat : Aux.STATE_T) = struct
             tbuf#prebuf_add (make_eof_token current_ulexbuf);
             finished <- true
           end
-          else 
+          else
             tbuf#prebuf_add (make_eof_token current_ulexbuf)
         end
     (* end of method take_from_lexer *)
 
     method get ?(prefetch=true) () =
       DEBUG_MSG "prebuf_size=%d" tbuf#prebuf_size;
-      let thresh = 
+      let thresh =
         if prefetch then
           2
         else
@@ -1657,7 +1657,7 @@ module F (Stat : Aux.STATE_T) = struct
       let qtoken =
         try
 	  tbuf#prebuf_take
-        with 
+        with
 	  TB.Empty -> self#get ~prefetch ()
       in
       let tok, _ = qtoken in
@@ -1675,7 +1675,7 @@ module F (Stat : Aux.STATE_T) = struct
       let rec prebuf_peek m =
         try
 	  tbuf#prebuf_peek_nth m
-        with 
+        with
 	  Failure _ ->
 	    for i = 1 to (m - tbuf#prebuf_size) do
               self#take_from_lexer ()
@@ -1699,7 +1699,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  let qtoken = self#peek_nth !n in
 	  let tok, _ = qtoken in
 
-	  DEBUG_MSG "peeking %s token: %s" 
+	  DEBUG_MSG "peeking %s token: %s"
             (Common.num_to_ordinal !n) (Token.qtoken_to_string qtoken);
 
 	  if TokenF.is_pp_directive tok then begin
@@ -1710,20 +1710,20 @@ module F (Stat : Aux.STATE_T) = struct
 	          | PPD.Ifdef _
 	          | PPD.Ifndef _
                   | PPD.If _
-	            -> 
+	            ->
                       incr branch_depth
 
-	          | PPD.Else -> 
-		      if !branch_depth = 0 then 
+	          | PPD.Else ->
+		      if !branch_depth = 0 then
 		        skip_until_endif_flag := true
 
-	          | PPD.Elif _  -> 
-		      if !branch_depth = 0 then 
+	          | PPD.Elif _  ->
+		      if !branch_depth = 0 then
 		        skip_until_endif_flag := true
 
-	          | PPD.Endif _ -> 
-		      if !branch_depth > 0 then 
-		        decr branch_depth; 
+	          | PPD.Endif _ ->
+		      if !branch_depth > 0 then
+		        decr branch_depth;
 		      skip_until_endif_flag := false
               end
 	      | _ -> ()
@@ -1733,7 +1733,7 @@ module F (Stat : Aux.STATE_T) = struct
           else if tok = EOL && skip_eol then
             incr n
 	  else begin
-            match tok with 
+            match tok with
             | EOF _ -> raise (Token_found qtoken)
             | _ ->
                 if !skip_until_endif_flag then
@@ -1743,9 +1743,9 @@ module F (Stat : Aux.STATE_T) = struct
           end
         done;
         make_eof_token ulexbuf
-      with 
-      | Ulexing.Error -> 
-          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf); 
+      with
+      | Ulexing.Error ->
+          DEBUG_MSG "Ulexing.Error raised at %d" (Ulexing.lexeme_start current_ulexbuf);
           if self#in_included then begin
             self#exit_source;
             self#peek_token ~skip_eol ()
@@ -1753,7 +1753,7 @@ module F (Stat : Aux.STATE_T) = struct
           else
             make_eof_token ulexbuf
 
-      | Token_found qtoken -> 
+      | Token_found qtoken ->
           DEBUG_MSG "result=%s" (Token.qtoken_to_string qtoken);
           qtoken
     (* end of method peek_token *)
@@ -1765,7 +1765,7 @@ module F (Stat : Aux.STATE_T) = struct
 
     method peek_nth_rawtok n = Token.qtoken_to_rawtoken (self#peek_nth n)
 
-    method peek_next_rawtok ?(skip_eol=false) () = 
+    method peek_next_rawtok ?(skip_eol=false) () =
       Token.qtoken_to_rawtoken (self#peek_token ~skip_eol ())
 
     method discard ?(skip_pp_branch=true) () =
@@ -1790,21 +1790,21 @@ module F (Stat : Aux.STATE_T) = struct
 	            | PPD.Ifdef _
 	            | PPD.Ifndef _
                     | PPD.If _
-	              -> 
+	              ->
                         incr branch_depth;
                         env#incr_discarded_branch_entry_count
 
-	            | PPD.Else -> 
-		        if !branch_depth = 0 then 
+	            | PPD.Else ->
+		        if !branch_depth = 0 then
 		          skip_until_endif_flag := true
 
-	            | PPD.Elif _  -> 
-		        if !branch_depth = 0 then 
+	            | PPD.Elif _  ->
+		        if !branch_depth = 0 then
 		          skip_until_endif_flag := true
 
-	            | PPD.Endif _ -> 
-		        if !branch_depth > 0 then 
-		          decr branch_depth; 
+	            | PPD.Endif _ ->
+		        if !branch_depth > 0 then
+		          decr branch_depth;
 		        skip_until_endif_flag := false
                 end
 	        | _ -> ()
@@ -1820,7 +1820,7 @@ module F (Stat : Aux.STATE_T) = struct
 	        raise (Token_found qtoken)
           done;
           assert false
-        with 
+        with
           Token_found qtoken -> qtoken
 
       end

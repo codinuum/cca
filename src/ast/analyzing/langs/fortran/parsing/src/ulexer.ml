@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * A lexer (utf-8) for Fortran language
  *
  * ulexer.ml
@@ -46,7 +46,7 @@ let normalize_pp_keyword k =
 
 let _find_pp_keyword =
   let keyword_list =
-    [ 
+    [
       "#undef",   PP_UNDEF;
       "#if",      PP_IF;
       "#else",    PP_ELSE;
@@ -58,11 +58,11 @@ let _find_pp_keyword =
       "#define",  PP_DEFINE;
       "#error",   PP_ERROR;
       "#warning", PP_WARNING;
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
   let _find s = Hashtbl.find keyword_table (normalize_pp_keyword s) in
   _find
@@ -85,7 +85,7 @@ let pp_is_QCC_keyword = function
 
 let _find_dotted_keyword, find_dotted_keyword =
   let keyword_list =
-    [ 
+    [
       ".and.",   (fun s -> D_AND);
       ".eq.",    (fun s -> D_EQ);
       ".eqv.",   (fun s -> D_EQV);
@@ -101,17 +101,17 @@ let _find_dotted_keyword, find_dotted_keyword =
       ".true.",  (fun s -> LOGICAL_LITERAL s);
       ".false.", (fun s -> LOGICAL_LITERAL s);
 
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
   let _find s = (Hashtbl.find keyword_table (String.lowercase_ascii s)) s in
-  let find s = 
-    try 
+  let find s =
+    try
       _find s
-    with 
+    with
       Not_found -> DEFINED_OP s
   in
   _find, find
@@ -120,7 +120,7 @@ let _find_dotted_keyword, find_dotted_keyword =
 
 let _find_keyword =
   let keyword_list =
-    [ 
+    [
       (* keywords *)
       "attributes",      (fun s -> PREFIX_SPEC s);  (* PGI CUDA *)
       "abstract",        (fun s -> ABSTRACT s);     (* F2003 *)
@@ -295,19 +295,19 @@ let _find_keyword =
       "pinned",          (fun s -> SIMPLE_ATTR s);
       "texture",         (fun s -> SIMPLE_ATTR s);
       "shared",          (fun s -> SIMPLE_ATTR s);
-  ] in 
+  ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
   let _find s = (Hashtbl.find keyword_table (String.lowercase_ascii s)) s in
   _find
 
-let find_keyword s = 
-  try 
+let find_keyword s =
+  try
     _find_keyword s
-  with 
+  with
     Not_found -> IDENTIFIER s
 
 
@@ -331,7 +331,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let is_fixed_source_form() = env#current_source#is_fixed_source_form
 
   let offsets_to_loc st ed = env#current_pos_mgr#offsets_to_loc st ed
-      
+
 
 
   let normalize_continued_string =
@@ -340,7 +340,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       Str.global_replace pat "" str
     in
     norm
-    
+
   let startswith_digit str =
     try
       match str.[0] with
@@ -450,17 +450,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   let regexp true_constant = '.' ['t' 'T'] ['r' 'R'] ['u' 'U'] ['e' 'E'] '.' ('_' kind_param)?
-  let regexp false_constant = '.' ['f' 'F'] ['a' 'A'] ['l' 'L'] ['s' 'S'] ['e' 'E'] '.' ('_' kind_param)? 
+  let regexp false_constant = '.' ['f' 'F'] ['a' 'A'] ['l' 'L'] ['s' 'S'] ['e' 'E'] '.' ('_' kind_param)?
 
   let regexp logical_literal_constant = true_constant | false_constant
 
 (*
-  let regexp literal_constant = 
-    int_literal_constant | 
-    real_literal_constant | 
-    complex_literal_constant | 
-    logical_literal_constant | 
-    char_literal_constant | 
+  let regexp literal_constant =
+    int_literal_constant |
+    real_literal_constant |
+    complex_literal_constant |
+    logical_literal_constant |
+    char_literal_constant |
     boz_literal_constant
 *)
 
@@ -560,7 +560,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let cur_char = buf.(cur-1) in
     DEBUG_MSG "prev char: %c (cur: %c)" (Char.chr prev_char) (Char.chr cur_char);
     prev_char
-*)    
+*)
 
 
   let mkloc ulexbuf =
@@ -603,7 +603,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           let c = s.[i] in
           match c with
           | '0'..'9' -> num := Printf.sprintf "%c%s" c !num
-          | _ -> 
+          | _ ->
               if is_letter_or_uscore c then
                 raise Not_found
               else
@@ -625,9 +625,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let register_label (lab, loc) =
     if lab <> "" then
-      env#register_label 
+      env#register_label
         loc.Loc.filename
-        loc.Loc.start_line 
+        loc.Loc.start_line
         (Aux.normalize_label lab, loc)
 
 
@@ -686,8 +686,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     val mutable char_context = PA.CH_NONE
 
-    val margin_stat = { ms_in_margin  = false; 
-                        ms_open_paren = false; 
+    val margin_stat = { ms_in_margin  = false;
+                        ms_open_paren = false;
                         ms_open_char  = PA.CH_NONE;
                       }
     val mutable last_in_margin = false
@@ -709,7 +709,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     method char_context = char_context
 
-    method in_char = 
+    method in_char =
       match char_context with
       | PA.CH_NONE -> false
       | _ -> true
@@ -724,7 +724,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
     method letter_cont_field_count = letter_cont_field_count
-    method incr_letter_cont_field_count = 
+    method incr_letter_cont_field_count =
       letter_cont_field_count <- letter_cont_field_count + 1
 
     method letter_cont_field = letter_cont_field_flag
@@ -825,7 +825,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         if margin_stat.ms_open_paren && (paren_level + margin_paren_level) = 0 then begin
           DEBUG_MSG "paren closed in the margin"
         end;
-        if 
+        if
           match margin_stat.ms_open_char with
           | PA.CH_NONE -> false
           | PA.CH_SINGLE as cc -> char_context = cc && margin_char_context = cc
@@ -841,36 +841,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
         DEBUG_MSG "last_in_margin -> true";
       end
 
-    method enter_char cc = 
+    method enter_char cc =
       assert (cc <> PA.CH_NONE);
       if margin_stat.ms_in_margin then begin
-        let cc' = 
-          if margin_char_context = PA.CH_NONE then
-            cc
-          else
-            PA.CH_NONE
-        in
-        DEBUG_MSG "char_context (in margin): %s -> %s" 
-          (PA.char_context_to_string margin_char_context)
-          (PA.char_context_to_string cc');
-        margin_char_context <- cc'
-      end
-      else begin
-        let cc' = 
-          if char_context = PA.CH_NONE then
-            cc
-          else
-            PA.CH_NONE
-        in
-        DEBUG_MSG "char_context: %s -> %s"
-          (PA.char_context_to_string char_context)
-          (PA.char_context_to_string cc');
-        char_context <- cc'
-      end
-
-    method exit_char cc = 
-      if margin_stat.ms_in_margin then begin
-        let cc' = 
+        let cc' =
           if margin_char_context = PA.CH_NONE then
             cc
           else
@@ -882,24 +856,50 @@ module F (Stat : Parser_aux.STATE_T) = struct
         margin_char_context <- cc'
       end
       else begin
-        let cc' = 
+        let cc' =
           if char_context = PA.CH_NONE then
             cc
           else
             PA.CH_NONE
         in
-        DEBUG_MSG "char_context: %s -> %s" 
+        DEBUG_MSG "char_context: %s -> %s"
+          (PA.char_context_to_string char_context)
+          (PA.char_context_to_string cc');
+        char_context <- cc'
+      end
+
+    method exit_char cc =
+      if margin_stat.ms_in_margin then begin
+        let cc' =
+          if margin_char_context = PA.CH_NONE then
+            cc
+          else
+            PA.CH_NONE
+        in
+        DEBUG_MSG "char_context (in margin): %s -> %s"
+          (PA.char_context_to_string margin_char_context)
+          (PA.char_context_to_string cc');
+        margin_char_context <- cc'
+      end
+      else begin
+        let cc' =
+          if char_context = PA.CH_NONE then
+            cc
+          else
+            PA.CH_NONE
+        in
+        DEBUG_MSG "char_context: %s -> %s"
           (PA.char_context_to_string char_context)
           (PA.char_context_to_string cc');
         char_context <- cc'
       end
 
 
-    method in_paren = 
+    method in_paren =
       let b = paren_level > 0 in
       DEBUG_MSG "%B (lv=%d)" b paren_level;
       b
-      
+
     method enter_paren =
       if margin_stat.ms_in_margin then
         self#incr_margin_paren_level
@@ -916,7 +916,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       let may_be_incomplete_line =
         match last_nonblank_char_within_limit with
         | ',' | '*' -> begin
-            DEBUG_MSG "possible incomplete line: the previous line ends with %C" 
+            DEBUG_MSG "possible incomplete line: the previous line ends with %C"
               last_nonblank_char_within_limit;
             true
         end
@@ -945,8 +945,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
         let is_noncomment_margin, sep =
           try
             self#iter_stmt_sep_count
-              (fun sep count -> 
-                DEBUG_MSG "sep count: \"%s\" -> %d (thresh=%d)" 
+              (fun sep count ->
+                DEBUG_MSG "sep count: \"%s\" -> %d (thresh=%d)"
                   sep count sep_count_thresh;
                 if count >= sep_count_thresh then begin
                   try
@@ -1048,7 +1048,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         Stack.push (ref false) section_stack;
       Stack.push section_stack pp_branch_stack
 
-    method exit_pp_branch () = 
+    method exit_pp_branch () =
       DEBUG_MSG "lv: %d -> %d" pp_branch_level (pp_branch_level-1);
       pp_branch_level <- pp_branch_level - 1;
       let section_stack = Stack.pop pp_branch_stack in
@@ -1056,8 +1056,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
       if Stack.is_empty section_stack then
         false
       else begin
-        Stack.iter 
-          (fun b -> is_free_form := !is_free_form && !b) 
+        Stack.iter
+          (fun b -> is_free_form := !is_free_form && !b)
           section_stack;
         DEBUG_MSG "is_free_form=%B" !is_free_form;
         !is_free_form
@@ -1081,7 +1081,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     method stmt = stmt
     method add_to_stmt s = stmt <- stmt^s
-    method reset_stmt = 
+    method reset_stmt =
       last_stmt <- stmt;
       stmt <- "";
       self#clear_free_cont_flag
@@ -1105,7 +1105,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     method add_to_lnum n = lnum <- lnum + n
 
-    method add_to_pos n = 
+    method add_to_pos n =
       pos <- pos + n;
       if pos > max_pos then
         max_pos <- pos
@@ -1148,34 +1148,34 @@ module F (Stat : Parser_aux.STATE_T) = struct
         self#sep_in_xxx stmt_sep_count_tbl sep
       end
 
-    method iter_stmt_sep_count f = 
+    method iter_stmt_sep_count f =
       Hashtbl.iter f stmt_sep_count_tbl
 
     method get_margin_sep_count = Hashtbl.find margin_sep_count_tbl
 
     method sep_in_margin = (Hashtbl.length margin_sep_count_tbl) > 0
 
-    method reset_sep_count = 
+    method reset_sep_count =
       Hashtbl.clear stmt_sep_count_tbl;
       Hashtbl.clear margin_sep_count_tbl
 
-    method incr_effective_line_count = 
+    method incr_effective_line_count =
       effective_line_count <- effective_line_count + 1
 
-    method incr_exclam_comment_count = 
+    method incr_exclam_comment_count =
       exclam_comment_count <- exclam_comment_count + 1
 
-    method incr_fixed_comment_count = 
+    method incr_fixed_comment_count =
       fixed_comment_count <- fixed_comment_count + 1
-    method incr_long_line_count = 
+    method incr_long_line_count =
       long_line_count <- long_line_count + 1
-    method incr_marginal_amp_count = 
+    method incr_marginal_amp_count =
       marginal_amp_count <- marginal_amp_count + 1
-    method incr_amp_count = 
+    method incr_amp_count =
       amp_count <- amp_count + 1
-    method incr_incomplete_line_count = 
+    method incr_incomplete_line_count =
       incomplete_line_count <- incomplete_line_count + 1
-    method incr_noncomment_margin_count = 
+    method incr_noncomment_margin_count =
       noncomment_margin_count <- noncomment_margin_count + 1
 
     method set_blank_line_flag = blank_line_flag <- true
@@ -1184,7 +1184,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     method is_false_fixed_source_form =
       let b =
         marginal_complete_free_cont_count > 0 ||
-        (fixed_comment_count = 0) && 
+        (fixed_comment_count = 0) &&
         (
          (exclam_comment_count > 0 &&
           amp_count > 0 &&
@@ -1217,7 +1217,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                       "margin char context: %s\n"^^
                       "blank_line_flag    : %B\n"^^
                       "free_cont_flag     : %B"
-                     ) 
+                     )
         lnum pos
         marginal_complete_free_cont_count
         effective_line_count exclam_comment_count fixed_comment_count long_line_count
@@ -1293,7 +1293,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     List.iter (Xset.add s) l;
     s
 
-  let rec scan_label_field genv form lexbuf = 
+  let rec scan_label_field genv form lexbuf =
     let thresh = env#effective_lines_for_source_form_guess in
 
     DEBUG_MSG "thresh=%d" thresh;
@@ -1330,7 +1330,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
     else
       SF.Free
- 
+
   and _scan_label_field (genv : guess_env) form = lexer
 
 |   "/*" ->
@@ -1360,7 +1360,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       possibly_free ~head_symbol:s genv form lexbuf
     end
 
-|   white_space -> 
+|   white_space ->
     DEBUG_MSG "WHITE SPACE [%dL]" genv#lnum;
 
     let s = Ulexing.utf8_lexeme lexbuf in
@@ -1379,7 +1379,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         scan_label_field genv form lexbuf
       end
 
-|   digit_string -> 
+|   digit_string ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "DIGIT STRING (%s) [%dL]" s genv#lnum;
     let len = Ulexing.lexeme_length lexbuf in
@@ -1399,15 +1399,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
       possibly_free ~head_symbol:s genv form lexbuf
     end
 
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR [%dL]" genv#lnum;
     genv#add_to_lnum 1;
     genv#reset_pos;
     genv#set_blank_line_flag;
     scan_label_field genv form lexbuf
 
-|   eof -> 
-    DEBUG_MSG "EOF"; 
+|   eof ->
+    DEBUG_MSG "EOF";
     form
 
 |   '!' ->
@@ -1447,18 +1447,18 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "DIRECTIVE (%s) [%dL]" (Ulexing.utf8_lexeme lexbuf) genv#lnum;
     scan_pp_directive genv form lexbuf
 
-|   _ -> 
+|   _ ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "OTHER (%s) [%dL]" s genv#lnum;
     possibly_free ~head_symbol:s genv form lexbuf
 
   and skip_line genv form = lexer
-|   '\\' white_space* line_terminator -> 
+|   '\\' white_space* line_terminator ->
     genv#add_to_lnum 1;
     genv#reset_pos;
     scan_label_field genv form lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     genv#add_to_lnum 1;
     genv#reset_pos;
     scan_label_field genv form lexbuf
@@ -1469,7 +1469,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_block_comment_label genv form = lexer
-|   "*/" -> 
+|   "*/" ->
     if genv#pos = 5 then begin
       genv#set_pos 6;
       scan_continuation_field genv form lexbuf
@@ -1483,7 +1483,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_tab_label_field genv form = lexer
-|   ['1'-'9'] -> 
+|   ['1'-'9'] ->
     DEBUG_MSG "CONTINUATION! (%s) [%dL]" (Ulexing.utf8_lexeme lexbuf) genv#lnum;
     genv#reset_last_nonblank_char_within_limit;
     genv#add_to_pos 1;
@@ -1530,7 +1530,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
 
   and scan_block_comment_tab genv form = lexer
-|   "*/" -> 
+|   "*/" ->
     genv#check_at_initial_line;
     genv#add_to_pos 1;
     genv#reset_stmt;
@@ -1552,7 +1552,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#reset_stmt;
     scan_stmt ~is_head:true genv form lexbuf
 
-|   '0' | white_space -> 
+|   '0' | white_space ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "INITIAL LINE (%s) [%dL]" s genv#lnum;
     if genv#free_cont_flag then begin
@@ -1627,7 +1627,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
 
   and scan_block_comment_cont genv form = lexer
-|   "*/" -> 
+|   "*/" ->
     genv#check_at_initial_line;
     genv#add_to_pos 1;
     genv#reset_stmt;
@@ -1637,7 +1637,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_stmt ?(is_head=false) genv form = lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR";
     if is_head then begin
       genv#reset_paren_level;
@@ -1708,7 +1708,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#add_to_pos 1;
     scan_stmt genv form lexbuf
 
-|   char_start_single -> 
+|   char_start_single ->
     DEBUG_MSG "CHAR_START(SINGLE QUOTE) [%dL] pos=%d" genv#lnum genv#pos;
     if is_head then begin
       genv#reset_paren_level;
@@ -1721,7 +1721,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#enter_char PA.CH_SINGLE;
     scan_char_single genv form lexbuf
 
-|   char_start_double -> 
+|   char_start_double ->
     DEBUG_MSG "CHAR_START(DOUBLE QUOTE) [%dL] pos=%d" genv#lnum genv#pos;
     if is_head then begin
       genv#reset_paren_level;
@@ -1734,7 +1734,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#enter_char PA.CH_DOUBLE;
     scan_char_double genv form lexbuf
 
-|   cH_desc -> 
+|   cH_desc ->
     if is_head then begin
       genv#reset_paren_level;
       genv#reset_margin_paren_level;
@@ -1801,7 +1801,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     in
     check_pos genv;
     genv#add_to_stmt s;
-    begin 
+    begin
       match hollerith_num with
       | Some n -> begin
           DEBUG_MSG "hollerith: %dH" n;
@@ -1818,7 +1818,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       end
     end
 
-|   digit -> 
+|   digit ->
     let s = Ulexing.utf8_lexeme lexbuf in
     if genv#pos > 6 && genv#stmt_is_blank then begin
       DEBUG_MSG "stmt starting with digit (\"%s\") at pos=%d found" s genv#pos;
@@ -1869,7 +1869,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#add_to_pos 2;
     scan_stmt genv form lexbuf
 
-|   _ -> 
+|   _ ->
     if is_head then begin
       genv#reset_paren_level;
       genv#reset_margin_paren_level;
@@ -1894,7 +1894,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_hollerith genv form n i = lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR";
     genv#add_to_lnum 1;
     genv#reset_pos;
@@ -1914,7 +1914,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_hollerith_continuation genv form n i pos = lexer
-|   ['C' 'c' '*' 'D' 'd'] -> 
+|   ['C' 'c' '*' 'D' 'd'] ->
     if pos = 1 then
       scan_hollerith_skip_line genv form n i lexbuf
     else if pos = 6 then
@@ -1936,7 +1936,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_hollerith_skip_line genv form n i = lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR";
     genv#add_to_lnum 1;
     genv#reset_pos;
@@ -1947,7 +1947,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_block_comment_stmt genv form = lexer
-|   "*/" -> 
+|   "*/" ->
     genv#clear_letter_cont_field;
     genv#add_to_pos 1;
     genv#add_to_stmt " ";
@@ -1957,11 +1957,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_char_single genv form = lexer
-|   "''" -> 
+|   "''" ->
     genv#add_to_pos 2;
     scan_char_single genv form lexbuf
 
-|   "\"\"" -> 
+|   "\"\"" ->
     genv#add_to_pos 2;
     scan_char_single genv form lexbuf
 
@@ -1985,7 +1985,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     genv#exit_margin;
     scan_label_field genv form lexbuf
 
-|   '\'' -> 
+|   '\'' ->
     DEBUG_MSG "CHAR END (SINGLE QUOTE) [%dL] pos=%d" genv#lnum genv#pos;
     check_pos genv;
     genv#add_to_pos 1;
@@ -2001,12 +2001,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_char_double genv form = lexer
-|   "''" -> 
+|   "''" ->
     genv#add_to_pos 2;
     scan_char_double genv form lexbuf
 
-|   "\"\"" -> 
-    genv#add_to_pos 2; 
+|   "\"\"" ->
+    genv#add_to_pos 2;
     scan_char_double genv form lexbuf
 
 |   '&' white_space* line_terminator ->
@@ -2022,13 +2022,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
       possibly_free genv form lexbuf
     end
 
-|   line_terminator -> 
+|   line_terminator ->
     genv#add_to_lnum 1;
     genv#reset_pos;
     genv#exit_margin;
     scan_label_field genv form lexbuf
 
-|   '\"' -> 
+|   '\"' ->
     DEBUG_MSG "CHAR END (DOUBLE QUOTE) [%dL] pos=%d" genv#lnum genv#pos;
     check_pos genv;
     genv#add_to_pos 1;
@@ -2044,7 +2044,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and scan_comment ctype ?(is_blank=true) genv form = lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR (%s)" (comment_type_to_string ctype);
     if is_blank then begin
       match ctype with
@@ -2062,7 +2062,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   white_space ->
     scan_comment ctype ~is_blank genv form lexbuf
 
-|   _ -> 
+|   _ ->
 (*
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "\"%s\" (form=%s)" s (SF.to_string form);
@@ -2070,13 +2070,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     scan_comment ctype ~is_blank:false genv form lexbuf
 
   and scan_pp_directive genv form = lexer
-|   '\\' white_space* line_terminator -> 
+|   '\\' white_space* line_terminator ->
     genv#add_to_lnum 1;
     genv#reset_pos;
     genv#set_blank_line_flag;
     scan_pp_directive genv form lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     genv#add_to_lnum 1;
     genv#reset_pos;
     genv#set_blank_line_flag;
@@ -2143,7 +2143,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     form
 
 
-  let rec name rest = 
+  let rec name rest =
     let _ = DEBUG_MSG "rest=%d" rest in
     lexer (* keyword that identifier or another keyword may follow *)
 |   "allocatable"      -> (fun s -> ALLOCATABLE s), 11
@@ -2275,9 +2275,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if rest = 1 then
       f, 1
     else
-      name_sub f (String.length str) lexbuf   
+      name_sub f (String.length str) lexbuf
 
-|   digit_string -> 
+|   digit_string ->
     let str = Ulexing.utf8_lexeme lexbuf in
     let f = fun s -> INT_LITERAL s in
     f, String.length str
@@ -2331,7 +2331,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       match !l with
       | [] -> assert false
       | [x] -> x
-      | xs -> 
+      | xs ->
 	  if !keyword_found (* && config#is_fixed_source_form *) then
 	    COMPOSITE_IDENTIFIER(false, _str, List.map Obj.repr xs)
 	  else
@@ -2339,7 +2339,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
 
   exception Invalid_ocl
-      
+
 
   let ofs_to_pos ofs =
     let pos_mgr = env#current_pos_mgr in
@@ -2357,7 +2357,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let find_ocl_keyword =
     let keyword_list =
-      [ 
+      [
         "aligned",                OCL_ALIGNED;
         "array_fusion",           OCL_ARRAY_FUSION;
         "array_merge",            OCL_ARRAY_MERGE;
@@ -2436,13 +2436,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "last_private",           OCL_LAST_PRIVATE;
         "temp_private",           OCL_TEMP_PRIVATE;
         "parallel_cyclic",        OCL_PARALLEL_CYCLIC;
-      ] in 
+      ] in
     let keyword_table = Hashtbl.create (List.length keyword_list) in
-    let _ = 
-      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-        keyword_list 
+    let _ =
+      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+        keyword_list
     in
-    let find s = 
+    let find s =
       try
         Hashtbl.find keyword_table (String.lowercase_ascii s)
       with
@@ -2455,7 +2455,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   line_terminator -> mkt ofs EOL lexbuf
 
-|   name -> 
+|   name ->
     let s = Ulexing.utf8_lexeme lexbuf in
     mkt ofs (find_ocl_keyword s) lexbuf
 
@@ -2491,7 +2491,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let find_omp_keyword, get_omp_keyword_string =
     let keyword_list =
-      [ 
+      [
 (* clause keywords *)
         "auto",          OMP_AUTO;
         "capture",       OMP_CAPTURE;
@@ -2644,14 +2644,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "kind",            KIND "kind";
         "len",             LEN "len";
 
-      ] in 
+      ] in
     let keyword_table = Hashtbl.create (List.length keyword_list) in
     List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) keyword_list;
-    let find ?(no_ident=false) s = 
+    let find ?(no_ident=false) s =
       try
         Hashtbl.find keyword_table (String.lowercase_ascii s)
       with
-        Not_found -> 
+        Not_found ->
           if no_ident then
             raise Not_found
           else
@@ -2672,7 +2672,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         | "cancellation"
         | "declare"
         | "distributeparallel"
-        | "enddistributeparallel" 
+        | "enddistributeparallel"
         | "endtargetteamsdistributeparallel"
         | "endteamsdistributeparallel"
         | "targetteamsdistributeparallel"
@@ -2760,7 +2760,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | OMP_UPDATE                                   -> "update"
     | OMP_PRIVATE                                  -> "private"
 
-    | PRECISION s 
+    | PRECISION s
 (*    | COMPLEX s*)
       -> s
 
@@ -2774,7 +2774,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   line_terminator -> mkt ofs EOL lexbuf
 
-|   name -> 
+|   name ->
     let s = Ulexing.utf8_lexeme lexbuf in
     mkt ofs (find_omp_keyword s) lexbuf
 
@@ -2816,7 +2816,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let find_acc_keyword, get_acc_keyword_string =
     let keyword_list =
-      [ 
+      [
         "parallel",           ACC_PARALLEL;
         "kernels",            ACC_KERNELS;
         "data",               ACC_DATA;
@@ -2877,14 +2877,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "device_resident",    ACC_DEVICE_RESIDENT;
         "link",               ACC_LINK;
         "device",             ACC_DEVICE;
-      ] in 
+      ] in
     let keyword_table = Hashtbl.create (List.length keyword_list) in
     List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) keyword_list;
-    let find ?(no_ident=false) s = 
+    let find ?(no_ident=false) s =
       try
         Hashtbl.find keyword_table (String.lowercase_ascii s)
       with
-        Not_found -> 
+        Not_found ->
           if no_ident then
             raise Not_found
           else
@@ -2904,7 +2904,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   line_terminator -> mkt ofs EOL lexbuf
 
-|   name -> 
+|   name ->
     let s = Ulexing.utf8_lexeme lexbuf in
     mkt ofs (find_acc_keyword s) lexbuf
 
@@ -2947,7 +2947,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let find_xlf_keyword =
     let keyword_list =
-      [ 
+      [
         "align",               XLF_ALIGN;
         "assert",              XLF_ASSERT;
         "block_loop",          XLF_BLOCK_LOOP;
@@ -2992,13 +2992,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "ibm",       XLF_IBM;
         "very_high", XLF_VERY_HIGH;
         "very_low",  XLF_VERY_LOW;
-      ] in 
+      ] in
     let keyword_table = Hashtbl.create (List.length keyword_list) in
-    let _ = 
-      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-        keyword_list 
+    let _ =
+      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+        keyword_list
     in
-    let find s = 
+    let find s =
       try
         Hashtbl.find keyword_table (String.lowercase_ascii s)
       with
@@ -3013,7 +3013,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   at_process -> mkt ofs XLF_PROCESS lexbuf
 
-|   name -> 
+|   name ->
     let s = Ulexing.utf8_lexeme lexbuf in
     mkt ofs (find_xlf_keyword s) lexbuf
 
@@ -3217,14 +3217,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
       rawtok ulexbuf
       =
     let pos_mgr = env#current_pos_mgr in
-    let st = 
+    let st =
       match start_opt with
-      | None -> Ulexing.lexeme_start ulexbuf 
+      | None -> Ulexing.lexeme_start ulexbuf
       | Some x -> x
     in
-    let ed = 
+    let ed =
       match end_opt with
-      | None -> (Ulexing.lexeme_end ulexbuf) - 1 
+      | None -> (Ulexing.lexeme_end ulexbuf) - 1
       | Some x -> x
     in
     let sl, sc = pos_mgr#get_position st in
@@ -3242,7 +3242,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     in
 
     if src#is_fixed_source_form && sc >= max_line_length && rawtok <> EOL then begin
-      DEBUG_MSG "discarding %s (beyond source line (length=%d))" 
+      DEBUG_MSG "discarding %s (beyond source line (length=%d))"
 	(Token.rawtoken_to_string rawtok) max_line_length;
       _token ulexbuf
     end
@@ -3253,7 +3253,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       begin
 	match rawtok with
 	| EOL | RAW _ -> ()
-	| _ -> 
+	| _ ->
             env#set_line_stat_nonblank;
             if set_token_feeded then
               env#set_token_feeded
@@ -3276,13 +3276,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | _ -> mklabel "" lexbuf
 
 
-  and feed_pending_EOL pending_EOL lexbuf = 
+  and feed_pending_EOL pending_EOL lexbuf =
     match pending_EOL with
-    | Some t -> 
+    | Some t ->
         DEBUG_MSG "pending_EOL: %s" (Token.qtoken_to_string t);
         env#set_last_lex_qtoken_obj (Obj.repr t);
         t
-    | _ -> 
+    | _ ->
         DEBUG_MSG "pending_EOL: None";
         _token lexbuf
 
@@ -3291,7 +3291,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     try
       while true do
         let tok, loc = Obj.obj env#take_pending_RAWOMP_obj in
-        let line = 
+        let line =
           match tok with
           | RAW {DL.tag=DL.OMP; DL.line=l} -> l
           | _ -> assert false
@@ -3327,12 +3327,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
             Not_found -> None
     in
 
-    DEBUG_MSG "BOL=%B token_feeded=%B BOS=%B line_stat=%s continued=%B%s" 
-      env#at_BOL env#token_feeded env#at_BOS 
-      (LineStat.to_string env#line_stat) env#continued 
+    DEBUG_MSG "BOL=%B token_feeded=%B BOS=%B line_stat=%s continued=%B%s"
+      env#at_BOL env#token_feeded env#at_BOS
+      (LineStat.to_string env#line_stat) env#continued
       (opt_to_string Token.qtoken_to_string ~prefix:" pending_EOL:" pending_EOL);
 
-    DEBUG_MSG "env#in_name_context=%B in_type_spec_context=%B" 
+    DEBUG_MSG "env#in_name_context=%B in_type_spec_context=%B"
       env#in_name_context env#in_type_spec_context;
 
     begin
@@ -3417,8 +3417,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
 
 (*
-  and _token lexbuf = 
-    DEBUG_MSG "line_stat=%s so=%d" 
+  and _token lexbuf =
+    DEBUG_MSG "line_stat=%s so=%d"
       (LineStat.to_string env#line_stat) ((mkloc lexbuf).Loc.start_offset);
     inst0#start;
     let res = __token lexbuf in
@@ -3436,7 +3436,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   line_terminator ->
     DEBUG_MSG "LINE_TERMINATOR [%s]" (Loc.to_string (mkloc lexbuf));
-    
+
     if is_fixed_source_form() then begin (* fixed source form *)
       env#set_BOL;
       env#set_continuable;
@@ -3455,12 +3455,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
         env#clear_continued;
         match env#line_stat with
         | LineStat.AssumedBlank
-        | LineStat.PureComment -> 
-            env#set_BOL; 
+        | LineStat.PureComment ->
+            env#set_BOL;
             _token ~pp_pending_EOL lexbuf
 
-        | _ -> 
-            env#set_BOL; 
+        | _ ->
+            env#set_BOL;
             mktok EOL lexbuf
       end
     end
@@ -3479,10 +3479,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "C-STYLE BLOCK COMMENT: /**/";
     let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
     add_comment_region (offsets_to_loc st ed);
-    _token ~pp_pending_EOL ~identifier_may_continue lexbuf 
+    _token ~pp_pending_EOL ~identifier_may_continue lexbuf
 
 
-|   pp_identifier -> 
+|   pp_identifier ->
     begin
       let s = Ulexing.utf8_lexeme lexbuf in
       DEBUG_MSG "PP_IDENTIFIER(%s)" s;
@@ -3512,13 +3512,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       mktok (find_keyword s) lexbuf
 
-|   kP_desc -> 
+|   kP_desc ->
     env#clear_BOS;
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "KP_DESC(%s)" s;
     mktok (KP_DESC s) lexbuf
 
-|   position_edit_desc0 -> 
+|   position_edit_desc0 ->
     env#clear_BOS;
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "POSITION_EDIT_DESC0(%s)" s;
@@ -3527,13 +3527,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       mktok (find_keyword s) lexbuf
 
-|   position_edit_desc1 -> 
+|   position_edit_desc1 ->
     env#clear_BOS;
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "POSITION_EDIT_DESC1(%s)" s;
     mktok (POSITION_EDIT_DESC s) lexbuf
 
-|   cH_desc -> 
+|   cH_desc ->
     env#clear_BOS;
     begin
       env#current_source#set_spec_F90;
@@ -3552,12 +3552,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
           mktok (CONTINUED_IDENTIFIER cH) lexbuf
     end
 
-|   '_' int_literal_constant -> 
+|   '_' int_literal_constant ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "_INT_LITERAL_CONSTANT(%s)" s;
     mktok (CONTINUED_IDENTIFIER s) lexbuf
 
-|   int_literal_constant     -> 
+|   int_literal_constant     ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "INT_LITERAL_CONSTANT(%s)" s;
     if identifier_may_continue then
@@ -3565,17 +3565,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       mktok (INT_LITERAL s) lexbuf
 
-|   real_literal_constant    -> 
+|   real_literal_constant    ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "REAL_LITERAL_CONSTANT(%s)" s;
     mktok (REAL_LITERAL s) lexbuf
 
-|   logical_literal_constant -> 
+|   logical_literal_constant ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "LOGICAL_LITERAL_CONSTANT(%s)" s;
     mktok (LOGICAL_LITERAL s) lexbuf
 
-|   boz_literal_constant     -> 
+|   boz_literal_constant     ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "BOZ_LITERAL_CONSTANT(%s)" s;
     mktok (BOZ_LITERAL (normalize_continued_string s)) lexbuf
@@ -3609,7 +3609,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   "##"  -> mktok PP_CONCAT lexbuf
 
-|   dotted_op -> 
+|   dotted_op ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "DOTTED_OP(%s)" s;
     mktok (find_dotted_keyword s) lexbuf
@@ -3618,7 +3618,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   "%" -> mktok PERCENT lexbuf
 |   "\\" -> mktok BACKSLASH lexbuf
 
-|   "&" -> 
+|   "&" ->
     DEBUG_MSG "&";
     if is_free_source_form() then begin (* free source form *)
       if env#at_BOL then begin
@@ -3649,9 +3649,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   "." -> mktok DOT lexbuf
 |   ":" -> mktok COLON lexbuf
 
-|   ";" -> 
+|   ";" ->
     if is_fixed_source_form() then
-      env#set_BOS; 
+      env#set_BOS;
     mktok SEMICOLON lexbuf
 
 |   "<" -> mktok LT lexbuf
@@ -3659,7 +3659,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   ">" -> mktok GT lexbuf
 |   "?" -> mktok QUESTION lexbuf
 
-|   pp_keyword -> 
+|   pp_keyword ->
     let kwd = Ulexing.utf8_lexeme lexbuf in
     let loc = mkloc lexbuf in
     DEBUG_MSG "DIRECTIVE (%s) [%s]" kwd (Loc.to_string loc);
@@ -3676,7 +3676,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         in
         begin
           match tok with
-          | PP_INCLUDE -> 
+          | PP_INCLUDE ->
               env#clear_BOS;
               pp_include_filename_start pp_pending_EOL (get_st_pos()) lexbuf
 
@@ -3720,7 +3720,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     pp_skip lexbuf
 
 
-|   at_process -> 
+|   at_process ->
     let d = Ulexing.utf8_lexeme lexbuf in
     xlf "" env#at_BOL (Ulexing.lexeme_start lexbuf) d lexbuf
 
@@ -3799,7 +3799,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       mktok (IDENTIFIER kwd) lexbuf
     end
 
-|   name -> 
+|   name ->
     begin
       let s = Ulexing.utf8_lexeme lexbuf in
       DEBUG_MSG "NAME(%s)" s;
@@ -3920,7 +3920,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end (* name -> *)
 
 
-|   eof -> 
+|   eof ->
     begin
       if is_free_source_form() then begin
         if env#at_BOS then begin
@@ -3946,7 +3946,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "pp underscore \"%s\"" s;
     mktok (PP_UNDERSCORE s) lexbuf
 
-|   _ -> 
+|   _ ->
     DEBUG_MSG "invalid symbol \"%s\"" (Ulexing.utf8_lexeme lexbuf);
     parse_warning_loc (mkloc lexbuf) "ignoring invalid symbol \"%s\"" (Ulexing.utf8_lexeme lexbuf);
     _token ~pp_pending_EOL lexbuf
@@ -3972,15 +3972,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   "''" -> char_single st (str^"'") lexbuf
 |   "\"\"" -> char_single st (str^"\"") lexbuf
 
-|   '\'' '&' white_space* line_terminator white_space* '&' '\'' -> 
+|   '\'' '&' white_space* line_terminator white_space* '&' '\'' ->
     char_single st (str^"'") lexbuf
-|   '"' '&' white_space* line_terminator white_space* '&' '"' -> 
+|   '"' '&' white_space* line_terminator white_space* '&' '"' ->
     char_single st (str^"\"") lexbuf
 
-|   rep_char_non_single_quote -> 
+|   rep_char_non_single_quote ->
     char_single st (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   '&' white_space* line_terminator -> 
+|   '&' white_space* line_terminator ->
     DEBUG_MSG "CHARACTER CONTEXT CONTINUATION!";
     let is_CC =
       let ln, _ = env#current_pos_mgr#get_position st in
@@ -3996,14 +3996,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#set_BOL;
     mktok ~set_token_feeded:false ~start_opt:(Some st) (CHAR_LITERAL str) lexbuf
 
-|   '\'' 'C'? -> 
+|   '\'' 'C'? ->
     env#exit_char;
     mktok ~start_opt:(Some st) (CHAR_LITERAL str) lexbuf
 
   and skip_char_single ?(is_CC=false) st str = lexer
 |   white_space -> skip_char_single ~is_CC st str lexbuf
 |   '&' -> char_single st str lexbuf
-|   "!$" -> 
+|   "!$" ->
     if is_CC then begin
       let loc = mkloc lexbuf in
       env#current_source#omp_cc_lines#add loc.Loc.start_line;
@@ -4029,7 +4029,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   rep_char_non_double_quote -> char_double st (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   '&' white_space* line_terminator -> 
+|   '&' white_space* line_terminator ->
     DEBUG_MSG "CHARACTER CONTEXT CONTINUATION!";
     let is_CC =
       let ln, _ = env#current_pos_mgr#get_position st in
@@ -4045,14 +4045,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#set_BOL;
     mktok ~set_token_feeded:false ~start_opt:(Some st) (CHAR_LITERAL str) lexbuf
 
-|   '"' 'C'? -> 
+|   '"' 'C'? ->
     env#exit_char;
     mktok ~start_opt:(Some st) (CHAR_LITERAL str) lexbuf
 
   and skip_char_double ?(is_CC=false) st str = lexer
 |   white_space -> skip_char_double ~is_CC st str lexbuf
 |   '&' -> char_double st str lexbuf
-|   "!$" -> 
+|   "!$" ->
     if is_CC then begin
       let loc = mkloc lexbuf in
       env#current_source#omp_cc_lines#add loc.Loc.start_line;
@@ -4070,7 +4070,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and label ?(pp_pending_EOL=None) lexbuf =
-    DEBUG_MSG "pp_pending_EOL: %s" 
+    DEBUG_MSG "pp_pending_EOL: %s"
       (match pp_pending_EOL with Some e -> Token.qtoken_to_string e | None -> "");
     assert (env#at_BOL);
     let res = _label ~pp_pending_EOL lexbuf in
@@ -4078,8 +4078,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   and _label ?(pp_pending_EOL=None) = lexer
 |   white_space -> label ~pp_pending_EOL lexbuf
-    
-|   digit_string? -> 
+
+|   digit_string? ->
     let lab = (Ulexing.utf8_lexeme lexbuf) in
     DEBUG_MSG "%sDIGIT STRING (%s)" (if lab = "" then "EMPTY " else "") lab;
     if lab <> "" then begin
@@ -4111,7 +4111,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | None -> _token ~pp_pending_EOL lexbuf
     end
 
-|   '!' -> 
+|   '!' ->
     DEBUG_MSG "COMMENT (!) [%s] (BOL=%B)" (Loc.to_string (mkloc lexbuf)) env#at_BOL;
     line_comment "!" ~pending_EOL:pp_pending_EOL env#at_BOL (Ulexing.lexeme_start lexbuf) lexbuf
 
@@ -4119,13 +4119,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "SEMICOLON";
     label ~pp_pending_EOL lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR [%s]" (Loc.to_string (mkloc lexbuf));
     env#set_BOL;
     label ~pp_pending_EOL lexbuf
 
 
-  and label_field ?(pending_EOL=None) lab_opt pos = 
+  and label_field ?(pending_EOL=None) lab_opt pos =
     let _ = env#enter_fixed_line in
     let _ = DEBUG_MSG "pos=%d%s" pos (opt_to_string Token.qtoken_to_string ~prefix:" pending_EOL:" pending_EOL) in
     lexer
@@ -4149,7 +4149,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if pos = 1 then begin
       if (sym = "D" || sym = "d") && env#current_source#parse_d_lines then begin
         DEBUG_MSG "DEBUG LINE (%s)" sym;
-        label_field ~pending_EOL lab_opt (pos+1) lexbuf        
+        label_field ~pending_EOL lab_opt (pos+1) lexbuf
       end
       else begin
         DEBUG_MSG "COMMENT (%s)" sym;
@@ -4159,7 +4159,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
     else begin
       DEBUG_MSG "invalid symbol \"%s\"" sym;
-      parse_warning_loc (mkloc lexbuf) 
+      parse_warning_loc (mkloc lexbuf)
         "invalid symbol \"%s\" in label field: the rest of the line is ignored" sym;
       line_comment sym ~pending_EOL false (Ulexing.lexeme_start lexbuf) lexbuf
     end
@@ -4174,7 +4174,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     line_comment "!" ~pending_EOL pure_comment (Ulexing.lexeme_start lexbuf) lexbuf
 
 |   '%'? kw_include ->
-    DEBUG_MSG "INCLUDE LINE (%s) [%s]" 
+    DEBUG_MSG "INCLUDE LINE (%s) [%s]"
       (Ulexing.utf8_lexeme lexbuf) (Loc.to_string (mkloc lexbuf));
     rollback lexbuf;
     if env#continuable then begin
@@ -4187,7 +4187,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   pp_keyword ->
     let d = Ulexing.utf8_lexeme lexbuf in
-    let loc = mkloc lexbuf in    
+    let loc = mkloc lexbuf in
     DEBUG_MSG "DIRECTIVE (%s) (BOL=%B) [%s]" d env#at_BOL (Loc.to_string loc);
     rollback lexbuf;
     begin
@@ -4210,7 +4210,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> begin
           begin
             match pending_EOL with
-            | Some t -> 
+            | Some t ->
                 DEBUG_MSG "pending_EOL=%s" (Token.qtoken_to_string t);
                 env#set_pending_EOL_obj (Obj.repr t)
             | _ -> ()
@@ -4228,9 +4228,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
 (*    parse_warning_loc loc "ignoring pp output line: %s" line; *)
     pp_skip ~pending_EOL lexbuf
 
-|   white_space -> 
+|   white_space ->
     DEBUG_MSG "WHITE SPACE";
-    
+
     let s = Ulexing.utf8_lexeme lexbuf in
     if s = "\t" then begin
       DEBUG_MSG "TAB found in label field";
@@ -4242,12 +4242,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
       else
         label_field ~pending_EOL lab_opt (pos+1) lexbuf
 
-|   digit_string -> 
+|   digit_string ->
     DEBUG_MSG "DIGIT STRING (%s)" (Ulexing.utf8_lexeme lexbuf);
     let len = Ulexing.lexeme_length lexbuf in
     let lab = Ulexing.utf8_lexeme lexbuf in
     let label1 = mklabel lab lexbuf in
-    let label = 
+    let label =
       match lab_opt with
       | Some label0 -> merge_label label0 label1
       | None -> label1
@@ -4257,11 +4257,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       continuation_field ~pending_EOL label lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR [%s]" (Loc.to_string (mkloc lexbuf));
     if pos = 1 then
       env#set_line_stat_pure_comment;
-    env#set_BOL; 
+    env#set_BOL;
     token ~pending_EOL lexbuf
 
 |   eof ->
@@ -4281,7 +4281,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> mktok (EOF None) lexbuf
     end
 
-|   _ -> 
+|   _ ->
     let s = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "invalid symbol \"%s\"" s;
     let loc = mkloc lexbuf in
@@ -4310,10 +4310,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
     identifier_may_continue, hollerith_may_continue
 
 
-  and continuation_field ?(pending_EOL=None) ((lab, loc) as label) = 
+  and continuation_field ?(pending_EOL=None) ((lab, loc) as label) =
     let label_empty = lab = "" in
-    let _ = 
-      DEBUG_MSG "entering continuation_field: continuable=%B line_stat=%s label=%s [%s]%s" 
+    let _ =
+      DEBUG_MSG "entering continuation_field: continuable=%B line_stat=%s label=%s [%s]%s"
 	env#continuable (LineStat.to_string env#line_stat)
 	(if label_empty then "<none>" else lab) (Loc.to_string loc)
         (opt_to_string Token.qtoken_to_string ~prefix:" pending_EOL:" pending_EOL);
@@ -4347,7 +4347,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       end
     end
 
-|   '0' | white_space -> 
+|   '0' | white_space ->
     let str = Ulexing.utf8_lexeme lexbuf in
 
     let is_ws = str <> "0" in
@@ -4355,7 +4355,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if is_ws then
       DEBUG_MSG "WHITE SPACE"
     else begin
-      DEBUG_MSG "0"; 
+      DEBUG_MSG "0";
       env#clear_BOL
     end;
 
@@ -4384,7 +4384,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#set_BOL;
     token ~pending_EOL lexbuf
 
-|   _ -> 
+|   _ ->
     DEBUG_MSG "CONTINUATION! (%s)" (Ulexing.utf8_lexeme lexbuf);
     env#set_line_stat_continued;
 
@@ -4426,7 +4426,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           else begin
             discard_pending_RAWOMP();
             env#clear_pending_EOL_obj;
-            env#set_lex_mode_queue_then_do 
+            env#set_lex_mode_queue_then_do
               (fun () ->
                 Obj.repr
                   (_token ~identifier_may_continue ~hollerith_may_continue lexbuf)
@@ -4437,7 +4437,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       end
     end
 
-  and continuation_field_sub ?(pending_EOL=None) = 
+  and continuation_field_sub ?(pending_EOL=None) =
     let _ = DEBUG_MSG "continuable:%B" env#continuable in
     lexer
 |   white_space -> continuation_field_sub ~pending_EOL lexbuf
@@ -4450,7 +4450,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "C-STYLE BLOCK COMMENT: /**/";
     continuation_field_sub ~pending_EOL lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR [%s]" (Loc.to_string (mkloc lexbuf));
     env#set_line_stat_pure_comment;
     env#set_BOL;
@@ -4463,7 +4463,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#clear_BOS;
     line_comment "!" ~pending_EOL true (Ulexing.lexeme_start lexbuf) lexbuf
 
-|   _ -> 
+|   _ ->
     DEBUG_MSG "OTHER (%s)" (Ulexing.utf8_lexeme lexbuf);
     rollback lexbuf;
     if env#continuable then begin
@@ -4476,12 +4476,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
 
 (* from F77 Reference from Oracle:
-   The characters can continue over to a continuation line, but that gets tricky. 
+   The characters can continue over to a continuation line, but that gets tricky.
    Short standard fixed format lines are padded on the right with blanks up to 72
    columns, but short tab-format lines stop at the newline.
 *)
   and hollerith ?(partial=false) st chlen n i str = lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR";
     if is_fixed_source_form() && env#in_fixed_line then begin
       let src = env#current_source in
@@ -4509,7 +4509,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
     else
       hollerith_continuation ~partial st chlen n i str 1 lexbuf
-    
+
 |   _ ->
     let s0 = Ulexing.utf8_lexeme lexbuf in
     let len = Ulexing.lexeme_length lexbuf in
@@ -4520,10 +4520,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
       hollerith ~partial st chlen n (i+len) str' lexbuf
 
 
-  and hollerith_continuation ?(partial=false) st chlen n i str pos = 
+  and hollerith_continuation ?(partial=false) st chlen n i str pos =
     let _ = DEBUG_MSG "n=%d i=%d str=\"%s\" pos=%d" n i str pos in
     lexer
-|   ['C' 'c' '*' 'D' 'd'] -> 
+|   ['C' 'c' '*' 'D' 'd'] ->
     if pos = 1 then
       hollerith_skip_line ~partial st chlen n i str lexbuf
     else if pos = 6 then
@@ -4557,19 +4557,19 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and hollerith_skip_line ?(partial=false) st chlen n i str = lexer
 |   line_terminator -> hollerith_continuation ~partial st chlen n i str 1 lexbuf
 |   _ -> hollerith_skip_line ~partial st chlen n i str lexbuf
-      
+
 
   and block_comment ?(pp_pending_EOL=None) ?(identifier_may_continue=false) st = lexer
-|   "*/" -> 
-    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1)); 
+|   "*/" ->
+    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1));
     _token ~pp_pending_EOL ~identifier_may_continue lexbuf
 
 |   _ -> block_comment ~pp_pending_EOL ~identifier_may_continue st lexbuf
 
 
   and block_comment_label ?(pending_EOL=None) lab_opt pos st = lexer
-|   "*/" -> 
-    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1)); 
+|   "*/" ->
+    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1));
     if pos = 5 then
       continuation_field ~pending_EOL (mklab lab_opt lexbuf) lexbuf
     else
@@ -4578,11 +4578,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   _ -> block_comment_label ~pending_EOL lab_opt pos st lexbuf
 
 
-  and block_comment_cont ?(pending_EOL=None) ((lab, loc) as label) st = 
+  and block_comment_cont ?(pending_EOL=None) ((lab, loc) as label) st =
     let label_empty = lab = "" in
     lexer
-|   "*/" -> 
-    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1)); 
+|   "*/" ->
+    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1));
     env#set_BOS;
 
     if not label_empty then begin
@@ -4605,7 +4605,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   _ -> block_comment_cont ~pending_EOL label st lexbuf
 
   and block_comment_cont_sub ?(pending_EOL=None) st = lexer
-|   "*/" -> 
+|   "*/" ->
     let ed = (Ulexing.lexeme_end lexbuf) - 1 in
     add_comment_region (offsets_to_loc st ed);
     continuation_field_sub ~pending_EOL lexbuf
@@ -4613,17 +4613,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   _ -> block_comment_cont_sub ~pending_EOL st lexbuf
 
 
-  and tab_label_field ?(pending_EOL=None) ((lab, loc) as label) = 
+  and tab_label_field ?(pending_EOL=None) ((lab, loc) as label) =
     let label_empty = lab = "" in
     let _ = env#enter_tab_line in
-    let _ = 
-      DEBUG_MSG "entering tab_label_field: continuable=%B line_stat=%s label=%s [%s]" 
+    let _ =
+      DEBUG_MSG "entering tab_label_field: continuable=%B line_stat=%s label=%s [%s]"
 	env#continuable (LineStat.to_string env#line_stat)
 	(if label_empty then "<none>" else lab) (Loc.to_string loc)
     in
     lexer
 
-|   ['1'-'9'] -> 
+|   ['1'-'9'] ->
     DEBUG_MSG "CONTINUATION! (%s)" (Ulexing.utf8_lexeme lexbuf);
     env#set_line_stat_continued;
 
@@ -4643,7 +4643,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
           discard_pending_RAWOMP();
           env#clear_pending_EOL_obj;
-          env#set_lex_mode_queue_then_do 
+          env#set_lex_mode_queue_then_do
             (fun () ->
               Obj.repr
                 (_token ~identifier_may_continue ~hollerith_may_continue lexbuf));
@@ -4667,14 +4667,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#set_line_stat_pure_comment;
     line_comment "!" ~pending_EOL true (Ulexing.lexeme_start lexbuf) lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR [%s]" (Loc.to_string (mkloc lexbuf));
     if label_empty then
       env#set_line_stat_pure_comment;
     env#set_BOL;
     token ~pending_EOL lexbuf
 
-|   _ -> 
+|   _ ->
     DEBUG_MSG "OTHER (%s)" (Ulexing.utf8_lexeme lexbuf);
     env#set_BOS;
 
@@ -4695,23 +4695,23 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and block_comment_tab ?(pending_EOL=None) label st = lexer
-|   "*/" -> 
-    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1)); 
+|   "*/" ->
+    add_comment_region (offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1));
     tab_label_field ~pending_EOL label lexbuf
 
 |   _ -> block_comment_tab ~pending_EOL label st lexbuf
 
 
-  and line_comment head ?(pending_EOL=None) pure_comment st = 
+  and line_comment head ?(pending_EOL=None) pure_comment st =
 (*    let _ = DEBUG_MSG "pure_comment=%B st=%d" pure_comment st in*)
     lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "LINE TERMINATOR [%s]" (Loc.to_string (mkloc lexbuf));
 
     let cloc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
     DEBUG_MSG "comment loc: [%s]" (Loc.to_string cloc);
 
-    add_comment_region cloc; 
+    add_comment_region cloc;
 
     env#set_BOL;
     if pure_comment then begin
@@ -4733,7 +4733,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       end
     end
 
-|   ocl_head -> 
+|   ocl_head ->
     let st' = Ulexing.lexeme_start lexbuf in
     DEBUG_MSG "head=%s st=%d st'=%d pure_comment=%B" head st st' pure_comment;
     if head = "!" && st' = st + 1 && pure_comment then begin
@@ -4750,7 +4750,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       line_comment head ~pending_EOL pure_comment st lexbuf
 
-|   xlf_trigger -> 
+|   xlf_trigger ->
     let trigger = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "trigger_constant: \"%s\"" trigger;
     let st' = Ulexing.lexeme_start lexbuf in
@@ -4769,7 +4769,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       line_comment head ~pending_EOL pure_comment st lexbuf
 
-|   dec_prefix -> 
+|   dec_prefix ->
     let prefix = Ulexing.utf8_lexeme lexbuf in
     DEBUG_MSG "directive prefix: \"%s\"" prefix;
     let st' = Ulexing.lexeme_start lexbuf in
@@ -4788,7 +4788,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       line_comment head ~pending_EOL pure_comment st lexbuf
 
-|   '$' -> 
+|   '$' ->
     let st' = Ulexing.lexeme_start lexbuf in
     DEBUG_MSG "checking if OMP or ACC line";
     DEBUG_MSG "st=%d st'=%d pure_comment=%B" st st' pure_comment;
@@ -4802,7 +4802,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
 
-  and pre_omp head ?(pending_EOL=None) pure_comment st = 
+  and pre_omp head ?(pending_EOL=None) pure_comment st =
     let _ = DEBUG_MSG "pure_comment=%B st=%d" pure_comment st in
     lexer
 
@@ -4872,7 +4872,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       end
     end
 
-|   omp_sentinel -> 
+|   omp_sentinel ->
     if (Ulexing.lexeme_start lexbuf) = st + 2 then begin
       if env#at_BOCL then begin
         let loc = mkloc lexbuf in
@@ -4889,7 +4889,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       line_comment head ~pending_EOL pure_comment st lexbuf
 
-|   acc_sentinel -> 
+|   acc_sentinel ->
     if (Ulexing.lexeme_start lexbuf) = st + 2 then begin
       if env#at_BOCL then begin
         let loc = mkloc lexbuf in
@@ -4909,7 +4909,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and ocl ?(pending_EOL=None) pure_comment st line = lexer
-|   line_terminator -> 
+|   line_terminator ->
     BEGIN_DEBUG
       DEBUG_MSG "LINE TERMINATOR [%s] pure_comment=%B" (Loc.to_string (mkloc lexbuf)) pure_comment;
       let loc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
@@ -4922,10 +4922,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if pure_comment then begin
       begin
         match pending_EOL with
-        | Some _ -> 
+        | Some _ ->
             env#add_pending_token_obj (Obj.repr ocl_qtoken);
             token ~pending_EOL lexbuf
-              
+
         | _ -> ocl_qtoken
       end
     end
@@ -4947,7 +4947,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   _ -> ocl ~pending_EOL pure_comment st (line^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
   and dec prefix ?(pending_EOL=None) pure_comment st line = lexer
-|   line_terminator -> 
+|   line_terminator ->
     BEGIN_DEBUG
       DEBUG_MSG "LINE TERMINATOR [%s] pure_comment=%B" (Loc.to_string (mkloc lexbuf)) pure_comment;
       let loc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
@@ -4997,7 +4997,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     Xstring.endswith (Xstring.rstrip line) "&"
 
   and xlf trigger ?(pending_EOL=None) pure_comment st line = lexer
-|   line_terminator -> 
+|   line_terminator ->
     BEGIN_DEBUG
       DEBUG_MSG "LINE TERMINATOR [%s] pure_comment=%B" (Loc.to_string (mkloc lexbuf)) pure_comment;
       let loc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
@@ -5018,14 +5018,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
         line
     in
 
-    let xlf_qtoken = 
+    let xlf_qtoken =
       mktok ~start_opt:(Some st) (RAW (DL.mkxlf trigger line fixed_cont free_cont)) lexbuf
     in
 
     if pure_comment then begin
       begin
         match pending_EOL with
-        | Some _ -> 
+        | Some _ ->
             env#add_pending_token_obj (Obj.repr xlf_qtoken);
             token ~pending_EOL lexbuf
 
@@ -5070,7 +5070,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
               Not_found -> queue_add t'; None
 
           with
-            Not_found -> 
+            Not_found ->
               queue_add tmp_t;
               try
                 let kw = get_omp_continuable_keyword tok in
@@ -5110,7 +5110,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let queue = new Xqueue.c in
     let queue_add t = queue#add (Obj.repr t) in
 
-    let last_opt = 
+    let last_opt =
       List.fold_left (check_omp_separated_keyword queue_add) None !qtoken_list
     in
     begin
@@ -5123,13 +5123,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and omp
-      ?(in_comment=false) 
-      ?(pending_EOL=None) 
+      ?(in_comment=false)
+      ?(pending_EOL=None)
       ?(offset=5(* length of '!$omp' *))
       pure_comment st line = lexer
-|   line_terminator -> 
+|   line_terminator ->
     BEGIN_DEBUG
-      DEBUG_MSG "LINE TERMINATOR [%s] pure_comment=%B" 
+      DEBUG_MSG "LINE TERMINATOR [%s] pure_comment=%B"
         (Loc.to_string (mkloc lexbuf)) pure_comment;
       let loc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
       DEBUG_MSG "line: [%s][%s]" line (Loc.to_string loc);
@@ -5157,25 +5157,25 @@ module F (Stat : Parser_aux.STATE_T) = struct
       if is_free_source_form() then begin
         begin
           match pending_EOL with
-          | Some t -> 
-              DEBUG_MSG "pending_EOL: Some"; 
+          | Some t ->
+              DEBUG_MSG "pending_EOL: Some";
               env#set_pending_EOL_obj (Obj.repr t)
 
-          | None -> 
-              DEBUG_MSG "pending_EOL: None"; 
+          | None ->
+              DEBUG_MSG "pending_EOL: None";
               ()
         end;
         omp_qtoken
       end
       else begin (* fixed source form *)
         match pending_EOL with
-        | Some _ -> 
+        | Some _ ->
             DEBUG_MSG "pending_EOL: Some";
             env#add_pending_RAWOMP_obj (Obj.repr omp_qtoken);
             token ~pending_EOL lexbuf
 
-        | None -> 
-            DEBUG_MSG "pending_EOL: None"; 
+        | None ->
+            DEBUG_MSG "pending_EOL: None";
             omp_qtoken
       end
     end
@@ -5195,12 +5195,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
       end
     end
 
-|   '!' -> 
+|   '!' ->
     DEBUG_MSG "COMMENT (!) [%s]" (Loc.to_string (mkloc lexbuf));
     omp ~in_comment:true ~pending_EOL ~offset pure_comment st line lexbuf
 
-|   _ -> 
-    let line' = 
+|   _ ->
+    let line' =
       if in_comment then
         line
       else
@@ -5238,7 +5238,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and acc ?(pending_EOL=None) pure_comment st line = lexer
-|   line_terminator -> 
+|   line_terminator ->
     BEGIN_DEBUG
       DEBUG_MSG "LINE TERMINATOR [%s] pure_comment=%B" (Loc.to_string (mkloc lexbuf)) pure_comment;
       let loc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
@@ -5266,7 +5266,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if pure_comment then begin
       begin
         match pending_EOL with
-        | Some _ -> 
+        | Some _ ->
             if env#pending_RAWOMP_obj_queue_length > 0 then begin
               queue_pending_RAWOMP();
             end;
@@ -5300,7 +5300,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       match tok with
       | PP_BRANCH br -> begin
           match br with
-          | PPD.If _ | PPD.Ifdef _ | PPD.Ifndef _ -> 
+          | PPD.If _ | PPD.Ifdef _ | PPD.Ifndef _ ->
               env#lex_enter_pp_branch br;
               tok
           | PPD.Endif _ -> begin
@@ -5308,7 +5308,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                 let br', plv = env#lex_exit_pp_branch in
                 PP_BRANCH (PPD.Endif(br', plv))
               with
-                Failure _ -> 
+                Failure _ ->
                   (*parse_warning_loc loc "dangling #endif";*)
                   tok
           end
@@ -5341,20 +5341,20 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and pre_pp_macro_arguments = lexer
-|   '(' -> 
-    rollback lexbuf; 
+|   '(' ->
+    rollback lexbuf;
     true
-|   _ -> 
+|   _ ->
     rollback lexbuf;
     false
 
-  and pp_macro_arguments paren_lv args arg = 
-    let _ = 
-      DEBUG_MSG "paren_lv:%d args=[%s] arg={%s}" 
-        paren_lv (String.concat "," args) arg 
+  and pp_macro_arguments paren_lv args arg =
+    let _ =
+      DEBUG_MSG "paren_lv:%d args=[%s] arg={%s}"
+        paren_lv (String.concat "," args) arg
     in
     lexer
-|   '(' white_space* -> 
+|   '(' white_space* ->
     if paren_lv = 0 then
       pp_macro_arguments (paren_lv+1) args arg lexbuf
     else
@@ -5372,17 +5372,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       pp_macro_arguments (paren_lv-1) args (arg^")") lexbuf
 
-|   ',' white_space* -> 
+|   ',' white_space* ->
     if paren_lv = 1 then
       pp_macro_arguments paren_lv (arg::args) " " lexbuf
     else
       pp_macro_arguments paren_lv args (arg^",") lexbuf
 
-|   char_start_single -> 
+|   char_start_single ->
     let s = Ulexing.utf8_lexeme lexbuf in
     pp_char_single paren_lv args (arg^s) lexbuf
 
-|   char_start_double -> 
+|   char_start_double ->
     let s = Ulexing.utf8_lexeme lexbuf in
     pp_char_double paren_lv args (arg^s) lexbuf
 
@@ -5393,19 +5393,19 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and pp_char_single paren_lv args arg = lexer
 |   "''" -> pp_char_single paren_lv args (arg^"'") lexbuf
 |   "\"\"" -> pp_char_single paren_lv args (arg^"\"") lexbuf
-|   rep_char_non_single_quote -> 
+|   rep_char_non_single_quote ->
     pp_char_single paren_lv args (arg^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 |   '\'' -> pp_macro_arguments paren_lv args (arg^"'") lexbuf
 
   and pp_char_double paren_lv args arg = lexer
 |   "''" -> pp_char_double paren_lv args (arg^"'") lexbuf
 |   "\"\"" -> pp_char_double paren_lv args (arg^"\"") lexbuf
-|   rep_char_non_double_quote -> 
+|   rep_char_non_double_quote ->
     pp_char_double paren_lv args (arg^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 |   '"' -> pp_macro_arguments paren_lv args (arg^"\"") lexbuf
 
 
-  and pp_define st_pos id params_opt body body_st stat = 
+  and pp_define st_pos id params_opt body body_st stat =
     let mem_param p =
       match params_opt with
       | Some params -> List.mem p params
@@ -5413,11 +5413,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     in
     lexer
 
-|   white_space* -> 
+|   white_space* ->
 (*    let s = Ulexing.utf8_lexeme lexbuf in *)
     begin
       match stat with
-      | D_id -> 
+      | D_id ->
           if id <> "" then
             let body_st' = Ulexing.lexeme_end lexbuf in
             pp_define st_pos id params_opt body body_st' D_body lexbuf
@@ -5430,7 +5430,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   line_concat -> pp_define st_pos id params_opt body body_st stat lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
@@ -5470,12 +5470,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#lex_define_macro id body_;
     output_pp_qtoken pp_qtoken lexbuf
 
-|   pp_identifier | name -> 
+|   pp_identifier | name ->
     let s = Ulexing.utf8_lexeme lexbuf in
     begin
       match stat with
       | D_id -> pp_define st_pos s params_opt body body_st stat lexbuf
-      | D_params -> 
+      | D_params ->
           let params_opt' =
             match params_opt with
             | None -> assert false
@@ -5483,7 +5483,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           in
           pp_define st_pos id params_opt' body body_st stat lexbuf
 
-      | D_body -> 
+      | D_body ->
           let body' =
             if mem_param s then
               String.concat "" [body;"{";s;"}"]
@@ -5495,7 +5495,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_define st_pos id params_opt (body^s) body_st stat lexbuf
     end
 
-|   '(' -> 
+|   '(' ->
     begin
       match stat with
       | D_id -> pp_define st_pos id (Some []) body body_st D_params lexbuf
@@ -5503,7 +5503,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_define st_pos id params_opt body body_st stat lexbuf
     end
 
-|   ',' -> 
+|   ',' ->
     begin
       match stat with
       | D_body -> pp_define st_pos id params_opt (body^",") body_st stat lexbuf
@@ -5518,7 +5518,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_define st_pos id params_opt body body_st stat lexbuf
     end
 
-|   _ -> 
+|   _ ->
     let s = Ulexing.utf8_lexeme lexbuf in
     begin
       match stat with
@@ -5530,7 +5530,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and pp_undef st_pos id stat = lexer
 |   line_concat -> pp_undef st_pos id stat lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
@@ -5539,7 +5539,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     env#lex_undefine_macro id;
     output_pp_qtoken pp_qtoken lexbuf
 
-|   pp_identifier | name -> 
+|   pp_identifier | name ->
     let s = Ulexing.utf8_lexeme lexbuf in
     begin
       match stat with
@@ -5547,7 +5547,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> pp_undef st_pos id stat lexbuf
     end
 
-|   _ -> 
+|   _ ->
 (*    let s = Ulexing.utf8_lexeme lexbuf in *)
     begin
       match stat with
@@ -5559,7 +5559,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and pp_if ?(elif=false) st_pos cond = lexer
 |   line_concat -> pp_if ~elif st_pos cond lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
@@ -5575,7 +5575,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   white_space+ -> pp_if ~elif st_pos cond lexbuf
 
-|   _ -> 
+|   _ ->
     let s = Ulexing.utf8_lexeme lexbuf in
     pp_if ~elif st_pos (cond^s) lexbuf
 
@@ -5585,11 +5585,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   white_space -> pp_ifdef ~ndef st_pos id lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
-    let pp_rawtok = 
+    let pp_rawtok =
       PP_BRANCH
         (if ndef then
           PPD.Ifndef id
@@ -5599,11 +5599,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let pp_qtoken = make_qtoken pp_rawtok st_pos ed_pos in
     output_pp_qtoken pp_qtoken lexbuf
 
-|   name -> 
+|   name ->
     let n = Ulexing.utf8_lexeme lexbuf in
     pp_ifdef ~ndef st_pos (if id = "" then n else id) lexbuf
 
-|   pp_identifier -> 
+|   pp_identifier ->
     let n = Ulexing.utf8_lexeme lexbuf in
     pp_ifdef ~ndef st_pos (if id = "" then n else id) lexbuf
 
@@ -5637,7 +5637,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and pp_line mktok st_pos mesg = lexer
 |   line_concat -> pp_line mktok st_pos mesg lexbuf
 
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let ed = (Ulexing.lexeme_end lexbuf) - (Ulexing.lexeme_length lexbuf) - 1 in
     let ed_pos = ofs_to_pos ed in
@@ -5645,7 +5645,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let pp_qtoken = make_qtoken (mktok stripped) st_pos ed_pos in
     output_pp_qtoken pp_qtoken lexbuf
 
-|   _ -> 
+|   _ ->
     let s = Ulexing.utf8_lexeme lexbuf in
     pp_line mktok st_pos (mesg^s) lexbuf
 
@@ -5677,11 +5677,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "id=%s" id;
     let handler quoted =
       handle_include pp_pending_EOL
-        quoted 
-        (fun () -> 
+        quoted
+        (fun () ->
           make_qtoken
-            (PP_INCLUDE__FILE (H.mkmacro ~content:(Some quoted) id)) 
-            st_pos 
+            (PP_INCLUDE__FILE (H.mkmacro ~content:(Some quoted) id))
+            st_pos
             (ofs_to_pos ((Ulexing.lexeme_end lexbuf) - 1))
         )
         lexbuf
@@ -5705,7 +5705,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   and feed_pp_pending_EOL pending_EOL t lexbuf =
     match pending_EOL with
     | None -> begin
-        env#set_last_lex_qtoken_obj (Obj.repr t); 
+        env#set_last_lex_qtoken_obj (Obj.repr t);
         t
     end
     | Some _ -> begin
@@ -5713,67 +5713,67 @@ module F (Stat : Parser_aux.STATE_T) = struct
         env#set_lex_mode_queue;
         feed_pending_EOL pending_EOL lexbuf
     end
-    
 
-  and pp_include_filename_dq pp_pending_EOL st_pos str = 
+
+  and pp_include_filename_dq pp_pending_EOL st_pos str =
     lexer
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let pp_tok = mkbadincltok st_pos (PP_INCLUDE__FILE (H.mkuser str)) lexbuf in
     feed_pp_pending_EOL pp_pending_EOL pp_tok lexbuf
 
-|   filename_character_dq -> 
+|   filename_character_dq ->
     pp_include_filename_dq pp_pending_EOL st_pos (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   '\"' -> 
+|   '\"' ->
     let quoted = str^"\"" in
     handle_include pp_pending_EOL
-      quoted 
-      (fun () -> 
+      quoted
+      (fun () ->
         make_qtoken
-          (PP_INCLUDE__FILE (H.mkuser quoted)) 
+          (PP_INCLUDE__FILE (H.mkuser quoted))
           st_pos (ofs_to_pos ((Ulexing.lexeme_end lexbuf) - 1))
       )
       lexbuf
 
-  and pp_include_filename_sq pp_pending_EOL st_pos str = 
+  and pp_include_filename_sq pp_pending_EOL st_pos str =
     lexer
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let pp_tok = mkbadincltok st_pos (PP_INCLUDE__FILE (H.mkuser str)) lexbuf in
     feed_pp_pending_EOL pp_pending_EOL pp_tok lexbuf
 
-|   filename_character_sq -> 
+|   filename_character_sq ->
     pp_include_filename_sq pp_pending_EOL st_pos (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   '\'' -> 
+|   '\'' ->
     let quoted = str^"\'" in
     handle_include pp_pending_EOL
-      quoted 
-      (fun () -> 
+      quoted
+      (fun () ->
         make_qtoken
-          (PP_INCLUDE__FILE (H.mkuser quoted)) 
+          (PP_INCLUDE__FILE (H.mkuser quoted))
           st_pos (ofs_to_pos ((Ulexing.lexeme_end lexbuf) - 1))
       )
       lexbuf
 
-  and pp_include_sys_filename pp_pending_EOL st_pos str = 
+  and pp_include_sys_filename pp_pending_EOL st_pos str =
     lexer
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let pp_tok = mkbadincltok st_pos (PP_INCLUDE__FILE (H.mksystem str)) lexbuf in
     feed_pp_pending_EOL pp_pending_EOL pp_tok lexbuf
 
-|   sys_filename_character -> 
+|   sys_filename_character ->
     pp_include_sys_filename pp_pending_EOL st_pos (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   '>' -> 
+|   '>' ->
     let quoted = str^">" in
     handle_include pp_pending_EOL
-      quoted 
-      (fun () -> 
+      quoted
+      (fun () ->
         make_qtoken
-          (PP_INCLUDE__FILE (H.mksystem quoted)) 
+          (PP_INCLUDE__FILE (H.mksystem quoted))
           st_pos (ofs_to_pos ((Ulexing.lexeme_end lexbuf) - 1))
       )
       lexbuf
@@ -5783,42 +5783,42 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   '\"' -> include_filename_dq st_pos "\"" lexbuf
 |   '\'' -> include_filename_sq st_pos "\'" lexbuf
 
-  and include_filename_dq st_pos str = 
+  and include_filename_dq st_pos str =
     lexer
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let pp_tok = mkbadincltok st_pos (INCLUDE__FILE str) lexbuf in
     pp_tok
 
-|   filename_character_dq -> 
+|   filename_character_dq ->
     include_filename_dq st_pos (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 |   '\"' ->
     let quoted = str^"\"" in
     handle_include None
-      quoted 
-      (fun () -> 
-        make_qtoken 
+      quoted
+      (fun () ->
+        make_qtoken
           (INCLUDE__FILE quoted) st_pos (ofs_to_pos ((Ulexing.lexeme_end lexbuf) - 1))
       )
       lexbuf
 
-  and include_filename_sq st_pos str = 
+  and include_filename_sq st_pos str =
     lexer
-|   line_terminator -> 
+|   line_terminator ->
     env#set_BOL;
     let pp_tok = mkbadincltok st_pos (INCLUDE__FILE str) lexbuf in
     pp_tok
 
-|   filename_character_sq -> 
+|   filename_character_sq ->
     include_filename_sq st_pos (str^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   '\'' -> 
+|   '\'' ->
     let quoted = str^"\'" in
     handle_include None
-      quoted 
-      (fun () -> 
-        make_qtoken 
+      quoted
+      (fun () ->
+        make_qtoken
           (INCLUDE__FILE quoted) st_pos (ofs_to_pos ((Ulexing.lexeme_end lexbuf) - 1))
       )
       lexbuf
@@ -5832,7 +5832,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 
   and handle_include pp_pending_EOL quoted mkincltok ?(trailing_comment=None) = lexer
-|   line_terminator -> 
+|   line_terminator ->
     DEBUG_MSG "quoted=%s" quoted;
     begin
       match trailing_comment with
@@ -5918,13 +5918,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
             feed_incltok()
         end
       with
-        Invalid_argument _ -> 
+        Invalid_argument _ ->
           warning_msg "invalid quoted file name: %s" quoted;
           env#set_BOL;
           feed_incltok()
     end
 
-|   '!' -> 
+|   '!' ->
     handle_include pp_pending_EOL quoted mkincltok ~trailing_comment:(Some (Ulexing.lexeme_start lexbuf)) lexbuf
 
 |   _ -> handle_include pp_pending_EOL quoted mkincltok ~trailing_comment lexbuf

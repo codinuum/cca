@@ -20,7 +20,7 @@ class c = object (self)
   val mutable regions = []
   val mutable _LOC = 0
 
-  method clear = 
+  method clear =
     regions <- [];
     _LOC <- 0
 

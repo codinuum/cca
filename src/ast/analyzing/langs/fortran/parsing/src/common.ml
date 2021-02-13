@@ -108,7 +108,7 @@ module LangSpec = struct
     | F95   -> "F95(ISO/IEC1539-1:1997)"
     | F2003 -> "F2003(ISO/IEC1539-1:2004)"
     | F2008 -> "F2008(ISO/IEC1539-1:2010)"
-  
+
 end
 
 module LangExtension = struct
@@ -129,7 +129,7 @@ module LangExtension = struct
       Xset.add exts e
 
     method to_string =
-      Xlist.to_string 
+      Xlist.to_string
         (fun s -> "["^s^"]") "" (List.map to_string (Xset.to_list exts))
   end
 
@@ -185,17 +185,17 @@ module LangConfig = struct
 
     method source_form = source_form
 
-    method set_source_form sf = 
+    method set_source_form sf =
       source_form <- sf;
       match sf with
       | SourceForm.Fixed -> self#set_max_line_length__fixed
       | SourceForm.Free  -> self#set_max_line_length__free
       | _ -> ()
 
-    method set_source_form_fixed = 
+    method set_source_form_fixed =
       self#set_source_form SourceForm.Fixed
 
-    method set_source_form_free = 
+    method set_source_form_free =
       self#set_source_form SourceForm.Free
 
     method is_fixed_source_form = source_form = SourceForm.Fixed
@@ -204,11 +204,11 @@ module LangConfig = struct
 
     method max_line_length = max_line_length
 
-    method _set_max_line_length n = 
+    method _set_max_line_length n =
       DEBUG_MSG "length=%d" n;
       max_line_length <- n
-          
-    method set_max_line_length n = 
+
+    method set_max_line_length n =
       self#_set_max_line_length n;
       max_line_length_fixed <- n;
       max_line_length_free <- n
@@ -219,16 +219,16 @@ module LangConfig = struct
         max_line_length_fixed <- n
       end
 
-    method set_max_line_length_free n = 
+    method set_max_line_length_free n =
       if max_line_length_free < n then begin
         DEBUG_MSG "%d -> %d" max_line_length_free n;
         max_line_length_free <- n
       end
 
-    method set_max_line_length__fixed = 
+    method set_max_line_length__fixed =
       self#_set_max_line_length max_line_length_fixed
 
-    method set_max_line_length__free = 
+    method set_max_line_length__free =
       self#_set_max_line_length max_line_length_free
 
 

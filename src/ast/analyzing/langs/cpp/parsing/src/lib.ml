@@ -73,9 +73,9 @@ class parser_c = object (self)
   method tokens_read = tokens_read
 
   initializer
-    let module S = struct 
+    let module S = struct
       let env = env
-    end 
+    end
     in
     let module P = Parser.Make (S) in
     let module I = P.MenhirInterpreter in

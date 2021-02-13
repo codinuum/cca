@@ -21,7 +21,7 @@
 
 import os
 import re
-import gzip 
+import gzip
 import tempfile
 import logging
 
@@ -367,9 +367,9 @@ def compute(load_fact=False,
 
     if args.command == 'work':
         logger.info('worker id: "{}"'.format(args.wid))
-        pool = TaskPool(args.basedir, working_dir, conf, False, 
-                        load_fact, fact_dir, ignore_unmodified, restrict_fact, 
-                        fact_for_changes, fact_for_mapping, fact_for_ast, 
+        pool = TaskPool(args.basedir, working_dir, conf, False,
+                        load_fact, fact_dir, ignore_unmodified, restrict_fact,
+                        fact_for_changes, fact_for_mapping, fact_for_ast,
                         fact_into_virtuoso, fact_into_directory, fact_size_thresh,
                         fact_for_cfg, fact_encoding, fact_hash_algo,
                         line_sim, #local_cache_name=args.wid,
@@ -382,9 +382,9 @@ def compute(load_fact=False,
         pool.watch_tasks(args.wid)
 
     elif args.command == 'generate':
-        pool = TaskPool(args.basedir, working_dir, conf, True, 
-                        load_fact, fact_dir, ignore_unmodified, restrict_fact, 
-                        fact_for_changes, fact_for_mapping, fact_for_ast, 
+        pool = TaskPool(args.basedir, working_dir, conf, True,
+                        load_fact, fact_dir, ignore_unmodified, restrict_fact,
+                        fact_for_changes, fact_for_mapping, fact_for_ast,
                         fact_into_virtuoso, fact_into_directory, fact_size_thresh,
                         fact_for_cfg, fact_encoding, fact_hash_algo,
                         line_sim,
@@ -402,9 +402,9 @@ def compute(load_fact=False,
         if load_fact:
             fact_dir = make_factbase_dir(args.basedir, proj_id)
             logger.info('fact dir: "{}"'.format(fact_dir))
-            pool = TaskPool(args.basedir, working_dir, conf, False, 
-                            load_fact, fact_dir, ignore_unmodified, restrict_fact, 
-                            fact_for_changes, fact_for_mapping, fact_for_ast, 
+            pool = TaskPool(args.basedir, working_dir, conf, False,
+                            load_fact, fact_dir, ignore_unmodified, restrict_fact,
+                            fact_for_changes, fact_for_mapping, fact_for_ast,
                             fact_into_virtuoso, fact_into_directory, fact_size_thresh,
                             fact_for_cfg, fact_encoding, fact_hash_algo,
                             line_sim)

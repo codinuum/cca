@@ -23,11 +23,11 @@ module UID = Otreediff.UID
 let sprintf = Printf.sprintf
 
 (* TENTATIVE: bipartite matching algorithm should be used *)
-let eliminate_duplication pairs = 
+let eliminate_duplication pairs =
   let map, y_dup =
     List.fold_left
       (fun (map, y_dup) (x, y) ->
-	let map' = 
+	let map' =
 	  try
 	    let ys, score = List.assoc x map in
 	    if List.mem_assoc y !ys then map
@@ -56,16 +56,16 @@ let eliminate_duplication pairs =
       score := List.fold_left (fun sum (_, s) -> sum + !s) 0 !ys
     ) map;
 
-  let map = 
+  let map =
     List.fast_sort (fun (_, (_, s1)) (_, (_, s2)) -> compare !s1 !s2) map
   in
   let result, _ =
-    List.fold_left 
+    List.fold_left
       (fun (result, yy) (x, (ys, _)) ->
 	match !ys with
 	  [] -> assert false
-	| (y, _)::_ -> 
-	    if List.mem y yy then result, yy 
+	| (y, _)::_ ->
+	    if List.mem y yy then result, yy
 	    else (x, y)::result, y::yy
       ) ([], []) map
   in
@@ -73,21 +73,21 @@ let eliminate_duplication pairs =
 
 
 let find_glue_cands nodes1 nodes2 =
-  let cands = 
-    List.fold_left 
-      (fun l nd1 -> 
-	let cand = 
-	  List.filter 
-	    (fun nd2 -> 
+  let cands =
+    List.fold_left
+      (fun l nd1 ->
+	let cand =
+	  List.filter
+	    (fun nd2 ->
 	      nd1#data#_label = nd2#data#_label
 	    ) nodes2
 	in
 	match cand with
 	  [] -> l
 	| [nd] -> (nd1, nd)::l
-	| nd::_ -> 
-	    let cand' = 
-	      List.filter 
+	| nd::_ ->
+	    let cand' =
+	      List.filter
 		(fun nd' -> nd1#data#equals nd'#data) cand
 	    in
 	    match cand' with
@@ -100,17 +100,17 @@ let find_glue_cands nodes1 nodes2 =
   result
 
 (* mimics Otreediff.Lib.find *)
-let find ?(rely_on_rel=false) tree1 tree2 = 
+let find ?(rely_on_rel=false) tree1 tree2 =
   let c1, c2 = tree1#root#children, tree2#root#children in
 
   BEGIN_DEBUG
     DEBUG_MSG "rt1=%s collapsed=%B" tree1#root#to_string tree1#root#is_collapsed;
     DEBUG_MSG "rt2=%s collapsed=%B" tree2#root#to_string tree2#root#is_collapsed;
-    DEBUG_MSG "c1=[|\n%s\n|]" 
-      (Xarray.to_string 
+    DEBUG_MSG "c1=[|\n%s\n|]"
+      (Xarray.to_string
 	 (fun nd -> sprintf "%s<%s>" nd#data#label nd#data#digest_string) "\n" c1);
-    DEBUG_MSG "c2=[|\n%s\n|]" 
-      (Xarray.to_string 
+    DEBUG_MSG "c2=[|\n%s\n|]"
+      (Xarray.to_string
 	 (fun nd -> sprintf "%s<%s>" nd#data#label nd#data#digest_string) "\n" c2);
   END_DEBUG;
 
@@ -142,9 +142,9 @@ let find ?(rely_on_rel=false) tree1 tree2 =
   (* detect permutations *)
   let glue_cands = find_glue_cands del ins in
 
-  DEBUG_MSG "glue_cands: %s" 
-    (Xlist.to_string 
-       (fun (nd1, nd2) -> 
+  DEBUG_MSG "glue_cands: %s"
+    (Xlist.to_string
+       (fun (nd1, nd2) ->
 	 sprintf "(%a,%a)" UID.ps nd1#uid UID.ps nd2#uid
        ) "" glue_cands);
 
@@ -155,7 +155,7 @@ let find ?(rely_on_rel=false) tree1 tree2 =
 
   let mat_rel =
     List.fold_left
-      (fun l (nd1, nd2) -> 
+      (fun l (nd1, nd2) ->
 	if nd1#data#equals nd2#data then l
 	else (nd1, nd2)::l
       ) [] mat
@@ -166,58 +166,58 @@ let find ?(rely_on_rel=false) tree1 tree2 =
   let iso, _ = List.split mat in
 
   let rt1, rt2 = tree1#root, tree2#root in
-  let i1, i2 = rt1#index, rt2#index in 
+  let i1, i2 = rt1#index, rt2#index in
 
   let mat, rel =
     assert ((i1 = n1 + 1) && (i2 = n2 + 1));
 
-    if rt1#data#equals rt2#data then 
+    if rt1#data#equals rt2#data then
       (rt1, rt2)::mat, rel
-    else 
+    else
       mat, (rt1, rt2)::rel
   in
 
 
   (* rels are not reliable *)
-  let ext_del, ext_ins, rel = 
+  let ext_del, ext_ins, rel =
     List.fold_left
       (fun (d, i, r) (nd1, nd2) ->
         let cond =
           if rely_on_rel then
             nd1#data#label = nd2#data#label
           else
-           (not nd1#is_collapsed) && (not nd2#is_collapsed) 
+           (not nd1#is_collapsed) && (not nd2#is_collapsed)
         in
 	if cond then
 	  d, i, (nd1, nd2)::r
 	else
-	  nd1::d, nd2::i, r	  
+	  nd1::d, nd2::i, r
 
-      ) ([], [], []) rel 
+      ) ([], [], []) rel
   in
   let del = del @ ext_del in
   let ins = ins @ ext_ins in
 
 
-  let iso = 
-    if rel = [] && del = [] && ins = [] && glue_cands = [] then 
-      [i1] 
-    else 
-      List.map (fun nd -> nd#index) iso 
+  let iso =
+    if rel = [] && del = [] && ins = [] && glue_cands = [] then
+      [i1]
+    else
+      List.map (fun nd -> nd#index) iso
   in
 
   let eds =
-    Otreediff.Edit.seq_of_edit_list 
-      ((List.map 
-	  (fun (nd1, nd2) -> 
+    Otreediff.Edit.seq_of_edit_list
+      ((List.map
+	  (fun (nd1, nd2) ->
 	    Otreediff.Edit.mkrel (nd1#index, nd2#index)) rel) @
        (List.map (fun nd -> Otreediff.Edit.mkdel nd#index) del) @
        (List.map (fun nd -> Otreediff.Edit.mkins nd#index) ins))
   in
-  let mapping = 
-    Otreediff.Mapping.of_elem_list 
-      (List.map 
-	 (fun (nd1, nd2) -> 
+  let mapping =
+    Otreediff.Mapping.of_elem_list
+      (List.map
+	 (fun (nd1, nd2) ->
 	   Otreediff.Mapping.mkelem (nd1#index, nd2#index)
 	 ) (mat @ rel))
   in

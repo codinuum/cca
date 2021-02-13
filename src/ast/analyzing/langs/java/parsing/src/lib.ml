@@ -56,8 +56,8 @@ class parser_c = object (self)
 	      dir
 
 	  | Common.SD_named s -> tree#get_entry s
-	with 
-	  Failure mes -> 
+	with
+	  Failure mes ->
 	    (*WARN_MSG mes;*)
             Xprint.verbose env#verbose "%s" mes;
 	    Storage.dummy_entry
@@ -132,20 +132,20 @@ class parser_c = object (self)
     with
     | Parsing.Parse_error ->
 	let l, c = env#current_pos_mgr#get_current_position in
-        Common.fail_to_parse 
+        Common.fail_to_parse
           ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
-          "syntax error" 
+          "syntax error"
 
     | Ulexer.EOF_reached ->
-        Common.fail_to_parse 
+        Common.fail_to_parse
           ~head:(Printf.sprintf "[%s]" env#current_filename)
           "EOF reached unexpectedly"
 
 
   initializer
-    let module S = struct 
+    let module S = struct
       let env      = env
-    end 
+    end
     in
     let module U = Ulexer.F (S) in
     let module P = Parser.Make (S) in

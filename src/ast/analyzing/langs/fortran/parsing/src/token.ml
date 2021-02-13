@@ -646,8 +646,8 @@ let rec rawtoken_to_string = function
 
   | IDENTIFIER s -> "IDENTIFIER:"^s
 
-  | COMPOSITE_IDENTIFIER(b, s, ol) -> 
-      sprintf "COMPOSITE_IDENTIFIER[%s|%s](force_decomposition=%B)" 
+  | COMPOSITE_IDENTIFIER(b, s, ol) ->
+      sprintf "COMPOSITE_IDENTIFIER[%s|%s](force_decomposition=%B)"
         s (Xlist.to_string (fun o -> rawtoken_to_string (Obj.obj o)) ";" ol) b
 
   | CONTINUED_IDENTIFIER s -> "CONTINUED_IDENTIFIER:"^s
@@ -910,7 +910,7 @@ let rec rawtoken_to_string = function
   | FIND s            -> "FIND"
   | VIRTUAL s         -> "VIRTUAL"
   | STRUCTURE s       -> "STRUCTURE"
-  | END_STRUCTURE s   -> "END_STRUCTURE" 
+  | END_STRUCTURE s   -> "END_STRUCTURE"
   | RECORD s          -> "RECORD"
   | UNION s           -> "UNION"
   | END_UNION s       -> "END_UNION"
@@ -960,36 +960,36 @@ let rec rawtoken_to_string = function
 
 let rec rawtoken_size = function
 
-  | ERROR _ -> 0               
+  | ERROR _ -> 0
 
-  | PROGRAM_UNIT(spec, _)        
-  | SPEC_PART_CONSTRUCT(spec, _) 
-  | EXEC_PART_CONSTRUCT(spec, _) 
-  | SUBPROGRAM(spec, _)          
+  | PROGRAM_UNIT(spec, _)
+  | SPEC_PART_CONSTRUCT(spec, _)
+  | EXEC_PART_CONSTRUCT(spec, _)
+  | SUBPROGRAM(spec, _)
   | INTERFACE_SPEC(spec, _)
   | CASE_BLOCK(spec, _)
-  | DATA_STMT_SET(spec, _)       
-  | STMT(spec, _)                
-  | ACTION_STMT(spec, _)         
-  | VARIABLE(spec, _)            
-  | EXPR(spec, _)                
-  | TYPE_SPEC(spec, _)           
+  | DATA_STMT_SET(spec, _)
+  | STMT(spec, _)
+  | ACTION_STMT(spec, _)
+  | VARIABLE(spec, _)
+  | EXPR(spec, _)
+  | TYPE_SPEC(spec, _)
   | DERIVED_TYPE_DEF_PART(spec, _)
   | ONLY_(spec, _)
     -> spec.Ast.Partial.length
 
-  | DO_STMT(spec, _)             
-  | FORALL_CONSTRUCT_STMT(spec, _)         
-  | IF_THEN_STMT(spec, _)        
-  | SELECT_CASE_STMT(spec, _)    
-  | WHERE_CONSTRUCT_STMT(spec, _)  
+  | DO_STMT(spec, _)
+  | FORALL_CONSTRUCT_STMT(spec, _)
+  | IF_THEN_STMT(spec, _)
+  | SELECT_CASE_STMT(spec, _)
+  | WHERE_CONSTRUCT_STMT(spec, _)
   | DERIVED_TYPE_STMT(spec, _)
 
-  | END_DO_STMT(spec, _)             
-  | END_FORALL_STMT(spec, _)         
-  | END_IF_STMT(spec, _)        
-  | END_SELECT_STMT(spec, _)    
-  | END_WHERE_STMT(spec, _)  
+  | END_DO_STMT(spec, _)
+  | END_FORALL_STMT(spec, _)
+  | END_IF_STMT(spec, _)
+  | END_SELECT_STMT(spec, _)
+  | END_WHERE_STMT(spec, _)
   | END_TYPE_STMT(spec, _)
 
   | FUNCTION_HEAD(spec, _)
@@ -1010,11 +1010,11 @@ let rec rawtoken_size = function
   | PP_MACRO_CONST_INT s
   | PP_MACRO_NAME(s, _)
   | PP_MACRO_VARIABLE s
-  | PP_MACRO_EXPR s      
-  | PP_MACRO_STMT s      
+  | PP_MACRO_EXPR s
+  | PP_MACRO_STMT s
   | PP_MACRO_TYPE_SPEC s
-  | PP_MACRO_WRITE s      
-  | PP_MACRO_READ_WRITE s 
+  | PP_MACRO_WRITE s
+  | PP_MACRO_READ_WRITE s
   | PP_MACRO_READ_PRINT s -> String.length s
 
 
@@ -1058,7 +1058,7 @@ let rec rawtoken_size = function
   | PP_UNKNOWN           -> 0
 
   | PP_AND
-  | PP_OR  
+  | PP_OR
   | PP_CONCAT
     -> 2
 
@@ -1158,7 +1158,7 @@ let rec rawtoken_size = function
   | OCL _                      -> 0
 
   | OMP_AUTO                   -> 4
-  | OMP_ATOMIC                 -> 6  
+  | OMP_ATOMIC                 -> 6
   | OMP_BARRIER                -> 7
   | OMP_CAPTURE                -> 7
   | OMP_COLLAPSE               -> 8
@@ -1510,44 +1510,44 @@ let rec rawtoken_size = function
 
 (* Compaq Fortran *)
 (*
-  | AUTOMATIC s   
-  | STATIC s      
+  | AUTOMATIC s
+  | STATIC s
 *)
-  | ACCEPT s       
-  | REWRITE s      
-  | DELETE s       
-  | UNLOCK s       
+  | ACCEPT s
+  | REWRITE s
+  | DELETE s
+  | UNLOCK s
 (*  | DEFINE_FILE s*)
-  | ENCODE s       
-  | DECODE s       
-  | FIND s         
-  | VIRTUAL s      
-  | STRUCTURE s    
+  | ENCODE s
+  | DECODE s
+  | FIND s
+  | VIRTUAL s
+  | STRUCTURE s
   | END_STRUCTURE s
-  | RECORD s       
-  | UNION s        
-  | END_UNION s    
-  | MAP s          
-  | END_MAP s      
+  | RECORD s
+  | UNION s
+  | END_UNION s
+  | MAP s
+  | END_MAP s
     -> String.length s
 
   | OPTIONS__OPTS s -> 0
   | DEFINE_FILE -> 11
 
 (*
-  | LBRACE                       
-  | RBRACE                       
+  | LBRACE
+  | RBRACE
 *)
 
-  | EXCLAM    
-  | DOLLAR    
+  | EXCLAM
+  | DOLLAR
   | BACKSLASH
-  | QUESTION 
+  | QUESTION
 
-  | PERCENT   
-  | AMP       
-  | LPAREN    
-  | LPAREN__IMPLICIT 
+  | PERCENT
+  | AMP
+  | LPAREN
+  | LPAREN__IMPLICIT
   | LPAREN__GO_TO
   | LPAREN__io_control_spec
   | LPAREN__position_spec
@@ -1557,35 +1557,35 @@ let rec rawtoken_size = function
 
   | LBRACKET
   | RBRACKET
-    
-  | STAR      
-  | SLASH     
-  | PLUS      
-  | MINUS     
-  | UPLUS 
-  | UMINUS 
 
-  | COMMA     
+  | STAR
+  | SLASH
+  | PLUS
+  | MINUS
+  | UPLUS
+  | UMINUS
+
+  | COMMA
   | COMMA__SLASH
-  | DOT       
-  | COLON     
-  | SEMICOLON 
+  | DOT
+  | COLON
+  | SEMICOLON
 
-  | LT        
-  | EQ        
+  | LT
+  | EQ
   | GT        -> 1
 
   | VFE_BEGIN s -> (String.length s) + 1 (* '<' *)
   | VFE_END s   -> (String.length s) + 1 (* '>' *)
 
-  | LT_EQ        
-  | GT_EQ        
-  | EQ_EQ        
-  | EQ_GT        
+  | LT_EQ
+  | GT_EQ
+  | EQ_EQ
+  | EQ_GT
 
-  | STAR_STAR    
+  | STAR_STAR
 
-  | COLON_COLON  
+  | COLON_COLON
   | SLASH_SLASH
 
   | LPAREN_SLASH
@@ -1600,19 +1600,19 @@ let rec rawtoken_size = function
 
   | CONTINUED_IDENTIFIER s -> String.length s
 
-  | INT_LITERAL s     
-  | REAL_LITERAL s    
-  | BOZ_LITERAL s     
-  | LOGICAL_LITERAL s 
+  | INT_LITERAL s
+  | REAL_LITERAL s
+  | BOZ_LITERAL s
+  | LOGICAL_LITERAL s
   | CHAR_LITERAL s    -> String.length s
 
 (*  | COMPLEX_LITERAL(r, i) -> (String.length r) + (String.length i) + 3 *)
 
   | DEFINED_OP s -> String.length s
 
-  | DATA_EDIT_DESC s        
-  | KP_DESC s               
-  | POSITION_EDIT_DESC s    
+  | DATA_EDIT_DESC s
+  | KP_DESC s
+  | POSITION_EDIT_DESC s
   | HOLLERITH(s, _)          -> String.length s
 
   | LABEL s -> String.length s
@@ -1632,13 +1632,13 @@ let rec rawtoken_size = function
 *)
 
 (* dotted identifiers *)
-  | D_EQ    
-  | D_NE    
-  | D_GT    
-  | D_GE    
-  | D_LT    
+  | D_EQ
+  | D_NE
+  | D_GT
+  | D_GE
+  | D_LT
   | D_LE    -> 4
-  | D_NOT   
+  | D_NOT
   | D_AND   -> 5
   | D_OR    -> 4
   | D_EQV   -> 5
@@ -1650,215 +1650,215 @@ let rec rawtoken_size = function
 
 (* keywords *)
   | ABSTRACT s
-  | ALLOCATABLE s      
-  | ALLOCATE s         
-  | ASSIGN s     
-  | ASSIGNMENT s       
+  | ALLOCATABLE s
+  | ALLOCATE s
+  | ASSIGN s
+  | ASSIGNMENT s
   | ASSOCIATE s
   | ASYNCHRONOUS s
-  | BACKSPACE s        
-  | BIND s        
-  | BLOCK s       
-  | BLOCK_DATA s       
+  | BACKSPACE s
+  | BIND s
+  | BLOCK s
+  | BLOCK_DATA s
   | BYTE s
-  | CALL s             
-  | CASE s             
-  | CHARACTER s        
-  | CLASS s       
-  | CLOSE s            
+  | CALL s
+  | CASE s
+  | CHARACTER s
+  | CLASS s
+  | CLOSE s
   | CODIMENSION s
-  | COMMON s           
+  | COMMON s
 (*  | COMPLEX s*)
   | CONCURRENT s
-  | CONTAINS s         
-  | CONTINUE s         
+  | CONTAINS s
+  | CONTINUE s
   | CRITICAL s
-  | CYCLE s            
-  | DATA s             
-  | DEALLOCATE s       
-  | DEFAULT s          
-  | DIMENSION s        
-  | DO s               
-  | DOUBLE s 
-  | DOUBLE_PRECISION s 
-  | DOUBLE_COMPLEX s 
+  | CYCLE s
+  | DATA s
+  | DEALLOCATE s
+  | DEFAULT s
+  | DIMENSION s
+  | DO s
+  | DOUBLE s
+  | DOUBLE_PRECISION s
+  | DOUBLE_COMPLEX s
 (*  | ELEMENTAL s*)
-  | ELSE s             
-  | ELSE_IF s          
-  | ELSEWHERE s        
-  | END s              
+  | ELSE s
+  | ELSE_IF s
+  | ELSEWHERE s
+  | END s
   | END_ASSOCIATE s
-  | END_BLOCK s   
-  | END_BLOCK_DATA s   
+  | END_BLOCK s
+  | END_BLOCK_DATA s
   | END_CRITICAL s
-  | END_DO s           
+  | END_DO s
   | END_ENUM s
-  | END_FILE s         
-  | END_FORALL s       
-  | END_FUNCTION s     
-  | END_IF s           
-  | END_INTERFACE s    
-  | END_MODULE s       
-  | END_PROGRAM s      
-  | END_SELECT s  
+  | END_FILE s
+  | END_FORALL s
+  | END_FUNCTION s
+  | END_IF s
+  | END_INTERFACE s
+  | END_MODULE s
+  | END_PROGRAM s
+  | END_SELECT s
   | END_SUBMODULE s
-  | END_SUBROUTINE s   
-  | END_TYPE s         
-  | END_WHERE s        
-  | ENTRY s            
+  | END_SUBROUTINE s
+  | END_TYPE s
+  | END_WHERE s
+  | ENTRY s
   | ENUM s
   | ENUMERATOR s
 (*  | ERRMSG s*)
-  | EQUIVALENCE s      
-  | EXIT s             
-  | EXTENDS s 
+  | EQUIVALENCE s
+  | EXIT s
+  | EXTENDS s
 (*  | EXTERNAL s*)
   | FLUSH s
-  | FORALL s           
-  | FORMAT s           
-  | FUNCTION s         
-  | GENERIC s 
-  | GO_TO s            
+  | FORALL s
+  | FORMAT s
+  | FUNCTION s
+  | GENERIC s
+  | GO_TO s
   | ID s
-  | IF s               
-  | IMPLICIT s         
-  | IMPORT s  
+  | IF s
+  | IMPLICIT s
+  | IMPORT s
 (*  | IMPURE s*)
 (*
-  | IN s               
-  | IN_OUT s           
+  | IN s
+  | IN_OUT s
 *)
-  | INQUIRE s          
+  | INQUIRE s
 (*  | INTEGER s*)
-  | INTENT s           
+  | INTENT s
   | INTENT_SPEC s
-  | INTERFACE s        
-  | INTRINSIC s        
-  | KIND s             
+  | INTERFACE s
+  | INTRINSIC s
+  | KIND s
   | KINDED_TYPE_SPEC s
-  | LEN s              
+  | LEN s
   | LOCK s
 (*  | LOGICAL s*)
-  | MODULE s           
+  | MODULE s
 (*  | MOLD s*)
   | ALLOC_OPT_EXPR s
-  | NAMELIST s         
-  | NONE s             
+  | NAMELIST s
+  | NONE s
   | NON_INTRINSIC s
-  | NULL s             
-  | NULLIFY s          
-  | ONLY s             
-  | OPEN s             
-  | OPERATOR s         
-  | OPTIONAL s         
+  | NULL s
+  | NULLIFY s
+  | ONLY s
+  | OPEN s
+  | OPERATOR s
+  | OPTIONAL s
 (*  | OUT s*)
-  | PARAMETER s        
-  | PAUSE s            
-  | POINTER s          
+  | PARAMETER s
+  | PAUSE s
+  | POINTER s
   | PRECISION s
   | PREFIX_SPEC s
-  | PRINT s            
-  | PRIVATE s          
-  | PROCEDURE s        
-  | PROGRAM s          
+  | PRINT s
+  | PRIVATE s
+  | PROCEDURE s
+  | PROGRAM s
 (*  | PROTECTED s*)
-  | PUBLIC s           
+  | PUBLIC s
 (*  | PURE s*)
-  | READ s             
+  | READ s
 (*  | REAL s*)
 (*  | RECURSIVE s*)
-  | RESULT s           
-  | RETURN s           
-  | REWIND s           
-  | SAVE s             
-  | SELECT_CASE s      
-  | SELECT_TYPE s  
-  | SEQUENCE s         
+  | RESULT s
+  | RETURN s
+  | REWIND s
+  | SAVE s
+  | SELECT_CASE s
+  | SELECT_TYPE s
+  | SEQUENCE s
 (*  | SOURCE s*)
 (*  | STAT s*)
-  | STOP s    
+  | STOP s
   | SUBMODULE s
   | SUBROUTINE s
   | SYNC s
-  | TARGET s           
-  | THEN s             
-  | TO s           
-  | TYPE s             
-  | USE s   
-(*           
-  | VALUE s        
-  | VOLATILE s     
+  | TARGET s
+  | THEN s
+  | TO s
+  | TYPE s
+  | USE s
+(*
+  | VALUE s
+  | VOLATILE s
 *)
   | WAIT s
-  | WHERE s            
-  | WHILE s            
-  | WRITE s            
+  | WHERE s
+  | WHILE s
+  | WRITE s
 (*
-  | ACCESS s   
-  | ACTION s   
-  | BLANK s    
-  | DELIM s    
-  | FORM s     
-  | PAD s      
-  | POSITION s 
-  | RECL s     
+  | ACCESS s
+  | ACTION s
+  | BLANK s
+  | DELIM s
+  | FORM s
+  | PAD s
+  | POSITION s
+  | RECL s
 *)
-  | ERR s      
-  | FILE s     
-  | IOSTAT s   
+  | ERR s
+  | FILE s
+  | IOSTAT s
   | IOMSG s
 (*  | POS s *)
-  | STATUS s   
-  | UNIT s     
+  | STATUS s
+  | UNIT s
 
-  | FMT s     
-  | NML s     
+  | FMT s
+  | NML s
 (*
-  | REC s     
-  | ADVANCE s 
+  | REC s
+  | ADVANCE s
 *)
-  | SIZE s    
-  | EOR s     
+  | SIZE s
+  | EOR s
 (*
-  | DIRECT s      
-  | EXIST s       
-  | FORMATTED s   
-  | NAMED s       
-  | NEXTREC s     
-  | NUMBER s      
-  | OPENED s      
-  | READWRITE s   
-  | SEQUENTIAL s  
-  | UNFORMATTED s 
+  | DIRECT s
+  | EXIST s
+  | FORMATTED s
+  | NAMED s
+  | NEXTREC s
+  | NUMBER s
+  | OPENED s
+  | READWRITE s
+  | SEQUENTIAL s
+  | UNFORMATTED s
 *)
-  | NAME_ s       
-  | IOLENGTH s    
+  | NAME_ s
+  | IOLENGTH s
 
   | CONNECT_SPEC s
   | INQUIRE_SPEC s
   | IOCTL_SPEC s
 
   | CONNECT_INQUIRE_IOCTL_SPEC s
-  | CONNECT_INQUIRE_SPEC s      
-  | INQUIRE_IOCTL_SPEC s        
+  | CONNECT_INQUIRE_SPEC s
+  | INQUIRE_IOCTL_SPEC s
 
-  | INTEL_CLOSE_CONNECT_SPEC s  
+  | INTEL_CLOSE_CONNECT_SPEC s
 (*
-  | INTEL_CONNECT_SPEC s        
+  | INTEL_CONNECT_SPEC s
   | INTEL_CONNECT_INQUIRE_SPEC s
   | INTEL_INQUIRE_SPEC s
 *)
     -> String.length s
 
-  | PASS s            
-  | NOPASS s          
-  | NON_OVERRIDABLE s 
+  | PASS s
+  | NOPASS s
+  | NON_OVERRIDABLE s
   | DEFERRED s        -> String.length s
 
   | FINAL s -> String.length s
 
-  | TYPE_IS s       
-  | CLASS_IS s      
+  | TYPE_IS s
+  | CLASS_IS s
   | CLASS_DEFAULT s -> String.length s
 
 
@@ -2136,7 +2136,7 @@ let rawtoken_to_rep = function
   | OMP_END_PARALLEL_DO        -> "end parallel do"
   | OMP_END_PARALLEL_SECTIONS  -> "end parallel sections"
   | OMP_END_PARALLEL_WORKSHARE -> "end parallel workshare"
-        
+
   (* OpenMP 4.0 *)
   | OMP_ALIGNED                                      -> "aligned"
   | OMP_ALLOC                                        -> "alloc"
@@ -2432,26 +2432,26 @@ let rawtoken_to_rep = function
 
 (* Compaq Fortran *)
 (*
-  | AUTOMATIC s   
-  | STATIC s      
+  | AUTOMATIC s
+  | STATIC s
 *)
-  | ACCEPT s       
-  | REWRITE s      
-  | DELETE s       
-  | UNLOCK s       
+  | ACCEPT s
+  | REWRITE s
+  | DELETE s
+  | UNLOCK s
 (*  | DEFINE_FILE s*)
-  | ENCODE s       
-  | DECODE s       
-  | FIND s         
-  | VIRTUAL s      
-  | STRUCTURE s    
+  | ENCODE s
+  | DECODE s
+  | FIND s
+  | VIRTUAL s
+  | STRUCTURE s
   | END_STRUCTURE s
-  | RECORD s       
-  | UNION s        
-  | END_UNION s    
-  | MAP s          
-  | END_MAP s      
-    -> s 
+  | RECORD s
+  | UNION s
+  | END_UNION s
+  | MAP s
+  | END_MAP s
+    -> s
 
   | OPTIONS__OPTS s -> "options "^s
   | DEFINE_FILE -> "define file"
@@ -2546,12 +2546,12 @@ let rawtoken_to_rep = function
 
   | CONSTRUCT_NAME s -> s
 (*
-  | DO_CONSTRUCT_NAME s 
-  | IF_CONSTRUCT_NAME s     
-  | WHERE_CONSTRUCT_NAME s  
-  | FORALL_CONSTRUCT_NAME s 
-  | CASE_CONSTRUCT_NAME s   
-  | SELECT_CONSTRUCT_NAME s   
+  | DO_CONSTRUCT_NAME s
+  | IF_CONSTRUCT_NAME s
+  | WHERE_CONSTRUCT_NAME s
+  | FORALL_CONSTRUCT_NAME s
+  | CASE_CONSTRUCT_NAME s
+  | SELECT_CONSTRUCT_NAME s
   | ASSOCIATE_CONSTRUCT_NAME s
     -> s
 *)
@@ -2574,176 +2574,176 @@ let rawtoken_to_rep = function
 *)
 
 (* keywords *)
-  | ABSTRACT s         
-  | ALLOCATABLE s      
-  | ALLOCATE s         
-  | ASSIGN s           
-  | ASSIGNMENT s   
+  | ABSTRACT s
+  | ALLOCATABLE s
+  | ALLOCATE s
+  | ASSIGN s
+  | ASSIGNMENT s
   | ASSOCIATE s
-  | ASYNCHRONOUS s     
-  | BACKSPACE s        
-  | BIND s             
-  | BLOCK s            
-  | BLOCK_DATA s       
+  | ASYNCHRONOUS s
+  | BACKSPACE s
+  | BIND s
+  | BLOCK s
+  | BLOCK_DATA s
   | BYTE s
-  | CALL s             
-  | CASE s             
-  | CHARACTER s        
-  | CLASS s            
-  | CLOSE s            
+  | CALL s
+  | CASE s
+  | CHARACTER s
+  | CLASS s
+  | CLOSE s
   | CODIMENSION s
-  | COMMON s           
+  | COMMON s
 (*  | COMPLEX s*)
   | CONCURRENT s
-  | CONTAINS s         
-  | CONTINUE s         
+  | CONTAINS s
+  | CONTINUE s
   | CRITICAL s
-  | CYCLE s            
-  | DATA s             
-  | DEALLOCATE s       
-  | DEFAULT s          
-  | DIMENSION s        
-  | DO s               
+  | CYCLE s
+  | DATA s
+  | DEALLOCATE s
+  | DEFAULT s
+  | DIMENSION s
+  | DO s
   | DOUBLE s
-  | DOUBLE_PRECISION s 
-  | DOUBLE_COMPLEX s 
+  | DOUBLE_PRECISION s
+  | DOUBLE_COMPLEX s
 (*  | ELEMENTAL s*)
-  | ELSE s          
+  | ELSE s
   | ELSE_IF s
-  | ELSEWHERE s          
-  | END s    
+  | ELSEWHERE s
+  | END s
   | END_ASSOCIATE s
-  | END_BLOCK s             
-  | END_BLOCK_DATA s   
+  | END_BLOCK s
+  | END_BLOCK_DATA s
   | END_CRITICAL s
-  | END_DO s           
+  | END_DO s
   | END_ENUM s
-  | END_FILE s 
-  | END_FORALL s        
-  | END_FUNCTION s     
-  | END_IF s           
-  | END_INTERFACE s    
-  | END_MODULE s       
-  | END_PROGRAM s      
-  | END_SELECT s       
+  | END_FILE s
+  | END_FORALL s
+  | END_FUNCTION s
+  | END_IF s
+  | END_INTERFACE s
+  | END_MODULE s
+  | END_PROGRAM s
+  | END_SELECT s
   | END_SUBMODULE s
-  | END_SUBROUTINE s   
-  | END_TYPE s  
-  | END_WHERE s       
-  | ENTRY s            
+  | END_SUBROUTINE s
+  | END_TYPE s
+  | END_WHERE s
+  | ENTRY s
   | ENUM s
   | ENUMERATOR s
 (*  | ERRMSG s*)
-  | EQUIVALENCE s      
-  | EXIT s             
-  | EXTENDS s          
+  | EQUIVALENCE s
+  | EXIT s
+  | EXTENDS s
 (*  | EXTERNAL s*)
   | FLUSH s
   | FORALL s
-  | FORMAT s           
-  | FUNCTION s         
-  | GENERIC s         
-  | GO_TO s            
+  | FORMAT s
+  | FUNCTION s
+  | GENERIC s
+  | GO_TO s
   | ID s
-  | IF s               
-  | IMPLICIT s         
-  | IMPORT s          
+  | IF s
+  | IMPLICIT s
+  | IMPORT s
 (*  | IMPURE s*)
 (*
-  | IN s               
-  | IN_OUT s           
+  | IN s
+  | IN_OUT s
 *)
-  | INQUIRE s    
+  | INQUIRE s
 (*  | INTEGER s*)
-  | INTENT s           
+  | INTENT s
   | INTENT_SPEC s
-  | INTERFACE s        
-  | INTRINSIC s        
-  | KIND s             
+  | INTERFACE s
+  | INTRINSIC s
+  | KIND s
   | KINDED_TYPE_SPEC s
-  | LEN s              
+  | LEN s
   | LOCK s
 (*  | LOGICAL s*)
-  | MODULE s           
+  | MODULE s
 (*  | MOLD s*)
   | ALLOC_OPT_EXPR s
-  | NAMELIST s         
-  | NONE s             
-  | NON_INTRINSIC s 
-  | NULL s             
-  | NULLIFY s          
-  | ONLY s             
-  | OPEN s             
-  | OPERATOR s         
-  | OPTIONAL s         
+  | NAMELIST s
+  | NONE s
+  | NON_INTRINSIC s
+  | NULL s
+  | NULLIFY s
+  | ONLY s
+  | OPEN s
+  | OPERATOR s
+  | OPTIONAL s
 (*  | OUT s*)
-  | PARAMETER s        
-  | PAUSE s        
-  | POINTER s          
+  | PARAMETER s
+  | PAUSE s
+  | POINTER s
   | PRECISION s
   | PREFIX_SPEC s
-  | PRINT s            
-  | PRIVATE s          
-  | PROCEDURE s        
-  | PROGRAM s          
+  | PRINT s
+  | PRIVATE s
+  | PROCEDURE s
+  | PROGRAM s
 (*  | PROTECTED s*)
-  | PUBLIC s           
+  | PUBLIC s
 (*  | PURE s*)
-  | READ s             
+  | READ s
 (*  | REAL s*)
 (*  | RECURSIVE s*)
-  | RESULT s           
-  | RETURN s           
-  | REWIND s           
-  | SAVE s             
-  | SELECT_CASE s      
-  | SELECT_TYPE s  
-  | SEQUENCE s         
+  | RESULT s
+  | RETURN s
+  | REWIND s
+  | SAVE s
+  | SELECT_CASE s
+  | SELECT_TYPE s
+  | SEQUENCE s
 (*  | SOURCE s*)
 (*  | STAT s*)
-  | STOP s             
+  | STOP s
   | SUBMODULE s
   | SUBROUTINE s
   | SYNC s
-  | TARGET s           
+  | TARGET s
   | THEN s
-  | TO s           
-  | TYPE s    
-  | USE s   
-(*           
-  | VALUE s        
-  | VOLATILE s     
+  | TO s
+  | TYPE s
+  | USE s
+(*
+  | VALUE s
+  | VOLATILE s
 *)
   | WAIT s
-  | WHERE s            
-  | WHILE s            
-  | WRITE s            
+  | WHERE s
+  | WHILE s
+  | WRITE s
 (*
-  | ACCESS s   
-  | ACTION s   
-  | BLANK s    
-  | DELIM s    
-  | FORM s     
-  | PAD s      
-  | POSITION s 
-  | RECL s     
+  | ACCESS s
+  | ACTION s
+  | BLANK s
+  | DELIM s
+  | FORM s
+  | PAD s
+  | POSITION s
+  | RECL s
 *)
-  | ERR s      
-  | FILE s     
-  | IOSTAT s   
-  | IOMSG s    
+  | ERR s
+  | FILE s
+  | IOSTAT s
+  | IOMSG s
 (*  | POS s*)
-  | STATUS s   
-  | UNIT s     
+  | STATUS s
+  | UNIT s
 
-  | FMT s     
-  | NML s     
+  | FMT s
+  | NML s
 (*
-  | REC s     
-  | ADVANCE s 
+  | REC s
+  | ADVANCE s
 *)
-  | SIZE s    
-  | EOR s     
+  | SIZE s
+  | EOR s
 (*
   | DIRECT s
   | EXIST s
@@ -2764,8 +2764,8 @@ let rawtoken_to_rep = function
   | IOCTL_SPEC s
 
   | CONNECT_INQUIRE_IOCTL_SPEC s
-  | CONNECT_INQUIRE_SPEC s      
-  | INQUIRE_IOCTL_SPEC s        
+  | CONNECT_INQUIRE_SPEC s
+  | INQUIRE_IOCTL_SPEC s
 
   | INTEL_CLOSE_CONNECT_SPEC s
 (*
@@ -2775,15 +2775,15 @@ let rawtoken_to_rep = function
 *)
     -> s
 
-  | PASS s            
-  | NOPASS s          
-  | NON_OVERRIDABLE s 
+  | PASS s
+  | NOPASS s
+  | NON_OVERRIDABLE s
   | DEFERRED s        -> s
 
   | FINAL s -> s
 
-  | TYPE_IS s       
-  | CLASS_IS s      
+  | TYPE_IS s
+  | CLASS_IS s
   | CLASS_DEFAULT s -> s
 
   | EOL -> "EOL"
@@ -2810,176 +2810,176 @@ let rawtoken_to_rep = function
 
 let get_keyword ?(elsef=fun t -> raise Not_found) = function
   | ABSTRACT s
-  | ALLOCATABLE s      
-  | ALLOCATE s         
+  | ALLOCATABLE s
+  | ALLOCATE s
   | ASSIGN s
-  | ASSIGNMENT s       
+  | ASSIGNMENT s
   | ASSOCIATE s
   | ASYNCHRONOUS s
-  | BACKSPACE s        
-  | BIND s        
-  | BLOCK s       
-  | BLOCK_DATA s       
+  | BACKSPACE s
+  | BIND s
+  | BLOCK s
+  | BLOCK_DATA s
   | BYTE s
-  | CALL s             
-  | CASE s             
-  | CHARACTER s        
-  | CLASS s       
-  | CLOSE s            
+  | CALL s
+  | CASE s
+  | CHARACTER s
+  | CLASS s
+  | CLOSE s
   | CODIMENSION s
-  | COMMON s           
+  | COMMON s
 (*  | COMPLEX s*)
   | CONCURRENT s
-  | CONTAINS s         
-  | CONTINUE s         
+  | CONTAINS s
+  | CONTINUE s
   | CRITICAL s
-  | CYCLE s            
-  | DATA s             
-  | DEALLOCATE s       
-  | DEFAULT s          
+  | CYCLE s
+  | DATA s
+  | DEALLOCATE s
+  | DEFAULT s
   | DEFERRED s
-  | DIMENSION s        
-  | DO s               
+  | DIMENSION s
+  | DO s
   | DOUBLE s
-  | DOUBLE_PRECISION s 
-  | DOUBLE_COMPLEX s 
+  | DOUBLE_PRECISION s
+  | DOUBLE_COMPLEX s
 (*  | ELEMENTAL s*)
   | ELSE s
-  | ELSE_IF s          
+  | ELSE_IF s
   | ELSEWHERE s
-  | END s    
-  | END_ASSOCIATE s          
-  | END_BLOCK s   
-  | END_BLOCK_DATA s   
+  | END s
+  | END_ASSOCIATE s
+  | END_BLOCK s
+  | END_BLOCK_DATA s
   | END_CRITICAL s
-  | END_DO s           
+  | END_DO s
   | END_ENUM s
-  | END_FILE s 
-  | END_FORALL s        
-  | END_FUNCTION s     
-  | END_IF s           
-  | END_INTERFACE s    
-  | END_MODULE s       
-  | END_PROGRAM s      
-  | END_SELECT s       
-  | END_SUBMODULE s   
-  | END_SUBROUTINE s   
-  | END_TYPE s  
-  | END_WHERE s       
-  | ENTRY s            
+  | END_FILE s
+  | END_FORALL s
+  | END_FUNCTION s
+  | END_IF s
+  | END_INTERFACE s
+  | END_MODULE s
+  | END_PROGRAM s
+  | END_SELECT s
+  | END_SUBMODULE s
+  | END_SUBROUTINE s
+  | END_TYPE s
+  | END_WHERE s
+  | ENTRY s
   | ENUM s
   | ENUMERATOR s
 (*  | ERRMSG s*)
-  | EQUIVALENCE s      
-  | EXIT s             
-  | EXTENDS s        
+  | EQUIVALENCE s
+  | EXIT s
+  | EXTENDS s
 (*  | EXTERNAL s*)
   | FINAL s
   | FLUSH s
-  | FORALL s        
-  | FORMAT s           
-  | FUNCTION s         
-  | GENERIC s        
-  | GO_TO s            
+  | FORALL s
+  | FORMAT s
+  | FUNCTION s
+  | GENERIC s
+  | GO_TO s
   | ID s
-  | IF s               
-  | IMPLICIT s         
-  | IMPORT s         
+  | IF s
+  | IMPLICIT s
+  | IMPORT s
 (*  | IMPURE s*)
 (*
-  | IN s   
-  | IN_OUT s 
+  | IN s
+  | IN_OUT s
 *)
-  | INQUIRE s          
+  | INQUIRE s
 (*  | INTEGER s*)
-  | INTENT s           
+  | INTENT s
   | INTENT_SPEC s
-  | INTERFACE s        
-  | INTRINSIC s        
-  | KIND s             
+  | INTERFACE s
+  | INTRINSIC s
+  | KIND s
   | KINDED_TYPE_SPEC s
-  | LEN s              
+  | LEN s
   | LOCK s
 (*  | LOGICAL s*)
-  | MODULE s           
+  | MODULE s
 (*  | MOLD s*)
   | ALLOC_OPT_EXPR s
-  | NAMELIST s         
-  | NONE s             
-  | NON_INTRINSIC s  
+  | NAMELIST s
+  | NONE s
+  | NON_INTRINSIC s
   | NON_OVERRIDABLE s
   | NOPASS s
-  | NULL s             
-  | NULLIFY s          
-  | ONLY s             
-  | OPEN s             
-  | OPERATOR s         
-  | OPTIONAL s         
+  | NULL s
+  | NULLIFY s
+  | ONLY s
+  | OPEN s
+  | OPERATOR s
+  | OPTIONAL s
 (*  | OUT s*)
-  | PARAMETER s        
+  | PARAMETER s
   | PASS s
-  | PAUSE s            
-  | POINTER s          
+  | PAUSE s
+  | POINTER s
   | PRECISION s
   | PREFIX_SPEC s
-  | PRINT s            
-  | PRIVATE s          
-  | PROCEDURE s        
-  | PROGRAM s          
+  | PRINT s
+  | PRIVATE s
+  | PROCEDURE s
+  | PROGRAM s
 (*  | PROTECTED s*)
-  | PUBLIC s           
+  | PUBLIC s
 (*  | PURE s*)
-  | READ s             
+  | READ s
 (*  | REAL s*)
 (*  | RECURSIVE s*)
-  | RESULT s           
-  | RETURN s           
-  | REWIND s           
-  | SAVE s             
-  | SELECT_CASE s      
-  | SELECT_TYPE s    
-  | SEQUENCE s         
+  | RESULT s
+  | RETURN s
+  | REWIND s
+  | SAVE s
+  | SELECT_CASE s
+  | SELECT_TYPE s
+  | SEQUENCE s
 (*  | SOURCE s*)
 (*  | STAT s*)
-  | STOP s    
+  | STOP s
   | SUBMODULE s
-  | SUBROUTINE s       
+  | SUBROUTINE s
   | SYNC s
-  | TARGET s           
+  | TARGET s
   | THEN s
   | TO s
-  | TYPE s             
-  | USE s              
+  | TYPE s
+  | USE s
 (*
-  | VALUE s          
-  | VOLATILE s       
+  | VALUE s
+  | VOLATILE s
 *)
   | WAIT s
-  | WHERE s            
+  | WHERE s
   | WHILE s
-  | WRITE s  
+  | WRITE s
 
   | SIMPLE_ATTR s
 (*
-  | AUTOMATIC s     
-  | STATIC s        
+  | AUTOMATIC s
+  | STATIC s
 *)
-  | ACCEPT s        
-  | REWRITE s       
-  | DELETE s        
-  | UNLOCK s        
+  | ACCEPT s
+  | REWRITE s
+  | DELETE s
+  | UNLOCK s
 (*  | DEFINE_FILE s*)
-  | ENCODE s        
-  | DECODE s        
-  | FIND s          
-  | VIRTUAL s       
-  | STRUCTURE s     
-  | END_STRUCTURE s 
-  | RECORD s        
-  | UNION s         
-  | END_UNION s     
-  | MAP s           
-  | END_MAP s       
+  | ENCODE s
+  | DECODE s
+  | FIND s
+  | VIRTUAL s
+  | STRUCTURE s
+  | END_STRUCTURE s
+  | RECORD s
+  | UNION s
+  | END_UNION s
+  | MAP s
+  | END_MAP s
     -> s
 
   | DEFINE_FILE -> "define file"
@@ -3036,7 +3036,7 @@ let to_lexposs = PB.token_to_lexposs
 
 let _to_string = PB._token_to_string rawtoken_to_string
 
-let to_loc ?(cache=None) (token : t) = 
+let to_loc ?(cache=None) (token : t) =
   let st, ed = to_lexposs token in
   PB.loc_of_lexposs ~cache st ed
 
@@ -3114,7 +3114,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let of_only spec nd =
     (ONLY_(spec, nd), loc_of_nd nd)
-    
+
   let of_function_head spec nd =
     (FUNCTION_HEAD(spec, nd), loc_of_nd nd)
 
@@ -3142,10 +3142,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | PP_IF__COND _
     | PP_ELIF__COND _
     | PP_IFDEF__IDENT _
-    | PP_IFNDEF__IDENT _    
+    | PP_IFNDEF__IDENT _
 *)
-    | PP_ELSE              
-    | PP_ENDIF             
+    | PP_ELSE
+    | PP_ENDIF
 
     | PP_UNDEF__IDENT _
 
@@ -3160,9 +3160,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | PP_DEFINE
     | PP_UNDEF
     | PP_IFDEF
-    | PP_IFNDEF            
+    | PP_IFNDEF
     | PP_IF
-    | PP_ELIF             
+    | PP_ELIF
 
     | PP_ERROR
     | PP_WARNING

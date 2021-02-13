@@ -22,7 +22,7 @@ module Tree      = Sourcecode.Tree (Label)
 
 let sprintf = Printf.sprintf
 
-class tree_builder options = 
+class tree_builder options =
   let _parser = new Lib.parser_c in
   object (self)
     inherit Lang_base.tree_builder
@@ -37,8 +37,8 @@ class tree_builder options =
         tree#set_source_info file;
         tree#set_parser_name Sjava.parser_name;
         tree
-      with 
-        Common.Parse_error(head, msg) -> 
+      with
+        Common.Parse_error(head, msg) ->
           raise (Lang_base.Parse_error
                    (sprintf "[Java]%s" head, sprintf "%s: %s" msg file#path))
 

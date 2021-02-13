@@ -1,5 +1,5 @@
 // DiffViewer for Diff/AST, Copyright 2020 Codinuum Software Lab <https://codinuum.com>
-// based on 
+// based on
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: http://codemirror.net/LICENSE
 
@@ -438,7 +438,7 @@
       var mark = arr[i];
       if (mark instanceof CodeMirror.TextMarker) {
         mark.clear();
-      } 
+      }
     }
     arr.length = 0;
   }
@@ -544,7 +544,7 @@
       count += 1;
 
       editDts = edits[i];
-      
+
       if (editDts == null)
         continue;
 
@@ -552,19 +552,19 @@
 
       tag = editDts["tag"];
       lab = "segments"+idx;
-      
+
       //console.log('tag="'+tag+'",lab="'+lab+'"');
-      
+
       segs = editDts[lab];
-      
+
       if (segs == undefined)
         continue;
-      
+
       cls = null;
-      
+
       IGN = "IGNORED"+idx;
       MISS = "MISPARSED"+idx;
-      
+
       switch (tag) {
       case "DELETE":
         cls = classesDts.del;
@@ -588,7 +588,7 @@
         cls = classesDts.miss;
         break;
       }
-      
+
       if (cls == null)
         continue;
 
@@ -660,7 +660,7 @@
     if ((dv.showDts & dv.index) > 0) {
       drawConnectorsDts(dv, dv.diffDts, false);
     } else {
-      drawConnectorsDts(dv, dv.mv.diffDtsEss, true);  
+      drawConnectorsDts(dv, dv.mv.diffDtsEss, true);
     }
 
     if (!dv.showDifferences) return;
@@ -834,17 +834,17 @@
   function getRectPathDts(cm, bound, pos0, pos1) {
     var dx = bound.left;
     var dy = bound.top;
-    
+
     //console.log("dx="+dx+",dy="+dy);
-    
+
     var doc = cm.getDoc();
-    
+
     var p0 = cm.charCoords(pos0, "page");
     var p1 = cm.charCoords(pos1, "page");
-    
+
     //console.log("p0={left:"+p0.left+",right:"+p0.right+",top:"+p0.top+",bottom:"+p0.bottom+"}");
     //console.log("p1={left:"+p1.left+",right:"+p1.right+",top:"+p1.top+",bottom:"+p1.bottom+"}");
-    
+
     var px = p0.left - dx, py = p0.top - dy;
     var bx = px;
     /*
@@ -852,7 +852,7 @@
       console.log("!!! multiline");
     */
     var lastLines;
-    
+
     var start = px+" "+py;
 
     if (pos0.ch == 0 || pos0.line == pos1.line) {
@@ -862,7 +862,7 @@
       bx = pl.left - dx;
       lastLines = "L "+bx+" "+(pl.bottom-dy)+" L "+px+" "+(p0.bottom-dy)+" L "+start+" ";
     }
-    
+
     var path = "M "+start+" ";
 
     for (var ln = pos0.line; ln < pos1.line + 1; ln++) {
@@ -873,7 +873,7 @@
         var py0 = p1.bottom - dy;
         path += "L "+px0+" "+(p1.top-dy)+" L "+px0+" "+py0+" ";
         path += "L "+bx+" "+py0+" "+lastLines;
-        
+
       } else {
         var p = cm.charCoords(new Pos(ln, line.length - 1), "page");
         var px0 = p.right - dx;
@@ -882,12 +882,12 @@
       }
 
     }
-    
+
     //console.log('path="'+path+'"');
-    
+
     return path;
   }
- 
+
   function createClip(baseBound, defs, id, cm, clip, rect) {
     if (clip == undefined)
       clip = defs.appendChild(document.createElementNS(svgNS, "clipPath"));
@@ -962,7 +962,7 @@
   function mergeClip(shown0, shown1, rect0, rect1, lgwidth, defs, id) {
     var clip = document.createElementNS(svgNS, "clipPath");
     attrs(defs.appendChild(clip), "id", id);
-    var p = 
+    var p =
       "M "+rect0.x+" "+rect0.y+" v "+rect0.height+
       " L "+(rect1.x+rect1.width)+" "+(rect1.y+rect1.height)+
       " v "+(-rect1.height);
@@ -976,7 +976,7 @@
 
     //console.log("[mergeClip] p="+p);
 
-    attrs(clip.appendChild(document.createElementNS(svgNS, "path")), 
+    attrs(clip.appendChild(document.createElementNS(svgNS, "path")),
           "d", p);
   }
 
@@ -1004,12 +1004,12 @@
         //   break;
 
         var edit = diffDts[i];
-        
+
         if (edit == null)
           continue;
-        
+
         var tag = edit["tag"];
-        
+
         switch (tag) {
         case "DELETE":
           //console.log("[DtsScrollbarAnnotation]["+i+"] tag="+tag);
@@ -1037,7 +1037,7 @@
         default:
           break;
         }
-        
+
       }
       var cmp = function(a, b) {
         return a.from.line - b.from.line;
@@ -1162,12 +1162,12 @@
       var tbb = this.textElem.getBBox();
 
       //console.log("tbb: height="+tbb.height+",width="+tbb.width);
-      
+
       var margin = 10;
 
-      attrs(this.rectElem, 
-            "x", x-margin, "y", y-tbb.height-margin, 
-            "height", tbb.height+2*margin, "width", tbb.width+2*margin, 
+      attrs(this.rectElem,
+            "x", x-margin, "y", y-tbb.height-margin,
+            "height", tbb.height+2*margin, "width", tbb.width+2*margin,
             "class", "DTS-tooltip");
 
     };
@@ -1183,7 +1183,7 @@
   function showProperties(obj) {
     var o = obj;
     while (o) {
-      var ks = Object.keys(o);  
+      var ks = Object.keys(o);
       for (var i = 0; i < ks.length; i++) {
         var k = ks[i];
         var v = obj[k];
@@ -1228,7 +1228,7 @@
   function makeWheelEventForwarder(dv, cm) { // for chrome
     return function(ev) {
       if (ev instanceof WheelEvent) {
-        var evCopy = 
+        var evCopy =
           new WheelEvent(ev.type, {deltaX:ev.deltaX,deltaY:ev.deltaY,deltaZ:ev.deltaZ,
                                    deltaMode:ev.deltaMode});
         //console.log("forward: type="+ev.type+",deltaY="+ev.deltaY);
@@ -1253,7 +1253,7 @@
         attrs(frame, "display", "none");
         var elem = document.elementFromPoint(ev.pageX, ev.pageY);
         attrs(frame, "display", "inline");
-        
+
         //console.log("forward: nodeName="+elem.nodeName+" textContent="+elem.textContent);
         //elem.dispatchEvent(evCopy);
       }
@@ -1329,21 +1329,21 @@
 
     if (!bound)
         return;
-    
+
     var isLeft = dv.type == "left";
 
     var svg = dv.mv.svg;
-    
+
     if (svg) {
       //clear(svg);
       attrs(svg,
             //"shape-rendering", "optimizeSpeed",
-            "width", dv.mv.glasspane.offsetWidth, 
+            "width", dv.mv.glasspane.offsetWidth,
             "height", dv.mv.glasspane.offsetHeight);
     }
 
     var sTopEdit = dv.edit.getScrollInfo().top, sTopOrig = dv.orig.getScrollInfo().top;
-    
+
     var origCM = dv.orig, origDoc = origCM.getDoc();
     var editCM = dv.edit, editDoc = editCM.getDoc();
 
@@ -1400,7 +1400,7 @@
 
     var sposs = new Array(2);
     var eposs = new Array(2);
-    
+
     //console.log("num of edits: "+diffDts.length);
 
     var curveMov    = "";
@@ -1414,15 +1414,15 @@
     for (var idx = 0; idx < diffDts.length; idx++) {
 
       var editDts = diffDts[idx];
-      
+
       if (editDts == null) continue;
 
       var tag = editDts["tag"];
 
       if (tag != 'ALIGN' && !editDts.connectorVisible) continue;
-      
+
       //console.log("tag="+tag);
-      
+
       var skips = new Array(false, false);
       var paths = new Array("", "");
       var vps   = new Array(dv.edit.getViewport(), dv.orig.getViewport());
@@ -1440,21 +1440,21 @@
 
           if (st <= ed) {
             rlen = ed - st;
-            
+
             //console.log("editDts["+slab+"]="+st+",editDts["+elab+"]="+ed);
-            
+
             var spos = docs[i].posFromIndex(st);
             var sch = docs[i].getLine(spos.line).charAt(spos.ch);
             if (sch == "")
               spos = new Pos(spos.line + 1, 0);
-            
+
             sposs[i] = spos;
-            
+
             var epos = eposs[i] = docs[i].posFromIndex(ed);
-            
+
             //console.log("spos.line="+spos.line+", epos.line="+epos.line);
             //console.log("vps["+i+"].from="+vps[i].from+", vps["+i+"].to="+vps[i].to);
-            
+
             skips[i] = spos.line > vps[i].to || epos.line < vps[i].from
 
             /*if (!skips[i]) {
@@ -1464,7 +1464,7 @@
 
         } else if (llab in editDts) { // for ALIGN
           var ln = editDts[llab];
-          
+
           //console.log("["+i+"] editDts["+llab+"]="+ln);
 
           var cmln = ln - 1; // ???
@@ -1501,7 +1501,7 @@
 
       } // check visibility
 
-      
+
       if (skips[0] && skips[1])
         continue;
 
@@ -1514,26 +1514,26 @@
 
           var doc = docs[i];
           var segs = editDts[lab];
-          
+
           for (var j = 0; j < segs.length; j++) {
             var st = segs[j]["start"], ed = segs[j]["end"];
 
             if (st > ed) continue;
-            
+
             //console.log("segs["+j+"][start]="+st+",segs["+j+"][end]="+ed);
-            
+
             var spos = doc.posFromIndex(st);
             var sch = doc.getLine(spos.line).charAt(spos.ch);
             if (sch == "")
               spos = new Pos(spos.line + 1, 0);
-            
+
             var epos = doc.posFromIndex(ed);
-            
+
             //console.log("["+dv.type+"] spos={line:"+spos.line+",ch:"+spos.ch+"},epos={line:"+epos.line+",ch:"+epos.ch+"}");
-            
+
             if (spos.line > vps[i].to || epos.line < vps[i].from)
               continue;
-            
+
             paths[i] += getRectPathDts(cms[i], bound, spos, epos); // for frames
           }
 
@@ -1565,7 +1565,7 @@
         }
 
       }*/
-      
+
       // Curves
 
       var curve = null;
@@ -1575,7 +1575,7 @@
         break;
       case "INSERT":
         break;
-        
+
       case "RELABEL":
       case "MOVREL":
       case "MOVE":
@@ -1583,13 +1583,13 @@
       case "CORR": // for essentials
 
         //console.log("drawing connector for "+tag);
-        
+
         var spos1 = sposs[0], epos1 = eposs[0], spos2 = sposs[1], epos2 = eposs[1];
         var dx = bound.left, dy = bound.top;
-        
+
         var fromP, toP;
         var fromX, fromY, toX, toY, mx;
-        
+
         if (isLeft) {
           fromP = editCM.charCoords(spos1, "page");
 
@@ -1603,16 +1603,16 @@
           toX = Math.max(toP.right, origX) - dx;
 
           //console.log("["+dv.type+"] fromX="+fromX+", toX="+toX);
-          
+
         } else {
           if (spos1.line == epos1.line)
             fromP = editCM.charCoords(epos1, "page");
           else
             fromP = editCM.charCoords(new Pos(spos1.line,
                                               editDoc.getLine(spos1.line).length - 1), "page");
-          
+
           toP = origCM.charCoords(spos2, "page");
-          
+
           fromX = Math.max(fromP.right, editX) - dx;
           toX = toP.left - dx;
 
@@ -1632,17 +1632,17 @@
         mx = Math.floor(mx);
 
         curve = "M "+fromX+" "+fromY+" C "+mx+" "+fromY+" "+mx+" "+toY+" "+toX+" "+toY;
-        
+
         break;
-        
+
       default:
         break;
       }
-      
+
       if (curve != null) {
-        
+
         //console.log('curve="'+curve+'"');
-        
+
         switch (tag) {
         case "MOVE":
           curveMov += curve+" ";
@@ -1668,7 +1668,7 @@
           break;
         }
       }
-      
+
     } // for(var i = 0; i < diffDts.length; i++)
 
 
@@ -1698,7 +1698,7 @@
             svg.appendChild(frame);
 
             var v = paths[j][1];
-            
+
             //console.log("["+i+"]["+j+"]["+v+"]");
 
             if (dv.showToolTip) {
@@ -1713,10 +1713,10 @@
             var path = paths[j][0];
 
             //console.log("["+i+"]["+j+"]["+v+"] path="+path);
-            
+
             attrs(frame,
-                  "d", path, 
-                  "clip-path", "url(#"+clips[i]+")", 
+                  "d", path,
+                  "clip-path", "url(#"+clips[i]+")",
                   "pointer-events", "visibleFill",
                   "class", classesDts.frameEss);
           }
@@ -1728,8 +1728,8 @@
         //console.log('rectPaths['+i+']="'+rectPaths[i]+'"');
         if (rectPaths[i] != "") {
           attrs(svg.appendChild(dv.mv.rects[i]),
-                "d", rectPaths[i], 
-                "clip-path", "url(#"+clips[i]+")", 
+                "d", rectPaths[i],
+                "clip-path", "url(#"+clips[i]+")",
                 "class", classesDts.frame);
         }
       }
@@ -1752,7 +1752,7 @@
             "clip-path", "url(#glasspaneClip)",
             "class", classesDts.crel);
     }
-    
+
     if (curveMovRel != "") {
       //console.log('curveMovRel="'+curveMovRel+'"');
       attrs(svg.appendChild(isLeft ? dv.mv.connectorMovRelL : dv.mv.connectorMovRel),
@@ -1918,7 +1918,7 @@
     }
 
     var svg = this.svg = document.createElementNS(svgNS, "svg");
-    var glasspane = this.glasspane = elt("div", [svg], "CodeMirror-glasspane"); 
+    var glasspane = this.glasspane = elt("div", [svg], "CodeMirror-glasspane");
 
     this.connectorMov    = document.createElementNS(svgNS, "path");
     this.connectorRel    = document.createElementNS(svgNS, "path");
@@ -1926,10 +1926,10 @@
     this.connectorAlign  = document.createElementNS(svgNS, "path");
     this.connectorCorr   = document.createElementNS(svgNS, "path");
 
-    this.rects = new Array(document.createElementNS(svgNS, "path"), 
+    this.rects = new Array(document.createElementNS(svgNS, "path"),
                            document.createElementNS(svgNS, "path"));
 
-    this.defs = svg.appendChild(document.createElementNS(svgNS, "defs"));   
+    this.defs = svg.appendChild(document.createElementNS(svgNS, "defs"));
 
     this.gclip = this.defs.appendChild(document.createElementNS(svgNS, "clipPath"));
     this.grect = this.gclip.appendChild(document.createElementNS(svgNS, "rect"));
@@ -2004,7 +2004,7 @@
 
     if (right && options.lineRight > 0)
       right.orig.scrollTo(0, right.orig.heightAtLine(options.lineRight-1, "local"));
-  
+
     if (options.line > 0)
       this.edit.scrollTo(0, this.edit.heightAtLine(options.line-1, "local"));
 
@@ -2132,7 +2132,7 @@
       }
 
       this.annotate();
-      
+
       if (val) {
         this.legend.style.visibility = "visible";
       } else {

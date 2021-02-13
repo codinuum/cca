@@ -55,7 +55,7 @@ class virtual tree : object
   method virtual get_entry       : ?ignore_case:bool -> string -> entry_t
   method virtual get_channel     : ?ignore_case:bool -> string -> Netchannels.in_obj_channel
   method virtual get_local_file  : ?ignore_case:bool -> string -> string
-  method virtual free_local_file : string -> unit 
+  method virtual free_local_file : string -> unit
 
   method keep_local_path : string -> unit
   method is_kept_local_path : string -> bool

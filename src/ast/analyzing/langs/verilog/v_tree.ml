@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * AST for Verilog HDL (for otreediff) 
+(*
+ * AST for Verilog HDL (for otreediff)
  *
  * verilog/tree.ml
  *

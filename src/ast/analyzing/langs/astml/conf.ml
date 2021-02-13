@@ -50,10 +50,10 @@ let ast_ns_attr                  = "astns"
 
 let ns_mgr = Pxp_dtd.create_namespace_manager()
 
-let config = 
-  { Pxp_types.default_config with 
+let config =
+  { Pxp_types.default_config with
     Pxp_types.enable_namespace_processing = Some ns_mgr;
-  } 
+  }
 let spec = Pxp_tree_parser.default_namespace_spec
 let transform_dtd dtd =
   dtd#namespace_manager#add_namespace conf_prefix conf_ns;
@@ -70,17 +70,17 @@ let pxp_att_value_to_string = function
 let conv_pxp_attrs =
   List.map (fun (n, v) -> n, pxp_att_value_to_string v)
 
-let attrs_to_string = 
+let attrs_to_string =
   Xlist.to_string (fun (n, v) -> n^"=\""^v^"\"") " "
 
 let elem_pat_to_string (tag_pat, attrs) =
-  sprintf "\"%s\"%s" 
+  sprintf "\"%s\"%s"
     tag_pat
     (if attrs = [] then "" else sprintf " (%s)" (attrs_to_string attrs))
 
 let do_elem nd name f =
   match nd#node_type with
-  | Pxp_document.T_element _ -> 
+  | Pxp_document.T_element _ ->
       let n = nd#namespace_uri ^ nd#localname in
       if n = name then f nd
   | _ -> ()
@@ -91,8 +91,8 @@ exception Not_parsed
 class c conf_file = object (self)
 
   val mutable doc = None
-  method get_doc = 
-    match doc with 
+  method get_doc =
+    match doc with
     | None -> raise Not_parsed
     | Some doc -> doc
 
@@ -141,10 +141,10 @@ class c conf_file = object (self)
       let source = Pxp_types.from_file conf_file in
       let d = Pxp_tree_parser.parse_wfdocument_entity ~transform_dtd config source spec in
       doc <- Some d;
-      let a = 
-	try 
+      let a =
+	try
 	  pxp_att_value_to_string (d#root#attribute ast_ns_attr)
-	with 
+	with
 	| Not_found -> Xprint.failure "Astml.Conf.c#parse: \"%s\" attribute not found" ast_ns_attr
       in
       ast_ns <- a;
@@ -152,7 +152,7 @@ class c conf_file = object (self)
       try
 	prefix <- Astml.get_prefix_by_ns a;
 	DEBUG_MSG "prefix=\"%s\"" prefix
-      with 
+      with
       | Not_found -> Xprint.failure "Astml.Conf.c#parse: prefix for \"%s\" not found" a
     with
     | Failure msg -> Xprint.error "%s" msg; exit 1
@@ -163,7 +163,7 @@ class c conf_file = object (self)
     let cond = ref [] in
     List.iter
       (fun nd ->
-	do_elem nd attr_cond_tag 
+	do_elem nd attr_cond_tag
 	  (fun n ->
 	    cond := (conv_pxp_attrs n#attributes) @ !cond
 	  )
@@ -192,19 +192,19 @@ class c conf_file = object (self)
       try
 	let list = doc#root#sub_nodes in
 	List.iter
-	  (fun nd -> 
+	  (fun nd ->
 	    do_elem nd heading_tag proc_heading
 	  ) list;
 
 	BEGIN_DEBUG
-	  List.iter 
-	    (fun elem_pat -> 
+	  List.iter
+	    (fun elem_pat ->
 	      DEBUG_MSG "(%s): %s" heading_tag
 		(elem_pat_to_string elem_pat)
 	    ) !pat_list;
 	END_DEBUG
 
-      with 
+      with
       | e -> Xprint.error "(%s): %s" heading_tag (Printexc.to_string e); exit 1
     end;
     DEBUG_MSG "(%s): done." heading_tag;
@@ -242,8 +242,8 @@ class c conf_file = object (self)
     let proc_pair nd =
       let cats = nd#sub_nodes in
       let l = ref [] in
-      List.iter 
-	(fun nd -> 
+      List.iter
+	(fun nd ->
 	  do_elem nd category_tag
 	    (fun n ->
 	      let c = pxp_att_value_to_string (n#attribute name_attr) in
@@ -273,14 +273,14 @@ class c conf_file = object (self)
 	  ) list;
 
 	BEGIN_DEBUG
-	  List.iter 
-	    (fun (epat1, epat2) -> 
+	  List.iter
+	    (fun (epat1, epat2) ->
 	      DEBUG_MSG "(%s): %s -- %s" heading_tag
 		(elem_pat_to_string epat1) (elem_pat_to_string epat2)
 	    ) !pat_pair_list;
 	END_DEBUG
 
-      with 
+      with
       | e -> Xprint.error "(%s): %s" heading_tag (Printexc.to_string e); exit 1
     end;
     DEBUG_MSG "(%s): done." heading_tag;

@@ -236,7 +236,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       pr_id n; pr_lparen(); pr_nth_children 1; pr_rparen(); pr_string " -> "; pr_nth_children 2; _pr_semicolon()
   end
   | ExplicitInstantiation  -> pr_nth_children 0; pr_string "template "; pr_nth_children 1
-  | ExplicitSpecialization -> pr_string "template<>"; pr_nth_child 0; 
+  | ExplicitSpecialization -> pr_string "template<>"; pr_nth_child 0;
   | LinkageSpecification s -> begin
       pr_string "extern "; pr_string s; pad1();
       pb#pr_block_head();

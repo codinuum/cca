@@ -23,7 +23,7 @@ exception Found of string
 class classtbl_c = object (self)
 
   (* package name -> local name set (for standard library) *)
-  val stdtbl = Classtbl.stdtbl           
+  val stdtbl = Classtbl.stdtbl
 
   (* package name -> local name set *)
   val pkg_mem_class_tbl = Hashtbl.create 0
@@ -36,7 +36,7 @@ class classtbl_c = object (self)
 
 
   method set_source_dir d = source_dir <- Some d
-  method has_source_dir = 
+  method has_source_dir =
     match source_dir with
     | None -> false
     | Some _ -> true
@@ -45,7 +45,7 @@ class classtbl_c = object (self)
     match source_dir with
     | None -> raise Not_found
     | Some d -> d
-    
+
 
   method private clear_packages = Hashtbl.clear pkgs
 
@@ -81,7 +81,7 @@ class classtbl_c = object (self)
 	    if Xstring.endswith ent#dirname pname_path then
 	      let lname = Filename.chop_extension ent#name in
 	      self#add pname lname
-        ) 
+        )
     with
       Exit -> ()
 
@@ -99,11 +99,11 @@ class classtbl_c = object (self)
 
   method private add pname lname =
     DEBUG_MSG "ADDING: \"%s\" -> \"%s\"" pname lname;
-    let s = 
+    let s =
       try
         Hashtbl.find pkg_mem_class_tbl pname
-      with 
-	Not_found -> 
+      with
+	Not_found ->
           let s' = Xset.create 1 in
           Hashtbl.add pkg_mem_class_tbl pname s';
           s'
@@ -113,7 +113,7 @@ class classtbl_c = object (self)
   method add_fqn fqn =
     let pname, lname = decompose_qname fqn in
     self#add pname lname
-    
+
   method private __resolve tbl pname lname =
     let mems = Hashtbl.find tbl pname in
     if Xset.mem mems lname then
@@ -126,14 +126,14 @@ class classtbl_c = object (self)
       (fun pkg _ ->
 	try
 	  raise (Found (self#__resolve pkg_mem_class_tbl pkg lname))
-	with 
+	with
 	  Not_found -> ()
       ) pkgs;
     Hashtbl.iter
       (fun pkg _ ->
 	try
 	  raise (Found (self#__resolve stdtbl pkg lname))
-	with 
+	with
 	  Not_found -> ()
       ) pkgs
 
@@ -142,8 +142,8 @@ class classtbl_c = object (self)
     try
       self#_resolve lname;
       self#__resolve stdtbl "java.lang" lname
-    with 
-      Found fqn -> 
+    with
+      Found fqn ->
         DEBUG_MSG "found: \"%s\"" fqn;
 	fqn
 
@@ -181,7 +181,7 @@ class classtbl_c = object (self)
         DEBUG_MSG "searching stdtbl...";
         find_pkg_prefix stdtbl qname
 
-          
+
   method _resolve_qualified_type_name pkg qname =
     DEBUG_MSG "pkg=%s qname=%s" pkg qname;
     if pkg = qname then

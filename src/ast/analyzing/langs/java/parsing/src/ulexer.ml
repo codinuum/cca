@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * A lexer (utf-8) for the Java Language (JLS 3rd.)
  *
  * ulexer.ml
@@ -45,7 +45,7 @@ let escape_dollar = Str.global_replace dollar_pat "&#36;"
 
 let find_keyword =
   let keyword_list =
-      [ 
+      [
 	"abstract",     (fun l -> ABSTRACT l);
 	"assert",       (fun l -> ASSERT l);
 	"boolean",      (fun l -> BOOLEAN l);
@@ -96,16 +96,16 @@ let find_keyword =
 	"void",         (fun l -> VOID l);
 	"volatile",     (fun l -> VOLATILE l);
 	"while",        (fun l -> WHILE l);
-      ] in 
+      ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find loc s = 
-    try 
+  let find loc s =
+    try
       (Hashtbl.find keyword_table s) loc
-    with 
+    with
       Not_found -> IDENTIFIER(loc, escape_dollar s)
   in
   find
@@ -168,7 +168,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp octal_integer_literal = octal_numeral integer_type_suffix?
   let regexp binary_integer_literal = binary_numeral integer_type_suffix?
 
-  let regexp integer_literal = 
+  let regexp integer_literal =
     decimal_integer_literal | hex_integer_literal | octal_integer_literal | binary_integer_literal
 
   let regexp float_type_suffix = ['f' 'F' 'd' 'D']
@@ -196,25 +196,25 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let regexp boolean_literal = "true" | "false"
 
-  let regexp octal_escape = 
+  let regexp octal_escape =
     '\\' (['0'-'7'] | ['0'-'7'] ['0'-'7'] | ['0'-'3'] ['0'-'7'] ['0'-'7'])
-  let regexp escape_sequence = 
+  let regexp escape_sequence =
     ('\\' ['\'' '"' '\\' 'b' 'f' 'n' 'r' 't']) | octal_escape
 
   let regexp single_character = unicode_escape | [^'\013' '\010' '\'' '\\']
-  let regexp character_literal = 
+  let regexp character_literal =
     ('\'' single_character '\'') | ('\'' escape_sequence '\'')
 
-  let regexp string_character = 
+  let regexp string_character =
     unicode_escape | [^'\013' '\010' '"' '\\'] | escape_sequence
   let regexp string_literal = '"' string_character* '"'
 
   let regexp null_literal = "null"
 
-  let regexp literal = integer_literal | floating_point_literal | boolean_literal 
+  let regexp literal = integer_literal | floating_point_literal | boolean_literal
   | character_literal | string_literal | null_literal
 
-      
+
   let rec token = lexer
   |   white_space -> token lexbuf
   |   line_terminator -> token lexbuf
@@ -306,18 +306,18 @@ module F (Stat : Parser_aux.STATE_T) = struct
   |   identifier_or_keyword ->
       mktok (find_keyword (Aux.get_loc_for_lex lexbuf) (Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-  |   eof -> 
+  |   eof ->
       if not env#current_source#eof_reached then begin
 	env#current_source#set_eof_reached;
-	mktok EOF lexbuf 
+	mktok EOF lexbuf
       end
       else
 	raise EOF_reached
 
-  |   _ -> 
+  |   _ ->
       lexing_error lexbuf (Printf.sprintf "invalid symbol(%s)" (Ulexing.utf8_lexeme lexbuf))
 
-	
+
 
   and traditional_comment st = lexer
   |   "*/" -> env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st (Ulexing.lexeme_end lexbuf))
@@ -338,10 +338,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let set_to_JLS2 loc kw =
     match env#java_lang_spec with
-    | Common.JLSx -> 
+    | Common.JLSx ->
 	Common.warning_loc loc "'%s' occurred as an identifier, assuming JLS2..." kw;
 	env#set_java_lang_spec_JLS2
-    | Common.JLS3 -> 
+    | Common.JLS3 ->
         Aux.parse_error_loc loc "'%s' identifier is not available in JLS3" kw
     | Common.JLS2 -> ()
 
@@ -378,10 +378,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let kw_to_ident name t =
     let tok, st, ed = Token.decompose t in
     match tok with
-    | ENUM loc 
+    | ENUM loc
     | ASSERT loc -> Token.create (IDENTIFIER(loc, name)) st ed
     | _ -> t
-    
+
 
 
   exception Modified_token of Token.t
@@ -485,7 +485,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                       DEBUG_MSG "tok'' = %s" (Token.rawtoken_to_string tok'');
                       begin
                         match tok'' with
-                        | MINUS_GT -> 
+                        | MINUS_GT ->
                             DEBUG_MSG "'(' --> '(':lambda";
                             let m = Token.create (LPAREN__LAMBDA loc) st ed in
                             raise (Modified_token m)
@@ -555,7 +555,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                     let q = new Xqueue.c in
                     q#add (kw_to_ident "assert" res);
                     q0#iter
-                      (fun x -> 
+                      (fun x ->
                         let x' =
                           match Token.to_rawtoken x with
                           | ASSERT loc' -> kw_to_ident "assert" x
@@ -569,7 +569,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                     try
                       let stmt = block_stmt_parser scanner in
                       DEBUG_MSG "SUCCESSFULLY PARSED!";
-                      let tok' = 
+                      let tok' =
                         match stmt.Ast.bs_desc with
                         | Ast.BSstatement s -> STMT s
                         | _ -> BLOCK_STMT stmt

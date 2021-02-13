@@ -92,7 +92,7 @@ class Materializer(object):
         for triples in self.make_ver_next_triples():
 
             params = { 'ver_ns' : VER_NS,
-                       'graph' : self._graph_uri, 
+                       'graph' : self._graph_uri,
                        'ver_next_triples' : '\n'.join(triples) }
 
             q = VER_ORDER_QUERY % params

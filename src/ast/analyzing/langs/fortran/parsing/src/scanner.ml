@@ -48,9 +48,9 @@ module F (Stat : Aux.STATE_T) = struct
   exception Empty
 
   class c
-      (env : Aux.env) 
+      (env : Aux.env)
       (partial_parser_selector : Context.t -> TB.partial_parser list)
-      = 
+      =
     object (self)
       inherit [Tk.token] PB.scanner
 
@@ -97,7 +97,7 @@ module F (Stat : Aux.STATE_T) = struct
 
         if current_src#eof_reached then begin
           match current_src#eof_loc with
-          | Some loc -> 
+          | Some loc ->
               Common.fail_to_parse ~head:(Loc.to_string ~prefix:"[" ~suffix:"]" loc) "syntax error"
 
           | None -> assert false
@@ -114,10 +114,10 @@ module F (Stat : Aux.STATE_T) = struct
           begin
 	    match tok with
 	    | Tk.EOF _ -> begin
-                current_src#set_eof_reached; 
+                current_src#set_eof_reached;
                 current_src#set_eof_loc loc
             end
-            | Tk.PP_DEFINE__IDENT__BODY _ | Tk.PP_UNDEF__IDENT _ | Tk.PP_ISSUE__MESG _ 
+            | Tk.PP_DEFINE__IDENT__BODY _ | Tk.PP_UNDEF__IDENT _ | Tk.PP_ISSUE__MESG _
             | Tk.PP_INCLUDE__FILE _ | Tk.PP_UNKNOWN__REST _ -> ()
 
 	    | _ -> ()
@@ -141,7 +141,7 @@ module F (Stat : Aux.STATE_T) = struct
         in
         let trunkbuf = new T.buffer partial_parser_selector in
         let tokensrc = new T.tokensource trunkbuf ulexbuf in
-        let ppbuf = 
+        let ppbuf =
           new PP.buffer 0 partial_parser_selector (tokensrc :> Tokensource.c)
         in
         let bufs = mkbufs ppbuf trunkbuf tokensrc in
@@ -184,7 +184,7 @@ module F (Stat : Aux.STATE_T) = struct
 
 
 
-          
+
     end (* of class Scanner.F.c *)
 
 

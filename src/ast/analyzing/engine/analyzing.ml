@@ -62,12 +62,12 @@ module F (Label : Spec.LABEL_T) = struct
 	  let pi, pj = p1#index, p2#index in
 	  begin
 	    try
-	      if pj = (Otreediff.Mapping.find pi mapping) then 
+	      if pj = (Otreediff.Mapping.find pi mapping) then
 		(Pruned.make_isomorphic uid1 lgi_gi1 uid2 lgi_gi2 info1 info2)::r
-	      else 
+	      else
 		raise Not_found
 
-	    with Not_found -> 
+	    with Not_found ->
 	      (Pruned.make_migratory uid1 lgi_gi1 uid2 lgi_gi2 info1 info2)::r
 	  end
 
@@ -124,11 +124,11 @@ module F (Label : Spec.LABEL_T) = struct
 
     Hashtbl.iter
       (fun pnd nds ->
-	if 
-	  List.for_all 
-	    (fun n -> List.memq n nds) 
+	if
+	  List.for_all
+	    (fun n -> List.memq n nds)
 	    (Array.to_list pnd#children)
-	then begin 
+	then begin
 
 	  DEBUG_MSG "all children are to be pruned: %a" UID.ps pnd#uid;
 
@@ -137,9 +137,9 @@ module F (Label : Spec.LABEL_T) = struct
       ) tbl1;
     Hashtbl.iter
       (fun pnd nds ->
-	if 
-	  List.for_all 
-	    (fun n -> List.memq n nds) 
+	if
+	  List.for_all
+	    (fun n -> List.memq n nds)
 	    (Array.to_list pnd#children)
 	then begin
 
@@ -162,14 +162,14 @@ module F (Label : Spec.LABEL_T) = struct
       ) ison1 ison2;
 
     DEBUG_MSG "[%s]"
-      (Xlist.to_string (fun n -> UID.to_string n#uid) ";" 
+      (Xlist.to_string (fun n -> UID.to_string n#uid) ";"
 	 (List.rev_map tree1#get (!iso1')));
 
     !iso1'
   (* end of func shrink_iso *)
 
 
-  (* 
+  (*
    * generates Edit.seq, determines nodes to be expanded, and
    * accumulates nodes to be pruned
    *)
@@ -184,8 +184,8 @@ module F (Label : Spec.LABEL_T) = struct
       =
     let expnd1, expnd2 = ref [], ref [] in
 
-    let moderate_nchildren = 
-      Misc.moderate_nchildren ~threshold:options#moderate_nchildren_threshold 
+    let moderate_nchildren =
+      Misc.moderate_nchildren ~threshold:options#moderate_nchildren_threshold
     in
 
     let proc_one = function
@@ -196,7 +196,7 @@ module F (Label : Spec.LABEL_T) = struct
 	    if nd1#collapse_not_locked then
 	      expnd1 := i1::!expnd1;
 (*
-	    else 
+	    else
 	      if nd1#data#eq nd2#data then begin
 		expnd1 := i1::!expnd1;
 		nd1#unlock_collapse;
@@ -217,18 +217,18 @@ module F (Label : Spec.LABEL_T) = struct
 *)
           BEGIN_DEBUG
             let uid1, uid2 = nd1#uid, nd2#uid in
-	    DEBUG_MSG "[RELABELED]: \"(%a)%s\" --> \"(%a)%s\"" 
+	    DEBUG_MSG "[RELABELED]: \"(%a)%s\" --> \"(%a)%s\""
 	      UID.ps uid1 nd1#to_qualified_string UID.ps uid2 nd2#to_qualified_string;
           END_DEBUG;
 
-      | Otreediff.Edit.Delete i -> 
+      | Otreediff.Edit.Delete i ->
 	  let nd = tree1#get i in
 	  if nd#is_collapsed && nd#collapse_not_locked && (moderate_nchildren nd) then
 	    expnd1 := i::!expnd1
 
       | Otreediff.Edit.Insert(j, children_ref) ->
 	  let nd = tree2#get j in
-	  if nd#is_collapsed && nd#collapse_not_locked && (moderate_nchildren nd) then 
+	  if nd#is_collapsed && nd#collapse_not_locked && (moderate_nchildren nd) then
 	    expnd2 := j::!expnd2
 
     in (* end of func proc_one *)
@@ -240,7 +240,7 @@ module F (Label : Spec.LABEL_T) = struct
     BEGIN_DEBUG
       DEBUG_MSG "Mapping:\n";
       Otreediff.Mapping.iter
-	(fun i j -> 
+	(fun i j ->
 	  DEBUG_MSG "%a -- %a\n" UID.ps (tree1#get i)#uid UID.ps (tree2#get j)#uid)
 	mapping
     END_DEBUG;
@@ -259,7 +259,7 @@ module F (Label : Spec.LABEL_T) = struct
 
     DEBUG_MSG "T1:\n%s\nT2:\n%s\n" tree1#to_string tree2#to_string;
 
-    
+
     let eds, mapping, iso =
       if Misc.check_hard_tree_size_limit options sz1 sz2 then begin
 
@@ -308,8 +308,8 @@ module F (Label : Spec.LABEL_T) = struct
 	(Otreediff.Mapping._to_string to_s1 to_s2 mapping);
     END_DEBUG;
 
-    let iso_pairs = 
-      List.map (fun i -> i, Otreediff.Mapping.find i mapping) iso 
+    let iso_pairs =
+      List.map (fun i -> i, Otreediff.Mapping.find i mapping) iso
     in
 
     let para_iso_mems = ref [] in
@@ -317,8 +317,8 @@ module F (Label : Spec.LABEL_T) = struct
     let non_iso = ref [] in
 
     let iso_members =
-      List.fold_left 
-	(fun l (i, j) -> 
+      List.fold_left
+	(fun l (i, j) ->
 	  let mems = tree1#fast_subtree_members i in
 	  let nmems1 = List.length mems in
 
@@ -345,7 +345,7 @@ module F (Label : Spec.LABEL_T) = struct
 
 	) [] iso_pairs
     in
-    let iso_pairs = 
+    let iso_pairs =
       List.filter (fun (i, _) -> not (List.mem i !non_iso)) iso_pairs
     in
     let iso, _ = List.split iso_pairs in
@@ -359,7 +359,7 @@ module F (Label : Spec.LABEL_T) = struct
 
     let uidmapping = new UIDmapping.c cenv in
 
-    Otreediff.Mapping.iter 
+    Otreediff.Mapping.iter
       (fun i j ->
 	let nd1, nd2 = tree1#get i, tree2#get j in
 	let uid1, uid2 = nd1#uid, nd2#uid in
@@ -367,7 +367,7 @@ module F (Label : Spec.LABEL_T) = struct
 	  if List.mem i iso_members && not (List.mem i !para_iso_mems) then begin
 	    ignore (uidmapping#add_settled ~stable:false uid1 uid2);
 
-	    if List.mem i iso then 
+	    if List.mem i iso then
 	      uidmapping#add_settled_roots uid1 uid2
 	  end
 	  else
@@ -375,27 +375,27 @@ module F (Label : Spec.LABEL_T) = struct
 
       ) mapping;
 
-    eds, mapping, iso_pairs, expnd1, expnd2, uidmapping, 
+    eds, mapping, iso_pairs, expnd1, expnd2, uidmapping,
     iso_members, !para_iso_mems, !para_iso
   (* end of func do_compare *)
 
 
 
-  let prune_and_expand 
-      cid 
-      (tree1 : tree_t) 
+  let prune_and_expand
+      cid
+      (tree1 : tree_t)
       (tree2 : tree_t)
-      (iso1, iso2, expnd1, expnd2) 
+      (iso1, iso2, expnd1, expnd2)
       (g_uidmapping : node_t UIDmapping.c)
-      = 
+      =
     BEGIN_DEBUG
-      DEBUG_MSG "[%s]: prune: T1[%s] T2:[%s]" 
+      DEBUG_MSG "[%s]: prune: T1[%s] T2:[%s]"
 	cid
-	(Xlist.to_string UID.to_string "," iso1) 
+	(Xlist.to_string UID.to_string "," iso1)
 	(Xlist.to_string UID.to_string "," iso2);
-      DEBUG_MSG "[%s]: expand: T1[%s] T2:[%s]" 
+      DEBUG_MSG "[%s]: expand: T1[%s] T2:[%s]"
 	cid
-	(Xlist.to_string UID.to_string "," expnd1) 
+	(Xlist.to_string UID.to_string "," expnd1)
 	(Xlist.to_string UID.to_string "," expnd2)
     END_DEBUG;
 
@@ -439,8 +439,8 @@ module F (Label : Spec.LABEL_T) = struct
     let cc1 = Misc.get_collapsed_children nd1 in
     let cc2 = Misc.get_collapsed_children nd2 in
 
-    let _moderate_nchildren = 
-      Misc._moderate_nchildren ~threshold:options#moderate_nchildren_threshold 
+    let _moderate_nchildren =
+      Misc._moderate_nchildren ~threshold:options#moderate_nchildren_threshold
     in
 
 
@@ -448,8 +448,8 @@ module F (Label : Spec.LABEL_T) = struct
       tree1#is_flat && tree2#is_flat
     else begin
 
-      DEBUG_MSG "have huge amount of children:\n%d <-- %s\nand\n%d <-- %s" 
-	(List.length cc1) nd1#to_string 
+      DEBUG_MSG "have huge amount of children:\n%d <-- %s\nand\n%d <-- %s"
+	(List.length cc1) nd1#to_string
 	(List.length cc2) nd2#to_string;
 
       (Misc._to_be_flat cc1 nd1) && (Misc._to_be_flat cc2 nd2)
@@ -468,14 +468,14 @@ module F (Label : Spec.LABEL_T) = struct
     let addtree subs nd1 nd2 =
       DEBUG_MSG "addtree: %a %a" UID.ps nd1#uid UID.ps nd2#uid;
       if nd1#data#eq nd2#data then
-	if 
-	  nd1#is_collapsed && nd2#is_collapsed && 
+	if
+	  nd1#is_collapsed && nd2#is_collapsed &&
 	  not (nd1#data#equals nd2#data)
 	then
 	  let tree1' = tree1#make_subtree_from_node nd1 in
 	  let tree2' = tree2#make_subtree_from_node nd2 in
 
-	  nd1#hide_parent; 
+	  nd1#hide_parent;
 	  nd2#hide_parent;
 
 	  tree1'#expand_root; (* tree1'#init; *)
@@ -487,7 +487,7 @@ module F (Label : Spec.LABEL_T) = struct
     in (* end of func addtree *)
 
     let rels =
-      List.filter 
+      List.filter
 	(function Otreediff.Edit.Relabel _ -> true | _ -> false)
 	eds
     in
@@ -495,7 +495,7 @@ module F (Label : Spec.LABEL_T) = struct
     BEGIN_DEBUG
       let to_s1 i = UID.to_string (tree1#get i)#uid in
       let to_s2 j = UID.to_string (tree2#get j)#uid in
-      DEBUG_MSG "rels: [\n%s\n]" 
+      DEBUG_MSG "rels: [\n%s\n]"
 	(Xlist.to_string (Otreediff.Edit._to_string to_s1 to_s2) "\n" rels)
     END_DEBUG;
 
@@ -512,9 +512,9 @@ module F (Label : Spec.LABEL_T) = struct
 	      match ed with
 		Otreediff.Edit.Relabel(i1, i2) ->
 		  let nd1, nd2 = tree1#get i1, tree2#get i2 in
-		  if matching_cond options tree1 tree2 nd1 nd2 then 
+		  if matching_cond options tree1 tree2 nd1 nd2 then
 		    addtree subs nd1 nd2
-		  else 
+		  else
 		    subs
 	      | _ -> subs
 	    ) [] rels
@@ -522,9 +522,9 @@ module F (Label : Spec.LABEL_T) = struct
 	BEGIN_DEBUG
           let len = (List.length subs) in
 	  DEBUG_MSG "%d subtree(s)\n" len;
-	  List.iter 
-	    (fun (t1, t2) -> 
-	      DEBUG_MSG "T1:\n%s\nT2:\n%s\n" 
+	  List.iter
+	    (fun (t1, t2) ->
+	      DEBUG_MSG "T1:\n%s\nT2:\n%s\n"
 		t1#to_string t2#to_string
 	    ) subs
 	END_DEBUG;
@@ -538,10 +538,10 @@ module F (Label : Spec.LABEL_T) = struct
       options
       counter
       cenv
-      dirname 
+      dirname
       (g_uidmapping : node_t UIDmapping.c)
-      pruned 
-      ((tree1 : tree_t), (tree2 : tree_t)) 
+      pruned
+      ((tree1 : tree_t), (tree2 : tree_t))
       =
     let ouid = UID.to_string tree1#root#uid in
     let nuid = UID.to_string tree2#root#uid in
@@ -558,23 +558,23 @@ module F (Label : Spec.LABEL_T) = struct
 	tree2#save_dot "New" [] (Filename.concat dirname (sprintf "%d.new%s.dot" c nuid))
       end;
 
-      let eds, mapping, iso_pairs, expnd1, expnd2, uidmapping, 
+      let eds, mapping, iso_pairs, expnd1, expnd2, uidmapping,
 	iso_mems, para_iso_mems, para_iso
-	  = 
+	  =
 	do_compare options cenv c cid tree1 tree2 pruned
       in
 
       let iso, iso2 = List.split iso_pairs in
 
       let get_nds t = List.map t#get in
-      let para_iso2 = 
+      let para_iso2 =
 	List.map (fun i -> Otreediff.Mapping.find i mapping) para_iso
       in
       pruned#add_para_iso1 (get_nds tree1 para_iso);
       pruned#add_para_iso2 (get_nds tree2 para_iso2);
 
 
-      if options#dots_flag then 
+      if options#dots_flag then
 	Otreediff.Lib.to_dot (Filename.concat dirname (sprintf "%d.%s.dot" c cid))
 	  tree1 tree2 eds mapping iso_pairs;
 
@@ -597,27 +597,27 @@ module F (Label : Spec.LABEL_T) = struct
 	    tree2#fast_scan_whole_initial_subtree nd2 (fun nd -> l2 := nd::!l2);
 	    let sz1, sz2 = List.length !l1, List.length !l2 in
 	    if sz1 <> sz2 then begin
-	      FATAL_MSG	"pruned subtree size mismatch: %a vs %a: %d != %d" 
+	      FATAL_MSG	"pruned subtree size mismatch: %a vs %a: %d != %d"
 		UID.ps uid1 UID.ps uid2 sz1 sz2;
 	      exit 1
 	    end;
-	    List.iter2 
-	      (fun nd1 nd2 -> 
+	    List.iter2
+	      (fun nd1 nd2 ->
 		ignore (g_uidmapping#add_settled ~stable:false nd1#uid nd2#uid)
 	      ) !l1 !l2
-	  end 
-	  else 
+	  end
+	  else
             (* both are not collapsed *)
 	    if not (nd1#is_collapsed || nd2#is_collapsed) then
-	      if is_para_iso then 
+	      if is_para_iso then
 		ignore (g_uidmapping#add_unsettled uid1 uid2)
-	      else 
+	      else
 		ignore (g_uidmapping#add_settled ~stable:false uid1 uid2)
 
 	    else begin
-	      DEBUG_MSG "nd1#is_collapsed=%B nd1#data#digest=%s" 
+	      DEBUG_MSG "nd1#is_collapsed=%B nd1#data#digest=%s"
 		nd1#is_collapsed nd1#data#digest_string;
-	      DEBUG_MSG "nd2#is_collapsed=%B nd2#data#digest=%s" 
+	      DEBUG_MSG "nd2#is_collapsed=%B nd2#data#digest=%s"
 		nd2#is_collapsed nd2#data#digest_string;
 	      assert false
 	    end;
@@ -630,33 +630,33 @@ module F (Label : Spec.LABEL_T) = struct
 
       BEGIN_DEBUG
 	DEBUG_MSG "* %d: iso=[%s]" c
-	  (Xlist.to_string 
+	  (Xlist.to_string
 	     (fun i -> UID.to_string (tree1#get i)#uid) "," iso);
 	DEBUG_MSG "* %d: to_be_pruned1=[%s]" c
-	  (Xlist.to_string 
+	  (Xlist.to_string
 	     (fun i -> UID.to_string (tree1#get i)#uid) "," to_be_pruned1)
       END_DEBUG;
 
 
       let clusters = (* by only using nodes not to be pruned *)
-	Otreediff.Clustering.exact_cluster tree1 tree2 
-	  (List.filter 
+	Otreediff.Clustering.exact_cluster tree1 tree2
+	  (List.filter
 	     (fun (i, j) -> not (List.mem i to_be_pruned1)) mapping)
 	  eds
       in
 
       DEBUG_MSG "* %d: contracting..." c;
 
-      let deferred_cluster, pruned_clusters = 
+      let deferred_cluster, pruned_clusters =
 	Misc.contract tree1 tree2 clusters
       in
 
       DEBUG_MSG "* %d: done." c;
 
       List.iter (* adding nodes in pruned clusters to global uid mapping *)
-	(fun clu -> 
+	(fun clu ->
 	  List.iter
-	    (fun (u1, u2) -> 
+	    (fun (u1, u2) ->
 	      ignore (g_uidmapping#add_unsettled u1 u2)
 	    ) clu
 	) pruned_clusters;
@@ -673,11 +673,11 @@ module F (Label : Spec.LABEL_T) = struct
 	      printf "comparing.%!";
 	    END_INFO;
 *)
-	  let a = 
-	    List.map 
+	  let a =
+	    List.map
 	      (fun sub ->
-		let b = 
-		  compare_subtree options counter cenv dirname g_uidmapping pruned sub 
+		let b =
+		  compare_subtree options counter cenv dirname g_uidmapping pruned sub
 		in
 (*
 		BEGIN_INFO
@@ -688,7 +688,7 @@ module F (Label : Spec.LABEL_T) = struct
 	      ) subs
 	  in
 (*
-	  if not (options#viewer_flag) then 
+	  if not (options#viewer_flag) then
 	    BEGIN_INFO
 	      printf "done.\n%!";
 	    END_INFO;
@@ -697,8 +697,8 @@ module F (Label : Spec.LABEL_T) = struct
 	end
 	else
 	  List.split
-	    (List.map 
-	       (compare_subtree options counter cenv dirname g_uidmapping pruned) 
+	    (List.map
+	       (compare_subtree options counter cenv dirname g_uidmapping pruned)
 	       subs)
       in
 
@@ -712,13 +712,13 @@ module F (Label : Spec.LABEL_T) = struct
 
       DEBUG_MSG "* %d: calling prune_and_expand" c;
 
-      prune_and_expand cid tree1 tree2 
+      prune_and_expand cid tree1 tree2
 	(iso1_uid, iso2_uid, expnd1_uid, expnd2_uid) g_uidmapping;
 
 
       (* contract deferred clusters *)
 
-      List.iter 
+      List.iter
 	(fun (t1, t2) ->
 	  begin
 	    try
@@ -741,30 +741,30 @@ module F (Label : Spec.LABEL_T) = struct
 	tree2#save_dot "New" [] (Filename.concat dirname (sprintf "%d.new+.dot" c))
       end;
 
-      List.iter 
+      List.iter
 	(function
 	    Some clu ->
 
 	      DEBUG_MSG "cluster: %s"
-		(Xlist.to_string 
-		   (fun (u1, u2) -> 
+		(Xlist.to_string
+		   (fun (u1, u2) ->
 		     sprintf "%a-%a" UID.ps u1 UID.ps u2) "," clu);
 
 	      if (List.length clu) <= 1 then ()
-	      else 
-		let deferred, pruned = 
-		  Misc.contract tree1 tree2 
-		    [List.map 
-		       (fun (u1, u2) -> 
-			 (tree1#search_node_by_uid u1)#index, 
+	      else
+		let deferred, pruned =
+		  Misc.contract tree1 tree2
+		    [List.map
+		       (fun (u1, u2) ->
+			 (tree1#search_node_by_uid u1)#index,
 			 (tree2#search_node_by_uid u2)#index
-		       ) clu] 
+		       ) clu]
 		in
 		if deferred = None && (List.length pruned = 1) then
 		  List.iter
-		    (fun clu -> 
+		    (fun clu ->
 		      List.iter
-			(fun (u1, u2) -> 
+			(fun (u1, u2) ->
 			  ignore (g_uidmapping#add_unsettled u1 u2)
 			) clu
 		    ) pruned
@@ -772,7 +772,7 @@ module F (Label : Spec.LABEL_T) = struct
 		  FATAL_MSG "deferred clusters contraction";
 		  exit 1
 		end
-		    
+
 	  | None -> ()
 	) deferred_clusters;
 
@@ -782,17 +782,17 @@ module F (Label : Spec.LABEL_T) = struct
       tree1#init; tree2#init;
 
 
-      (* 
+      (*
        * if the sizes of two trees exceed the limit, subtrees are pruned,
        * and their edit sequences are incorporated into the global report
        *)
 
       let sz1, sz2 = tree1#size, tree2#size in
 
-      let r2s tree = 
-	try 
-	  UID.to_string tree#root#uid 
-	with 
+      let r2s tree =
+	try
+	  UID.to_string tree#root#uid
+	with
           Otreediff.Otree.Empty -> "-"
       in
 
@@ -805,21 +805,21 @@ module F (Label : Spec.LABEL_T) = struct
       | _ -> begin
 	  Misc.set_tree_size_limit options sz1 sz2;
 
-	  DEBUG_MSG "* %d: tree size limit: %d %d" c 
+	  DEBUG_MSG "* %d: tree size limit: %d %d" c
 	    options#tree_size_limit1 options#tree_size_limit2;
 
 	  DEBUG_MSG "* %d: checking tree size limit (1)" c;
 
 	  let too_large = Misc.check_tree_size_limit options sz1 sz2 in
-	  
+
 	  if too_large then
-	    DEBUG_MSG "* %d: tree size TOO LARGE!" c; 
+	    DEBUG_MSG "* %d: tree size TOO LARGE!" c;
 
 	  (* may be in path of some nodes *)
-	  List.iter                      
-	    (fun ((t1, t2), subuidmapping) -> 
+	  List.iter
+	    (fun ((t1, t2), subuidmapping) ->
 
-	      DEBUG_MSG "* %d: checking subtree pair %s - %s" 
+	      DEBUG_MSG "* %d: checking subtree pair %s - %s"
 		c (r2s t1) (r2s t2);
 
 	      if too_large || (map_cond t1 t2) then begin
@@ -832,10 +832,10 @@ module F (Label : Spec.LABEL_T) = struct
 		      nd1#prune;
 		      if nd1#in_path then begin
 
-			DEBUG_MSG "aborted1: %a -> [%s]" 
+			DEBUG_MSG "aborted1: %a -> [%s]"
 			  UID.ps nd1#uid
-			  (Xlist.to_string 
-			     (fun nd -> UID.to_string nd#uid) 
+			  (Xlist.to_string
+			     (fun nd -> UID.to_string nd#uid)
 			     ";" nd1#get_substances);
 
 			pruned#add_abortedl1 nd1#get_substances
@@ -850,17 +850,17 @@ module F (Label : Spec.LABEL_T) = struct
 
 		begin
 		  try
-		    let nd2 = t2#root in 
+		    let nd2 = t2#root in
 		    if nd2#pos < 0 then
 		      DEBUG_MSG "already (to be) pruned: %a" UID.ps nd2#uid
 		    else begin
 		      nd2#prune;
 		      if nd2#in_path then begin
 
-			DEBUG_MSG "aborted2: %a -> [%s]" 
+			DEBUG_MSG "aborted2: %a -> [%s]"
 			  UID.ps nd2#uid
-			  (Xlist.to_string 
-			     (fun nd -> UID.to_string nd#uid) 
+			  (Xlist.to_string
+			     (fun nd -> UID.to_string nd#uid)
 			     ";" nd2#get_substances);
 
 			pruned#add_abortedl2 nd2#get_substances
@@ -893,7 +893,7 @@ module F (Label : Spec.LABEL_T) = struct
 	  DEBUG_MSG "* %d: |T1(root:%a)|=%d |T2(root:%a)|=%d" c
 	    UID.ps tree1#root#uid sz1 UID.ps tree2#root#uid sz2;
 
-	  DEBUG_MSG "* %d: tree size limit: %d %d" c 
+	  DEBUG_MSG "* %d: tree size limit: %d %d" c
 	    options#tree_size_limit1 options#tree_size_limit2;
 
 	  DEBUG_MSG "* %d: checking tree size limit (2)" c;
@@ -908,7 +908,7 @@ module F (Label : Spec.LABEL_T) = struct
 	    if Misc.check_hard_tree_size_limit options sz1 sz2 then begin
 
 	      DEBUG_MSG "* %d: exceeds HARD tree size LIMIT!" c;
-	      
+
 	      uidmapping, deferred_cluster
 	    end
 	    else
@@ -936,10 +936,10 @@ module F (Label : Spec.LABEL_T) = struct
     Xfile.dump file dumper
 
 
-  let get_diff_status 
-      options 
-      lang 
-      cenv 
+  let get_diff_status
+      options
+      lang
+      cenv
       (edits : Edit.seq)
       (uidmapping : node_t UIDmapping.c)
       (tree1 : tree_t)
@@ -962,7 +962,7 @@ module F (Label : Spec.LABEL_T) = struct
 
     let is_modified = not edits#is_empty in
 
-    if is_modified then begin 
+    if is_modified then begin
 
       let getlab n = (Obj.obj n#data#_label : Label.t) in
       let is_anon n =
@@ -973,7 +973,7 @@ module F (Label : Spec.LABEL_T) = struct
           Not_found -> not n#data#is_named_orig
       in
       edits#finalize uidmapping is_anon;
-      
+
       begin
       BEGIN_DEBUG
 	DEBUG_MSG "checking SPSM...";
@@ -1069,10 +1069,10 @@ module F (Label : Spec.LABEL_T) = struct
       end;
 
       if options#dump_ccs_flag then begin (* dump common code structure *)
-	
+
 	if options#check_flag then
 	  Xprint.warning "result check and ccs dump are mutually exclusive";
-	    
+
 (*	  let deleted1, deleted2 = edits#remove_unmapped tree1 tree2 in *)
 	ignore (edits#remove_unmapped tree1 tree2);
 	let mold = Filename.concat cache_path "mapped_old"^Astml.ccs_ext in
@@ -1081,11 +1081,11 @@ module F (Label : Spec.LABEL_T) = struct
 	let mnew_nodes = Filename.concat cache_path "mapped_new.gids" in
 	let get_gids tree =
 	  let l = ref [] in
-	  tree#scan_all 
-	    (fun nd -> 
-	      let gid = 
-		let g = nd#data#gid in 
-		if g > 0 then g else nd#gindex 
+	  tree#scan_all
+	    (fun nd ->
+	      let gid =
+		let g = nd#data#gid in
+		if g > 0 then g else nd#gindex
 	      in
 	      l := gid::!l
 	    );
@@ -1104,14 +1104,14 @@ module F (Label : Spec.LABEL_T) = struct
 (*
             let dtrees1 = List.map (fun n -> tree1#make_subtree_from_node n) deleted1 in
             let dtrees2 = List.map (fun n -> tree2#make_subtree_from_node n) deleted2 in
-            let gen_fn1, gen_fn2 = 
+            let gen_fn1, gen_fn2 =
               let c1, c2 = ref 0, ref 0 in
-              let gen1() = 
+              let gen1() =
                 let n = Filename.concat cache_path (sprintf "deleted%d%s" !c1 Astml.ccs_ext) in
                 incr c1;
                 n
               in
-              let gen2() = 
+              let gen2() =
                 let n = Filename.concat cache_path (sprintf "inserted%d%s" !c2 Astml.ccs_ext) in
                 incr c2;
                 n
@@ -1142,9 +1142,9 @@ module F (Label : Spec.LABEL_T) = struct
     else begin
       let diff_stat = edits#get_diff_stat tree1 tree2 uidmapping in
 
-      if options#viewer_flag then 
+      if options#viewer_flag then
 	printf "%c%!" Const.viewer_mode_status_SAME
-          
+
       else begin
         Stat.File.dump_diff_stat dstat diff_stat;
 (*
@@ -1171,12 +1171,12 @@ module F (Label : Spec.LABEL_T) = struct
       options
       lang
       (cenv : (node_t, tree_t) Comparison.c)
-      pre_uidmapping 
+      pre_uidmapping
       may_be_unsettled1
       may_be_unsettled2
-      ref_uidmapping 
-      tree1 tree2 
-      = 
+      ref_uidmapping
+      tree1 tree2
+      =
     let cache_path = cenv#cache_path in
 
     Cache.prepare_cache_dir options cache_path;
@@ -1192,7 +1192,7 @@ module F (Label : Spec.LABEL_T) = struct
         DEBUG_MSG "size of tree: old:%d new:%d" tree1#size tree2#size;
       END_DEBUG;
 
-      if options#viewer_flag then 
+      if options#viewer_flag then
 	printf "%c%!" Const.viewer_mode_status_OUTLINE_COMP
       else
 	DEBUG_MSG "comparing outlines...";
@@ -1207,7 +1207,7 @@ module F (Label : Spec.LABEL_T) = struct
       let counter = new Misc.counter in (* count calls of do_compare *)
 
       let uidmapping, _ =
-	compare_subtree options counter cenv cache_path g_uidmapping pruned (tree1, tree2) 
+	compare_subtree options counter cenv cache_path g_uidmapping pruned (tree1, tree2)
       in
 
 
@@ -1225,7 +1225,7 @@ module F (Label : Spec.LABEL_T) = struct
       if options#check_flag then
 	pruned#iter
 	  (fun (kind, uid1, _, uid2, _, _, _) ->
-	    DEBUG_MSG "checking nodes to be pruned: %s %a %a" 
+	    DEBUG_MSG "checking nodes to be pruned: %s %a %a"
 	      (Pruned.kind_to_string !kind) UID.ps uid1 UID.ps uid2;
 	    try
 	      let uid1' = uidmapping#find uid1 in
@@ -1235,8 +1235,8 @@ module F (Label : Spec.LABEL_T) = struct
 		  UID.ps uid1 UID.ps uid2 UID.ps uid1 UID.ps uid1';
 		exit 1
 	      end
-	    with 
-	      Not_found -> 
+	    with
+	      Not_found ->
 		FATAL_MSG "pruned %a: not found" UID.ps uid1;
 		exit 1
 	  );
@@ -1244,19 +1244,19 @@ module F (Label : Spec.LABEL_T) = struct
 
       (*** postprocessing ***)
 
-      if options#viewer_flag then 
+      if options#viewer_flag then
 	printf "%c%!" Const.viewer_mode_status_POSTPROCESS
       else
 	Xprint.verbose options#verbose_flag "postprocessing...";
 
       BEGIN_DEBUG
-	DEBUG_MSG "aborted1: [%s]" 
+	DEBUG_MSG "aborted1: [%s]"
 	  (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" pruned#aborted1);
-	DEBUG_MSG "para_iso1: [%s]" 
+	DEBUG_MSG "para_iso1: [%s]"
 	  (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" pruned#para_iso1);
-	DEBUG_MSG "aborted2: [%s]" 
+	DEBUG_MSG "aborted2: [%s]"
 	  (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" pruned#aborted2);
-	DEBUG_MSG "para_iso2: [%s]" 
+	DEBUG_MSG "para_iso2: [%s]"
 	  (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" pruned#para_iso2);
 	DEBUG_MSG "T1:\n%s" tree1#to_string;
 	DEBUG_MSG "T2:\n%s" tree2#to_string;
@@ -1312,7 +1312,7 @@ if not options#no_glue_flag then begin
 	uidmapping#add_starting_uid_pairs_for_glueing added_pairs;
 
 	let _ =
-	  Postprocessing.glue_deletes_and_inserts options cenv tree1 tree2 
+	  Postprocessing.glue_deletes_and_inserts options cenv tree1 tree2
 	    ~override:true ~no_moves:options#no_moves_flag uidmapping (new UIDmapping.c cenv)
 	in
 	uidmapping#clear_starting_uid_pairs_for_glueing;
@@ -1352,26 +1352,26 @@ end;
       let diff_status = get_diff_status options lang cenv edits uidmapping tree1 tree2 in
 
       if cenv#use_adjacency_cache then
-	DEBUG_MSG "size of adjacency cache: %d (cache hit: %d)" 
+	DEBUG_MSG "size of adjacency cache: %d (cache hit: %d)"
 	  cenv#size_of_adjacency_cache cenv#adjacency_cache_hit_count;
 
       if cenv#use_similarity_cache then
-	DEBUG_MSG "size of similarity cache: %d (cache hit: %d)" 
+	DEBUG_MSG "size of similarity cache: %d (cache hit: %d)"
 	  cenv#size_of_similarity_cache cenv#similarity_cache_hit_count;
 
       if cenv#use_mapping_comparison_cache then
-	DEBUG_MSG "size of mapping comparison cache: %d (cache hit: %d)" 
+	DEBUG_MSG "size of mapping comparison cache: %d (cache hit: %d)"
 	  cenv#size_of_mapping_comparison_cache cenv#mapping_comparison_cache_hit_count;
 
       if uidmapping#use_crossing_or_incompatible_matches_count_cache then
-	DEBUG_MSG "size of crossing or incompatible matches count cache: %d (cache hit: %d)" 
-	  uidmapping#size_of_crossing_or_incompatible_matches_count_cache 
+	DEBUG_MSG "size of crossing or incompatible matches count cache: %d (cache hit: %d)"
+	  uidmapping#size_of_crossing_or_incompatible_matches_count_cache
 	  uidmapping#crossing_or_incompatible_matches_count_cache_hit_count;
 
       diff_status
 
 (*
-    with 
+    with
       Sys_error msg -> Xprint.error "%s" msg; exit 1
 *)
     end
@@ -1396,7 +1396,7 @@ end;
 
 
     method compare =
-      
+
       let cache_path =
         if cache_path = "" then
           options#get_cache_path_for_file2 file1 file2
@@ -1405,8 +1405,8 @@ end;
       in
 
       let multiple_subtree_matches = new Comparison.multiple_subtree_matches options in
-      let multiple_node_matches = 
-        new Comparison.multiple_node_matches (fun l -> Label.to_string (Obj.obj l : Label.t)) 
+      let multiple_node_matches =
+        new Comparison.multiple_node_matches (fun l -> Label.to_string (Obj.obj l : Label.t))
       in
 
 (*
@@ -1457,7 +1457,7 @@ end;
 	  let k, v = options#fact_versions.(0) in
 	  tree1#set_vkind k;
 	  tree1#set_version v
-	with 
+	with
 	  Invalid_argument _ -> ()
       end;
       begin
@@ -1465,7 +1465,7 @@ end;
 	  let k, v = options#fact_versions.(1) in
 	  tree2#set_vkind k;
 	  tree2#set_version v
-	with 
+	with
 	  Invalid_argument _ -> ()
       end;
 
@@ -1496,16 +1496,16 @@ end;
 	with
 	  Invalid_argument _ -> ()
 	end;
-	
+
 	extract_fact1 tree1;
 	extract_fact2 tree2;
 
       end;
 
 (*
-      Xprint.verbose options#verbose_flag "line terminator of T1: %s" 
+      Xprint.verbose options#verbose_flag "line terminator of T1: %s"
 	tree1#line_terminator_name;
-      Xprint.verbose options#verbose_flag "line terminator of T2: %s" 
+      Xprint.verbose options#verbose_flag "line terminator of T2: %s"
 	tree2#line_terminator_name;
 *)
 
@@ -1544,7 +1544,7 @@ end;
 	    let nds = Hashtbl.find tbl x in
 	    if not (List.memq nd nds) then
 	      Hashtbl.replace tbl x (nd::nds)
-	  with 
+	  with
 	    Not_found -> Hashtbl.add tbl x [nd]
         in
 
@@ -1573,7 +1573,7 @@ end;
 	      match nd#data#digest with
 	      | None -> ()
 	      | Some d ->
-		  DEBUG_MSG "digest(tree1): %a(%a) -> %s" 
+		  DEBUG_MSG "digest(tree1): %a(%a) -> %s"
 		    UID.ps nd#uid GI.ps nd#gindex nd#data#digest_string;
 
 		  add tbl1 d nd
@@ -1583,12 +1583,12 @@ end;
 	      match nd#data#digest with
 	      | None -> ()
 	      | Some d ->
-		  DEBUG_MSG "digest(tree2): %a(%a) -> %s" 
+		  DEBUG_MSG "digest(tree2): %a(%a) -> %s"
 		    UID.ps nd#uid GI.ps nd#gindex nd#data#digest_string;
 
 		  add tbl2 d nd
 	    );
-	  
+
 	  BEGIN_DEBUG
 	    DEBUG_MSG "size of digest table1: %d" (Hashtbl.length tbl1);
 	    DEBUG_MSG "size of digest table2: %d" (Hashtbl.length tbl2)
@@ -1598,17 +1598,17 @@ end;
 	    try
 	      let p = nd#initial_parent#uid in
 	      Xset.add may_be_unsettled p
-	    with 
+	    with
 	      Otreediff.Otree.Parent_not_found _ -> ()
 	  in (* end of func add_may_be_unsettled *)
 
-	  let pre_map_add (nd1, nd2) = 
+	  let pre_map_add (nd1, nd2) =
 	    let us1, us2 = ref [], ref [] in
 	    tree1#fast_scan_whole_initial_subtree nd1 (fun n -> us1 := n#uid::!us1);
 	    tree2#fast_scan_whole_initial_subtree nd2 (fun n -> us2 := n#uid::!us2);
 
 	    BEGIN_DEBUG
-	      List.iter2 
+	      List.iter2
 	        (fun u1 u2 ->
 		  DEBUG_MSG "pre_map_add: adding %a - %a" UID.ps u1 UID.ps u2
 	        ) !us1 !us2
@@ -1621,7 +1621,7 @@ end;
 
 	    pre_uidmapping#add_settled_roots nd1#uid nd2#uid;
 
-	    List.iter2 
+	    List.iter2
 	      (fun u1 u2 -> pre_uidmapping#add_stable_pair u1 u2)
 	      !us1 !us2;
 
@@ -1650,16 +1650,16 @@ end;
 	    (fun d nds1 ->
 	      try
 	        let nds2 = Hashtbl.find tbl2 d in
-	        
+
 	        match nds1, nds2 with
 	        | [nd1], [nd2] -> begin
 		    if tree1#root != nd1 && tree2#root != nd2 then begin
 
                       BEGIN_DEBUG
                         let sz = tree1#whole_initial_subtree_size nd1 in
-		        DEBUG_MSG "digest match: %a(%s) <--> %a(%s) <%s> (size=%d)" 
+		        DEBUG_MSG "digest match: %a(%s) <--> %a(%s) <%s> (size=%d)"
 		          UID.ps nd1#uid (Loc.to_string nd1#data#src_loc)
-		          UID.ps nd2#uid (Loc.to_string nd2#data#src_loc) 
+		          UID.ps nd2#uid (Loc.to_string nd2#data#src_loc)
 		          nd1#data#label sz;
                       END_DEBUG;
 
@@ -1698,7 +1698,7 @@ end;
 
 		    multiple_subtree_matches#add d (ndmems1, ndmems2)
                 end
-	      with 
+	      with
                 Not_found -> ()
 	    ) tbl1;
 
@@ -1711,8 +1711,8 @@ end;
 
 	  List.iter
 	    (fun (tree, set) ->
-	      Xset.iter 
-	        (fun n -> 
+	      Xset.iter
+	        (fun n ->
 		  n#lock_collapse;
 
 		  DEBUG_MSG "collapsed node locked: %a(%a) (subtree size: %d)" UID.ps n#uid GI.ps n#gindex
@@ -1758,7 +1758,7 @@ end;
 *)
 	        ) prnd;
 	      false
-	    with 
+	    with
               Found -> true
 	  in
 
@@ -1775,7 +1775,7 @@ end;
 *)
 	        ) lckd;
 	      false
-	    with 
+	    with
               Found -> true
 	  in
 
@@ -1819,14 +1819,14 @@ end;
 
 	  let reg nd1 nd2 =
 
-	    DEBUG_MSG "node match: %a(%s) <--> %a(%s) <%s>" 
-	      UID.ps nd1#uid (Loc.to_string nd1#data#src_loc) 
-	      UID.ps nd2#uid (Loc.to_string nd2#data#src_loc) 
+	    DEBUG_MSG "node match: %a(%s) <--> %a(%s) <%s>"
+	      UID.ps nd1#uid (Loc.to_string nd1#data#src_loc)
+	      UID.ps nd2#uid (Loc.to_string nd2#data#src_loc)
 	      nd1#data#label;
 
 	    let uid1, uid2 = nd1#uid, nd2#uid in
 	    ignore (ref_uidmapping#add_unsettled uid1 uid2);
-	    if 
+	    if
 	      (nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 && nd1#data#is_named) (* ||
               (nd1#data#is_boundary && nd2#data#is_boundary) *) (* cf. airo.c 2164L-2673L *)
 	    then begin
@@ -1849,13 +1849,13 @@ end;
 
 	      match nds1, nds2 with
 	      | [nd1], [nd2] -> reg nd1 nd2
-	      | _ -> 	    
+	      | _ ->
 		  if options#prematch_early_resolve_flag then
 		    let a1 = Array.of_list nds1 in
 		    let a2 = Array.of_list nds2 in
-		    let selected = 
+		    let selected =
 		      let cmpr = new SMP.ComparatorFloat.c cenv#get_adjacency_score a1 a2 in
-		      SMP.get_stable_matches cmpr a1 a2 
+		      SMP.get_stable_matches cmpr a1 a2
 		    in
 		    List.iter (fun (nd1, nd2) -> reg nd1 nd2) selected
 	  in (* end of func register_matches *)
@@ -1912,7 +1912,7 @@ end;
 		  register_matches nds1 nds2;
 	        if options#multi_node_match_flag then
 		  multiple_node_matches#add _lab (nds1, nds2)
-	      with 
+	      with
 	        Not_found -> ()
 
 	    ) ltbl1;
@@ -1933,7 +1933,7 @@ end;
 
       end
 (*
-    with 
+    with
     | Sys_error msg -> Xprint.error "%s" msg; exit 1
     | Xfile.No_extension f -> Xprint.error "have no file extension: \"%s\"" f; exit 1
 *)

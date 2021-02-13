@@ -24,7 +24,7 @@ class c = object
   method clear_verbose_flag = verbose_flag <- false
 
   val mutable search_path_list = []
-      
+
   method search_path_list = search_path_list
   method set_search_path_list l = search_path_list <- l
   method add_search_path (p : string) = search_path_list <- p :: search_path_list

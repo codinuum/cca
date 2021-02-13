@@ -63,8 +63,8 @@ let sattr_to_str = function
   | SAfunction id -> "SAfunction:"^id
   | SAother       -> "SAother"
 
-type frame = { 
-    f_attr : scope_attribute; 
+type frame = {
+    f_attr : scope_attribute;
     f_tbl  : (identifier, identifier_attribute) Hashtbl.t;
   }
 
@@ -83,7 +83,7 @@ let dummy_tbl = Hashtbl.create 0
 
 
 let builtin_packages =
-  [ "std", 
+  [ "std",
     [ "semaphore", IAclass (ref (Hashtbl.create 0));
       "mailbox",   IAclass (ref (Hashtbl.create 0));
       "process",   IAclass (ref (Hashtbl.create 0));
@@ -108,7 +108,7 @@ let _ =
 
 exception Frame_found of frame
 
-type state = 
+type state =
     { s_symbol_tbl  : (identifier, frame) Hashtbl.t;
       s_stack       : frame Stack.t;
       s_scoped_flag : bool;
@@ -117,7 +117,7 @@ type state =
       s_in_table    : bool;
     }
 
-let mkstate stbl stack sco pvs vt in_t = 
+let mkstate stbl stack sco pvs vt in_t =
   { s_symbol_tbl  = stbl;
     s_stack       = stack;
     s_scoped_flag = sco;
@@ -232,11 +232,11 @@ class env = object (self)
 
   method lex_macrotbl = lex_macrotbl
 
-  method lex_define_macro id body = 
+  method lex_define_macro id body =
     DEBUG_MSG "%s" id;
     lex_macrotbl#define ("`"^id) body
 
-  method lex_undefine_macro id = 
+  method lex_undefine_macro id =
     DEBUG_MSG "%s" id;
     lex_macrotbl#undefine ("`"^id)
 
@@ -268,7 +268,7 @@ class env = object (self)
 
   method get_last_active_ofss = last_active_ofss
 
-  method set_last_active_ofss (st, ed) = 
+  method set_last_active_ofss (st, ed) =
     DEBUG_MSG "%d - %d" st ed;
     last_active_ofss <- (st, ed)
 
@@ -276,8 +276,8 @@ class env = object (self)
   method checkpoint key =
     DEBUG_MSG "key=%s" (Loc.to_string key);
 
-    let stat = 
-      mkstate (Hashtbl.copy symbol_tbl) (self#_copy_stack stack) 
+    let stat =
+      mkstate (Hashtbl.copy symbol_tbl) (self#_copy_stack stack)
 	scoped_flag pvstate vartype in_table
     in
 (*
@@ -286,7 +286,7 @@ class env = object (self)
 *)
     Hashtbl.replace checkpoint_tbl key stat;
 
-    
+
   method recover ?(remove=false) key =
     DEBUG_MSG "key=%s" (Loc.to_string key);
     try
@@ -300,7 +300,7 @@ class env = object (self)
 
       if remove then
         Hashtbl.remove checkpoint_tbl key
-    with 
+    with
       Not_found ->
 	FATAL_MSG "state not found: key=%s" (Loc.to_string key); exit 1
 
@@ -322,13 +322,13 @@ class env = object (self)
   method find_symbol id =
     try
       Hashtbl.find symbol_tbl id
-    with 
+    with
       Not_found -> Hashtbl.find base_symbol_tbl id
 
-  method current_frame = 
+  method current_frame =
     try
       Stack.top stack
-    with 
+    with
       Stack.Empty -> raise (Internal_error "Parser_aux.get_current_frame: stack empty")
 
   method private _copy_stack s =
@@ -338,17 +338,17 @@ class env = object (self)
     List.iter (fun f -> Stack.push f copy) !fs;
     copy
 
-  method register_identifier (id : string) attr = 
+  method register_identifier (id : string) attr =
     DEBUG_MSG "REG(%d): \"%s\" -> %s" (Stack.length stack) id (iattr_to_str attr);
-    Hashtbl.add (self#current_frame).f_tbl id attr 
+    Hashtbl.add (self#current_frame).f_tbl id attr
 
   method lookup_identifier ?(afilt=(fun _ -> true)) (id : string) =
     BEGIN_DEBUG
       DEBUG_MSG "LKUP(%d): \"%s\"" (Stack.length stack) id;
       Stack.iter
 	(fun frame ->
-	  DEBUG_MSG "FRM: <%s>[%s]" 
-	    (sattr_to_str frame.f_attr) 
+	  DEBUG_MSG "FRM: <%s>[%s]"
+	    (sattr_to_str frame.f_attr)
 	    (Hashtbl.fold (fun id _ s -> id^";"^s) frame.f_tbl "");
 	) stack;
     END_DEBUG;
@@ -360,22 +360,22 @@ class env = object (self)
 	    let filtered = List.filter afilt attrs in
 	    if filtered <> [] then
 	      raise (Attrs_found filtered)
-	  with 
+	  with
 	    Not_found -> ()
 	) stack;
       raise Not_found
-    with 
-      Attrs_found attrs -> 
+    with
+      Attrs_found attrs ->
 	if attrs = [] then
 	  raise Not_found
 	else
 	  attrs
 
-  method _begin_scope sattr = 
+  method _begin_scope sattr =
     DEBUG_MSG "PUSH(%d): FRM: <%s>" (Stack.length stack) (sattr_to_str sattr);
-    Stack.push (create_frame sattr) stack 
+    Stack.push (create_frame sattr) stack
 
-  method end_scope = 
+  method end_scope =
     let slen = Stack.length stack in
     try
       let frm = (Stack.pop stack) in
@@ -390,11 +390,11 @@ class env = object (self)
 	    match a with
 	    | (IAclass tblr)::_ -> tblr := frm.f_tbl
 	    | _ -> assert false
-	  with 
+	  with
 	    Not_found -> assert false (* toplevel *)
       end
       | _ -> ()
-    with 
+    with
       Stack.Empty -> raise (Internal_error "Parser_aux.end_scope: stack empty")
 
 
@@ -404,9 +404,9 @@ class env = object (self)
       let frm = self#find_symbol pkg in
       try
 	self#register_identifier id (Hashtbl.find frm.f_tbl id)
-      with 
+      with
 	Not_found -> WARN_MSG "id \"%s\" not found in package \"%s\"" id pkg
-    with 
+    with
       Not_found -> WARN_MSG "package \"%s\" not found" pkg
 
   method _import_any tbl =
@@ -417,7 +417,7 @@ class env = object (self)
     try
       let frm = self#find_symbol pkg in
       self#_import_any frm.f_tbl
-    with 
+    with
       Not_found -> WARN_MSG "package \"%s\" not found" pkg
 
 
@@ -428,15 +428,15 @@ class env = object (self)
 	  try
 	    if Hashtbl.mem frame.f_tbl id then
 	      raise (Frame_found frame)
-	  with 
+	  with
 	    Not_found -> ()
 	) stack;
       raise Not_found
-    with 
+    with
       Frame_found frm -> frm
 
 
-  method init = 
+  method init =
     super#init;
     Hashtbl.clear symbol_tbl;
     Stack.clear stack;
@@ -496,8 +496,8 @@ module F (Stat : STATE_T) = struct
 
   let check_error node =
     if not env#partial_parsing_flag then begin
-      Ast.visit 
-	(fun nd -> 
+      Ast.visit
+	(fun nd ->
 	  if L.is_error nd#label then
 	    env#missed_regions#add nd#loc
 	) node
@@ -582,10 +582,10 @@ module F (Stat : STATE_T) = struct
 	    | _ -> assert false
 	  ) ini_tbl cty_list
       in
-      let frm = 
+      let frm =
 	match pkg_opt with
 	| Some pkg -> env#find_symbol pkg
-	| None     -> 
+	| None     ->
 	    match cty_list with
 	    | cty::_ -> env#find_frame_for cty
 	    | _ -> assert false
@@ -598,7 +598,7 @@ module F (Stat : STATE_T) = struct
     nd#lloc#to_loc ?cache:(Some (Some env#fname_ext_cache)) ()
 
   let node_to_lexposs nd =
-    Loc.to_lexposs (node_to_loc nd) 
+    Loc.to_lexposs (node_to_loc nd)
 
 end (* of functor Parser_aux.F *)
 
