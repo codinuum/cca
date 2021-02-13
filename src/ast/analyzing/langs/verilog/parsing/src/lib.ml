@@ -24,15 +24,15 @@ module C = Context
 let mkparser = PB.mkparser
 
 
-let predefined_macrotbl = 
+let predefined_macrotbl =
   let open Tokens_ in
 
   let mkstring id  = PP_MACRO_CONST_STR id in
   let mkinteger id = PP_MACRO_CONST_INT id in
 
   let tbl = new Macro.table "predefined" in
-  let list = 
-    [ 
+  let list =
+    [
       "`__FILE__", [], Macro.mk_line mkstring;
       "`__LINE__", [], Macro.mk_line mkinteger;
     ]
@@ -81,16 +81,16 @@ class parser_c = object (self)
   method set_ignore_include_flag = env#set_ignore_include_flag
   method clear_ignore_include_flag = env#clear_ignore_include_flag
 
-  method dump_ignored_regions = 
+  method dump_ignored_regions =
     env#ignored_regions#dump
 
-  method ignored_LOC = 
+  method ignored_LOC =
     env#ignored_regions#get_LOC
 
-  method dump_missed_regions = 
+  method dump_missed_regions =
     env#missed_regions#dump
 
-  method missed_LOC = 
+  method missed_LOC =
     env#missed_regions#get_LOC
 
 
@@ -127,10 +127,10 @@ class parser_c = object (self)
   method set_predefined_macrotbl tbl = env#set_predefined_macrotbl tbl
 
 
-  method make_source file = 
+  method make_source file =
     new Source.c file
 
-  method make_source_stdin = 
+  method make_source_stdin =
     new Source.c Storage.stdin
 
 
@@ -151,7 +151,7 @@ class parser_c = object (self)
     with
     | Parsing.Parse_error ->
 	let l, c = env#current_pos_mgr#get_current_position in
-        Common.fail_to_parse 
+        Common.fail_to_parse
           ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
           "syntax error"
 
@@ -159,10 +159,10 @@ class parser_c = object (self)
 
   initializer
     context_stack <- new C.stack env;
-    let module S = struct 
+    let module S = struct
       let env           = env
       let context_stack = context_stack
-    end 
+    end
     in
     let module A = Aux.F (S) in
     let module P = Parser.Make (S) in
@@ -190,18 +190,18 @@ class parser_c = object (self)
 
     parse_error <- A.parse_error;
 
-    _parse <- 
+    _parse <-
       (fun () ->
 	try
 	  self#__parse
 	with
 	| P.Error ->
 	    let l, c = env#current_pos_mgr#get_current_position in
-            Common.fail_to_parse 
+            Common.fail_to_parse
               ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
               "syntax error"
       )
 
-    
+
 
 end (* of Lib.parser_c *)

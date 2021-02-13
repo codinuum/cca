@@ -25,7 +25,7 @@ let strip_slashes name =
 let abspath p = Xfile.abspath (strip_slashes p)
 let normpath p = Xfile.normpath (strip_slashes p)
 
-class entry options _root_path _path : Storage.entry_t = 
+class entry options _root_path _path : Storage.entry_t =
   let root_path = if _root_path = "" then "" else abspath _root_path in
   let path = normpath _path in
   object (self)
@@ -78,7 +78,7 @@ class entry options _root_path _path : Storage.entry_t =
       else
         []
 
-    method file_digest = 
+    method file_digest =
       if options#git_hash_flag then
         Xhash.git_digest_of_file self#abspath
       else
@@ -87,7 +87,7 @@ class entry options _root_path _path : Storage.entry_t =
     method dir_digest = None
 
     method get_content () = ""
-        
+
 end (* of class Fs.entry *)
 
 
@@ -137,13 +137,13 @@ let scan_dir f root =
   scan f root ""
 
 
-class tree options _path = 
-  let root_path = 
+class tree options _path =
+  let root_path =
     if _path = "" then
       ""
     else
-      abspath _path 
-  in 
+      abspath _path
+  in
   object (self)
     inherit Storage.tree as super
 
@@ -187,7 +187,7 @@ class tree options _path =
       let rpath' = self#get_case_insensitive_rpath rpath in
       Filename.concat case_insensitive_root_path rpath'
 
-        
+
     method get_entry ?(ignore_case=false) rpath = (* relative path *)
       try
         cache#find rpath
@@ -211,9 +211,9 @@ class tree options _path =
           ent
 
     method get_channel ?(ignore_case=false) rpath =
-      let rp = 
+      let rp =
         if ignore_case then
-          self#case_insensitive_abspath rpath 
+          self#case_insensitive_abspath rpath
         else
           self#abspath rpath
       in
@@ -233,14 +233,14 @@ class tree options _path =
           Hashtbl.remove local_path_tbl path;
           None
         end
-      with            
+      with
         Not_found -> None
 
-    method get_local_file ?(ignore_case=false) rpath = 
+    method get_local_file ?(ignore_case=false) rpath =
       let ext = Xfile.get_extension rpath in
-      let rp = 
+      let rp =
         if ignore_case then
-          self#case_insensitive_abspath rpath 
+          self#case_insensitive_abspath rpath
         else
           self#abspath rpath
       in
@@ -278,8 +278,8 @@ class tree options _path =
               Sys.remove lpath;
               Hashtbl.remove local_path_tbl rpath
             with
-            | _ -> 
-                failwith 
+            | _ ->
+                failwith
                   (Printf.sprintf
                      "Fs.F.tree#free_local_file: failed to remove \"%s\"" lpath)
         end
@@ -290,7 +290,7 @@ end (* of class Fs.tree *)
 
 let make options ?(path="") () = new tree options path
 
-let file_of_path options path = 
+let file_of_path options path =
   DEBUG_MSG "path=\"%s\"" path;
   let apath = Xfile.abspath path in
   let is_dir =

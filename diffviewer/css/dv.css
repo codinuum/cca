@@ -98,12 +98,12 @@ th.frame {
 }
 
 
-.box 
+.box
 { margin-left :     5% ;
   margin-right :    5% ;
   border:           solid ;
-  border-width:     thin; 
-  background-color: #F0F0F0; 
+  border-width:     thin;
+  background-color: #F0F0F0;
   padding:          2mm;
   page-break-inside: avoid ;
 }

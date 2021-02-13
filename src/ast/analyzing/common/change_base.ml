@@ -24,7 +24,7 @@ let sprintf = Printf.sprintf
 
 type node_t = Spec.node_t
 
-type change = 
+type change =
   | Cdeleted  of bool (* is whole subtree *) * node_t * node_t (* from *)
   | Cinserted of bool (* is whole subtree *) * node_t * node_t (* into *)
   | Cmodified of node_t * node_t
@@ -55,16 +55,16 @@ let hash_change = function
   | Ccardinality_changed(nd1, nd2) -> Hashtbl.hash (Tcar, nd1#uid, nd2#uid)
 
 let change_to_string = function
-  | Cdeleted(is_whole, nd, from_nd)  -> 
+  | Cdeleted(is_whole, nd, from_nd)  ->
       sprintf "%s%s from %s" nd#data#to_string (if is_whole then "*" else "") from_nd#data#to_string
 
-  | Cinserted(is_whole, nd, into_nd) -> 
+  | Cinserted(is_whole, nd, into_nd) ->
       sprintf "%s%s into %s" nd#data#to_string (if is_whole then "*" else "") into_nd#data#to_string
 
   | Cmodified(nd1, nd2) -> sprintf "%s -> %s" nd1#data#to_string nd2#data#to_string
   | Cchanged(_, nd1, nd2)  -> sprintf "%s -> %s" nd1#data#to_string nd2#data#to_string
   | Crenamed(_, nd1, nd2)  -> sprintf "%s -> %s" nd1#data#to_string nd2#data#to_string
-  | Cmoved(nd1, nd2)    -> 
+  | Cmoved(nd1, nd2)    ->
       sprintf "%s: [%s] -> [%s]" nd1#data#label (Loc.to_string nd1#data#src_loc) (Loc.to_string nd2#data#src_loc)
 
   | Ccardinality_changed(nd1, nd2) ->
@@ -81,7 +81,7 @@ let score = function
 
 
 
-type change_info = 
+type change_info =
       string * (* description *)
       string * (* anonymized description *)
       string * (* containing unit 1 *)
@@ -134,7 +134,7 @@ let l_true = Triple.l_true
 
 
 let make_mkent_pair options tree1 tree2 =
-  let enc = options#fact_enc in  
+  let enc = options#fact_enc in
   let enc_str = Entity.encoding_to_string enc in
   let fid1_str = Triple.encode_fid options tree1 in
   let fid2_str = Triple.encode_fid options tree2 in
@@ -159,7 +159,7 @@ let make_mkent_pair options tree1 tree2 =
   in
   let mkent1 = mkent fid1_str tree1 in
   let mkent2 = mkent fid2_str tree2 in
-  
+
   mkent1, mkent2
 
 
@@ -230,14 +230,14 @@ module F (L : Spec.LABEL_T) = struct
 (* base class *)
   class c
       options
-      (tree1 : Spec.tree_t) 
+      (tree1 : Spec.tree_t)
       (tree2 : Spec.tree_t)
       (uidmapping : node_t UIDmapping.c)
       edits
-      get_unit 
+      get_unit
       get_desc1
       get_desc2
-      = 
+      =
     let mkent1, mkent2 = make_mkent_pair options tree1 tree2 in
     object (self)
 
@@ -292,12 +292,12 @@ module F (L : Spec.LABEL_T) = struct
 	    (ent, self#get_p_ins is_whole, into_ent) :: ctris
 
 	| _ -> []
-	      
+
       method mkt_modified ?(category=Triple.ghost) = function
-	| Cmodified(nd1, nd2) -> 
+	| Cmodified(nd1, nd2) ->
 	    let ent1 = mkent1 nd1 in
 	    let ent2 = mkent2 nd2 in
-	    let ctris = 
+	    let ctris =
 	      if Triple.is_ghost_node category then
 		[]
 	      else
@@ -316,7 +316,7 @@ module F (L : Spec.LABEL_T) = struct
               else
                 Triple.p_changed_to
             in
-	    let ctris = 
+	    let ctris =
 	      if Triple.is_ghost_node category then
 		[]
 	      else
@@ -335,7 +335,7 @@ module F (L : Spec.LABEL_T) = struct
               else
                 Triple.p_renamed
             in
-	    let ctris = 
+	    let ctris =
 	      if Triple.is_ghost_node category then
 		[]
 	      else
@@ -395,7 +395,7 @@ module F (L : Spec.LABEL_T) = struct
             ctris
 
 	| _ -> []
-	      
+
       method mkt_order_changed ?(category=Triple.ghost) = function
 	| Cmoved(nd1, nd2) ->
 	    let ent1 = mkent1 nd1 in
@@ -419,16 +419,16 @@ module F (L : Spec.LABEL_T) = struct
 	    let c1 = nd1#initial_nchildren in
 	    let c2 = nd2#initial_nchildren in
 	    if c1 <> c2 then
-	      [ (mkent1 nd1, p_cardinality, mkilit c1); 
+	      [ (mkent1 nd1, p_cardinality, mkilit c1);
 		(mkent2 nd2, p_cardinality, mkilit c2)
 	      ]
 	    else
 	      []
 	| _ -> []
 
-      method _mkt_nesting_depth 
-	  enclosing 
-	  get_depth 
+      method _mkt_nesting_depth
+	  enclosing
+	  get_depth
 	  ?(category=Triple.ghost)
 	  = function
 	| Cinserted(is_whole, nd2, into_nd) ->
@@ -451,7 +451,7 @@ module F (L : Spec.LABEL_T) = struct
 	      (mkent1 enc1, p_nesting_depth, mkilit d)
 	    ]
 
-	| Cmoved(nd1, nd2) -> 
+	| Cmoved(nd1, nd2) ->
 	    let ent1 = mkent1 nd1 in
 	    let ent2 = mkent2 nd2 in
             let mid_opt = self#find_mid nd1 nd2 in
@@ -468,7 +468,7 @@ module F (L : Spec.LABEL_T) = struct
 	      let enc_nd2 = enclosing nd2 in
 	      let d = get_depth enc_nd2 in
 	      let enc_ent2 = mkent2 enc_nd2 in
-	      [ (ent2, p_affects_nesting_depth, l_true); 
+	      [ (ent2, p_affects_nesting_depth, l_true);
 		(enc_ent2, p_nesting_depth, mkilit d)
 	      ]
 	    with Not_found -> [])
@@ -538,7 +538,7 @@ module F (L : Spec.LABEL_T) = struct
 	    in
 	    List.iter
 	      (fun (n, nex) ->
-		let ned = 
+		let ned =
 		  match tag with
 		  | EO.Tdel -> EO.Delete(nex = [], n#uid, Info.make n, ref nex)
 		  | EO.Tins -> EO.Insert(nex = [], n#uid, Info.make n, ref nex)
@@ -546,7 +546,7 @@ module F (L : Spec.LABEL_T) = struct
 		in
 
 		DEBUG_MSG "added: %s" (EO.to_string ned);
-		
+
 		self#add_edit ned
 
 	      ) (get_list_of_node_and_new_ex tree nd ex)
@@ -575,7 +575,7 @@ module F (L : Spec.LABEL_T) = struct
 		  let n_nex_list2 = get_list_of_node_and_new_ex tree2 nd2 ex2 in
 
 		  assert ((List.length n_nex_list1) = (List.length n_nex_list2));
-		  
+
 		  List.iter2
 		    (fun (n1, nex1) (n2, nex2) ->
                       let u1, u2 = n1#uid, n2#uid in
@@ -583,8 +583,8 @@ module F (L : Spec.LABEL_T) = struct
                         ()
                       else
 		        let ned =
-			  EO.Move(ref !mid, kind, 
-				  (u1, Info.make n1, ref nex1), 
+			  EO.Move(ref !mid, kind,
+				  (u1, Info.make n1, ref nex1),
 				  (u2, Info.make n2, ref nex2))
 		        in
 
@@ -598,7 +598,7 @@ module F (L : Spec.LABEL_T) = struct
 
 	  );
 	edits#finalize
-	
+
 
       method make_cardinality_change cond () =
 	let changes = new change_set in
@@ -606,7 +606,7 @@ module F (L : Spec.LABEL_T) = struct
 	if not options#fact_for_changes_basic_flag then begin
 	  let changed = self#aggregate_changes cond () in
 	  List.iter
-	    (function 
+	    (function
 	      | Cmodified(nd1, nd2) ->
 		  if nd1#initial_nchildren <> nd2#initial_nchildren then
 		    changes#add (Ccardinality_changed(nd1, nd2))
@@ -621,7 +621,7 @@ module F (L : Spec.LABEL_T) = struct
 
 	let for_rel_or_mov ed =
 	  match ed with
-	  | EO.Relabel(_, (_, info1, _), (_, info2, _)) 
+	  | EO.Relabel(_, (_, info1, _), (_, info2, _))
 	  | EO.Move(_, _, (_, info1, _), (_, info2, _)) ->
 	      let nd1 = Info.get_node info1 in
 	      let nd2 = Info.get_node info2 in
@@ -641,7 +641,7 @@ module F (L : Spec.LABEL_T) = struct
 		    if List.memq a' ancestors2 && cond a' then begin
 		      changes#add (Cmodified(a, a'))
 		    end
-		  with 
+		  with
                     Not_found -> ()
 		) ancestors1
 
@@ -664,19 +664,19 @@ module F (L : Spec.LABEL_T) = struct
 		    match !cands with
 		    | [c] -> changes#add (Cmodified(nd, c)); self#set_used ed
 		    | _ -> ()
-		  with 
+		  with
 		  | Otreediff.Otree.Parent_not_found _ -> ()
 		  | Not_found -> ()
 		end;
 *)
 		List.iter
-		  (fun a -> 
+		  (fun a ->
 		    if cond a then begin
 		      try
 			let a' = tree2#search_node_by_uid (uidmapping#find a#uid) in
                         if cond a' then
 			  changes#add (Cmodified(a, a'))
-		      with 
+		      with
                         Not_found -> ()
 		    end
 		  ) (tree1#initial_ancestor_nodes nd)
@@ -694,19 +694,19 @@ module F (L : Spec.LABEL_T) = struct
 		    match !cands with
 		    | [c] -> changes#add (Cmodified(c, nd)); self#set_used ed
 		    | _ -> ()
-		  with 
+		  with
 		  | Otreediff.Otree.Parent_not_found _ -> ()
 		  | Not_found -> ()
 		end;
 *)
 		List.iter
-		  (fun a -> 
+		  (fun a ->
 		    if cond a then begin
 		      try
 			let a' = tree1#search_node_by_uid (uidmapping#inv_find a#uid) in
                         if cond a' then
 			  changes#add (Cmodified(a', a))
-		      with 
+		      with
                         Not_found -> ()
 		    end
 		  ) (tree2#initial_ancestor_nodes nd)
@@ -722,15 +722,15 @@ module F (L : Spec.LABEL_T) = struct
         find_from_or_into tree1 tree2 edits ~mid_opt tree' map_find node
 
 
-      method private _make_delete_or_insert tree ?(bypass_set_used=false) check_st cond ed 
-	info ex changes tag get_from_or_into 
+      method private _make_delete_or_insert tree ?(bypass_set_used=false) check_st cond ed
+	info ex changes tag get_from_or_into
 	  =
 	if not (self#is_used ed) then begin
 	  let nd = Info.get_node info in
-	  let cond_ex = 
-	    if check_st then 
+	  let cond_ex =
+	    if check_st then
 	      !ex = [] || nd#nchildren = 0
-	    else 
+	    else
 	      !ex <> []
 	  in
 	  if cond nd && cond_ex then begin
@@ -757,13 +757,13 @@ module F (L : Spec.LABEL_T) = struct
 	  (fun ed ->
 	    match ed with
 	    | EO.Delete(_, _, info, ex) ->
-		self#_make_delete_or_insert tree1 check_st cond ed info ex changes Tdel 
+		self#_make_delete_or_insert tree1 check_st cond ed info ex changes Tdel
 		  (self#find_from_or_into tree2 uidmapping#find)
 (*
 	    | EO.Move(_, sub, (uid1, info1, ex1), (uid2, info2, ex2)) ->
 	      if edits#mem_rel12 uid1 uid2 then
-		let f = 
-		  self#_make_delete_or_insert tree1 ~bypass_set_used:true check_st cond ed 
+		let f =
+		  self#_make_delete_or_insert tree1 ~bypass_set_used:true check_st cond ed
 		in
 		f info1 ex1 changes Tdel (self#find_from_or_into tree2 uidmapping#find);
 *)
@@ -782,13 +782,13 @@ module F (L : Spec.LABEL_T) = struct
 	  (fun ed ->
 	    match ed with
 	    | EO.Insert(_, _, info, ex) ->
-		self#_make_delete_or_insert tree2 check_st cond ed info ex changes Tins 
+		self#_make_delete_or_insert tree2 check_st cond ed info ex changes Tins
 		  (self#find_from_or_into tree1 uidmapping#inv_find)
 (*
 	    | EO.Move(_, sub, (uid1, info1, ex1), (uid2, info2, ex2)) ->
 	      if edits#mem_rel12 uid1 uid2 then
-		let f = 
-		  self#_make_delete_or_insert tree2 ~bypass_set_used:true check_st cond ed 
+		let f =
+		  self#_make_delete_or_insert tree2 ~bypass_set_used:true check_st cond ed
 		in
 		f info2 ex2 changes Tins (self#find_from_or_into tree1 uidmapping#inv_find)
 *)
@@ -801,7 +801,7 @@ module F (L : Spec.LABEL_T) = struct
       method make_insert_st c () = self#_make_insert true c ()
 
       method private is_order_change mid mov_kind nd1 nd2 =
-	let parent_cond = 
+	let parent_cond =
 	  try
             let puid1 = nd1#initial_parent#uid in
             let puid2 = nd2#initial_parent#uid in
@@ -910,13 +910,13 @@ module F (L : Spec.LABEL_T) = struct
 	changes#get_list
 
 
-      method make_changes_list : unit -> (string * significance * change_maker * change_to_triples) list = 
+      method make_changes_list : unit -> (string * significance * change_maker * change_to_triples) list =
 	fun () -> [] (* should be overridden *)
 
 
       method infer_loc nd2 =
-	let mem u = 
-	  if edits#mem_mov2 u then 
+	let mem u =
+	  if edits#mem_mov2 u then
 	    false
 	  else
 	    uidmapping#mem_cod u
@@ -932,53 +932,53 @@ module F (L : Spec.LABEL_T) = struct
 
 
       method change_to_change_info : change -> change_info = function
-	| Cdeleted(is_whole, nd, from_nd) -> 
+	| Cdeleted(is_whole, nd, from_nd) ->
 	    get_desc1 is_whole tree1 nd,
 	    nd#data#anonymized_label,
-	    get_unit tree1 nd, 
+	    get_unit tree1 nd,
 	    nd#data#src_loc,
 	    "",
 	    Loc.dummy
 
-	| Cinserted(is_whole, nd, into_nd) -> 
+	| Cinserted(is_whole, nd, into_nd) ->
 	    let unit, loc = self#infer_loc nd in
 	    get_desc1 is_whole tree2 nd,
 	    nd#data#anonymized_label,
 	    unit,
 	    loc,
-	    get_unit tree2 nd, 
+	    get_unit tree2 nd,
 	    nd#data#src_loc
-	      
-	| Cmodified(nd1, nd2) | Cchanged(_, nd1, nd2) | Crenamed(_, nd1, nd2) -> 
+
+	| Cmodified(nd1, nd2) | Cchanged(_, nd1, nd2) | Crenamed(_, nd1, nd2) ->
 	    get_desc2 tree1 tree2 nd1 nd2,
 	    sprintf "%s -> %s" nd1#data#anonymized_label nd2#data#anonymized_label,
-	    get_unit tree1 nd1, 
+	    get_unit tree1 nd1,
 	    nd1#data#src_loc,
-	    get_unit tree2 nd2, 
+	    get_unit tree2 nd2,
 	    nd2#data#src_loc
 
 	| Cmoved(nd1, nd2)     ->
 	    get_desc2 tree1 tree2 nd1 nd2,
 	    nd1#data#anonymized_label,
-	    get_unit tree1 nd1, 
+	    get_unit tree1 nd1,
 	    nd1#data#src_loc,
-	    get_unit tree2 nd2, 
+	    get_unit tree2 nd2,
 	    nd2#data#src_loc
 
 	| Ccardinality_changed(nd1, nd2) ->
 	    get_desc2 tree1 tree2 nd1 nd2,
 	    nd1#data#anonymized_label,
-	    get_unit tree1 nd1, 
+	    get_unit tree1 nd1,
 	    nd1#data#src_loc,
-	    get_unit tree2 nd2, 
+	    get_unit tree2 nd2,
 	    nd2#data#src_loc
 
 
-      method extract (*: 
-	  (string * int * string list) list * 
-	  EO.t list * (string * int * change_info list) list * 
+      method extract (*:
+	  (string * int * string list) list *
+	  EO.t list * (string * int * change_info list) list *
 	  Triple.t Xset.t *)
-	  = 
+	  =
 	let triples = Xset.create 0 in
 	let changes_list = self#make_changes_list() in
 
@@ -992,16 +992,16 @@ module F (L : Spec.LABEL_T) = struct
 
 	      DEBUG_MSG "[%d/%d][%s] %d changes" count n_change_classes chg_ty (List.length chgs);
 
-	      if chgs = [] then 
+	      if chgs = [] then
 		(chgs_a, info_a, count + 1)
 	      else begin
 		if options#fact_for_changes_flag then
-		  List.iter 
-		    (fun chg -> 
+		  List.iter
+		    (fun chg ->
 		      List.iter (Xset.add triples) (chg_to_tris chg)
 		    ) chgs;
 		(
-		 (chg_ty, u, List.map change_to_string chgs)::chgs_a, 
+		 (chg_ty, u, List.map change_to_string chgs)::chgs_a,
 		 (chg_ty, u, List.map self#change_to_change_info chgs)::info_a,
 		 count + 1
 		)
@@ -1012,14 +1012,14 @@ module F (L : Spec.LABEL_T) = struct
 
 	let unused = ref [] in
 	edits#iter
-	  (fun ed -> 
+	  (fun ed ->
 	    if not (self#is_used ed) then
 	      unused := ed::!unused
 	  );
 
-	res, 
-	!unused, 
-	info, 
+	res,
+	!unused,
+	info,
 	triples
 
     end (* of class Change_base.F.c *)

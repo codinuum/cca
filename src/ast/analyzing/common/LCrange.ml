@@ -21,18 +21,18 @@ module LineColumn : (Range.POSITION_T with type value = int * int) = struct
 
   let kind = "LC"
 
-  let eq p1 p2 = 
+  let eq p1 p2 =
     let l1, c1 = p1#value in
     let l2, c2 = p2#value in
     l1 = l2 && c1 = c2
 
-  let leq p1 p2 = 
+  let leq p1 p2 =
     let l1, c1 = p1#value in
     let l2, c2 = p2#value in
     l1 < l2 || (l1 = l2 && c1 <= c2)
 
   let compare p1 p2 =
-    if eq p1 p2 then 
+    if eq p1 p2 then
       0
     else if leq p1 p2 then
       -1
@@ -47,7 +47,7 @@ module LineColumn : (Range.POSITION_T with type value = int * int) = struct
 
     method to_string = Printf.sprintf "%d,%d" (fst _value) (snd _value)
 
-    method of_string str = 
+    method of_string str =
       match Str.split (Str.regexp_string ",") str with
       | [l;c] -> begin
 	  try
@@ -56,9 +56,9 @@ module LineColumn : (Range.POSITION_T with type value = int * int) = struct
       end
       | _ -> raise (Invalid_format str)
   end
-      
+
   class type t = c
-      
+
 end (* of module LineColumn *)
 
 module M = Range.F(LineColumn)

@@ -17,7 +17,7 @@ include Lib_base
 
 let _ =
   Lang_base.register Sastml.parser_name
-    (new Lang_base.c 
+    (new Lang_base.c
        ~make_tree_builder:(new tree_builder)
        ~get_cache_key:file_digest_hex
        ~extract_fact:extract_fact
@@ -28,7 +28,7 @@ let _ =
 let _ =
   Lang_base.register_external Sastml.parser_name Sastml.xparser_name_ccx
     (fun subname name ->
-      new Lang_base.c 
+      new Lang_base.c
         ~subname
         ~make_tree_builder:(new ext_tree_builder subname)
         ~get_cache_key:ext_file_digest_hex

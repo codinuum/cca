@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * AST for Fortran
  *
  * ast.ml
@@ -39,12 +39,12 @@ module C = Context
 type name = Label_common.name
 
 
-class node 
-    ?(lloc=LLoc.dummy) 
-    ?(children=[]) 
+class node
+    ?(lloc=LLoc.dummy)
+    ?(children=[])
     ?(info=I.NoInfo)
-    lab 
-    = 
+    lab
+    =
   object (self : 'self)
     val mutable lloc = lloc
     val mutable label = (lab : L.t)
@@ -92,7 +92,7 @@ class node
       match children with
       | [] -> ()
       | [_] -> children <- []
-      | _ -> 
+      | _ ->
           match (List.rev children) with
           | _ :: t -> children <- (List.rev t)
           | _ -> assert false
@@ -105,8 +105,8 @@ class node
 
     method to_string =
       sprintf "<%s>%s%s%s%s"
-        (L.to_string label) 
-        (lloc#to_string ?short:(Some true) ()) 
+        (L.to_string label)
+        (lloc#to_string ?short:(Some true) ())
         (match info with
         | I.NoInfo -> ""
         | _ -> sprintf ": <<%s>>" (I.to_string info)
@@ -176,23 +176,23 @@ let mknode env start_pos end_pos ?(info=I.NoInfo) label children =
   let lloc = lloc_of_lexposs start_pos end_pos in
   new node ~lloc ~children ~info label
 
-let mkleaf env start_pos end_pos ?(info=I.NoInfo) label = 
+let mkleaf env start_pos end_pos ?(info=I.NoInfo) label =
   mknode env start_pos end_pos ~info label []
 
 
 let reloc env start_pos end_pos node =
   let lloc = lloc_of_lexposs start_pos end_pos in
-  DEBUG_MSG "relocating %s: %s -> %s" 
-    (L.to_string node#label) 
+  DEBUG_MSG "relocating %s: %s -> %s"
+    (L.to_string node#label)
     (node#lloc#to_string ?short:(Some true) ()) (lloc#to_string ?short:(Some true) ());
   node#set_lloc lloc
 
 
-let mkstmtnode env start_pos end_pos ?(info=I.NoInfo) lab children = 
+let mkstmtnode env start_pos end_pos ?(info=I.NoInfo) lab children =
   let lloc = lloc_of_lexposs start_pos end_pos in
   let label =
     try
-      let (slab, _) = 
+      let (slab, _) =
         let loc = lloc#get_loc in
         env#find_label (loc.Loc.filename, loc.Loc.start_line)
       in
@@ -204,7 +204,7 @@ let mkstmtnode env start_pos end_pos ?(info=I.NoInfo) lab children =
   (*env#add_latest_stmt_node nd;*)
   nd
 
-let mkstmtleaf env start_pos end_pos ?(info=I.NoInfo) lab = 
+let mkstmtleaf env start_pos end_pos ?(info=I.NoInfo) lab =
   mkstmtnode env start_pos end_pos ~info lab []
 
 
@@ -222,7 +222,7 @@ module Partial = struct
 
   let mkspec ?(length=0) ?(tag=C.Tunknown) () = { length=length; tag=tag; }
 
-  type t = 
+  type t =
     | Dummy               of spec * node list
     | Program             of spec * node list
     | ProgramUnit         of spec * node
@@ -279,24 +279,24 @@ module Partial = struct
     | PuTail(spec, nds)             -> sprintf "PuTail(%s)" (spec_to_string spec)
 
   let get_spec = function
-    | Dummy(spec, _)             
-    | Program(spec, _)           
-    | ProgramUnit(spec, _)        
-    | Spec_Exec(spec, _, _)        
-    | SpecificationPart(spec, _) 
-    | ExecutionPart(spec, _)     
-    | Subprograms(spec, _)       
+    | Dummy(spec, _)
+    | Program(spec, _)
+    | ProgramUnit(spec, _)
+    | Spec_Exec(spec, _, _)
+    | SpecificationPart(spec, _)
+    | ExecutionPart(spec, _)
+    | Subprograms(spec, _)
     | InterfaceSpec(spec, _)
     | CaseBlock(spec, _)
-    | AssignmentStmt(spec, _)     
-    | TypeDeclarationStmt(spec, _)     
-    | FunctionStmt(spec, _)     
-    | Variable(spec, _)           
-    | Expr(spec, _)               
-    | Stmts(spec, _)             
-    | DataStmtSets(spec, _)      
-    | TypeSpec(spec, _)           
-    | ActionStmt(spec, _)         
+    | AssignmentStmt(spec, _)
+    | TypeDeclarationStmt(spec, _)
+    | FunctionStmt(spec, _)
+    | Variable(spec, _)
+    | Expr(spec, _)
+    | Stmts(spec, _)
+    | DataStmtSets(spec, _)
+    | TypeSpec(spec, _)
+    | ActionStmt(spec, _)
     | DerivedTypeDefPart(spec, _)
     | Onlys(spec, _)
     | TypeBoundProcPart(spec, _)
@@ -384,7 +384,7 @@ let get_last_name node_list =
   | last::_ -> begin
       try
 	last#get_name
-      with 
+      with
         Not_found -> ""
   end
   | _ -> ""
@@ -409,7 +409,7 @@ let position_spec_to_close_spec nd =
 let position_spec_to_io_control_spec nd =
   begin
     match nd#label with
-    | L.PositionSpec ps -> 
+    | L.PositionSpec ps ->
         nd#relab (L.IoControlSpec (PositionSpec.to_io_control_spec ps))
     | _ -> ()
   end;
@@ -418,7 +418,7 @@ let position_spec_to_io_control_spec nd =
 let position_spec_to_wait_spec nd =
   begin
     match nd#label with
-    | L.PositionSpec ps -> 
+    | L.PositionSpec ps ->
         nd#relab (L.WaitSpec (PositionSpec.to_wait_spec ps))
     | _ -> ()
   end;
@@ -427,7 +427,7 @@ let position_spec_to_wait_spec nd =
 let position_spec_to_flush_spec nd =
   begin
     match nd#label with
-    | L.PositionSpec ps -> 
+    | L.PositionSpec ps ->
         nd#relab (L.FlushSpec (PositionSpec.to_flush_spec ps))
     | _ -> ()
   end;
@@ -448,7 +448,7 @@ let lloc_of_nodes = function
   | nd::rest -> LLoc.merge nd#lloc (Xlist.last rest)#lloc
 
 
-  
+
 (* *)
 
 let rec visit f node = (* preorder traversal *)
@@ -467,19 +467,19 @@ let size node =
 
 
 class c (root : node) = object (self)
-  inherit Ast_base.c 
+  inherit Ast_base.c
 
   method root = root
 
   method visit f = visit f root
 
   method visit_post f = visit_post f root
-  
+
   method size = size root
 
   method count_ambiguous_nodes =
     let count = ref 0 in
-    self#visit 
+    self#visit
       (fun nd ->
         match nd#label with
         | L.Ambiguous _ -> incr count
@@ -489,7 +489,7 @@ class c (root : node) = object (self)
 
   method count_omp_error_nodes =
     let count = ref 0 in
-    self#visit 
+    self#visit
       (fun nd ->
         match nd#label with
         | L.OmpDirective (OmpDirective.ERROR) -> incr count

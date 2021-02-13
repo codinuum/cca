@@ -76,7 +76,7 @@ class Resource(RDFNode):
                 res = self.get_uri() == other.get_uri()
             else:
                 res = self._node == other._node
-            
+
         return res
 
     def __lt__(self, other):
@@ -147,7 +147,7 @@ class Predicate(Resource):
             if uri == None:
                 if node != None:
                     uri = str(node.uri)
-            
+
             self._ns, self._lname = uri_split(uri)
 
         else:

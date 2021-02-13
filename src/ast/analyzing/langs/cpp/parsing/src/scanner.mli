@@ -58,12 +58,13 @@ class type c_t = object
   method peek_nth : int -> token
   method peek_rawtoken : unit -> T.token
   method peek_nth_rawtoken : int -> T.token
-  method peek_rawtoken_up_to : ?from:int -> ?skip_pp_control_line:bool -> ?is_target:(T.token -> bool) -> T.token list -> int * T.token list
+  method peek_rawtoken_up_to : ?limit:int -> ?filt:(T.token -> bool) -> ?from:int -> ?skip_pp_control_line:bool -> ?is_target:(T.token -> bool) -> T.token list -> int * T.token list
   method peek_rawtoken_up_to_rparen :
       ?from:int -> ?level:int -> ?filt:(T.token -> bool) -> T.token option -> bool * int * T.token list
   method peek_rawtoken_up_to_rparen_none : unit -> int * T.token list
   method peek_rawtoken_up_to_group_end :
-      ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> ?until:(T.token -> bool) -> unit -> int * T.token list
+      ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> ?until:(T.token -> bool) -> ?regard_pp_if:bool
+        -> unit -> int * T.token list
   method peek_rawtoken_up_to_section_end : ?from:int -> unit -> int
   method peek_rawtoken_up_to_end_of_qualified_id : ?from:int -> ?ini_tlv:int -> unit -> int
   method peek_rawtoken_up_to_rparen_split_at_comma :
@@ -78,7 +79,7 @@ class type c_t = object
   method find_ident_conv : string -> T.token
 
   method lookup_name : string -> Pinfo.Name.Spec.c
-  method is_type : ?weak:bool -> string -> bool
+  method is_type : ?defined:bool -> ?weak:bool -> string -> bool
   method is_label : string -> bool
   method is_templ : string -> bool
   method is_val : string -> bool
@@ -88,7 +89,7 @@ class type c_t = object
 
   method reg_macro_fun : string -> unit
 
-  method is_ty : ?weak:bool -> T.token -> bool
+  method is_ty : ?strong:bool -> ?defined:bool -> ?weak:bool -> T.token -> bool
   method check_if_param : ?weak:bool -> T.token list -> bool
   method check_if_params : ?weak:bool -> T.token list list -> bool
   method check_if_noptr_dtor : ?weak:bool -> T.token list -> bool
@@ -96,6 +97,8 @@ class type c_t = object
   method check_if_macro_arg : T.token list -> bool
   method check_if_macro_args : T.token list list -> bool
 
+  method is_func_head : ?from:int -> ?head:T.token -> unit -> bool
+  method is_ps_lparen : ?from:int -> unit -> bool
   method is_lparen : ?from:int -> ?ignore_pp:bool -> unit -> bool
 
   method skip_pp : ?limit:int -> int -> int
@@ -104,6 +107,9 @@ class type c_t = object
   method discard_token : unit -> token
   method queue_token : token -> unit
   method reset : unit -> unit
+
+  method conv_next_n_tokens : (token -> token) -> int -> unit
+  method conv_nth_token : (token -> token) -> int -> unit
 
   method check_top_stmts_flag : bool
   method set_check_top_stmts_flag : unit -> unit

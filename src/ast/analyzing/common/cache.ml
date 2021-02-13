@@ -34,25 +34,25 @@ let get_cache_name options cache_path =
       Filename.concat n bn
     else
       assert false
-    
 
-let create_layered_cache_path options cache_name = 
+
+let create_layered_cache_path options cache_name =
   let sub0 = String.sub cache_name 0 2 in
   let sub =
-    if sub0 = "d." then 
+    if sub0 = "d." then
       String.sub cache_name 2 2
-    else 
+    else
       sub0
   in
-  let res = 
-    Filename.concat (Filename.concat options#cache_dir_base sub) cache_name 
+  let res =
+    Filename.concat (Filename.concat options#cache_dir_base sub) cache_name
   in
   res
 
 let create_cache_path options cache_name =
-  if options#layered_cache_flag then 
-    create_layered_cache_path options cache_name 
-  else 
+  if options#layered_cache_flag then
+    create_layered_cache_path options cache_name
+  else
     Filename.concat options#cache_dir_base cache_name
 
 let prepare_dir perm dir =
@@ -89,7 +89,7 @@ let is_completed cache_path =
 
 (*
 let has_files files cache_path =
-  let res = 
+  let res =
     List.for_all (fun n -> Xfile.file_exists (Filename.concat cache_path n)) files
   in
   DEBUG_MSG "\"%s\" --> %B" cache_path res;
@@ -102,7 +102,7 @@ type search_result = { sr_cache_path : string;
 
 let mkres cache_path name =
   { sr_cache_path=cache_path;
-    sr_path=Filename.concat cache_path name 
+    sr_path=Filename.concat cache_path name
   }
 
 let search_cache ?(completion=false) ?(local_cache_name="") cache_path name =
@@ -121,13 +121,13 @@ let search_cache ?(completion=false) ?(local_cache_name="") cache_path name =
         if bname = local_cache_name then begin
           let dpath = Filename.dirname cache_path in
           try
-            let other_cache_names = 
-              Array.to_list (Sys.readdir dpath) 
+            let other_cache_names =
+              Array.to_list (Sys.readdir dpath)
             in
-            List.filter 
+            List.filter
               (fun r -> Xfile.file_exists r.sr_path)
-              (List.map 
-                 (fun cn -> 
+              (List.map
+                 (fun cn ->
                    mkres (Filename.concat dpath cn) fn
                  ) other_cache_names)
           with

@@ -96,8 +96,8 @@ let tag_to_string = function
   | Tin_stmt               -> "in_stmt"
 
 
-type t = { mutable tag       : tag; 
-	   mutable is_active : bool; 
+type t = { mutable tag       : tag;
+	   mutable is_active : bool;
 	 }
 
 let mk t b = { tag=t; is_active=b; }
@@ -184,9 +184,9 @@ let dummy = unknown()
 exception Not_active
 
 
-type key_t = { 
-    k_level : int; 
-    k_loc   : Loc.t; 
+type key_t = {
+    k_level : int;
+    k_loc   : Loc.t;
   }
 
 let mkkey lv loc =
@@ -249,11 +249,11 @@ class stack env = object (self)
 
   method suspended = suspended
 
-  method suspend = 
+  method suspend =
     DEBUG_MSG "called";
     suspended <- true;
 
-  method resume = 
+  method resume =
     DEBUG_MSG "called";
     suspended <- false;
 
@@ -264,7 +264,7 @@ class stack env = object (self)
   done
  *)
 
-  method checkpoint (key : key_t) = 
+  method checkpoint (key : key_t) =
     DEBUG_MSG "key=%s\n%s" (key_to_string key) self#to_string;
 (*
   if Hashtbl.mem checkpoint_tbl key then
@@ -274,15 +274,15 @@ class stack env = object (self)
     Hashtbl.replace checkpoint_tbl key copy
 
 
-  method recover ?(remove=false) key = 
+  method recover ?(remove=false) key =
     DEBUG_MSG "key=%s\nBEFORE:\n%s" (key_to_string key) self#to_string;
     try
       stack <- self#_copy_stack (Hashtbl.find checkpoint_tbl key);
       if remove then
         Hashtbl.remove checkpoint_tbl key;
       DEBUG_MSG "AFTER:\n%s" self#to_string;
-    with 
-      Not_found -> 
+    with
+      Not_found ->
         FATAL_MSG "stack not found: key=%s" (key_to_string key);
         raise (Common.Internal_error "Context.stack#recover")
 
@@ -303,8 +303,8 @@ class stack env = object (self)
 
   method to_string =
     let buf = Buffer.create 0 in
-    Stack.iter 
-      (fun c -> 
+    Stack.iter
+      (fun c ->
         Buffer.add_string buf (Printf.sprintf "%s\n" (to_string c))
       ) stack;
     Buffer.contents buf
@@ -330,24 +330,24 @@ class stack env = object (self)
   method pop =
     DEBUG_MSG "stack:\n%s" self#to_string;
 
-    if suspended then 
+    if suspended then
       DEBUG_MSG "suspended"
 
     else begin
       ignore (Stack.pop stack);
 
-      let new_top = 
-	try 
-	  Stack.top stack 
-	with 
+      let new_top =
+	try
+	  Stack.top stack
+	with
           Stack.Empty -> assert false
       in
       DEBUG_MSG "(new top: %s)" (to_string new_top);
-      
+
       self#pop_callback new_top
     end
 
-     
+
 
   method activate_top =
     DEBUG_MSG "suspended=%B" suspended;

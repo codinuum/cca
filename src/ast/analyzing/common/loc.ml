@@ -27,7 +27,7 @@ type t =
       end_char     : int;
     }
 
-let dummy = 
+let dummy =
   { filename     = "";
     start_offset = -1;
     end_offset   = -1;
@@ -37,7 +37,7 @@ let dummy =
     end_char     = -1;
   }
 
-let ghost = 
+let ghost =
   { filename     = "";
     start_offset = -10;
     end_offset   = -10;
@@ -74,7 +74,7 @@ let lines loc =
   loc.end_line - loc.start_line + 1
 
 let is_contained loc loc0 =
-  if loc.start_offset < 0 || loc0.start_offset < 0 then 
+  if loc.start_offset < 0 || loc0.start_offset < 0 then
     false (* unknown location *)
   else if loc.filename <> loc0.filename then
     false
@@ -87,9 +87,9 @@ let is_contained loc loc0 =
 
 
 let merge loc0 loc1 =
-  if is_contained loc0 loc1 then 
+  if is_contained loc0 loc1 then
     loc1
-  else if is_contained loc1 loc0 then 
+  else if is_contained loc1 loc0 then
     loc0
   else if loc0.start_offset < loc1.start_offset then
     _merge loc0 loc1
@@ -107,7 +107,7 @@ let extend_end loc n = (* does not modify line end *)
     }
 
 let to_string ?(long=false) loc =
-  let fns = 
+  let fns =
     if loc.filename = "" then
       ""
     else if long then
@@ -139,11 +139,11 @@ let to_string ?(long=false) loc =
 
 let to_attr_value loc =
   if loc.start_char >= 0 && loc.end_char >= 0 then
-    sprintf "%d:%d(%d)-%d:%d(%d)" 
+    sprintf "%d:%d(%d)-%d:%d(%d)"
       loc.start_line loc.start_char loc.start_offset
       loc.end_line loc.end_char loc.end_offset
   else
-    sprintf "%d(%d)-%d(%d)" 
+    sprintf "%d(%d)-%d(%d)"
       loc.start_line loc.start_offset
       loc.end_line loc.end_offset
 
@@ -152,15 +152,15 @@ let compare loc0 loc1 =
   if loc0.filename <> loc1.filename then
     failwith "Loc.compare"
 
-  else if is_contained loc0 loc1 || is_contained loc1 loc0 then 
+  else if is_contained loc0 loc1 || is_contained loc1 loc0 then
     0
-  else if loc0.end_offset <= loc1.start_offset then 
+  else if loc0.end_offset <= loc1.start_offset then
     -1
-  else if loc1.end_offset <= loc0.start_offset then 
+  else if loc1.end_offset <= loc0.start_offset then
     1
-  else 
+  else
     assert false
-  
+
 let meet loc0 loc1 =
   let fn0, fn1 = loc0.filename, loc1.filename in
   if fn0 <> fn1  then

@@ -64,7 +64,7 @@ TD_ZERO = timedelta(0)
 class JST(tzinfo):
     def utcoffset(self, dt):
         return timedelta(hours=9)
-    def dst(self, dt): 
+    def dst(self, dt):
         return TD_ZERO
     def tzname(self, dt):
         return 'JST'
@@ -398,12 +398,12 @@ class Repository(object):
 
         traverse('', tree)
         return l
-        
+
 
 def clone_repository(url, path, bare=False, checkout_branch=None):
     repo = pygit2.clone_repository(url, path, bare=bare, checkout_branch=checkout_branch)
     return Repository('', repo=repo)
-        
+
 
 
 def test(repo_path):

@@ -20,7 +20,7 @@
 (* Labels *)
 
 module AccessSpec            = F_access_spec
-module Ambiguous             = F_ambiguous 
+module Ambiguous             = F_ambiguous
 module AttrSpec              = F_attr_spec
 module CaseSelector          = F_case_selector
 module CaseValueRange        = F_case_value_range

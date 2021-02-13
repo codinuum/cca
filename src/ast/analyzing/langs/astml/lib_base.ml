@@ -27,10 +27,10 @@ let gen_temp_file_path () = Filename.temp_file "diffast_" Astml.extension
 
 let ns_mgr = Pxp_dtd.create_namespace_manager()
 
-let config = 
-  { XML.default_config with 
+let config =
+  { XML.default_config with
     Pxp_types.enable_namespace_processing = Some ns_mgr;
-  } 
+  }
 
 let spec = Pxp_tree_parser.default_namespace_spec
 
@@ -61,21 +61,21 @@ let xexists file =
 
 let check_comp file = (* AST -> (AST[.COMPRESSION] * IS_COMPRESSED * COMP_EXT) *)
   let rec sea = function
-    | [] -> 
-	failwith 
-          (sprintf "ASTML file \"%s{%s}\" not found" 
+    | [] ->
+	failwith
+          (sprintf "ASTML file \"%s{%s}\" not found"
              file#path (Xlist.to_string (fun x -> x) "," comp_ext_list))
 
     | ext::rest ->
 	let f = new Storage.file (Storage.Tree file#tree) (file#path^ext) in
-	if f#exists then 
-	  (f, ext <> "", ext) 
-	else 
+	if f#exists then
+	  (f, ext <> "", ext)
+	else
 	  sea rest
   in
   sea comp_ext_list
 
-	
+
 
 let build_tree options file =
 
@@ -108,13 +108,13 @@ let build_tree options file =
 
 (*
   let line_terminator =
-    let s = 
+    let s =
       try
 	Label.pxp_att_value_to_string
 	  (doc#root#attribute Tree.line_terminator_attr_name)
-      with 
-        Not_found -> 
-          WARN_MSG "'%s' does not contain attribute %s. assuming 'LF'..." 
+      with
+        Not_found ->
+          WARN_MSG "'%s' does not contain attribute %s. assuming 'LF'..."
 	  file Tree.line_terminator_attr_name;
 	"\010"
     in
@@ -122,7 +122,7 @@ let build_tree options file =
     | "CR" -> "\013"
     | "CRLF" -> "\013\010"
     | "LF" -> "\010"
-    | _ -> 
+    | _ ->
 	WARN_MSG
 	  "'%s': illegal line terminator. assuming 'LF'..." s;
 	"\010"
@@ -142,12 +142,12 @@ let build_tree options file =
     Xprint.failure "\"%s\": not an ASTML file: root=%s"
       file#path (XML.node_type_to_string doc#root#node_type);
 
-  let parser_name = 
+  let parser_name =
     try
       Conf.pxp_att_value_to_string (doc#root#attribute Label.parser_attr_name)
-    with 
-    | Not_found -> 
-	Xprint.failure "\"%s\" does not have %s attribute in root node" 
+    with
+    | Not_found ->
+	Xprint.failure "\"%s\" does not have %s attribute in root node"
 	  file#path Astml.parser_attr_name
   in
 
@@ -181,8 +181,8 @@ exception Header_not_found
 let get_header astml =
   let ns_mgr = Pxp_dtd.create_namespace_manager() in
   let _ = setup_ns_mgr ns_mgr in
-  let config = 
-    { Pxp_types.default_config with 
+  let config =
+    { Pxp_types.default_config with
       Pxp_types.enable_namespace_processing = Some ns_mgr
     }
   in
@@ -208,7 +208,7 @@ let get_header astml =
 	    ) attrs;
 	  if h.h_parser <> "" && h.h_source <> "" && h.h_source_digest <> "" then begin
 	    DEBUG_MSG
-	      "got source digest from the header: source=\"%s\" digest=\"%s\"" 
+	      "got source digest from the header: source=\"%s\" digest=\"%s\""
 	      h.h_source h.h_source_digest;
 	    raise (Got_header h)
 	  end
@@ -220,7 +220,7 @@ let get_header astml =
       config (`Entry_document []) ent_mgr
       proc_ev;
     raise Header_not_found
-  with 
+  with
   | Pxp_types.At(_, Got_header h) -> h
   | e -> failwith (Pxp_types.string_of_exn e)
 
@@ -252,7 +252,7 @@ let file_digest_hex file =
     begin
       try
 	Sys.remove astml
-      with 
+      with
 	Sys_error s -> Xprint.failure "cannot remove: %s" s
     end;
     d
@@ -287,7 +287,7 @@ end
 
 (* for external parsers *)
 
-let ext_file_digest_hex file = 
+let ext_file_digest_hex file =
   try
     Xhash.to_hex file#digest
   with
@@ -299,7 +299,7 @@ class ext_tree_builder xpname options = object (self)
 
   method from_xnode = T.of_xnode options
 
-  method private get_astml_file src = 
+  method private get_astml_file src =
     let astml_file = new Storage.file (Storage.Tree src#tree) (src#path^Astml.extension) in
     if xexists astml_file then
       astml_file

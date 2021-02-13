@@ -40,7 +40,7 @@ let search_pat pats file =
       for i = 1 to n_lines_for_file_check do
         let s = ch#input_line() in
         try
-          List.iter 
+          List.iter
             (fun pat ->
               let _ = (Str.search_forward pat s 0) in
               b := true;
@@ -69,7 +69,7 @@ let dump_gmap_ch gmap ch =
 let mkgmapfilepath ?(gmap_ext=".gmap") cache_path frag =
   Filename.concat cache_path (frag#hash ^ gmap_ext)
 
-let dump_gmap gmap fpath = 
+let dump_gmap gmap fpath =
   let d = Filename.dirname fpath in
   if not (Xfile.dir_exists d) then begin
     Xfile.mkdir d
@@ -84,14 +84,14 @@ let load_gmap_ch ch =
       Scanf.sscanf s "%d - %d" (fun i j -> l := (i, j)::!l)
     done;
     []
-  with 
+  with
     End_of_file -> List.rev !l
 
 let load_gmap fpath =
   DEBUG_MSG "fpath=\"%s\"" fpath;
   try
     Xfile.load fpath load_gmap_ch
-  with 
+  with
     Failure _ -> []
 
 
@@ -109,7 +109,7 @@ let encoded_digest_of_file options file =
 
 
 let int_of_origin ogn =
-  if ogn = unknown_origin then 
+  if ogn = unknown_origin then
     Origin.attr_unknown
   else begin
     try
@@ -119,9 +119,9 @@ let int_of_origin ogn =
   end
 
 let merge_locs nds =
-  let lmerge loc1 loc2 = 
-    if loc1 = Loc.dummy then loc2 
-    else if loc2 = Loc.dummy then loc1 
+  let lmerge loc1 loc2 =
+    if loc1 = Loc.dummy then loc2
+    else if loc2 = Loc.dummy then loc1
     else Loc.merge loc1 loc2
   in
   List.fold_left (fun l n -> lmerge l n#data#src_loc) Loc.dummy nds
@@ -174,9 +174,9 @@ module Tree (L : Spec.LABEL_T) = struct
 
   let null_ordinal_tbl = new ordinal_tbl []
 
-  class node_data 
-      options 
-      ?(annot=L.null_annotation) 
+  class node_data
+      options
+      ?(annot=L.null_annotation)
       ?(ordinal_tbl_opt=(None : ordinal_tbl option))
       ?(orig_lab_opt=(None : L.t option))
       (lab : L.t)
@@ -262,7 +262,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method orig_elem_attrs_for_delta =
         let _, attrs, _ = self#orig_to_elem_data_for_delta in
         attrs
-        
+
       method change_attr (attr : string) (v : string) =
         let name, attrs, _ = self#orig_to_elem_data_for_delta in
         if List.mem_assoc attr attrs then begin
@@ -384,13 +384,13 @@ module Tree (L : Spec.LABEL_T) = struct
       method to_simple_string = L.to_simple_string lab
 
 
-      method _set_digest d = 
+      method _set_digest d =
 	_digest <- Some d;
         let ignore_identifiers_flag = options#ignore_identifiers_flag in
-	rep <- String.concat "" 
+	rep <- String.concat ""
 	    [L.to_short_string ~ignore_identifiers_flag lab;"<";d;">"]
 
-      method set_digest d = 
+      method set_digest d =
 	digest <- Some d;
         self#_set_digest d
 
@@ -424,7 +424,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method eq ndat = _eq ndat
         (*_label = ndat#_label && self#orig_lab_opt = ndat#orig_lab_opt*)
 
-      method subtree_equals ndat = 
+      method subtree_equals ndat =
 	self#eq ndat && _digest = ndat#_digest && _digest <> None
 
       method equals ndat = self#eq ndat && digest = ndat#digest
@@ -433,7 +433,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method set_loc loc = src_loc <- loc
       method src_loc = src_loc
 
-      method to_string = 
+      method to_string =
 	sprintf "%s%s[%s]"
           self#label
           (match orig_lab_opt with Some l -> "("^(L.to_string l)^")" | None -> "")
@@ -446,9 +446,9 @@ module Tree (L : Spec.LABEL_T) = struct
       method is_anonymous_orig = not is_named_orig
 
       method feature =
-	if self#is_named then 
+	if self#is_named then
 	  self#_label, None
-	else 
+	else
 	  self#_label, self#digest
 
 
@@ -488,7 +488,7 @@ module Tree (L : Spec.LABEL_T) = struct
             (fun x -> _label = x#_label && self#orig_lab_opt = x#orig_lab_opt);
 	self#update
 
-	    
+
       (* for searchast *)
       val mutable char = None
       method char =
@@ -501,8 +501,8 @@ module Tree (L : Spec.LABEL_T) = struct
 	  match char with
 	  | Some c -> c
 	  | _ -> assert false
-		
-	    
+
+
 
 
     end (* of class Sourcecode.node_data *)
@@ -595,7 +595,7 @@ module Tree (L : Spec.LABEL_T) = struct
     method unparse_subtree_ch : ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit =
       fun ?(fail_on_error=true) _ _ ->
         failwith "Sourcecode.unparse_subtree_ch: unparser is not implemented yet"
-        
+
     method unparse_ch ?(fail_on_error=true) = self#unparse_subtree_ch ~fail_on_error root
 
     method get_digest nd =
@@ -617,7 +617,7 @@ module Tree (L : Spec.LABEL_T) = struct
         self#initial_size initial_only;*)
       DEBUG_MSG "initial_only=%B" initial_only;
       let modified = ref false in
-      Hashtbl.iter 
+      Hashtbl.iter
 	(fun nd c ->
 
 	  DEBUG_MSG "recovering true children: %a -> [%s]"
@@ -727,7 +727,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
 
     method collapse =
-      let filt nd = 
+      let filt nd =
 	let lab = get_lab nd in
 	if L.forced_to_be_collapsible lab then
 	  nd#set_collapsible;
@@ -758,7 +758,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	else
 	  None
       in
-      let root = 
+      let root =
 	match doit nd with
 	| Some r -> r
 	| None -> raise (Invalid_argument "Sourcecode.c#make_subtree_copy")
@@ -777,7 +777,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	let gi = n#gindex in
 	if GI.is_valid gi then
 	  let children = Xlist.filter_map doit (Array.to_list n#initial_children) in
-	  let alab = 
+	  let alab =
 	    if List.mem n#uid uids_left_named then
 	      get_lab n
 	    else
@@ -789,7 +789,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	else
 	  None
       in
-      let root = 
+      let root =
 	match doit nd with
 	| Some r -> r
 	| None -> raise (Invalid_argument "Sourcecode.c#make_anonymized_subtree_copy")
@@ -823,17 +823,17 @@ module Tree (L : Spec.LABEL_T) = struct
       List.rev !res
 
 
-	
+
     method subtree_to_simple_string gid =
       let nd = self#search_node_by_gindex gid in
       let children = Array.to_list nd#initial_children in
       match children with
-      | [] -> nd#data#to_simple_string 
+      | [] -> nd#data#to_simple_string
       | _ ->
-	  sprintf "%s(%s)" 
-	    nd#data#to_simple_string 
-	    (String.concat "," 
-	       (List.map 
+	  sprintf "%s(%s)"
+	    nd#data#to_simple_string
+	    (String.concat ","
+	       (List.map
 		  (fun nd -> self#subtree_to_simple_string nd#gindex)
 		  children
 	       )
@@ -855,7 +855,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let ch = open_out fpath in
       self#fast_scan_whole_initial
 	(fun nd ->
-	  Printf.fprintf ch "%d-%d\n" 
+	  Printf.fprintf ch "%d-%d\n"
 	    nd#data#src_loc.Loc.start_line nd#data#src_loc.Loc.end_line
 	)
 
@@ -887,7 +887,7 @@ module Tree (L : Spec.LABEL_T) = struct
     method get_nearest_containing_unit uid =
       let nd = self#search_node_by_uid uid in
       let ancs = List.rev (self#initial_ancestor_nodes nd) in
-      if nd#data#to_be_notified then 
+      if nd#data#to_be_notified then
 	nd
       else
 	let rec scan = function
@@ -922,15 +922,15 @@ module Tree (L : Spec.LABEL_T) = struct
 	    end
 	  );
 	false
-      with 
+      with
         Found -> true
 
 
     method merge_locs_adjusting_to_boundary gids =
       BEGIN_DEBUG
 	DEBUG_MSG "tree size: %d" self#size;
-	List.iter 
-	  (fun gid -> 
+	List.iter
+	  (fun gid ->
 	    if gid >= self#size then begin
 	      WARN_MSG "invalid gid: %a" GI.ps gid;
 	      exit 1
@@ -942,10 +942,10 @@ module Tree (L : Spec.LABEL_T) = struct
       let nds = List.map self#search_node_by_gindex gids in
       let rec scan = function
 	| []        -> ()
-	| nd0::rest -> 
+	| nd0::rest ->
 	    let group = ref [nd0] in
-	    List.iter 
-	      (fun nd -> 
+	    List.iter
+	      (fun nd ->
 		if not (self#cross_boundary nd0 nd) then
 		  group := nd::!group
 	      ) rest;
@@ -955,31 +955,31 @@ module Tree (L : Spec.LABEL_T) = struct
       let max_group = ref [] in
       let max = ref 0 in
       List.iter
-	(fun g -> 
+	(fun g ->
 	  if (List.length g) > !max then begin
 	    max_group := g;
 	    max := List.length g
 	  end
 	) !groups;
       merge_locs !max_group
-	
+
 
     method private cross_boundary nd1 nd2 =
       let ands1 = List.filter (fun n -> n#data#not_frommacro) (self#initial_ancestor_nodes nd1) in
       let ands2 = List.filter (fun n -> n#data#not_frommacro) (self#initial_ancestor_nodes nd2) in
       let rec scan b = function
-	| h1::t1, h2::t2 -> 
-	    if h1 == h2 then 
+	| h1::t1, h2::t2 ->
+	    if h1 == h2 then
 	      scan false (t1, t2)
 	    else
 	      scan (b || h1#data#is_boundary || h2#data#is_boundary) (t1, t2)
 	| [], rest | rest, [] ->
-	    if b then 
+	    if b then
 	      true
 	    else
 	      let rec restscan = function
-		  h::t -> 
-		    if h#data#is_boundary then 
+		  h::t ->
+		    if h#data#is_boundary then
 		      true
 		    else
 		      restscan t
@@ -990,9 +990,9 @@ module Tree (L : Spec.LABEL_T) = struct
       scan false (ands1, ands2)
 
 
-    method get_nearest_boundary nd = 
+    method get_nearest_boundary nd =
       let ancs = List.rev (self#initial_ancestor_nodes nd) in
-      if nd#data#is_boundary then 
+      if nd#data#is_boundary then
 	nd
       else
 	try
@@ -1001,12 +1001,12 @@ module Tree (L : Spec.LABEL_T) = struct
 	    | [] -> raise Not_found
 	  in
 	  scan ancs
-	with Not_found -> 
-	  WARN_MSG "boundary not found in [%s] node=\"%s\"" 
+	with Not_found ->
+	  WARN_MSG "boundary not found in [%s] node=\"%s\""
 	    (Xlist.to_string (fun x -> x#data#to_string) "; " ancs) nd#data#to_string;
 	  raise Not_found
-	    
-	    
+
+
 
     method nearest_common_ancestor ?(closed=false) nds =
 
@@ -1019,9 +1019,9 @@ module Tree (L : Spec.LABEL_T) = struct
       in
 
       let rec intersect a = function
-	  h1::t1, h2::t2 -> 
-	    if h1 == h2 then 
-	      intersect (h1::a) (t1, t2) 
+	  h1::t1, h2::t2 ->
+	    if h1 == h2 then
+	      intersect (h1::a) (t1, t2)
 	    else
 	      List.rev a
 	| _, [] | [], _ -> List.rev a
@@ -1029,7 +1029,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let common = ref [] in
       begin
 	match nds with
-	  h::t -> 
+	  h::t ->
 	    common := (get_ancestors h);
 	    List.iter
 	      (fun nd ->
@@ -1039,19 +1039,19 @@ module Tree (L : Spec.LABEL_T) = struct
       end;
       try
 	Xlist.last !common, List.length !common
-      with 
+      with
 	Failure _ ->
 	  BEGIN_DEBUG
             let nds_to_str nds = (String.concat ", " (List.map (fun n -> GI.to_string n#gindex) nds)) in
 	    DEBUG_MSG "nearest_common_ancestor of [%s]\n" (nds_to_str nds);
 	    List.iter
 	      (fun n ->
-		DEBUG_MSG "  initial ancestor of %a: [%s]\n" 
+		DEBUG_MSG "  initial ancestor of %a: [%s]\n"
 		  GI.ps n#gindex (nds_to_str (self#initial_ancestor_nodes n))
 	      ) nds
 	  END_DEBUG;
 	  raise (Failure "Sourcecode.Tree.c#nearest_common_ancestor")
-	    
+
 
 
     method private _get_origin row revidx =
@@ -1060,7 +1060,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	  List.nth row i
 	with
 	  Failure _ ->
-	    ERROR_MSG "_get_origin.get: index out of bounds: i=%d row=%s" 
+	    ERROR_MSG "_get_origin.get: index out of bounds: i=%d row=%s"
 	      i (Xlist.to_string (fun x -> x) ", " row);
 	    exit 1
       in
@@ -1088,7 +1088,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let revidx_s = string_of_int revidx in
 
       let csv = Csv.load nctms_file in
-      let csv = 
+      let csv =
 	match csv with
 	  [] -> []
 	| _::tl -> tl
@@ -1102,7 +1102,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	    let nd = self#search_node_by_gindex gid in
 	    nd#data#set_origin origin;
 	    nd#data#set_ending ending
-	  with 
+	  with
 	  | Not_found -> ()
 	  | Failure _ -> raise (Malformed_row row_s)
 	) csv;
@@ -1141,23 +1141,23 @@ module Tree (L : Spec.LABEL_T) = struct
 
 	    if ogn_cond || edg_cond then begin
 	      let ancestors = (* rightmost is the parent *)
-		(self#initial_ancestor_nodes nd) 
+		(self#initial_ancestor_nodes nd)
 	      in
 	      let ancestors = (* remove the root *)
 		if List.length ancestors > 0 then List.tl ancestors else []
 	      in
 	      if ogn_cond then begin
 		try
-		  List.iter 
+		  List.iter
 		    (fun a ->
-		      if a#data#origin = ogn 
+		      if a#data#origin = ogn
 		      then begin
 			try
 			  let nds = Hashtbl.find nds_tbl a in
 			  Hashtbl.replace nds_tbl a (nd::nds);
 			  raise Found
-			with 
-			  Not_found -> 
+			with
+			  Not_found ->
 			    Hashtbl.add nds_tbl a [nd; a];
 			    raise Found
 		      end
@@ -1168,16 +1168,16 @@ module Tree (L : Spec.LABEL_T) = struct
 	      end;
 	      if edg_cond then begin
 		try
-		  List.iter 
+		  List.iter
 		    (fun a ->
-		      if a#data#ending = edg 
+		      if a#data#ending = edg
 		      then begin
 			try
 			  let nds = Hashtbl.find nds_tbl_ending a in
 			  Hashtbl.replace nds_tbl_ending a (nd::nds);
 			  raise Found
-			with 
-			  Not_found -> 
+			with
+			  Not_found ->
 			    Hashtbl.add nds_tbl_ending a [nd; a];
 			    raise Found
 		      end
@@ -1187,7 +1187,7 @@ module Tree (L : Spec.LABEL_T) = struct
 		  Found -> ()
 	      end
 	    end;
-	    
+
 	    let loc = ndat#src_loc in
 	    let st = loc.Loc.start_offset in
 	    let ed = loc.Loc.end_offset in
@@ -1209,8 +1209,8 @@ module Tree (L : Spec.LABEL_T) = struct
 
       Xprint.message "coverage (origin): %d/%d (%f%%)" nknown_origin sz cov;
       Hashtbl.iter
-	(fun nd nds -> 
-	  Xprint.message "size of fragment: (gid:%a, origin:%s) -> %d" 
+	(fun nd nds ->
+	  Xprint.message "size of fragment: (gid:%a, origin:%s) -> %d"
 	    GI.ps nd#gindex nd#data#origin (List.length nds)
 	) nds_tbl;
 
@@ -1219,8 +1219,8 @@ module Tree (L : Spec.LABEL_T) = struct
 
       Xprint.message "coverage (ending): %d/%d (%f%%)" nknown_ending sz cov_ending;
       Hashtbl.iter
-	(fun nd nds -> 
-	  Xprint.message "size of fragment: (gid:%a, ending:%s) -> %d" 
+	(fun nd nds ->
+	  Xprint.message "size of fragment: (gid:%a, ending:%s) -> %d"
 	    GI.ps nd#gindex nd#data#ending (List.length nds)
 	) nds_tbl_ending;
 
@@ -1252,12 +1252,12 @@ module Tree (L : Spec.LABEL_T) = struct
 	    try
 	      let nds' = Hashtbl.find nds_tbl2 a' in
 	      Hashtbl.replace nds_tbl2 a' (nd'::nds')
-	    with Not_found -> 
+	    with Not_found ->
 	      Hashtbl.add nds_tbl2 a' [nd'; a']
 	  end;
 	  b
 
-	with 
+	with
           Not_found -> false
       in
 
@@ -1269,14 +1269,14 @@ module Tree (L : Spec.LABEL_T) = struct
 	      let nd' = tree#search_node_by_gindex ni' in
 
 	      let ancestors = (* rightmost is the parent *)
-		(self#initial_ancestor_nodes nd) 
+		(self#initial_ancestor_nodes nd)
 	      in
 	      let ancestors = (* remove the root *)
 		if List.length ancestors > 0 then List.tl ancestors else []
 	      in
 	      begin
 		try
-		  List.iter 
+		  List.iter
 		    (fun a ->
 		      if check_mapping nd' a
 		      then begin
@@ -1284,8 +1284,8 @@ module Tree (L : Spec.LABEL_T) = struct
 			  let nds = Hashtbl.find nds_tbl1 a in
 			  Hashtbl.replace nds_tbl1 a (nd::nds);
 			  raise Found
-			with 
-			  Not_found -> 
+			with
+			  Not_found ->
 			    Hashtbl.add nds_tbl1 a [nd; a];
 			    raise Found
 		      end
@@ -1299,8 +1299,8 @@ module Tree (L : Spec.LABEL_T) = struct
 	  end
 	);
 
-      Hashtbl.iter 
-	(fun nd nds -> 
+      Hashtbl.iter
+	(fun nd nds ->
 	  try
 	    let ni' = Hashtbl.find gmap_tbl nd#gindex in
 	    let nd' = tree#search_node_by_gindex ni' in
@@ -1312,7 +1312,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	      GI.p nd'#gindex nd'#data#label (Loc.to_string loc') (Loc.lines loc') (List.length nds')
 
 	  with Not_found -> ()
-	      
+
 	) nds_tbl1
 
     method find_nodes_by_line_range (start_line, end_line) =
@@ -1325,7 +1325,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	);
       if !res = [] then
 	WARN_MSG "no nodes found: %d-%d" start_line end_line;
-      
+
       !res
 
     method find_nodes_by_line_col_range ((start_line, start_col), (end_line, end_col)) =
@@ -1333,10 +1333,10 @@ module Tree (L : Spec.LABEL_T) = struct
       self#preorder_scan_whole_initial
 	(fun nd ->
 	  let loc = nd#data#src_loc in
-	  if 
-	    ( (start_line = loc.Loc.start_line && start_col <= loc.Loc.start_char) 
-	    || start_line < loc.Loc.start_line ) 
-	      && 
+	  if
+	    ( (start_line = loc.Loc.start_line && start_col <= loc.Loc.start_char)
+	    || start_line < loc.Loc.start_line )
+	      &&
 	    ( (loc.Loc.end_line = end_line && loc.Loc.end_char <= end_col)
 	    || loc.Loc.end_line < end_line )
 	  then
@@ -1344,10 +1344,10 @@ module Tree (L : Spec.LABEL_T) = struct
 	);
       if !res = [] then
 	WARN_MSG "no nodes found: %d-%d" start_line end_line;
-      
+
       !res
 
-	
+
     (* for searchast *)
 
     val mutable token_array = [||]
@@ -1356,8 +1356,8 @@ module Tree (L : Spec.LABEL_T) = struct
     method find_token_node i =
       try
 	node_array.(i)
-      with 
-	Invalid_argument _ -> 
+      with
+	Invalid_argument _ ->
 	  WARN_MSG "not found \"%d\"" i;
 	  raise Not_found
 
@@ -1385,8 +1385,8 @@ module Tree (L : Spec.LABEL_T) = struct
     method find_token_node_pat i =
       try
 	node_array_pat.(i)
-      with 
-	Invalid_argument _ -> 
+      with
+	Invalid_argument _ ->
 	  WARN_MSG "not found \"%d\"" i;
 	  raise Not_found
 
@@ -1405,7 +1405,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
 
     method private compute_continuity matched = (* assumes sorted *)
-      let total_gap = 
+      let total_gap =
 	let rec scan a = function
 	    i0::i1::t -> scan ((i1 - i0 - 1) + a) (i1::t)
 	  | [_] -> a
@@ -1413,7 +1413,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	in
 	scan 0 matched
       in
-      let range = 
+      let range =
 	match matched with
 	  i0::i1::t -> (Xlist.last (i1::t)) - i0 + 1
 	| [_] -> 1
@@ -1430,9 +1430,9 @@ module Tree (L : Spec.LABEL_T) = struct
     method match_token_array_pat_ch cache_path frag_src pat gindextok_array ch =
       let re = Str.regexp "^\\([0-9]+\\):\\(.+\\)" in
       let gid_array = Array.make (Array.length gindextok_array) (-1) in
-      let tokpat = 
-	Array.mapi 
-	  (fun i gidtok -> 
+      let tokpat =
+	Array.mapi
+	  (fun i gidtok ->
 	    if Str.string_match re gidtok 0 then
 	      let gid_s = Str.matched_group 1 gidtok in
 	      let tok = Str.matched_group 2 gidtok in
@@ -1452,15 +1452,15 @@ module Tree (L : Spec.LABEL_T) = struct
       let gmap_path = mkgmapfilepath ~gmap_ext:options#gmap_ext cache_path patfrag in
       try
 	self#_match_token_array_pat_ch tokpat pathash getgid gmap_path ch
-      with 
-	exn -> 
+      with
+	exn ->
 	  WARN_MSG "caught \"%s\"" (Printexc.to_string exn)
 
 
     method show_node_array_pat = (* for debug *)
       Printf.printf "node_array_pat:\n";
       Array.iter
-	(fun nd -> 
+	(fun nd ->
 	  Printf.printf "%a [%s] (%s)\n" GI.p nd#gindex nd#data#label (Loc.to_string nd#data#src_loc)
 	) node_array_pat;
 
@@ -1477,10 +1477,10 @@ module Tree (L : Spec.LABEL_T) = struct
       let pathash = pat_tree#encoded_source_digest ^ ":" ^ patfrag#hash in
       try
 	self#_match_token_array_pat_ch tokpat pathash getgid gmap_path ch
-      with 
-	exn -> 
-	  WARN_MSG "caught \"%s\"" (Printexc.to_string exn)	  
-	  
+      with
+	exn ->
+	  WARN_MSG "caught \"%s\"" (Printexc.to_string exn)
+
 
 
     method private _match_token_array_pat_ch tokpat pathash getgid gmap_path ch =
@@ -1496,7 +1496,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       let matched = List.fast_sort Stdlib.compare matched in
 
-      let gaps = 
+      let gaps =
 	let rec loop a = function
 	  | i0::i1::t -> loop ((i1 - i0 - 1)::a) (i1::t)
 	  | [i] -> List.rev a
@@ -1511,19 +1511,19 @@ module Tree (L : Spec.LABEL_T) = struct
       let gap_tbl = Hashtbl.create 0 in
       let index_tbl = Hashtbl.create 0 in
       let count = ref 0 in
-      List.iter 
-	(fun nd -> 
+      List.iter
+	(fun nd ->
 	  try
-	    Hashtbl.replace index_tbl nd (List.nth matched !count); 
-	    Hashtbl.replace gap_tbl nd (List.nth gaps !count); 
+	    Hashtbl.replace index_tbl nd (List.nth matched !count);
+	    Hashtbl.replace gap_tbl nd (List.nth gaps !count);
 	    incr count
 	  with _ -> ()
 	) matched_nds;
 
       BEGIN_DEBUG
 	DEBUG_MSG "%d matched nodes (gindex):\n" (List.length matched_nds);
-	List.iter 
-	  (fun n -> 
+	List.iter
+	  (fun n ->
 	    DEBUG_MSG "%a [%s](%s)\n" GI.ps n#gindex n#data#label (Loc.to_string n#data#src_loc)
 	  ) matched_nds
       END_DEBUG;
@@ -1538,7 +1538,7 @@ module Tree (L : Spec.LABEL_T) = struct
 	      else
 		scan segs (n0::cur_seg) rest
 	    end
-	  | [n] -> (List.rev (List.map List.rev ((n::cur_seg)::segs))) 
+	  | [n] -> (List.rev (List.map List.rev ((n::cur_seg)::segs)))
 	  | [] -> []
 	in
 	let segs = scan [] [] m in
@@ -1557,37 +1557,37 @@ module Tree (L : Spec.LABEL_T) = struct
 (*
   let ave_size = (float sum_size) /. (float nsegs) in
  *)
-	let ranges = 
+	let ranges =
 	  let get_range seg =
 	    let last = List.hd (List.rev seg) in
 	    let first = List.hd seg in
 	    try
 	      (Hashtbl.find index_tbl last) - (Hashtbl.find index_tbl first) + 1
-	    with 
-	      Not_found -> 
+	    with
+	      Not_found ->
 		ERROR_MSG "not found: gid:%a or gid:%a" GI.ps first#gindex GI.ps last#gindex;
 		exit 1
 	  in
 	  List.map get_range segs
 	in
-	let gap_sizes = 
-	  List.map 
-	    (fun seg -> 
-	      List.fold_left 
-		(fun s n -> 
+	let gap_sizes =
+	  List.map
+	    (fun seg ->
+	      List.fold_left
+		(fun s n ->
 		  try
 		    s + try Hashtbl.find gap_tbl n with _ -> 0
-		  with 
-		    Not_found -> 
+		  with
+		    Not_found ->
 		      ERROR_MSG "not found: \"%s\"" n#to_string;
 		      exit 1
 		) 0 (List.rev(List.tl(List.rev seg)))
-		
+
 	    ) segs
 	in
-	let rates = 
-	  List.map2 
-	    (fun sz (g, r) -> 
+	let rates =
+	  List.map2
+	    (fun sz (g, r) ->
 	      (float sz) /. (float options#size_threshold) *. (float (r - g)) /. (float r)
 	    ) sizes (List.combine gap_sizes ranges) in
 
@@ -1599,12 +1599,12 @@ module Tree (L : Spec.LABEL_T) = struct
 
 	BEGIN_DEBUG
 	  for i = 0 to (List.length segs) - 1 do
-	    DEBUG_MSG "size=%d(nrels=%d,tgap=%d,range=%d) [%f] %s\n" 
-	      (List.nth sizes i) 
+	    DEBUG_MSG "size=%d(nrels=%d,tgap=%d,range=%d) [%f] %s\n"
+	      (List.nth sizes i)
 	      (List.length (List.nth rels i))
 	      (List.nth gap_sizes i)
 	      (List.nth ranges i)
-	      (List.nth rates i) 
+	      (List.nth rates i)
 	      (Loc.to_string (List.nth locs i))
 	  done
 	END_DEBUG;
@@ -1613,8 +1613,8 @@ module Tree (L : Spec.LABEL_T) = struct
 	let final_locs          = ref [] in
 	let final_matched_nds   = ref [] in
 	let final_relabeled_nds = ref [] in
-	List.iter 
-	  (fun (seg, rate, loc, rel) -> 
+	List.iter
+	  (fun (seg, rate, loc, rel) ->
 	    if rate >= options#str_threshold then begin
 	      final_matched_nds   := !final_matched_nds @ seg;
 	      final_rates         := rate::!final_rates;
@@ -1628,18 +1628,18 @@ module Tree (L : Spec.LABEL_T) = struct
 
 	let sim = (float nmatches) /. (float tokpat_len) in
 
-	let str = 
+	let str =
 	  let sum = List.fold_left (fun s r -> s +. r) 0.0 !final_rates in
 	  if sum > 0.0 then
-	    sum /. (float (List.length !final_rates)) 
+	    sum /. (float (List.length !final_rates))
 	  else
 	    0.0
 	in
 
-	nmatches, 
+	nmatches,
 	nrelabels,
-	sim, 
-	str, 
+	sim,
+	str,
 	(String.concat "|" (List.map Loc.to_string !final_locs)),
 	!final_matched_nds,
 	!final_relabeled_nds
@@ -1647,7 +1647,7 @@ module Tree (L : Spec.LABEL_T) = struct
       in (* end of func scan_matched *)
 
       let nmats, nrels, sim, str, loc, matched_nodes, relabeled_nodes =
-	if (List.length matched) = 0 then 
+	if (List.length matched) = 0 then
 	  0, 0, 0.0, 0.0, "???", [], []
 	else
 	  scan_matched matched_nds
@@ -1662,7 +1662,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let wemr = (float nmats) /. (float (nmats + nrenamed)) in (* WEMR: weak EMR *)
 
 (*
-  Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n" 
+  Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n"
   nmats tokpat_len sim nrels str emr wemr loc pathash;
  *)
 
@@ -1678,17 +1678,17 @@ module Tree (L : Spec.LABEL_T) = struct
 
 	if ca != self#root && nearest_boundary_opt <> None then begin
 
-	  let nearest_boundary = 
-	    match nearest_boundary_opt with Some nb -> nb | None -> assert false 
+	  let nearest_boundary =
+	    match nearest_boundary_opt with Some nb -> nb | None -> assert false
 	  in
 
-	  DEBUG_MSG "%s (%s)\n" 
-	    nearest_boundary#data#label 
+	  DEBUG_MSG "%s (%s)\n"
+	    nearest_boundary#data#label
 	    (Loc.to_string nearest_boundary#data#src_loc);
 
 	  let src_frag = new GIDfragment.c in
-	  let rep = 
-	    sprintf "%a-%a" 
+	  let rep =
+	    sprintf "%a-%a"
 	      GI.rs (self#initial_leftmost nearest_boundary)#gindex GI.rs nearest_boundary#gindex
 	  in
 	  src_frag#set_rep rep;
@@ -1716,13 +1716,13 @@ module Tree (L : Spec.LABEL_T) = struct
 
 	  BEGIN_DEBUG
 	    DEBUG_MSG "%d matched nodes (2) (gindex):\n" (List.length matched_nds2);
-	    List.iter 
-	      (fun n -> 
+	    List.iter
+	      (fun n ->
 		DEBUG_MSG "%a [%s](%s)\n" GI.ps n#gindex n#data#label (Loc.to_string n#data#src_loc)
 	      ) matched_nds2;
 	    DEBUG_MSG "%d relabeled nodes (2) (gindex):\n" (List.length relabeled_nds2);
-	    List.iter 
-	      (fun n -> 
+	    List.iter
+	      (fun n ->
 		Printf.printf "%a [%s](%s)\n" GI.p n#gindex n#data#label (Loc.to_string n#data#src_loc)
 	      ) relabeled_nds2
 	  END_DEBUG;
@@ -1732,21 +1732,21 @@ module Tree (L : Spec.LABEL_T) = struct
 	  let str2 = (float nmats2) /. (float options#size_threshold) in
 
 	  if (List.length exact_matches2) > nmats && continuity >= options#continuity_threshold then begin
-	    let _ = 
+	    let _ =
 	      if sim2 >= options#sim_threshold then
-		let gmap = 
-		  List.map 
-		    (fun (i, j) -> 
+		let gmap =
+		  List.map
+		    (fun (i, j) ->
 		      ((self#find_token_node_pat i)#gindex, (getgid j))
 		    ) matches2
 		in
 		dump_gmap gmap gmap_path
 	    in
-	    Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n" 
-	      nmats2 tokpat_len sim2 nrels2 str2 emr2 wemr2 (Loc.to_string loc2) pathash;    
+	    Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n"
+	      nmats2 tokpat_len sim2 nrels2 str2 emr2 wemr2 (Loc.to_string loc2) pathash;
 	  end
 	  else
-	    Printf.fprintf ch "similarity: (0/%d)=0.0 relabels:%d STR:0.0 EMR:0.0 WEMR:0.0 loc:WITHDRAWN pathash:%s\n" 
+	    Printf.fprintf ch "similarity: (0/%d)=0.0 relabels:%d STR:0.0 EMR:0.0 WEMR:0.0 loc:WITHDRAWN pathash:%s\n"
 	      tokpat_len nrels2 pathash
 
 	end
@@ -1756,39 +1756,39 @@ module Tree (L : Spec.LABEL_T) = struct
 	  in
 	  let c = self#compute_continuity matched in
 	  if c >= options#continuity_threshold then begin
-	    let _ = 
+	    let _ =
 	      if sim >= options#sim_threshold then
-		let matches = 
+		let matches =
 		  let ms = List.map (fun n -> Hashtbl.find index_tbl n) matched_nodes in
 		  List.filter (fun (i, _) -> List.mem i ms) matches
 		in
-		let gmap = 
-		  List.map 
-		    (fun (i, j) -> 
+		let gmap =
+		  List.map
+		    (fun (i, j) ->
 		      ((self#find_token_node i)#gindex, (getgid j))
 		    ) matches
 		in
 		dump_gmap gmap gmap_path
 	    in
-	    Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n" 
+	    Printf.fprintf ch "similarity: (%d/%d)=%f relabels:%d STR:%f EMR:%f WEMR:%f loc:%s pathash:%s\n"
 	      nmats tokpat_len sim nrels str emr wemr loc pathash
 	  end
 	  else
-	    Printf.fprintf ch "similarity: (0/%d)=0.0 relabels:%d STR:0.0 EMR:0.0 WEMR:0.0 loc:WITHDRAWN pathash:%s\n" 
+	    Printf.fprintf ch "similarity: (0/%d)=0.0 relabels:%d STR:0.0 EMR:0.0 WEMR:0.0 loc:WITHDRAWN pathash:%s\n"
 	      tokpat_len nrels pathash
 
       end
       else
 	let loc = if (List.length matches) > 0 then "CUTOFF" else "-" in
-	Printf.fprintf ch "similarity: (0/%d)=0.0 relabels:%d STR:0.0 EMR:0.0 WEMR:0.0 loc:%s pathash:%s\n" 
+	Printf.fprintf ch "similarity: (0/%d)=0.0 relabels:%d STR:0.0 EMR:0.0 WEMR:0.0 loc:%s pathash:%s\n"
 	  tokpat_len nrels loc pathash
 	  (* end of method _match_token_array_pat_ch *)
 
     method match_pats cache_path ofile pat_tree patfrags =
-      Xfile.dump ofile 
-	(fun ch -> 
-	  List.iter 
-	    (fun p -> 
+      Xfile.dump ofile
+	(fun ch ->
+	  List.iter
+	    (fun p ->
 	      let tokpat = pat_tree#get_token_array_pat p in
 	      self#match_pat_ch cache_path pat_tree tokpat p ch
 	    ) patfrags)
@@ -1804,14 +1804,14 @@ module Tree (L : Spec.LABEL_T) = struct
       !labs
 
     method dump_subtree_for_delta_ch
-        (root : node_t) 
-        (except : node_t list) 
+        (root : node_t)
+        (except : node_t list)
         (ch : Xchannel.out_channel)
         =
       let fprintf = Xchannel.fprintf in
       let attrs_to_string attrs =
-        String.concat "" 
-          (List.map 
+        String.concat ""
+          (List.map
              (fun (a, v) ->
                sprintf " %s=\"%s\"" a v
              ) attrs)
@@ -1840,7 +1840,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
 
   let attrs_of_anodes anodes =
-    List.fold_left 
+    List.fold_left
       (fun l anode ->
         match anode#node_type with
 	| PxpD.T_attribute name -> l @ [name, anode#data]
@@ -1849,10 +1849,10 @@ module Tree (L : Spec.LABEL_T) = struct
 
   let xnode_to_string = Delta_base.xnode_to_string
 
-  let of_xnode 
-      ?(tree_creator=fun options nd -> new c options nd true) 
+  let of_xnode
+      ?(tree_creator=fun options nd -> new c options nd true)
       (options : #Parser_options.c)
-      (xnode : SB.xnode_t) 
+      (xnode : SB.xnode_t)
       =
     let rec scan_xnode xnode =
       match xnode#node_type with
@@ -1879,7 +1879,7 @@ module Tree (L : Spec.LABEL_T) = struct
       end
 
     and scan_xnodes xnodes =
-      List.fold_right 
+      List.fold_right
         (fun n l -> try (scan_xnode n)::l with Ignore -> l) xnodes []
     in
     let nd = scan_xnode xnode in
@@ -1917,7 +1917,7 @@ let find_nearest_mapped_ancestor_node is_mapped nd =
 	pn
       else
 	scan pn
-    with 
+    with
       Otreediff.Otree.Parent_not_found _ -> raise Not_found
   in
   let a = scan nd in
@@ -1927,11 +1927,11 @@ let find_nearest_mapped_ancestor_node is_mapped nd =
 let find_nearest_mapped_descendant_nodes is_mapped node =
   let rec get nd =
     List.flatten
-      (List.map 
+      (List.map
 	 (fun n ->
-	   if is_mapped n#uid then 
+	   if is_mapped n#uid then
 	     [n]
-	   else 
+	   else
 	     get n
 	 ) (Array.to_list nd#initial_children))
   in
@@ -1939,7 +1939,7 @@ let find_nearest_mapped_descendant_nodes is_mapped node =
 
 
 
-type frame = 
+type frame =
     { f_scope_node : Spec.node_t;
       f_table      : (name, Spec.node_t) Hashtbl.t;
     }
@@ -1976,7 +1976,7 @@ class stack = object (self)
       Hashtbl.find _global_tbl name
     with
       Found n -> n
-	  
+
 end (* of class Tree.stack *)
 
 

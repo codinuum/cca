@@ -38,7 +38,7 @@ class c = object (self)
   method size =
     let sz = ref 0 in
     List.iter
-      (function 
+      (function
 	| Fsingle _      -> incr sz
 	| Frange(i1, i2) -> sz := !sz + i2 - i1 + 1
       ) _list;
@@ -47,22 +47,22 @@ class c = object (self)
   method get_list =
     let res = ref [] in
     List.iter
-      (function 
+      (function
 	| Fsingle i      -> res := i::!res
-	| Frange(i1, i2) -> 
+	| Frange(i1, i2) ->
 	    for j = i1 to i2 do
 	      res := j::!res
 	    done
       ) _list;
     !res
-    	
+
 
   method to_string = _rep
 
-  method set_rep rep = 
+  method set_rep rep =
     _rep <- rep;
     self#sync_list
-      
+
   method set_list l =
     _list <- [];
     let l = List.fast_sort Stdlib.compare l in
@@ -72,12 +72,12 @@ class c = object (self)
       (fun cur ->
 	begin
 	  match !st_opt with
-	    None -> 
+	    None ->
 	      st_opt := Some cur
 	  | Some st -> begin
 	      match !prev_opt with
 		None -> () (* impossible *)
-	      | Some prev -> 
+	      | Some prev ->
 		  if cur = prev + 1 then
 		    ()
 		  else begin
@@ -104,9 +104,9 @@ class c = object (self)
       (fun c ->
 	if c = ';' then begin
 	  let ns = Buffer.contents buf in
-	  let n = 
+	  let n =
 	    try
-	      int_of_string ns 
+	      int_of_string ns
 	    with Failure _ -> raise (Invalid_format ns)
 	  in
 	  begin
@@ -117,11 +117,11 @@ class c = object (self)
 	  cur := None;
 	  Buffer.clear buf
 	end
-	else if c = '-' then 
+	else if c = '-' then
 	  let ns = Buffer.contents buf in
-	  let n = 
+	  let n =
 	    try
-	      int_of_string ns 
+	      int_of_string ns
 	    with Failure _ -> raise (Invalid_format ns)
 	  in
 	  cur := Some n;
@@ -132,9 +132,9 @@ class c = object (self)
       ) _rep;
     let rest = Buffer.contents buf in
     if rest <> "" then begin
-      let n = 
+      let n =
 	try
-	  int_of_string rest 
+	  int_of_string rest
 	with Failure _ -> raise (Invalid_format rest)
       in
       begin
@@ -149,8 +149,8 @@ class c = object (self)
     try
       List.iter
 	(function
-	    Fsingle n -> 
-	      if n = i then 
+	    Fsingle n ->
+	      if n = i then
 		raise Found
 	  | Frange(n1, n2) ->
 	      if n1 <= i && i <= n2 then

@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * A lexer (utf-8) for the Python programming language
  *
  * ulexer.ml
@@ -29,7 +29,7 @@ open Compat
 
 module PB = Parserlib_base
 
-type longstringmode = LSMfalse | LSMsingle | LSMdouble 
+type longstringmode = LSMfalse | LSMsingle | LSMdouble
 
 
 exception Illegal_indent
@@ -38,27 +38,27 @@ exception Illegal_indent
 
 let indent_length ind =
   let c = ref 0 in
-  let add_tab() = 
+  let add_tab() =
     let n = !c mod 8 in
     c := !c + 8 - n
   in
   let n = String.length ind in
   if n > 0 then begin
-    if ind.[0] = '\012' then 
+    if ind.[0] = '\012' then
       ()
-    else if ind.[0] = '\009' then 
+    else if ind.[0] = '\009' then
       add_tab()
-    else if ind.[0] = ' ' then 
+    else if ind.[0] = ' ' then
       incr c
-    else 
-      raise Illegal_indent; 
+    else
+      raise Illegal_indent;
     if n > 1 then
       for i = 1 to n - 1 do
-	if ind.[i] = '\009' then 
+	if ind.[i] = '\009' then
 	  add_tab()
-	else if ind.[i] = ' ' then 
+	else if ind.[i] = ' ' then
 	  incr c
-	else 
+	else
 	  raise Illegal_indent
       done
   end;
@@ -78,7 +78,7 @@ let mktok rawtok ulexbuf =
   let ed_pos = mklexpos ((Ulexing.lexeme_end ulexbuf) - 1) in
   rawtok, st_pos, ed_pos
 
-      
+
 
 module F (Stat : Parser_aux.STATE_T) = struct
 
@@ -87,14 +87,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let offsets_to_loc st ed =
     env#current_pos_mgr#offsets_to_loc st ed
 
-  let lexing_error lexbuf msg = 
+  let lexing_error lexbuf msg =
     let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
     Common.fail_to_parse ~head:(Astloc.to_string ~prefix:"[" ~suffix:"]" loc) msg
 
 
   let find_keyword =
     let keyword_list =
-      [ 
+      [
 	"and",      AND;
 	"assert",   ASSERT;
 	"break",    BREAK;
@@ -128,24 +128,24 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "await",    AWAIT;
         "async",    ASYNC;
         "nonlocal", NONLOCAL;
-      ] in 
+      ] in
     let keyword_table = Hashtbl.create (List.length keyword_list) in
-    let _ = 
-      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-	keyword_list 
+    let _ =
+      List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+	keyword_list
     in
     let with_keywords = [ "as", AS; "with", WITHx ] in
-    let find s = 
-      try 
+    let find s =
+      try
 	Hashtbl.find keyword_table s
-      with 
-	Not_found -> 
+      with
+	Not_found ->
 	  if env#with_stmt_enabled then
 	    try
 	      List.assoc s with_keywords
-	    with 
+	    with
 	      Not_found -> NAMEx s
-	  else 
+	  else
 	    NAMEx s
     in
     find
@@ -165,7 +165,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     method push_indent n =
       DEBUG_MSG "pushed %d" n;
-      Stack.push n indent_stack 
+      Stack.push n indent_stack
 
     method pop_indent =
       let n = Stack.pop indent_stack in
@@ -176,12 +176,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     method indent_stack_iter f = Stack.iter f indent_stack
     method indent_stack_len = Stack.length indent_stack
     method init_indent_stack =
-      Stack.clear indent_stack; 
+      Stack.clear indent_stack;
       Stack.push 0 indent_stack
 
     method push_token t =
       DEBUG_MSG "pushed %s" (Token.to_string env#current_pos_mgr t);
-      Stack.push t token_stack 
+      Stack.push t token_stack
 
     method pop_token =
       let t = Stack.pop token_stack in
@@ -189,7 +189,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       t
 
     method is_token_stack_empty = Stack.is_empty token_stack
-    method init_token_stack = 
+    method init_token_stack =
       Stack.clear token_stack
 
     method paren_in = paren_count <- paren_count + 1
@@ -292,17 +292,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
     DEBUG_MSG "[NULL_LINES]: region: %d-%d" st ed;
     env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
-    if scanner_env#in_paren then 
-      token scanner_env lexbuf 
+    if scanner_env#in_paren then
+      token scanner_env lexbuf
     else begin
       DEBUG_MSG " * checking indent";
       let ind = indent lexbuf in
       let len = indent_length ind in
       let top = scanner_env#top_of_indent_stack in
-      if len = top then 
+      if len = top then
 	()
       else if len > top then begin
-	scanner_env#push_indent len; 
+	scanner_env#push_indent len;
 	scanner_env#push_token (mktok INDENT lexbuf)
       end
       else if len < top then begin
@@ -310,23 +310,23 @@ module F (Stat : Parser_aux.STATE_T) = struct
 	scanner_env#indent_stack_iter (fun n -> if n = len then ok := true);
 	if !ok then begin
 	  let c = ref 0 in
-	  scanner_env#indent_stack_iter 
-	    (fun n -> 
+	  scanner_env#indent_stack_iter
+	    (fun n ->
 	      if n > len then begin
-		let _ = scanner_env#pop_indent in incr c 
+		let _ = scanner_env#pop_indent in incr c
 	      end);
 	  if !c > 0 then begin
 	    for i = 1 to !c do
 	      scanner_env#push_token (mktok DEDENT lexbuf)
 	    done
 	  end
-	  else 
+	  else
 	    raise Illegal_indent
 	end
-	else 
+	else
 	  raise Illegal_indent
       end
-      else 
+      else
 	raise Illegal_indent; (* impossible *)
 
       mktok (NEWLINE len) lexbuf
@@ -392,8 +392,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   identifier -> mktok (find_keyword (Ulexing.utf8_lexeme lexbuf)) lexbuf
 
-|   eof 
-  -> 
+|   eof
+  ->
     let n = scanner_env#indent_stack_len - 1 in
     if n > 0 then begin
       for i = 1 to n do
@@ -402,9 +402,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
       done
     end;
     (mktok EOF lexbuf)
-      
 
-|   _ -> 
+
+|   _ ->
     let sym = Ulexing.utf8_lexeme lexbuf in
     if sym = "\"" then
       lexing_error lexbuf "invalid single-quated string"
@@ -441,7 +441,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     val mutable ulexbuf_opt = None
 
 
-    method init = 
+    method init =
       scanner_env#init
 
     method enter_source src =
@@ -461,28 +461,28 @@ module F (Stat : Parser_aux.STATE_T) = struct
       match ulexbuf_opt with
       | Some ulexbuf -> begin
           let tok =
-	    if scanner_env#is_token_stack_empty then 
+	    if scanner_env#is_token_stack_empty then
 	      try
 	        match scanner_env#longstringmode with
-	        | LSMsingle -> begin 
+	        | LSMsingle -> begin
 		    scanner_env#set_longstringmode LSMfalse;
 		    longstring_single "" ulexbuf
 	        end
-	        | LSMdouble -> begin 
+	        | LSMdouble -> begin
 		    scanner_env#set_longstringmode LSMfalse;
 		    longstring_double "" ulexbuf
 	        end
 	        | LSMfalse -> token scanner_env ulexbuf
-	      with 
+	      with
 	        Illegal_indent -> lexing_error ulexbuf "illegal indent"
 
-	    else 
+	    else
 	      scanner_env#pop_token
           in
           DEBUG_MSG "%s" (Token.to_string env#current_pos_mgr tok);
-          (match Token.get_rawtoken tok with 
+          (match Token.get_rawtoken tok with
           | LONGSTRING_BEGIN_S _ -> scanner_env#set_longstringmode LSMsingle
-          | LONGSTRING_BEGIN_D _ -> scanner_env#set_longstringmode LSMdouble 
+          | LONGSTRING_BEGIN_D _ -> scanner_env#set_longstringmode LSMdouble
           | _ -> ());
           tok
       end

@@ -13,10 +13,10 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * tokenbuffer.ml
  *
- * Buffer for tokens in preprocessor conditional branches 
+ * Buffer for tokens in preprocessor conditional branches
  *
  *)
 
@@ -75,8 +75,8 @@ module F (Stat : Aux.STATE_T) = struct
     let id =
       match idtok with
       | IDENTIFIER s -> s
-      | tok -> 
-	  raise (Invalid_argument 
+      | tok ->
+	  raise (Invalid_argument
 		   ("Tokenbuffer.make_branch_tag: invalid idtoken: "^(Token.rawtoken_to_string tok)))
     in
     match iftok with
@@ -84,8 +84,8 @@ module F (Stat : Aux.STATE_T) = struct
     | PP_IFNDEF -> BTifndef(id, loc)
     | PP_ELSIF  -> BTelsif id
     | PP_ELSE   -> BTelse
-    | tok -> 
-	raise (Invalid_argument 
+    | tok ->
+	raise (Invalid_argument
 		 ("Tokenbuffer.make_branch_tag: invalid iftoken: "^(Token.rawtoken_to_string tok)))
 
 
@@ -103,9 +103,9 @@ module F (Stat : Aux.STATE_T) = struct
 
   exception Incomplete
 
-  type parse_result = 
+  type parse_result =
     | Rcomplete of Ast.partial
-    | Rincomplete 
+    | Rincomplete
     | Runknown
 
 
@@ -122,8 +122,8 @@ module F (Stat : Aux.STATE_T) = struct
   let nodes = Ast.nodes_of_partial partial in
   List.iter
   (fun node ->
-  Ast.visit 
-  (fun lab -> 
+  Ast.visit
+  (fun lab ->
   if L.is_error lab then
   raise Incomplete
   ) node
@@ -136,8 +136,8 @@ module F (Stat : Aux.STATE_T) = struct
     let nerrs = ref 0 in
     List.iter
       (fun node ->
-	Ast.visit 
-	  (fun nd -> 
+	Ast.visit
+	  (fun nd ->
 	    incr nnodes;
 	    if L.is_error nd#label then
 	      incr nerrs
@@ -158,14 +158,14 @@ module F (Stat : Aux.STATE_T) = struct
     method _raw = queue
     method clear = queue#clear
 
-    method _add qtoken = 
+    method _add qtoken =
       ast_cache <- Runknown;
        queue#add qtoken
 
     method add qtoken =
       self#_add qtoken
 
-    method iter f = 
+    method iter f =
        queue#iter f
 
     method size =  queue#length
@@ -179,26 +179,26 @@ module F (Stat : Aux.STATE_T) = struct
 
     method is_empty =  queue#is_empty
 
-    method peek = 
+    method peek =
       try
 	 queue#peek
-      with 
+      with
 	Xqueue.Empty -> raise Buffer_empty
 
     method peek_nth n =
       try
         queue#peek_nth n
-      with 
+      with
 	_ -> raise Buffer_empty
 
-    method take = 
+    method take =
       try
 	queue#take
-      with 
+      with
         Xqueue.Empty -> raise Buffer_empty
 
-    method receive_all : 'self -> unit = 
-      fun buf -> 
+    method receive_all : 'self -> unit =
+      fun buf ->
 	let q = buf#_raw in
 	if q#length > 0 then
 	  ast_cache <- Runknown;
@@ -210,9 +210,9 @@ module F (Stat : Aux.STATE_T) = struct
 
     method to_string =
       let buf = Buffer.create 0 in
-      self#iter 
-	(fun qtok -> 
-          Buffer.add_string buf 
+      self#iter
+	(fun qtok ->
+          Buffer.add_string buf
             (sprintf "%s\n" (Token.qtoken_to_string qtok))
         );
       Buffer.contents buf
@@ -227,7 +227,7 @@ module F (Stat : Aux.STATE_T) = struct
 	let ed = ref st in
 	self#iter (fun (_, loc) -> ed := loc);
 	merge_locs st !ed
-      with 
+      with
 	Xqueue.Empty -> raise Buffer_empty
 
     method get_last =
@@ -241,13 +241,13 @@ module F (Stat : Aux.STATE_T) = struct
     method parse_by : ?cache:bool -> partial_parser -> Ast.partial =
       fun ?(cache=true) _parser ->
 	DEBUG_MSG "called";
-	
-	match ast_cache with 
+
+	match ast_cache with
 	| Rcomplete p ->
 	    DEBUG_MSG "using cached value (complete)";
 	    p
 
-	| Rincomplete -> 
+	| Rincomplete ->
 	    DEBUG_MSG "using cached value (incomplete)";
 	    raise Incomplete
 
@@ -263,15 +263,15 @@ module F (Stat : Aux.STATE_T) = struct
 	      try
                 let qtoken = copied#take in
 		let tok, loc = qtoken in
-		
+
 		DEBUG_MSG "---> %s" (Token.qtoken_to_string qtoken);
 
 		let st, ed = Loc.to_lexposs loc in
 
 		tok, st, ed
 
-	      with 
-	      | Xqueue.Empty -> 
+	      with
+	      | Xqueue.Empty ->
 		  if !eop_flag then
 		    raise End_of_file
 		  else begin
@@ -299,7 +299,7 @@ module F (Stat : Aux.STATE_T) = struct
 	        ast_cache <- Rcomplete p;
 	      p
 
-	    with 
+	    with
 	      _ ->
 		DEBUG_MSG "FAILED";
 		env#clear_partial_parsing_flag;
@@ -307,7 +307,7 @@ module F (Stat : Aux.STATE_T) = struct
 		  ast_cache <- Rincomplete;
 		raise Incomplete
     (* end of method parse_by *)
-      
+
   end (* class Tokenbuffer.buffer_base *)
 
 
@@ -316,7 +316,7 @@ module F (Stat : Aux.STATE_T) = struct
 
     val mutable context = C.unknown()
 
-    method set_context c = 
+    method set_context c =
       DEBUG_MSG "[%s]: %s" (branch_tag_to_string btag) (C.to_string c);
       context <- c
 
@@ -334,13 +334,13 @@ module F (Stat : Aux.STATE_T) = struct
     method parse_by : ?cache:bool -> partial_parser -> Ast.partial =
       fun ?(cache=true) _parser ->
 	DEBUG_MSG "called";
-	
-	match ast_cache with 
+
+	match ast_cache with
 	| Rcomplete p ->
 	    DEBUG_MSG "using cached value (complete)";
 	    p
 
-	| Rincomplete -> 
+	| Rincomplete ->
 	    DEBUG_MSG "using cached value (incomplete)";
 	    raise Incomplete
 
@@ -359,7 +359,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      try
                 let qtoken = copied#take in
 		let tok, loc = qtoken in
-		
+
 		DEBUG_MSG "%s" (Token.qtoken_to_string qtoken);
 
 		let st, ed = Loc.to_lexposs loc in
@@ -381,8 +381,8 @@ module F (Stat : Aux.STATE_T) = struct
 
 		tok, st, ed
 
-	      with 
-	      | Xqueue.Empty -> 
+	      with
+	      | Xqueue.Empty ->
 		  if !eop_flag then
 		    raise End_of_file
 		  else begin
@@ -405,14 +405,14 @@ module F (Stat : Aux.STATE_T) = struct
 	      env#clear_partial_parsing_flag;
 (*
   check_error p;
- *)    
+ *)
 	      DEBUG_MSG "[%s] parsed!" (branch_tag_to_string btag);
 
               if cache then
 	        ast_cache <- Rcomplete p;
 	      p
 
-	    with 
+	    with
 	      _ ->
 		DEBUG_MSG "[%s] failed to parse!" (branch_tag_to_string btag);
 		env#clear_partial_parsing_flag;
@@ -423,9 +423,9 @@ module F (Stat : Aux.STATE_T) = struct
 
 
     method to_partial partial =
-      
+
       match partial with
-      | Ast.Pdescription_list ds -> 
+      | Ast.Pdescription_list ds ->
 	  self#clear;
 	  List.iter (fun d -> self#add (Tok.of_description d)) ds
 
@@ -436,16 +436,16 @@ module F (Stat : Aux.STATE_T) = struct
       | Ast.Pgenerate_item_list gis ->
 	  self#clear;
 	  List.iter (fun gi -> self#add (Tok.of_generate_item gi)) gis
-	    
+
       | Ast.Pblock_decl_stmt_list bdss ->
 	  self#clear;
-	  List.iter 
-	    (fun bds -> 
+	  List.iter
+	    (fun bds ->
 	      let tok =
 		if Ast.is_block_item_declaration bds then
 		  Tok.of_block_item_declaration bds
 
-		else 
+		else
 		  if Ast.is_stmt bds then
 		    Tok.of_stmt bds
 		  else begin
@@ -468,7 +468,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  let rawtok, loc = self#get_last in
 	  match rawtok with
 	  | COMMA -> ()
-	  | _ -> 
+	  | _ ->
 	      let _, ed = Loc.to_lexposs loc in
 	      let ed_ = Loc.incr_lexpos ed in
 	      self#add (PB.make_qtoken COMMA ed_ ed_)
@@ -478,7 +478,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  let rawtok, loc = self#get_last in
 	  match rawtok with
 	  | COMMA -> ()
-	  | _ -> 
+	  | _ ->
 	      let _, ed = Loc.to_lexposs loc in
 	      let ed_ = Loc.incr_lexpos ed in
 	      self#add (PB.make_qtoken COMMA ed_ ed_)
@@ -505,8 +505,8 @@ module F (Stat : Aux.STATE_T) = struct
 
     method branch_tag = btag
 
-    method set_context c = 
-      DEBUG_MSG "[%s]: %s" (branch_tag_to_string btag) (C.to_string c); 
+    method set_context c =
+      DEBUG_MSG "[%s]: %s" (branch_tag_to_string btag) (C.to_string c);
       context <- c;
       self#iter_branch (fun buf -> buf#set_context c)
 
@@ -536,9 +536,9 @@ module F (Stat : Aux.STATE_T) = struct
 	DEBUG_MSG "context: %s" (C.to_string context);
         DEBUG_MSG "branches:";
         self#iter_branch
-	(fun buf -> 
-	  DEBUG_MSG "%s [%s] (ntokens=%d) [%s]" 
-	    (branch_tag_to_string buf#get_tag) 
+	(fun buf ->
+	  DEBUG_MSG "%s [%s] (ntokens=%d) [%s]"
+	    (branch_tag_to_string buf#get_tag)
 	    (try Loc.to_string ~short:true buf#get_loc with _ -> "-")
 	    buf#size
 	    (C.to_string buf#get_context);
@@ -563,10 +563,10 @@ module F (Stat : Aux.STATE_T) = struct
   let partial = self#top#parse_by (partial_parser_selector context) in
   context_stack#resume;
   self#top#to_partial partial;
-  
+
   DEBUG_MSG "selecting all branches... (current context: %s)"
   (C.to_string (context_stack#top));
-  
+
   let blist = ref [] in
   self#iter_branch (fun br -> blist := br::!blist);
   List.iter (fun br -> (!selected_buf)#receive_all br) !blist;
@@ -581,8 +581,8 @@ module F (Stat : Aux.STATE_T) = struct
   (C.to_string (context_stack#top));
 
   try
-  self#iter_branch 
-  (fun br -> 
+  self#iter_branch
+  (fun br ->
   try
   let partial = br#parse_by parser in
   br#to_partial partial;
@@ -591,14 +591,14 @@ module F (Stat : Aux.STATE_T) = struct
   );
   DEBUG_MSG "all branches are incomplete";
   raise Incomplete
-  
-  with Exit -> 
+
+  with Exit ->
   DEBUG_MSG "selecting all branches...";
   context_stack#resume;
   let blist = ref [] in
   self#iter_branch (fun br -> blist := br::!blist);
   List.iter (fun br -> (!selected_buf)#receive_all br) !blist;
-  
+
   !selected_buf, !ignored_regions
  *)
 	DEBUG_MSG "current context: %s" (C.to_string (context_stack#top));
@@ -610,8 +610,8 @@ module F (Stat : Aux.STATE_T) = struct
 
 	let multi_mode = ref false in
 
-	self#iter_branch 
-	  (fun br -> 
+	self#iter_branch
+	  (fun br ->
 	    try
 	      let partial = br#parse_by _parser in
 	      let nnodes, nerrs = check_partial partial in
@@ -638,15 +638,15 @@ module F (Stat : Aux.STATE_T) = struct
 	end
 	else begin
 	  DEBUG_MSG "merging selected branches...";
-	  List.iter 
-	    (fun br -> 
+	  List.iter
+	    (fun br ->
 
 	      DEBUG_MSG "selected branch: %s" (branch_tag_to_string br#get_tag);
 
 	      (!selected_buf)#receive_all br
 	    ) !blist;
-	  List.iter 
-	    (fun br -> 
+	  List.iter
+	    (fun br ->
 	      try
 		let loc = br#get_loc in
 
@@ -666,7 +666,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  DEBUG_MSG "selecting the largest or specified branch...";
 	  begin
 	    self#iter_branch
-	      (fun buf -> 
+	      (fun buf ->
 
 	        DEBUG_MSG "checking %s" (branch_tag_to_string buf#get_tag);
 
@@ -675,7 +675,7 @@ module F (Stat : Aux.STATE_T) = struct
 		    try
 		      if env#macro_defined id then
 		        selected_buf := buf
-		    with Not_found -> 
+		    with Not_found ->
 		      if (!selected_buf)#total_size < buf#total_size then
 		        selected_buf := buf
 	        end
@@ -687,14 +687,14 @@ module F (Stat : Aux.STATE_T) = struct
 		      if (!selected_buf)#total_size < buf#total_size then
 		        selected_buf := buf
 	        end
-	        | BTelse -> 
+	        | BTelse ->
 		    if (!selected_buf)#total_size < buf#total_size then
 		      selected_buf := buf
 
 	        | _ -> assert false
 	      )
 	  end;
-	  
+
 	  self#iter_branch
 	    (fun buf ->
 	      if buf != !selected_buf then
@@ -706,7 +706,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  DEBUG_MSG "largest: %s" (branch_tag_to_string !selected_buf#get_tag);
 
 	  !selected_buf, !ignored_regions
-	    
+
         end
     (* end of method select_branches *)
 
@@ -728,7 +728,7 @@ module F (Stat : Aux.STATE_T) = struct
   let partials = ref [] in
   context_stack#suspend;
   self#iter_branch
-  (fun br -> 
+  (fun br ->
   begin
   try
   partials := (br#parse_by p)::!partials;
@@ -782,41 +782,41 @@ module F (Stat : Aux.STATE_T) = struct
 
     method size_of_serialized = serialized#size
 
-    method get_last_taken = 
+    method get_last_taken =
       DEBUG_MSG "%s" (Token.rawtoken_to_string last_taken);
       last_taken
 
-    method set_last_taken tok = 
+    method set_last_taken tok =
       last_taken <- _last_taken;
       _last_taken <- tok
 
-    method get_last_taken_loc = 
+    method get_last_taken_loc =
       DEBUG_MSG "%s" (Loc.to_string last_taken_loc);
       last_taken_loc
 
-    method set_last_taken_loc loc = 
+    method set_last_taken_loc loc =
       last_taken_loc <- _last_taken_loc;
       _last_taken_loc <- loc
 
-    method get_last_taken_no_pp_branch = 
+    method get_last_taken_no_pp_branch =
       DEBUG_MSG "%s" (Token.rawtoken_to_string last_taken_no_pp_branch);
       last_taken_no_pp_branch
 
-    method _get_last_taken_no_pp_branch = 
+    method _get_last_taken_no_pp_branch =
       DEBUG_MSG "%s" (Token.rawtoken_to_string _last_taken_no_pp_branch);
       _last_taken_no_pp_branch
 
-    method set_last_taken_no_pp_branch tok = 
+    method set_last_taken_no_pp_branch tok =
       last_taken_no_pp_branch <- _last_taken_no_pp_branch;
-      DEBUG_MSG "last_taken_no_pp_branch --> %s" 
+      DEBUG_MSG "last_taken_no_pp_branch --> %s"
         (Token.rawtoken_to_string last_taken_no_pp_branch);
       _last_taken_no_pp_branch <- tok
 
-    method get_last_taken_no_pp_branch_loc = 
+    method get_last_taken_no_pp_branch_loc =
       DEBUG_MSG "%s" (Loc.to_string last_taken_no_pp_branch_loc);
       last_taken_no_pp_branch_loc
 
-    method set_last_taken_no_pp_branch_loc loc = 
+    method set_last_taken_no_pp_branch_loc loc =
       last_taken_no_pp_branch_loc <- _last_taken_no_pp_branch_loc;
       _last_taken_no_pp_branch_loc <- loc
 
@@ -839,13 +839,13 @@ module F (Stat : Aux.STATE_T) = struct
 	let x = Queue.take prebuf in
         DEBUG_MSG "%s" (Token.qtoken_to_string x);
         x
-      with 
+      with
 	Queue.Empty -> raise Buffer_empty
 
-    method prebuf_peek = 
+    method prebuf_peek =
       try
 	Queue.peek prebuf
-      with 
+      with
 	Queue.Empty -> raise Buffer_empty
 
     method prebuf_peek_nth n =
@@ -853,17 +853,17 @@ module F (Stat : Aux.STATE_T) = struct
 
     method prebuf_size = Queue.length prebuf
 
-    method add_to_context qtoken = 
+    method add_to_context qtoken =
       DEBUG_MSG "added %s" (Token.qtoken_to_string qtoken);
       context_buf#_add qtoken
 
 
-    method set_context c = 
+    method set_context c =
       DEBUG_MSG "%s" (C.to_string c);
       context_buf#set_context (C.copy_context c)
 
     method get_context = context_buf#get_context
-    method clear_context = 
+    method clear_context =
       DEBUG_MSG "called";
       context_buf#clear;
       context_buf#set_context (C.copy_context context_stack#top)
@@ -878,7 +878,7 @@ module F (Stat : Aux.STATE_T) = struct
 	    (fun bbuf ->
 	      let cnt = bbuf#top#get_context in
 
-	      DEBUG_MSG "bbuf[%s] context=%s" 
+	      DEBUG_MSG "bbuf[%s] context=%s"
 		(branch_tag_to_string bbuf#branch_tag) (C.to_string cnt);
 
 	      if not (C.is_unknown cnt) && cnt.C.is_active then begin
@@ -888,7 +888,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      else
 		bufs := bbuf#top :: !bufs;
 	    ) stack
-	with 
+	with
 	  Exit -> ()
       end;
       match !start with
@@ -922,7 +922,7 @@ module F (Stat : Aux.STATE_T) = struct
 
     method is_context_empty = context_buf#is_empty
 
-    method begin_branch ~open_if btag = 
+    method begin_branch ~open_if btag =
 
       DEBUG_MSG "open_if=%B, branch depth: %d" open_if self#size;
 
@@ -935,9 +935,9 @@ module F (Stat : Aux.STATE_T) = struct
 	if not context_buf#is_empty then begin
 
 	  BEGIN_DEBUG
-	    DEBUG_MSG "location of context buffer: %s" 
+	    DEBUG_MSG "location of context buffer: %s"
 	    (Loc.to_string ~short:true context_buf#get_loc);
-	  DEBUG_MSG "context of context buffer: %s" 
+	  DEBUG_MSG "context of context buffer: %s"
 	    (C.to_string c);
 	  DEBUG_MSG "parsing context buffer...";
 	  END_DEBUG;
@@ -949,7 +949,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      if open_if then
 		raise Incomplete;
 	      ignore (context_buf#parse_by (partial_parser_selector c));
-	    with 
+	    with
 	      Incomplete | Not_found -> DEBUG_MSG "failed to parse context_buf";
 	  end;
 	  if open_if then
@@ -973,7 +973,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  if not branch_context#is_empty then begin
 
 	    BEGIN_DEBUG
-	      DEBUG_MSG "branch context buffer: %s (context: %s)" 
+	      DEBUG_MSG "branch context buffer: %s (context: %s)"
 	      (Loc.to_string ~short:true branch_context#get_loc) (C.to_string c);
 	    DEBUG_MSG "parsing branch context buffer...";
 	    END_DEBUG;
@@ -985,8 +985,8 @@ module F (Stat : Aux.STATE_T) = struct
 		if open_if then
 		  raise Incomplete;
 		ignore (branch_context#parse_by (partial_parser_selector c))
-	      with 
-		Incomplete | Not_found -> 
+	      with
+		Incomplete | Not_found ->
 		  DEBUG_MSG "failed to parse branch context"
 	    end;
 	    if open_if then
@@ -997,11 +997,11 @@ module F (Stat : Aux.STATE_T) = struct
 	    DEBUG_MSG "branch context is empty";
 	    bbuf#set_context (C.copy_context c)
 	  end
-	with 
+	with
 	  Not_found -> bbuf#set_context (C.copy_context context_stack#top)
       end;
 
-      DEBUG_MSG "[%s][%s]: current depth=%d (current context: %s)" 
+      DEBUG_MSG "[%s][%s]: current depth=%d (current context: %s)"
 	(branch_tag_to_string btag) (C.to_string bbuf#get_context) (self#size)
 	(C.to_string context_stack#top);
 
@@ -1011,11 +1011,11 @@ module F (Stat : Aux.STATE_T) = struct
 	context_stack#checkpoint key;
 	env#checkpoint key
       end;
-      Stack.push bbuf stack 
+      Stack.push bbuf stack
     (* end of method begin_branch *)
 
 
-    method end_branch ~open_if = 
+    method end_branch ~open_if =
       DEBUG_MSG "open_if=%B, branch depth=%d" open_if (self#size);
 
       let check_buf (buf : buffer) =
@@ -1035,16 +1035,16 @@ module F (Stat : Aux.STATE_T) = struct
 	    if not open_if then
 	      buf#to_partial partial;
 	    context_stack#activate_top_no_delay;
-	  with 
+	  with
 	    Incomplete | Not_active ->
 	      context_stack#resume;
 	      context_stack#deactivate_top_no_delay
-	with 
+	with
 	  Not_found -> ()
       in (* end of check_buf *)
 
       let bbuf = Stack.pop stack in
-      let selected, ignored = 
+      let selected, ignored =
 	bbuf#select_branches partial_parser_selector
       in
       ignored_regions <- ignored_regions @ ignored;
@@ -1083,16 +1083,16 @@ module F (Stat : Aux.STATE_T) = struct
 	is_serialized <- false;
       tok, loc
 
-    method add qtoken = 
+    method add qtoken =
 (*    DEBUG_MSG "called"; *)
       (self#current_bbuf)#add qtoken
 
-    method new_branch btag = 
+    method new_branch btag =
       DEBUG_MSG "btag=%s" (branch_tag_to_string btag);
       (self#current_bbuf)#new_branch btag
 
-    method dump_top = 
-      (self#current_bbuf)#dump 
+    method dump_top =
+      (self#current_bbuf)#dump
 
     method dump_ignored_regions =
       if ignored_regions <> [] then
@@ -1108,18 +1108,18 @@ module F (Stat : Aux.STATE_T) = struct
 
     initializer
       context_buf#set_context (C.toplevel());
-      context_stack#register_push_callback 
-	(fun c -> 
+      context_stack#register_push_callback
+	(fun c ->
 	  DEBUG_MSG "push_callback: called";
 	  if not self#in_branch then begin
 	    context_stack#checkpoint Aux.top_key;
 	    env#checkpoint Aux.top_key;
-	    self#clear_context; 
+	    self#clear_context;
 	    self#set_context c
 	  end
 	);
-      context_stack#register_pop_callback 
-	(fun terminate_surrounding_construct c -> 
+      context_stack#register_pop_callback
+	(fun terminate_surrounding_construct c ->
 	  DEBUG_MSG "pop_callback: called";
 	  if not self#in_branch then begin
 
@@ -1127,30 +1127,30 @@ module F (Stat : Aux.STATE_T) = struct
 	      context_stack#activate_top;
 	      context_stack#checkpoint Aux.top_key;
 	      env#checkpoint Aux.top_key;
-	      self#clear_context; 
+	      self#clear_context;
 	      self#set_context c
 	    end
 
 	  end
 	);
-      context_stack#register_activate_callback 
-	(fun c -> 
+      context_stack#register_activate_callback
+	(fun c ->
 	  DEBUG_MSG "activate_callback: called";
 	  if not self#in_branch then begin
 	    context_stack#checkpoint Aux.top_key;
 	    env#checkpoint Aux.top_key;
-	    self#clear_context; 
+	    self#clear_context;
 	    self#set_context c
 	  end
 
 	);
-      context_stack#register_deactivate_callback 
-	(fun c -> 
+      context_stack#register_deactivate_callback
+	(fun c ->
 	  DEBUG_MSG "deactivate_callback: called";
 	  if not self#in_branch then begin
 	    context_stack#checkpoint Aux.top_key;
 	    env#checkpoint Aux.top_key;
-	    self#clear_context; 
+	    self#clear_context;
 	    self#set_context c
 	  end
 	)
@@ -1167,7 +1167,7 @@ module F (Stat : Aux.STATE_T) = struct
   let hide_macro id =
     env#macrotbl#hide id;
     env#lex_macrotbl#hide id;
-    fun () -> 
+    fun () ->
       env#macrotbl#expose id;
       env#lex_macrotbl#expose id
 
@@ -1211,8 +1211,8 @@ module F (Stat : Aux.STATE_T) = struct
                           Invalid_argument _ ->
                             Common.fail_to_parse
                               ~head:(Printf.sprintf "[%s:%d:%d]"
-                                       env#current_filename 
-                                       st.Lexing.pos_lnum 
+                                       env#current_filename
+                                       st.Lexing.pos_lnum
                                        (st.Lexing.pos_cnum - st.Lexing.pos_bol))
                               "invalid number of macro arguments"
 
@@ -1344,17 +1344,17 @@ module F (Stat : Aux.STATE_T) = struct
 	        -> n := !n + 3
 
 	      | PP_ELSE   ->
-		  if !branch_depth = 0 then 
+		  if !branch_depth = 0 then
 		    skip_until_endif_flag := true
 
 	      | PP_ELSIF  ->
-		  if !branch_depth = 0 then 
-		    skip_until_endif_flag := true; 
+		  if !branch_depth = 0 then
+		    skip_until_endif_flag := true;
 		  incr n
 
 	      | PP_ENDIF  ->
-		  if !branch_depth > 0 then 
-		    decr branch_depth; 
+		  if !branch_depth > 0 then
+		    decr branch_depth;
 		  skip_until_endif_flag := false
 
 	      | _ -> ()
@@ -1456,7 +1456,7 @@ module F (Stat : Aux.STATE_T) = struct
                         Common.fail_to_parse
                           ~head:(sprintf "[%s:%d:%d]"
                                    env#current_filename
-                                   ln 
+                                   ln
                                    (st.Lexing.pos_cnum - st.Lexing.pos_bol))
                           (sprintf "invalid number of macro arguments: %s" id)
 
@@ -1542,7 +1542,7 @@ module F (Stat : Aux.STATE_T) = struct
 
             | xs ->
                 buf#add (PB.make_qtoken EOP Loc.dummy_lexpos Loc.dummy_lexpos);
-                
+
                 let rec is_concat = function
                   | x :: (PP_CONCAT,_) :: rest -> is_concat rest
                   | [x] -> true
@@ -1643,7 +1643,7 @@ module F (Stat : Aux.STATE_T) = struct
     begin
       match !tok with
       | PP_IDENTIFIER s ->
-	  begin 
+	  begin
 	    match tokenbuf#get_last_rawtok with
 	    | LT_EQ -> begin
 		let next_tok = peek_next() in
@@ -1662,14 +1662,14 @@ module F (Stat : Aux.STATE_T) = struct
 	  let next_tok = peek_next() in
 	  begin
 	    match next_tok with
-	    | COMMA | SEMICOLON | EQ | RBRACE | RPAREN 
-	    | OR | AND | AMP_AMP | EQ_EQ -> 
+	    | COMMA | SEMICOLON | EQ | RBRACE | RPAREN
+	    | OR | AND | AMP_AMP | EQ_EQ ->
 		let s = Token.rawtoken_to_rep !tok in
 		env#current_source#set_lang_spec_v2005;
 
                 let st_pos, ed_pos = Loc.to_lexposs !loc in
 		parse_warning st_pos ed_pos
-		  "System Verilog keyword \"%s\" used as an identifier: maybe \"%s\"" 
+		  "System Verilog keyword \"%s\" used as an identifier: maybe \"%s\""
 		  s (Source.lang_spec_to_string env#current_source#lang_spec);
 
 		tok := IDENTIFIER s
@@ -1677,18 +1677,18 @@ module F (Stat : Aux.STATE_T) = struct
 	  end;
 
 	  match tokenbuf#get_last_rawtok with
-	  | DOT -> 
+	  | DOT ->
 	      let s = Token.rawtoken_to_rep !tok in
 	      env#current_source#set_lang_spec_v2005;
 
               let st_pos, ed_pos = Loc.to_lexposs !loc in
 	      parse_warning st_pos ed_pos
-		"System Verilog keyword \"%s\" used as an identifier: maybe \"%s\"" 
+		"System Verilog keyword \"%s\" used as an identifier: maybe \"%s\""
 		s (Source.lang_spec_to_string env#current_source#lang_spec);
 
 	      tok := IDENTIFIER s
 	  | _ -> ()
-      end	
+      end
 
       | COLON_COLON ->
 	  if env#scoped_flag then
@@ -1719,16 +1719,16 @@ module F (Stat : Aux.STATE_T) = struct
       | CONTEXT -> begin
 	  match tokenbuf#get_last_rawtok with
 	  | STRING_LITERAL _ -> ()
-	  | _ -> 
+	  | _ ->
 	      env#current_source#set_lang_spec_v2005;
-              
+
               let st_pos, ed_pos = Loc.to_lexposs !loc in
 	      parse_warning st_pos ed_pos
 		"System Verilog keyword \"context\" used as an identifier: maybe \"%s\""
 		(Source.lang_spec_to_string env#current_source#lang_spec);
 
 	      tok := IDENTIFIER "context"
-      end	
+      end
 
       | ENDTABLE -> env#end_table
 
@@ -1749,7 +1749,7 @@ module F (Stat : Aux.STATE_T) = struct
                 let st_pos, ed_pos = Loc.to_lexposs !loc in
 		parse_warning st_pos ed_pos
 		  "System Verilog (2009) keyword \"global\" used as an identifier: maybe \"%s\""
-		  (Source.lang_spec_to_string env#current_source#lang_spec); 
+		  (Source.lang_spec_to_string env#current_source#lang_spec);
 
 		tok := IDENTIFIER "global" (* to avoid conflict between SV09 and the others *)
 	  end
@@ -1760,7 +1760,7 @@ module F (Stat : Aux.STATE_T) = struct
 	    match next_tok with
 	    | COLON_COLON -> tok := LOCAL__CC
 	    | COMMA | SEMICOLON | EQ | RBRACE | RPAREN | LBRACKET
-	    | OR | AND | AMP_AMP -> 
+	    | OR | AND | AMP_AMP ->
 		env#current_source#set_lang_spec_v2005;
 
                 let st_pos, ed_pos = Loc.to_lexposs !loc in
@@ -1835,14 +1835,14 @@ module F (Stat : Aux.STATE_T) = struct
 	    | _ -> ()
 	  end
 
-      | _ -> 
+      | _ ->
 	  if env#pvstate = 1 then
 	    env#set_pvstate 0
     end;
 
     begin
       match !tok with
-      | IDENTIFIER s -> 
+      | IDENTIFIER s ->
 	  let attr_opt = ref None in
 	  begin
 
@@ -1850,7 +1850,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      tok := PATHPULSE_IDENTIFIER s
 
 	    else if env#in_table then
-	      let symbol = 
+	      let symbol =
 		match s with
 		| "x" | "X" -> SYMBOL_xX s
 		| "b" | "B" -> SYMBOL_bB s
@@ -1883,8 +1883,8 @@ module F (Stat : Aux.STATE_T) = struct
 		let next_tok = peek_next() in
 		begin
 		  match next_tok with
-		  | COLON_COLON -> 
-		      env#set_scoped_flag; 
+		  | COLON_COLON ->
+		      env#set_scoped_flag;
 		      A.begin_scope();
 		      begin
 			match !attr_opt with
@@ -1892,10 +1892,10 @@ module F (Stat : Aux.STATE_T) = struct
 			| Some (Aux.IAclass tblr) -> env#_import_any !tblr
 			| _ -> assert false
 		      end
-			
+
 		  | _ -> ()
 		end
-		  
+
 	    | _ ->
 		if env#scoped_flag then begin
 		  A.end_scope();
@@ -1997,7 +1997,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  pp tokensrc
       end
 
-      | PP_LINE | PP_INCLUDE _ | PP_SYS_INCLUDE _ | PP_ERROR 
+      | PP_LINE | PP_INCLUDE _ | PP_SYS_INCLUDE _ | PP_ERROR
       | PP_TIMESCALE | PP_RESETALL | PP_DEFAULT_NETTYPE | PP_PRAGMA
       | PP_BEGIN_KEYWORDS | PP_END_KEYWORDS | PP_DEFAULT_DECAY_TIME
       | PP_DEFAULT_TRIREG_STRENGTH | PP_DELAY_MODE_DISTRIBUTED

@@ -110,7 +110,7 @@ let node_pair_filter options nd1 nd2 =
     true
   ) ||
   ((node_filter options nd1) && (node_filter options nd2))
-    
+
 
 let get_fqn = Tree.get_fqn
 
@@ -147,7 +147,7 @@ class extractor options cache_path tree = object (self)
   val mutable package_name = ""
 
   val stack = new Sourcecode.stack
-      
+
 
   method scanner_body_before_subscan nd lab entity =
     if L.scope_creating lab then
@@ -212,7 +212,7 @@ class extractor options cache_path tree = object (self)
 	    self#add (entity, p_in_class, self#mkentity c_or_i)
 	  else
 	    self#add (entity, p_in_interface, self#mkentity c_or_i)
-	with 
+	with
 	  Not_found -> ()
       end;
 
@@ -259,7 +259,7 @@ class extractor options cache_path tree = object (self)
         self#add (en, p_is_a, Triple.c_external_name);
 	self#add (entity, p_provides, en);
 (*
-  stack#register_global fqn nd 
+  stack#register_global fqn nd
  *)
       end
       else begin
@@ -339,7 +339,7 @@ class extractor options cache_path tree = object (self)
 	self#add_surrounding_xxx L.is_throws nd entity p_in_throws;
 
       if not (L.is_localvariabledecl lab) then
-	self#add_surrounding_xxx L.is_localvariabledecl nd entity 
+	self#add_surrounding_xxx L.is_localvariabledecl nd entity
 	  p_in_variable_declaration;
 
       if L.is_fieldaccess lab then
@@ -383,7 +383,7 @@ class extractor options cache_path tree = object (self)
 	try
 	  self#add (entity, p_declared_by, self#mkentity (stack#lookup name))
 	with
-	  Not_found -> 
+	  Not_found ->
             let en = self#mkextname name in
             self#add (en, p_is_a, Triple.c_external_name);
             self#add (entity, p_requires, en)

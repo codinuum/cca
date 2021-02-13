@@ -36,9 +36,9 @@ type t =
   | Include of string
 
   | PpDirective of PpDirective.t
-  | PpBranch  
+  | PpBranch
 
-  | PpBranchDo  
+  | PpBranchDo
   | PpBranchForall
   | PpBranchIf
   | PpBranchSelect
@@ -48,7 +48,7 @@ type t =
   | PpBranchSubroutine
   | PpBranchPu
 
-  | PpBranchEndDo  
+  | PpBranchEndDo
   | PpBranchEndForall
   | PpBranchEndIf
   | PpBranchEndSelect
@@ -131,7 +131,7 @@ type t =
   | ArrayElement of name (* named for Diff/TS *)
   | ArraySection of name (* named for Diff/TS *)
   | StructureComponent of name (* named for Diff/TS *)
-  | Substring 
+  | Substring
 
   | SectionSubscriptList of name (* named for Diff/TS *)
   | SubscriptTriplet
@@ -178,8 +178,8 @@ type t =
   | Rename
   | OnlyList
 
-  | KindSelector 
-  | CharSelector 
+  | KindSelector
+  | CharSelector
   | LengthSelector
   | LengthSelectorOverride
 (*  | CharLenParamValueAsterisk *)
@@ -191,10 +191,10 @@ type t =
   | DeferredShapeSpec
 (*  | AssumedSizeSpec *)
 
-  | ComponentDecl of name      
+  | ComponentDecl of name
 (*
-  | ComponentAttrSpecPointer   
-  | ComponentAttrSpecDimension 
+  | ComponentAttrSpecPointer
+  | ComponentAttrSpecDimension
 *)
   | ComponentAttrSpecs
 
@@ -203,7 +203,7 @@ type t =
   | InitializationTarget (* F2008 *)
   | InitializationOldStyle (* GNU *)
 
-  | EntityDecl of name 
+  | EntityDecl of name
 
   | CommonBlockObject of name
   | CommonSpec of name option
@@ -1548,30 +1548,30 @@ let has_non_trivial_value lab = (* not yet *)
     Not_found -> false
 
 let get_name = function
-  | Name n         
+  | Name n
   | VariableName n
   | FunctionReference n
   | StructureConstructor n
   | PartName n
-  | ComponentDecl n     
-  | EntityDecl n    
-  | CommonBlockObject n 
-  | NamedConstantDef n   
+  | ComponentDecl n
+  | EntityDecl n
+  | CommonBlockObject n
+  | NamedConstantDef n
   | Array n
   | NamelistGroup n
   | ObjectName n
   | Result n
 (*
-  | AcImpliedDoControl n 
-  | IoImpliedDoControl n 
+  | AcImpliedDoControl n
+  | IoImpliedDoControl n
   | LoopControl n
 *)
   | CommonBlockName n
   | IntrinsicProcedureName n
   | DerivedTypeDef n
 
-  | ArrayElement n      
-  | ArraySection n      
+  | ArrayElement n
+  | ArraySection n
   | StructureComponent n
 
   | PpMacroId n
@@ -1627,8 +1627,8 @@ let get_name = function
   | DecAttribute a      -> Dec.Attribute.get_name a
 
   | InterfaceBlock n_opt
-  | ActualArgSpec n_opt 
-  | CommonSpec n_opt      
+  | ActualArgSpec n_opt
+  | CommonSpec n_opt
   | StructureDecl n_opt
     -> begin
       match n_opt with
@@ -1638,35 +1638,35 @@ let get_name = function
   | _ -> raise Not_found
 
 let get_name_opt = function
-  | Name n         
+  | Name n
   | VariableName n
   | FunctionReference n
   | StructureConstructor n
   | PartName n
-  | ComponentDecl n     
-  | EntityDecl n    
-  | CommonBlockObject n 
-  | NamedConstantDef n   
+  | ComponentDecl n
+  | EntityDecl n
+  | CommonBlockObject n
+  | NamedConstantDef n
   | Array n
   | NamelistGroup n
   | ObjectName n
-  | Result n 
+  | Result n
 (*
-  | AcImpliedDoControl n 
-  | IoImpliedDoControl n 
+  | AcImpliedDoControl n
+  | IoImpliedDoControl n
   | LoopControl n
 *)
   | CommonBlockName n
   | IntrinsicProcedureName n
   | DerivedTypeDef n
 
-  | ArrayElement n      
-  | ArraySection n      
+  | ArrayElement n
+  | ArraySection n
   | StructureComponent n
 
   | PpMacroId n
   | PpMacroExpr n
-  | PpMacroVariable n 
+  | PpMacroVariable n
   | PpMacroEntityDecl n
   | PpMacroObject n
 
@@ -1721,10 +1721,10 @@ let get_name_opt = function
   | DecAttribute a      -> Dec.Attribute.get_name_opt a
 
   | InterfaceBlock n_opt
-  | ActualArgSpec n_opt 
-  | CommonSpec n_opt    
+  | ActualArgSpec n_opt
+  | CommonSpec n_opt
   | StructureDecl n_opt
-    -> n_opt  
+    -> n_opt
   | _ -> None
 
 
@@ -1754,7 +1754,7 @@ let get_var = function
 
   | AcImpliedDoControl v
   | IoImpliedDoControl v
-  | LoopControl v 
+  | LoopControl v
     -> v
 
   | DoConstruct v_opt ->
@@ -1771,7 +1771,7 @@ let get_var_opt = function
 
   | AcImpliedDoControl v
   | IoImpliedDoControl v
-  | LoopControl v 
+  | LoopControl v
     -> Some v
 
   | DoConstruct v_opt -> v_opt
@@ -1798,7 +1798,7 @@ let mkambiguous_first() = Ambiguous Ambiguous.First
 let mkambiguous_second() = Ambiguous Ambiguous.Second
 let mkambiguous_data_stmt_constant() = Ambiguous Ambiguous.DataStmtConstant
 
-let mkambiguous_deferred() = Ambiguous Ambiguous.Deferred 
+let mkambiguous_deferred() = Ambiguous Ambiguous.Deferred
 let mkambiguous_assumed() = Ambiguous Ambiguous.Assumed
 let mkambiguous_assumedsize() = Ambiguous Ambiguous.AssumedSize
 
@@ -1860,7 +1860,7 @@ let is_specification_part_construct = function
   | PpSectionIf _
   | PpSectionIfdef _
   | PpSectionIfndef _
-  | Include _ 
+  | Include _
     -> true
 
   | Stmt s -> Stmt.is_specification_part_stmt s
@@ -1887,19 +1887,19 @@ let is_execution_part_construct = function
   | PpSectionIf _
   | PpSectionIfdef _
   | PpSectionIfndef _
-  | PpBranchDo     
-  | PpBranchForall 
-  | PpBranchIf     
-  | PpBranchSelect 
-  | PpBranchWhere  
+  | PpBranchDo
+  | PpBranchForall
+  | PpBranchIf
+  | PpBranchSelect
+  | PpBranchWhere
   | PpBranchDerivedType
-  | PpBranchEndDo  
+  | PpBranchEndDo
   | PpBranchEndForall
   | PpBranchEndIf
   | PpBranchEndSelect
   | PpBranchEndWhere
   | PpBranchEndType
-  | Include _ 
+  | Include _
       -> true
 
   | Stmt s -> Stmt.is_execution_part_stmt s
@@ -1936,7 +1936,7 @@ let is_array_spec = function
   | ExplicitShapeArray _
   | AssumedShapeArray _
   | DeferredShapeArray _
-  | AssumedSizeArray _ 
+  | AssumedSizeArray _
   | AssumedRankArray
     -> true
   | _ -> false
@@ -2051,8 +2051,8 @@ let is_assignment_stmt = function
   | _ -> false
 
 let get_external_subprogram_name = function
-  | ProgramUnit 
-      (ProgramUnit.FunctionSubprogram n | 
+  | ProgramUnit
+      (ProgramUnit.FunctionSubprogram n |
       ProgramUnit.SubroutineSubprogram n) -> n
   | _ -> raise Not_found
 
@@ -2093,7 +2093,7 @@ let is_directive = function
   | OclDirective _
   | OmpDirective _
   | AccDirective _
-  | XlfDirective _ 
+  | XlfDirective _
   | DecDirective _
     -> true
   | _ -> false

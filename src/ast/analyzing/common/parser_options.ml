@@ -89,7 +89,7 @@ class c = object (self)
   method set_clear_cache_flag = clear_cache_flag <- true
   method clear_clear_cache_flag = clear_cache_flag <- false
 
-  val mutable get_cache_name_for_file1 = 
+  val mutable get_cache_name_for_file1 =
     fun (file : Storage.file) -> ""
 
   val mutable local_cache_name = ""
@@ -222,7 +222,7 @@ class c = object (self)
   method set_huge_array_threshold x = huge_array_threshold <- x
 
   (* pre-processor *)
-  val mutable ignore_if0_flag = true    
+  val mutable ignore_if0_flag = true
   method ignore_if0_flag = ignore_if0_flag
   method set_ignore_if0_flag = ignore_if0_flag <- true
   method clear_ignore_if0_flag = ignore_if0_flag <- false
@@ -273,11 +273,11 @@ class c = object (self)
   method clear_dump_ast_flag = dump_ast_flag <- false
 
   method compress_ast_flag = compress_ast_flag
-  method set_compress_ast_flag = 
+  method set_compress_ast_flag =
     compress_ast_flag <- true;
     ast_compression <- Compression.gzip
 
-  method clear_compress_ast_flag = 
+  method clear_compress_ast_flag =
     compress_ast_flag <- false;
     ast_compression <- Compression.none
 
@@ -323,7 +323,7 @@ class c = object (self)
   (* yacfe *)
   method yacfe_defs_builtins = yacfe_defs_builtins
 
-  method set_yacfe_defs_builtins x = 
+  method set_yacfe_defs_builtins x =
     if Sys.file_exists x then
       yacfe_defs_builtins <- x
     else begin
@@ -338,17 +338,17 @@ class c = object (self)
 (*
   method get_default_yacfe_env = search_conf_file "environment.h"
 *)
-  method get_yacfe_defs_builtins = 
-    if yacfe_defs_builtins = "" then 
+  method get_yacfe_defs_builtins =
+    if yacfe_defs_builtins = "" then
       self#get_default_yacfe_defs_builtins
-    else 
+    else
       yacfe_defs_builtins
 
 (*
-  method get_yacfe_env = 
-    if yacfe_env = "" then 
+  method get_yacfe_env =
+    if yacfe_env = "" then
       self#get_default_yacfe_env
-    else 
+    else
       yacfe_env
 *)
 
@@ -364,9 +364,9 @@ class c = object (self)
   method set_yacfe_skip_other_directives_flag = yacfe_skip_other_directives_flag <- true
   method clear_yacfe_skip_other_directives_flag = yacfe_skip_other_directives_flag <- false
 
-      
+
   (* external parser *)
-  method get_external_parser pname = 
+  method get_external_parser pname =
     try
       Hashtbl.find external_parser_cache pname
     with

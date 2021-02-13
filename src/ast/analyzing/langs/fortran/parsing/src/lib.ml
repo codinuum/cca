@@ -29,7 +29,7 @@ module C = Context
 let mkparser = PB.mkparser
 
 
-let predefined_macrotbl = 
+let predefined_macrotbl =
   let open Tokens_ in
 
   let mkconst id    = PP_MACRO_CONST id in
@@ -39,7 +39,7 @@ let predefined_macrotbl =
   let mktypespec id = PP_MACRO_TYPE_SPEC id in
 
   let tbl = new Macro.table "predefined" in
-  let list = 
+  let list =
     [ "__FXXP_CONST__",     [], Macro.mk_line mkconst;
       "__FXXP_NAME__",      [], Macro.mk_line mkname;
       "__FXXP_EXPR__",      [], Macro.mk_line mkexpr;
@@ -145,7 +145,7 @@ class parser_c = object (self)
     max_line_length <- None
 
 
-  method _make_source src = 
+  method _make_source src =
     let config = src#lang_config in
     config#_set_parse_d_lines_flag parse_d_lines_flag;
     begin
@@ -155,34 +155,34 @@ class parser_c = object (self)
     end;
     src
 
-  method make_source file = 
+  method make_source file =
     self#_make_source (new Source.c file)
 
-  method make_source_stdin = 
+  method make_source_stdin =
     self#_make_source (new Source.c Storage.stdin)
 
 
 
 
 
-  method dump_ignored_regions = 
+  method dump_ignored_regions =
     env#ignored_regions#dump
 
-  method ignored_LOC = 
+  method ignored_LOC =
     env#ignored_regions#get_LOC
 
-  method dump_missed_regions = 
+  method dump_missed_regions =
     env#missed_regions#dump
 
-  method missed_LOC = 
+  method missed_LOC =
     env#missed_regions#get_LOC
 
 
 
   method partial_parser_selector c =
     match C.get_tag c with
-    | C.Tunknown            -> 
-        DEBUG_MSG "unknown context"; 
+    | C.Tunknown            ->
+        DEBUG_MSG "unknown context";
         raise Not_found
 
     | C.Ttoplevel              -> [parser_partial_program]
@@ -234,7 +234,7 @@ class parser_c = object (self)
 
     | C.Tin_stmt               -> [](*[parser_partial_variable;parser_partial_expr]*)
 (*
-    | t                     -> 
+    | t                     ->
         DEBUG_MSG "parser for %s not found" (C.tag_to_string t);
         raise Not_found
 *)
@@ -260,7 +260,7 @@ class parser_c = object (self)
 
       let elab = new Elaborate.c in
       elab#elaborate_ast ast;
-      
+
       scanner#set_ignored_regions;
 
       ast#set_lines_read (env#lines_read + env#current_pos_mgr#lines_read);
@@ -273,7 +273,7 @@ class parser_c = object (self)
       ast
     with
     | Common.Parse_error(_head, msg) ->
-        let head = 
+        let head =
           if _head = "" then
             let loc = scanner#last_loc in
             Loc.end_to_string ~prefix:"[" ~suffix:"]" loc
@@ -291,10 +291,10 @@ class parser_c = object (self)
   initializer
     context_stack <- new C.stack env;
     env#set_last_lex_qtoken_obj (Obj.repr (Tokens_.EOF None, Loc.dummy));
-    let module S = struct 
+    let module S = struct
       let env           = env
       let context_stack = context_stack
-    end 
+    end
     in
     let module A = Aux.F (S) in
     let module P = Parser.Make (S) in
@@ -336,7 +336,7 @@ class parser_c = object (self)
 
     parse_error <- A.parse_error;
 
-    _parse <- 
+    _parse <-
       (fun () ->
 	try
 	  self#__parse()
@@ -348,6 +348,6 @@ class parser_c = object (self)
 
     self#set_predefined_macrotbl (Some predefined_macrotbl)
 
-    
+
 
 end (* of Lib.parser_c *)

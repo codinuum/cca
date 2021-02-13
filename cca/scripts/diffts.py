@@ -29,7 +29,7 @@ import pathsetup
 import proc
 from factextractor import Enc, HashAlgo, compute_hash
 import siteconf
-from common import setup_logger
+from common import setup_logger, normpath
 
 #####
 
@@ -85,15 +85,20 @@ diffast_usecache = True
 
 diffast_bin  = os.path.join(siteconf.CCA_HOME, 'bin')
 diffast_cmd  = os.path.join(diffast_bin, 'diffast.opt')
-
 patchast_cmd  = os.path.join(diffast_bin, 'patchast.opt')
+
+#diffast_bin  = os.path.join(siteconf.CCA_HOME, 'scripts')
+#diffast_cmd  = os.path.join(diffast_bin, 'diffast.sh')
+#patchast_cmd  = os.path.join(diffast_bin, 'patchast.sh')
 
 
 diffts_cost_pat    = re.compile('total changes\s*: ([0-9]+)')
 diffts_nmap_pat    = re.compile('mapping size\s*: ([0-9]+)')
-diffts_insert_pat  = re.compile('inserts\s*: ([0-9]+)')
-diffts_delete_pat  = re.compile('deletes\s*: ([0-9]+)')
-diffts_relabel_pat = re.compile('relabels\s*: ([0-9]+)')
+diffts_delete_pat  = re.compile('deletes\(hunks\)\s*: ([0-9]+)\(([0-9]+)\)')
+diffts_insert_pat  = re.compile('inserts\(hunks\)\s*: ([0-9]+)\(([0-9]+)\)')
+diffts_relabel_pat = re.compile('relabels\s*: ([0-9]+)\(orig:([0-9]+)\).*')
+diffts_movrel_pat  = re.compile('mov\+rels\s*: ([0-9]+)\(orig:([0-9]+)\)')
+diffts_move_pat    = re.compile('moves\(hunks\)\s*: ([0-9]+)\(([0-9]+)\)')
 diffts_nnodes1_pat = re.compile('nnodes1\s*: ([0-9]+)')
 diffts_nnodes2_pat = re.compile('nnodes2\s*: ([0-9]+)')
 
@@ -156,10 +161,10 @@ def do_cmd(cmd):
         stat = proc.system(cmd)
         if stat == 0:
             break
-        
+
         time.sleep(1)
         logger.info('retrying...({}) cmd="{}"'.format(i, cmd))
-        
+
 
 #####
 
@@ -209,7 +214,6 @@ def get_cache_dir1_(diff_cmd, a,
                     quiet=False,
                     algo=HashAlgo.MD5
     ):
-
     cache_opt = ''
     if cache_dir_base:
         cache_opt = ' -cache {}'.format(cache_dir_base)
@@ -220,7 +224,7 @@ def get_cache_dir1_(diff_cmd, a,
 
     opts = cache_opt + hash_opt
 
-    cmd = '{} -parseonly{} -getcache {}'.format(diff_cmd, opts, a)
+    cmd = '{} -parseonly{} -getcache {}'.format(diff_cmd, opts, normpath(a))
 
     if not quiet:
         logger.info('cmd: "{}"'.format(cmd))
@@ -241,7 +245,6 @@ def get_cache_dir(diff_cmd, a1, a2,
                   quiet=False,
                   algo=HashAlgo.MD5
     ):
-
     cache_opt = ''
     if cache_dir_base:
         cache_opt = ' -cache {}'.format(cache_dir_base)
@@ -252,7 +255,7 @@ def get_cache_dir(diff_cmd, a1, a2,
 
     opts = cache_opt + hash_opt
 
-    cmd = '{}{} -getcache {} {}'.format(diff_cmd, opts, a1, a2)
+    cmd = '{}{} -getcache {} {}'.format(diff_cmd, opts, normpath(a1), normpath(a2))
 
     if not quiet:
         logger.info('cmd: "{}"'.format(cmd))
@@ -293,7 +296,7 @@ def read_file(r, name_pat_list, stat_paths, retry_count=RETRY_COUNT):
                     set_value(r, name, pat, l)
             f.close()
             break
-        
+
         except IOError as e:
             logger.warning(str(e))
             logger.info('retrying...({})'.format(count))
@@ -336,11 +339,13 @@ def read_dir_info_file(stat_paths, retry_count=RETRY_COUNT):
 
 
 def read_file_diff_stat_file(stat_paths, retry_count=RETRY_COUNT):
-    r = { 'cost'      : 0, 
-          'nmappings' : 0, 
+    r = { 'cost'      : 0,
+          'nmappings' : 0,
           'ninserts'  : 0,
           'ndeletes'  : 0,
           'nrelabels' : 0,
+          'nmovrels'  : 0,
+          'nmoves'    : 0,
           'nnodes1'   : 0,
           'nnodes2'   : 0,
       }
@@ -350,6 +355,8 @@ def read_file_diff_stat_file(stat_paths, retry_count=RETRY_COUNT):
           ('ninserts',  diffts_insert_pat),
           ('ndeletes',  diffts_delete_pat),
           ('nrelabels', diffts_relabel_pat),
+          ('nmovrels',  diffts_movrel_pat),
+          ('nmoves',    diffts_move_pat),
           ('nnodes1',   diffts_nnodes1_pat),
           ('nnodes2',   diffts_nnodes2_pat),
       ]
@@ -415,7 +422,7 @@ def diffts(diff_cmd, file1, file2,
 
 
     if load_fact or stat_paths==[] or not usecache:
-    
+
         logger.info('diff_cmd: {}'.format(diff_cmd))
 
         prep_opt = ''
@@ -461,7 +468,7 @@ def diffts(diff_cmd, file1, file2,
 
                 if fact_proj_roots:
                     fact_opt += ' {}'.format(get_fact_proj_roots_opt(fact_proj_roots))
-                    
+
                 if fact_into_virtuoso:
                     fact_opt += ' -fact:into-virtuoso {}'.format(fact_into_virtuoso)
 
@@ -510,18 +517,20 @@ def diffts(diff_cmd, file1, file2,
 
         cmd = ''.join((diff_cmd,
                        cache_opt, cachedir_opt, prep_opt, prem_opt, fact_opt, dumpccs_opt, check_opt, other_opts))
-        cmd += ' {} {}'.format(file1, file2)
+        cmd += ' {} {}'.format(normpath(file1), normpath(file2))
 
         logger.info('cmd="{}"'.format(cmd))
 
         proc.system(cmd, quiet=quiet)
 
-    r = { 
-        'cost'      : 0, 
-        'nmappings' : 0, 
+    r = {
+        'cost'      : 0,
+        'nmappings' : 0,
         'ninserts'  : 0,
         'ndeletes'  : 0,
         'nrelabels' : 0,
+        'nmovrels'  : 0,
+        'nmoves'    : 0,
 #        'exitcode'  : 0,
         }
 
@@ -545,14 +554,14 @@ def diffast_get_cache_dir(file1, file2, **options):
     return get_cache_dir(diffast_cmd, file1, file2, **options)
 
 def dump_unparsed(path, to_path, quiet=False):
-    cmd = '{} -clearcache -parseonly -dump:src:out {} {}'.format(diffast_cmd, to_path, path)
+    cmd = '{} -clearcache -parseonly -dump:src:out {} {}'.format(diffast_cmd, normpath(to_path), normpath(path))
     if not quiet:
         logger.info('cmd="{}"'.format(cmd))
 
     return proc.system(cmd, quiet=quiet)
 
 def patchast(path, delta_path, out_path, quiet=False):
-    cmd = '{} -o {} {} {}'.format(patchast_cmd, out_path, path, delta_path)
+    cmd = '{} -o {} {} {}'.format(patchast_cmd, normpath(out_path), normpath(path), normpath(delta_path))
     if not quiet:
         logger.info('cmd="{}"'.format(cmd))
 
@@ -565,12 +574,15 @@ def main():
     argparser = ArgumentParser(description='Diff/TS driver',
                                formatter_class=ArgumentDefaultsHelpFormatter)
 
+    argparser.add_argument('file1', help='original file')
+    argparser.add_argument('file2', help='modified file')
+
     argparser.add_argument('-d', '--debug', action='store_true', dest='debug',
                            default=False, help='enable debug output')
 
-    argparser.add_argument('-p', '--nopreprune', action='store_false', dest='preprune', 
+    argparser.add_argument('-p', '--nopreprune', action='store_false', dest='preprune',
                            default=True, help='disable prepruning')
-    argparser.add_argument('-m', '--noprematch', action='store_false', dest='prematch', 
+    argparser.add_argument('-m', '--noprematch', action='store_false', dest='prematch',
                            default=True, help='disable prematching')
     argparser.add_argument('-c', '--cachebase', dest='cachebase', metavar='PATH',
                            default=None, help='set cache base to PATH')
@@ -584,9 +596,13 @@ def main():
     setup_logger(logger, log_level)
 
 
-    mode = args[0]
-    f1 = args[1]
-    f2 = args[2]
+    #mode = args[0]
+    #f1 = args[1]
+    #f2 = args[2]
+
+    mode = 'ast'
+    f1 = args.file1
+    f2 = args.file2
 
     r = None
 
@@ -601,8 +617,8 @@ def main():
         cost = r['cost']
         nmappings = r['nmappings']
         cmr = float(cost) / float(nmappings)
-        
-        print('cost: {} nmappings: {} CMR:{}'.format(cost, nmappings, cmr))
+        print(r)
+        print('CMR:{}'.format(cmr))
 
     else:
         logger.error('failed')

@@ -42,7 +42,7 @@ exception Illegal_version_format of string
 let vkind_ver_of_string str =
   let kind, ver =
     match Str.split (Str.regexp_string ":") str with
-    | [] | [_] -> 
+    | [] | [_] ->
 	raise (Illegal_version_format str)
 
     | "REL"::rest ->

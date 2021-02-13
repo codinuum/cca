@@ -80,7 +80,7 @@ def getjars():
 
 
 def gen(jars):
-    
+
     mapping = {} # package name -> local name list
 
     for jar in jars:
@@ -130,7 +130,7 @@ def main():
         print('using "%s"' % jar)
 
     gen(jars)
-    
+
 
 if __name__ == '__main__':
     main()

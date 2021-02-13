@@ -23,8 +23,8 @@ let adiff a1 a2 =
   let n2 = Array.length a2i in
   let chng1, chng2 = Mldiff.diff_loop a1 a1i a2 a2i n1 n2 in
 
-  let matched, relabeled, deleted, inserted = 
-    ref [], ref [], ref [], ref [] 
+  let matched, relabeled, deleted, inserted =
+    ref [], ref [], ref [], ref []
   in
   let mkadder lr = fun x -> lr := x::!lr in
   let add_match = mkadder matched in
@@ -54,14 +54,14 @@ let adiff a1 a2 =
               if i = Array.length a1 || not chng1.(i) then i
               else loop (i + 1)
 	    in
-	    loop (i + 1) 
+	    loop (i + 1)
           in
           let j2 =
             let rec loop j =
               if j = Array.length a2 || not chng2.(j) then j
               else loop (j + 1)
 	    in
-	    loop (j + 1) 
+	    loop (j + 1)
           in
 
 	  if i2 - i <> j2 - j then begin
@@ -85,7 +85,7 @@ let adiff a1 a2 =
               if i = Array.length a1 || not chng1.(i) then i
               else loop (i + 1)
 	    in
-	    loop (i + 1) 
+	    loop (i + 1)
           in
           for i = i to i2 - 1 do add_delete i done; (* i..j2-1 vs j *)
           loop i2 j
@@ -96,7 +96,7 @@ let adiff a1 a2 =
               if j = Array.length a2 || not chng2.(j) then j
               else loop (j + 1)
 	    in
-	    loop (j + 1) 
+	    loop (j + 1)
           in
           for j = j to j2 - 1 do add_insert j done; (* i vs j..j2-1 *)
           loop i j2
@@ -117,8 +117,8 @@ let adiff a1 a2 =
     try
       loop 0 0;
       !matched, !relabeled, !deleted, !inserted
-    with 
-      Invalid_argument s -> 
+    with
+      Invalid_argument s ->
 	FATAL_MSG "%s" s;
 	failwith s
   in

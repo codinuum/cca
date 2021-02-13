@@ -36,7 +36,7 @@ let make_conf_file_name parser_name = parser_name^".conf.xml"
 let keyroot_depth_min = 1 (* should be specified in conf *)
 
 
-let non_label_attrs = 
+let non_label_attrs =
   [ location_attr_name;
     frommacro_attr_name;
     is_initializer_list_attr_name;
@@ -57,7 +57,7 @@ let is_non_label_attr attr =
 
 module type T = sig
   include Spec.LABEL_T
-      
+
   val get_elem : t -> string
   val get_operator : t -> string
 
@@ -121,15 +121,15 @@ let annotation_to_string = function
 
 let is_attr_for_named a =
   let al = remove_prefix a in
-  al = "name" || 
-  al = Astml.tid_attr_name || 
-  al = Astml.ar_tid_attr_name || 
+  al = "name" ||
+  al = Astml.tid_attr_name ||
+  al = Astml.ar_tid_attr_name ||
   al = Astml.vars_attr_name ||
   al = Astml.vdids_attr_name
 
 let is_named { elem_attrs=attrs; } =
-  List.exists 
-    (fun (a, _) -> 
+  List.exists
+    (fun (a, _) ->
       is_attr_for_named a
     ) attrs
 
@@ -146,8 +146,8 @@ let is_attr_for_string_literal a =
 
 let is_string_literal { elem_name=name; elem_attrs=attrs; } =
   Xstring.endswith name "string" &&
-  List.exists 
-    (fun (a, _) -> 
+  List.exists
+    (fun (a, _) ->
       is_attr_for_string_literal a
     ) attrs
 
@@ -155,8 +155,8 @@ let is_int_literal lab = false (* not yet *)
 let is_real_literal lab = false (* not yet *)
 
 let to_string { elem_name=elem; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns; } =
-  let attrs_s = 
-    String.concat "" 
+  let attrs_s =
+    String.concat ""
       (List.map (fun a -> " "^(attr_to_string a)) attrs)
   in
   sprintf "%s%s" elem attrs_s
@@ -176,8 +176,8 @@ let setup_conf parser_name =
   | Not_found -> Common.warning_msg "conf for parser \"%s\" not found" parser_name
 
 let _ =
-  List.iter setup_conf 
-    [ 
+  List.iter setup_conf
+    [
 (*
       "c";
       "cx";
@@ -194,7 +194,7 @@ let _ =
 let get_conf parser_name =
   try
     Hashtbl.find conf_tbl parser_name
-  with 
+  with
   | Not_found -> Xprint.failure "conf for parser \"%s\" not setup yet" parser_name
 
 (***********************************)
@@ -203,7 +203,7 @@ let get_conf parser_name =
 
 open Charpool
 
-      
+
 let create_tbl a =
   let len = Array.length a in
   let tbl = Hashtbl.create len in
@@ -216,13 +216,13 @@ let create_tbl a =
 let token_tbl =
   let tokens = [
     Astml.cx_ns,
-    [| "file"; "global"; "definition"; "init_name_group"; 
+    [| "file"; "global"; "definition"; "init_name_group";
        "init_name"; "single_name"; "spec_elem"; "typeSpecifier";
        "enum_item"; "field_group"; "field"; "specifier"; "name";
        "decl_type"; "attributes"; "block"; "attribute"; "statement";
-       "asm_details"; "for_clause"; "expression"; "arguments"; 
+       "asm_details"; "for_clause"; "expression"; "arguments";
        "constant"; "init_expression"; "initwhat";
-      
+
        "fundef"; "decdef"; "typedef"; "onlytypedef"; "globasm";
        "pragma"; "linkage"; "transformer"; "exprtransformer";
        "typedef"; "cv"; "attr"; "storage"; "inline"; "type"; "pattern";
@@ -231,85 +231,85 @@ let token_tbl =
        "union"; "enum"; "typeof"; "parentype"; "array";
        "ptr"; "proto"; "computation"; "block"; "sequence"; "if";
        "while"; "dowhile"; "for"; "break"; "continue"; "return";
-       "switch"; "case"; "caserange"; "default"; "label"; "goto"; 
+       "switch"; "case"; "caserange"; "default"; "label"; "goto";
        "compgoto"; "definition"; "asm"; "try_except"; "try_finally";
-       "ooperand"; "ioperand"; "exp"; "decl"; "unary"; "labeladdr"; 
-       "binary"; "question"; "cast"; "call"; "comma"; "paren"; 
-       "variable"; "sizeof"; "alignof"; "index"; "memberof"; 
+       "ooperand"; "ioperand"; "exp"; "decl"; "unary"; "labeladdr";
+       "binary"; "question"; "cast"; "call"; "comma"; "paren";
+       "variable"; "sizeof"; "alignof"; "index"; "memberof";
        "memberofptr"; "gnu_body"; "expr_pattern"; "int";
-       "char"; "wchar"; "string"; "wstring"; "single"; "compound"; 
+       "char"; "wchar"; "string"; "wstring"; "single"; "compound";
        "infield"; "atindex"; "atindexrange";
-       
+
        "init";
      |];
 
     Astml.ccx_ns,
-    [| "TranslationUnit"; 
+    [| "TranslationUnit";
 
-       "Expression"; 
-       "ArraySubscriptExpression"; "BinaryExpression"; "BinaryTypeIdExpression"; 
+       "Expression";
+       "ArraySubscriptExpression"; "BinaryExpression"; "BinaryTypeIdExpression";
        "CastExpression"; "CompoundStatementExpression"; "ConditionalExpression";
-       "DeleteExpression"; "ExpressionList"; "FieldReference"; "FunctionCallExpression"; 
+       "DeleteExpression"; "ExpressionList"; "FieldReference"; "FunctionCallExpression";
        "IdExpression"; "LambdaExpression"; "LiteralExpression"; "NewExpression";
        "PackExpansionExpression"; "SimpleTypeConstructorExpression"; "TypeIdExpression";
-       "TypeIdInitializerExpression"; "TypenameExpression"; "UnaryExpression"; 
+       "TypeIdInitializerExpression"; "TypenameExpression"; "UnaryExpression";
 
-       "Statement"; 
+       "Statement";
        "BreakStatement"; "CaseStatement"; "CatchHandler"; "CompoundStatement";
        "ContinueStatement"; "DeclarationStatement"; "DefaultStatement";
        "DoStatement"; "ExpressionStatement"; "ForStatement"; "GotoStatement";
        "IfStatement"; "LabelStatement"; "NullStatement"; "RangeBasedForStatement";
        "ReturnStatement"; "SwitchStatement"; "TryBlockStatement"; "WhileStatement";
 
-       "Declaration"; 
-       "AliasDeclaration"; "AsmDeclaration"; "ExplicitTemplateInstantiation"; 
+       "Declaration";
+       "AliasDeclaration"; "AsmDeclaration"; "ExplicitTemplateInstantiation";
        "FunctionDefinition"; "FunctionWithTryBlock"; "LinkageSpecification";
-       "NamespaceAlias"; "NamespaceDefinition"; "SimpleDeclaration"; 
+       "NamespaceAlias"; "NamespaceDefinition"; "SimpleDeclaration";
        "StaticAssertDeclaration"; "TemplateDeclaration"; "TemplateSpecialization";
-       "UsingDeclaration"; "UsingDirective"; "VisibilityLabel"; 
+       "UsingDeclaration"; "UsingDirective"; "VisibilityLabel";
 
-       "Declarator"; 
+       "Declarator";
        "ArrayDeclarator"; "FieldDeclarator"; "FunctionDeclarator";
-       "StandardFunctionDeclarator"; "FunctionTryBlockDeclarator"; "KnrFunctionDeclarator"; 
+       "StandardFunctionDeclarator"; "FunctionTryBlockDeclarator"; "KnrFunctionDeclarator";
 
        "Designator";
        "ArrayDesignator"; "ArrayRangeDesignator"; "FieldDesignator";
 
-       "DeclSpecifier"; 
-       "CompositeTypeSpecifier"; "CompositeTypeSpecifierClass"; "CompositeTypeSpecifierStruct"; 
+       "DeclSpecifier";
+       "CompositeTypeSpecifier"; "CompositeTypeSpecifierClass"; "CompositeTypeSpecifierStruct";
        "CompositeTypeSpecifierUnion"; "ElaboratedTypeSpecifier"; "EnumerationSpecifier";
-       "NamedTypeSpecifier"; "SimpleDeclSpecifier"; "TypedefnameSpecifier"; 
+       "NamedTypeSpecifier"; "SimpleDeclSpecifier"; "TypedefnameSpecifier";
        "TypeTransformationSpecifier";
 
        "Name";
        "ConversionName"; "ImplicitName"; "OperatorName"; "QualifiedName"; "TemplateId";
 
-       "TemplateParameter"; 
-       "ParameterDeclaration"; "SimpleTypeTemplateParameter"; "TemplatedTypeTemplateParameter"; 
+       "TemplateParameter";
+       "ParameterDeclaration"; "SimpleTypeTemplateParameter"; "TemplatedTypeTemplateParameter";
 
-       "PointerOperator"; 
+       "PointerOperator";
        "Pointer"; "PointerToMember"; "ReferenceOperator";
 
-       "Initializer"; 
+       "Initializer";
        "ConstructorInitializer"; "ConstructorChainInitializer"; "DesignatedInitializer";
        "EqualsInitializer"; "InitializerList";
 
        "NameSpecifier"; "DecltypeSpecifier";
 
        "PackExpandable";
-       "BaseSpecifier"; "Capture"; "TypeId"; 
+       "BaseSpecifier"; "Capture"; "TypeId";
 
        "AmbiguousTemplateArgument";
-       "ArrayModifier"; 
+       "ArrayModifier";
        "Attribute";
        "Enumerator";
-       
-       "PreprocessorIfStatement"; "PreprocessorIfdefStatement"; "PreprocessorEndifStatement"; 
-       "PreprocessorIfndefStatement"; "PreprocessorElseStatement"; "PreprocessorElifStatement"; 
-       "PreprocessorUndefStatement"; "PreprocessorIncludeStatement"; 
-       "PreprocessorObjectStyleMacroDefinition"; "PreprocessorErrorStatement"; 
+
+       "PreprocessorIfStatement"; "PreprocessorIfdefStatement"; "PreprocessorEndifStatement";
+       "PreprocessorIfndefStatement"; "PreprocessorElseStatement"; "PreprocessorElifStatement";
+       "PreprocessorUndefStatement"; "PreprocessorIncludeStatement";
+       "PreprocessorObjectStyleMacroDefinition"; "PreprocessorErrorStatement";
        "PreprocessorFunctionStyleMacroDefinition"; "PreprocessorPragmaStatement";
-       
+
        "Subname"; "Body";
        "Auto"; "Static"; "Extern"; "Register"; "Typedef"; "Mutable";
        "Int"; "Double"; "Char"; "Float"; "Bool"; "Void"; "WcharT"; "Decltype"; "Char16T";
@@ -322,156 +322,156 @@ let token_tbl =
      |];
 
     Astml.c_ns,
-    [| "Name"; "Storage"; "Type"; "Expression"; "Statement"; 
-       "Include_file"; "CppDirective"; "SubDeclarator"; "Designator"; 
-       "DefineValue"; 
-       "MacroDeclaration"; "MacroName"; "MacroParameters"; "MacroParameter"; 
-       "MacroSubst"; "DeclarationSpecifiers"; "Declaration"; "InitDeclarator"; 
-       "Declarator"; "FunctionDefinition"; "Inline"; "ParameterDeclaration"; "Ellipsis"; 
+    [| "Name"; "Storage"; "Type"; "Expression"; "Statement";
+       "Include_file"; "CppDirective"; "SubDeclarator"; "Designator";
+       "DefineValue";
+       "MacroDeclaration"; "MacroName"; "MacroParameters"; "MacroParameter";
+       "MacroSubst"; "DeclarationSpecifiers"; "Declaration"; "InitDeclarator";
+       "Declarator"; "FunctionDefinition"; "Inline"; "ParameterDeclaration"; "Ellipsis";
        "Body"; "GccAttribute"; "StructDeclaration"; "StructDeclarator"; "Enumerator";
-       "Type"; "AsmColon"; "AsmOperand"; "AsmClobber"; "IfdefStatement"; "WeirdArg"; 
+       "Type"; "AsmColon"; "AsmOperand"; "AsmClobber"; "IfdefStatement"; "WeirdArg";
        "Initializer"; "InitializerFieldOld"; "InitializerIndexOld"; "Arguments";
        "ForInit"; "ForCond"; "ForUpdate"; "HugeArray"; "TranslationUnit";
        "Namespace"; "ExecEval"; "ExecToken"; "FailedToParse";
 
-       "RegularName"; "CppConcatenatedName"; "CppVariadicName"; "CppIdentBuilder"; 
+       "RegularName"; "CppConcatenatedName"; "CppVariadicName"; "CppIdentBuilder";
 
-       "Auto"; "Register"; "Static"; "Extern"; "Typedef"; 
+       "Auto"; "Register"; "Static"; "Extern"; "Typedef";
 
-       "Ident"; "Call"; "Conditional"; "Sequence"; 
-       "PostIncrement"; "PreIncrement"; "PostDecrement"; "PreDecrement"; 
-       "ArrayAccess"; "RecordAccess"; "RecordPtrAccess"; "Sizeof"; "Cast"; 
-       "GccStatementExpr"; "GccConstructor"; 
+       "Ident"; "Call"; "Conditional"; "Sequence";
+       "PostIncrement"; "PreIncrement"; "PostDecrement"; "PreDecrement";
+       "ArrayAccess"; "RecordAccess"; "RecordPtrAccess"; "Sizeof"; "Cast";
+       "GccStatementExpr"; "GccConstructor";
        "ParenthesizedExpression"; "New"; "Delete"; "StringConstant";
 
-       "LabelStatement"; "CaseStatement"; "CaseRangeStatement"; "DefaultStatement"; 
-       "CompoundStatement"; "ExpressionStatement"; "IfStatement"; 
-       "SwitchStatement"; "IfdefIteStatement"; "IfdefIte2Statement"; "WhileStatement"; 
-       "DoStatement"; "ForStatement"; "MacroIterationStatement"; "GotoStatement"; "ContinueStatement"; 
-       "BreakStatement"; "ReturnStatement"; "GotoCompoundStatement"; "AsmStatement"; "NestedFunction"; 
-       "MacroStatement"; "Exec"; 
+       "LabelStatement"; "CaseStatement"; "CaseRangeStatement"; "DefaultStatement";
+       "CompoundStatement"; "ExpressionStatement"; "IfStatement";
+       "SwitchStatement"; "IfdefIteStatement"; "IfdefIte2Statement"; "WhileStatement";
+       "DoStatement"; "ForStatement"; "MacroIterationStatement"; "GotoStatement"; "ContinueStatement";
+       "BreakStatement"; "ReturnStatement"; "GotoCompoundStatement"; "AsmStatement"; "NestedFunction";
+       "MacroStatement"; "Exec";
 
-       "CppDefineObjLike"; "CppDefineFunLike"; "CppUndef"; "CppIf"; "CppElif"; "CppElse"; 
-       "CppIfdef"; "CppIfndef"; "CppEndif"; "CppIncludeLocal"; "CppIncludeNonLocal"; "CppIncludeWeird"; 
+       "CppDefineObjLike"; "CppDefineFunLike"; "CppUndef"; "CppIf"; "CppElif"; "CppElse";
+       "CppIfdef"; "CppIfndef"; "CppEndif"; "CppIncludeLocal"; "CppIncludeNonLocal"; "CppIncludeWeird";
        "CppPragma"; "CppUnknown"; "CppLinemarker";
 
-       "PointerSubDtr"; "ArraySubDtr"; "ParenSubDtr"; "ParametersSubDtr"; 
+       "PointerSubDtr"; "ArraySubDtr"; "ParenSubDtr"; "ParametersSubDtr";
 
-       "FieldDesig"; "IndexDesig"; "RangeDesig"; 
+       "FieldDesig"; "IndexDesig"; "RangeDesig";
 
        "PartialDoWhile"; "Text"; "Multi";
 
-       "Void"; "Char"; "Short"; "Int"; "Long"; "Float"; "Double"; 
-       "Signed"; "Unsigned"; "Enum"; "Struct"; "Union"; "TypedefName"; 
-       "GccTypeof"; "Size_t"; "Ssize_t"; "Ptrdiff_t"; "Const"; "Volatile"; 
-       "String"; "Wstring"; "MultiString"; "Character"; "Wcharacter"; "Integer"; 
+       "Void"; "Char"; "Short"; "Int"; "Long"; "Float"; "Double";
+       "Signed"; "Unsigned"; "Enum"; "Struct"; "Union"; "TypedefName";
+       "GccTypeof"; "Size_t"; "Ssize_t"; "Ptrdiff_t"; "Const"; "Volatile";
+       "String"; "Wstring"; "MultiString"; "Character"; "Wcharacter"; "Integer";
        "FloatingPoint"; "Decimal";
-       "Add"; "Subt"; "Mult"; "Div"; "Mod"; "ShiftL"; "ShiftR"; "BitAnd"; "BitOr"; "BitXor"; 
+       "Add"; "Subt"; "Mult"; "Div"; "Mod"; "ShiftL"; "ShiftR"; "BitAnd"; "BitOr"; "BitXor";
        "Max"; "Min";
-       "Decrement"; "Increment"; 
-       "Ref"; "Deref"; "Plus"; "Minus"; "Complement"; "Negation"; "RefLabel"; 
-       "Assign"; "AddAssign"; "SubtAssign"; "MultAssign"; "DivAssign"; "ModAssign"; 
-       "ShiftLAssign"; "ShiftRAssign"; "BitAndAssign"; "BitOrAssign"; "BitXorAssign"; 
+       "Decrement"; "Increment";
+       "Ref"; "Deref"; "Plus"; "Minus"; "Complement"; "Negation"; "RefLabel";
+       "Assign"; "AddAssign"; "SubtAssign"; "MultAssign"; "DivAssign"; "ModAssign";
+       "ShiftLAssign"; "ShiftRAssign"; "BitAndAssign"; "BitOrAssign"; "BitXorAssign";
 
-       "Plus"; "Minus"; "Mul"; "Div"; "Mod"; "Shift_l"; "Shift_r"; "And"; "Or"; "Xor"; 
+       "Plus"; "Minus"; "Mul"; "Div"; "Mod"; "Shift_l"; "Shift_r"; "And"; "Or"; "Xor";
        "Lt"; "Gt"; "Le"; "Ge"; "Eq"; "NotEq"; "And"; "Or";
      |];
 
     Astml.java_ns,
-    [| "ByteType"; "ShortType"; "IntType"; "LongType"; "CharType"; "FloatType"; 
-       "DoubleType"; "BooleanType"; "ReferenceType"; "Class"; "Interface"; "Void"; 
+    [| "ByteType"; "ShortType"; "IntType"; "LongType"; "CharType"; "FloatType";
+       "DoubleType"; "BooleanType"; "ReferenceType"; "Class"; "Interface"; "Void";
 
-       "IntegerLiteral"; "FloatLiteral"; "True"; "False"; "CharLiteral"; 
-       "StringLiteral"; "NullLiteral"; 
+       "IntegerLiteral"; "FloatLiteral"; "True"; "False"; "CharLiteral";
+       "StringLiteral"; "NullLiteral";
 
-       "Assign"; "MultAssign"; "DivAssign"; "ModAssign"; "AddAssign"; "SubtAssign"; 
-       "ShiftLAssign"; "ShiftRAssign"; "ShiftRUAssign"; "AndAssign"; "XorAssign";  
-       "OrAssign"; 
+       "Assign"; "MultAssign"; "DivAssign"; "ModAssign"; "AddAssign"; "SubtAssign";
+       "ShiftLAssign"; "ShiftRAssign"; "ShiftRUAssign"; "AndAssign"; "XorAssign";
+       "OrAssign";
 
        "PostIncrement"; "PostDecrement"; "PreIncrement"; "PreDecrement"; "Plus"; "Minus";
-       "Complement"; "Negation"; 
+       "Complement"; "Negation";
 
-       "Mult"; "Div"; "Mod"; "Add"; "Subt"; "ShiftL"; "ShiftR"; "ShiftRU"; "Eq"; 
+       "Mult"; "Div"; "Mod"; "Add"; "Subt"; "ShiftL"; "ShiftR"; "ShiftRU"; "Eq";
        "NotEq"; "Lt"; "Gt"; "Le"; "Ge"; "BitAnd"; "BitOr"; "BitXor"; "And"; "Or";
 
-       "Public"; "Protected"; "Private"; "Static"; "Abstract"; "Final"; "Native"; 
-       "Synchronized"; "Transient"; "Volatile"; "Strictfp"; "Annotation"; 
+       "Public"; "Protected"; "Private"; "Static"; "Abstract"; "Final"; "Native";
+       "Synchronized"; "Transient"; "Volatile"; "Strictfp"; "Annotation";
 
-       "Name"; "This"; "ClassLiteral"; "ClassLiteralVoid"; "QualifiedThis"; 
-       "StandardInstanceCreation"; "QualifiedInstanceCreation"; "NameQualifiedInstanceCreation"; 
-       "FieldAccess"; "SuperFieldAccess"; "ClassSuperFieldAccess"; "TypeMethodInvocation"; 
+       "Name"; "This"; "ClassLiteral"; "ClassLiteralVoid"; "QualifiedThis";
+       "StandardInstanceCreation"; "QualifiedInstanceCreation"; "NameQualifiedInstanceCreation";
+       "FieldAccess"; "SuperFieldAccess"; "ClassSuperFieldAccess"; "TypeMethodInvocation";
        "ArrayAccess"; "ArrayCreation"; "ParenthesizedExpression";
 
        "Conditional"; "Instanceof"; "Cast";
 
        "NormalAnnotation"; "MakerAnnotation"; "SingleElementAnnotation";
 
-       "EmptyStatement"; "AssertStatement"; "IfStatement"; "BasicForStatement"; 
-       "EnhancedForStatement"; "WhileStatement"; "DoStatement"; "TryStatement"; 
-       "SwitchStatement"; "SynchronizedStatement"; "ReturnStatement"; "ThrowStatement"; 
+       "EmptyStatement"; "AssertStatement"; "IfStatement"; "BasicForStatement";
+       "EnhancedForStatement"; "WhileStatement"; "DoStatement"; "TryStatement";
+       "SwitchStatement"; "SynchronizedStatement"; "ReturnStatement"; "ThrowStatement";
        "BreakStatement"; "ContinueStatement"; "LabeledStatement"; "ExpressionStatement";
 
-       "TypeBound"; "ThisInvocation"; "SuperInvocation"; "PrimaryInvocation"; 
+       "TypeBound"; "ThisInvocation"; "SuperInvocation"; "PrimaryInvocation";
        "NameInvocation"; "ConstantLabel"; "DefaultLabel"; "ConditionalElementValue";
        "AnnotationElementValue"; "ArrayInitElementValue"; "ElementValuePair";
        "ConstructorDeclaration"; "StaticInitializer"; "InstanceInitializer";
-       "Block"; "VariableDeclarator"; "Chatches"; "CatchClause"; "ForInit"; "ForCond"; 
-       "ForUpdate"; "SwitchBlockStatementGroup"; "DimExpression"; "ArrayCreationInit"; 
-       "ArrayCreationDims"; "Arguments"; "Annotations"; 
-       "TypeArguments"; "Wildcard"; "Parameters"; "Parameter"; "TypeParameter"; 
+       "Block"; "VariableDeclarator"; "Chatches"; "CatchClause"; "ForInit"; "ForCond";
+       "ForUpdate"; "SwitchBlockStatementGroup"; "DimExpression"; "ArrayCreationInit";
+       "ArrayCreationDims"; "Arguments"; "Annotations";
+       "TypeArguments"; "Wildcard"; "Parameters"; "Parameter"; "TypeParameter";
        "TypeParameters"; "Initializer"; "Modifiers"; "FieldDeclaration"; "MethodDeclaration";
-       "Super"; "Qualifier"; "ReturnType"; "Throws"; "MethodBody"; "Specifier"; 
-       "ClassDeclaration"; "EnumDeclaration"; "EnumConstant"; "Extends"; "Implements"; 
-       "ClassBody"; "EnumBody"; "InterfaceDeclaration"; "AnnotationTypeDeclaration"; 
-       "AnnotationTypeBody"; "ExtendsInterfaces"; "InterfaceBody"; 
-       "PackageDeclaration"; "SingleTypeImportDeclaration"; "TypeImportOnDemandDeclaration"; 
-       "SingleStaticImportDeclaration"; "StaticImportOnDemandDeclaration"; "ImportDeclarations"; 
+       "Super"; "Qualifier"; "ReturnType"; "Throws"; "MethodBody"; "Specifier";
+       "ClassDeclaration"; "EnumDeclaration"; "EnumConstant"; "Extends"; "Implements";
+       "ClassBody"; "EnumBody"; "InterfaceDeclaration"; "AnnotationTypeDeclaration";
+       "AnnotationTypeBody"; "ExtendsInterfaces"; "InterfaceBody";
+       "PackageDeclaration"; "SingleTypeImportDeclaration"; "TypeImportOnDemandDeclaration";
+       "SingleStaticImportDeclaration"; "StaticImportOnDemandDeclaration"; "ImportDeclarations";
        "TypeDeclarations"; "FieldDeclarations"; "CompilationUnit";
      |];
 
     Astml.python_ns,
     [| (* literal *)
-       "IntegerLiteral"; "LongIntegerLiteral"; "FloatNumberLiteral"; "ImagNumberLiteral"; 
-       "StringLiteral"; "unary_operator"; "binary_operator"; "statement"; 
+       "IntegerLiteral"; "LongIntegerLiteral"; "FloatNumberLiteral"; "ImagNumberLiteral";
+       "StringLiteral"; "unary_operator"; "binary_operator"; "statement";
 
        (* assignment *)
-       "Assign"; "AddAssign"; "SubtAssign"; "MultAssign"; "DivAssign"; "ModAssign"; 
-       "AndAssign"; "OrAssign"; "XorAssign"; "ShiftLAssign"; "ShiftRAssign"; "PowAssign"; 
+       "Assign"; "AddAssign"; "SubtAssign"; "MultAssign"; "DivAssign"; "ModAssign";
+       "AndAssign"; "OrAssign"; "XorAssign"; "ShiftLAssign"; "ShiftRAssign"; "PowAssign";
        "FDivAssign";
 
        (* unary-op *)
-       "Positive"; "Negative"; "Complement"; "Not"; 
+       "Positive"; "Negative"; "Complement"; "Not";
 
        (* binary-op *)
        "Mult"; "Div"; "FDiv"; "Mod"; "Add"; "Subt"; "ShiftL"; "ShiftR"; "BitAnd"; "BitOr"; "BitXor";
 
        (* comp-op *)
-       "Eq"; "NotEq"; "Lt"; "Gt"; "Le"; "Ge";  "Is"; "IsNot"; "InOp"; "NotIn"; 
+       "Eq"; "NotEq"; "Lt"; "Gt"; "Le"; "Ge";  "Is"; "IsNot"; "InOp"; "NotIn";
 
        (* test *)
-       "And"; "Or"; 
+       "And"; "Or";
 
        (* stmt *)
-       "SimpleStmt"; "IfStmt"; "WhileStmt"; "ForStmt"; "TryStmt"; "WithStmt"; "FuncDef"; 
-       "ClassDef"; 
+       "SimpleStmt"; "IfStmt"; "WhileStmt"; "ForStmt"; "TryStmt"; "WithStmt"; "FuncDef";
+       "ClassDef";
 
        (* simple-stmt *)
-       "ExprStmt"; "PrintStmt"; "DelStmt"; "PassStmt"; "BreakStmt"; "ContinueStmt"; 
-       "ReturnStmt"; "RaiseStmt"; "YieldStmt"; "ImportStmt"; "GlobalStmt"; "ExecStmt"; 
-       "AssertStmt"; 
+       "ExprStmt"; "PrintStmt"; "DelStmt"; "PassStmt"; "BreakStmt"; "ContinueStmt";
+       "ReturnStmt"; "RaiseStmt"; "YieldStmt"; "ImportStmt"; "GlobalStmt"; "ExecStmt";
+       "AssertStmt";
 
        (* primary *)
-       "NameAtom"; "ParenAtom"; "TupleAtom"; "YieldAtom"; "TestAtom"; "ListAtom"; "DictAtom"; 
+       "NameAtom"; "ParenAtom"; "TupleAtom"; "YieldAtom"; "TestAtom"; "ListAtom"; "DictAtom";
        "StringConvAtom"; "AttrRef"; "Subscription"; "Slicing"; "Call";
 
        (* others *)
        "Dummy"; "DottedName"; "Name"; "Lambda"; "Test"; "Power"; "Elif"; "Else";
-       "Targets"; "Target"; "Except"; "Suite"; "NamedSuite"; "Parameters"; 
+       "Targets"; "Target"; "Except"; "Suite"; "NamedSuite"; "Parameters";
        "NamedParameters"; "Decorators"; "Decorator"; "Finally"; "In"; "Lhs"; "Rhs";
-       "As"; "ListMarker"; "ListIf"; "ListFor"; "DictMarker"; "KeyDatum"; 
+       "As"; "ListMarker"; "ListIf"; "ListFor"; "DictMarker"; "KeyDatum";
        "SliceItem"; "Lower"; "Upper"; "Stride"; "SliceItemEllipsis"; "Arguments";
        "NamedArguments"; "Argument"; "GenFor"; "GenIf"; "Inheritance"; "Chevron";
-       "From"; "Tuple"; "Dict"; "DefParameter"; "Sublist"; "StringLiteral"; 
+       "From"; "Tuple"; "Dict"; "DefParameter"; "Sublist"; "StringLiteral";
        "FileInput";
 
      |];
@@ -488,12 +488,12 @@ let token_tbl =
 let attr_name_tbl =
   let attr_names = [|
     (* common *)
-    Astml.tid_attr_name; 
-    Astml.ar_tid_attr_name; 
-    "constraint"; 
-    "label"; 
-    "name"; 
-    "value"; 
+    Astml.tid_attr_name;
+    Astml.ar_tid_attr_name;
+    "constraint";
+    "label";
+    "name";
+    "value";
 
     (* from cx *)
     "asm"; "attrs"; "clobbers"; "field"; "fields"; "labels"; "lang";
@@ -503,11 +503,11 @@ let attr_name_tbl =
     "active"; "alias"; "assembly";
     "catchAll"; (*"complex";*) "condition"; "const"; "constexpr"; "constant"; "conversionOrOperator";
     "defaulted"; "deleted"; "expansion"; "explicitConstructor"; "exported";
-    "field"; "friend"; "fullyQualified"; "global"; "ignored"; 
+    "field"; "friend"; "fullyQualified"; "global"; "ignored";
     (*"imaginary";*) "inline"; "kind"; "lastName"; "literal"; (*"long"; "longLong";*)
-    "mappingName"; "message"; "modifier"; "newTypeId"; "operator"; 
+    "mappingName"; "message"; "modifier"; "newTypeId"; "operator";
     "path"; "pointerDeref"; "pureVirtual"; "resolved"; "restrict";
-    (*"short"; "signed";*) "static"; "storageClass"; "systemInclude"; 
+    (*"short"; "signed";*) "static"; "storageClass"; "systemInclude";
     "threadLocal"; "type"; "typeKey"; "typename"; (*"unsigned";*)
     "value"; "varargs"; "variableSized"; "vectored"; "virtual"; "visibility"; "volatile";
 
@@ -523,7 +523,7 @@ let attr_name_tbl =
   create_tbl attr_names
 
 
-let ignored_attr (name, v) = 
+let ignored_attr (name, v) =
   is_non_label_attr name
 
 let encode_attr (name, value) =
@@ -535,7 +535,7 @@ let encode_attr (name, value) =
     in
     try
       (Hashtbl.find attr_name_tbl (remove_prefix name))^sep^v
-    with 
+    with
       Not_found -> ERROR_MSG "attr_name not found: \"%s\"" name; exit 1
 
 let encode_attrs alist =
@@ -570,21 +570,21 @@ let encode_names lang names =
 	  try
 	    let c = Hashtbl.find tbl.(level) name in
 	    c^(encode (level + 1) rest)
-	  with 
-	    Not_found -> 
-              FATAL_MSG "name not found: \"%s\"" name; 
+	  with
+	    Not_found ->
+              FATAL_MSG "name not found: \"%s\"" name;
               exit 1
     in
     encode 0 names
-  with 
-    Not_found -> 
-      FATAL_MSG "lang not found: \"%s\"" lang; 
+  with
+    Not_found ->
+      FATAL_MSG "lang not found: \"%s\"" lang;
       exit 1
 
 let encode_elem elem =
   let lang_prefix, names = decomp_elem elem in
   encode_names lang_prefix names
-*)    
+*)
 
 let encode { elem_name=elem; elem_attrs=attrs; elem_parser=_; elem_ast_ns=ast_ns; } =
   let tbl = Hashtbl.find token_tbl ast_ns in
@@ -597,7 +597,7 @@ let encode { elem_name=elem; elem_attrs=attrs; elem_parser=_; elem_ast_ns=ast_ns
       e^sep3^a
   with
     Not_found ->ERROR_MSG "elem not found: \"%s\"" elem; exit 1
-  
+
 
 
 let to_char lab = '0' (* to be implemented *)
@@ -610,8 +610,8 @@ let to_short_string ?(ignore_identifiers_flag=false) lab = (* to speed up compar
   encode lab
 
 let to_xml_string { elem_name=elem; elem_attrs=attrs; elem_parser=_; } =
-  let attrs_s = 
-    String.concat "" 
+  let attrs_s =
+    String.concat ""
       (List.map (fun a -> " "^(attr_to_xml_string a)) attrs)
   in
   sprintf "%s%s" elem attrs_s
@@ -620,21 +620,21 @@ let to_tag lab =
   lab.elem_name, lab.elem_attrs
 
 let to_elem_data ?(strip=false) loc lab = (* elem name * (string * string) list * content *)
-  let __attrs = 
-    List.map 
-      (fun (k, v) -> k, XML.encode_string v) 
-      lab.elem_attrs 
+  let __attrs =
+    List.map
+      (fun (k, v) -> k, XML.encode_string v)
+      lab.elem_attrs
   in
   let _attrs =
     if strip then
       __attrs
     else
-      (Astml.location_attr_name, Loc.to_attr_value loc) :: __attrs 
+      (Astml.location_attr_name, Loc.to_attr_value loc) :: __attrs
   in
   let ns = lab.elem_ast_ns in
-  let prefix = 
+  let prefix =
     if ns <> "" then
-      Astml.get_prefix_by_ns ns 
+      Astml.get_prefix_by_ns ns
     else
       ""
   in
@@ -644,14 +644,14 @@ let to_elem_data ?(strip=false) loc lab = (* elem name * (string * string) list 
     else
       _attrs
   in
-  ((if prefix = "" then "" else prefix^":")^lab.elem_name), 
-  attrs, 
+  ((if prefix = "" then "" else prefix^":")^lab.elem_name),
+  attrs,
   ""
 
 
 let of_elem_data name attrs _ = (* not yet *)
   { elem_name=name; elem_attrs=attrs; elem_parser=""; elem_ast_ns="" }
-    
+
 
 let anonymize_attrs attrs =
   List.filter
@@ -659,14 +659,14 @@ let anonymize_attrs attrs =
       let la = remove_prefix a in
       Astml.is_anonymization_resistant_attr la
     ) attrs
-    
+
 
 
 let anonymize ?(more=false) { elem_name=e; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns } =
-  { elem_name=e; 
-    elem_attrs=anonymize_attrs attrs; 
-    elem_parser=p; 
-    elem_ast_ns=ns 
+  { elem_name=e;
+    elem_attrs=anonymize_attrs attrs;
+    elem_parser=p;
+    elem_ast_ns=ns
   }
 
 
@@ -675,7 +675,7 @@ let check_attrs attrs elem_attrs =
     (fun (a, v) ->
       try
 	find_attr a elem_attrs = v
-      with 
+      with
 	Not_found -> false
     ) attrs
 
@@ -698,7 +698,7 @@ let relabel_allowed (l1, l2) =
 
   let matches table =
     List.exists
-      (fun ((p1, attrs1), (p2, attrs2)) -> 
+      (fun ((p1, attrs1), (p2, attrs2)) ->
 	let re1 = Str.regexp (conv_pat p1) in
 	let re2 = Str.regexp (conv_pat p2) in
 	Str.string_match re1 name1 0 &&
@@ -754,33 +754,33 @@ let anonymizex tag rules lab =
   in
   scan rules
 
-let anonymize2 lab = 
+let anonymize2 lab =
   let conf = get_conf lab.elem_parser in
   anonymizex Conf.anonymize2_rules_tag conf#anonymize2_rules lab
 
-let anonymize3 lab = 
+let anonymize3 lab =
   let conf = get_conf lab.elem_parser in
   anonymizex Conf.anonymize3_rules_tag conf#anonymize3_rules lab
 
 
 let rec scan_cats lab = function
   | [] -> false
-  | (pat, attrs)::t -> 
+  | (pat, attrs)::t ->
       let re = Str.regexp (conv_pat pat) in
-      if 
-	Str.string_match re lab.elem_name 0 && 
-	check_attrs attrs lab.elem_attrs 
-      then 
+      if
+	Str.string_match re lab.elem_name 0 &&
+	check_attrs attrs lab.elem_attrs
+      then
 	true
-      else 
+      else
 	scan_cats lab t
 
 let is_hunk_boundary _ _ = false (* not yet *)
 
 let is_collapse_target options lab =
-  if options#no_collapse_flag then 
+  if options#no_collapse_flag then
     false
-  else 
+  else
     let conf = get_conf lab.elem_parser in
     let res = scan_cats lab conf#collapse_targets in
     DEBUG_MSG "%s -> %B" lab.elem_name res;
@@ -801,7 +801,7 @@ let is_partition lab =
   scan_cats lab conf#partition_nodes
 
 
-let is_boundary lab = 
+let is_boundary lab =
   let conf = get_conf lab.elem_parser in
   let res = scan_cats lab conf#boundary_nodes in
 (*
@@ -906,12 +906,12 @@ module CCX = struct
 
   let is_decl lab =
     match get_elem lab with
-    | "Declaration" 
-    | "AliasDeclaration" | "AsmDeclaration" | "ExplicitTemplateInstantiation" 
-    | "FunctionDefinition" | "FunctionWithTryBlock" | "LinkageSpecification" 
-    | "NamespaceAlias" | "NamespaceDifinition" | "SimpleDeclaration" 
-    | "StaticAssertDeclaration" | "TemplateDeclaration" | "TemplateSpecialization" 
-    | "UsingDeclaration" | "UsingDirective" | "VisibilityLabel" 
+    | "Declaration"
+    | "AliasDeclaration" | "AsmDeclaration" | "ExplicitTemplateInstantiation"
+    | "FunctionDefinition" | "FunctionWithTryBlock" | "LinkageSpecification"
+    | "NamespaceAlias" | "NamespaceDifinition" | "SimpleDeclaration"
+    | "StaticAssertDeclaration" | "TemplateDeclaration" | "TemplateSpecialization"
+    | "UsingDeclaration" | "UsingDirective" | "VisibilityLabel"
       -> true
     | _ -> false
 
@@ -950,7 +950,7 @@ module CCX = struct
     | "DeleteExpression" | "ExpressionList" | "FieldReference" | "FunctionCallExpression"
     | "IdExpression" | "LambdaExpression" | "LiteralExpression" | "NewExpression"
     | "PackExpansionExpression" | "SimpleTypeConstructorExpression" | "TypeIdExpression"
-    | "TypeIdInitializerExpression" | "TypenameExpression" | "UnaryExpression" 
+    | "TypeIdInitializerExpression" | "TypenameExpression" | "UnaryExpression"
       -> true
     | _ -> false
 

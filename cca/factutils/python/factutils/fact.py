@@ -112,7 +112,7 @@ class Fact(object):
             g_pred = self._g_pred_map[pred]
 
         except KeyError:
-            g_pred = Predicate(GUARD_NS+'?orig='+pred.get_namespace(), 
+            g_pred = Predicate(GUARD_NS+'?orig='+pred.get_namespace(),
                                pred.get_local_name())
             self._g_pred_map[pred] = g_pred
 
@@ -260,7 +260,7 @@ class Fact(object):
         if gzipped:
             os.unlink(tmp)
 
-    
+
     def query(self, qstr, base_uri=None):
         q = RDF.SPARQLQuery(qstr, base_uri=base_uri)
         results = q.execute(self._model)

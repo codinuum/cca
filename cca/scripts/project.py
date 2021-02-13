@@ -47,7 +47,7 @@ def get_conf(name):
         except Exception as e:
             logger.warning('cannot find conf for "%s": %s' % (name, str(e)))
             return None
-    
+
 
 if __name__ == '__main__':
     import sys

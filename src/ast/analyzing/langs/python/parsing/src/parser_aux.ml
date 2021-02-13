@@ -52,7 +52,7 @@ module F (Stat : STATE_T) = struct
     let start_line, start_char = pos_mgr#get_position start_offset in
     let end_line, end_char = pos_mgr#get_position end_offset in
 (*
-    DEBUG_MSG "%d:%d-%d:%d(%d-%d)" 
+    DEBUG_MSG "%d:%d-%d:%d(%d-%d)"
       start_line start_char end_line end_char start_offset end_offset;
 *)
     (start_line, start_char), (end_line, end_char), start_offset, end_offset
@@ -62,7 +62,7 @@ module F (Stat : STATE_T) = struct
     let loc = Loc.make so eo sl sc el ec in
     loc
 
-  let parse_error start_offset end_offset msg = 
+  let parse_error start_offset end_offset msg =
     let (sl, sc), (el, ec), so, eo = get_range start_offset end_offset in
     let line, char = env#current_pos_mgr#get_position (eo + 1) in
     let head = sprintf "[%d:%d]" line char in

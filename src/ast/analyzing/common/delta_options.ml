@@ -54,11 +54,11 @@ class c = object
   val mutable compress_delta_flag = false
 
   method compress_delta_flag = compress_delta_flag
-  method set_compress_delta_flag = 
+  method set_compress_delta_flag =
     compress_delta_flag <- true;
     delta_compression <- Compression.gzip
 
-  method clear_compress_delta_flag = 
+  method clear_compress_delta_flag =
     compress_delta_flag <- false;
     delta_compression <- Compression.none
 

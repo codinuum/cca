@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--factdir', dest='fdir', metavar='DIR', default=default_fdir, type=str,
                         help='fact directory')
-    
+
     parser.add_argument('--daemon', dest='daemon', action='store_true', help='run as an daemon')
 
     parser.add_argument('--resume', dest='resume', action='store_true', help='resume loading')
@@ -106,11 +106,11 @@ if __name__ == '__main__':
             loader.start_server()
             loader.disable_checkpoint()
 
-        loader.load(graph_uri, 
-                    fdir, 
-                    args.exts, 
-                    nprocs=args.nprocs, 
-                    maxfiles=args.nfiles, 
+        loader.load(graph_uri,
+                    fdir,
+                    args.exts,
+                    nprocs=args.nprocs,
+                    maxfiles=args.nfiles,
                     resume=args.resume)
 
     if args.daemon:

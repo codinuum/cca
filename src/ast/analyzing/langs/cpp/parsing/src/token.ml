@@ -80,6 +80,7 @@ let rawtoken_to_string = function
   | BODY_MACRO s         -> sprintf "BODY_MACRO:%s" s
   | DTOR_MACRO s         -> sprintf "DTOR_MACRO:%s" s
   | CLASS_HEAD_MACRO s   -> sprintf "CLASS_HEAD_MACRO:%s" s
+  | FUNC_HEAD_MACRO s    -> sprintf "FUNC_HEAD_MACRO:%s" s
 
   | IDENT s               -> sprintf "IDENT:%s" s
   | IDENT_ s              -> sprintf "IDENT_:%s" s
@@ -174,6 +175,9 @@ let rawtoken_to_string = function
   | PP_IF_B               -> "PP_IF_B"
   | PP_IFDEF_B            -> "PP_IFDEF_B"
   | PP_IFNDEF_B           -> "PP_IFNDEF_B"
+  | PP_IF_X               -> "PP_IF_X"
+  | PP_IFDEF_X            -> "PP_IFDEF_X"
+  | PP_IFNDEF_X           -> "PP_IFNDEF_X"
   | PP_IF_C               -> "PP_IF_C"
   | PP_IFDEF_C            -> "PP_IFDEF_C"
   | PP_IFNDEF_C           -> "PP_IFNDEF_C"
@@ -198,15 +202,18 @@ let rawtoken_to_string = function
   | PP_IF_CLOSING         -> "PP_IF_CLOSING"
   | PP_IFDEF_CLOSING      -> "PP_IFDEF_CLOSING"
   | PP_IFNDEF_CLOSING     -> "PP_IFNDEF_CLOSING"
+  | PP_IF_CLOSE_OPEN      -> "PP_IF_CLOSE_OPEN"
+  | PP_IFDEF_CLOSE_OPEN   -> "PP_IFDEF_CLOSE_OPEN"
+  | PP_IFNDEF_CLOSE_OPEN  -> "PP_IFNDEF_CLOSE_OPEN"
   | BAR_BAR_BROKEN i      -> "BAR_BAR_BROKEN:"^i
   | AMP_AMP_BROKEN i      -> "AMP_AMP_BROKEN:"^i
   | COMMA_BROKEN          -> "COMMA_BROKEN"
-  | PP_ODD_ENDIF          -> "PP_ODD_ENDIF"
+  | PP_ODD_ENDIF x        -> "PP_ODD_ENDIF:"^x
   | PP_ODD_IF             -> "PP_ODD_IF"
   | PP_ODD_IFDEF          -> "PP_ODD_IFDEF"
   | PP_ODD_IFNDEF         -> "PP_ODD_IFNDEF"
-  | PP_ODD_ELIF           -> "PP_ODD_ELIF"
-  | PP_ODD_ELSE           -> "PP_ODD_ELSE"
+  | PP_ODD_ELIF x         -> "PP_ODD_ELIF:"^x
+  | PP_ODD_ELSE x         -> "PP_ODD_ELSE:"^x
   | PP_STRINGIZED s       -> sprintf "PP_STRINGIZED:%s" s
 
   | INT_LITERAL s         -> sprintf "INT_LITERAL:%s" s
@@ -403,9 +410,9 @@ let rawtoken_to_string = function
   | PP_IF                 -> "PP_IF"
   | PP_IFDEF              -> "PP_IFDEF"
   | PP_IFNDEF             -> "PP_IFNDEF"
-  | PP_ELIF               -> "PP_ELIF"
-  | PP_ELSE               -> "PP_ELSE"
-  | PP_ENDIF              -> "PP_ENDIF"
+  | PP_ELIF x             -> "PP_ELIF:"^(!x)
+  | PP_ELSE x             -> "PP_ELSE:"^(!x)
+  | PP_ENDIF x            -> "PP_ENDIF:"^(!x)
   | PP_ENDIF_             -> "PP_ENDIF_"
 
   | PP_IMPORT             -> "PP_IMPORT"
@@ -521,6 +528,7 @@ let rawtoken_to_repr = function
   | BODY_MACRO s         -> s
   | DTOR_MACRO s         -> s
   | CLASS_HEAD_MACRO s   -> s
+  | FUNC_HEAD_MACRO s    -> s
 
   | IDENT s               -> s
   | IDENT_ s              -> s
@@ -615,6 +623,9 @@ let rawtoken_to_repr = function
   | PP_IF_B               -> "#if"
   | PP_IFDEF_B            -> "#ifdef"
   | PP_IFNDEF_B           -> "#ifndef"
+  | PP_IF_X               -> "#if"
+  | PP_IFDEF_X            -> "#ifdef"
+  | PP_IFNDEF_X           -> "#ifndef"
   | PP_IF_C               -> "#if"
   | PP_IFDEF_C            -> "#ifdef"
   | PP_IFNDEF_C           -> "#ifndef"
@@ -639,15 +650,18 @@ let rawtoken_to_repr = function
   | PP_IF_CLOSING         -> "#if"
   | PP_IFDEF_CLOSING      -> "#ifdef"
   | PP_IFNDEF_CLOSING     -> "#ifndef"
+  | PP_IF_CLOSE_OPEN      -> "#if"
+  | PP_IFDEF_CLOSE_OPEN   -> "#ifdef"
+  | PP_IFNDEF_CLOSE_OPEN  -> "#ifndef"
   | BAR_BAR_BROKEN i      -> i
   | AMP_AMP_BROKEN i      -> i
   | COMMA_BROKEN          -> ","
-  | PP_ODD_ENDIF          -> "#endif"
+  | PP_ODD_ENDIF _        -> "#endif"
   | PP_ODD_IF             -> "#if"
   | PP_ODD_IFDEF          -> "#ifdef"
   | PP_ODD_IFNDEF         -> "#ifndef"
-  | PP_ODD_ELIF           -> "#elif"
-  | PP_ODD_ELSE           -> "#else"
+  | PP_ODD_ELIF _         -> "#elif"
+  | PP_ODD_ELSE _         -> "#else"
   | PP_STRINGIZED s       -> sprintf "#%s" s
 
   | INT_LITERAL s         -> s
@@ -846,9 +860,9 @@ let rawtoken_to_repr = function
   | PP_IF                 -> "#if"
   | PP_IFDEF              -> "#ifdef"
   | PP_IFNDEF             -> "#ifndef"
-  | PP_ELIF               -> "#elif"
-  | PP_ELSE               -> "#else"
-  | PP_ENDIF              -> "#endif"
+  | PP_ELIF _             -> "#elif"
+  | PP_ELSE _             -> "#else"
+  | PP_ENDIF _            -> "#endif"
   | PP_ENDIF_             -> "#endif"
 
   | PP_IMPORT             -> "#import"

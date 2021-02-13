@@ -25,12 +25,12 @@ type tree_t = Spec.tree_t
 
 include Edit_base
 
-class formatters 
-    ~delete ~insert ~relabel ~move ~align 
+class formatters
+    ~delete ~insert ~relabel ~move ~align
     ~ignored1 ~ignored2 ~misparsed1 ~misparsed2
-    = 
+    =
   object
-    inherit formatters_base ~delete ~insert ~relabel ~move ~align 
+    inherit formatters_base ~delete ~insert ~relabel ~move ~align
     method delete  = (delete : int -> int -> segment list -> string)
     method insert  = (insert : int -> int -> segment list -> string)
     method relabel = (relabel : bool -> int -> int -> segment list -> int -> int -> segment list -> string)
@@ -46,7 +46,7 @@ class seq options = object (self)
   inherit [node_t, tree_t] seq_base options as super
 
   method dump_diff_simple_ch ?(line_align=[]) (tree1 : 'tree_t) (tree2 : 'tree_t) =
-    let formatters = 
+    let formatters =
       new formatters
         ~delete:(fun st ed segs -> sprintf "DELETE %s\n" (segments_to_string segs))
         ~insert:(fun st ed segs -> sprintf "INSERT %s\n" (segments_to_string segs))
@@ -61,14 +61,14 @@ class seq options = object (self)
           sprintf "%s %s >> %s\n" marker (segments_to_string segs1) (segments_to_string segs2)
         )
         ~move:
-        (fun st1 ed1 segs1 st2 ed2 segs2 -> 
+        (fun st1 ed1 segs1 st2 ed2 segs2 ->
           sprintf "MOVE %s >> %s\n" (segments_to_string segs1) (segments_to_string segs2)
         )
         ~align:
         (function
-          | LM_single (l1, l2) -> 
+          | LM_single (l1, l2) ->
 	      sprintf "ALIGN %d >> %d\n" l1 l2
-          | LM_multi(l1, l2, ext) -> 
+          | LM_multi(l1, l2, ext) ->
 	      sprintf "ALIGN %d:%d >> %d:%d\n" l1 (l1+ext) l2 (l2+ext)
         )
         ~ignored1:(fun (s, e) -> sprintf "IGNORED1 %d %d\n" s e)
@@ -80,7 +80,7 @@ class seq options = object (self)
 
   method dump_diff_json_ch ?(line_align=[]) (tree1 : 'tree_t) (tree2 : 'tree_t) =
 
-    let segs_to_json idx ?(st=(-1)) ?(ed=(-1)) _segs = 
+    let segs_to_json idx ?(st=(-1)) ?(ed=(-1)) _segs =
       let segs = List.filter (fun (s, e) -> s <= e) _segs in
       let seg_to_json (s, e) = sprintf "{\"start\":%d,\"end\":%d}" s e in
       let extra =
@@ -89,7 +89,7 @@ class seq options = object (self)
         else
           ""
       in
-      let segs_str = 
+      let segs_str =
         if segs = [] then
           ""
         else
@@ -103,7 +103,7 @@ class seq options = object (self)
           let last = ref seg in
           let seg_to_json ((s, e) as sg) = last := sg; sprintf "{\"start\":%d,\"end\":%d}" s e in
           let sstr = Xlist.to_string seg_to_json "," segs in
-          sprintf "\"start%d\":%d,\"end%d\":%d,\"segments%d\":[%s]" 
+          sprintf "\"start%d\":%d,\"end%d\":%d,\"segments%d\":[%s]"
             idx (fst seg)
             idx (snd !last)
             idx sstr
@@ -113,7 +113,7 @@ class seq options = object (self)
     let mksegs1 = segs_to_json 1 in
     let mksegs2 = segs_to_json 2 in
     let mkalign ?(ext=0) l1 l2 =
-      sprintf "{%s,\"line1\":%d,\"line2\":%d%s}," 
+      sprintf "{%s,\"line1\":%d,\"line2\":%d%s},"
         (mktag "ALIGN") l1 l2 (if ext = 0 then "" else sprintf ",\"ext\":%d" ext)
     in
 
@@ -145,8 +145,8 @@ class seq options = object (self)
       else
         ""
     in
-    
-    let formatters = 
+
+    let formatters =
       new formatters
         ~delete:(mkfmt "DELETE" 1)
         ~insert:(mkfmt "INSERT" 2)
@@ -200,13 +200,13 @@ class seq options = object (self)
     END_DEBUG;
 
     let filter iginfos info infos =
-      List.filter 
-	(fun inf -> 
-	  Info.is_included inf info && 
+      List.filter
+	(fun inf ->
+	  Info.is_included inf info &&
 	  List.for_all (fun i -> not (Info.is_included inf i)) infos
 	) iginfos
     in
-  
+
     let get_segments iginfos info excludes =
 
       BEGIN_DEBUG
@@ -222,7 +222,7 @@ class seq options = object (self)
 
       sort_segments segs
     in
-  
+
     let get_mov_segs_pair = function
       | Move(mid, _, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
 	  let segs1 = get_segments iginfos1 info1 excludes1 in
@@ -230,7 +230,7 @@ class seq options = object (self)
 	  segs1, segs2
       | _ -> assert false
     in
-    
+
     Printf.fprintf ch "%s" header;
 
     let segment_count = ref 0 in
@@ -253,7 +253,7 @@ class seq options = object (self)
               let st, ed = loc.Loc.start_offset, loc.Loc.end_offset in
 	      let segs = get_segments iginfos2 info excludes in
 	      output_string ch (formatters#insert st ed segs)
-		
+
 	  | Relabel(movrel, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
               let loc1 = Info.get_loc info1 in
               let loc2 = Info.get_loc info2 in
@@ -269,13 +269,13 @@ class seq options = object (self)
 		  let movs = self#find_mov_gr_mems (self#find_mov_gr !mid) in
 		  (Info.get_node info1)#gindex <
 		  (Xlist.max
-		     (List.map 
-			(function 
+		     (List.map
+			(function
 			  | Move(_, _, (_, i1, _), _) ->
 			      (Info.get_node i1)#gindex
 			  | _ -> assert false
 			) movs))
-		with 
+		with
 		  Not_found -> false
 	      in
 
@@ -288,13 +288,13 @@ class seq options = object (self)
 		let segs1, segs2 =
 		  try
 		    let movs = self#find_mov_gr_mems (self#find_mov_gr !mid) in
-		    
+
 		    DEBUG_MSG "* move group %a:\n\t%s" MID.ps !mid
 		      (Xlist.to_string to_string "\n\t" movs);
 
 		    let segs_list1, segs_list2 = List.split (List.map get_mov_segs_pair movs) in
 		    merge_segments segs_list1, merge_segments segs_list2
-		  with 
+		  with
 		    Not_found -> get_mov_segs_pair mov
 		in
                 output_string ch (formatters#move st1 ed1 segs1 st2 ed2 segs2)
@@ -302,9 +302,9 @@ class seq options = object (self)
 	      else
 		DEBUG_MSG " -> skipped"
 
-	with 
-	  Info.Segment -> 
-	    incr segment_count; 
+	with
+	  Info.Segment ->
+	    incr segment_count;
 	    DEBUG_MSG "Info.Segment exception raised!"
       );
     List.iter (fun seg -> output_string ch (formatters#ignored1 seg)) ignored1;
@@ -313,7 +313,7 @@ class seq options = object (self)
     List.iter (fun seg -> output_string ch (formatters#misparsed2 seg)) tree2#misparsed_regions;
 
     BEGIN_DEBUG
-      DEBUG_MSG "delete:%d insert:%d relabel:%d move:%d (total:%d)\n" 
+      DEBUG_MSG "delete:%d insert:%d relabel:%d move:%d (total:%d)\n"
 	self#get_ndeletes self#get_ninserts self#get_nrelabels self#get_nmoves self#get_nedits;
       DEBUG_MSG "%d Segment exception(s) raised" !segment_count
     END_DEBUG;
@@ -350,24 +350,24 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
   DEBUG_MSG "dumping changes...";
 
   let extract = lang#extract_change in
-  
+
   Xprint.verbose options#verbose_flag "extracting changes...";
 
   let changes, unused, change_infos, triples =
-    extract options tree1 tree2 uidmapping edits_copy 
+    extract options tree1 tree2 uidmapping edits_copy
   in
 
   Xprint.verbose options#verbose_flag "done.";
 
   if changes <> [] || unused <> [] then begin
 
-    let dumper ch = 
+    let dumper ch =
       Xprint.verbose options#verbose_flag "dumping...";
 
-      let sorted = 
-	List.fast_sort 
-	  (fun (_, s1, _) (_, s2, _) -> Stdlib.compare s2 s1) 
-	  changes 
+      let sorted =
+	List.fast_sort
+	  (fun (_, s1, _) (_, s2, _) -> Stdlib.compare s2 s1)
+	  changes
       in
       if changes <> [] then begin
 	Printf.fprintf ch "*** Extracted Changes ***\n";
@@ -376,7 +376,7 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
 	    let n = List.length mess in
 	    Printf.fprintf ch "\n[significance=%d] %s (%d)\n" lv chg_ty n;
 	    List.iter
-	      (fun mes -> 
+	      (fun mes ->
 		Printf.fprintf ch "  %s\n" mes
 	      ) mess
 	  ) sorted
@@ -409,7 +409,7 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
 	List.iter
 	  (fun (chg_ty, lv, infos) ->
 	    List.iter
-	      (fun (desc, adesc, unit1, loc1, unit2, loc2) -> 
+	      (fun (desc, adesc, unit1, loc1, unit2, loc2) ->
 		_csv := ( chg_ty,
 			  string_of_int lv,
 			  desc,
@@ -422,11 +422,11 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
 	      ) infos
 	  ) change_infos;
 
-	let sorted = 
-	  List.map 
-	    (fun (ct, lv, d, ad, u1, l1, u2, l2) -> 
+	let sorted =
+	  List.map
+	    (fun (ct, lv, d, ad, u1, l1, u2, l2) ->
 	      [ct; lv; d; ad; u1; Loc.to_string l1; u2; Loc.to_string l2]
-	    ) (List.stable_sort cmp !_csv) 
+	    ) (List.stable_sort cmp !_csv)
 	in
 
 	let filtered =
@@ -435,8 +435,8 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
 	  else begin
 	    let tbl = Hashtbl.create 0 in
 	    List.fold_left
-	      (fun l -> 
-		function 
+	      (fun l ->
+		function
 		  | [ct; lv; d; ad; u1; l1; u2; l2] ->
 		      if Hashtbl.mem tbl (l1, l2) then begin
 			DEBUG_MSG "filtered out: [%s] (%s)-(%s)" ct l1 l2;
@@ -480,15 +480,15 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
 
   end (* of if changes <> [] || unused <> [] *)
 
-  (* end of func dump_changes *)		
+  (* end of func dump_changes *)
 
 
 (* * * * *)
 
-let remove_relabels_and_mapping 
+let remove_relabels_and_mapping
     cenv
-    tree1 
-    tree2 
+    tree1
+    tree2
     edits
     uidmapping
     to_be_removed
@@ -512,7 +512,7 @@ let remove_relabels_and_mapping
 		cenv#add_bad_pair u u'
               end;
 
-	      List.iter 
+	      List.iter
 		(fun ed ->
 		  DEBUG_MSG "removing %s" (Editop.to_string ed);
 		  edits#remove_edit ed
@@ -522,16 +522,16 @@ let remove_relabels_and_mapping
 
 	      let del = Editop.make_delete n in (* generate delete *)
 	      DEBUG_MSG "adding %s" (Editop.to_string del);
-	      
+
 	      edits#add_edit del;
 
 	      let ins = Editop.make_insert n' in (* generate insert *)
 	      DEBUG_MSG "adding %s" (Editop.to_string ins);
-	      
+
 	      edits#add_edit ins
 
 	    end
-	  with 
+	  with
 	    Not_found -> ()
 	) !nodes1
     end
@@ -539,15 +539,15 @@ let remove_relabels_and_mapping
 (* end of func remove_relabels_and_mapping *)
 
 
-let match_nodes 
+let match_nodes
     cenv
     tree1
     tree2
     (tbl : ((BID.t * BID.t), (node_t list * node_t list)) Hashtbl.t)
     =
   let compatible_pairs = ref [] in
-  Hashtbl.iter 
-    (fun (bid1, bid2) (cands1, cands2) -> 
+  Hashtbl.iter
+    (fun (bid1, bid2) (cands1, cands2) ->
       match cands1, cands2 with
       | [], _ | _, [] -> ()
       | [nd1], [nd2] -> compatible_pairs := (nd1, nd2) :: !compatible_pairs
@@ -557,8 +557,8 @@ let match_nodes
 	    (fun nd1 ->
 	      List.iter
 		(fun nd2 ->
-		  let w = 
-		    Stdlib.truncate ((cenv#get_adjacency_score nd1 nd2) *. 10000.0) 
+		  let w =
+		    Stdlib.truncate ((cenv#get_adjacency_score nd1 nd2) *. 10000.0)
 		  in
 		  pair_weight_list := (nd1, nd2, w) :: !pair_weight_list
 		) nds2
@@ -566,9 +566,9 @@ let match_nodes
 
 	  BEGIN_DEBUG
 	    DEBUG_MSG "pair_weight_list:";
-            List.iter 
-	      (fun (n1, n2, w) -> 
-		DEBUG_MSG " %a(%a)-%a(%a): %d" 
+            List.iter
+	      (fun (n1, n2, w) ->
+		DEBUG_MSG " %a(%a)-%a(%a): %d"
 		  UID.ps n1#uid GI.ps n1#gindex UID.ps n2#uid GI.ps n2#gindex w
 	      ) !pair_weight_list
 	  END_DEBUG;
@@ -597,20 +597,20 @@ let lock_mapping tree1 tree2 uidmapping nd1 nd2 =
 	  uidmapping#lock_uid ?key:key u;
 	  uidmapping#lock_uid ?key:key u';
 	end
-      with 
+      with
 	Not_found -> ()
     ) !nodes1
 (* end of func lock_mapping *)
 
 
-let generate_compatible_edits 
+let generate_compatible_edits
     options
     cenv
     (tree1 : Spec.tree_t)
     (tree2 : Spec.tree_t)
     uidmapping
     edits
-    compatible_pairs 
+    compatible_pairs
     is_incompatible
     =
   List.iter
@@ -623,11 +623,11 @@ let generate_compatible_edits
       let subtree1 = tree1#make_anonymized_subtree_copy nd1 in
       let subtree2 = tree2#make_anonymized_subtree_copy nd2 in
       let subcenv = new Comparison.c options subtree1 subtree2 in
-      let m, em, r = 
-	Treediff.match_trees cenv subtree1 subtree2 (new UIDmapping.c subcenv) (new UIDmapping.c subcenv) 
+      let m, em, r =
+	Treediff.match_trees cenv subtree1 subtree2 (new UIDmapping.c subcenv) (new UIDmapping.c subcenv)
       in
-      let matches = 
-	(Misc.conv_subtree_node_pairs tree1 tree2) (m @ em @ r) 
+      let matches =
+	(Misc.conv_subtree_node_pairs tree1 tree2) (m @ em @ r)
       in
 
       BEGIN_DEBUG
@@ -651,7 +651,7 @@ let generate_compatible_edits
 	    let u1, u2 = n1#uid, n2#uid in
 
             (* remove conflicting edits *)
-	    begin 
+	    begin
 	      let eds1 = edits#find1 u1 in
 	      let conflict =
 		match eds1 with
@@ -667,20 +667,20 @@ let generate_compatible_edits
 		      let ins = Editop.make_insert n2' in
 
 		      DEBUG_MSG "adding %s" (Editop.to_string ins);
-		      
+
 		      edits#add_edit ins
 		    end;
 		    b
 		| _ -> assert false
 	      in
 	      if conflict then
-		List.iter 
-		  (fun e -> 
+		List.iter
+		  (fun e ->
 		    DEBUG_MSG "removing %s" (Editop.to_string e);
 		    edits#remove_edit e
 		  ) eds1
 	    end;
-	    begin 
+	    begin
 	      let eds2 = edits#find2 u2 in
 	      let conflict =
 		match eds2 with
@@ -701,8 +701,8 @@ let generate_compatible_edits
 		| _ -> assert false
 	      in
 	      if conflict then
-		List.iter 
-		  (fun e -> 
+		List.iter
+		  (fun e ->
 		    DEBUG_MSG "removing %s" (Editop.to_string e);
 		    edits#remove_edit e
 		  ) eds2
@@ -795,7 +795,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) edits is_possible_rename =
       with
 	Not_found -> Hashtbl.add tbl bi1 [bi2]
     in
-    if is_possible_rename node1 node2 bid1 bid2 then begin 
+    if is_possible_rename node1 node2 bid1 bid2 then begin
       DEBUG_MSG "added";
       add _use_rename_tbl1 bid1 bid2;
       add _use_rename_tbl2 bid2 bid1;
@@ -803,7 +803,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) edits is_possible_rename =
 	let freq, nm1, nm2 = Hashtbl.find freq_tbl (bid1, bid2) in
         assert (nm1 = name1 && nm2 = name2);
 	Hashtbl.replace freq_tbl (bid1, bid2) (freq + 1, name1, name2)
-      with 
+      with
 	Not_found -> Hashtbl.add freq_tbl (bid1, bid2) (1, name1, name2)
     end
     else begin
@@ -845,7 +845,7 @@ let adjust_renames
     options
     cenv
     uidmapping
-    edits 
+    edits
     (filters : (node_t -> bool) array)
     =
   DEBUG_MSG "START!";
@@ -909,8 +909,8 @@ let adjust_renames
   in
 
   (* non-rename can be rename e.g. fortran: variable-name -> array-element *)
-  let is_possible_rename node1 node2 bi1 bi2 = 
-    
+  let is_possible_rename node1 node2 bi1 bi2 =
+
     let parent_cond, context_cond =
       try
         let pnd1 = node1#initial_parent in
@@ -936,7 +936,7 @@ let adjust_renames
     if parent_cond then
       let same_name =
         try
-          node1#data#get_name = node2#data#get_name && 
+          node1#data#get_name = node2#data#get_name &&
           node1#data#get_category <> node2#data#get_category
         with
           _ -> false
@@ -992,21 +992,21 @@ let adjust_renames
     with
       Not_found -> assert false
   in
-  
+
   Hashtbl.iter
     (fun bi1 bs ->
       DEBUG_MSG "* selecting from: %a -> [%s]" BID.ps bi1 (Xlist.to_string BID.to_string ";" bs);
       let max_freq = List.fold_left (fun max bi2 -> sel_freq max bi1 bi2) 0 bs in
       DEBUG_MSG "  max freq.: %d" max_freq;
 
-      let selected = 
-	List.filter (fun bi2 -> max_freq = get_freq bi1 bi2) bs 
+      let selected =
+	List.filter (fun bi2 -> max_freq = get_freq bi1 bi2) bs
       in
       DEBUG_MSG "  selected: %a -> [%s]" BID.ps bi1 (Xlist.to_string BID.to_string ";" selected);
 
       match selected with
       | []   -> assert false
-      | [bi2] -> 
+      | [bi2] ->
           if max_freq > 1 || handle_weak then
 	    selected_renames1 := (bi1, bi2) :: !selected_renames1;
 	  if max_freq = 1 && handle_weak then
@@ -1016,7 +1016,7 @@ let adjust_renames
 	      if bi != bi2 then
 		Hashtbl.add loser_tbl (bi1, bi) true
 	    ) bs
-      | _    -> 
+      | _    ->
 	  conflicting_bids2 := bs @ !conflicting_bids2
 
     ) _use_rename_tbl1;
@@ -1027,14 +1027,14 @@ let adjust_renames
       let max_freq = List.fold_left (fun max bi1 -> sel_freq max bi1 bi2) 0 bs in
       DEBUG_MSG "  max freq.: %d" max_freq;
 
-      let selected = 
-	List.filter (fun bi1 -> max_freq = get_freq bi1 bi2) bs 
+      let selected =
+	List.filter (fun bi1 -> max_freq = get_freq bi1 bi2) bs
       in
       DEBUG_MSG "  selected: [%s] -> %a" (Xlist.to_string BID.to_string ";" selected) BID.ps bi2;
 
       match selected with
       | []   -> assert false
-      | [bi1] -> 
+      | [bi1] ->
           if max_freq > 1 || handle_weak then
 	    selected_renames2 := (bi1, bi2) :: !selected_renames2;
 	  if max_freq = 1 && handle_weak then
@@ -1055,14 +1055,14 @@ let adjust_renames
   let selected_renames =
     List.filter
       (fun (bi1, bi2) ->
-	(not (Hashtbl.mem loser_tbl (bi1, bi2))) && 
-	(not (List.mem bi1 !conflicting_bids1)) && 
+	(not (Hashtbl.mem loser_tbl (bi1, bi2))) &&
+	(not (List.mem bi1 !conflicting_bids1)) &&
 	(not (List.mem bi2 !conflicting_bids2))
       ) (Xlist.union !selected_renames1 !selected_renames2)
   in
 
-  let weak_selected_renames = 
-    Xlist.intersection selected_renames 
+  let weak_selected_renames =
+    Xlist.intersection selected_renames
       (Xlist.union !weak_selected_renames1 !weak_selected_renames2)
   in
   let weak_selected_renames_from, weak_selected_renames_to =
@@ -1072,12 +1072,12 @@ let adjust_renames
   BEGIN_DEBUG
     DEBUG_MSG "* selected use renames:";
     List.iter
-      (fun (bi1, bi2) -> 
+      (fun (bi1, bi2) ->
 	DEBUG_MSG " %a -> %a" BID.ps bi1 BID.ps bi2
       ) selected_renames;
     DEBUG_MSG "* weak selected use renames:";
     List.iter
-      (fun (bi1, bi2) -> 
+      (fun (bi1, bi2) ->
 	DEBUG_MSG " %a -> %a" BID.ps bi1 BID.ps bi2
       ) weak_selected_renames
   END_DEBUG;
@@ -1097,9 +1097,9 @@ let adjust_renames
 	  let u1' = uidmapping#find n1#uid in
 	  if u1' = n2#uid then
 	    n1#data#relabel_allowed n2#data
-	  else 
+	  else
 	    false
-        with 
+        with
 	  Not_found -> false
       in
       let pnd1 = nd1#initial_parent in
@@ -1184,7 +1184,7 @@ let adjust_renames
       with
 	Not_found -> None, false, None
     in
-    let b, by_non_renames = 
+    let b, by_non_renames =
       match bi1_opt, bi2_opt with
       | Some bi1, Some bi2 -> begin
 	  if (non_rename1 || non_rename2) && not same_name then begin
@@ -1207,7 +1207,7 @@ let adjust_renames
       | None, Some bi2 ->
 	  context_cond && (non_rename2 || (match bi2'_opt with Some _ -> true | None -> false)), non_rename2
 
-      | None, None -> 
+      | None, None ->
 	  false, false
     in
     b, by_non_renames
@@ -1216,7 +1216,7 @@ let adjust_renames
 (*
   let is_incompatible_def nd1 nd2 =
     let f tbl nd =
-      (B.is_used_def nd#data#binding) && 
+      (B.is_used_def nd#data#binding) &&
       (try
 	let bid = get_bid nd in
 	not (Hashtbl.mem tbl bid)
@@ -1273,7 +1273,7 @@ let adjust_renames
 	if not (List.memq nd cands1) then
 	  Hashtbl.replace cands_pair_tbl key ((nd::cands1), cands2)
       with
-	Not_found -> 
+	Not_found ->
 	  Hashtbl.add cands_pair_tbl key ([nd], [])
     end
   in
@@ -1286,13 +1286,13 @@ let adjust_renames
 	if not (List.memq nd cands2) then
 	  Hashtbl.replace cands_pair_tbl key (cands1, (nd::cands2))
       with
-	Not_found -> 
+	Not_found ->
 	  Hashtbl.add cands_pair_tbl key ([], [nd])
     end
   in
   let check check_tbl info =
     let nd = Info.get_node info in
-    Array.iteri 
+    Array.iteri
       (fun i filt ->
 	try
 	  if filt nd then
@@ -1302,7 +1302,7 @@ let adjust_renames
       ) filters
   in
 
-  edits#iter_deletes 
+  edits#iter_deletes
     (function
       | Delete(_, _, info, ex) -> check check_tbl1 info
       | _ -> assert false
@@ -1315,11 +1315,11 @@ let adjust_renames
 
   BEGIN_DEBUG
     DEBUG_MSG "cands pair table:";
-    let cs2s cs = 
-      Xlist.to_string (fun n -> Printf.sprintf "%a(%a)" UID.ps n#uid GI.ps n#gindex) ";" cs 
+    let cs2s cs =
+      Xlist.to_string (fun n -> Printf.sprintf "%a(%a)" UID.ps n#uid GI.ps n#gindex) ";" cs
     in
-    Hashtbl.iter 
-      (fun (bid1, bid2) (cands1, cands2) -> 
+    Hashtbl.iter
+      (fun (bid1, bid2) (cands1, cands2) ->
 	DEBUG_MSG "  (%a,%a) [%s]-[%s]" BID.ps bid1 BID.ps bid2
 	  (cs2s cands1) (cs2s cands2)
       ) cands_pair_tbl
@@ -1328,8 +1328,8 @@ let adjust_renames
   (* select compatible pairs *)
   let compatible_pairs = ref [] in
 
-  Hashtbl.iter 
-    (fun (bid1, bid2) (cands1, cands2) -> 
+  Hashtbl.iter
+    (fun (bid1, bid2) (cands1, cands2) ->
       match cands1, cands2 with
       | [], _ | _, [] -> ()
       | [nd1], [nd2] -> compatible_pairs := (nd1, nd2) :: !compatible_pairs
@@ -1341,8 +1341,8 @@ let adjust_renames
 		(fun nd2 ->
                   let cond = nd1#data#eq nd2#data || nd1#data#relabel_allowed nd2#data in
                   if cond then
-		    let w = 
-		      Stdlib.truncate ((cenv#get_adjacency_score nd1 nd2) *. 10000.0) 
+		    let w =
+		      Stdlib.truncate ((cenv#get_adjacency_score nd1 nd2) *. 10000.0)
 		    in
 		    pair_weight_list := (nd1, nd2, w) :: !pair_weight_list
 
@@ -1351,8 +1351,8 @@ let adjust_renames
 
 	  BEGIN_DEBUG
 	    DEBUG_MSG "pair_weight_list:";
-            List.iter 
-	      (fun (n1, n2, w) -> 
+            List.iter
+	      (fun (n1, n2, w) ->
 		DEBUG_MSG " %a-%a: %d" UID.ps n1#uid UID.ps n2#uid w
 	      ) !pair_weight_list
 	  END_DEBUG;
@@ -1366,11 +1366,11 @@ let adjust_renames
   BEGIN_DEBUG
     List.iter
       (fun (n1, n2) ->
-	DEBUG_MSG "compatible_pair: %a-%a (%a-%a)" 
+	DEBUG_MSG "compatible_pair: %a-%a (%a-%a)"
 	  UID.ps n1#uid UID.ps n2#uid GI.ps n1#gindex GI.ps n2#gindex
-      ) 
-      (List.fast_sort 
-	 (fun (n1, _) (n2, _) -> Stdlib.compare n1#gindex n2#gindex) 
+      )
+      (List.fast_sort
+	 (fun (n1, _) (n2, _) -> Stdlib.compare n1#gindex n2#gindex)
 	 !compatible_pairs);
   END_DEBUG;
 
@@ -1392,7 +1392,7 @@ let adjust_renames
 	    try
 	      let bid1' = Hashtbl.find rename_tbl1 bid1 in
               let lock =
-                bid1' = bid2 && 
+                bid1' = bid2 &&
                 (match Hashtbl.find cands_pair_tbl (bid1, bid2) with
                 | [x], [y] -> true
                 | _ -> false
@@ -1411,7 +1411,7 @@ let adjust_renames
 
   DEBUG_MSG "* generating compatible edits...";
 
-  generate_compatible_edits options cenv tree1 tree2 uidmapping edits 
+  generate_compatible_edits options cenv tree1 tree2 uidmapping edits
     !compatible_pairs is_incompatible;
 
 (*
@@ -1434,7 +1434,7 @@ let adjust_renames
       | _ -> assert false
     );
 *)
-  cenv#set_is_possible_rename 
+  cenv#set_is_possible_rename
     (fun n1 n2 ->
       let bi1_opt = try Some (get_bid n1) with Not_found -> None in
       let bi2_opt = try Some (get_bid n2) with Not_found -> None in
@@ -1445,10 +1445,10 @@ let adjust_renames
 	  else
 	    is_possible_rename n1 n2 bi1 bi2
 
-      | Some bi1, None -> 
+      | Some bi1, None ->
 	  not (non_rename non_rename_bid_tbl1 bi1) && not (Hashtbl.mem rename_tbl1 bi1)
 
-      | None, Some bi2 -> 
+      | None, Some bi2 ->
 	  not (non_rename non_rename_bid_tbl2 bi2) && not (Hashtbl.mem rename_tbl2 bi2)
 
       | None, None -> true

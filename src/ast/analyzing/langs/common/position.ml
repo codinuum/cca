@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * position handling 
+(*
+ * position handling
  *
  * position.ml
  *
@@ -140,8 +140,8 @@ class manager (fn : string) = object (self)
     self#get_position start_offset
 
   method reset =
-    lines_read <- 0; 
-    start_offset <- 0; 
+    lines_read <- 0;
+    start_offset <- 0;
     characters_read <- 0;
     newline <- 0;
     last_lines_read <- 0;
@@ -150,8 +150,8 @@ class manager (fn : string) = object (self)
 
   method lines_read = lines_read
 
-  method show_status = 
-    Printf.printf "\nLines read: %d\nCharacters read: %d\n" 
+  method show_status =
+    Printf.printf "\nLines read: %d\nCharacters read: %d\n"
       lines_read characters_read
 
   method _offsets_to_loc start_offset end_offset start_line start_char end_line end_char =
@@ -183,5 +183,5 @@ class manager (fn : string) = object (self)
   initializer
     self#reset
 
-    
+
 end (* of class Position.manager *)

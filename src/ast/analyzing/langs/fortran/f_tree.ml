@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * AST for Fortran
  *
  * fortran/tree.ml
@@ -40,7 +40,7 @@ module Tree = Sourcecode.Tree (L)
 open Tree
 
 
-let make_local_name mn un = 
+let make_local_name mn un =
   if mn = "" then
     un
   else
@@ -49,8 +49,8 @@ let make_local_name mn un =
 let make_include_node options ast_nd =
   let f = Fname.strip (ast_nd#lloc#get_loc_of_level 1).Common.Loc.filename in
   let h = H.mkgenerated f in
-  let nd = 
-    mknode options (L.PpDirective (L.PpDirective.mk (L.PpDirective.Include h))) [] 
+  let nd =
+    mknode options (L.PpDirective (L.PpDirective.mk (L.PpDirective.Include h))) []
   in
   set_loc nd (ast_nd#lloc#get_loc_of_level 0);
   nd
@@ -66,13 +66,13 @@ let of_ast options ast =
 (*
   let mktid nd =
     Lang.mktid
-      (if options#incomplete_info_flag then 
-        "" 
-      else 
+      (if options#incomplete_info_flag then
+        ""
+      else
         Xhash.to_hex (new c options nd false)#digest)
-      (if options#incomplete_info_flag then 
-        "" 
-      else 
+      (if options#incomplete_info_flag then
+        ""
+      else
         nd#data#anonymized_label)
   in
 *)

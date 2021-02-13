@@ -88,7 +88,7 @@ module F (L : Java_label.T) = struct
     with _ -> false
 
 
-      
+
   let is_else nd =
     try
       let pnd = nd#initial_parent in
@@ -126,7 +126,7 @@ module F (L : Java_label.T) = struct
       let pnd = nd#initial_parent in
       is_type nd && is_field pnd
     with _ -> false
-	
+
   let is_varty nd =
     try
       is_type nd && is_vdeclaration nd#initial_parent
@@ -179,7 +179,7 @@ module F (L : Java_label.T) = struct
       L.is_importdeclarations (getlab nd#initial_parent)
     with _ -> false
 
-  let is_thty nd = 
+  let is_thty nd =
     try
       is_type nd && is_throws nd#initial_parent
     with _ -> false
@@ -217,9 +217,9 @@ module F (L : Java_label.T) = struct
 
     let nodes = Hashtbl.find tbl !maxd in
 
-    DEBUG_MSG "body=%s maxd=%d nd=%s" 
-      methodbody_nd#data#to_string 
-      !maxd 
+    DEBUG_MSG "body=%s maxd=%d nd=%s"
+      methodbody_nd#data#to_string
+      !maxd
       (Xlist.to_string (fun n -> n#data#to_string) ";" nodes);
 
     !maxd, nodes
@@ -228,15 +228,15 @@ module F (L : Java_label.T) = struct
   let nesting_depth_of_methodbody mb =
     let d, _ = _nesting_depth_of_methodbody mb in
     d
-      
+
   let enclosing_methodbody nd =
     let rec doit n =
       try
 	let pnd = n#initial_parent in
 	if is_methodbody pnd then pnd
 	else doit pnd
-      with 
-	Otreediff.Otree.Parent_not_found _ -> 
+      with
+	Otreediff.Otree.Parent_not_found _ ->
 	  raise Not_found
     in
     let res = doit nd in
@@ -251,11 +251,11 @@ module F (L : Java_label.T) = struct
     let rec doit n =
       try
 	let p = n#initial_parent in
-	if is_stmt p then 
+	if is_stmt p then
 	  res := p :: !res
-	else 
+	else
 	  doit p#initial_parent
-      with 
+      with
 	  Otreediff.Otree.Parent_not_found _ -> ()
     in
     doit stmt_nd;
@@ -267,13 +267,13 @@ module F (L : Java_label.T) = struct
       let ndepth, nodes = _nesting_depth_of_methodbody mbnd in
 
       DEBUG_MSG "nd=%s mbnd=%s depth=%d" nd#data#to_string mbnd#data#to_string ndepth;
-      
+
       match nodes with
 	| [] -> false
 	| [n] -> n == nd
 	| _ ->
 	  let tbl = Hashtbl.create 0 in
-	  List.iter 
+	  List.iter
 	    (fun n ->
 	      List.iter (fun a -> Hashtbl.add tbl a true) (stmt_ancestors n);
 	    ) nodes;
@@ -334,7 +334,7 @@ module F (L : Java_label.T) = struct
   let get_desc2 tree1 tree2 nd1 nd2 =
     let ids1 = tree1#get_ident_use_list nd1#gindex in
     let ids2 = tree2#get_ident_use_list nd2#gindex in
-    sprintf "%s%s%s -> %s%s%s" 
+    sprintf "%s%s%s -> %s%s%s"
       nd1#data#label (ids_to_str ids1) (subtree_to_str tree1 nd1)
       nd2#data#label (ids_to_str ids2) (subtree_to_str tree2 nd2)
 
@@ -345,23 +345,23 @@ module F (L : Java_label.T) = struct
 
   let cat_argument = Triple.make_qname L.lang_prefix "Argument"
 
-	
+
 (* class Change.F.c *)
 
   class c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2 = object (self)
     inherit CB.c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2
 
     method mkt_accessibility_increased ?(category=Triple.ghost) = function
-      | Cmodified(nd1, nd2) -> 
+      | Cmodified(nd1, nd2) ->
 	  [(self#mkent1 nd1, p_accessibility_increased, self#mkent2 nd2)]
       | _ -> []
 
     method mkt_accessibility_decreased ?(category=Triple.ghost) = function
-      | Cmodified(nd1, nd2) -> 
+      | Cmodified(nd1, nd2) ->
 	  [(self#mkent1 nd1, p_accessibility_decreased, self#mkent2 nd2)]
       | _ -> []
 
-    method mkt_nesting_depth = 
+    method mkt_nesting_depth =
       self#_mkt_nesting_depth enclosing_methodbody nesting_depth_of_methodbody
 
 
@@ -378,7 +378,7 @@ module F (L : Java_label.T) = struct
 		  let meth_nd1 = nd1#initial_parent in
 		  let meth_nd2 = nd2#initial_parent in
 		  changes#add (Cmodified(meth_nd1, meth_nd2))
-		with 
+		with
 		  Otreediff.Otree.Parent_not_found _ -> assert false
 	      end
 	  | _ -> ()
@@ -413,7 +413,7 @@ module F (L : Java_label.T) = struct
 		    let pp2 = nd2#initial_parent#initial_parent in
 		    changes#add (Cmodified(pp1, pp2));
 		    self#set_used ed;
-		  with 
+		  with
 		    Otreediff.Otree.Parent_not_found _ -> assert false
 		end
 
@@ -421,11 +421,11 @@ module F (L : Java_label.T) = struct
 		let nd = I.get_node inf in
 		try
 		  if del_cond nd then begin
-		    let ppid = nd#initial_parent#initial_parent#uid in 
+		    let ppid = nd#initial_parent#initial_parent#uid in
 		    add1 d_tbl ppid nd;
 		    add1 use_cand_tbl ppid ed
 		  end;
-		with 
+		with
 		  Otreediff.Otree.Parent_not_found _ -> assert false
 	    end
 
@@ -433,11 +433,11 @@ module F (L : Java_label.T) = struct
 		let nd = I.get_node inf in
 		try
 		  if ins_cond nd then begin
-		    let ppid = nd#initial_parent#initial_parent#uid in 
+		    let ppid = nd#initial_parent#initial_parent#uid in
 		    add1 i_tbl ppid nd;
 		    add1 use_cand_tbl ppid ed
 		  end;
-		with 
+		with
 		  Otreediff.Otree.Parent_not_found _ -> assert false
 	    end
 
@@ -456,7 +456,7 @@ module F (L : Java_label.T) = struct
 		      add1 i_tbl ppid2 nd2;
 		      add1 use_cand_tbl ppid2 ed;
 		    end;
-		  with 
+		  with
 		    Otreediff.Otree.Parent_not_found _ -> assert false
 		end
 	  );
@@ -469,17 +469,17 @@ module F (L : Java_label.T) = struct
 
 	      DEBUG_MSG " -> %a" UID.ps uid';
 
-	      let nds' = 
+	      let nds' =
 		try
-		  Hashtbl.find i_tbl uid' 
+		  Hashtbl.find i_tbl uid'
 		with Not_found -> []
 	      in
 	      if not
-		  ((List.exists is_protected nds) && 
+		  ((List.exists is_protected nds) &&
 		   (List.exists is_protected nds'))
 	      then begin
 		try
-		  let n1 = tree1#search_node_by_uid uid in 
+		  let n1 = tree1#search_node_by_uid uid in
 		  let n2 = tree2#search_node_by_uid uid' in
 
 		  DEBUG_MSG "added %s - %s"
@@ -500,7 +500,7 @@ module F (L : Java_label.T) = struct
 	      if not (Hashtbl.mem d_tbl uid) then
 		if not (List.exists is_protected nds') then begin
 		  try
-		    let n1 = tree1#search_node_by_uid uid in 
+		    let n1 = tree1#search_node_by_uid uid in
 		    let n2 = tree2#search_node_by_uid uid' in
 
 		    DEBUG_MSG "added %s - %s"
@@ -520,7 +520,7 @@ module F (L : Java_label.T) = struct
     (* end of method make_accessibility_change *)
 
 
-    method make_changes_list () = 
+    method make_changes_list () =
       let mkt_del = self#mkt_deleted ~category:Triple.ghost in
       let mkt_del_c cat = self#mkt_deleted ~category:cat in
       let mkt_ins = self#mkt_inserted ~category:Triple.ghost in
@@ -534,14 +534,14 @@ module F (L : Java_label.T) = struct
       let mkt_mov = self#mkt_moved_to ~category:Triple.ghost in
       let mkt_odrchg = self#mkt_order_changed ~category:Triple.ghost in
       let mkt_odrchg_c cat = self#mkt_order_changed ~category:cat in
-      [ 
+      [
 	"primary name renamed", Slow, (self#make_renaming is_name), mkt_ren;
 
 	"field access renamed", Slow, (self#make_renaming is_field_acc), mkt_ren;
 
 	"condition expression changed",  Smedium, (self#make_changed_to is_cond), mkt_chgto;
 	"condition expression modified", Smedium, (self#aggregate_changes is_cond), mkt_mod;
-	
+
 	"else-part removed",  Smedium, (self#make_delete_st is_else), mkt_del;
 	"else-part added",    Smedium, (self#make_insert_st is_else), mkt_ins;
 	"else-part deleted",  Smedium, (self#make_delete is_else), mkt_del;
@@ -621,26 +621,26 @@ module F (L : Java_label.T) = struct
 	(self#make_delete_st (fun n -> is_depth_defining n && is_stmt n)),
 	self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement inserted to increase nesting-depth", Shigh, 
+	"statement inserted to increase nesting-depth", Shigh,
 	(self#make_insert (fun n -> is_depth_defining n && is_stmt n)),
 	self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement added to increase nesting-depth",   Shigh, 
+	"statement added to increase nesting-depth",   Shigh,
 	(self#make_insert_st (fun n -> is_depth_defining n && is_stmt n)),
 	self#mkt_nesting_depth ~category:Triple.ghost;
 
 	"statement moved to increase nesting-depth", Shigh,
-	(self#_make_move 
-	   (fun n1 n2 -> 
-	     not (is_depth_defining n1) && is_depth_defining n2) 
+	(self#_make_move
+	   (fun n1 n2 ->
+	     not (is_depth_defining n1) && is_depth_defining n2)
 	   is_stmt
 	),
 	self#mkt_nesting_depth ~category:Triple.ghost;
 
 	"statement moved to decrease nesting-depth", Shigh,
-	(self#_make_move 
-	   (fun n1 n2 -> 
-	     is_depth_defining n1 && not (is_depth_defining n2)) 
+	(self#_make_move
+	   (fun n1 n2 ->
+	     is_depth_defining n1 && not (is_depth_defining n2))
 	   is_stmt
 	),
 	self#mkt_nesting_depth ~category:Triple.ghost;
@@ -649,9 +649,9 @@ module F (L : Java_label.T) = struct
 	"parent class added",   Scrucial, (self#make_insert_st is_extends), mkt_ins;
 	"parent class renamed", Scrucial, (self#make_renaming is_extended), mkt_ren;
 
-	"parent interface removed", Scrucial, 
+	"parent interface removed", Scrucial,
 	(self#make_delete_st (fun nd -> is_extendedifs nd || is_extendsifs nd)), mkt_del;
-	"parent interface added", Scrucial, 
+	"parent interface added", Scrucial,
 	(self#make_insert_st (fun nd -> is_extendedifs nd || is_extendsifs nd)), mkt_ins;
 	"parent interface renamed", Scrucial, (self#make_renaming is_extendedifs), mkt_ren;
 
@@ -687,9 +687,9 @@ module F (L : Java_label.T) = struct
 	"exception type renamed in throws-clause", Smedium, (self#make_renaming is_thty), mkt_ren;
 
 	"variable declaration renamed", Slow,    (self#make_renaming is_vdeclarator), mkt_ren;
-	"variable declaration removed", Smedium, 
+	"variable declaration removed", Smedium,
 	(self#make_delete_st (fun nd -> is_vdeclaration nd || is_vdeclarator nd)), mkt_del;
-	"variable declaration added",   Smedium, 
+	"variable declaration added",   Smedium,
 	(self#make_insert_st (fun nd -> is_vdeclaration nd || is_vdeclarator nd)), mkt_ins;
 	"variable type changed",        Slow,    (self#make_changed_to is_varty), mkt_chgto;
 

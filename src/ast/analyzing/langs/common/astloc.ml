@@ -25,14 +25,14 @@ type t =
       end_char     : int;
     }
 
-let dummy = 
+let dummy =
   { filename = "";
     start_offset = 0;
     end_offset   = 0;
     start_line   = 0;
     start_char   = 0;
     end_line     = 0;
-    end_char     = 0; 
+    end_char     = 0;
   }
 
 let make ?(fname="") so eo sl sc el ec =
@@ -42,7 +42,7 @@ let make ?(fname="") so eo sl sc el ec =
     start_line   = sl;
     start_char   = sc;
     end_line     = el;
-    end_char     = ec; 
+    end_char     = ec;
   }
 
 let copy
@@ -103,7 +103,7 @@ let rep_fmt () = format_of_string "%d:%d:%d-%d:%d:%d:%s"
 
 let to_rep loc =
   Printf.sprintf (rep_fmt())
-    loc.start_line loc.start_char loc.start_offset 
+    loc.start_line loc.start_char loc.start_offset
     loc.end_line loc.end_char loc.end_offset
     (encode_path loc.filename)
 
@@ -207,9 +207,9 @@ let merge loc0 loc1 =
       { filename     = fname;
         start_offset = loc0.start_offset;
         end_offset   = loc1.end_offset;
-        start_line   = loc0.start_line; 
-        start_char   = loc0.start_char; 
-        end_line     = loc1.end_line; 
+        start_line   = loc0.start_line;
+        start_char   = loc0.start_char;
+        end_line     = loc1.end_line;
         end_char     = loc1.end_char;
       }
     in
@@ -310,8 +310,8 @@ let to_offsets loc =
 let dump_locs locs =
   if (List.length locs) > 0 then begin
     let sorted =
-      List.fast_sort 
-	(fun loc0 loc1 -> 
+      List.fast_sort
+	(fun loc0 loc1 ->
 	  Stdlib.compare loc0.start_offset loc1.end_offset
 	) locs
     in
@@ -323,7 +323,7 @@ let dump_locs locs =
 
 let lines_of_locs locs =
   List.fold_left
-    (fun n loc -> 
+    (fun n loc ->
       n + loc.end_line - loc.start_line + 1
     ) 0 locs
 
@@ -338,10 +338,10 @@ let mklexpos ?(fname="") ?(lnum=1) ?(bol=0) i =
 let of_lexpos pos =
   let fn = pos.Lexing.pos_fname in
   let c = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
-  make 
+  make
     ~fname:fn
-    pos.Lexing.pos_cnum 
-    pos.Lexing.pos_cnum 
+    pos.Lexing.pos_cnum
+    pos.Lexing.pos_cnum
     pos.Lexing.pos_lnum
     c
     pos.Lexing.pos_lnum
@@ -364,18 +364,18 @@ let of_lexposs st_pos ed_pos =
       end;
       select_longer st_fn ed_fn
   in
-  make 
+  make
     ~fname
-    st_pos.Lexing.pos_cnum 
-    ed_pos.Lexing.pos_cnum 
+    st_pos.Lexing.pos_cnum
+    ed_pos.Lexing.pos_cnum
     st_pos.Lexing.pos_lnum
     (st_pos.Lexing.pos_cnum - st_pos.Lexing.pos_bol)
     ed_pos.Lexing.pos_lnum
     (ed_pos.Lexing.pos_cnum - ed_pos.Lexing.pos_bol)
-    
+
 
 let incr_n_lexpos n pos =
-  mklexpos 
+  mklexpos
     ~fname:pos.Lexing.pos_fname
     ~lnum:pos.Lexing.pos_lnum
     ~bol:pos.Lexing.pos_bol
@@ -406,10 +406,10 @@ let dummy_lexpos = mklexpos (-1)
 
 let to_lexposs loc =
   let fn = loc.filename in
-  mklexpos 
+  mklexpos
     ~fname:fn ~lnum:loc.start_line ~bol:(loc.start_offset-loc.start_char)
-    loc.start_offset, 
-  mklexpos 
+    loc.start_offset,
+  mklexpos
     ~fname:fn ~lnum:loc.end_line ~bol:(loc.end_offset-loc.end_char)
     loc.end_offset
 
@@ -419,5 +419,5 @@ let lexpos_to_string { Lexing.pos_fname = fn;
 		       Lexing.pos_cnum = c
 		     }
     =
-  Printf.sprintf "%s%dL,%dC" 
+  Printf.sprintf "%s%dL,%dC"
     (if fn = "" then "" else "\""^(Fname.escape fn)^"\" ") l (c - b)

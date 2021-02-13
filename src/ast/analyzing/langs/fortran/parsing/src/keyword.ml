@@ -23,21 +23,21 @@ open Tokens_
 
 let find_position_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "unit",     (fun s -> UNIT s);
       "iomsg",    (fun s -> IOMSG s); (* F2003 *)
       "iostat",   (fun s -> IOSTAT s);
       "err",      (fun s -> ERR s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> IDENTIFIER s
   in
   find
@@ -46,20 +46,20 @@ let find_flush_spec_keyword = find_position_spec_keyword
 
 let find_wait_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "end", (fun s -> END s);
       "eor", (fun s -> EOR s);
       "id",  (fun s -> ID s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_position_spec_keyword s
   in
   find
@@ -67,38 +67,38 @@ let find_wait_spec_keyword =
 
 let find_close_connect_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "dispose", (fun s -> INTEL_CLOSE_CONNECT_SPEC s);
       "disp",    (fun s -> INTEL_CLOSE_CONNECT_SPEC s);
       "type",    (fun s -> INTEL_CLOSE_CONNECT_SPEC s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_position_spec_keyword s
   in
   find
 
 let find_close_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "status",  (fun s -> STATUS s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_close_connect_spec_keyword s
   in
   find
@@ -106,7 +106,7 @@ let find_close_spec_keyword =
 
 let find_connect_inquire_ioctl_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "asynchronous", (fun s -> ASYNCHRONOUS s);
       "blank",        (fun s -> CONNECT_INQUIRE_IOCTL_SPEC s);
       "decimal",      (fun s -> CONNECT_INQUIRE_IOCTL_SPEC s);
@@ -114,16 +114,16 @@ let find_connect_inquire_ioctl_spec_keyword =
       "pad",          (fun s -> CONNECT_INQUIRE_IOCTL_SPEC s);
       "round",        (fun s -> CONNECT_INQUIRE_IOCTL_SPEC s);
       "sign",         (fun s -> CONNECT_INQUIRE_IOCTL_SPEC s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_position_spec_keyword s
   in
   find
@@ -131,7 +131,7 @@ let find_connect_inquire_ioctl_spec_keyword =
 
 let find_connect_inquire_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "file",            (fun s -> FILE s);
 
       "access",          (fun s -> CONNECT_INQUIRE_SPEC s);
@@ -154,23 +154,23 @@ let find_connect_inquire_spec_keyword =
       "recordsize",        (fun s -> CONNECT_INQUIRE_SPEC s); (* Intel *)
       "recordtype",        (fun s -> CONNECT_INQUIRE_SPEC s); (* Intel *)
       "share",             (fun s -> CONNECT_INQUIRE_SPEC s); (* Intel *)
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_connect_inquire_ioctl_spec_keyword s
   in
   find
 
 let find_connect_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "name",    (fun s -> NAME_ s);        (* Intel *)
       "newunit", (fun s -> CONNECT_SPEC s);
       "status",  (fun s -> STATUS s);
@@ -185,14 +185,14 @@ let find_connect_spec_keyword =
       "useropen",          (fun s -> CONNECT_SPEC s); (* Intel *)
     ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_connect_inquire_spec_keyword s
   in
   find
@@ -200,7 +200,7 @@ let find_connect_spec_keyword =
 
 let find_io_control_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "fmt",     (fun s -> FMT s);
       "nml",     (fun s -> NML s);
 
@@ -212,16 +212,16 @@ let find_io_control_spec_keyword =
       "pos",     (fun s -> INQUIRE_IOCTL_SPEC s);
       "rec",     (fun s -> (*REC*)IOCTL_SPEC s);
       "size",    (fun s -> INQUIRE_IOCTL_SPEC s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_connect_inquire_ioctl_spec_keyword s
   in
   find
@@ -229,7 +229,7 @@ let find_io_control_spec_keyword =
 
 let find_inquire_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "direct",      (fun s -> INQUIRE_SPEC s);
       "exist",       (fun s -> INQUIRE_SPEC s);
       "formatted",   (fun s -> INQUIRE_SPEC s);
@@ -251,34 +251,34 @@ let find_inquire_spec_keyword =
       "binary",      (fun s -> INQUIRE_SPEC s); (* Intel *)
       "strid",       (fun s -> INQUIRE_SPEC s); (* Apollo *)
 
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> find_connect_inquire_spec_keyword s
   in
   find
 
 let find_language_binding_spec_keyword =
   let keyword_list =
-    [ 
+    [
       "name",        (fun s -> NAME_ s);
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
-    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok) 
-      keyword_list 
+  let _ =
+    List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
+      keyword_list
   in
-  let find s = 
-    try 
+  let find s =
+    try
       (Hashtbl.find keyword_table (String.lowercase_ascii s)) s
-    with 
+    with
       Not_found -> IDENTIFIER s
   in
   find
@@ -287,7 +287,7 @@ let find_language_binding_spec_keyword =
 let find_separated_keyword =
   let concat l = String.concat "" l in
   let keyword_list =
-    [ 
+    [
       ["block"; "data"],       (fun l -> BLOCK_DATA (concat l));
       ["double"; "precision"], (fun l -> DOUBLE_PRECISION (concat l));
       ["double"; "complex"],   (fun l -> DOUBLE_COMPLEX (concat l)); (* non-standard ext. *)
@@ -321,14 +321,14 @@ let find_separated_keyword =
       ["end"; "union"],        (fun l -> END_UNION (concat l));     (* Compaq Fortran *)
       ["end"; "map"],          (fun l -> END_MAP (concat l));       (* Compaq Fortran *)
 (*      ["define"; "file"],      (fun l -> DEFINE_FILE (concat l));   (* Compaq Fortran *)*)
-    ] in 
+    ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
-  let _ = 
+  let _ =
     List.iter (fun (kwd_list, tok) -> Hashtbl.add keyword_table kwd_list tok)
-      keyword_list 
+      keyword_list
   in
   let lowercase l = List.map String.lowercase_ascii l in
-  let find sl = 
+  let find sl =
     (Hashtbl.find keyword_table (lowercase sl)) sl
   in
   find

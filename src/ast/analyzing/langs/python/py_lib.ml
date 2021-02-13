@@ -19,7 +19,7 @@ include Py_lib_base
 
 module Analyzing = Analyzing.F (Label)
 
-let extract_change options tree1 tree2 uidmapping edits = 
+let extract_change options tree1 tree2 uidmapping edits =
   [], [], [], (Xset.create 0) (* not yet *)
 
 let _ =

@@ -839,7 +839,7 @@ module Edit = struct
         let i = stid_count in
         stid_count <- stid_count + 1;
         i
-      
+
       method private reg_subtree tree root excluded =
         (*Xset.add excluded_nodes root;!!!*)
         List.iter (Xset.add excluded_nodes) excluded;
@@ -995,7 +995,7 @@ module Edit = struct
           !rels @ (sort !inss_movs) @ !dels
         in
         List.map f sorted_edits
-    
+
       method iter f = List.iter f edits
 
       method dump = self#iter (fun e -> Printf.fprintf stdout "%s\n" (to_string e))
@@ -1052,13 +1052,13 @@ module Edit = struct
 
       method is_stable1 nd =
         match self#find1 nd#uid with
-        | [] 
+        | []
         | [Relabel _] -> true
         | _ -> false
 
       method is_stable2 nd =
         match self#find2 nd#uid with
-        | [] 
+        | []
         | [Relabel _] -> true
         | _ -> false
 
@@ -1072,7 +1072,7 @@ module Edit = struct
 
       (*method sort =
         let sort1 =
-	  List.fast_sort 
+	  List.fast_sort
 	    (fun ed1 ed2 ->
 	      match ed1, ed2 with
 	      | Delete(nd1, _), Delete(nd2, _)
@@ -1080,14 +1080,14 @@ module Edit = struct
 	      | Delete(nd1, _), Move(_, _, nd2, _, _, _)
 	      | Move(_, _, nd2, _, _, _), Delete(nd1, _) ->
 		  Stdlib.compare nd1#gindex nd2#gindex
-	      | _ -> 
+	      | _ ->
 		  self#fail
-                    (sprintf "sort: sort1: illegal edit: %s, %s" 
+                    (sprintf "sort: sort1: illegal edit: %s, %s"
                        (to_string ed1) (to_string ed2))
 	    )
         in
         let sort2 =
-	  List.fast_sort 
+	  List.fast_sort
 	    (fun ed1 ed2 ->
 	      match ed1, ed2 with
 	      | Insert(nd1, _), Insert(nd2, _)
@@ -1095,9 +1095,9 @@ module Edit = struct
 	      | Insert(nd1, _), Move(_, _, _, _, nd2, _)
 	      | Move(_, _, _, _, nd2, _), Insert(nd1, _) ->
 		  Stdlib.compare nd1#gindex nd2#gindex
-	      | _ -> 
+	      | _ ->
 		  self#fail
-                    (sprintf "sort: sort2: illegal edit: %s, %s" 
+                    (sprintf "sort: sort2: illegal edit: %s, %s"
 		       (to_string ed1) (to_string ed2))
 
 	    )
@@ -1112,7 +1112,7 @@ module Edit = struct
 	    | Relabel _ -> rels := edit::!rels
             | Move _    -> movs := edit::!movs
 	  );
-        edits <- 
+        edits <-
 	  (List.rev !rels) @ (sort1 !dels) @ (sort2 !inss) @ (sort1 !movs)*)
 
       (* experimental *)
@@ -3013,7 +3013,7 @@ module Edit = struct
                     DEBUG_MSG "  %a -> [%a]" nps n nsps ns
                   ) comp_cand_tbl;
               END_DEBUG;
- 
+
               (*let top_nd_tbl' =
                 List.fold_left
                   (fun l (tn', ns') ->
@@ -6208,7 +6208,7 @@ module Edit = struct
           (uidmapping : 'node UIDmapping.c)
 	  (*(uidmapping : 'data node_t UIDmapping.c)*)
           (ch : Xchannel.out_channel)
-	  = 
+	  =
         let node_diff_elem_attrs node1 node2 =
           let a1 = node1#data#orig_elem_attrs_for_delta in
           let a2 = node2#data#orig_elem_attrs_for_delta in
@@ -6554,7 +6554,7 @@ module Edit = struct
                   (Array.to_list xmap)));
 
           let all_excluded = Array.for_all (fun x -> x) xmap in
-          
+
           DEBUG_MSG "all_excluded=%B" all_excluded;
 
           let excluded_map, base_pos, base_orig_pos =
@@ -6741,7 +6741,7 @@ module Edit = struct
           let _stable_node_opt' = ref None in
           let _stable_nodes' = ref [] in
           let _count = ref 0 in
-          
+
           DEBUG_MSG "initial pos=%d" pos;
 
           let check i count =
@@ -6806,7 +6806,7 @@ module Edit = struct
           in (* check *)
 
           let boundary_node = ref nd in
-          
+
           begin (* check if interleaving *)
             let moveon n =
               not (is_stable n) && not (self#is_canceled_stable_node n)
@@ -7384,7 +7384,7 @@ module Edit = struct
               (boundary_to_string ~sep:"; " boundary_paths);
 
             anc', path', boundary_paths, upstream, simple
-            
+
           with
             Parent_not_stable -> begin
               DEBUG_MSG "lv=%d: parent not stable" lv;
@@ -9252,7 +9252,7 @@ module Edit = struct
             List.iter (Xset.add excluded_nodes) filtered_out
         in
 
-	let dump_content tree root excluded = 
+	let dump_content tree root excluded =
           tree#dump_subtree_for_delta_ch root excluded
         in
 
@@ -9756,7 +9756,7 @@ module Edit = struct
 	      let same_elem =
 	        try
 		  nd1#data#orig_elem_name_for_delta = nd2#data#orig_elem_name_for_delta
-	        with 
+	        with
                   Not_element -> false
 	      in
 	      if same_elem && sz1 = 1 && sz2 = 1 then begin
@@ -10716,7 +10716,7 @@ module Edit = struct
                   let a2 = get_p_ancestor self#is_stable2 nd2 in
                   (uidmapping#find a1#uid) = a2#uid &&
                   kind <> Editop.Mpermutation &&
-                  (List.length remote_stable_tbl1) > 1 && 
+                  (List.length remote_stable_tbl1) > 1 &&
                   (List.length remote_stable_tbl2) > 1
                 in
 
@@ -11097,7 +11097,7 @@ module Edit = struct
         dump_info();
 
         if fact_for_delta then begin
-          let fact_buf = 
+          let fact_buf =
             let into_virtuoso = options#fact_into_virtuoso <> "" in
             let into_directory = options#fact_into_directory <> "" in
             if into_virtuoso then begin

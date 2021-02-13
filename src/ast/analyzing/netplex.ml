@@ -42,7 +42,7 @@ let search_config path tree =
     | K_any -> true
     | K_has_param(name, value) ->
 	List.exists
-	  (fun tree -> 
+	  (fun tree ->
 	    match tree with
 	    | `Parameter(n, v) ->
 		n = name && (conv v) = value
@@ -55,7 +55,7 @@ let search_config path tree =
 *)
     match path with
     | PE_sect(name, key)::path_rest -> begin
-	search 
+	search
 	  (List.fold_left
 	     (fun l x ->
 	       match x with
@@ -73,12 +73,12 @@ let search_config path tree =
     end
     | [PE_param name] ->
 	List.fold_left
-	  (fun l x -> 
+	  (fun l x ->
 	    match x with
-	    | `Parameter(n, v) -> 
-		if n = name then 
-		  (conv v) :: l 
-		else 
+	    | `Parameter(n, v) ->
+		if n = name then
+		  (conv v) :: l
+		else
 		  l
 	    | _ -> l
 	  ) [] acc
@@ -86,7 +86,7 @@ let search_config path tree =
 	[]
   in
   search [tree] path
-      
+
 
 let search_config_for_docroot tree =
   let l =
@@ -120,41 +120,41 @@ let start () =
       "-debug-all", Arg.Unit (fun () -> Netlog.Debug.enable_all()),
       "  Enable all debug messages";
 
-      "-debug-list", Arg.Unit (fun () -> 
+      "-debug-list", Arg.Unit (fun () ->
                                  List.iter print_endline (Netlog.Debug.names());
                                  exit 0),
       "  Show possible modules for -debug, then exit";
 
-      "-debug-win32", Arg.Unit (fun () -> 
+      "-debug-win32", Arg.Unit (fun () ->
                                   Netsys_win32.Debug.debug_c_wrapper true),
       "  Special debug log of Win32 wrapper"
 
-    ] @ opt_list 
+    ] @ opt_list
   in
-  Arg.parse 
+  Arg.parse
     opt_list'
     (fun s -> raise (Arg.Bad ("Don't know what to do with: " ^ s)))
     (Printf.sprintf "usage: %s [options]" Xprint.cmd_name);
 
-  let parallelizer = 
+  let parallelizer =
     if !use_mt then
       Netplex_mt.mt()     (* multi-threading *)
     else
       Netplex_mp.mp ~keep_fd_open:true () (* multi-processing *)
-  in  
+  in
   let diffast =
     { Nethttpd_services.dyn_handler = Diffast_ws.handler;
       dyn_activation                = Diffast_ws.activation;
       dyn_uri                       = None;          (* not needed *)
       dyn_translator                = (fun _ -> ""); (* not needed *)
       dyn_accept_all_conditionals   = false;
-    } 
+    }
   in
-  let nethttpd_factory = 
+  let nethttpd_factory =
     Nethttpd_plex.nethttpd_factory
       ~config_cgi:Diffast_ws.config
       ~handlers:[ "diffast", diffast ]
-      () 
+      ()
   in
   begin
     match Netplex_main.config_filename_opt cmdline_cfg with

@@ -46,7 +46,7 @@ let char_context_to_string = function
   | CH_DOUBLE -> "DOUBLE QUOTE"
 
 
-type state = 
+type state =
     { s_at_bopu     : bool;
       s_symbol_tbl  : (name, N.frame) Hashtbl.t;
       s_stack       : N.frame Stack.t;
@@ -90,12 +90,12 @@ type state =
       s_char_context            : char_context;
     }
 
-let mkstate bopu stbl stack 
-    in_f in_o in_cl in_po in_io in_w in_fl 
+let mkstate bopu stbl stack
+    in_f in_o in_cl in_po in_io in_w in_fl
     in_if in_inq in_im in_lt in_int in_res in_chr in_tof in_do in_sn in_a in_ts in_b
     in_c in_acc in_d in_tg in_p in_t in_on in_ph
     nc pc ac ic sc stc cc
-    = 
+    =
   { s_at_bopu     = bopu;
     s_symbol_tbl  = stbl;
     s_stack       = stack;
@@ -139,14 +139,14 @@ let mkstate bopu stbl stack
 
 let stack_to_string stack =
   let buf = Buffer.create 0 in
-  Stack.iter 
-    (fun frm -> 
+  Stack.iter
+    (fun frm ->
       Buffer.add_string buf (N.ScopingUnit.to_string frm#scope);
       Buffer.add_string buf "\n";
     ) stack;
   Buffer.contents buf
 
-let stat_to_string { 
+let stat_to_string {
   s_at_bopu     = bopu;
   s_symbol_tbl  = stbl;
   s_stack       = stack;
@@ -188,7 +188,7 @@ let stat_to_string {
   s_char_context            = cc;
 }
     =
-  let fmt = 
+  let fmt =
     "stack:\n%s"^^
     "at_BOPU               : %B\n"^^
     "in_format_context     : %B\n"^^
@@ -231,7 +231,7 @@ let stat_to_string {
     (stack_to_string stack)
     bopu
     in_f in_o in_cl in_po in_io in_w in_fl
-    in_if in_inq in_im in_lt in_int in_res 
+    in_if in_inq in_im in_lt in_int in_res
     in_chr in_tof in_do in_sn in_a in_ts in_b
     in_c in_acc in_d in_tg in_p in_t in_on in_ph
     nc pc ac ic sc stc (char_context_to_string cc)
@@ -305,7 +305,7 @@ class env = object (self)
   val mutable amp_line_flag = false (* '&' found in the line *)
   val mutable bocl_flag = false (* beginning of continued line *)
 
-      
+
   val mutable token_feeded_flag = false (* is Ulexer.token called after encounter with line_terminator *)
   val mutable line_stat = LineStat.AssumedBlank
 (*
@@ -353,18 +353,18 @@ class env = object (self)
 
   val mutable discarded_branch_entry_count = 0
   method discarded_branch_entry_count = discarded_branch_entry_count
-  method incr_discarded_branch_entry_count = 
+  method incr_discarded_branch_entry_count =
     DEBUG_MSG "%d -> %d" discarded_branch_entry_count (discarded_branch_entry_count + 1);
     discarded_branch_entry_count <- discarded_branch_entry_count + 1
 
-  method decr_discarded_branch_entry_count = 
+  method decr_discarded_branch_entry_count =
     DEBUG_MSG "%d -> %d" discarded_branch_entry_count (discarded_branch_entry_count - 1);
     discarded_branch_entry_count <- discarded_branch_entry_count - 1
 
   val loc_stack = new Layeredloc.loc_stack
 
   val mutable base_file = ""
-      
+
   method set_base_file p = base_file <- p
 
 
@@ -378,7 +378,7 @@ class env = object (self)
 
   method loc_stack_level = loc_stack#get_level
 
-  method push_loc loc = 
+  method push_loc loc =
     DEBUG_MSG "pushing [%s]" (Astloc.to_string ~short:true loc);
     let loc =
       if Fname.is_extended loc.Astloc.filename then
@@ -387,12 +387,12 @@ class env = object (self)
         loc
     in
     DEBUG_MSG "loc stack: %s" loc_stack#to_string;
-    loc_stack#push loc; 
+    loc_stack#push loc;
     prev_loc_layers <- current_loc_layers;
     current_loc_layers <- loc_stack#get_layers;
     current_loc_layers_encoded <- Layeredloc.encode_layers current_loc_layers
 
-  method pop_loc = 
+  method pop_loc =
     loc_stack#pop;
     prev_loc_layers <- current_loc_layers;
     current_loc_layers <- loc_stack#get_layers;
@@ -407,11 +407,11 @@ class env = object (self)
 
   method macrotbl = macrotbl
 
-  method define_macro ?(conditional=false) id body = 
+  method define_macro ?(conditional=false) id body =
     DEBUG_MSG "id=%s conditional=%B" id conditional;
     macrotbl#define ~conditional id body
 
-  method undefine_macro id = 
+  method undefine_macro id =
     DEBUG_MSG "%s" id;
     macrotbl#undefine id
 
@@ -447,11 +447,11 @@ class env = object (self)
 
   method lex_macrotbl = lex_macrotbl
 
-  method lex_define_macro id body = 
+  method lex_define_macro id body =
     DEBUG_MSG "%s" id;
     lex_macrotbl#define id body
 
-  method lex_undefine_macro id = 
+  method lex_undefine_macro id =
     DEBUG_MSG "%s" id;
     lex_macrotbl#undefine id
 
@@ -608,26 +608,26 @@ class env = object (self)
         bidgen#gen
 
 (*
-  method latest_stmt_node_set = 
+  method latest_stmt_node_set =
     try
       Stack.top latest_stmt_nodes_stack
     with
-      Stack.Empty -> 
+      Stack.Empty ->
         DEBUG_MSG "stack empty";
         Xset.create 0
 
-  method add_latest_stmt_node nd = 
+  method add_latest_stmt_node nd =
     try
       let s = Stack.top latest_stmt_nodes_stack in
       Xset.add s nd
     with
       Stack.Empty -> DEBUG_MSG "stack empty"
 
-  method push_latest_stmt_node_set = 
+  method push_latest_stmt_node_set =
     DEBUG_MSG "called";
     Stack.push (Xset.create 0) latest_stmt_nodes_stack
 
-  method pop_latest_stmt_node_set = 
+  method pop_latest_stmt_node_set =
     DEBUG_MSG "called";
     try
       let _ = Stack.pop latest_stmt_nodes_stack in
@@ -655,7 +655,7 @@ class env = object (self)
 
   method get_last_active_ofss = last_active_ofss
 
-  method set_last_active_ofss (st, ed) = 
+  method set_last_active_ofss (st, ed) =
     DEBUG_MSG "%d - %d" st ed;
     last_active_ofss <- (st, ed)
 
@@ -666,21 +666,21 @@ class env = object (self)
   method set_lex_mode_queue_then_do f = lex_mode <- (LEX_QUEUE_THEN_DO f)
 
 
-  method at_BOPU = 
+  method at_BOPU =
     DEBUG_MSG "BOPU_flag=%B" bopu_flag;
     bopu_flag
 
-  method set_BOPU = 
+  method set_BOPU =
     DEBUG_MSG "BOPU_flag set";
     bopu_flag <- true
 
-  method clear_BOPU = 
+  method clear_BOPU =
     DEBUG_MSG "BOPU_flag cleared";
     bopu_flag <- false
 
 
   method at_BOL = bol_flag
-  method set_BOL = 
+  method set_BOL =
     DEBUG_MSG "BOL set";
     bol_flag <- true;
     self#clear_token_feeded;
@@ -696,17 +696,17 @@ class env = object (self)
     self#set_line_stat_assumed_blank
 
 
-  method clear_BOL = 
+  method clear_BOL =
     DEBUG_MSG "BOL cleared";
     bol_flag <- false
 
   method at_BOS = bos_flag
 
-  method set_BOS = 
+  method set_BOS =
     DEBUG_MSG "BOS flag set";
     bos_flag <- true
 
-  method clear_BOS = 
+  method clear_BOS =
     DEBUG_MSG "BOS flag cleared";
     bos_flag <- false
 
@@ -717,15 +717,15 @@ class env = object (self)
 
 
   method token_feeded = token_feeded_flag
-  method set_token_feeded = 
+  method set_token_feeded =
     DEBUG_MSG "token feeded flag set";
     token_feeded_flag <- true
-  method clear_token_feeded = 
+  method clear_token_feeded =
     DEBUG_MSG "token feeded flag cleared";
     token_feeded_flag <- false
 
   method line_stat = line_stat
-  method set_line_stat s = 
+  method set_line_stat s =
     DEBUG_MSG "setting line status to %s" (LineStat.to_string s);
     line_stat <- s
 
@@ -740,49 +740,49 @@ class env = object (self)
 *)
 
   method continued = continued_flag
-  method set_continued = 
+  method set_continued =
     DEBUG_MSG "continued flag set";
     continued_flag <- true
 
-  method clear_continued = 
+  method clear_continued =
     DEBUG_MSG "continued flag cleared";
     continued_flag <- false
 
   method amp_line = amp_line_flag
-  method set_amp_line = 
+  method set_amp_line =
     DEBUG_MSG "amp line flag set";
     amp_line_flag <- true
 
-  method clear_amp_line = 
+  method clear_amp_line =
     DEBUG_MSG "amp line flag cleared";
     amp_line_flag <- false
 
   method at_BOCL = bocl_flag
-  method set_BOCL = 
+  method set_BOCL =
     DEBUG_MSG "BOCL flag set";
     bocl_flag <- true
 
-  method clear_BOCL = 
+  method clear_BOCL =
     DEBUG_MSG "BOCL flag cleared";
     bocl_flag <- false
 
-  method set_pending_EOL_obj o = 
+  method set_pending_EOL_obj o =
     DEBUG_MSG "set!";
     pending_EOL_obj <- Some o
 
-  method clear_pending_EOL_obj = 
+  method clear_pending_EOL_obj =
     DEBUG_MSG "cleared!";
     pending_EOL_obj <- None
 
-  method get_pending_EOL_obj = 
+  method get_pending_EOL_obj =
     match pending_EOL_obj with
     | Some o -> o
     | _ -> raise Not_found
 
-  method take_pending_EOL_obj = 
+  method take_pending_EOL_obj =
     match pending_EOL_obj with
-    | Some o -> 
-        pending_EOL_obj <- None; 
+    | Some o ->
+        pending_EOL_obj <- None;
         o
     | _ -> raise Not_found
 
@@ -790,7 +790,7 @@ class env = object (self)
 
   method add_pending_RAWOMP_obj o = Queue.add o pending_RAWOMP_obj_queue
 
-  method clear_pending_RAWOMP_obj_queue = 
+  method clear_pending_RAWOMP_obj_queue =
     DEBUG_MSG "called";
     Queue.clear pending_RAWOMP_obj_queue
 
@@ -800,14 +800,14 @@ class env = object (self)
 
   method add_pending_token_obj o = Queue.add o pending_token_obj_queue
 
-  method clear_pending_token_obj_queue = 
+  method clear_pending_token_obj_queue =
     DEBUG_MSG "called";
     Queue.clear pending_token_obj_queue
 
   method take_pending_token_obj = Queue.take pending_token_obj_queue
 
 
-  method set_last_lex_qtoken_obj o = 
+  method set_last_lex_qtoken_obj o =
     DEBUG_MSG "called";
     last_lex_qtoken_obj <- o
 
@@ -895,44 +895,44 @@ class env = object (self)
 
   method in_interface_context = interface_context > 0
 
-  method enter_interface_context = 
-    interface_context <- interface_context + 1; 
+  method enter_interface_context =
+    interface_context <- interface_context + 1;
     DEBUG_MSG "entering interface context (->%d)" interface_context
 
-  method exit_interface_context = 
+  method exit_interface_context =
     BEGIN_DEBUG
-      if interface_context = 0 then 
+      if interface_context = 0 then
         DEBUG_MSG "unbalanced end of interface"
     END_DEBUG;
-    interface_context <- interface_context - 1; 
+    interface_context <- interface_context - 1;
     DEBUG_MSG "exiting interface context (->%d)" interface_context
 
   method in_structure_context = structure_context > 0
 
-  method enter_structure_context = 
-    structure_context <- structure_context + 1; 
+  method enter_structure_context =
+    structure_context <- structure_context + 1;
     DEBUG_MSG "entering structure context (->%d)" structure_context
 
-  method exit_structure_context = 
+  method exit_structure_context =
     BEGIN_DEBUG
-      if structure_context = 0 then 
+      if structure_context = 0 then
         DEBUG_MSG "unbalanced end of structure"
     END_DEBUG;
-    structure_context <- structure_context - 1; 
+    structure_context <- structure_context - 1;
     DEBUG_MSG "exiting structure context (->%d)" structure_context
 
   method in_select_type_context = select_type_context > 0
 
-  method enter_select_type_context = 
-    select_type_context <- select_type_context + 1; 
+  method enter_select_type_context =
+    select_type_context <- select_type_context + 1;
     DEBUG_MSG "entering select-type context (->%d)" select_type_context
 
-  method exit_select_type_context = 
+  method exit_select_type_context =
     BEGIN_DEBUG
-      if select_type_context = 0 then 
+      if select_type_context = 0 then
         DEBUG_MSG "unbalanced end of select-type"
     END_DEBUG;
-    select_type_context <- select_type_context - 1; 
+    select_type_context <- select_type_context - 1;
     DEBUG_MSG "exiting select-type context (->%d)" select_type_context
 
   method in_contains_context = in_contains_context
@@ -973,16 +973,16 @@ class env = object (self)
 
   method in_array_ctor_context = array_ctor_context > 0
 
-  method enter_array_ctor_context = 
-    array_ctor_context <- array_ctor_context + 1; 
+  method enter_array_ctor_context =
+    array_ctor_context <- array_ctor_context + 1;
     DEBUG_MSG "entering array constructor context (->%d)" array_ctor_context
 
-  method exit_array_ctor_context = 
+  method exit_array_ctor_context =
     BEGIN_DEBUG
-      if array_ctor_context = 0 then 
+      if array_ctor_context = 0 then
         DEBUG_MSG "unbalanced array constructor"
     END_DEBUG;
-    array_ctor_context <- array_ctor_context - 1; 
+    array_ctor_context <- array_ctor_context - 1;
     DEBUG_MSG "exiting array constructor context (->%d)" array_ctor_context
 
 
@@ -990,61 +990,61 @@ class env = object (self)
 
   method char_context = char_context
 
-  method enter_char_single = 
-    DEBUG_MSG "entering char single context"; 
+  method enter_char_single =
+    DEBUG_MSG "entering char single context";
     char_context <- CH_SINGLE
 
-  method enter_char_double = 
-    DEBUG_MSG "entering char double context"; 
+  method enter_char_double =
+    DEBUG_MSG "entering char double context";
     char_context <- CH_DOUBLE
 
-  method exit_char = 
-    DEBUG_MSG "exiting char context"; 
+  method exit_char =
+    DEBUG_MSG "exiting char context";
     char_context <- CH_NONE
 
 
   method in_paren_context = paren_context > 0
 
-  method enter_paren_context = 
-    paren_context <- paren_context + 1; 
+  method enter_paren_context =
+    paren_context <- paren_context + 1;
     DEBUG_MSG "entering paren context (->%d)" paren_context
 
-  method exit_paren_context = 
+  method exit_paren_context =
     BEGIN_DEBUG
       if paren_context = 0 then
         DEBUG_MSG "unbalanced parentheses"
     END_DEBUG;
-    paren_context <- paren_context - 1; 
+    paren_context <- paren_context - 1;
     DEBUG_MSG "exiting paren context (->%d)" paren_context
 
   method in_name_context = name_context > 0
 
-  method enter_name_context = 
-    name_context <- name_context + 1; 
+  method enter_name_context =
+    name_context <- name_context + 1;
     DEBUG_MSG "entering name context (->%d)" name_context
 
-  method exit_name_context = 
+  method exit_name_context =
     BEGIN_DEBUG
-      if name_context = 0 then 
+      if name_context = 0 then
         DEBUG_MSG "unbalanced name_context"
     END_DEBUG;
-    name_context <- name_context - 1; 
+    name_context <- name_context - 1;
     DEBUG_MSG "exiting name context (->%d)" name_context
 
   method lex_in_paren_context = lex_paren_context > 0
   method lex_paren_level = lex_paren_context
 
-  method lex_enter_paren_context = 
-    lex_paren_context <- lex_paren_context + 1; 
+  method lex_enter_paren_context =
+    lex_paren_context <- lex_paren_context + 1;
     DEBUG_MSG "entering lex paren context (->%d)" lex_paren_context;
 
-  method lex_exit_paren_context = 
+  method lex_exit_paren_context =
     BEGIN_DEBUG
     if lex_paren_context = 0 then
       DEBUG_MSG "unbalanced parentheses (lexer)";
     END_DEBUG;
-    lex_paren_context <- lex_paren_context - 1; 
-    DEBUG_MSG "exiting lex paren context (->%d)" lex_paren_context; 
+    lex_paren_context <- lex_paren_context - 1;
+    DEBUG_MSG "exiting lex paren context (->%d)" lex_paren_context;
 
 
 
@@ -1063,8 +1063,8 @@ class env = object (self)
   method iter_ambiguous_nodes (f : Ast.node -> unit) =
     let l = Xset.to_list ambiguous_nodes in
     let sorted =
-      List.fast_sort 
-        (fun (n0, _) (n1, _) -> 
+      List.fast_sort
+        (fun (n0, _) (n1, _) ->
           Stdlib.compare n1#loc.Loc.start_offset n0#loc.Loc.start_offset)
         l
     in
@@ -1076,35 +1076,35 @@ class env = object (self)
         f nd;
         self#recover_stack
       ) sorted
-    
+
 
 
   method checkpoint (key : C.key_t) =
     DEBUG_MSG "key=%s" (C.key_to_string key);
 
-    let stat = 
+    let stat =
       mkstate bopu_flag
         (Hashtbl.copy symbol_tbl) (self#__copy_stack stack)
         in_format_context in_open_context in_close_context in_position_context
-        in_io_control_context in_wait_context in_flush_context 
-        in_if_context in_inquire_context in_implicit_context in_letter_context 
+        in_io_control_context in_wait_context in_flush_context
+        in_if_context in_inquire_context in_implicit_context in_letter_context
         in_intent_context in_result_context in_character_context in_typeof_context
-        in_do_context in_slash_name_context in_allocate_context in_type_spec_context 
-        in_bind_context in_contains_context in_access_context in_data_context 
+        in_do_context in_slash_name_context in_allocate_context in_type_spec_context
+        in_bind_context in_contains_context in_access_context in_data_context
         in_type_guard_context in_procedure_context in_type_context in_only_context
         in_pu_head_context name_context paren_context array_ctor_context interface_context
         structure_context select_type_context char_context
     in
 
     DEBUG_MSG "status:\n%s" (stat_to_string stat);
-    
+
 (*
     if Hashtbl.mem checkpoint_tbl key then
       DEBUG_MSG "already checkpointed: key=%s" (C.key_to_string key);
 *)
     Hashtbl.add checkpoint_tbl key stat;
 
-    
+
   method recover ?(remove=false) key =
     DEBUG_MSG "key=%s remove=%B" (C.key_to_string key) remove;
     try
@@ -1151,12 +1151,12 @@ class env = object (self)
       interface_context     <- stat.s_interface_context;
       structure_context     <- stat.s_structure_context;
       select_type_context   <- stat.s_select_type_context;
-      
+
       char_context          <- stat.s_char_context;
 
       if remove then
         Hashtbl.remove checkpoint_tbl key
-    with 
+    with
       Not_found ->
 	raise (Internal_error (Printf.sprintf "state not found: key=%s" (C.key_to_string key)));
 
@@ -1219,13 +1219,13 @@ class env = object (self)
   method find_symbol id =
     try
       Hashtbl.find symbol_tbl id
-    with 
+    with
       Not_found -> Hashtbl.find base_symbol_tbl id
 *)
-  method current_frame = 
+  method current_frame =
     try
       Stack.top stack
-    with 
+    with
       Stack.Empty -> raise (Internal_error "Parser_aux.get_current_frame: stack empty")
 
   method private _copy_stack s =
@@ -1256,29 +1256,29 @@ class env = object (self)
             let lod = N.Spec.loc_of_decl_implicit node#orig_loc in
             let bid = self#genbid lod in
             node#set_binding (B.make_unknown_def bid);
-            ispec#set_letter_spec_list 
+            ispec#set_letter_spec_list
               (Xlist.filter_map
                  (fun ls -> N.ImplicitSpec.letter_spec_of_label ls#label) lss);
             ispec#set_loc_of_decl lod;
             ispec#set_bid bid;
             Some ispec
         end
-        | _ -> 
+        | _ ->
             parse_warning_loc node#loc "empty ImplicitSpec";
             None
     end
-    | lab -> 
+    | lab ->
         parse_warning_loc node#loc
           "not an implicit-spec: %s" (L.to_simple_string lab);
         None
 
 
   method set_implicit_spec (ispec_nds : Ast.node list) =
-    self#current_frame#set_implicit_spec_list 
+    self#current_frame#set_implicit_spec_list
       (Xlist.filter_map self#name_implicit_spec_of_ispec_node ispec_nds)
 
   method add_implicit_spec (ispec_nds : Ast.node list) =
-    self#current_frame#add_implicit_spec_list 
+    self#current_frame#add_implicit_spec_list
       (Xlist.filter_map self#name_implicit_spec_of_ispec_node ispec_nds)
 
   method default_accessibility =
@@ -1297,15 +1297,15 @@ class env = object (self)
       mname (N.ScopingUnit.to_string self#current_frame#scope);*)
     self#current_frame#add_used_module mname
 
-  method register_global_name (id : name) spec = 
-    DEBUG_MSG "[stack size:%d] \"%s\" -> %s (FRM:%s)" 
-      (Stack.length stack) 
-      id 
-      (N.Spec.to_string spec) 
+  method register_global_name (id : name) spec =
+    DEBUG_MSG "[stack size:%d] \"%s\" -> %s (FRM:%s)"
+      (Stack.length stack)
+      id
+      (N.Spec.to_string spec)
       (N.ScopingUnit.to_string toplevel_frame#scope);
     toplevel_frame#add id spec
 
-  method register_name ?(nth=0) (id : name) spec = 
+  method register_name ?(nth=0) (id : name) spec =
     let len = Stack.length stack in
     let frm = ref self#current_frame in
 
@@ -1313,7 +1313,7 @@ class env = object (self)
         let count = ref 0 in
         try
           Stack.iter
-            (fun f -> 
+            (fun f ->
               if !count = nth then begin
                 frm := f;
                 raise Exit
@@ -1324,7 +1324,7 @@ class env = object (self)
           Exit -> ()
     end;
     DEBUG_MSG "[stack size:%d][nth=%d] \"%s\" -> %s (FRM:%s)"
-        len nth id 
+        len nth id
         (N.Spec.to_string spec) (N.ScopingUnit.to_string (!frm)#scope);
 
     (!frm)#add id spec
@@ -1356,7 +1356,7 @@ class env = object (self)
 	      DEBUG_MSG "[filtered] %s ->\n%s" id (Xlist.to_string (N.Spec.to_string) "\n" filtered);
               all_filtered := !all_filtered @ filtered
             end
-	  with 
+	  with
 	    Not_found -> ()
 	) stack
     end;
@@ -1383,7 +1383,7 @@ class env = object (self)
       !all_filtered
     end
 
-  method _begin_scope scope = 
+  method _begin_scope scope =
     let frm =
       match scope with
       | N.ScopingUnit.Program -> toplevel_frame
@@ -1394,7 +1394,7 @@ class env = object (self)
     Stack.push frm stack;
     frm
 
-  method end_scope = 
+  method end_scope =
     try
       let frm = (Stack.pop stack) in
 
@@ -1409,12 +1409,12 @@ class env = object (self)
 	    match a with
 	    | (IAclass tblr)::_ -> tblr := frm.f_tbl
 	    | _ -> assert false
-	  with 
+	  with
 	    Not_found -> assert false (* toplevel *)
       end
 *)
       | _ -> ()
-    with 
+    with
       Stack.Empty -> raise (Internal_error "Parser_aux.end_scope: stack empty")
 
   method find_frame_for id =
@@ -1424,15 +1424,15 @@ class env = object (self)
 	  try
 	    if frame#mem id then
 	      raise (N.Frame_found frame)
-	  with 
+	  with
 	    Not_found -> ()
 	) stack;
       raise Not_found
-    with 
+    with
       N.Frame_found frm -> frm
 
 
-  method init = 
+  method init =
     bidgen#reset;
     super#init;
     Queue.clear pending_RAWOMP_obj_queue;
@@ -1469,21 +1469,21 @@ module F (Stat : STATE_T) = struct
   open Stat
 
 
-  let parse_error spos epos : ('a, unit, string, 'b) format4 -> 'a = 
-    PB.parse_error env 
+  let parse_error spos epos : ('a, unit, string, 'b) format4 -> 'a =
+    PB.parse_error env
       (fun loc -> new Ast.node ~lloc:(env#mklloc loc) (L.ERROR ""))
       spos epos
 
-  let parse_error_loc loc : ('a, unit, string, 'b) format4 -> 'a = 
-    PB.parse_error_loc env 
+  let parse_error_loc loc : ('a, unit, string, 'b) format4 -> 'a =
+    PB.parse_error_loc env
       (fun loc -> new Ast.node ~lloc:(env#mklloc loc) (L.ERROR ""))
       loc
 
 
   let check_error (node : Ast.node) =
     if not env#partial_parsing_flag then begin
-      Ast.visit 
-	(fun nd -> 
+      Ast.visit
+	(fun nd ->
 	  if L.is_error nd#label && nd#lloc#get_level = 0 then
 	    env#missed_regions#add nd#loc
 	) node
@@ -1499,20 +1499,20 @@ module F (Stat : STATE_T) = struct
     env#register_name name N.Spec.AssociateName
 
 
-  let register_object 
+  let register_object
       ?(nth=0)
-      ?(node=Ast.dummy_node) 
-      ?(attr_handler=fun x -> ()) 
-      name 
-      mkspec 
+      ?(node=Ast.dummy_node)
+      ?(attr_handler=fun x -> ())
+      name
+      mkspec
       =
     DEBUG_MSG "name=\"%s\"" name;
     let is_dummy_node = Ast.is_dummy_node node in
-    let lod = 
-      if is_dummy_node then 
+    let lod =
+      if is_dummy_node then
         N.Spec.loc_of_decl_unknown
       else
-        N.Spec.loc_of_decl_explicit node#orig_loc 
+        N.Spec.loc_of_decl_explicit node#orig_loc
     in
     let bid = env#genbid lod in
 
@@ -1549,28 +1549,28 @@ module F (Stat : STATE_T) = struct
 (* func register_object *)
 
 
-  let register_function ?(node=Ast.dummy_node) name = 
+  let register_function ?(node=Ast.dummy_node) name =
     register_object ~node name N.Spec.mkfunction
 
-  let register_subroutine ?(node=Ast.dummy_node) name = 
+  let register_subroutine ?(node=Ast.dummy_node) name =
     register_object ~node name N.Spec.mksubroutine
 
-  let register_entry ?(node=Ast.dummy_node) name = 
+  let register_entry ?(node=Ast.dummy_node) name =
     match env#current_frame#scope with
     | N.ScopingUnit.FunctionSubprogram n -> register_function ~node n
     | N.ScopingUnit.SubroutineSubprogram n -> register_subroutine ~node n
-    | _ -> 
-        failwith 
-          (Printf.sprintf 
+    | _ ->
+        failwith
+          (Printf.sprintf
              "invalid scoping unit: %s" (N.ScopingUnit.to_string env#current_frame#scope))
 
-  let register_generic ?(node=Ast.dummy_node) name = 
+  let register_generic ?(node=Ast.dummy_node) name =
     register_object ~node name N.Spec.mkgeneric
 
-  let register_namelist_group ?(node=Ast.dummy_node) name = 
+  let register_namelist_group ?(node=Ast.dummy_node) name =
     register_object ~node name N.Spec.mknamelistgroup
 
-  let register_derived_type ?(node=Ast.dummy_node) aspec_nodes name frm = 
+  let register_derived_type ?(node=Ast.dummy_node) aspec_nodes name frm =
     let attr_specs =
       List.fold_left
         (fun l aspec_node ->
@@ -1668,7 +1668,7 @@ module F (Stat : STATE_T) = struct
             Some a
           end
           else begin
-            let attr = 
+            let attr =
               match attr_opt with
               | Some a -> a
               | None -> new N.Attribute.c
@@ -1685,7 +1685,7 @@ module F (Stat : STATE_T) = struct
         let bid = env#genbid lod in
         node#set_binding (B.make_unknown_def bid);
 
-        let spec = 
+        let spec =
           match env#lookup_name ~afilt:N.Spec.has_data_object_spec n with
           | spc::_ ->
               let dobj = N.Spec.get_data_object_spec spc in
@@ -1704,9 +1704,9 @@ module F (Stat : STATE_T) = struct
               end;
               DEBUG_MSG " --> %s" (N.Spec.to_string spc);
               spc
-          | [] -> 
+          | [] ->
               let spc =
-                N.Spec.mkdobj ~loc_of_decl:lod ~bid_opt:(Some bid) ~type_spec a_opt 
+                N.Spec.mkdobj ~loc_of_decl:lod ~bid_opt:(Some bid) ~type_spec a_opt
               in
               env#register_name n spc;
               spc
@@ -1816,7 +1816,7 @@ module F (Stat : STATE_T) = struct
         with
           _ -> assert false
       end
-      else 
+      else
         None, s
     in
     split
@@ -1826,9 +1826,9 @@ module F (Stat : STATE_T) = struct
     let i_opt'' =
       match i_opt, i_opt' with
       | None, None -> None
-      | None, x_opt 
+      | None, x_opt
       | x_opt, None -> x_opt
-      | Some x, Some y -> 
+      | Some x, Some y ->
           try
             Some (int_of_string ((string_of_int x)^(string_of_int y)))
           with
@@ -1838,7 +1838,7 @@ module F (Stat : STATE_T) = struct
 
   let i_opt_of_r_opt = function
     | None -> None
-    | Some r -> 
+    | Some r ->
         try
           Some (int_of_string r)
         with
@@ -1881,10 +1881,10 @@ module F (Stat : STATE_T) = struct
     | L.Rename -> begin
         match node#children with
         | n::_ -> Some n#get_name
-        | [] -> 
+        | [] ->
             parse_warning_loc node#loc "malformed rename";
             None
-    end 
+    end
     | _ -> None
 
   let local_name_list_of_rename_nodes =
@@ -1905,7 +1905,7 @@ module F (Stat : STATE_T) = struct
                 let d =
                   match node#children with
                   | [a] -> N.Dimension.of_label a#label
-                  | _ -> 
+                  | _ ->
                       parse_warning_loc node#loc "invalid dimension";
                       N.Dimension.NoDimension
                 in
@@ -1915,14 +1915,14 @@ module F (Stat : STATE_T) = struct
                 let d =
                   match node#children with
                   | [a] -> N.Codimension.of_label a#label
-                  | _ -> 
+                  | _ ->
                       parse_warning_loc node#loc "invalid codimension";
                       N.Codimension.NoCodimension
                 in
                 attr#set_codimension d
             end
             | AttrSpec.External -> attr#set_external
-            | AttrSpec.Intent i -> 
+            | AttrSpec.Intent i ->
                 attr#set_intent_spec (N.IntentSpec.of_ispec_label i)
 
             | AttrSpec.Intrinsic -> attr#set_intrinsic
@@ -1952,10 +1952,10 @@ module F (Stat : STATE_T) = struct
       ) nodes;
     attr
 
-  let set_attr_of_data_object 
-      ?(type_spec=I.TypeSpec.Unknown) 
-      (setter : N.Attribute.c -> unit) 
-      name 
+  let set_attr_of_data_object
+      ?(type_spec=I.TypeSpec.Unknown)
+      (setter : N.Attribute.c -> unit)
+      name
       =
     DEBUG_MSG "name=\"%s\"" name;
     try
@@ -1972,7 +1972,7 @@ module F (Stat : STATE_T) = struct
             try
               N.Spec.get_data_object_attr spec
             with
-              Not_found -> 
+              Not_found ->
                 let a = new N.Attribute.c in
                 (N.Spec.get_data_object_spec spec)#set_attr a;
                 a
@@ -2007,7 +2007,7 @@ module F (Stat : STATE_T) = struct
 
   let set_access_spec_attr aspec node =
     match node#label with
-    | L.Name name 
+    | L.Name name
     | L.Ambiguous (Ambiguous.Designator name) ->
         set_access_attr aspec
           (fun () ->
@@ -2059,7 +2059,7 @@ module F (Stat : STATE_T) = struct
           name
 
     | L.GenericSpec (GenericSpec.Name name) ->
-        set_access_attr aspec 
+        set_access_attr aspec
           (fun () ->
             let nspec = N.Spec.mkobj () in
             env#register_name name (N.Spec.mkgeneric nspec);
@@ -2144,10 +2144,10 @@ module F (Stat : STATE_T) = struct
 
 
   let finalize_directive nd =
-    match nd#children with 
-    | [d] -> 
+    match nd#children with
+    | [d] ->
         d#set_lloc nd#lloc;
-        d 
+        d
     | _ -> nd
 
   let mark_EOPU ?(ending_scope=true) () =
@@ -2165,10 +2165,10 @@ module F (Stat : STATE_T) = struct
     end
 
 
-  let rec is_xxx_part_construct 
+  let rec is_xxx_part_construct
       (quantifier : (Ast.node -> bool) -> Ast.node list -> bool)
-      label_is_xxx_part_construct 
-      nd 
+      label_is_xxx_part_construct
+      nd
       =
 
     let lab = nd#label in
@@ -2186,15 +2186,15 @@ module F (Stat : STATE_T) = struct
             ) nd#children
         end
 
-      | L.PpBranch  
-      | L.PpBranchDo  
+      | L.PpBranch
+      | L.PpBranchDo
       | L.PpBranchForall
       | L.PpBranchIf
       | L.PpBranchSelect
       | L.PpBranchWhere
       | L.PpBranchDerivedType
 
-      | L.PpBranchEndDo  
+      | L.PpBranchEndDo
       | L.PpBranchEndForall
       | L.PpBranchEndIf
       | L.PpBranchEndSelect
@@ -2211,7 +2211,7 @@ module F (Stat : STATE_T) = struct
     DEBUG_MSG "%s -> %B" (L.to_string lab) b;
     b
 
-  let is_execution_part_construct = 
+  let is_execution_part_construct =
     is_xxx_part_construct List.exists L.is_execution_part_construct
 
 
@@ -2224,9 +2224,9 @@ module F (Stat : STATE_T) = struct
       match n#label with
       | L.IntrinsicOperator op -> begin
           match op with
-          | IntrinsicOperator.Id  -> 
+          | IntrinsicOperator.Id  ->
               n#relab (L.IntrinsicOperator IntrinsicOperator.Add)
-          | IntrinsicOperator.Neg -> 
+          | IntrinsicOperator.Neg ->
               n#relab (L.IntrinsicOperator IntrinsicOperator.Subt)
           | _ -> ()
       end
@@ -2259,7 +2259,7 @@ module F (Stat : STATE_T) = struct
       Failure _ ->
         let tys = Xset.create 0 in
         match lab with
-        | L.PpBranch 
+        | L.PpBranch
         | L.PpSectionIf _
         | L.PpSectionIfdef _
         | L.PpSectionIfndef _
@@ -2281,6 +2281,6 @@ module F (Stat : STATE_T) = struct
     nd#lloc#to_loc ?cache:(Some (Some env#fname_ext_cache)) ()
 
   let node_to_lexposs nd =
-    Loc.to_lexposs (node_to_loc nd) 
+    Loc.to_lexposs (node_to_loc nd)
 
 end (* of functor Parser_aux.F *)

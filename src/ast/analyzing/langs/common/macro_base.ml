@@ -40,7 +40,7 @@ type line = {         ln_raw         : string;
                       ln_loc         : Loc.t;
             }
 
-let mk_line ?(loc=Loc.dummy) ?(raw="<predefined>") ?(conditional=false) mktok id = 
+let mk_line ?(loc=Loc.dummy) ?(raw="<predefined>") ?(conditional=false) mktok id =
   { ln_raw=raw;
     ln_stat=Resolved (Obj.repr (mktok id));
     ln_conditional=conditional;
@@ -52,9 +52,9 @@ let line_to_string { ln_raw         = raw;
                      ln_conditional = b;
                      ln_loc         = loc;
                    } =
-  Printf.sprintf "{%s%s:%s%s}" 
-    (stat_to_string stat) 
-    (if b then ":conditional" else "") 
+  Printf.sprintf "{%s%s:%s%s}"
+    (stat_to_string stat)
+    (if b then ":conditional" else "")
     raw
     (if loc = Loc.dummy then "" else "@"^(Loc.to_string loc))
 
@@ -73,14 +73,14 @@ type body =
   | Object of line
   | Function of string list * line
 
-let mk_obj_body ?(loc=Loc.dummy) ?(stat=Unresolved) ?(conditional=false) s = 
+let mk_obj_body ?(loc=Loc.dummy) ?(stat=Unresolved) ?(conditional=false) s =
   Object { ln_raw=Xstring.strip s;
            ln_stat=stat;
            ln_conditional=conditional;
            ln_loc=loc;
          }
 
-let mk_fun_body ?(loc=Loc.dummy) ?(stat=Unresolved) ?(conditional=false) sl s = 
+let mk_fun_body ?(loc=Loc.dummy) ?(stat=Unresolved) ?(conditional=false) sl s =
   Function(sl, { ln_raw=Xstring.strip s;
                  ln_stat=stat;
                  ln_conditional=conditional;
@@ -89,7 +89,7 @@ let mk_fun_body ?(loc=Loc.dummy) ?(stat=Unresolved) ?(conditional=false) sl s =
           )
 
 let line_of_body = function
-  | Object ln      
+  | Object ln
   | Function(_, ln) -> ln
 
 let body_to_string = function
@@ -105,21 +105,21 @@ let body_length = function
   | Function(sl, ln) -> String.length ln.ln_raw
 
 let _resolve_body x = function
-  | Object ln      
+  | Object ln
   | Function(_, ln) -> _resolve_line ln x
 
 let resolve_body x = _resolve_body (Obj.repr x)
 
 let body_is_conditional = function
-  | Object ln       
+  | Object ln
   | Function(_, ln) -> ln.ln_conditional
 
 let body_set_conditional = function
-  | Object ln       
+  | Object ln
   | Function(_, ln) -> ln.ln_conditional <- true
 
 let body_clear_conditional = function
-  | Object ln       
+  | Object ln
   | Function(_, ln) -> ln.ln_conditional <- false
 
 
@@ -132,7 +132,7 @@ class table tname = object (self)
   val mutable readonly_flag = false
 
   val hidden : (string, int) Hashtbl.t = Hashtbl.create 0
-      
+
   method hide id =
     let n =
       try
@@ -144,7 +144,7 @@ class table tname = object (self)
     DEBUG_MSG "[%s] %s: %d -> %d" tname id n n';
     Hashtbl.replace hidden id n'
 
-  method expose id = 
+  method expose id =
     let n =
       try
         Hashtbl.find hidden id
@@ -193,12 +193,12 @@ class table tname = object (self)
     if not readonly_flag then begin
       if conditional then
         body_set_conditional body;
-      DEBUG_MSG "[%s] \"%s\" --> %s%s" 
+      DEBUG_MSG "[%s] \"%s\" --> %s%s"
         tname id (body_to_string body) (if conditional then " (conditional)" else "");
       Hashtbl.add tbl id body
     end
 
-  method undefine id = 
+  method undefine id =
     if not readonly_flag then begin
       DEBUG_MSG "[%s] \"%s\"" tname id;
       Hashtbl.remove tbl id
@@ -220,10 +220,10 @@ class table tname = object (self)
   method is_unconditionally_defined id =
     try
       match self#find_all id with
-      | [] -> 
+      | [] ->
           DEBUG_MSG "not found: %s" id;
           false
-      | bodies -> 
+      | bodies ->
           DEBUG_MSG "found: %s ->\n%s" id (Xlist.to_string body_to_string "\n" bodies);
           List.exists (fun body -> not (body_is_conditional body)) bodies
     with

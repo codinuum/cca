@@ -19,7 +19,7 @@
 
 (* macro.ml *)
 
-type kind = 
+type kind =
   | K_GENERAL
   | K_TYPE_SPEC
   | K_WRITE

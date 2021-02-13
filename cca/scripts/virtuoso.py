@@ -141,13 +141,13 @@ def exec_cmd_n(cmd, n, logdir='.'):
     for i in range(n):
         wid = str(i)
         p = spawn(cmd)
-        out_tbl[wid] = (p.stdout, p.stderr) 
+        out_tbl[wid] = (p.stdout, p.stderr)
         ps.append(p)
 
     for wid in out_tbl.keys():
-        th = threading.Thread(target=dump_log, args=('virtuoso', 
-                                                     wid, 
-                                                     out_tbl[wid], 
+        th = threading.Thread(target=dump_log, args=('virtuoso',
+                                                     wid,
+                                                     out_tbl[wid],
                                                      logdir))
         th.start()
 

@@ -69,7 +69,7 @@ end (* of class Lang.tree_factory *)
 
 type opts_t = Parser_options.c
 
-class type lang_t = 
+class type lang_t =
   object
     method name                 : string
     method subname              : string
@@ -84,16 +84,16 @@ class type lang_t =
 
 class c
     ?(subname="")
-    ~make_tree_builder 
+    ~make_tree_builder
     ~extract_fact
     ?(get_cache_key=(fun f -> Xhash.to_hex f#digest))
     ?(node_filter=(fun _ _ -> true))
-    name 
-    = 
+    name
+    =
   object (self : 'self)
-      
+
     constraint 'self = #lang_t
-          
+
     method name                 = name
     method subname              = subname
 
@@ -166,7 +166,7 @@ let _search get_module_name funcs_tbl xfuncs_tbl options _ext =
       Dynlink.loadfile_private fname;
       Xprint.verbose options#verbose_flag "\"%s\" loaded." fname
     with
-      Dynlink.Error err -> 
+      Dynlink.Error err ->
         raise (Error (Dynlink.error_message err))
   in
 
@@ -258,7 +258,7 @@ let _setup_options disabled_ps funcs_tbl xfuncs_tbl search options =
   iter_xpname_map (f (fun (_, x) -> x));
 
   Xset.iter
-    (fun pname -> 
+    (fun pname ->
       Hashtbl.remove funcs_tbl pname;
       Hashtbl.remove xfuncs_tbl pname
     ) disabled_ps;
@@ -272,7 +272,7 @@ let _setup_options disabled_ps funcs_tbl xfuncs_tbl search options =
     ) disabled_exts;
 
   if options#verbose_flag then begin
-    Xset.iter 
+    Xset.iter
       (fun pn ->
         Xprint.verbose true "parser \"%s\" disabled" pn
       ) disabled_ps
@@ -310,16 +310,16 @@ type tie_id = string * string (* exact * anonymous *)
 
 let null_tid = ("", "")
 let mktid e a = (e, a)
-let tid_to_string (e, a) = 
-  if e = "" then 
+let tid_to_string (e, a) =
+  if e = "" then
     a
-  else if a = "" then 
+  else if a = "" then
     (* "" *) e
-  else 
+  else
     e^";"^a
 
 
-let anonymize_tid ?(more=false) ((e, a) : tie_id) = 
+let anonymize_tid ?(more=false) ((e, a) : tie_id) =
   if more then
     ("", "")
   else

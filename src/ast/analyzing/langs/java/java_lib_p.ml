@@ -16,7 +16,7 @@
 
 include Java_lib_base
 
-let _ = 
+let _ =
   Lang_base.register Sjava.parser_name
     (new Lang_base.c
        ~make_tree_builder:(new tree_builder)

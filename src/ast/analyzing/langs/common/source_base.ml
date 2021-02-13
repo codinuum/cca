@@ -27,9 +27,9 @@ let available_encodings = NC.available_input_encodings()
 
 let default_encoding = Ulexing.default_encoding
 
-class c (file : Storage.file) = 
+class c (file : Storage.file) =
   let tree = file#tree in
-  let path = file#path in 
+  let path = file#path in
   object (self)
 
     val pos_mgr = new Position.manager path
@@ -80,17 +80,17 @@ class c (file : Storage.file) =
     method exists = file#exists
 
     method get_channel =
-      let ch = 
+      let ch =
         try
           tree#get_channel self#filename
-        with 
+        with
 	  Sys_error s -> failwith ("Source_base.c#get_channel: "^s)
       in
       ch
 
     method get_ulexbuf_from_channel ch =
-      let ulexbuf = 
-        Ulexing.create (self#refill ch) 
+      let ulexbuf =
+        Ulexing.create (self#refill ch)
       in
       ulexbuf_list <- ulexbuf :: ulexbuf_list;
       ulexbuf
@@ -167,7 +167,7 @@ class c (file : Storage.file) =
       try
         _proc s
       with
-        NC.Malformed_code -> 
+        NC.Malformed_code ->
           Xprint.warning "\"%s\": malformed code found in \"%s\"" file#fullpath s;
           let b = Bytes.of_string s in
           self#purify b;
@@ -191,12 +191,12 @@ class c (file : Storage.file) =
             Exit ->
               match !guessed_enc with
               | Some enc ->
-                  Xprint.warning "\"%s\": encoding \"%s\" found" 
+                  Xprint.warning "\"%s\": encoding \"%s\" found"
                     file#fullpath (NC.string_of_encoding enc);
 
                   self#update_encoding enc;
-                  List.iter 
-                    (fun ulexbuf -> 
+                  List.iter
+                    (fun ulexbuf ->
                       let ulb = ulexbuf.Ulexing.ulb in
                       Netulex.ULB.set_encoding enc ulb
                     ) ulexbuf_list;
@@ -216,10 +216,10 @@ class c (file : Storage.file) =
               line^"\n"
         in
         self#proc buf pos n s
-      with 
+      with
         End_of_file -> 0
 
- 
+
 
 
 

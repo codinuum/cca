@@ -54,7 +54,7 @@ let conv_loc loc =
     Scanf.sscanf loc "%dL-%dL(%d-%d)"
       (fun sl el so eo -> Loc.make so eo sl (-1) el (-1))
 
-  with 
+  with
   | _ ->
       DEBUG_MSG "illegal location format: %s" loc;
       Loc.dummy
@@ -63,10 +63,10 @@ let conv_loc loc =
 
 
 let conv_attrs attrs =
-  List.map 
+  List.map
     (fun (n, v) -> (n, Conf.pxp_att_value_to_string v))
     (List.filter (* filter out non-label attributes *)
-       (fun (n, _) -> not (is_non_label_attr n)) 
+       (fun (n, _) -> not (is_non_label_attr n))
        attrs
     )
 
@@ -95,18 +95,18 @@ let of_file (options : #Parser_options.c) parser_name file doc =
 
 	let children = scan_xnodes ~ast_ns xnode#sub_nodes in
 (*
-	DEBUG_MSG "elem=%s attrs=[%s]" 
-	  name 
-	  (Xlist.to_string 
+	DEBUG_MSG "elem=%s attrs=[%s]"
+	  name
+	  (Xlist.to_string
 	     (fun (n, v) -> sprintf "%s='%s'" n (Conf.pxp_att_value_to_string v))"; " xnode#attributes);
 *)
-	let nd = 
+	let nd =
 	  mknode options
-	    { elem_name   = xnode#localname; 
-	      elem_attrs  = conv_attrs xnode#attributes; 
+	    { elem_name   = xnode#localname;
+	      elem_attrs  = conv_attrs xnode#attributes;
 	      elem_parser = parser_name;
 	      elem_ast_ns = ast_ns;
-	    } 
+	    }
 	    children
 	in
 	let attr = xnode#attribute in
@@ -115,7 +115,7 @@ let of_file (options : #Parser_options.c) parser_name file doc =
 	  try
 	    let v = attr is_initializer_list_attr_name in
 	    (Conf.pxp_att_value_to_string v) = "true"
-	  with 
+	  with
 	    Not_found -> false
         in
         let nd =
@@ -140,14 +140,14 @@ let of_file (options : #Parser_options.c) parser_name file doc =
 	    let v = attr location_attr_name in
 	    let l = conv_loc (Conf.pxp_att_value_to_string v) in
 	    nd#data#set_loc l
-	  with 
+	  with
 	    Not_found -> ()
 	end;
 	begin
 	  try
 	    let v = attr frommacro_attr_name in
 	    nd#data#set_frommacro (Conf.pxp_att_value_to_string v)
-	  with 
+	  with
 	    Not_found -> ()
 	end;
 	begin
@@ -155,7 +155,7 @@ let of_file (options : #Parser_options.c) parser_name file doc =
 	    let v = attr gid_attr_name in
 	    let gid = int_of_string (Conf.pxp_att_value_to_string v) in
 	    nd#data#set_gid gid
-	  with 
+	  with
 	    Not_found -> ()
 	end;
 	nd
@@ -163,15 +163,15 @@ let of_file (options : #Parser_options.c) parser_name file doc =
    | t -> raise Ignore
 
   and scan_xnodes ?(ast_ns="") nodes =
-    List.fold_right 
+    List.fold_right
       (fun n l -> try (scan_xnode ~ast_ns n)::l with Ignore -> l) nodes []
   in
 
   let root = doc#root in
 
-  let nd = 
+  let nd =
     match root#sub_nodes with
-    | [xnode] -> scan_xnode ~ast_ns xnode 
+    | [xnode] -> scan_xnode ~ast_ns xnode
     | xnds    -> Xprint.failure "\"%s\": invalid ASTML" file#path
   in
 
@@ -186,7 +186,7 @@ let of_file (options : #Parser_options.c) parser_name file doc =
       let p = Conf.pxp_att_value_to_string (root#attribute Astml.parser_attr_name) in
       tree#set_parser_name p;
       DEBUG_MSG "parser_name <- %s" p
-    with 
+    with
       Not_found -> warning_msg "parser name not found in \"%s\"" file#path
   end;
   begin
@@ -202,7 +202,7 @@ let of_file (options : #Parser_options.c) parser_name file doc =
       let d = Conf.pxp_att_value_to_string (root#attribute Astml.source_digest_attr_name) in
       tree#set_source_digest (Xhash.of_hex (decode_digest d));
       DEBUG_MSG "source_digest <- %s" d
-    with 
+    with
       Not_found -> warning_msg "source digest not found in \"%s\"" file#path
   end;
 

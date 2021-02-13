@@ -339,11 +339,11 @@
 }
 */
 
-.DTS-ignored { 
+.DTS-ignored {
     color: #808080;
     font-style: italic;
 }
-.DTS-missed { 
+.DTS-missed {
     color: #cf6795;
     font-style: italic;
 }

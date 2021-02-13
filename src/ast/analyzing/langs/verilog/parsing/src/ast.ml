@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * AST for SystemVerilog (IEEE-1800-2009)
  *
  * ast.ml
@@ -117,10 +117,10 @@ let get_scope_of_func_id node = (* returns pkg_id option * class_id list *)
   | L.FuncId _ | L.FuncIdVoid _ -> begin
       let l = List.rev node#children in
       match List.map (fun nd -> nd#label, nd) l with
-      | ((L.TfIdScoped id), _)::_ -> 
+      | ((L.TfIdScoped id), _)::_ ->
 	  None, []
 
-      | ((L.ClassScopeId _), nd)::_ -> 
+      | ((L.ClassScopeId _), nd)::_ ->
 	  get_scope_of_pkg_ctys nd#children
 
       | _ -> None, []
@@ -151,12 +151,12 @@ let mknode start_pos end_pos label children =
   let lloc = lloc_of_lexposs start_pos end_pos in
   new node ~lloc ~children label
 
-let mkleaf start_pos end_pos label = 
+let mkleaf start_pos end_pos label =
   mknode start_pos end_pos label []
 
 let reloc start_pos end_pos node =
   let lloc = lloc_of_lexposs start_pos end_pos in
-  DEBUG_MSG "relocating %s: %s -> %s" 
+  DEBUG_MSG "relocating %s: %s -> %s"
     (L.to_string node#label)
     (node#lloc#to_string ?short:(Some true) ()) (lloc#to_string ?short:(Some true) ());
   node#set_lloc lloc
@@ -211,11 +211,11 @@ let get_last_id node_list =
   end
   | _ -> ""
 
-let get_unquoted quoted = 
+let get_unquoted quoted =
   try
     String.sub quoted 1 ((String.length quoted) - 2)
   with
-    e -> 
+    e ->
       WARN_MSG "%s" (Printexc.to_string e);
       quoted
 
@@ -235,7 +235,7 @@ class c root = object (self)
   method root = root
 
   method visit (f : node -> unit) = visit f root
-  
+
   method size =
     let sz = ref 0 in
     self#visit (fun x -> incr sz);

@@ -126,17 +126,20 @@ let regexp hexadecimal_floating_literal =
 let regexp floating_literal = decimal_floating_literal | hexadecimal_floating_literal
 
 let regexp s_char = [^'"' '\\' '\013' '\010'] | escape_sequence | universal_character_name
+let regexp s_char_no_bq = [^'`' '"' '\\' '\013' '\010']
 let regexp d_char = [^' ' '(' ')' '\\' '\009' '\011' '\012' '\013' '\010']
 let regexp r_char = '.' (* !!! *)
 
-let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|',')|line_terminator)+
+let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']')|line_terminator [^'#'])+
+let regexp s_char_sequence_no_bq = (s_char_no_bq)+
 let regexp d_char_sequence = d_char+
 let regexp r_char_sequence = r_char+
 
 let regexp raw_string_head = encoding_prefix? 'R' '"' d_char_sequence? '('
 let regexp raw_string_tail = ')' d_char_sequence? '"'
 
-let regexp string_literal = encoding_prefix? '"' s_char_sequence? '"' | '@' '"' s_char_sequence? '"' | '`' s_char_sequence '`'
+let regexp string_literal = encoding_prefix? '"' s_char_sequence? '"' | '@' '"' s_char_sequence? '"' |
+'`' s_char_sequence_no_bq '`'
 
 let regexp boolean_literal = "false" | "true"
 
@@ -197,7 +200,7 @@ module StringHashtbl = Hashtbl.Make (StringHash)
 
 let _find_objc_keyword =
   let keyword_list =
-    [ 
+    [
       "@class",        OBJC_CLASS;
       "@interface",    OBJC_INTERFACE;
       "@end",          OBJC_END;
@@ -221,11 +224,11 @@ let _find_objc_keyword =
       "@required",     OBJC_REQUIRED;
       "@autoreleasepool", OBJC_AUTORELEASEPOOL;
       "@available",    OBJC_AVAILABLE;
-    ] in 
+    ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in
-  let _ = 
+  let _ =
     List.iter (fun (kwd, tok) -> StringHashtbl.add keyword_table kwd tok)
-      keyword_list 
+      keyword_list
   in
   fun s -> StringHashtbl.find keyword_table s
 
@@ -239,26 +242,26 @@ let find_objc_keyword s =
 let _find_pp_keyword =
   let keyword_list =
     [
-     "#include", PP_INCLUDE;
-     "#define",  PP_DEFINE;
-     "#undef",   PP_UNDEF;
-     "#line",    PP_LINE;
-     "#error",   PP_ERROR;
-     "#pragma",  PP_PRAGMA;
-     "#if",      PP_IF;
-     "#ifdef",   PP_IFDEF;
-     "#ifndef",  PP_IFNDEF;
-     "#elif",    PP_ELIF;
-     "#else",    PP_ELSE;
-     "#endif",   PP_ENDIF;
-     "#import",  PP_IMPORT;
+     "#include", (fun () -> PP_INCLUDE);
+     "#define",  (fun () -> PP_DEFINE);
+     "#undef",   (fun () -> PP_UNDEF);
+     "#line",    (fun () -> PP_LINE);
+     "#error",   (fun () -> PP_ERROR);
+     "#pragma",  (fun () -> PP_PRAGMA);
+     "#if",      (fun () -> PP_IF);
+     "#ifdef",   (fun () -> PP_IFDEF);
+     "#ifndef",  (fun () -> PP_IFNDEF);
+     "#elif",    (fun () -> PP_ELIF (ref ""));
+     "#else",    (fun () -> PP_ELSE (ref ""));
+     "#endif",   (fun () -> PP_ENDIF (ref ""));
+     "#import",  (fun () -> PP_IMPORT);
     ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in
   let _ =
     List.iter (fun (kwd, tok) -> StringHashtbl.add keyword_table kwd tok)
       keyword_list
   in
-  fun s -> StringHashtbl.find keyword_table (normalize_pp_keyword s)
+  fun s -> (StringHashtbl.find keyword_table (normalize_pp_keyword s))()
   (*let keyword_map =
     List.fold_left (fun m (kwd, tok) -> StringMap.add kwd tok m) StringMap.empty keyword_list
   in
@@ -268,7 +271,7 @@ let find_pp_keyword s =
   try
     _find_pp_keyword s
   with
-    Not_found -> PP_UNKNOWN s        
+    Not_found -> PP_UNKNOWN s
 
 
 let _find_keyword =
@@ -388,7 +391,7 @@ let _find_keyword =
      "_asm"             , MS_ASM "_asm";
    ] in
   let keyword_table = StringHashtbl.create (List.length keyword_list) in
-  let _ = 
+  let _ =
     List.iter (fun (kwd, tok) -> StringHashtbl.add keyword_table kwd tok)  keyword_list
   in
   StringHashtbl.find keyword_table
@@ -425,6 +428,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | Some x -> mklexpos x
       | None -> mklexpos (Ulexing.lexeme_start ulexbuf)
     in
+    let _ = DEBUG_MSG "%s" (Token.rawtoken_to_string rawtok) in
+    env#clear_lex_line_head_flag();
     let ed_pos = mklexpos ((Ulexing.lexeme_end ulexbuf) - 1) in
     rawtok, st_pos, ed_pos
 
@@ -445,16 +450,22 @@ module F (Stat : Parser_aux.STATE_T) = struct
     if env#lex_pp_line_flag then begin
       env#exit_lex_pp_line();
       env#exit_lex_ms_asm_line();
-      mktok NEWLINE lexbuf
+      let tok = mktok NEWLINE lexbuf in
+      env#set_lex_line_head_flag();
+      tok
     end
     else if env#lex_ms_asm_line_flag then begin
       env#exit_lex_ms_asm_line();
-      mktok END_ASM lexbuf
+      let tok = mktok END_ASM lexbuf in
+      env#set_lex_line_head_flag();
+      tok
     end
-    else
+    else begin
+      env#set_lex_line_head_flag();
       _token lexbuf
+    end
 
-|  '\\' line_terminator -> _token lexbuf
+|  '\\' white_space* line_terminator -> _token lexbuf
 
 |  "//" ->
     line_comment (Ulexing.lexeme_start lexbuf) lexbuf
@@ -481,13 +492,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |  pp_keyword ->
     let kwd = Ulexing.utf8_lexeme lexbuf in
-    let r = find_pp_keyword kwd in
-    let r =
-      match r with
-      | PP_UNKNOWN s when env#asm_flag -> IDENT s
-      | _ -> env#enter_lex_pp_line(); r
-    in
-    mktok r lexbuf
+    DEBUG_MSG "kwd=%s" kwd;
+    if env#lex_pp_line_flag || env#lex_ms_asm_line_flag || env#lex_line_head_flag then
+      let r = find_pp_keyword kwd in
+      let r =
+        match r with
+        | PP_UNKNOWN s when env#asm_flag -> IDENT s
+        | _ -> env#enter_lex_pp_line(); r
+      in
+      mktok r lexbuf
+    else
+      mktok (IDENT kwd) lexbuf
 
 
 |  integer_literal ->
@@ -654,12 +669,16 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   line_terminator ->
     if env#lex_pp_line_flag then begin
       env#exit_lex_pp_line();
-      mktok NEWLINE lexbuf
+      let tok = mktok NEWLINE lexbuf in
+      env#set_lex_line_head_flag();
+      tok
     end
-    else
+    else begin
       let cloc = offsets_to_loc st ((Ulexing.lexeme_end lexbuf) - 1) in
       add_comment_region cloc;
+      env#set_lex_line_head_flag();
       _token lexbuf
+    end
 
 |  '\\' line_terminator -> line_comment st lexbuf
 

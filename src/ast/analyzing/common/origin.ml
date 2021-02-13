@@ -27,9 +27,9 @@ let attr_not_initialized = (-1)
 
 
 type range = {
-    st    : int; 
+    st    : int;
     ed    : int;
-    attri : int; 
+    attri : int;
   }
 
 let create_range a s e =
@@ -39,21 +39,21 @@ let range_to_string {st=s; ed=e; attri=a} =
   sprintf "<%d-%d(%d)>" s e a
 
 class abuf bufsize = object(self)
-  val mutable _buf = 
+  val mutable _buf =
     Array1.create Bigarray.int16_signed Bigarray.c_layout bufsize
-    
+
   initializer
     Array1.fill _buf attr_unknown
-      
+
   method put range =
     DEBUG_MSG "%d-%d" range.st range.ed;
-    let ed = 
+    let ed =
       if range.ed >= bufsize then begin
 	WARN_MSG "range too large: end=%d (bufsize=%d)" range.ed bufsize;
-	bufsize - 1 
+	bufsize - 1
       end
-      else 
-	range.ed 
+      else
+	range.ed
     in
     for i = range.st to ed do
       _buf.{i} <- range.attri

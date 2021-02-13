@@ -52,7 +52,7 @@ let tag_to_string = function
 
 let loc_of_tag = function
   | Tifdef(_, loc)
-  | Tifndef(_, loc) 
+  | Tifndef(_, loc)
   | Tif(_, loc)
   | Telif(_, loc, _)
   | Telse(loc, _)       -> loc
@@ -60,7 +60,7 @@ let loc_of_tag = function
 
 let key_loc_of_tag = function
   | Tifdef(_, loc)
-  | Tifndef(_, loc) 
+  | Tifndef(_, loc)
   | Tif(_, loc)
   | Telif(_, _, loc)
   | Telse(_, loc)       -> loc
@@ -76,8 +76,8 @@ let tag_to_node env c btag _children =
     | Telse(loc, kloc)    -> loc, Label.PpSectionElse,     PPD.Branch PPD.Else
     | _ -> raise Undefined
   in
-  let ppd_nd = 
-    new Ast.node ~lloc:(env#mklloc loc) (Label.PpDirective (PPD.mk ~context:c ppd)) 
+  let ppd_nd =
+    new Ast.node ~lloc:(env#mklloc loc) (Label.PpDirective (PPD.mk ~context:c ppd))
   in
   let children = ppd_nd :: _children in
   DEBUG_MSG "children:\n%s\n" (Xlist.to_string (fun n -> n#to_string) "\n" children);
@@ -108,7 +108,7 @@ module F (Stat : Aux.STATE_T) = struct
         | PPD.Endif _  -> Telse(loc, kloc) (* virtual #else *)
         (*| _ -> invalid_arg ("Branch.make_tag: invalid iftoken: "^(Token.rawtoken_to_string iftok))*)
     end
-    | _ -> 
+    | _ ->
 	invalid_arg
 	  ("Branch.make_tag: invalid iftoken: "^(Token.rawtoken_to_string iftok))
 
@@ -157,7 +157,7 @@ module F (Stat : Aux.STATE_T) = struct
         let t, _ = queue#peek in
         let nxt = ref t in
         try
-          queue#iter 
+          queue#iter
             (fun (tok, _) ->
               if !skip then
                 skip := false
@@ -167,22 +167,22 @@ module F (Stat : Aux.STATE_T) = struct
                 | _, _ ->
 	            if TokenF.is_pp_directive tok then begin
 	              match tok with
-	              | PP_IFDEF | PP_IFNDEF -> 
+	              | PP_IFDEF | PP_IFNDEF ->
                           incr branch_depth;
                           skip := true
 
-	              | PP_UNDEF | PP_BRANCH PPD.Else(*PP_ELSE*) -> 
-		          if !branch_depth = 0 then 
+	              | PP_UNDEF | PP_BRANCH PPD.Else(*PP_ELSE*) ->
+		          if !branch_depth = 0 then
 		            skip_until_endif_flag := true
 
-	              | PP_ELIF -> 
-		          if !branch_depth = 0 then 
+	              | PP_ELIF ->
+		          if !branch_depth = 0 then
 		            skip_until_endif_flag := true;
                           skip := true
 
-	              | PP_BRANCH (PPD.Endif _)(*PP_ENDIF*) -> 
-		          if !branch_depth > 0 then 
-		            decr branch_depth; 
+	              | PP_BRANCH (PPD.Endif _)(*PP_ENDIF*) ->
+		          if !branch_depth > 0 then
+		            decr branch_depth;
 		          skip_until_endif_flag := false
 
 	              | _ -> ()
@@ -201,9 +201,9 @@ module F (Stat : Aux.STATE_T) = struct
         Xqueue.Empty -> NOTHING
 
 
-    method get ?(prefetch=true) () = 
+    method get ?(prefetch=true) () =
       try
-        let qtoken = queue#take in 
+        let qtoken = queue#take in
         DEBUG_MSG "%s" (Token.qtoken_to_string qtoken);
         let tok, _ = qtoken in
         begin

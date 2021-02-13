@@ -32,7 +32,7 @@ class omp_cc_lines = object (self) (* OpenMP Conditional Compilation *)
   method init =
     Xset.clear ranges
 
-  method add ln = 
+  method add ln =
     DEBUG_MSG "adding %d" ln;
     Xset.add ranges ln
 
@@ -40,7 +40,7 @@ class omp_cc_lines = object (self) (* OpenMP Conditional Compilation *)
     DEBUG_MSG "removing %d" ln;
     Xset.remove ranges ln
 
-  method add_QCC ln = 
+  method add_QCC ln =
     DEBUG_MSG "adding %d" ln;
     Xset.add ranges_QCC ln
 
@@ -65,7 +65,7 @@ class omp_cc_lines = object (self) (* OpenMP Conditional Compilation *)
       if Xset.mem masks ln then
         false
       else
-        (self#is_CC_normal_line prev) && 
+        (self#is_CC_normal_line prev) &&
         (self#is_CC_line ln)
     in
     if b && mask then
@@ -74,9 +74,9 @@ class omp_cc_lines = object (self) (* OpenMP Conditional Compilation *)
     if b then
       self#_set_head ln;
 
-    if 
-      (not (self#_is_head prev) || incomplete) && 
-      (self#is_QCC_line ln) && (self#is_CC_line prev) 
+    if
+      (not (self#_is_head prev) || incomplete) &&
+      (self#is_QCC_line ln) && (self#is_CC_line prev)
     then
       self#add ln;
 
@@ -85,13 +85,13 @@ class omp_cc_lines = object (self) (* OpenMP Conditional Compilation *)
 
   method is_normal_head ?(mask=false) ?(adjust=0) ln =
     let prev = ln - 1 - adjust in
-    DEBUG_MSG "is_CC_line(%d):%B, is_CC_normal_line(%d):%B" 
+    DEBUG_MSG "is_CC_line(%d):%B, is_CC_normal_line(%d):%B"
       prev (self#is_CC_line prev) ln (self#is_CC_normal_line ln);
     let b =
       if Xset.mem masks ln then
         false
       else
-        (self#is_CC_line prev) && 
+        (self#is_CC_line prev) &&
         (self#is_CC_normal_line ln)
     in
     if b && mask then
@@ -132,7 +132,7 @@ class c file = object (self)
   method add_ext_PGI_CUDA = lang_config#add_ext_PGI_CUDA
   method add_ext_Apollo  = lang_config#add_ext_Apollo
 
-  method set_source_form form = 
+  method set_source_form form =
     DEBUG_MSG "%s" self#path;
     lang_config#set_source_form form
 
@@ -158,5 +158,5 @@ class c file = object (self)
   val omp_cc_lines = new omp_cc_lines
 
   method omp_cc_lines = omp_cc_lines
-      
+
 end

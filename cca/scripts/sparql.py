@@ -170,7 +170,7 @@ class VirtuosoHTTPDriver(Driver):
         else:
             maxrows = str(limit)
 
-        params = { 
+        params = {
             'query'  : q,
             'format' : format,
             'maxrows' : maxrows,
@@ -181,7 +181,7 @@ class VirtuosoHTTPDriver(Driver):
         req = Request(self._endpoint, qpart)
 
         response = urlopen(req).read()
-        
+
         result = json.loads(response)
 
         return result

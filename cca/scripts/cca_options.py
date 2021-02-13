@@ -58,7 +58,7 @@ class Parser(object):
         self.argparser.add_argument('-d', '--debug', action='store_true', dest='debug',
                                     help='enable debug output')
 
-        self.argparser.add_argument('-k', '--keepcache', action='store_true', 
+        self.argparser.add_argument('-k', '--keepcache', action='store_true',
                                     dest='keep_cache', help='keep caches')
 
 

@@ -44,7 +44,7 @@ let extend ?cache ?(force=false) fname ext =
         try
           Hashtbl.find (c : ext_cache_t) key
         with
-          Not_found -> 
+          Not_found ->
             let x = gen() in
             Hashtbl.add c key x;
             x
@@ -68,9 +68,9 @@ let get_extension fname =
   with
     _ -> ""
 
-let escape fname = 
-  Str.global_replace ext_sep_pat "@" 
-    (Str.global_replace loc_sep_pat "@" 
+let escape fname =
+  Str.global_replace ext_sep_pat "@"
+    (Str.global_replace loc_sep_pat "@"
        (Str.global_replace dir_sep_pat Filename.dir_sep
           fname
        )
@@ -83,13 +83,13 @@ let to_string ?(show_ext=false) ?(short=false) (fname : string) =
     else
       strip fname
   in
-  if fn = "" then 
-    "" 
-  else 
+  if fn = "" then
+    ""
+  else
     "\""^
-    (if short && not show_ext then 
+    (if short && not show_ext then
       Filename.basename fn
-    else 
+    else
       fn
     )^
     "\""

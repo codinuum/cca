@@ -64,7 +64,7 @@ exception Comparison_error of string
 (* DB MANAGEMENT *)
 
 let db_init db =
-  let rc = 
+  let rc =
     Sqlite3.exec db "CREATE TABLE WS (ws_creation float, ws_name varchar)"
   in
   if rc <> Sqlite3.Rc.OK then begin
@@ -112,7 +112,7 @@ let get_expired_workspaces() =
 	db_exec db ~cb:chk stmt;
 	db_close db
       with
-      | Sqlite3.Error msg -> 
+      | Sqlite3.Error msg ->
 	  Netlog.logf `Err "get_expired_workspaces: DB error: %s" msg
       | _ ->
 	  Netlog.log `Err "get_expired_workspaces: DB error"
@@ -120,7 +120,7 @@ let get_expired_workspaces() =
     !expired
   else
     []
-  
+
 let unregister_workspace name =
   try
     let db = Sqlite3.db_open ~mutex:(`FULL) conf#workspace_db_file in
@@ -128,7 +128,7 @@ let unregister_workspace name =
     db_exec db stmt;
     db_close db
   with
-  | Sqlite3.Error msg -> 
+  | Sqlite3.Error msg ->
       Netlog.logf `Err "unregister_workspace: DB error: %s" msg
   | _ ->
       Netlog.log `Err "unregister_workspace: DB error"
@@ -144,7 +144,7 @@ let register_workspace name =
 
     db_close db
   with
-  | Sqlite3.Error msg -> 
+  | Sqlite3.Error msg ->
       Netlog.logf `Err "register_workspace: DB error: %s" msg
   | _ ->
       Netlog.log `Err "register_workspace: DB error"
@@ -152,14 +152,14 @@ let register_workspace name =
 
 let check_workspaces() =
   let expired = get_expired_workspaces() in
-  List.iter 
-    (fun wsn -> 
+  List.iter
+    (fun wsn ->
       Netlog.logf `Info "check_workspaces: removing \"%s\"..." wsn;
       try
 	Xfile.rmdir (Filename.concat conf#root_dir wsn);
 	unregister_workspace wsn
       with
-      | Xfile.Error msg -> 
+      | Xfile.Error msg ->
 	  Netlog.logf `Err "check_workspaces: %s" msg
     ) expired
 
@@ -178,7 +178,7 @@ let init_nprocs_file() =
   | Sys_error msg ->
       Netlog.logf `Err "init_nprocs_file: %s" msg;
       exit 1
-  
+
 
 let nprocs_read fd =
   let ch = Unix.in_channel_of_descr fd in
@@ -187,9 +187,9 @@ let nprocs_read fd =
     let n = int_of_string line in
     n
   with
-  | Failure _ -> 
-      Netlog.logf `Err 
-	"nprocs_read: malformed nprocs file: \"%s\" (length:%d)" 
+  | Failure _ ->
+      Netlog.logf `Err
+	"nprocs_read: malformed nprocs file: \"%s\" (length:%d)"
 	(String.escaped line) (String.length line);
       -1
 
@@ -201,7 +201,7 @@ let nprocs_write fd n =
   let r = Unix.write fd s 0 len in
   if r <> len then
     Netlog.logf `Err "nprocs_write: write failed: only %d characters written" r
-  
+
 
 
 let comparison_proc_begin() =
@@ -263,7 +263,7 @@ let comparison_proc_end() =
       match !fdop with
       | Some fd -> Unix.close fd
       | None -> ()
-  
+
 
 
 
@@ -339,9 +339,9 @@ let restart_button (cgi : cgi) =
    returned.  If not, "no_button" is returned.  *)
 let pressed_button (cgi:cgi) possible_buttons =
   let is_button arg = List.mem arg#name possible_buttons in
-  try 
+  try
     (List.find is_button cgi#arguments)#name
-  with 
+  with
     Not_found -> "no_button"
 
 
@@ -380,8 +380,8 @@ let diffast options (cgi:cgi) wdir url0 url1 file0 file1 =
   comparison_proc_begin();
   begin
     try
-      ignore (diffast_engine#compare_files 
-                (Fs.file_of_path options file0) 
+      ignore (diffast_engine#compare_files
+                (Fs.file_of_path options file0)
                 (Fs.file_of_path options file1))
     with
       e ->
@@ -529,18 +529,18 @@ let handler _ (cgi:cgi) =
       cgi#finalize()
 
 
-let activation = 
+let activation =
   let arg_store _ name _ =
     if name = "srcURL0" || name = "srcURL1" then
       `File_max conf#max_file_size
     else
-      `Memory 
+      `Memory
   in
   let buffered _ ch = new Netchannels.buffered_trans_channel ch in
-  let activation_opt = 
+  let activation_opt =
     { Nethttpd_services.stdactv_processing = Some arg_store;
       Nethttpd_services.stdactv_operating_type               = Some (`Transactional buffered);
-    } 
+    }
   in
   Nethttpd_services.std_activation (`Std_activation activation_opt)
 

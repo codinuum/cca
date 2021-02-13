@@ -45,8 +45,8 @@ let tag_to_string = function
   | Cev_expr               -> "ev_expr"
   | Cexpr                  -> "expr"
 
-type t = { tag               : tag; 
-	   mutable is_active : bool; 
+type t = { tag               : tag;
+	   mutable is_active : bool;
 	 }
 
 let copy_context c = { tag = c.tag; is_active = c.is_active }
@@ -122,11 +122,11 @@ class stack env = object (self)
 
   method suspended = suspended
 
-  method suspend = 
+  method suspend =
     DEBUG_MSG "called";
     suspended <- true;
 
-  method resume = 
+  method resume =
     DEBUG_MSG "called";
     suspended <- false;
 
@@ -137,7 +137,7 @@ class stack env = object (self)
   done
  *)
 
-  method checkpoint key = 
+  method checkpoint key =
     BEGIN_DEBUG
       DEBUG_MSG "key=%s" (Loc.to_string key);
     Stack.iter (fun c -> DEBUG_MSG "stack: %s" (to_string c)) stack;
@@ -149,7 +149,7 @@ class stack env = object (self)
     let copy = self#_copy_stack stack in
     Hashtbl.replace checkpoint_tbl key copy;
 
-  method recover key = 
+  method recover key =
     try
       stack <- self#_copy_stack (Hashtbl.find checkpoint_tbl key);
 
@@ -157,7 +157,7 @@ class stack env = object (self)
 	DEBUG_MSG "key=%s" (Loc.to_string key);
       Stack.iter (fun c -> DEBUG_MSG "stack: %s" (to_string c)) stack;
       END_DEBUG
-    with 
+    with
       Not_found -> FATAL_MSG "stack not found: key=%s" (Loc.to_string key); exit 1
 
 
@@ -198,22 +198,22 @@ class stack env = object (self)
     if not suspended then begin
 
       BEGIN_DEBUG
-	Stack.iter 
-	(fun _c -> 
+	Stack.iter
+	(fun _c ->
 	  DEBUG_MSG "stack: %s" (to_string _c)
 	) stack;
       END_DEBUG;
 
       ignore (Stack.pop stack);
 
-      let new_top = 
-	try 
-	  Stack.top stack 
-	with Stack.Empty -> 
+      let new_top =
+	try
+	  Stack.top stack
+	with Stack.Empty ->
 	  assert false
       in
       DEBUG_MSG "(new top: %s)" (to_string  new_top);
-      
+
       pop_callback terminates_surrounding_construct new_top
     end
     else

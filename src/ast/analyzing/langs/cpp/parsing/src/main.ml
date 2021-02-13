@@ -36,17 +36,17 @@ let set_flags p =
 
 let options = new Basic_options.c
 
-let _ = 
-  Arg.parse 
+let _ =
+  Arg.parse
     [
      (*"-verbose", Arg.Unit (fun () -> verbose_flag := true), "\tdisplay verbose messages";*)
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump AST(s)";
      "-token-hist", Arg.Unit (fun () -> token_hist_flag := true), "\tshow token histogram";
      "-ignore-macro-defs",
      Arg.Unit (fun () -> parse_macro_defs_flag := false), "ignore macro defs"
-    ] 
+    ]
     (fun s -> filename_list := s :: !filename_list)
-    ("usage: " ^ Filename.basename (Sys.argv.(0)) 
+    ("usage: " ^ Filename.basename (Sys.argv.(0))
      ^ " [OPTIONS] [FILE..]\noptions are:")
 
 let proc filename =

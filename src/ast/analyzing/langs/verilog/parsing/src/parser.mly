@@ -2982,11 +2982,11 @@ func_ref:
        }
    | package_scope_id_follows id LPAREN pev_argument_list_opt RPAREN 
        { 
-	 mknode $startpos $endpos (L.expr (LE.TfCall $2)) [$1; mknode $startpos($3) $endpos($5) L.Args $4] 
+	 mknode $startpos $endpos (L.expr (LE.TfCall $2)) [$1; mknode $startpos($3) $endpos($5) L.Args $4]
        }
    | class_scope_id_follows   id LPAREN pev_argument_list_opt RPAREN 
        { 
-	 mknode $symbolstartpos $endpos (L.expr (LE.TfCall $2)) ($1 @ [mknode $startpos($3) $endpos($5) L.Args $4]) 
+	 mknode $symbolstartpos $endpos (L.expr (LE.TfCall $2)) ($1 @ [mknode $startpos($3) $endpos($5) L.Args $4])
        }
 ;
 

@@ -81,29 +81,29 @@ production: parser-objs-production opt
 
 opt: $(SPEC_OBJ_OPT) $(LIB_OPT) $(LIB_P_OPT)
 
-$(SPEC_OBJ_OPT): 
+$(SPEC_OBJ_OPT):
 	$(OCAMLFIND) ocamlopt $(LINKFLAGS_OPT) $(PROFFLAGS) -c $(SPEC_OBJ:.cmo=.ml)
 
 $(LIB_OPT): $(LIBS_OPT) $(OBJS_OPT) $(OTHER_OBJS_DEP_OPT)
 	$(OCAMLFIND) ocamlopt $(LINKFLAGS_OPT) $(PROFFLAGS) -shared -o $(LIB_OPT) \
-	$(EXTRA_OBJS_OPT) $(LIBS_OPT) $(OBJS_OPT) 
+	$(EXTRA_OBJS_OPT) $(LIBS_OPT) $(OBJS_OPT)
 
 $(LIB_P_OPT): $(LIBS_OPT) $(OBJS_P_OPT) $(OTHER_OBJS_DEP_OPT)
 	$(OCAMLFIND) ocamlopt $(LINKFLAGS_OPT) $(PROFFLAGS) -shared -o $(LIB_P_OPT) \
-	$(EXTRA_OBJS_OPT) $(LIBS_OPT) $(OBJS_P_OPT) 
+	$(EXTRA_OBJS_OPT) $(LIBS_OPT) $(OBJS_P_OPT)
 
 debug: $(SPEC_OBJ) $(LIB) $(LIB_P)
 
 $(SPEC_OBJ):
-	$(OCAMLFIND) $(OCAMLC_MODE) $(LINKFLAGS) -c $(SPEC_OBJ:.cmo=.ml) 
+	$(OCAMLFIND) $(OCAMLC_MODE) $(LINKFLAGS) -c $(SPEC_OBJ:.cmo=.ml)
 
 $(LIB): $(LIBS) $(OBJS) $(OTHER_OBJS_DEP)
 	$(OCAMLFIND) $(OCAMLC_MODE) $(LINKFLAGS) -shared -o $(LIB) \
-	$(EXTRA_OBJS) $(LIBS) $(OBJS) 
+	$(EXTRA_OBJS) $(LIBS) $(OBJS)
 
 $(LIB_P): $(LIBS) $(OBJS_P) $(OTHER_OBJS_DEP)
 	$(OCAMLFIND) $(OCAMLC_MODE) $(LINKFLAGS) -shared -o $(LIB_P) \
-	$(EXTRA_OBJS) $(LIBS) $(OBJS_P) 
+	$(EXTRA_OBJS) $(LIBS) $(OBJS_P)
 
 $(LIBS): $(PARSER_OBJS)
 
@@ -119,7 +119,7 @@ $(PARSER_OBJS_OPT):
 parser-objs-production:
 	$(MAKE) -C $(PARSER_DIR) production
 
-clean: 
+clean:
 	$(MAKE) -C $(PARSER_DIR) clean
 	$(RM) *~ *.cm* *.o *.a
 	$(RM) -r $(DEP)

@@ -20,6 +20,23 @@ open Printf
 open Git
 open Git_unix
 
+(* begin compat *)
+type endpoint = {uri: Uri.t; headers: Cohttp.Header.t}
+
+let endpoint ?headers uri =
+  let headers =
+    match headers with None -> Cohttp.Header.of_list [] | Some h -> h
+  in
+  {headers; uri}
+let string_of_perm = function
+  | `Normal -> "100644"
+  | `Everybody -> "100664"
+  | `Exec -> "100755"
+  | `Link -> "120000"
+  | `Dir -> "40000"
+  | `Commit -> "160000"
+(* end compat *)
+
 let global_option_section = "COMMON OPTIONS"
 let help_sections = [
   `S global_option_section;
@@ -96,7 +113,7 @@ let mk_opt ?section flags value doc mk default =
 
 let endp =
   let cv x = Ok (endpoint (Uri.of_string x)) in
-  let pr ppf name = Format.pp_print_string ppf (Uri.to_string name.Net.uri) in
+  let pr ppf name = Format.pp_print_string ppf (Uri.to_string name.uri) in
   Arg.conv ~docv:"<endpoint>" (cv, pr)
 
 let remote =
@@ -104,14 +121,15 @@ let remote =
       ~doc:"Location of the remote repository." [] in
   Arg.(required & pos 0 (some (*gri*)endp) None & doc)
 
-module S = struct (* Git_unix.Store does not work. Why? *)
+(*module S = struct (* Git_unix.Store does not work. Why? *)
   module I = Git.Inflate
   module D = Git.Deflate
   include Git.Store.Make (Digestif.SHA1) (Git_unix.Fs) (I) (D)
 
   let v ?dotgit ?compression ?buffer root =
     v ?dotgit ?compression ?buffer () root
-end
+end*)
+module S = Git_unix.Store
 
 module Hash   = S.Hash
 module Value  = S.Value
@@ -145,7 +163,7 @@ class diffast_args = object (self)
       let pr = Fpath.pp in
       Arg.conv ~docv:"<path>" (cv, pr)
     in
-    Arg.(required & pos 0 (some path) None & doc ) 
+    Arg.(required & pos 0 (some path) None & doc )
 
   method clearcache = mk_flag ["clearcache"] "Clear diff cache."
 
@@ -163,34 +181,34 @@ class diffast_args = object (self)
     mk_opt ["cache"] "DIR" "Set cache dir base to DIR."
       Arg.(some string) None
 
-  method fact_proj = 
-    mk_opt ["fact:project"] "ID" "Set project ID." 
+  method fact_proj =
+    mk_opt ["fact:project"] "ID" "Set project ID."
       Arg.(some string) None
 
-  method fact_into_virtuoso = 
-    mk_opt ["fact:into-virtuoso"] "URI" "Output fact into graph <URI> in virtuoso." 
+  method fact_into_virtuoso =
+    mk_opt ["fact:into-virtuoso"] "URI" "Output fact into graph <URI> in virtuoso."
       Arg.(some string) None
 
-  method fact_into_directory = 
-    mk_opt ["fact:into-directory"] "DIR" "Output fact into directory DIR." 
+  method fact_into_directory =
+    mk_opt ["fact:into-directory"] "DIR" "Output fact into directory DIR."
       Arg.(some string) None
 
-  method fact_enc = 
-    mk_opt ["fact:encoding"] "ENC" "Set fact encoding to ENC (FDO|FDLC|FDLO|FDLCO)." 
+  method fact_enc =
+    mk_opt ["fact:encoding"] "ENC" "Set fact encoding to ENC (FDO|FDLC|FDLO|FDLCO)."
       Arg.(some string) (Some "FDLCO")
 
-  method fact_size_thresh = 
-    mk_opt ["fact:size-thresh"] "N" "Set fact buffer size threshold to N." 
+  method fact_size_thresh =
+    mk_opt ["fact:size-thresh"] "N" "Set fact buffer size threshold to N."
       Arg.(some int) None
 
   method local_cache_name =
     mk_opt ["local-cache-name"] "NAME" "Set local cache name to NAME."
       Arg.(some string) None
 
-    
+
 end (* of class diffast_options *)
 
-let get_opts 
+let get_opts
     ~verbose
     ~external_parser
     ~disable_parser
@@ -284,7 +302,7 @@ let extract = {
   name = "extract";
   doc = "Extract fact from Git object.";
   man = [];
-  term = 
+  term =
   let args = new diffast_args in
 (*
   let sha1 =
@@ -303,7 +321,7 @@ let extract = {
       root sha1s =
     run begin
 
-      let options = 
+      let options =
         get_opts ~verbose:(verbose())
           ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
           ~dump_fact:true ~fact_proj ~fact_size_thresh ~fact_enc
@@ -338,7 +356,7 @@ let extract = {
                 end
               ) sha1s
           with
-            exn -> 
+            exn ->
 	      eprintf "[EXCEPTION] %s\n%s\n"
                 (Printexc.to_string exn) (Printexc.get_backtrace());
 	      Lwt.return_unit
@@ -350,7 +368,7 @@ let extract = {
         args#external_parser $ args#disable_parser $
         args#clearcache $ args#cache_dir_base $ args#dump_delta $
         args#fact_proj $ args#fact_into_virtuoso $
-        args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $ 
+        args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $
         args#local_cache_name $
         args#repo $ sha1s)
 }
@@ -374,7 +392,7 @@ let diffast = {
       root sha1s =
     run begin
 
-      let options = 
+      let options =
         get_opts ~verbose:(verbose())
           ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
           ~dump_fact ~fact_proj ~fact_size_thresh ~fact_enc
@@ -405,7 +423,7 @@ let diffast = {
         | [s1] -> begin
             S.read_exn t (Hash.of_hex s1) >>= fun v ->
               match v with
-              | Value.Commit commit -> begin
+              | Git.Value.Commit commit -> begin
                   match Commit.parents commit with
                   | [] -> begin
                       eprintf "[ERROR] specify another SHA1\n";
@@ -441,7 +459,7 @@ let diffast = {
             GS.make_obj options repo_name t [Hash.of_hex sha1_0; Hash.of_hex sha1_1] >>= fun objs -> begin
 
               eprintf "comparing %s with %s...\n" sha1_0 sha1_1;
-              
+
               match objs with
               | [GS.Tree tree0; GS.Tree tree1] -> begin
 
@@ -456,7 +474,7 @@ let diffast = {
                     let nmodified = List.length info.Dirtree.i_modified in
                     if nmodified > 0 then begin
                       printf "[%d modified files]\n" nmodified;
-                      List.iter 
+                      List.iter
                         (fun (f1, f2) ->
                           if f1#path = f2#path then
                             printf "* %s\n" f1#path
@@ -468,7 +486,7 @@ let diffast = {
                     let nrenamed = List.length info.Dirtree.i_renamed in
                     if nrenamed > 0 then begin
                       printf "[%d renamed files]\n" nrenamed;
-                      List.iter 
+                      List.iter
                         (fun (f1, f2) ->
                           printf "* %s --> %s\n" f1#path f2#path;
                           printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
@@ -477,7 +495,7 @@ let diffast = {
                     let nmoved = List.length info.Dirtree.i_moved in
                     if nmoved > 0 then begin
                       printf "[%d moved files]\n" nmoved;
-                      List.iter 
+                      List.iter
                         (fun (f1, f2) ->
                           printf "* %s --> %s\n" f1#path f2#path;
                           printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
@@ -504,8 +522,8 @@ let diffast = {
                     let ncopied = List.length info.Dirtree.i_copied in
                     if ncopied > 0 then begin
                       printf "[%d copied files]\n" ncopied;
-                      List.iter 
-                        (fun (f, fs) -> 
+                      List.iter
+                        (fun (f, fs) ->
                           printf "* %s --> [%s]\n" f#path (String.concat ";" (List.map (fun f -> f#path) fs));
                           printf "  %s %s\n" (Xhash.to_hex f#digest) (Xhash.to_hex (List.hd fs)#digest)
                         ) info.Dirtree.i_copied
@@ -513,8 +531,8 @@ let diffast = {
                     let nglued = List.length info.Dirtree.i_glued in
                     if nglued > 0 then begin
                       printf "[%d glued files]\n" nglued;
-                      List.iter 
-                        (fun (fs, f) -> 
+                      List.iter
+                        (fun (fs, f) ->
                           printf "* [%s] --> %s\n" (String.concat ";" (List.map (fun f -> f#path) fs)) f#path;
                           printf "  %s %s\n" (Xhash.to_hex (List.hd fs)#digest) (Xhash.to_hex f#digest)
                         ) info.Dirtree.i_glued
@@ -544,7 +562,7 @@ let diffast = {
               end
             end
           with
-            exn -> 
+            exn ->
 	      eprintf "[EXCEPTION] %s\n%s\n" (Printexc.to_string exn) (Printexc.get_backtrace());
 	      Lwt.return_unit
 	end
@@ -590,16 +608,16 @@ let cat_file = {
         catch_ (fun () ->
             S.read_exn t (Hash.of_hex id) >>= fun v ->
             let t, c, s = match v with
-              | Value.Blob blob ->
+              | Git.Value.Blob blob ->
                 let c = Blob.to_string blob in
                 "blob", c, String.length c
-              | Value.Commit commit ->
+              | Git.Value.Commit commit ->
                 let c = Fmt.to_to_string Commit.pp commit in
                 "commit", c, String.length c
-              | Value.Tree tree ->
+              | Git.Value.Tree tree ->
                 let c = Fmt.to_to_string Tree.pp tree in
                 "tree", c, String.length c
-              | Value.Tag tag ->
+              | Git.Value.Tag tag ->
                 let c = Fmt.to_to_string Tag.pp tag in
                 "tag", c, String.length c
             in
@@ -613,13 +631,13 @@ let cat_file = {
 }
 
 (* LS-REMOTE *)
-let ls_remote = {
+(*let ls_remote = {
   name = "ls-remote";
   doc  = "List references in a remote repository.";
   man  = [];
   term =
     let ls remote =
-      let module Sync = Sync(S) in
+      let module Sync = Sync (S) in
       run begin
       S.v Fpath.(v (Sys.getcwd ())) >>= function
         | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
@@ -629,7 +647,7 @@ let ls_remote = {
           | Error err ->
               eprintf "[ERROR] %s\n" (Fmt.strf "%a" Sync.pp_error err); Lwt.return_unit
           | Ok references ->
-        Printf.printf "From %s\n" (Uri.to_string remote.Net.uri);
+        Printf.printf "From %s\n" (Uri.to_string remote.uri);
         let print (h, r, b) =
           Printf.printf "%s        %s (%B)\n" (Hash.to_hex h) (Reference.to_string r) b
         in
@@ -637,7 +655,7 @@ let ls_remote = {
         Lwt.return_unit
       end in
     Term.(mk ls $ remote)
-}
+}*)
 
 (* LS-TREE *)
 let ls_tree = {
@@ -667,7 +685,7 @@ let ls_tree = {
         Lwt.return_unit
       in
       let pp_tree mode kind path e =
-        printf "%s %s %s\t%s\n" mode kind (Hash.to_hex e.Tree.node) path
+        printf "%s %s %s\t%s\n" mode kind (Hash.to_hex e.Git.Tree.node) path
       in
       let pp_tag path h =
         printf "tag %s %s\n" (Hash.to_hex h) path;
@@ -675,20 +693,20 @@ let ls_tree = {
       in
       let rec walk t path h =
         S.read_exn t h >>= function
-        | Value.Commit c  -> walk t path (Commit.tree c)
-        | Value.Blob _    -> pp_blob path h
-        | Value.Tag _     -> pp_tag path h
-        | Value.Tree tree ->
+        | Git.Value.Commit c  -> walk t path (Commit.tree c)
+        | Git.Value.Blob _    -> pp_blob path h
+        | Git.Value.Tag _     -> pp_tag path h
+        | Git.Value.Tree tree ->
           Lwt_list.iter_s (fun e ->
-              let path = Filename.concat path e.Tree.name in
-              let kind, is_dir = get_kind e.Tree.perm in
-              let mode = Tree.string_of_perm e.Tree.perm in
+              let path = Filename.concat path e.Git.Tree.name in
+              let kind, is_dir = get_kind e.Git.Tree.perm in
+              let mode = string_of_perm e.Git.Tree.perm in
               let show =
                 if is_dir then not recurse || show_tree || only_tree
                 else not only_tree
               in
               if show then pp_tree mode kind path e;
-              if is_dir && recurse then walk t path e.Tree.node
+              if is_dir && recurse then walk t path e.Git.Tree.node
               else Lwt.return_unit
             ) (Tree.to_list tree)
       in
@@ -758,7 +776,7 @@ let default =
 
 let commands = List.map command [
     cat_file;
-    ls_remote;
+    (*ls_remote;*)
     ls_tree;
     diffast;
     extract;

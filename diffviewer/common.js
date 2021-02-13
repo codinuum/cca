@@ -28,7 +28,7 @@ function getParams() {
       result[name] = value;
     }
   }
-  return result;  
+  return result;
 }
 
 var lang_tbl = { "text/x-fortran" : ['f08','F08','f03','F03','f95','F95','f90','F90','f','F','for','FOR'],

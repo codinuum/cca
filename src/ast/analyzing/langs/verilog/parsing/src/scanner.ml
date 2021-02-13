@@ -39,9 +39,9 @@ module F (Stat : Aux.STATE_T) = struct
   exception Empty
 
   class c
-      (env : Aux.env) 
+      (env : Aux.env)
       (partial_parser_selector : Context.t -> TBF.partial_parser)
-      = 
+      =
     object (self)
       inherit [Tokens_.token] PB.scanner
 
@@ -78,7 +78,7 @@ module F (Stat : Aux.STATE_T) = struct
 
         if current_src#eof_reached then begin
           match current_src#eof_loc with
-          | Some loc -> 
+          | Some loc ->
 	      A.parse_failure_loc loc "syntax error"
           | None -> assert false
         end
@@ -129,7 +129,7 @@ module F (Stat : Aux.STATE_T) = struct
       initializer
         env#set_enter_source_callback self#enter_source
 
-          
+
     end (* of class Scanner.F.c *)
 
 

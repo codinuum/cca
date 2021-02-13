@@ -131,7 +131,7 @@ let set_fact_version str =
 
 let set_fact_proj s = options#set_fact_proj s
 
-let set_fact_proj_root s = 
+let set_fact_proj_root s =
   options#set_fact_proj_roots
     (Array.of_list ((Array.to_list options#fact_proj_roots) @ [s]))
 
@@ -146,7 +146,7 @@ let set_fact_for_mapping_restricted() =
 
 let usage_msg = sprintf "usage: %s [OPTIONS] FILE..\nOPTIONS:" Xprint.cmd_name
 
-let speclist = 
+let speclist =
   [
    "-version", Arg.Set show_version_flag, "\tshow version";
    "-verbose", Arg.Unit (fun () -> options#set_verbose_flag), "\tdisplay verbose messages";
@@ -160,7 +160,7 @@ let speclist =
 
    (*"-splithunk", Arg.Unit (fun () -> options#set_split_hunk_flag), "\tsplit delta hunks";!!!!!*)
 
-   "-keep-filtered-temp-file", Arg.Unit (fun () -> options#set_keep_filtered_temp_file_flag), 
+   "-keep-filtered-temp-file", Arg.Unit (fun () -> options#set_keep_filtered_temp_file_flag),
    "\tkeep filtered temporary file";
 
    "-parser:external", Arg.Unit set_external_parser_flags, "\t\trely on external parsers";
@@ -192,7 +192,7 @@ let speclist =
    "-dump:delta:compress", Arg.Unit set_dump_compressed_delta, "\tdump compressed AST";
 
 (* cache *)
-   "-cache", Arg.String options#set_cache_dir_base, 
+   "-cache", Arg.String options#set_cache_dir_base,
    sprintf "DIR\tcache dir base (default: %s)" options#cache_dir_base;
 
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
@@ -200,18 +200,18 @@ let speclist =
    "-usecache", Arg.Unit (fun () -> options#clear_clear_cache_flag), "\tuse cache";
    "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
    "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
-   "-localcachename", Arg.String options#set_local_cache_name, 
+   "-localcachename", Arg.String options#set_local_cache_name,
    sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;
 
 
 (* algorithm *)
-   "-limit", Arg.Int options#set_tree_size_limit_percent, 
+   "-limit", Arg.Int options#set_tree_size_limit_percent,
    sprintf "N\ttree size limit (%%) (default: %d)" options#tree_size_limit_percent;
 
-   "-thresh", Arg.Int options#set_tree_size_threshold, 
+   "-thresh", Arg.Int options#set_tree_size_threshold,
    sprintf "N\ttree size threshold (default: %d)" options#tree_size_threshold;
 
-   "-hardlimit", Arg.Int options#set_hard_tree_size_limit, 
+   "-hardlimit", Arg.Int options#set_hard_tree_size_limit,
    sprintf "N\thard tree size limit (default: %d)" options#hard_tree_size_limit;
 
    "-multinodematch", Arg.Unit (fun () -> options#set_multi_node_match_flag), "\tmaintain multiple node matches";
@@ -219,7 +219,7 @@ let speclist =
    "-nomultinodematch", Arg.Unit (fun () -> options#clear_multi_node_match_flag), "\tdo not maintain multiple node matches";
 *)
 
-   "-preprune", Arg.Int options#set_preprune_threshold, 
+   "-preprune", Arg.Int options#set_preprune_threshold,
    sprintf "N\tpre-prune size threshold (default: %d)" options#preprune_threshold;
 
    "-nopreprune", Arg.Unit (fun () -> options#clear_preprune_flag), "\tdisable pre-pruning";
@@ -239,7 +239,7 @@ let speclist =
    "-lock-match", Arg.Unit (fun () -> options#set_lock_matches_flag), "\t\tlock matched subtrees";
 *)
    "-noee", Arg.Unit (fun () -> options#set_no_enclave_elim_flag), "\tdisable enclave elimination";
-   "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold, 
+   "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold,
    sprintf "N\tthreshold for algorithm selection (default: %d)" options#match_algo_threshold;
 
    "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
@@ -247,29 +247,29 @@ let speclist =
    "-nomoves", Arg.Unit (fun () -> options#set_no_moves_flag), "\tdisable move generation";
    "-nocollapse", Arg.Unit (fun () -> options#set_no_collapse_flag), "\tdisable collapsing";
 
-   "-ignore-huge-arrays", Arg.Unit (fun () -> options#set_ignore_huge_arrays_flag), 
-   sprintf "\t\tignore huge arrays (default:%s)" 
+   "-ignore-huge-arrays", Arg.Unit (fun () -> options#set_ignore_huge_arrays_flag),
+   sprintf "\t\tignore huge arrays (default:%s)"
      (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 
-   "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag), 
-   sprintf "\t\tdo not ignore huge arrays (default:%s)" 
+   "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag),
+   sprintf "\t\tdo not ignore huge arrays (default:%s)"
      (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 
-   "-huge-array-thresh", Arg.Int options#set_huge_array_threshold, 
+   "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
    sprintf "N\thuge array size threshold (default: %d)" options#huge_array_threshold;
 
-   "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold, 
+   "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
    sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
 
    "-nomovrel", Arg.Unit (fun () -> options#set_no_movrel_flag), "\tdisable movrel generation";
 
-   "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold, 
+   "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
    sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;
 
-   "-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold, 
+   "-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold,
    sprintf "R\tmovrel ratio threshold (default: %f)" options#movrel_ratio_threshold;
 
-   "-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold, 
+   "-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold,
    sprintf "R\tmapped neighbours difference threshold (default: %f)" options#mapped_neighbours_difference_threshold;
 
    "-nounm", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
@@ -341,12 +341,12 @@ let speclist =
 (* others *)
    "-alignfragments", Arg.Unit set_align_fragments_flags, "\tfragments alignment mode";
 
-   "-incompleteinfo", Arg.Unit (fun () -> options#set_incomplete_info_flag), 
+   "-incompleteinfo", Arg.Unit (fun () -> options#set_incomplete_info_flag),
    "\tsome parts of info are omitted in AST (for counting nodes only)";
 
  ]
 
-let _ = 
+let _ =
   try
     Arg.parse
       speclist
@@ -358,7 +358,7 @@ let _ =
 
 let _ =
   if options#fact_into_virtuoso <> "" && options#fact_into_directory <> "" then begin
-    Xprint.error "options -fact:into-virtuoso and -fact:into-directory are mutually exclusive"; 
+    Xprint.error "options -fact:into-virtuoso and -fact:into-directory are mutually exclusive";
     exit 1
   end
 
@@ -370,7 +370,7 @@ let _ =
   end
 
 
-let astcore = 
+let astcore =
   let _ = Lang.setup_options options in
   new Diffastcore.c options
 
@@ -398,9 +398,9 @@ let _ =
 
         let multi_ver_mode = nfiles = 1 && nvers > 1 in
 
-	Array.iteri 
-	  (fun i f -> 
-	    let pr = 
+	Array.iteri
+	  (fun i f ->
+	    let pr =
 	      try
                 last_proj_root := options#fact_proj_roots.(i);
                 !last_proj_root
@@ -425,7 +425,7 @@ let _ =
                   Dirtree_base.To_be_skipped -> ()
               end
               else begin
-                let show_info = 
+                let show_info =
                   not (options#dump_src_flag && options#dump_src_out = "")
                 in
                 let version, versions =
@@ -465,7 +465,7 @@ let _ =
     exit 0
   end
 
-let _ = 
+let _ =
   if !keyword <> "" then begin
     begin
       try
@@ -520,13 +520,13 @@ let new_file, old_file =
   with
   | Xfile.No_such_file_or_directory f -> Xprint.error "\"%s\": no such file or directory" f; exit 1
 
-let _ = 
-  if new_file = old_file && not !align_fragments_flag && not !get_cache_dir_only then begin 
-    if options#viewer_flag then 
+let _ =
+  if new_file = old_file && not !align_fragments_flag && not !get_cache_dir_only then begin
+    if options#viewer_flag then
       printf "%c%!" Const.viewer_mode_status_SAME
-    else 
+    else
       printf "same file or directory\n";
-    exit 0 
+    exit 0
   end
 
 
@@ -556,11 +556,11 @@ let _ =
       let cache_path = astcore#get_cache_path2 old_file new_file in
       let gmap_path = Filename.concat cache_path options#clone_map_file_name in
       let ast1 = astcore#__parse_file old_file in
-      let ast2 = 
-	if old_file#digest = new_file#digest then 
+      let ast2 =
+	if old_file#digest = new_file#digest then
 	  ast1
 	else
-	  astcore#__parse_file new_file 
+	  astcore#__parse_file new_file
       in
       let gmap = Sourcecode.load_gmap gmap_path in
       ast1#align_fragments gmap ast2
@@ -578,9 +578,9 @@ let _ =
 	then begin
 
 	  Xprint.message "read from cache%s:\n%s"
-            (if options#local_cache_name = "" then 
-              "" 
-            else 
+            (if options#local_cache_name = "" then
+              ""
+            else
               sprintf " (local cache name: %s)" options#local_cache_name)
             (Xlist.to_string (fun x -> x.Cache.sr_cache_path) "\n" stat_paths);
 
@@ -604,13 +604,13 @@ let _ =
           handle_file_versions 1 new_file;
 
 	  try
-	    let stat = 
-              S.File.scan_diff_stat ~max_retry_count:options#max_retry_count 
+	    let stat =
+              S.File.scan_diff_stat ~max_retry_count:options#max_retry_count
                 stat_paths
             in
 	    S.File.dump_diff_stat_ch ~short:true stat stdout
 	  with
-	    S.Stat_not_found -> 
+	    S.Stat_not_found ->
 	      Xprint.warning "re-computing...";
 	      ignore (astcore#compare_files ~cache_path old_file new_file)
 	end
@@ -624,7 +624,7 @@ let _ =
       end
     end
 
-  with 
+  with
 (*
   | A.No_differences_found            -> printf "\nno differences found\n%!"
 *)

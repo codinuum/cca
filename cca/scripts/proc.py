@@ -95,7 +95,7 @@ class PopenContext(object):
 
         else:
             return False
-        
+
 
 def test():
     cmd = 'lss'

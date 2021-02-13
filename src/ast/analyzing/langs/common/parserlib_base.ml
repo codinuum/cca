@@ -76,12 +76,12 @@ let get_stripped_pos pos =
 
 (* *)
 
-let make_token ?cache ?(ext="") rt st ed = 
-  let xst, xed = 
+let make_token ?cache ?(ext="") rt st ed =
+  let xst, xed =
     if ext = "" then
       st, ed
     else
-      extend_poss ?cache ext st ed 
+      extend_poss ?cache ext st ed
   in
   ((rt, xst, xed) : 'rawtoken token)
 
@@ -100,7 +100,7 @@ let merge_locs ?(cache=None) st ed =
   try
     Astloc.merge st ed
   with
-    Failure _ -> 
+    Failure _ ->
       let lloc =
         Layeredloc.merge (Layeredloc.of_loc st) (Layeredloc.of_loc ed)
       in
@@ -111,7 +111,7 @@ let loc_of_lexposs ?(cache=None) st ed =
   try
     Astloc.of_lexposs st ed
   with
-    Failure _ -> 
+    Failure _ ->
       let lloc =
         Layeredloc.merge (Layeredloc.of_lexpos st) (Layeredloc.of_lexpos ed)
       in
@@ -128,11 +128,11 @@ let qtoken_to_loc ((rt, loc) : 'rt qtoken) = loc
 
 let qtoken_to_rawtoken ((rt, loc) : 'rt qtoken) = rt
 
-let qtoken_to_token ((rt, loc) : 'rt qtoken) = 
+let qtoken_to_token ((rt, loc) : 'rt qtoken) =
   let st, ed = Astloc.to_lexposs loc in
   make_token rt st ed
 
-let _qtoken_to_string to_string ((rt, loc) : 'rt qtoken) = 
+let _qtoken_to_string to_string ((rt, loc) : 'rt qtoken) =
   Printf.sprintf "%s[%s]" (to_string rt) (Astloc.to_string loc)
 
 
@@ -141,7 +141,7 @@ let _qtoken_to_string to_string ((rt, loc) : 'rt qtoken) =
 let fail_to_parse ?(head="") msg = raise (Parse_error(head, msg))
 
 
-let parse_error_loc ?(head="") env mknode loc (fmt : ('a, unit, string, 'b) format4) : 'a = 
+let parse_error_loc ?(head="") env mknode loc (fmt : ('a, unit, string, 'b) format4) : 'a =
   let loc_str = Astloc.to_string ~short:false ~prefix:"[" ~suffix:"]" loc in
   Printf.ksprintf
     (fun msg ->
@@ -159,8 +159,8 @@ let parse_error ?(head="") env mknode spos epos =
   parse_error_loc ~head env mknode loc
 
 let parse_warning_loc ?(out=stderr) ?(head="") loc (fmt : ('a, out_channel, unit, 'b) format4) : 'a =
-  Printf.kfprintf 
-    (fun ochan -> Printf.fprintf ochan "\n%!") 
+  Printf.kfprintf
+    (fun ochan -> Printf.fprintf ochan "\n%!")
     out
     ("[%s][WARNING]%s[%s] "^^fmt) cmd_name head (Astloc.to_string ~short:false loc)
 

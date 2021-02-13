@@ -91,7 +91,7 @@ DiffViewer.prototype.show = function(url0, url1, urld, elem, mode, line1, line2,
 	});
 
         self.mv.init();
-	
+
       })
 
     })

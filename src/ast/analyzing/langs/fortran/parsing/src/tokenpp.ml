@@ -44,8 +44,8 @@ let check_partial partial =
   let nerrs = ref 0 in
   List.iter
     (fun node ->
-      Ast.visit 
-	(fun nd -> 
+      Ast.visit
+	(fun nd ->
 	  incr nnodes;
 	  if Label.is_error nd#label then
 	    incr nerrs
@@ -66,8 +66,8 @@ module F (Stat : Aux.STATE_T) = struct
   module U = Ulexer.F (Stat)
   module P = Parser.Make (Stat)
   module A = Aux.F (Stat)
-  
-  open Tokens_   
+
+  open Tokens_
   open Stat
 
 
@@ -88,12 +88,12 @@ module F (Stat : Aux.STATE_T) = struct
 
     method get_tag = btag
 
-    method get_context = 
+    method get_context =
 (*      DEBUG_MSG "%s" (C.to_string context); *)
       context
 
-    method set_context c = 
-      DEBUG_MSG "[%s]: %s" (B.tag_to_string btag) (C.to_string c); 
+    method set_context c =
+      DEBUG_MSG "[%s]: %s" (B.tag_to_string btag) (C.to_string c);
       context <- c;
       self#iter_branch (fun buf -> buf#set_context c)
 
@@ -144,7 +144,7 @@ module F (Stat : Aux.STATE_T) = struct
     method get_context = context
     method clear = is_empty <- true
 
-    method _add (qtoken : Token.qtoken_t) = 
+    method _add (qtoken : Token.qtoken_t) =
       let tok, _ = qtoken in
       if not (TokenF.is_pp_directive tok) then begin
         DEBUG_MSG "adding %s" (Token.qtoken_to_string qtoken);
@@ -165,13 +165,13 @@ module F (Stat : Aux.STATE_T) = struct
 
     method current_is_empty = self#current#is_empty
 
-    method set_context c = 
+    method set_context c =
       DEBUG_MSG "%s" (Context.to_string c);
       self#current#set_context (Context.copy_context c)
 
     method get_context = self#current#get_context
 
-    method clear_context = 
+    method clear_context =
       DEBUG_MSG "called";
       self#current#clear;
       self#current#set_context (Context.copy_context context_stack#top)
@@ -229,11 +229,11 @@ module F (Stat : Aux.STATE_T) = struct
         Not_found ->
           FATAL_MSG "stack not found: key=%s" (C.key_to_string key);
           raise (Common.Internal_error "Tokenpp.context_buffer#recover")
-      
+
     method to_string =
       let buf = Buffer.create 0 in
-      Stack.iter 
-        (fun b -> 
+      Stack.iter
+        (fun b ->
           Buffer.add_string buf (Printf.sprintf "%s\n" (Context.to_string b#get_context))
         ) stack;
       Buffer.contents buf
@@ -278,7 +278,7 @@ module F (Stat : Aux.STATE_T) = struct
     DEBUG_MSG "%s vs %s -> %B" cond0 cond1 b;
     b
 
-  class buffer ?(context=None) lv partial_parser_selector (tokensrc : Tokensource.c) = 
+  class buffer ?(context=None) lv partial_parser_selector (tokensrc : Tokensource.c) =
     let new_context =
       match context with
       | None -> true
@@ -292,12 +292,12 @@ module F (Stat : Aux.STATE_T) = struct
 
     val mutable ignored_regions : Loc.t list = []
 
-    val context_buf = 
+    val context_buf =
       match context with
       | None -> new context_buffer
       | Some cb -> cb
 
-    val branch_tag_stack = Stack.create() 
+    val branch_tag_stack = Stack.create()
 
     val branches_with_else = Xset.create 0
 (* *)
@@ -311,19 +311,19 @@ module F (Stat : Aux.STATE_T) = struct
 (*
     method current_context_buf = context_buf#current
 
-    method set_context c = 
+    method set_context c =
       DEBUG_MSG "[%d] %s" lv (Context.to_string c);
       context_buf#set_context c
 *)
-    method clear_context = 
+    method clear_context =
       DEBUG_MSG "[%d] called" lv;
       context_buf#clear_context
 
-    method enter_context = 
+    method enter_context =
       DEBUG_MSG "[%d] context buffer stack size: %d" lv context_buf#stack_size;
       context_buf#enter_context
 
-    method exit_context = 
+    method exit_context =
       DEBUG_MSG "[%d] context buffer stack size: %d" lv context_buf#stack_size;
       context_buf#exit_context
 
@@ -356,8 +356,8 @@ module F (Stat : Aux.STATE_T) = struct
 
     method current_bbuf = Stack.top stack
 
-    method add ?(raise_if_failed=false) qtoken = 
-      DEBUG_MSG "[%d] adding %s (raise_if_failed=%B)" 
+    method add ?(raise_if_failed=false) qtoken =
+      DEBUG_MSG "[%d] adding %s (raise_if_failed=%B)"
         lv (Token.qtoken_to_string qtoken) raise_if_failed;
       try
         (self#current_bbuf)#add qtoken
@@ -368,13 +368,13 @@ module F (Stat : Aux.STATE_T) = struct
               raise Branch_canceled
           end
           else
-            Common.fail_to_parse 
+            Common.fail_to_parse
               ~head:(Printf.sprintf "[%s]" (Loc.to_string (Token.qtoken_to_loc qtoken)))
               "failed to parse pp-branch"
 
 
-    method dump_top = 
-      (self#current_bbuf)#dump 
+    method dump_top =
+      (self#current_bbuf)#dump
 
 
 
@@ -397,7 +397,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      else
 		bufs := bbuf#top :: !bufs;
 	    ) stack
-	with 
+	with
 	  Exit -> ()
       end;
       match !start with
@@ -438,9 +438,9 @@ module F (Stat : Aux.STATE_T) = struct
     method ignored_offsets = List.map Loc.to_offsets ignored_regions
 *)
 
-    method begin_branch ~open_if btag = 
+    method begin_branch ~open_if btag =
 
-      DEBUG_MSG "[%d] open_if=%B, nbbuf=%d context=%s btag=%s" 
+      DEBUG_MSG "[%d] open_if=%B, nbbuf=%d context=%s btag=%s"
         lv open_if self#nbbuf (C.to_string context_stack#top) (B.tag_to_string btag);
 
       let bbuf = new branching_buffer btag in
@@ -467,7 +467,7 @@ module F (Stat : Aux.STATE_T) = struct
 	end
 	else begin (* context buffer is not empty *)
 
-	  DEBUG_MSG "[%d] last non-pp qtoken in context buffer: %s" lv 
+	  DEBUG_MSG "[%d] last non-pp qtoken in context buffer: %s" lv
             (Token.qtoken_to_string cbuf#get_last);
 
 
@@ -483,15 +483,15 @@ module F (Stat : Aux.STATE_T) = struct
             match last_tok with
             | EOL | SEMICOLON
             | SPEC_PART_CONSTRUCT _ | EXEC_PART_CONSTRUCT _
-            | DERIVED_TYPE_DEF_PART _ | END_FRAGMENT 
+            | DERIVED_TYPE_DEF_PART _ | END_FRAGMENT
             | FUNCTION_HEAD _ | SUBROUTINE_HEAD _ | PU_TAIL _ | STMT _
             | SUBPROGRAM _ | PROGRAM_UNIT _
             | NOTHING
             | INCLUDE__FILE _
                 -> ()
 
-            | _ -> 
-                DEBUG_MSG "changing context: %s -> %s (last_tok=%s)" 
+            | _ ->
+                DEBUG_MSG "changing context: %s -> %s (last_tok=%s)"
                   (C.tag_to_string (C.get_tag !bbuf_context))
                   (C.tag_to_string C.Tin_stmt) (Token.rawtoken_to_string last_tok);
 
@@ -518,7 +518,7 @@ module F (Stat : Aux.STATE_T) = struct
     (* end of method begin_branch *)
 
 
-    method end_branch ~open_if endif_loc = 
+    method end_branch ~open_if endif_loc =
       DEBUG_MSG "[%d] open_if=%B, nbbuf=%d" lv open_if self#nbbuf;
       let bbuf = Stack.pop stack in
       DEBUG_MSG "bbuf poped: %s" (B.tag_to_string bbuf#get_tag);
@@ -535,11 +535,11 @@ module F (Stat : Aux.STATE_T) = struct
 
 
 
-    method add_to_context qtoken = 
+    method add_to_context qtoken =
       DEBUG_MSG "[%d] adding %s" lv (Token.qtoken_to_string qtoken);
       context_buf#current#_add qtoken
 
-    method set_context c = 
+    method set_context c =
       DEBUG_MSG "[%d] context=%s" lv (Context.to_string c);
       context_buf#current#set_context (Context.copy_context c)
 
@@ -590,7 +590,7 @@ module F (Stat : Aux.STATE_T) = struct
                   raise Exit
                 end;
 
-		if !branch_depth > 0 then 
+		if !branch_depth > 0 then
 		    decr branch_depth
             end
             | EOL ->
@@ -598,7 +598,7 @@ module F (Stat : Aux.STATE_T) = struct
 
             | OCL _ | OMP _ | XLF _ | ACC _ | DEC _ -> ()
 
-            | _ -> 
+            | _ ->
                 if TokenF.is_pp_directive tok then
                   ()
                 else
@@ -615,13 +615,13 @@ module F (Stat : Aux.STATE_T) = struct
       DEBUG_MSG "finished"
 
 
-    method private consume () = 
+    method private consume () =
       let qtoken = tokensrc#get() in
       let tok, loc = qtoken in
 
       let buffer_add ?(raise_if_failed=false) () =
         DEBUG_MSG "[%d] in_branch=%B" lv self#in_branch;
-        let t = 
+        let t =
           if self#in_branch then
             qtoken
           else
@@ -629,8 +629,8 @@ module F (Stat : Aux.STATE_T) = struct
         in
 	self#add ~raise_if_failed t
       in
-      
-      DEBUG_MSG "[%d] %s[%s]" lv 
+
+      DEBUG_MSG "[%d] %s[%s]" lv
         (Token.rawtoken_to_string tok) (Loc.to_string ~show_ext:true loc);
 
       match tok with
@@ -639,7 +639,7 @@ module F (Stat : Aux.STATE_T) = struct
           env#current_source#add_ext_Fujitsu;
           let ulb = Ulexing.from_utf8_string (line^"\n") in
           let base_ofs = loc.Loc.start_offset + 4 (* length of '!ocl' *) in
-          let scanner() = 
+          let scanner() =
             PB.qtoken_to_token (U.scan_ocl base_ofs ulb)
           in
           try
@@ -665,7 +665,7 @@ module F (Stat : Aux.STATE_T) = struct
           let base_ofs = (* length of '!' + prefix *)
             loc.Loc.start_offset + (String.length prefix) + 1
           in
-          let scanner() = 
+          let scanner() =
             PB.qtoken_to_token (U.scan_dec base_ofs ulb)
           in
           try
@@ -712,10 +712,10 @@ module F (Stat : Aux.STATE_T) = struct
           DEBUG_MSG "whole line: \"%s\"" !whole_line;
 
           let ulb = Ulexing.from_utf8_string (!whole_line^"\n") in
-          let base_ofs = (* length of '!' + trigger const. *) 
+          let base_ofs = (* length of '!' + trigger const. *)
             loc.Loc.start_offset + (String.length trigger) + 1
           in
-          let scanner() = 
+          let scanner() =
             PB.qtoken_to_token (U.scan_xlf base_ofs ulb)
           in
           try
@@ -780,7 +780,7 @@ module F (Stat : Aux.STATE_T) = struct
                     | Some (tmp, _) -> begin
                         let tmp_tok, tmp_loc = tmp in
                         match tmp_tok with
-                        | IDENTIFIER tmp_i -> 
+                        | IDENTIFIER tmp_i ->
                             let st, _ = Loc.to_lexposs tmp_loc in
                             let _, ed = Loc.to_lexposs (Token.qtoken_to_loc t) in
                             let t' = PB.make_qtoken (IDENTIFIER (tmp_i^i)) st ed in
@@ -793,7 +793,7 @@ module F (Stat : Aux.STATE_T) = struct
                 | _ -> begin
                     begin
                       match tmp_opt with
-                      | Some (tmp, merged) -> 
+                      | Some (tmp, merged) ->
                           if merged then begin
                             match Token.qtoken_to_rawtoken tmp with
                             | IDENTIFIER i ->
@@ -876,7 +876,7 @@ module F (Stat : Aux.STATE_T) = struct
                 | LPAREN::OMP_MAP::_ -> true
                 | _ -> false
             end
-            | Some _ 
+            | Some _
             | None -> false
           in
           let in_type_context() =
@@ -890,7 +890,7 @@ module F (Stat : Aux.STATE_T) = struct
             | _ -> false
           in
 
-          let scanner() = 
+          let scanner() =
             let final_t =
               try
                 let t = queue3#take in
@@ -1009,7 +1009,7 @@ module F (Stat : Aux.STATE_T) = struct
               tok', loc
           with
             exn ->
-              Common.parse_warning_loc loc 
+              Common.parse_warning_loc loc
                 "failed to parse omp: [%s]:%s" line (Printexc.to_string exn);
               self#pp ()
       end
@@ -1095,11 +1095,11 @@ module F (Stat : Aux.STATE_T) = struct
       | PP_BRANCH (PPD.Elif cond) -> begin
           let branch_depth = self#branch_depth in
 
-          DEBUG_MSG "processing %s (branch depth: %d)" 
+          DEBUG_MSG "processing %s (branch depth: %d)"
             (Token.rawtoken_to_string tok) branch_depth;
 
           if branch_depth = 1 then begin
-            let kloc = 
+            let kloc =
               try
                 let tag = Stack.top branch_tag_stack in
                 DEBUG_MSG "top branch tag: %s" (B.tag_to_string tag);
@@ -1125,13 +1125,13 @@ module F (Stat : Aux.STATE_T) = struct
       | PP_BRANCH PPD.Else -> begin
           let branch_depth = self#branch_depth in
 
-          DEBUG_MSG "processing %s (branch depth: %d)" 
+          DEBUG_MSG "processing %s (branch depth: %d)"
             (Token.rawtoken_to_string tok) branch_depth;
 
           if branch_depth = 1 then begin
             let top_btag = Stack.top branch_tag_stack in
             self#reg_branch_with_else top_btag;
-            let kloc = 
+            let kloc =
               try
                 B.key_loc_of_tag top_btag
               with
@@ -1155,7 +1155,7 @@ module F (Stat : Aux.STATE_T) = struct
       | PP_BRANCH (PPD.Endif(br, plv)) -> begin
           let branch_depth = self#branch_depth in
 
-          DEBUG_MSG "processing %s (branch depth: %d)" 
+          DEBUG_MSG "processing %s (branch depth: %d)"
             (Token.rawtoken_to_string tok) self#branch_depth;
 
           begin
@@ -1214,7 +1214,7 @@ module F (Stat : Aux.STATE_T) = struct
                       let t, _ = tokensrc#discard ~skip_pp_branch:false () in
                       DEBUG_MSG "discarded: %s" (Token.rawtoken_to_string t)
                     done;
-                    let kloc = 
+                    let kloc =
                       try
                         B.key_loc_of_tag top_btag
                       with
@@ -1234,7 +1234,7 @@ module F (Stat : Aux.STATE_T) = struct
               end
             with
               Branch_canceled -> env#decr_discarded_branch_entry_count
-          end;  
+          end;
 
 	  DEBUG_MSG "[%d] calling pp" lv;
 	  self#pp ()
@@ -1328,7 +1328,7 @@ module F (Stat : Aux.STATE_T) = struct
       end (* | _ -> *)
 
     (* end of method consume *)
-      
+
 
     method pp () =
       DEBUG_MSG "[%d] tokenbuf#in_branch=%B" lv self#in_branch;
@@ -1338,16 +1338,16 @@ module F (Stat : Aux.STATE_T) = struct
 
 
     method select_branches endif_loc bbuf =
-      
+
       let context = bbuf#get_context in
 
       BEGIN_DEBUG
 	DEBUG_MSG "[%d] context: %s" lv (C.to_string context);
         DEBUG_MSG "[%d] branches:" lv;
         bbuf#iter_branch
-	  (fun buf -> 
-	    DEBUG_MSG "%s [%s] (ntokens=%d) [%s]" 
-	      (B.tag_to_string buf#get_tag) 
+	  (fun buf ->
+	    DEBUG_MSG "%s [%s] (ntokens=%d) [%s]"
+	      (B.tag_to_string buf#get_tag)
 	      (try Loc.to_string buf#get_loc with _ -> "-")
 	      buf#size
 	      (C.to_string buf#get_context);
@@ -1372,11 +1372,11 @@ module F (Stat : Aux.STATE_T) = struct
       let bbuf_top_last_EOL_opt = bbuf#top#get_last_EOL in
       let bbuf_top_length = bbuf#top#total_length_no_pp in
 
-      DEBUG_MSG "bbuf_top_last_EOL_opt: %s (buf length: %d)" 
+      DEBUG_MSG "bbuf_top_last_EOL_opt: %s (buf length: %d)"
         (Common.opt_to_string Token.qtoken_to_string bbuf_top_last_EOL_opt)
         bbuf_top_length;
 
-      let bbuf_top_last_EOL_exists = 
+      let bbuf_top_last_EOL_exists =
         match bbuf_top_last_EOL_opt with
         | Some _ -> true
         | None -> false
@@ -1487,14 +1487,14 @@ module F (Stat : Aux.STATE_T) = struct
 
         let incomplete_flag = ref true in
 
-	bbuf#iter_branch 
-	  (fun br -> 
+	bbuf#iter_branch
+	  (fun br ->
 
             adjust_last ~context:top_context br;
             br#remove_first_END_FRAGMENT;
 
             let pcount = ref 1 in
-            
+
             try
               List.iter
                 (fun _parser ->
@@ -1532,9 +1532,9 @@ module F (Stat : Aux.STATE_T) = struct
                     (*Printf.printf "! PARSED (nnodes=%d nerrs=%d)\n%!" nnodes nerrs;*)
                     incomplete_flag := false;
                     raise Exit
-                      
-	          with 
-                    TB.Incomplete -> 
+
+	          with
+                    TB.Incomplete ->
                       DEBUG_MSG "INCOMPLETE";
                       (*Printf.printf "! INCOMPLETE\n%!";*)
                       incr pcount
@@ -1545,7 +1545,7 @@ module F (Stat : Aux.STATE_T) = struct
               (*Printf.printf "ignoring branch:\n%s\n%!" br#to_string;*)
               br#dump;
               ignored := br::!ignored
-                               
+
             with
               Exit -> ()
 	  );
@@ -1583,64 +1583,64 @@ module F (Stat : Aux.STATE_T) = struct
                         | Stmt.BlockDataStmt _       -> Stack.push (nd, OSTpu) cstack
 
                         | Stmt.EndDoStmt _     -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTdo) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndForallStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTforall) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndIfStmt _     -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTif) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndSelectStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTselect) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndWhereStmt _  -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTwhere) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndTypeStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTtype) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndFunctionStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTfunction) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndSubroutineStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTsubroutine) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndModuleStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTpu) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndSubmoduleStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTpu) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndBlockDataStmt _ -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTpu) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Stmt.EndStmt -> begin
-                            match Stack.top cstack with 
-                            | (_, OSTpu) 
-                            | (_, OSTfunction) 
+                            match Stack.top cstack with
+                            | (_, OSTpu)
+                            | (_, OSTfunction)
                             | (_, OSTsubroutine) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
@@ -1659,47 +1659,47 @@ module F (Stat : Aux.STATE_T) = struct
                     | Label.PpBranchPu          -> Stack.push (nd, OSTpu) cstack
 
                     | Label.PpBranchEndDo     -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTdo) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndForall -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTforall) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndIf     -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTif) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndSelect -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTselect) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndWhere  -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTwhere) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndType  -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTtype) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndFunction  -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTfunction) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndSubroutine  -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTsubroutine) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
                     | Label.PpBranchEndPu  -> begin
-                        match Stack.top cstack with 
+                        match Stack.top cstack with
                         | (_, OSTpu) -> ignore (Stack.pop cstack)
                         | _ -> raise TB.Incomplete
                     end
@@ -1728,32 +1728,32 @@ module F (Stat : Aux.STATE_T) = struct
                             | Stmt.EndStmt             -> Stack.push (nd, OSTpu) cstack
 
                             | Stmt.DoStmt _              -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTdo) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
                             | Stmt.ForallConstructStmt _ -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTforall) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
                             | Stmt.IfThenStmt _          -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTif) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
                             | Stmt.SelectCaseStmt _      -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTselect) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
                             | Stmt.WhereConstructStmt _  -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTwhere) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
                             | Stmt.DerivedTypeStmt _     -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTtype) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
@@ -1780,7 +1780,7 @@ module F (Stat : Aux.STATE_T) = struct
                                 | _ -> raise TB.Incomplete
                             end
                             | Stmt.BlockDataStmt _     -> begin
-                                match Stack.top cstack with 
+                                match Stack.top cstack with
                                 | (_, OSTpu) -> ignore (Stack.pop cstack)
                                 | _ -> raise TB.Incomplete
                             end
@@ -1799,49 +1799,49 @@ module F (Stat : Aux.STATE_T) = struct
                         | Label.PpBranchEndPu         -> Stack.push (nd, OSTpu) cstack
 
                         | Label.PpBranchDo     -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTdo) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchForall -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTforall) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchIf     -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTif) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchSelect -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTselect) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchWhere  -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTwhere) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchDerivedType -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTtype) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchFunction -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTpu)
                             | (_, OSTfunction) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchSubroutine -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTpu)
                             | (_, OSTsubroutine) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
                         | Label.PpBranchPu -> begin
-                            match Stack.top cstack with 
+                            match Stack.top cstack with
                             | (_, OSTpu) -> ignore (Stack.pop cstack)
                             | _ -> raise TB.Incomplete
                         end
@@ -1863,11 +1863,11 @@ module F (Stat : Aux.STATE_T) = struct
               []
             else
               match br#label with
-              | Label.PpSectionIf _     
-              | Label.PpSectionElif _   
-              | Label.PpSectionIfdef _  
-              | Label.PpSectionIfndef _ 
-              | Label.PpSectionElse 
+              | Label.PpSectionIf _
+              | Label.PpSectionElif _
+              | Label.PpSectionIfdef _
+              | Label.PpSectionIfndef _
+              | Label.PpSectionElse
                 -> [new Ast.node ~lloc:(Ast.lloc_of_nodes part) ~children:part br#label]
               | _ -> assert false
           in
@@ -1909,17 +1909,17 @@ module F (Stat : Aux.STATE_T) = struct
 
                 let _children, length, tags =
                   List.fold_left
-                    (fun (lst, len, tags) br -> 
+                    (fun (lst, len, tags) br ->
                       let br_as_list = br#get_list in
                       match br_as_list with
                       | [(tok, _)] -> begin
                           match tok with
-                          | PROGRAM_UNIT(spec, nd) | SUBPROGRAM(spec, nd) 
+                          | PROGRAM_UNIT(spec, nd) | SUBPROGRAM(spec, nd)
                           | INTERFACE_SPEC(spec, nd)
                           | CASE_BLOCK(spec, nd)
                           | SPEC_PART_CONSTRUCT(spec, nd)
-                          | DATA_STMT_SET(spec, nd) | TYPE_SPEC(spec, nd) 
-                          | VARIABLE(spec, nd) | EXPR(spec, nd) 
+                          | DATA_STMT_SET(spec, nd) | TYPE_SPEC(spec, nd)
+                          | VARIABLE(spec, nd) | EXPR(spec, nd)
                           | DERIVED_TYPE_DEF_PART(spec, nd) ->
                               nd :: lst, (Partial.length_of_spec spec) + len, (get_tag spec) :: tags
 
@@ -1933,7 +1933,7 @@ module F (Stat : Aux.STATE_T) = struct
                               open_construct_flag := true;
                               nd :: lst, (Partial.length_of_spec spec) + len, C.Tstmts :: tags
 
-                          | FUNCTION_HEAD(spec, nd) | SUBROUTINE_HEAD(spec, nd) 
+                          | FUNCTION_HEAD(spec, nd) | SUBROUTINE_HEAD(spec, nd)
                           | PU_TAIL(spec, nd) ->
                               open_section_flag := true;
                               nd :: lst, (Partial.length_of_spec spec) + len, (get_tag spec) :: tags
@@ -1941,11 +1941,11 @@ module F (Stat : Aux.STATE_T) = struct
                           | FUNCTION_STMT_HEAD(spec, nd) | SUBROUTINE_STMT_HEAD(spec, nd) ->
                               nd :: lst, (Partial.length_of_spec spec) + len, (get_tag spec) :: tags
 
-                          | _ -> 
+                          | _ ->
                               BEGIN_DEBUG
                                 DEBUG_MSG "br#get_list:";
                                 List.iter
-                                  (fun (t, _) -> 
+                                  (fun (t, _) ->
                                     DEBUG_MSG "  %s" (Token.rawtoken_to_string t)
                                   ) br_as_list
                               END_DEBUG;
@@ -1961,7 +1961,7 @@ module F (Stat : Aux.STATE_T) = struct
                           BEGIN_DEBUG
                             DEBUG_MSG "br#get_list:";
                             List.iter
-                              (fun (t, _) -> 
+                              (fun (t, _) ->
                                 DEBUG_MSG "  %s" (Token.rawtoken_to_string t)
                               ) br_as_list
                           END_DEBUG;
@@ -1972,7 +1972,7 @@ module F (Stat : Aux.STATE_T) = struct
                 in (* _children, length, tags *)
 
                 let children = List.rev _children in
-                
+
                 DEBUG_MSG "tag_loc: %s" (Loc.to_string ~show_ext:true tag_loc);
                 DEBUG_MSG "endif_loc: %s" (Loc.to_string ~show_ext:true endif_loc);
 
@@ -1996,7 +1996,7 @@ module F (Stat : Aux.STATE_T) = struct
                 DEBUG_MSG "tag of branch: %s" (C.tag_to_string tag);
 
                 let basic_case() =
-                  let tok, need_eol = 
+                  let tok, need_eol =
                     let node = new Ast.node ~lloc:selected_lloc ~children Label.PpBranch in
                     match tag with
                     | C.Tunknown               -> assert false
@@ -2050,7 +2050,7 @@ module F (Stat : Aux.STATE_T) = struct
 
                   List.iter
                     (fun br ->
-                      incr br_count;                      
+                      incr br_count;
                       DEBUG_MSG "branch [%d]\n%s" !br_count (Printer.to_string br);
 
                       let open_section_list, rev_mode = get_open_section_list br in
@@ -2094,9 +2094,9 @@ module F (Stat : Aux.STATE_T) = struct
                       ) crosscutting_open_sections_list
                   END_DEBUG;
 
-                  let open_section_tag_a = 
-                    Array.of_list 
-                      (List.map 
+                  let open_section_tag_a =
+                    Array.of_list
+                      (List.map
                          (function
                            | [] -> assert false
                            | (_, t)::_ -> t
@@ -2121,14 +2121,14 @@ module F (Stat : Aux.STATE_T) = struct
 
                     let part_count = ref 0 in
 
-                    let br_a = 
+                    let br_a =
                       let f =
                         if !reverse_mode then
                           fun br -> List.rev br#children
                         else
                           fun br -> br#children
                       in
-                      Array.of_list (List.map f children) 
+                      Array.of_list (List.map f children)
                     in
 
                     List.iter
@@ -2170,11 +2170,11 @@ module F (Stat : Aux.STATE_T) = struct
                                 scan [] stmts
 
                             in (* _former, latter *)
-                            let former = 
+                            let former =
                               if !reverse_mode then
                                 _former
                               else
-                                List.rev _former 
+                                List.rev _former
                             in
                             DEBUG_MSG "part=%d br=%d" !part_count !br_count;
                             DEBUG_MSG "former(part):\n%s" (Xlist.to_string (fun n -> n#to_string) "\n" former);
@@ -2225,11 +2225,11 @@ module F (Stat : Aux.STATE_T) = struct
                       in
                       let lloc = Ast.lloc_of_nodes fc in
                       let nd = new Ast.node ~lloc ~children:fc Label.PpBranch in
-                      let tok = 
+                      let tok =
                         if !open_construct_flag then
-                          STMT(mkspec(), nd) 
+                          STMT(mkspec(), nd)
                         else
-                          PROGRAM_UNIT(mkspec(), nd) 
+                          PROGRAM_UNIT(mkspec(), nd)
                       in
                       let qtoken = (tok, lloc#to_loc ~cache:(Some env#fname_ext_cache) ()) in
                       if !reverse_mode then
@@ -2238,7 +2238,7 @@ module F (Stat : Aux.STATE_T) = struct
                         (!selected_buf)#add qtoken
                     end;
 
-                    for i = 1 to ncrosscutting do 
+                    for i = 1 to ncrosscutting do
                       let latter_children = List.flatten (Array.to_list part_matrix.(i)) in
                       let open_section_tag = open_section_tag_a.(i - 1) in
 
@@ -2293,8 +2293,8 @@ module F (Stat : Aux.STATE_T) = struct
                             | OSTsubroutine -> SUBROUTINE_HEAD(mkspec(), nd)
                             | OSTpu         -> assert false
                         in
-                        let qtoken = 
-                          tok, lloc#to_loc ~cache:(Some env#fname_ext_cache) () 
+                        let qtoken =
+                          tok, lloc#to_loc ~cache:(Some env#fname_ext_cache) ()
                         in
                         if !reverse_mode then
                           token_list_for_reverse_mode := qtoken :: !token_list_for_reverse_mode
@@ -2325,8 +2325,8 @@ module F (Stat : Aux.STATE_T) = struct
             !selected_buf#dump;
           END_DEBUG;
 
-	  List.iter 
-	    (fun br -> 
+	  List.iter
+	    (fun br ->
 	      try
                 br#dump;
 		let loc = br#get_loc in
@@ -2343,7 +2343,7 @@ module F (Stat : Aux.STATE_T) = struct
       	  !selected_buf, !ignored_regions
 	end
 
-      with 
+      with
         TB.Incomplete | C.Not_active -> begin
 	  context_stack#resume;
 
@@ -2352,7 +2352,7 @@ module F (Stat : Aux.STATE_T) = struct
           begin
             try
 	      bbuf#iter_branch
-	        (fun buf -> 
+	        (fun buf ->
 
 	          DEBUG_MSG "[%d] checking %s" lv (B.tag_to_string buf#get_tag);
 
@@ -2393,8 +2393,8 @@ module F (Stat : Aux.STATE_T) = struct
 		        selected_buf := buf
                       end
                   end
-	          | t -> 
-                      DEBUG_MSG "invalid branch tag: %s" (B.tag_to_string t); 
+	          | t ->
+                      DEBUG_MSG "invalid branch tag: %s" (B.tag_to_string t);
                       assert false
 	        )
             with
@@ -2409,7 +2409,7 @@ module F (Stat : Aux.STATE_T) = struct
                 if buf#total_length > 0 then
 	          try
 		    ignored_regions := buf#get_loc :: !ignored_regions
-	          with 
+	          with
                     TB.Empty -> ()
               end
 	    );
@@ -2421,7 +2421,7 @@ module F (Stat : Aux.STATE_T) = struct
           DEBUG_MSG "finished";
 
 	  !selected_buf, !ignored_regions
-	    
+
         end
     (* end of method select_branches *)
 
@@ -2441,12 +2441,12 @@ module F (Stat : Aux.STATE_T) = struct
     DEBUG_MSG "branch tag: %s" (B.tag_to_string tokenbuf#get_tag);
 
 
-    match cache with 
+    match cache with
     | TB.Rcomplete p ->
 	DEBUG_MSG "[%d] using cached value (complete)" lv;
 	p
 
-    | TB.Rincomplete -> 
+    | TB.Rincomplete ->
 	DEBUG_MSG "[%d] using cached value (incomplete)" lv;
 	raise TB.Incomplete
 
@@ -2458,10 +2458,10 @@ module F (Stat : Aux.STATE_T) = struct
 
         let tokensrc = tokenbuf#get_tokensrc in
 
-        let ppbuf = 
-          new buffer 
+        let ppbuf =
+          new buffer
             (*~context:(Some context_buf)*)
-            (lv+1) partial_parser_selector (tokensrc :> Tokensource.c) 
+            (lv+1) partial_parser_selector (tokensrc :> Tokensource.c)
         in
 
         if C.is_program_unit tokenbuf#get_context then
@@ -2491,8 +2491,8 @@ module F (Stat : Aux.STATE_T) = struct
             DEBUG_MSG "[%d] ---------> %s" lv (Token.qtoken_to_string qtoken);
             (*Printf.printf "! [%d] %s\n%!" lv (Token.qtoken_to_string qtoken);*)
             PB.qtoken_to_token qtoken
-	  with 
-	  | Tokensource.Empty -> 
+	  with
+	  | Tokensource.Empty ->
 	      if tokensrc#eop_flag then begin
                 DEBUG_MSG "raising End_of_file";
                 raise End_of_file
@@ -2524,7 +2524,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  env#clear_partial_parsing_flag;
 (*
   check_error p;
- *)    
+ *)
 	  DEBUG_MSG "[%d] result: PARSED" lv;
           (*Printf.printf "! [%d] result: PARSED\n%!" lv;*)
 
@@ -2532,7 +2532,7 @@ module F (Stat : Aux.STATE_T) = struct
 	  tokenbuf#set_ast_cache (TB.Rcomplete p);
 	  p
 
-	with 
+	with
 	  exn ->
             ppbuf#finish;
 
@@ -2566,8 +2566,8 @@ module F (Stat : Aux.STATE_T) = struct
         context_buf#current#set_context (Context.spec__exec());
       end;
 
-      context_stack#register_push_callback 
-	(fun c -> 
+      context_stack#register_push_callback
+	(fun c ->
 	  DEBUG_MSG "[%d] push_callback: %s" lv (C.to_string c);
 
 	  if self#in_branch then begin
@@ -2579,8 +2579,8 @@ module F (Stat : Aux.STATE_T) = struct
 	    self#set_context c
 	  end
 	);
-      context_stack#register_pop_callback 
-	(fun c -> 
+      context_stack#register_pop_callback
+	(fun c ->
 	  DEBUG_MSG "[%d] pop_callback: %s" lv (C.to_string c);
 
           (*env#pop_latest_stmt_node_set;*)
@@ -2591,33 +2591,33 @@ module F (Stat : Aux.STATE_T) = struct
           else begin
 	    context_stack#activate_top;
 	    self#checkpoint top_key;
-	    self#exit_context; 
+	    self#exit_context;
 	    self#set_context c
 	  end
 	);
-      context_stack#register_activate_callback 
-	(fun c -> 
+      context_stack#register_activate_callback
+	(fun c ->
 	  DEBUG_MSG "[%d] activate_callback: %s" lv (C.to_string c);
 	  if not self#in_branch then begin
 	    self#checkpoint top_key;
-	    self#clear_context; 
+	    self#clear_context;
 	    self#set_context c
 	  end
 
 	);
-      context_stack#register_deactivate_callback 
-	(fun c -> 
+      context_stack#register_deactivate_callback
+	(fun c ->
 	  DEBUG_MSG "[%d] deactivate_callback: %s" lv (C.to_string c);
 	  if not self#in_branch then begin
 	    self#checkpoint top_key;
-	    self#clear_context; 
+	    self#clear_context;
 	    self#set_context c
 	  end
 	)
 
 
   end (* of class Tokenpp.buffer *)
-      
+
 
 
 

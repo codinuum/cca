@@ -20,7 +20,7 @@ class c = object (self)
   inherit Hash_options.c
   inherit Fs_options.c
 
-  val mutable ignore_if0_flag = true    
+  val mutable ignore_if0_flag = true
   method ignore_if0_flag = ignore_if0_flag
   method set_ignore_if0_flag = ignore_if0_flag <- true
   method clear_ignore_if0_flag = ignore_if0_flag <- false

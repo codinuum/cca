@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * A parser for the Python language 
+(*
+ * A parser for the Python language
  *
  * main.ml
  *
@@ -29,14 +29,14 @@ let dump_flag = ref false
 
 let _parser = new Lib.parser_c
 
-let _ = 
-  Arg.parse 
+let _ =
+  Arg.parse
     [
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump result";
      "-w", Arg.Unit (fun () -> _parser#disable_with_stmt), "\tdisable with_statement feature";
-    ] 
-    (fun s -> incr arg_count; filename := s) 
-    ("usage: " ^ Filename.basename (Sys.argv.(0)) 
+    ]
+    (fun s -> incr arg_count; filename := s)
+    ("usage: " ^ Filename.basename (Sys.argv.(0))
      ^ " [OPTIONS] [FILE]\noptions are:")
 
 
@@ -74,7 +74,7 @@ let _ =
 
       exit 0
     done
-  with 
+  with
   | Sys_error msg
   | Failure msg -> Xprint.error ~out:stdout "%s" msg; exit 1
   | Parse_error(head, msg) -> Xprint.error ~out:stdout ~head "%s" msg; exit 1

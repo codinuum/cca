@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
- * An unparser for the Java Language 
+(*
+ * An unparser for the Java Language
  *
  * java_unparsing.ml
  *
@@ -60,7 +60,7 @@ let has_orig_lab nd =
  *  2: =  +=  -=  *=  /=  %=                 right
        >>=  <<=  >>>=  &=  ^=  |=
  *  1: ->                                    right
- * 
+ *
  *)
 
 let get_prec_of_sym = function
@@ -126,8 +126,8 @@ let get_prec = function
   | L.Expression e -> get_prec_of_expression e
   | _ -> 0
 
-let find_nodes filt a = 
-  Array.of_list 
+let find_nodes filt a =
+  Array.of_list
     (List.filter (fun nd -> filt (getlab nd)) (Array.to_list a))
 
 let escaped_dollar_pat = Str.regexp_string "&#36;"
@@ -199,9 +199,9 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_lparen(); pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_rparen()
 
   | L.CompilationUnit
-  | L.ImportDeclarations 
+  | L.ImportDeclarations
   | L.TypeDeclarations
-    -> 
+    ->
       pb#pr_a force_newline (pr_node ~fail_on_error) children
 
   | L.PackageDeclaration n ->
@@ -210,7 +210,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.IDsingle n           -> pr_string "import "; pr_name n; pr_semicolon()
   | L.IDtypeOnDemand n     -> pr_string "import "; pr_name n; pr_string ".*;"
-  | L.IDsingleStatic(n, i) -> 
+  | L.IDsingleStatic(n, i) ->
       pr_string "import static "; pr_name n; pr_dot(); pr_id i; pr_semicolon()
 
   | L.IDstaticOnDemand n   -> pr_string "import static "; pr_name n; pr_string ".*;"
@@ -220,13 +220,13 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.Annotation a -> begin
       match a with
       | L.Annotation.Normal n ->
-          pr_string "@"; pr_name n; pr_lparen(); 
+          pr_string "@"; pr_name n; pr_lparen();
           pb#pr_va pr_comma (pr_node ~fail_on_error) children;
           pr_rparen()
 
       | L.Annotation.Marker n -> pr_string "@"; pr_name n
 
-      | L.Annotation.SingleElement n -> 
+      | L.Annotation.SingleElement n ->
           pr_string "@"; pr_name n; pr_lparen();
           pr_nth_child 0;
           pr_rparen()
@@ -265,11 +265,11 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#open_vbox 0;
       pb#open_box 0;
       pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
-      pr_string "class "; pr_id i; 
+      pr_string "class "; pr_id i;
       pr_selected ~fail_on_error L.is_typeparameters specs;
       pr_selected ~fail_on_error L.is_extends specs;
       pr_selected ~fail_on_error L.is_implements specs;
-      pb#close_box(); 
+      pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_classbody children;
       pb#close_box()
 
@@ -278,7 +278,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#open_vbox 0;
       pb#open_box 0;
       pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
-      pr_string "enum "; pr_id i; 
+      pr_string "enum "; pr_id i;
       pr_selected ~fail_on_error L.is_implements specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_enumbody children;
@@ -292,8 +292,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "interface "; pr_id i;
       pr_typeparameters ~fail_on_error specs;
       pr_selected ~fail_on_error L.is_extendsinterfaces specs;
-      pb#close_box(); 
-      pr_selected ~fail_on_error ~blk_style L.is_interfacebody children; 
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_interfacebody children;
       pb#close_box()
 
   | L.AnnotationType i ->
@@ -302,8 +302,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#open_box 0;
       pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
       pr_string "@interface "; pr_id i;
-      pb#close_box(); 
-      pr_selected ~fail_on_error ~blk_style L.is_annotationtypebody children; 
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_annotationtypebody children;
       pb#close_box()
 
   | L.ClassBody _ ->
@@ -319,7 +319,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
         if nchildren = 0 then
           pr_string "{}"
         else begin
-          pb#pr_block_begin_tall(); 
+          pb#pr_block_begin_tall();
           pr_selected ~fail_on_error ~pra:pb#pr_hova ~sep:pr_comma L.is_enumconstant children;
           begin
             try
@@ -367,11 +367,11 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.Super -> ()
 
   | L.ThisInvocation ->
-      pr_typearguments ~fail_on_error children; 
+      pr_typearguments ~fail_on_error children;
       pr_string "this"; pr_arguments ~fail_on_error children; pr_semicolon()
 
   | L.SuperInvocation ->
-      pr_typearguments ~fail_on_error children; 
+      pr_typearguments ~fail_on_error children;
       pr_string "super"; pr_arguments ~fail_on_error children; pr_semicolon()
 
   | L.PrimaryInvocation ->
@@ -404,7 +404,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
         children;
       pb#pr_block_end()
 
-  | L.StaticInitializer -> 
+  | L.StaticInitializer ->
       pr_string "static "; pr_nth_child ~blk_style:BStall ~prec 0
 
   | L.InstanceInitializer -> pr_nth_child ~blk_style:BStall ~prec 0
@@ -413,8 +413,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       if nchildren = 0 then
         pr_string "{}"
       else begin
-        pb#pr_block_begin blk_style; 
-        pb#pr_a pr_space (pr_node ~fail_on_error) children; 
+        pb#pr_block_begin blk_style;
+        pb#pr_a pr_space (pr_node ~fail_on_error) children;
         pb#pr_block_end()
       end
 
@@ -427,20 +427,20 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.WildcardBoundsSuper -> pr_string " super "; pr_nth_child 0
 
   | L.Extends ->
-      pr_break 1 pb#indent; 
-      pr_string "extends "; 
+      pr_break 1 pb#indent;
+      pr_string "extends ";
       pr_nth_child 0
 
   | L.Implements when nchildren = 0 -> ()
   | L.Implements ->
-      pr_break 1 pb#indent; 
+      pr_break 1 pb#indent;
       pr_string "implements ";
       pb#pr_hova pr_comma (pr_node ~fail_on_error) children
 
   | L.ExtendsInterfaces when nchildren = 0 -> ()
   | L.ExtendsInterfaces ->
-      pr_break 1 pb#indent; 
-      pr_string "extends "; 
+      pr_break 1 pb#indent;
+      pr_string "extends ";
       pb#pr_hova pr_comma (pr_node ~fail_on_error) children
 
   | L.ElementDeclaration i ->
@@ -548,7 +548,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end;
 
       if va then pr_string "...";
-      pad 1; 
+      pad 1;
       pr_id i; pr_dims dims
 
   | L.Method(i, _) ->
@@ -557,7 +557,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
       pr_selected ~fail_on_error L.is_type children; pad 1;
-      pr_id i; 
+      pr_id i;
       pr_parameters ~fail_on_error children;
       pr_selected ~fail_on_error ~head:pad1 L.is_throws children;
       pb#close_box();
@@ -580,7 +580,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.Finally -> pr_string "finally"; pr_nth_child 0
   | L.CatchClause _ ->
-      pr_string "catch ("; 
+      pr_string "catch (";
       pr_nth_child 0;
       pr_rparen(); pr_space();
       pr_nth_child 1
@@ -611,7 +611,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           pr_string "assert "; pr_nth_child 0;
           if nchildren > 1 then begin
             pr_string ":"; pr_nth_child 1
-          end; 
+          end;
           pr_semicolon()
 
       | L.Statement.If _ ->
@@ -642,7 +642,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           end
 
       | L.Statement.For ->
-          pr_string "for ("; 
+          pr_string "for (";
           pr_selected ~fail_on_error L.is_forinit children; pr_semicolon();
           pr_selected ~fail_on_error L.is_forcond children; pr_semicolon();
           pr_selected ~fail_on_error L.is_forupdate children; pr_rparen(); pr_space();
@@ -701,7 +701,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end
       | L.Statement.Labeled i -> pr_id i; pr_string ": "; pr_nth_child 0
 
-      | L.Statement.Expression(e, _) -> 
+      | L.Statement.Expression(e, _) ->
           pr_expression ~fail_on_error ~prec e children; pr_semicolon()
   end
 
@@ -718,7 +718,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.VariableDeclarator(i, dims, islocal) ->
       pr_id i; pr_dims dims;
       if nchildren > 0 then begin
-        pr_string " ="; pr_break 1 pb#indent; 
+        pr_string " ="; pr_break 1 pb#indent;
         pr_selected ~fail_on_error L.is_expression children;
         pr_selected ~fail_on_error L.is_arrayinitializer children
       end
@@ -751,19 +751,19 @@ and pr_types ?(fail_on_error=true) children =
 and pr_dims dims = pr_string (dims_to_string dims)
 
 and pr_expressions ?(fail_on_error=true) pr_sep children =
-  pb#pr_hova pr_sep (pr_node ~fail_on_error) children 
+  pb#pr_hova pr_sep (pr_node ~fail_on_error) children
 
-and pr_arguments ?(fail_on_error=true) children = 
-  pr_lparen(); pr_selected ~fail_on_error L.is_arguments children; pr_rparen() 
+and pr_arguments ?(fail_on_error=true) children =
+  pr_lparen(); pr_selected ~fail_on_error L.is_arguments children; pr_rparen()
 
 and pr_parameters ?(fail_on_error=true) children =
-  pr_lparen(); pr_selected ~fail_on_error L.is_parameters children; pr_rparen() 
+  pr_lparen(); pr_selected ~fail_on_error L.is_parameters children; pr_rparen()
 
-and pr_typeparameters ?(fail_on_error=true) children = 
-  pr_selected ~fail_on_error ~tail:pr_space L.is_typeparameters children 
+and pr_typeparameters ?(fail_on_error=true) children =
+  pr_selected ~fail_on_error ~tail:pr_space L.is_typeparameters children
 
-and pr_typearguments ?(fail_on_error=true) ?(nth=1) children = 
-  pr_selected ~fail_on_error (L.is_typearguments ~nth) children 
+and pr_typearguments ?(fail_on_error=true) ?(nth=1) children =
+  pr_selected ~fail_on_error (L.is_typearguments ~nth) children
 
 
 and dims_to_string dims = if dims = 0 then "" else "[]"^(dims_to_string (dims - 1))
@@ -785,7 +785,7 @@ and type_to_string ?(va=false) = function
   | L.Type.Double             -> "double"
   | L.Type.Boolean            -> "boolean"
   | L.Type.ClassOrInterface n
-  | L.Type.Class n           
+  | L.Type.Class n
   | L.Type.Interface n        -> norm_fqn n
   | L.Type.Array(ty, dims) when va && dims = 1 -> type_to_string ty
   | L.Type.Array(ty, dims) when va -> (type_to_string ty)^(dims_to_string (dims-1))
@@ -836,7 +836,7 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
   | L.Primary.InstanceCreation n ->
       pb#open_vbox 0;
       pb#open_box pb#indent;
-      pr_string "new "; 
+      pr_string "new ";
       pr_typearguments ~fail_on_error children;
       pr_selected ~fail_on_error L.is_type children;
       pr_arguments ~fail_on_error children;
@@ -845,7 +845,7 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
       pb#close_box()
 
   | L.Primary.QualifiedInstanceCreation i ->
-      pr_selected ~fail_on_error ~prec:(get_prec_of_sym ".") L.is_primary children; 
+      pr_selected ~fail_on_error ~prec:(get_prec_of_sym ".") L.is_primary children;
       pr_string ".new ";
       pr_typearguments ~fail_on_error children;
       pr_id i;
@@ -854,8 +854,8 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
       pr_selected ~fail_on_error L.is_classbody children
 
   | L.Primary.NameQualifiedInstanceCreation(n, i) ->
-      pr_name n; 
-      pr_string ".new "; 
+      pr_name n;
+      pr_string ".new ";
       pr_typearguments ~fail_on_error children;
       pr_id i;
       pr_typearguments ~fail_on_error ~nth:2 children;
@@ -865,7 +865,7 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
   | L.Primary.FieldAccess i ->
       if nchildren > 0 then begin
         pr_nth_child ~prec:(get_prec_of_sym ".") 0; pr_dot()
-      end; 
+      end;
       pr_id i
 
   | L.Primary.SuperFieldAccess i -> pr_string "super."; pr_id i
@@ -901,14 +901,14 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
 
   | L.Primary.SuperMethodInvocation i ->
       pb#open_box pb#indent;
-      pr_string "super."; pr_typearguments ~fail_on_error children; 
+      pr_string "super."; pr_typearguments ~fail_on_error children;
       pr_id (undeco i); pr_arguments ~fail_on_error children;
       pb#close_box()
 
   | L.Primary.ClassSuperMethodInvocation i ->
       pb#open_box pb#indent;
       pr_selected ~fail_on_error L.is_type children;
-      pr_string ".super."; pr_typearguments ~fail_on_error children; 
+      pr_string ".super."; pr_typearguments ~fail_on_error children;
       pr_id (undeco i); pr_arguments ~fail_on_error children;
       pb#close_box()
 
@@ -917,7 +917,7 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
       pr_string "["; pr_nth_child 1; pr_string "]"
 
   | L.Primary.ArrayCreationDims dims ->
-      pr_string "new "; pr_nth_child 0; pr_string "["; 
+      pr_string "new "; pr_nth_child 0; pr_string "[";
       let rest = Array.sub children 1 (nchildren-1) in
       pb#pr_hova (fun () -> pr_string "][") (pr_node ~fail_on_error) rest;
       pr_string "]";
@@ -1019,7 +1019,7 @@ and pr_expression ?(fail_on_error=true) ?(prec=0) e children =
   end
 
   | L.Expression.AssignmentOperator(aop, _) -> begin
-      let s = 
+      let s =
         match aop with
         | L.AssignmentOperator.Eq        -> "="
         | L.AssignmentOperator.MulEq     -> "*="
@@ -1049,7 +1049,7 @@ and pr_expression ?(fail_on_error=true) ?(prec=0) e children =
 
   | L.Expression.Cond ->
       pr_nth_child ~prec:prec' 0; pr_string " ? ";
-      pr_nth_child ~prec:prec' 1; pr_string " : "; 
+      pr_nth_child ~prec:prec' 1; pr_string " : ";
       pr_nth_child ~prec:prec' 2
 
   | L.Expression.Lambda -> begin

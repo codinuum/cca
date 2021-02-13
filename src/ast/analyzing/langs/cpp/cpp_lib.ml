@@ -35,9 +35,10 @@ let elaborate_edits
 
   let filters = [|
     is_named;
-  |] 
+  |]
   in
-  Edit.adjust_renames options cenv uidmapping edits filters
+  let handle_weak = not options#dump_delta_flag in
+  Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters
 
 
 let _ =

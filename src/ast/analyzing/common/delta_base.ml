@@ -29,7 +29,7 @@ let delta_file_name = "delta"
 
 (* namespace should be determined automatically to avoid name conflict *)
 let delta_ns = "http://codinuum.com/diffts/delta/"
-let delta_prefix = "xdd" 
+let delta_prefix = "xdd"
 
 let mktag n = sprintf "%s:%s" delta_prefix n
 
@@ -303,7 +303,7 @@ let boundary_path_of_string s =
     _ -> raise (Path.Invalid_path s)
 
 let semicolon_pat = Str.regexp_string ";"
-let boundary_of_string boundary = 
+let boundary_of_string boundary =
   List.map boundary_path_of_string
     (Str.split semicolon_pat boundary)
 
@@ -345,7 +345,7 @@ let err_to_string { reason;
     =
   sprintf "[%s:%d:%d] %s" file line pos reason
 
-let mkerr xnode r = 
+let mkerr xnode r =
   let f, l, p = xnode#position in
   { reason=r; file=f; line=l; pos=p; }
 
@@ -353,19 +353,19 @@ exception Invalid_delta of err
 
 let invalid_delta xnode reason = raise (Invalid_delta (mkerr xnode reason))
 
-let get_attr xnode name = 
+let get_attr xnode name =
   if List.mem name xnode#attribute_names then
     let anodes = xnode#attributes_as_nodes in
     let rec scan = function
       | anode::rest -> begin
-	  match anode#node_type with 
+	  match anode#node_type with
 	  | PxpD.T_attribute n -> if n = name then anode#data else scan rest
 	  | _ -> assert false
 	end
       | [] -> assert false
     in
     scan anodes
-  else 
+  else
     raise (Attribute_not_found name)
 
 
@@ -560,9 +560,9 @@ let attrs_to_string al = String.concat " " (List.map attr_to_string al)
 let output_string = Xchannel.output_string
 let fprintf = Xchannel.fprintf
 
-let _mkbdry bdry_attr (paths : boundary) = 
+let _mkbdry bdry_attr (paths : boundary) =
   if paths = [] then
-    "" 
+    ""
   else
     sprintf " %s=\"%s\"" bdry_attr (boundary_to_string paths)
 
@@ -744,7 +744,7 @@ let make_move_file_elem path1 path2 =
 
 (* for change *)
 let output_st_elem_bi_chg ch path1 paths1 path2 paths2 =
-  fprintf ch "<%s %s%s%s>" chg_tag 
+  fprintf ch "<%s %s%s%s>" chg_tag
     (attrs_to_string
        [ path1_attr, path1#to_string;
          path2_attr, path2#to_string;

@@ -122,6 +122,7 @@ class pstat = object (self)
   val mutable _pp_if_section_level = 0
   val mutable pp_paren_level = 0
   val mutable objc_message_expr_level = 0
+  val mutable pp_group_rel_brace_level = 0
 
   val mutable brace_level_marker = 0
   val mutable brace_level_marker_flag = false
@@ -199,6 +200,7 @@ class pstat = object (self)
     pp_paren_level <- 0;
     _pp_if_section_level <- 0;
     objc_message_expr_level <- 0;
+    pp_group_rel_brace_level <- 0;
     brace_level_marker <- 0;
     brace_level_marker_flag <- false
 
@@ -215,6 +217,7 @@ class pstat = object (self)
       "pp_paren_lv", self#pp_paren_level;
       "_pp_if_section_lv", self#_pp_if_section_level;
       "objc_message_expr_lv", objc_message_expr_level;
+      "pp_group_rel_brace_lv", pp_group_rel_brace_level;
     ]
     in
     sprintf "{%s}"
@@ -256,6 +259,23 @@ class pstat = object (self)
     let lv1 = lv - 1 in
     DEBUG_MSG "lv=%d -> %d" lv lv1;
     brace_level_marker <- lv1
+
+  method pp_group_rel_brace_level = pp_group_rel_brace_level
+
+  method reset_pp_group_rel_brace_level () =
+    pp_group_rel_brace_level <- 0
+
+  method incr_pp_group_rel_brace_level () =
+    let lv = pp_group_rel_brace_level in
+    let lv1 = lv + 1 in
+    DEBUG_MSG "lv=%d -> %d" lv lv1;
+    pp_group_rel_brace_level <- lv1
+
+  method decr_pp_group_rel_brace_level () =
+    let lv = pp_group_rel_brace_level in
+    let lv1 = lv - 1 in
+    DEBUG_MSG "lv=%d -> %d" lv lv1;
+    pp_group_rel_brace_level <- lv1
 
   method enter_templ_arg is_type =
     DEBUG_MSG "entering templ_arg (is_type=%B)" is_type;
@@ -1067,6 +1087,16 @@ class pstat = object (self)
       info.i_lbraces <- x
     end
 
+  method get_lbrace_info () =
+    let lv = self#pp_if_section_level in
+    DEBUG_MSG "pp_if_section_level=%d" lv;
+    if lv > 0 then begin
+      let info = Stack.top pp_if_section_stack in
+      info.i_lbraces
+    end
+    else
+      0
+
   method incr_lbrace_info () =
     let lv = self#pp_if_section_level in
     DEBUG_MSG "pp_if_section_level=%d" lv;
@@ -1233,12 +1263,30 @@ class pstat = object (self)
     with
       _ -> false
 
+  method set_lack_of_dtor_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_lack_of_dtor <- true
+
+  method get_lack_of_dtor_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_lack_of_dtor
+    with
+      _ -> false
+
   method get_pp_if_compl_info () =
     try
       let info = Stack.top pp_if_section_stack in
       info.i_pp_if_compl
     with
       _ -> {c_brace=0;c_paren=0}
+
+  method get_pp_if_compl_brace_info () =
+    (self#get_pp_if_compl_info()).c_brace
+
+  method get_pp_if_compl_paren_info () =
+    (self#get_pp_if_compl_info()).c_paren
 
   method reset_pp_if_compl_info () =
     try
@@ -1494,6 +1542,7 @@ class env = object (self)
   val mutable saved_stack = new N.stack
   val mutable top_frame = new N.stack_frame N.Scope.Top
 
+  val mutable lex_line_head_flag = true
   val mutable lex_pp_line_flag = false
   val mutable lex_ms_asm_line_flag = false
   val mutable pp_define_flag = false
@@ -1529,6 +1578,7 @@ class env = object (self)
 
   val resolved_macro_tbl = (Hashtbl.create 0 : (string, Ast.node) Hashtbl.t)
 
+  val malformed_macro_names = (Xset.create 0 : string Xset.t)
 
   val mutable access_spec_opt = (None : N.Spec.access_spec option)
 
@@ -1560,10 +1610,10 @@ class env = object (self)
     stack#find_namespace n
 
   method lookup_obj n =
-    stack#find_obj n    
+    stack#find_obj n
 
   method lookup_type n =
-    stack#find_type n    
+    stack#find_type n
 
   method set_obj_external_name ?(prefix="") i (nd : Ast.node) =
     let p = stack#get_prefix ~prefix ~ns_only:true () in
@@ -1714,7 +1764,8 @@ class env = object (self)
     top_frame#register ~replace:true i spec
 
   method undef_macro i =
-    top_frame#remove_macro i
+    top_frame#remove_macro (Ast.mk_macro_call_id i);
+    top_frame#remove_macro (Ast.mk_macro_id i)
 
   method register_namespace i (nd : Ast.node) (frm : N.stack_frame) =
     DEBUG_MSG "i=%s" i;
@@ -2033,6 +2084,22 @@ class env = object (self)
   method find_pending_macro name =
     Hashtbl.find pending_macro_tbl name
 
+  method register_malformed_macro name =
+    Xset.add malformed_macro_names name
+
+  method is_malformed_macro name =
+    Xset.mem malformed_macro_names name
+
+  method set_lex_line_head_flag () =
+    DEBUG_MSG "lex_line_head_flag set";
+    lex_line_head_flag <- true
+
+  method clear_lex_line_head_flag () =
+    DEBUG_MSG "lex_line_head_flag cleared";
+    lex_line_head_flag <- false
+
+  method lex_line_head_flag = lex_line_head_flag
+
   method enter_lex_pp_line () =
     DEBUG_MSG "entering lex_pp_line";
     lex_pp_line_flag <- true
@@ -2286,6 +2353,7 @@ class env = object (self)
 
   method clear_lbrace_info = pstat#clear_lbrace_info
   method set_lbrace_info = pstat#set_lbrace_info
+  method get_lbrace_info = pstat#get_lbrace_info
   method incr_lbrace_info = pstat#incr_lbrace_info
   method decr_lbrace_info = pstat#decr_lbrace_info
   method clear_rbrace_info = pstat#clear_rbrace_info
@@ -2311,9 +2379,13 @@ class env = object (self)
   method get_cond_expr_info = pstat#get_cond_expr_info
   method set_asm_info = pstat#set_asm_info
   method get_asm_info = pstat#get_asm_info
+  method set_lack_of_dtor_info = pstat#set_lack_of_dtor_info
+  method get_lack_of_dtor_info = pstat#get_lack_of_dtor_info
   method set_cond_sub_info = pstat#set_cond_sub_info
   method get_cond_sub_info = pstat#get_cond_sub_info
   method get_pp_if_compl_info = pstat#get_pp_if_compl_info
+  method get_pp_if_compl_brace_info = pstat#get_pp_if_compl_brace_info
+  method get_pp_if_compl_paren_info = pstat#get_pp_if_compl_paren_info
   method reset_pp_if_compl_info = pstat#reset_pp_if_compl_info
 
   method alt_pp_branch_flag = pstat#alt_pp_branch_flag

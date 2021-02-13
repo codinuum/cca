@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
-(* 
+(*
  * AST for the Python programming language
  *
  * py_tree.ml
@@ -25,10 +25,10 @@ module L = Py_label
 
 let sprintf = Printf.sprintf
 
-let first l = 
+let first l =
   try List.hd l with _ -> assert false
 
-let last l = 
+let last l =
   try List.hd(List.rev l) with _ -> assert false
 
 let conv_loc = L.conv_loc
@@ -74,7 +74,7 @@ class translator options = object (self)
   in
   super#mknode ~annot ~ordinal_tbl_opt lab nodes
 
-  method of_opt_lab : 'a . L.t -> ('a -> node_t) -> 'a option -> node_t list = 
+  method of_opt_lab : 'a . L.t -> ('a -> node_t) -> 'a option -> node_t list =
     fun lab of_x ->
       function
         | None -> []
@@ -84,7 +84,7 @@ class translator options = object (self)
             nd#data#set_loc xnd#data#src_loc;
             [nd]
 (*
-  method of_opt_lab_l : 'a . L.t -> ('a -> node_t list) -> 'a option -> node_t list = 
+  method of_opt_lab_l : 'a . L.t -> ('a -> node_t list) -> 'a option -> node_t list =
     fun lab of_x ->
       function
 	| None -> []
@@ -95,14 +95,14 @@ class translator options = object (self)
 	      match xnds with
 	      | [n] -> n#data#src_loc
 	      | [] -> assert false
-	      | n::_ -> 
-		  let last = Xlist.last xnds in 
+	      | n::_ ->
+		  let last = Xlist.last xnds in
 		  Loc.merge n#data#src_loc last#data#src_loc
 	    in
 	    nd#data#set_loc loc;
 	    [nd]
 *)
-  method of_name (loc, name) = 
+  method of_name (loc, name) =
     let nd = self#mkleaf (L.Name name) in
     set_loc nd loc;
     nd
@@ -154,7 +154,7 @@ class translator options = object (self)
 
       | Ast.Sif(expr, suite, elifs, else_opt) ->
        	  mkstmtnode ~pvec:[1; 1; List.length elifs; opt_length else_opt]
-	    ([self#of_expr expr; self#of_suite suite] 
+	    ([self#of_expr expr; self#of_suite suite]
 	     @ (self#of_elifs elifs) @ (of_opt self#of_else else_opt))
 
       | Ast.Swhile(expr, suite, else_opt) ->
@@ -170,7 +170,7 @@ class translator options = object (self)
 
       | Ast.Stry(suite, excepts, else_opt, fin_opt) ->
 	  mkstmtnode ~pvec:[1; List.length excepts; opt_length else_opt; opt_length fin_opt]
-	    (((self#of_suite suite)::(self#of_excepts excepts)) 
+	    (((self#of_suite suite)::(self#of_excepts excepts))
 	     @ (of_opt self#of_else else_opt) @ (of_opt self#of_finally fin_opt))
 
       | Ast.Stryfin(suite1, fin) -> mkstmtnode ~pvec:[1; 0; 0; 1] [self#of_suite suite1; self#of_finally fin]
@@ -236,13 +236,13 @@ class translator options = object (self)
   method of_targs lab = self#of_exprs lab
 
   method _of_exprs ?(pvec=[]) lab exprs =
-    if exprs = [] then 
+    if exprs = [] then
       self#mkleaf lab
     else
       let children = exprs in
       let nd = self#mknd ~pvec lab children in
-      let loc = 
-	Loc._merge (first children)#data#src_loc (last children)#data#src_loc 
+      let loc =
+	Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
       nd#data#set_loc loc;
       nd
@@ -280,18 +280,18 @@ class translator options = object (self)
     if decos = [] then []
     else
       let children = List.map self#of_decorator decos in
-      let loc = 
-	Loc._merge (first children)#data#src_loc (last children)#data#src_loc 
+      let loc =
+	Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
       let nd = self#mknd (L.Decorators (L.conv_name name)) children in
       nd#data#set_loc loc;
       [nd]
-	
+
   method of_simplestmt sstmt =
     let sstmtd = sstmt.Ast.sstmt_desc in
     let lab = L.of_simplestmt sstmtd in
     let mksstmtnode ?(pvec=[]) = self#mknd ~pvec lab in
-    let nd = 
+    let nd =
       match sstmtd with
       | Ast.SSexpr exprs ->
 	  (match exprs with
@@ -356,7 +356,7 @@ class translator options = object (self)
       | Ast.SSyield exprs                 -> self#of_exprs lab exprs
       | Ast.SSimport dottedname_as_names ->
           mksstmtnode (List.map self#of_dottedname_as_name dottedname_as_names)
-	    
+
       | Ast.SSfrom(dots_opt, dottedname_opt, name_as_names) -> begin
           let nds = List.map self#of_name_as_name name_as_names in
           let children, nfrom =
@@ -411,19 +411,19 @@ class translator options = object (self)
     let nd = self#mkleaf (L.Dots ndots) in
     set_loc nd loc;
     nd
-      
+
   method of_dottedname_as_name (dname, name_opt) =
     let dname_nd = self#of_dottedname dname in
     match name_opt with
     | None -> dname_nd
-    | Some name -> 
+    | Some name ->
 	self#mknd L.As [dname_nd; self#mkleaf (L.Name (L.conv_name name))]
 
   method of_name_as_name (name, name_opt) =
     let name_nd = self#of_name name in
     match name_opt with
     | None -> name_nd
-    | Some name -> 
+    | Some name ->
 	self#mknd L.As [name_nd; self#mkleaf (L.Name (L.conv_name name))]
 
   method of_except_clause = function
@@ -437,9 +437,9 @@ class translator options = object (self)
     nd
 
   method of_named_suite name (loc, stmts) =
-    let nd = 
+    let nd =
       self#mknd (L.NamedSuite (L.conv_name name))
-	(List.map self#of_statement stmts) 
+	(List.map self#of_statement stmts)
     in
     set_loc nd loc;
     nd
@@ -447,7 +447,7 @@ class translator options = object (self)
   method of_parameters (loc, dparams) =
     match dparams with
     | [] -> []
-    | _ -> 
+    | _ ->
 	let children = List.map self#of_vararg dparams in
 	let nd = self#mknd L.Parameters children in
 	set_loc nd loc;
@@ -472,7 +472,7 @@ class translator options = object (self)
   method of_named_parameters name (loc, dparams) =
     match dparams with
     | [] -> []
-    | _ -> 
+    | _ ->
 	let children = List.map self#of_vararg dparams in
 	let nd = self#mknd (L.NamedParameters name) children in
 	set_loc nd loc;
@@ -501,7 +501,7 @@ class translator options = object (self)
 
 
   method of_expr expr =
-    let nd = 
+    let nd =
       match expr.Ast.expr_desc with
       | Ast.Eprimary prim              -> self#of_primary prim
       | Ast.Epower(prim, expr)         -> self#mknd L.Power [self#of_primary prim; self#of_expr expr]
@@ -523,7 +523,7 @@ class translator options = object (self)
   method of_primary_desc primd =
     let lab = L.of_primary primd in
     let mkprimnode ?(pvec=[]) = self#mknd ~pvec lab in
-    let nd = 
+    let nd =
       match primd with
       | Ast.Pname name -> self#mkleaf lab
 
@@ -712,7 +712,7 @@ class translator options = object (self)
     nd
 
   method of_compfor (loc, (exprs, expr, compiter_opt), async) =
-    let children = 
+    let children =
       (self#of_exprs L.Target exprs)::(self#of_exprs L.In [expr])::
       (of_opt self#of_compiter compiter_opt)
     in
@@ -729,7 +729,7 @@ class translator options = object (self)
 end (* of class Python.Tree.translator *)
 
 
-let of_fileinput options fname = 
+let of_fileinput options fname =
   let trans = new translator options in function (* toplevel convert function *)
     | Ast.Fileinput(loc, stmts) ->
 	let children = List.map trans#of_statement stmts in

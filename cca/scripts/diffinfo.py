@@ -49,7 +49,7 @@ def get_excluded(s):
 
     return result
 
-            
+
 
 named_node_pat_s = '\((?P<size>[0-9]+)\) \(([0-9]+):(?P<gnid>[0-9]+)\)c:(?P<kind>.*) name=\'(?P<name>.*)\'(?P<rest>.*)\((?P<loc>[0-9]+L.*)\)(?P<exc>.*)\((?P<elems>.*)\)$'
 pat_s = '\((?P<size>[0-9]+)\) \(([0-9]+):(?P<gnid>[0-9]+)\)c:(?P<kind>.*)\((?P<loc>[0-9]+L.*)\)(?P<exc>.*)\((?P<elems>.*)\)$'
@@ -139,7 +139,7 @@ def read_map_info(info, swapped=False):
     else: # maybe compressed
         info = info + '.gz'
         opener = gzip.open
-    
+
     try:
         f = opener(info)
         map_file_not_found = False

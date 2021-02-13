@@ -24,13 +24,13 @@ open Printf
 
 let keyroot_depth_min = 4
 
-type tie_id = Lang_base.tie_id
+(*type tie_id = Lang_base.tie_id
 
 let null_tid      = Lang_base.null_tid
 let mktid         = Lang_base.mktid
 let tid_to_string = Lang_base.tid_to_string
 let anonymize_tid = Lang_base.anonymize_tid
-let mktidattr     = Lang_base.mktidattr
+let mktidattr     = Lang_base.mktidattr*)
 
 
 
@@ -113,7 +113,7 @@ module type T = sig
 end
 
 
-let conv_loc 
+let conv_loc
     { Ast.Loc.filename     = fn;
       Ast.Loc.start_offset = so;
       Ast.Loc.end_offset   = eo;
@@ -121,7 +121,7 @@ let conv_loc
       Ast.Loc.start_char   = sc;
       Ast.Loc.end_line     = el;
       Ast.Loc.end_char     = ec;
-    } = 
+    } =
   Loc.make ~fname:fn so eo sl sc el ec
 
 open Charpool
@@ -130,8 +130,8 @@ open Charpool
 include Label
 
 
-let to_short_string ?(ignore_identifiers_flag=false) = 
-  let combo2 = combo2 ~ignore_identifiers_flag in function 
+let to_short_string ?(ignore_identifiers_flag=false) =
+  let combo2 = combo2 ~ignore_identifiers_flag in function
   | DUMMY               -> mkstr2 0
   | EMPTY               -> mkstr2 1
   | AMBIGUOUS_CONSTRUCT -> mkstr2 2
@@ -153,20 +153,20 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | PpError s     -> combo2 11 [s]
   | PpPragma s    -> combo2 12 [s]
   | PpNull        -> mkstr2 13
-  | PpIf          -> mkstr2 14
+  | PpIf x        -> combo2 14 [x]
   | PpIfdef i     -> combo2 15 [i]
   | PpIfndef i    -> combo2 16 [i]
-  | PpElif        -> mkstr2 17
-  | PpElse        -> mkstr2 18
-  | PpEndif       -> mkstr2 19
+  | PpElif x      -> combo2 17 [x]
+  | PpElse x      -> combo2 18 [x]
+  | PpEndif x     -> combo2 19 [x]
   | PpUnknown s   -> combo2 20 [s]
-  | PpIfSection j -> combo2 21 [string_of_int j]
+  | PpIfSection(j, s) -> combo2 21 [string_of_int j;s]
   | PpIfSectionFuncDef i     -> combo2 466 [i]
   | PpIfSectionBrokenIf      -> mkstr2 467
   | PpIfSectionBrokenFuncDef -> mkstr2 468
-  | PpIfGroup     -> mkstr2 22
-  | PpElifGroup   -> mkstr2 23
-  | PpElseGroup   -> mkstr2 24
+  | PpIfGroup x    -> combo2 22 [x]
+  | PpElifGroup x  -> combo2 23 [x]
+  | PpElseGroup x  -> combo2 24 [x]
   | PpStringized s -> combo2 25 [s]
   | PpMacroParam i -> combo2 26 [i]
   | SimpleDeclaration             -> mkstr2 27
@@ -792,6 +792,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | UnsignedInt  -> mkstr2 644
   | UnsignedLong -> mkstr2 645
   | DummyBody -> mkstr2 647
+  | FunctionHeadMacro i -> combo2 648 [i]
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -912,7 +913,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | Protected                           when more -> AccessSpecifier
   | Public                              when more -> AccessSpecifier
   | AccessSpecMacro _                   when more -> AccessSpecifier
-  | Char                                when more -> BasicType
+  (*| Char                                when more -> BasicType
   | Char8_t                             when more -> BasicType
   | Char16_t                            when more -> BasicType
   | Char32_t                            when more -> BasicType
@@ -927,7 +928,26 @@ let _anonymize ?(more=false) ?(most=false) = function
   | UnsignedLong                        when more -> BasicType
   | Float                               when more -> BasicType
   | Double                              when more -> BasicType
-  | Void                                when more -> BasicType
+  | Void                                when more -> BasicType*)
+
+  | SimpleTypeSpecifier _            when more -> DefiningTypeSpecifier
+  | Char                             when more -> DefiningTypeSpecifier
+  | Char8_t                          when more -> DefiningTypeSpecifier
+  | Char16_t                         when more -> DefiningTypeSpecifier
+  | Char32_t                         when more -> DefiningTypeSpecifier
+  | Wchar_t                          when more -> DefiningTypeSpecifier
+  | Bool                             when more -> DefiningTypeSpecifier
+  | Short                            when more -> DefiningTypeSpecifier
+  | Int                              when more -> DefiningTypeSpecifier
+  | Long                             when more -> DefiningTypeSpecifier
+  | Signed                           when more -> DefiningTypeSpecifier
+  | Unsigned                         when more -> DefiningTypeSpecifier
+  | UnsignedInt                      when more -> DefiningTypeSpecifier
+  | UnsignedLong                     when more -> DefiningTypeSpecifier
+  | Float                            when more -> DefiningTypeSpecifier
+  | Double                           when more -> DefiningTypeSpecifier
+  | Void                             when more -> DefiningTypeSpecifier
+
   | Const                               when more -> CvQualifier
   | Volatile                            when more -> CvQualifier
   | Restrict _                          when more -> CvQualifier
@@ -1100,10 +1120,10 @@ let _anonymize ?(more=false) ?(most=false) = function
   | NestedNameSpecifierTempl _          when more -> NestedNameSpecifier
   | NestedNameSpecifierDeclty           when more -> NestedNameSpecifier
 
-  | PpIfSectionFuncDef i                when more -> PpIfSection 0
-  | PpIfSectionBrokenIf                 when more -> PpIfSection 0
-  | PpIfSectionBrokenFuncDef            when more -> PpIfSection 0
-  | PpIfSectionAltFuncDef               when more -> PpIfSection 0
+  | PpIfSectionFuncDef i                when more -> PpIfSection(0, "")
+  | PpIfSectionBrokenIf                 when more -> PpIfSection(0, "")
+  | PpIfSectionBrokenFuncDef            when more -> PpIfSection(0, "")
+  | PpIfSectionAltFuncDef               when more -> PpIfSection(0, "")
 
   | EnumeratorMacroInvocation _         when more -> Enumerator ""
   | ParametersMacroInvocation _         when more -> ParametersAndQualifiers
@@ -1112,16 +1132,40 @@ let _anonymize ?(more=false) ?(most=false) = function
   | GnuAsmBlockFragmented _             when more -> AsmDefinition ""
   | IdentifierMacroInvocation _         when more -> Identifier ""
 
-  | PpInclude _                         -> PpInclude ""
+  | Char                                -> BasicType
+  | Char8_t                             -> BasicType
+  | Char16_t                            -> BasicType
+  | Char32_t                            -> BasicType
+  | Wchar_t                             -> BasicType
+  | Bool                                -> BasicType
+  | Short                               -> BasicType
+  | Int                                 -> BasicType
+  | Long                                -> BasicType
+  | Signed                              -> BasicType
+  | Unsigned                            -> BasicType
+  | UnsignedInt                         -> BasicType
+  | UnsignedLong                        -> BasicType
+  | Float                               -> BasicType
+  | Double                              -> BasicType
+  | Void                                -> BasicType
+
+  | PpInclude x                         -> PpInclude ""
   | PpDefine _                          -> PpDefine ""
   | PpUndef _                           -> PpUndef ""
   | PpLine _                            -> PpLine(0, "")
   | PpError _                           -> PpError ""
   | PpPragma _                          -> PpPragma ""
+  | PpIf _                              -> PpIf ""
   | PpIfdef _                           -> PpIfdef ""
   | PpIfndef _                          -> PpIfndef ""
   | PpUnknown _                         -> PpUnknown ""
-  | PpIfSection _                       -> PpIfSection 0
+  | PpIfSection _                       -> PpIfSection(0, "")
+  | PpIfGroup _                         -> PpIfGroup ""
+  | PpElifGroup _                       -> PpElifGroup ""
+  | PpElseGroup _                       -> PpElseGroup ""
+  | PpElif _                            -> PpElif ""
+  | PpElse _                            -> PpElse ""
+  | PpEndif _                           -> PpEndif ""
   | PpMarker _                          -> PpMarker(0, "", [])
   | PpImport _                          -> PpImport ""
   | OmpDirective _                      -> OmpDirective ""
@@ -1325,15 +1369,29 @@ let annotation_to_string = Annotation.to_string
 let is_hunk_boundary _ _ = false (* not yet *)
 
 (* These labels are collapsible whether they are leaves or not. *)
-let forced_to_be_collapsible lab = 
+let forced_to_be_collapsible lab =
   false
 
 
-let is_collapse_target options lab = 
-  if options#no_collapse_flag then 
+let is_collapse_target options lab =
+  if options#no_collapse_flag then
     false
-  else 
+  else
     match lab with
+    | PpIfSection _
+    | PpIfSectionFuncDef _
+    | PpIfSectionCondExpr
+    | PpIfSectionHandler
+    | PpIfSectionTemplDecl
+    | PpIfSectionTryBlock
+    | PpIfSectionBroken
+    | PpIfSectionBrokenIf
+    | PpIfSectionBrokenFuncDef
+    | PpIfSectionBrokenDtorFunc
+    | PpIfGroup _
+    | PpElifGroup _
+    | PpElseGroup _
+
     | SimpleDeclaration
     | AsmDefinition _
     | NamespaceAliasDefinition _
@@ -1347,6 +1405,8 @@ let is_collapse_target options lab =
     | NodeclspecFunctionDeclaration
     | FunctionDefinition
     | TemplateDeclaration
+    | ClassSpecifier
+    | EnumSpecifier
     | DeductionGuide _
     | ExplicitInstantiation
     | ExplicitSpecialization
@@ -1462,7 +1522,7 @@ let is_collapse_target options lab =
 
       -> true
 
-    | _ -> false      
+    | _ -> false
 
 
 let is_to_be_notified = function
@@ -1617,11 +1677,11 @@ let is_expr = function
   | lab -> is_primary lab
 
 let is_pp_branch = function
-  | PpIf
+  | PpIf _
   | PpIfdef _
   | PpIfndef _
-  | PpElif
-  | PpElse
+  | PpElif _
+  | PpElse _
     -> true
   | _ -> false
 
@@ -1653,27 +1713,6 @@ let is_stmt = function
     -> true
   | _ -> false
 
-
-let is_compatible _ _ = false
-
-let is_order_insensitive = function
-  | _ -> false
-
-let quasi_eq _ _ = false
-
-let relabel_allowed = function
-  | Identifier _, Identifier _ -> true
-  | Identifier _, l | l, Identifier _ -> is_literal l
-  | l1, l2 -> 
-      (is_expr l1 && is_expr l2) ||
-      (*(is_stmt l1 && is_stmt l2) ||*)
-      (is_pp_branch l1 && is_pp_branch l2) ||
-      (anonymize3 l1 = anonymize3 l2)
-
-let move_disallowed _ = false
-
-let is_common _ = false
-
 let get_ident_use = function
   | _ -> ""
 
@@ -1683,14 +1722,14 @@ let has_names lab =
   try
     ignore (get_names lab);
     true
-  with 
+  with
     Not_found -> false
 
 let has_a_name lab =
   try
     ignore (get_name lab);
     true
-  with 
+  with
     Not_found -> false
 
 let is_named lab =
@@ -1709,7 +1748,7 @@ let getlab nd = (Obj.obj nd#data#_label : t)
 
 
 
-let cannot_be_keyroot nd = 
+let cannot_be_keyroot nd =
   match getlab nd with
   | TranslationUnit
   | TemplateDeclaration
@@ -1756,12 +1795,12 @@ let is_pp_directive = function
   | PpError _
   | PpPragma _
   | PpNull
-  | PpIf
+  | PpIf _
   | PpIfdef _
   | PpIfndef _
-  | PpElif
-  | PpElse
-  | PpEndif
+  | PpElif _
+  | PpElse _
+  | PpEndif _
   | PpUnknown _
     -> true
   | _ -> false
@@ -1789,9 +1828,9 @@ let is_container_unit = function
   | PpIfSectionBrokenIf
   | PpIfSectionBrokenFuncDef
   | PpIfSectionBrokenDtorFunc
-  | PpIfGroup
-  | PpElifGroup
-  | PpElseGroup
+  | PpIfGroup _
+  | PpElifGroup _
+  | PpElseGroup _
   | CompoundStatement
   | TryBlock
   | IfStatement
@@ -1828,22 +1867,22 @@ let is_pp_if_section_broken = function
   | _ -> false
 
 let is_pp_group = function
-  | PpIfGroup
-  | PpElifGroup
-  | PpElseGroup
+  | PpIfGroup _
+  | PpElifGroup _
+  | PpElseGroup _
     -> true
   | _ -> false
 
 let is_pp_if_group = function
-  | PpIfGroup -> true
+  | PpIfGroup _ -> true
   | _ -> false
 
 let is_pp_elif_group = function
-  | PpElifGroup -> true
+  | PpElifGroup _ -> true
   | _ -> false
 
 let is_pp_else_group = function
-  | PpElseGroup -> true
+  | PpElseGroup _ -> true
   | _ -> false
 
 let is_translation_unit = function
@@ -2167,6 +2206,35 @@ let is_desig_old = function
   | _ -> false
 
 
+let is_compatible lab1 lab2 =
+  match lab1, lab2 with
+  | _ -> false
+
+let is_order_insensitive = function
+  | _ -> false
+
+let quasi_eq lab1 lab2 =
+  match lab1, lab2 with
+  | _ -> false
+
+let relabel_allowed = function
+  | Identifier _, Identifier _ -> true
+  | Identifier _, l | l, Identifier _ -> is_literal l
+  | l1, l2 ->
+      (is_expr l1 && is_expr l2) ||
+      (*(is_stmt l1 && is_stmt l2) ||*)
+      (is_pp_branch l1 && is_pp_branch l2) ||
+      (anonymize3 l1 = anonymize3 l2)
+
+let move_disallowed = function
+  | _ -> false
+
+let is_common = function
+  | Void | Int | Long | Char | Float | Double
+      -> true
+  | _ -> false
+
+
 open Astml.Attr
 
 let of_elem_data =
@@ -2198,6 +2266,7 @@ let of_elem_data =
   let find_line_number attrs = int_of_string (find_attr ~default:"0" attrs "line_number") in
   let find_level attrs       = int_of_string (find_attr ~default:"0" attrs "level") in
   let find_size attrs        = int_of_string (find_attr ~default:"0" attrs "size") in
+  let find_cond attrs        = find_attr ~default:"" attrs "cond" in
 
   let colon_pat = Str.regexp_string ":" in
   let find_flags attrs = List.map int_of_string (Str.split colon_pat (find_attr attrs "flags")) in
@@ -2231,12 +2300,12 @@ let of_elem_data =
     "PpPragma",                  (fun a -> PpPragma(find_line a));
     "PpNull",                    (fun a -> PpNull);
     "PpMarker",                  (fun a -> PpMarker(find_line_number a, find_file_name a, find_flags a));
-    "PpIf",                      (fun a -> PpIf);
+    "PpIf",                      (fun a -> PpIf(find_cond a));
     "PpIfdef",                   (fun a -> PpIfdef(find_ident a));
     "PpIfndef",                  (fun a -> PpIfndef(find_ident a));
-    "PpElif",                    (fun a -> PpElif);
-    "PpElse",                    (fun a -> PpElse);
-    "PpEndif",                   (fun a -> PpEndif);
+    "PpElif",                    (fun a -> PpElif(find_cond a));
+    "PpElse",                    (fun a -> PpElse(find_cond a));
+    "PpEndif",                   (fun a -> PpEndif(find_cond a));
     "PpUnknown",                 (fun a -> PpUnknown(find_line a));
     "PpImport",                  (fun a -> PpImport(find_line a));
     "OmpDirective",              (fun a -> OmpDirective(find_line a));
@@ -2244,7 +2313,7 @@ let of_elem_data =
     "PpMacroParam",              (fun a -> PpMacroParam(find_ident a));
     "PpStringized",              (fun a -> PpStringized(find_ident a));
     "PpConcatenatedIdentifier",  (fun a -> PpConcatenatedIdentifier);
-    "PpIfSection",               (fun a -> PpIfSection(find_level a));
+    "PpIfSection",               (fun a -> PpIfSection(find_level a, find_cond a));
     "PpIfSectionFuncDef",        (fun a -> PpIfSectionFuncDef(find_ident a));
     "PpIfSectionAltFuncDef",     (fun a -> PpIfSectionAltFuncDef);
     "PpIfSectionBroken",         (fun a -> PpIfSectionBroken);
@@ -2256,9 +2325,9 @@ let of_elem_data =
     "PpIfSectionLogicalOr",      (fun a -> PpIfSectionLogicalOr);
     "PpIfSectionTemplDecl",      (fun a -> PpIfSectionTemplDecl);
     "PpIfSectionTryBlock",       (fun a -> PpIfSectionTryBlock);
-    "PpIfGroup",                 (fun a -> PpIfGroup);
-    "PpElifGroup",               (fun a -> PpElifGroup);
-    "PpElseGroup",               (fun a -> PpElseGroup);
+    "PpIfGroup",                 (fun a -> PpIfGroup(find_cond a));
+    "PpElifGroup",               (fun a -> PpElifGroup(find_cond a));
+    "PpElseGroup",               (fun a -> PpElseGroup(find_cond a));
 
 (* Declaration *)
     "SimpleDeclaration",                    (fun a -> SimpleDeclaration);
@@ -2846,6 +2915,7 @@ let of_elem_data =
     "DeclSpecifierSeq",             (fun a -> DeclSpecifierSeq);
     "TypeSpecifierSeq",             (fun a -> TypeSpecifierSeq);
     "FunctionHead",                 (fun a -> FunctionHead);
+    "FunctionHeadMacro",            (fun a -> FunctionHeadMacro(find_ident a));
     "AccessSpecAnnot",              (fun a -> AccessSpecAnnot(find_ident a));
     "EnumeratorMacroInvocation",    (fun a -> EnumeratorMacroInvocation(find_ident a));
     "AccessSpecMacro",              (fun a -> AccessSpecMacro(find_ident a));

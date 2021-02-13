@@ -115,7 +115,7 @@ class Config(object):
         self.lang = UNKNOWN
         self.langs = []
 
-        # for phylogeny 
+        # for phylogeny
         self.abbrev_list = []
         self.abbrev_tbl = {}
         self.inv_abbrev_tbl = {}
@@ -226,7 +226,7 @@ class Config(object):
 
         # for phylogeny
         if self.vers == []:
-            self.vers = [n for (n, a) in self.abbrev_list] 
+            self.vers = [n for (n, a) in self.abbrev_list]
 
         self.abbrev_tbl = dict(self.abbrev_list)
         for (x, a) in self.abbrev_tbl.items():
@@ -255,7 +255,7 @@ class Config(object):
                 if not self.versions:
                     self.versions = pair_list_to_list(self.vpairs)
                     self.versionURIs = pair_list_to_list(self.vURIpairs)
-            
+
 
         elif self.vkind == VKIND_SVNREV:
             self.versionNS = SVNREV_INST_NS
@@ -315,7 +315,7 @@ class Config(object):
                         grev1 = GITREV_INST_NS + h
 
                         self.versions.append(h)
-                        self.versionURIs.append(grev1) 
+                        self.versionURIs.append(grev1)
 
                         parents = c.parents
 
@@ -374,7 +374,7 @@ class Config(object):
                         except Exception as e:
                             logger.warning(str(e))
 
-            
+
         except Exception as e:
             logger.warning(str(e))
 
@@ -399,12 +399,12 @@ class Config(object):
         fmt += 'vkind      : %s\n'
         fmt += 'num vers   : %d\n'
         fmt += 'num vpairs : %d\n'
-        fmt += 'parser     : %s\n' 
-        fmt += 'lang       : %s\n' 
+        fmt += 'parser     : %s\n'
+        fmt += 'lang       : %s\n'
 
-        s = fmt % (self.proj_id, 
+        s = fmt % (self.proj_id,
                    self.proj_path,
-                   self.repo_url, 
+                   self.repo_url,
                    self.vkind,
                    self.nversions,
                    len(self.vpairs),
@@ -413,7 +413,7 @@ class Config(object):
 
         if self.sloc:
             s += 'SLOC       : %s\n' % self.sloc
-    
+
         if self.__parser == PARSER_EXTERNAL_C:
             s += 'build_cmds : %s\n' % (cmds_to_str(self.build_cmds))
 
@@ -430,7 +430,7 @@ class Config(object):
             s += 'ver_tbl:\n'
             for vo in self.ver_tbl.items():
                 s += '  %s -> %s\n' % vo
-            
+
 
         return s
 

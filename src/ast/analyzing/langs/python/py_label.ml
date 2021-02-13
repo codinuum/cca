@@ -55,7 +55,7 @@ open Charpool
 
 module Literal =
   struct
-    type t = 
+    type t =
       | Integer of string
       |	LongInteger of string
       | FloatNumber of string
@@ -72,9 +72,9 @@ module Literal =
       | CatString str   -> sprintf "CatString:%s" str
 
     let to_simple_string = function
-      | Integer str     
-      | LongInteger str 
-      | FloatNumber str 
+      | Integer str
+      | LongInteger str
+      | FloatNumber str
       | ImagNumber str
       | String str
       | CatString str -> str
@@ -87,7 +87,7 @@ module Literal =
       | String str      -> String ""
       | CatString str   -> CatString ""
 
-    let to_short_string ?(ignore_identifiers_flag=false) = 
+    let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
       | Integer str     -> mkstr 0
       | LongInteger str -> combo 1 [str]
@@ -203,7 +203,7 @@ module AssignmentOperator =
 
 
     let to_tag aop =
-      let name = 
+      let name =
 	match aop with
 	| Eq       -> "Assign"
 	| AddEq    -> "AddAssign"
@@ -220,15 +220,15 @@ module AssignmentOperator =
 	| FDivEq   -> "FDivAssign"
       in
       name, []
-	
+
   end (* of module AssignmentOperator *)
 
 module UnaryOperator =
   struct
-    type t = 
-      | Positive 
-      | Negative 
-      | Complement 
+    type t =
+      | Positive
+      | Negative
+      | Complement
       | Not
 
     let to_simple_string = function
@@ -266,7 +266,7 @@ module UnaryOperator =
 module BinaryOperator =
   struct
     type t =
-      | Mul | Div | FDiv | Mod | Add | Sub 
+      | Mul | Div | FDiv | Mod | Add | Sub
       | ShiftL | ShiftR
       | Eq | Neq | Lt | Gt | Le | Ge
       | BitAnd | BitOr | BitXor | And | Or
@@ -306,7 +306,7 @@ module BinaryOperator =
       | Mod    -> mkstr 3
       | Add    -> mkstr 4
       | Sub    -> mkstr 5
-      | ShiftL -> mkstr 6 
+      | ShiftL -> mkstr 6
       | ShiftR -> mkstr 7
       | Eq     -> mkstr 8
       | Neq    -> mkstr 9
@@ -314,7 +314,7 @@ module BinaryOperator =
       | Gt     -> mkstr 11
       | Le     -> mkstr 12
       | Ge     -> mkstr 13
-      | BitAnd -> mkstr 14 
+      | BitAnd -> mkstr 14
       | BitOr  -> mkstr 15
       | BitXor -> mkstr 16
       | And    -> mkstr 17
@@ -422,7 +422,7 @@ module Statement =
       | AsyncFuncDef name -> AsyncFuncDef ""
       | stmt          -> stmt
 
-    let to_short_string ?(ignore_identifiers_flag=false) = 
+    let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
       | Simple -> mkstr 0
       | If     -> mkstr 1
@@ -450,12 +450,12 @@ module Statement =
         | AsyncFuncDef name -> "AsyncFuncDef", ["name",name]
       in
       name, attrs
-      
+
   end (* of module Statement *)
 
 module SimpleStatement =
   struct
-    type t = 
+    type t =
       | Expr
       | Assign of AssignmentOperator.t
       | Print
@@ -587,7 +587,7 @@ module Primary = struct
     | Call tid    -> Call (anonymize_tid ~more tid)
     | prim        -> prim
 
-  let to_short_string ?(ignore_identifiers_flag=false) = 
+  let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
     | Name name    -> combo 0 [name]
     | Literal lit  -> combo 1 [Literal.to_short_string ~ignore_identifiers_flag lit]
@@ -598,13 +598,13 @@ module Primary = struct
     | List         -> mkstr 6
     | ListFor      -> mkstr 7
     | Dict         -> mkstr 8
-    | StringConv   -> mkstr 9 
+    | StringConv   -> mkstr 9
     | AttrRef      -> mkstr 10
     | Subscription -> mkstr 11
     | Slicing      -> mkstr 12
     | Call tid     -> combo 13 [tid_to_string tid]
     | Await        -> mkstr 14
-			      
+
   let to_tag prim =
     let name, attrs =
       match prim with
@@ -708,10 +708,10 @@ let literal_to_string = function
   | Ast.Llonginteger str -> "Llonginteger:" ^ str
   | Ast.Lfloatnumber str -> "Lfloatnumber:" ^ str
   | Ast.Limagnumber str  -> "Linagnumber:" ^ str
-  | Ast.Lstring pystrs   -> 
+  | Ast.Lstring pystrs   ->
       "Lstring[" ^
       (Xlist.to_string
-	 (function 
+	 (function
            | Ast.PSlong(_, s) -> "PSlong:" ^ s
            | Ast.PSshort(_, s) -> "PSshort:" ^ s
          ) ";" pystrs) ^
@@ -739,7 +739,7 @@ and primary_desc_to_string = function
   | Ast.Pcall(prim, arglist) -> sprintf "Pcall(%s,%s)" (primary_to_string prim) (arglist_to_string arglist)
   | Ast.Pawait prim -> sprintf "Pawait(%s)" (primary_to_string prim)
 
-and expr_to_string expr = 
+and expr_to_string expr =
   match expr.Ast.expr_desc with
   | Ast.Eprimary prim -> sprintf "Eprimary(%s)" (primary_to_string prim)
   | Ast.Epower(prim, expr) -> sprintf "Epower(%s,%s)" (primary_to_string prim) (expr_to_string expr)
@@ -749,8 +749,8 @@ and expr_to_string expr =
 
   | Ast.Elambda(params, expr) ->
       "Elambda(" ^
-      (match params with 
-      | _, [] -> "" 
+      (match params with
+      | _, [] -> ""
       | _ -> parameters_to_string params) ^
       (expr_to_string expr)
 
@@ -793,7 +793,7 @@ and uop_to_string = function
   | Ast.Unot        -> "Unot"
 
 and parameters_to_string (_, vargs) =
-  "(" ^ 
+  "(" ^
   (vargs_to_string vargs) ^ "," ^
   ")"
 
@@ -814,8 +814,8 @@ and exprs_to_string exprs = sprintf "[%s]" (Xlist.to_string expr_to_string ";" e
 
 and compfor_to_string (_, (exprs, expr, compiter_opt), async) =
   (if async then "async " else "")^
-  "for " ^ 
-  (exprs_to_string exprs) ^ " in " ^ (expr_to_string expr) ^ " " ^ 
+  "for " ^
+  (exprs_to_string exprs) ^ " in " ^ (expr_to_string expr) ^ " " ^
   (opt_to_string compiter_to_string compiter_opt)
 
 and compiter_to_string = function
@@ -823,14 +823,14 @@ and compiter_to_string = function
   | Ast.Cif gi -> "Cif(" ^ (compif_to_string gi) ^ ")"
 
 and compif_to_string (_, expr, compiter_opt) =
-  "(" ^ 
-  (expr_to_string expr) ^ "," ^ (opt_to_string compiter_to_string compiter_opt) ^ 
+  "(" ^
+  (expr_to_string expr) ^ "," ^ (opt_to_string compiter_to_string compiter_opt) ^
   ")"
 
 and listfor_to_string (_, exprs1, exprs2, listiter_opt) =
-  "(" ^ 
-  (exprs_to_string exprs1) ^ "," ^ (exprs_to_string exprs2) ^ "," ^ 
-  (opt_to_string listiter_to_string listiter_opt) ^ 
+  "(" ^
+  (exprs_to_string exprs1) ^ "," ^ (exprs_to_string exprs2) ^ "," ^
+  (opt_to_string listiter_to_string listiter_opt) ^
   ")"
 
 and listiter_to_string = function
@@ -838,8 +838,8 @@ and listiter_to_string = function
   | Ast.LIif li -> "LIif(" ^ (listif_to_string li) ^ ")"
 
 and listif_to_string (_, expr, listiter_opt) =
-  "(" ^ 
-  (expr_to_string expr) ^ "," ^ (opt_to_string listiter_to_string listiter_opt) ^ 
+  "(" ^
+  (expr_to_string expr) ^ "," ^ (opt_to_string listiter_to_string listiter_opt) ^
   ")"
 
 and dictelem_to_string delem =
@@ -847,7 +847,7 @@ and dictelem_to_string delem =
   | DEkeyValue(e1, e2) -> (expr_to_string e1)^":"^(expr_to_string e2)
   | DEstarStar e -> "**"^(expr_to_string e)
 
-and dictorsetmaker_to_string dictorsetmaker = 
+and dictorsetmaker_to_string dictorsetmaker =
   let s =
     match dictorsetmaker with
     | Ast.DSMdict key_dats -> Xlist.to_string dictelem_to_string "," key_dats
@@ -940,7 +940,7 @@ let tid_of_from_import (dots_opt, dname_opt, name_as_names) =
     (Digest.to_hex (Digest.string s))
     ""
 
-let of_simplestmt sstmt = 
+let of_simplestmt sstmt =
   SimpleStatement
     (match sstmt with
     | Ast.SSexpr _               -> SimpleStatement.Expr
@@ -991,9 +991,9 @@ let of_primary p =
     | Ast.PcompT _        -> Primary.Test
     | Ast.PcompL _        -> Primary.ListFor
     | Ast.Plist _         -> Primary.List
-    | Ast.Plistnull       -> Primary.List 
+    | Ast.Plistnull       -> Primary.List
     | Ast.Pdictorset _    -> Primary.Dict
-    | Ast.Pdictnull       -> Primary.Dict 
+    | Ast.Pdictnull       -> Primary.Dict
     | Ast.Pstrconv _      -> Primary.StringConv
     | Ast.Pattrref _      -> Primary.AttrRef
     | Ast.Psubscript _    -> Primary.Subscription
@@ -1088,7 +1088,7 @@ let anonymize3 = anonymize ~more:true
 let to_simple_string = to_string (* to be implemented *)
 
 
-let rec to_short_string ?(ignore_identifiers_flag=false) = 
+let rec to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
   | Dummy -> mkstr 0
 
@@ -1295,14 +1295,14 @@ let is_common = function
 let is_hunk_boundary _ _ = false (* not yet *)
 
 (* These labels are collapsible whether they are leaves or not. *)
-let forced_to_be_collapsible lab = 
+let forced_to_be_collapsible lab =
   false
 
-let is_collapse_target options lab = 
+let is_collapse_target options lab =
   let res =
-    if options#no_collapse_flag then 
+    if options#no_collapse_flag then
       false
-    else 
+    else
       match lab with
       | Statement _
       | SimpleStatement _
@@ -1330,7 +1330,7 @@ let is_boundary = function
   | _ -> false
 
 let is_partition = function
-  | Statement _ 
+  | Statement _
   | SimpleStatement _
     -> true
   | _ -> false
@@ -1364,7 +1364,7 @@ let is_real_literal = function
 
 (* for fact extraction *)
 
-let get_category lab = 
+let get_category lab =
   let name, _ = to_tag lab in
   name
 

@@ -40,8 +40,8 @@ let dump_in_xml_ch root ch =
     String.concat "" (List.map (fun (a, v) -> sprintf " %s='%s'" a v) attrs)
   in
   let get_loc_attr loc =
-    let pos = 
-      sprintf "%d:%d(%d)-%d:%d(%d)" 
+    let pos =
+      sprintf "%d:%d(%d)-%d:%d(%d)"
         loc.Loc.start_line loc.Loc.start_char loc.Loc.start_offset
         loc.Loc.end_line loc.Loc.end_char loc.Loc.end_offset
     in
@@ -78,7 +78,7 @@ let dump_in_xml_ch root ch =
     match children with
     | [] -> []
     | [nd] -> get_loc_attr nd#loc
-    | nd::nds -> 
+    | nd::nds ->
         let lloc = LLoc.merge nd#lloc (Xlist.last nds)#lloc in
         let loc = lloc#get_loc in
         get_loc_attr loc

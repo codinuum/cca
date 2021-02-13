@@ -154,7 +154,7 @@ module F (L : Label.T) = struct
     inherit extractor_base options cache_path tree as super
 
     method id = "Cpp"
-  
+
 
     method mkextname n = super#mkextname n
 
@@ -191,8 +191,8 @@ module F (L : Label.T) = struct
           let a = (Obj.obj nd#data#_annotation : Label.annotation) in
           Label.Annotation.iter
             (function
-              | Label.Annotation.Require ns -> 
-                  List.iter 
+              | Label.Annotation.Require ns ->
+                  List.iter
                     (fun n ->
                       let en = self#mkextname n in
                       self#add (en, p_is_a, Triple.c_external_name);
@@ -200,8 +200,8 @@ module F (L : Label.T) = struct
                       self#add (entity, p_requires, en)
                     ) ns
 
-              | Label.Annotation.Provide ns -> 
-                  List.iter 
+              | Label.Annotation.Provide ns ->
+                  List.iter
                     (fun _n ->
                       List.iter
                         (fun n ->
@@ -250,7 +250,7 @@ module F (L : Label.T) = struct
           with
             Not_found -> ()
         end;
-        
+
         begin
           try
             let ty, v =

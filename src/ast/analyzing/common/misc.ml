@@ -22,11 +22,11 @@ module GI = Otreediff.GIndex
 
 let set_tree_size_limit options sz1 sz2 =
   let comp sz =
-    if sz > options#tree_size_threshold then 
-      int_of_float 
-	((float_of_int sz) 
+    if sz > options#tree_size_threshold then
+      int_of_float
+	((float_of_int sz)
 	   *. ((float_of_int options#tree_size_limit_percent) /. 100.0))
-    else 
+    else
       max_int
   in
   let lim1 = comp sz1 in
@@ -35,7 +35,7 @@ let set_tree_size_limit options sz1 sz2 =
   options#set_tree_size_limit1 lim1;
   options#set_tree_size_limit2 lim2
 
-let check_tree_size_limit options sz1 sz2 = 
+let check_tree_size_limit options sz1 sz2 =
   sz1 > options#tree_size_limit1 || sz2 > options#tree_size_limit2
 
 let check_hard_tree_size_limit options sz1 sz2 =
@@ -93,57 +93,57 @@ let contract tree1 tree2 clusters =
       DEBUG_MSG "ftr2=[%s]" (Xlist.to_string UID.to_string ";" ftr2u)
     END_DEBUG;
 
-    let path_cands1, topnd_list1, is_rclu1 = 
+    let path_cands1, topnd_list1, is_rclu1 =
       tree1#contraction_candidates clu1 ftr1
     in
-    let path_cands2, topnd_list2, is_rclu2 = 
+    let path_cands2, topnd_list2, is_rclu2 =
       tree2#contraction_candidates clu2 ftr2
     in
 
     BEGIN_DEBUG
       DEBUG_MSG "topnd_list1=[%s]"
-	(Xlist.to_string 
+	(Xlist.to_string
 	   (fun nd -> UID.to_string nd#uid)
 	   ";" topnd_list1);
       DEBUG_MSG "topnd_list2=[%s]"
-	(Xlist.to_string 
+	(Xlist.to_string
 	   (fun nd -> UID.to_string nd#uid)
 	   ";" topnd_list2);
       DEBUG_MSG "path_cands1={%s}"
-	(Xlist.to_string 
+	(Xlist.to_string
 	   (fun (i, c) ->
 	     let u = (tree1#get i)#uid in
 	     let us = List.map (fun i -> (tree1#get i)#uid) c in
-	     Printf.sprintf "%a:[%s]" 
-	       UID.ps u (Xlist.to_string UID.to_string ";" us)) 
+	     Printf.sprintf "%a:[%s]"
+	       UID.ps u (Xlist.to_string UID.to_string ";" us))
 	   "," path_cands1);
       DEBUG_MSG "path_cands2={%s}"
-	(Xlist.to_string 
-	   (fun (i, c) -> 
+	(Xlist.to_string
+	   (fun (i, c) ->
 	     let u = (tree2#get i)#uid in
 	     let us = List.map (fun i -> (tree2#get i)#uid) c in
-	     Printf.sprintf "%a:[%s]" 
-	       UID.ps u (Xlist.to_string UID.to_string ";" us)) 
+	     Printf.sprintf "%a:[%s]"
+	       UID.ps u (Xlist.to_string UID.to_string ";" us))
 	   "," path_cands2)
     END_DEBUG;
 
 
-    if is_rclu1 || is_rclu2 then 
+    if is_rclu1 || is_rclu2 then
       deferred_cluster := Some cluster
     else begin
       let prune_cands1 = ref
-	  (List.flatten 
-	     (List.map 
-		(fun tnd -> 
+	  (List.flatten
+	     (List.map
+		(fun tnd ->
 		  tree1#fast_subtree_members tnd#index
 		) topnd_list1
 	     )
 	  )
       in
       let prune_cands2 = ref
-	  (List.flatten 
-	     (List.map 
-		(fun tnd -> 
+	  (List.flatten
+	     (List.map
+		(fun tnd ->
 		  tree2#fast_subtree_members tnd#index
 		) topnd_list2
 	     )
@@ -153,9 +153,9 @@ let contract tree1 tree2 clusters =
       BEGIN_DEBUG
         let num_pruned1 =
 	  match ftr1, ftr2 with
-	  | [], [] -> 
-	      List.fold_left 
-	        (fun s nd -> 
+	  | [], [] ->
+	      List.fold_left
+	        (fun s nd ->
 		  s + (tree1#whole_initial_subtree_size nd)
 	        ) 0 topnd_list1
 	  | _ ->
@@ -177,12 +177,12 @@ let contract tree1 tree2 clusters =
 
       begin (* prune nodes *)
 	match ftr1, ftr2 with
-	| [], [] -> 
-	    tree1#prune_nodes topnd_list1; 
+	| [], [] ->
+	    tree1#prune_nodes topnd_list1;
 	    tree2#prune_nodes topnd_list2
 	| _ ->
 	    if path_cands1 = [] || path_cands2 = [] then begin
-	      prune_cands1 := []; 
+	      prune_cands1 := [];
 	      prune_cands2 := []
 	    end
 	    else begin
@@ -205,7 +205,7 @@ let contract tree1 tree2 clusters =
       let is_correct =
 	(List.length !prune_cands1) = (List.length !prune_cands2) &&
 	List.for_all
-	  (fun i -> 
+	  (fun i ->
 	    let j = List.assoc i cluster in
 	    pruned_cluster := (i, j)::!pruned_cluster;
 	    List.mem j !prune_cands2
@@ -221,14 +221,14 @@ let contract tree1 tree2 clusters =
   List.iter contract_cluster clusters;
 
 
-  let mk_uid_cluster cluster = 
+  let mk_uid_cluster cluster =
     List.map (fun (i, j) -> (tree1#get i)#uid, (tree2#get j)#uid) cluster
   in
-  let deferred_uid_cluster = 
-    match !deferred_cluster with 
+  let deferred_uid_cluster =
+    match !deferred_cluster with
       Some clu -> Some (mk_uid_cluster clu) | None -> None
   in
-  let pruned_uid_clusters = 
+  let pruned_uid_clusters =
     List.map (fun clu -> mk_uid_cluster clu) !pruned_clusters
   in
 
@@ -260,34 +260,34 @@ let to_be_flat nd =
   _to_be_flat cc nd
 
 
-let conv_subtree_node_pairs tree1 tree2 = 
+let conv_subtree_node_pairs tree1 tree2 =
   let sea tree nd =
     let gi = nd#gindex in
     if GI.is_valid gi then
       try
 	tree#search_node_by_gindex gi
-      with 
-	Not_found -> 
-	  WARN_MSG "gindex=%d" nd#gindex; 
+      with
+	Not_found ->
+	  WARN_MSG "gindex=%d" nd#gindex;
 	  assert false
     else
       raise (Invalid_argument "")
   in
-  Xlist.filter_map 
-    (fun (n1, n2) -> 
+  Xlist.filter_map
+    (fun (n1, n2) ->
       try
 	let gi1 = sea tree1 n1 in
 	let gi2 = sea tree2 n2 in
 	Some (gi1, gi2)
       with
 	Invalid_argument _ -> None
-    ) 
+    )
 
 let get_home_dir () =
-  try 
-    Sys.getenv "HOME" 
-  with 
-    Not_found -> 
+  try
+    Sys.getenv "HOME"
+  with
+    Not_found ->
       let d = Filename.get_temp_dir_name() in
       WARN_MSG "could not find HOME, setting HOME to %s" d;
       d
