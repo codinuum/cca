@@ -20,15 +20,21 @@ let get_dist_dir () =
   Filename.dirname (Filename.dirname (Xfile.abspath Sys.executable_name))
 
 let conf_search_paths =
-  [ Filename.concat (get_dist_dir()) "etc";
+  let dist_dir = get_dist_dir() in
+  [ Filename.concat dist_dir "etc";
+    Filename.concat (Filename.concat dist_dir "etc") "cca";
   ]
 
 let parser_search_paths =
-  [ Filename.concat (get_dist_dir()) "parsers";
+  let dist_dir = get_dist_dir() in
+  [ Filename.concat dist_dir "parsers";
+    Filename.concat (Filename.concat (Filename.concat dist_dir "lib") "cca") "parsers";
   ]
 
 let module_search_paths =
-  [ Filename.concat (get_dist_dir()) "modules";
+  let dist_dir = get_dist_dir() in
+  [ Filename.concat dist_dir "modules";
+    Filename.concat (Filename.concat (Filename.concat dist_dir "lib") "cca") "modules";
   ]
 
 let _search_file name search_paths fname =
