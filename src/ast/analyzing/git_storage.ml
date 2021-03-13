@@ -297,6 +297,7 @@ module F (S: Git.S) = struct
 
   end (* of class Git_storage.F.tree *)
 
+  let opt_to_str = Xoption.to_string (fun x -> x)
 
   let dump_value sha1 = function
     | Git.Value.Commit commit -> begin
@@ -305,7 +306,7 @@ module F (S: Git.S) = struct
           (String.concat " " (List.map Hash.to_hex (Commit.parents commit)));
         printf "  AUTHOR: \"%s\"\n" (Commit.author commit).User.name;
         printf "  COMMITTER: \"%s\"\n" (Commit.committer commit).User.name;
-        printf "  MESSAGE: \"%s\"\n" (Commit.message commit);
+        printf "  MESSAGE: \"%s\"\n" (opt_to_str (Commit.message commit));
         printf "  TREE: %s\n" (Hash.to_hex (Commit.tree commit))
     end
     | Git.Value.Blob blob -> begin
@@ -320,7 +321,7 @@ module F (S: Git.S) = struct
           | Git.Tag.Tree -> "Tree");
         printf "  TAGGER: \"%s\"\n"
           (match Tag.tagger tag with None -> "" | Some u -> u.User.name);
-        printf "  MESSAGE: \"%s\"\n" (Tag.message tag);
+        printf "  MESSAGE: \"%s\"\n" (opt_to_str (Tag.message tag));
     end
     | Tree tree -> begin
         printf "TREE:%s\n" (Hash.to_hex sha1);
