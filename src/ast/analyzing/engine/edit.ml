@@ -44,7 +44,7 @@ class formatters
 
 class seq options = object (self)
   inherit [node_t, tree_t] seq_base options as super
-
+(*
   method dump_diff_simple_ch ?(line_align=[]) (tree1 : 'tree_t) (tree2 : 'tree_t) =
     let formatters =
       new formatters
@@ -324,7 +324,7 @@ class seq options = object (self)
     Printf.fprintf ch "%s" footer
 
   (* end of method dump_diff_ch *)
-
+*)
   method dump_delta
       ?(extra_ns_decls=[])
       (tree1 : 'tree_t)
