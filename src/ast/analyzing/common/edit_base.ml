@@ -1357,11 +1357,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
 	  | Relabel(movrel, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
               let ok =
+                !movrel ||
                 not minimal ||
                 let n1 = Info.get_node info1 in
                 let n2 = Info.get_node info2 in
                 n1#data#is_named_orig && n2#data#is_named_orig ||
-                (not n1#data#is_named || not n2#data#is_named) ||
+                (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
                 n1#data#more_anonymized_label <> n2#data#more_anonymized_label
               in
               if ok then begin
