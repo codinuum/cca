@@ -172,14 +172,14 @@ let rec conv_name ?(resolve=true) n =
         (conv_name ~resolve name)^sep^ident
   | Ast.Nerror s -> s
 
-let conv_loc
+let conv_loc 
     { Ast.Loc.start_offset = so;
       Ast.Loc.end_offset   = eo;
       Ast.Loc.start_line   = sl;
       Ast.Loc.start_char   = sc;
       Ast.Loc.end_line     = el;
       Ast.Loc.end_char     = ec
-    } =
+    } = 
   Loc.make so eo sl sc el ec
 
 open Charpool
@@ -254,7 +254,7 @@ module Type = struct
     | Ast.TAreferenceType ty -> to_simple_string (of_javatype ~resolve ty)
     | Ast.TAwildcard wc      -> wildcard_to_string ~resolve wc
 
-  and wildcard_bounds_to_string ?(resolve=true) wb =
+  and wildcard_bounds_to_string ?(resolve=true) wb = 
     match wb.Ast.wb_desc with
     | Ast.WBextends ty -> "extends "^(to_simple_string (of_javatype ~resolve ty))
     | Ast.WBsuper ty   -> "super "^(to_simple_string (of_javatype ~resolve ty))
@@ -265,7 +265,7 @@ module Type = struct
         (Printer.annotations_to_string al)^"? "^(wildcard_bounds_to_string ~resolve wb)
 
   and type_arguments_to_string ?(resolve=true) tas =
-    "<"^
+    "<"^ 
     (Xlist.to_string (type_argument_to_string ~resolve) "," tas.Ast.tas_type_arguments)^
     ">"
 
@@ -280,7 +280,7 @@ module Type = struct
   and conv_type_specs ?(resolve=true) tss =
     Xlist.to_string (type_spec_to_name ~resolve) "." tss
 
-  and to_string ty =
+  and to_string ty = 
     let rec conv = function
       | Byte    -> "Byte"
       | Short   -> "Short"
@@ -334,7 +334,7 @@ module Type = struct
     | Array(lab, dim)    -> (to_simple_string lab)^(dims_to_string dim)
     | Void -> "void"
 
-  and to_short_string ?(ignore_identifiers_flag=false) =
+  and to_short_string ?(ignore_identifiers_flag=false) = 
     let combo = combo ~ignore_identifiers_flag in function
     | Byte    -> mkstr 0
     | Short   -> mkstr 1
@@ -351,7 +351,7 @@ module Type = struct
     | Void -> mkstr 12
 
 
-  and to_tag ty =
+  and to_tag ty = 
     let rec conv = function
       | Byte               -> "ByteType", []
       | Short              -> "ShortType", []
@@ -364,9 +364,9 @@ module Type = struct
       | ClassOrInterface n -> "ReferenceType", ["name",xmlenc n]
       | Class n            -> "ClassType", ["name",xmlenc n]
       | Interface n        -> "InterfaceType", ["name",xmlenc n]
-      | Array(lab, dims)   ->
+      | Array(lab, dims)   -> 
 	  let name, attrs = conv lab in
-	  name, attrs @ ["dimensions",string_of_int dims]
+	  name, attrs @ ["dimensions",string_of_int dims] 
       | Void               -> "Void", []
     in
     let name, attrs = conv ty in
@@ -398,7 +398,7 @@ end (* of module Type *)
 
 
 module Literal = struct
-  type t =
+  type t = 
     | Integer of string
     | FloatingPoint of string
     | True | False
@@ -425,8 +425,8 @@ module Literal = struct
     | Ast.Lstring str -> (String str)
     | Ast.Lnull -> Null
 
-  let to_string lit =
-    let str =
+  let to_string lit = 
+    let str = 
       match lit with
       | Integer str -> sprintf "Integer(%s)" str
       | FloatingPoint str -> sprintf "FloatingPoint(%s)" str
@@ -458,7 +458,7 @@ module Literal = struct
     | True              -> "true"
     | False             -> "false"
     | Character str     -> sprintf "'%s'" str
-    | String str        ->
+    | String str        -> 
 	if (String.length str) > string_len_threshold then
 	  "\""^(Digest.to_hex (Digest.string str))^"\""
 	else
@@ -480,7 +480,7 @@ module Literal = struct
     | True              -> mkstr 2
     | False             -> mkstr 3
     | Character str     -> catstr [mkstr 4; str]
-    | String str        ->
+    | String str        -> 
 	if (String.length str) > string_len_threshold then
 	  catstr [mkstr 5; Digest.to_hex (Digest.string str)]
 	else
@@ -488,8 +488,8 @@ module Literal = struct
     | Null              -> mkstr 7
 
 
-  let to_tag lit =
-    let name, attrs =
+  let to_tag lit = 
+    let name, attrs = 
       match lit with
       | Integer str       -> "IntegerLiteral", ["value",xmlenc str]
       | FloatingPoint str -> "FloatingPointLiteral", ["value",xmlenc str]
@@ -524,7 +524,7 @@ module AssignmentOperator = struct
       | AndEq     -> "AndEq"
       | XorEq     -> "XorEq"
       | OrEq      -> "OrEq"
-    in
+    in 
     "AssignmentOperator." ^ str
 
   let to_simple_string = function
@@ -543,11 +543,11 @@ module AssignmentOperator = struct
 
   let to_short_string = function
     | Eq        -> mkstr 0
-    | MulEq     -> mkstr 1
-    | DivEq     -> mkstr 2
-    | ModEq     -> mkstr 3
-    | AddEq     -> mkstr 4
-    | SubEq     -> mkstr 5
+    | MulEq     -> mkstr 1 
+    | DivEq     -> mkstr 2 
+    | ModEq     -> mkstr 3 
+    | AddEq     -> mkstr 4 
+    | SubEq     -> mkstr 5 
     | ShiftLEq  -> mkstr 6
     | ShiftREq  -> mkstr 7
     | ShiftRUEq -> mkstr 8
@@ -556,7 +556,7 @@ module AssignmentOperator = struct
     | OrEq      -> mkstr 11
 
 
-  let of_assignment_operator ao =
+  let of_assignment_operator ao = 
     let conv = function
       | Ast.AOeq        -> Eq
       | Ast.AOmulEq     -> MulEq
@@ -590,7 +590,7 @@ module AssignmentOperator = struct
       | OrEq      -> "OrAssign"
     in
     name, attrs
-
+      
 end (* of module AssignmentOperator *)
 
 
@@ -610,7 +610,7 @@ module UnaryOperator = struct
       | Negative      -> "Negative"
       | Complement    -> "Complement"
       | Not           -> "Not"
-    in
+    in 
     "UnaryOperator." ^ str
 
   let to_simple_string = function
@@ -634,13 +634,13 @@ module UnaryOperator = struct
     | Not           -> mkstr 7
 
   let of_unary_operator = function
-    | Ast.UOpostIncrement -> PostIncrement
-    | Ast.UOpostDecrement -> PostDecrement
-    | Ast.UOpreIncrement  -> PreIncrement
+    | Ast.UOpostIncrement -> PostIncrement 
+    | Ast.UOpostDecrement -> PostDecrement 
+    | Ast.UOpreIncrement  -> PreIncrement 
     | Ast.UOpreDecrement  -> PreDecrement
-    | Ast.UOpositive      -> Positive
-    | Ast.UOnegative      -> Negative
-    | Ast.UOcomplement    -> Complement
+    | Ast.UOpositive      -> Positive 
+    | Ast.UOnegative      -> Negative 
+    | Ast.UOcomplement    -> Complement 
     | Ast.UOnot           -> Not
 
   let to_tag uo =
@@ -662,7 +662,7 @@ end (* of module UnaryOperator *)
 
 module BinaryOperator = struct
   type t =
-    | Mul | Div | Mod | Add | Sub
+    | Mul | Div | Mod | Add | Sub 
     | ShiftL | ShiftR | ShiftRU
     | Eq | Neq | Lt | Gt | Le | Ge
     | BitAnd | BitOr | BitXor | And | Or
@@ -689,7 +689,7 @@ module BinaryOperator = struct
       | BitXor  -> "BitXor"
       | And     -> "And"
       | Or      -> "Or"
-    in
+    in 
     "BinaryOperator." ^ str
 
   let to_simple_string = function
@@ -734,26 +734,26 @@ module BinaryOperator = struct
     | And     -> mkstr 17
     | Or      -> mkstr 18
 
-
+      
   let of_binary_operator = function
-    | Ast.BOmul     -> Mul
-    | Ast.BOdiv     -> Div
-    | Ast.BOmod     -> Mod
-    | Ast.BOadd     -> Add
-    | Ast.BOsub     -> Sub
-    | Ast.BOshiftL  -> ShiftL
-    | Ast.BOshiftR  -> ShiftR
+    | Ast.BOmul     -> Mul 
+    | Ast.BOdiv     -> Div 
+    | Ast.BOmod     -> Mod 
+    | Ast.BOadd     -> Add 
+    | Ast.BOsub     -> Sub 
+    | Ast.BOshiftL  -> ShiftL 
+    | Ast.BOshiftR  -> ShiftR 
     | Ast.BOshiftRU -> ShiftRU
-    | Ast.BOeq      -> Eq
-    | Ast.BOneq     -> Neq
-    | Ast.BOlt      -> Lt
-    | Ast.BOgt      -> Gt
-    | Ast.BOle      -> Le
+    | Ast.BOeq      -> Eq 
+    | Ast.BOneq     -> Neq 
+    | Ast.BOlt      -> Lt 
+    | Ast.BOgt      -> Gt 
+    | Ast.BOle      -> Le 
     | Ast.BOge      -> Ge
-    | Ast.BObitAnd  -> BitAnd
-    | Ast.BObitOr   -> BitOr
-    | Ast.BObitXor  -> BitXor
-    | Ast.BOand     -> And
+    | Ast.BObitAnd  -> BitAnd 
+    | Ast.BObitOr   -> BitOr 
+    | Ast.BObitXor  -> BitXor 
+    | Ast.BOand     -> And 
     | Ast.BOor      -> Or
 
   let to_tag bo =
@@ -786,22 +786,22 @@ end (* of module BinaryOperator *)
 
 module Modifier = struct
   type t =
-    | Public
-    | Protected
-    | Private
-    | Static
+    | Public 
+    | Protected 
+    | Private 
+    | Static 
     | Abstract
-    | Final
-    | Native
-    | Synchronized
-    | Transient
-    | Volatile
+    | Final 
+    | Native 
+    | Synchronized 
+    | Transient 
+    | Volatile 
     | Strictfp
 (*    | Annotation*)
     | Default
 
   let to_string m =
-    let str =
+    let str = 
       match m with
       | Public       -> "Public"
       | Protected    -> "Protected"
@@ -810,7 +810,7 @@ module Modifier = struct
       | Abstract     -> "Abstract"
       | Final        -> "Final"
       | Native       -> "Native"
-      | Synchronized -> "Synchronized"
+      | Synchronized -> "Synchronized" 
       | Transient    -> "Transient"
       | Volatile     -> "Volatile"
       | Strictfp     -> "Strictfp"
@@ -854,9 +854,9 @@ module Modifier = struct
     | Strictfp     -> mkstr 10
 (*    | Annotation   -> mkstr 11*)
     | Default      -> mkstr 12
-
-  let to_tag m =
-    let name =
+    
+  let to_tag m = 
+    let name = 
       match m with
       | Public       -> "Public"
       | Protected    -> "Protected"
@@ -865,7 +865,7 @@ module Modifier = struct
       | Abstract     -> "Abstract"
       | Final        -> "Final"
       | Native       -> "Native"
-      | Synchronized -> "Synchronized"
+      | Synchronized -> "Synchronized" 
       | Transient    -> "Transient"
       | Volatile     -> "Volatile"
       | Strictfp     -> "Strictfp"
@@ -952,8 +952,8 @@ module Primary = struct
     |  _ -> raise Not_found
 
   let is_named = function
-    | Name _
-    | QualifiedThis _
+    | Name _ 
+    | QualifiedThis _ 
     | InstanceCreation _
     | QualifiedInstanceCreation _
     | NameQualifiedInstanceCreation _
@@ -985,7 +985,7 @@ module Primary = struct
     | x -> is_named x
 
   let to_string p =
-    let str =
+    let str = 
       match p with
       | Name name -> sprintf "Name(%s)" name
       | This -> "This"
@@ -995,7 +995,7 @@ module Primary = struct
       | QualifiedThis name -> sprintf "QualifiedThis(%s)" name
 (*      | QualifiedNew name -> sprintf "QualifiedNew(%s)" name *)
       | InstanceCreation n -> sprintf "InstanceCreation(%s)" n
-      | QualifiedInstanceCreation name ->
+      | QualifiedInstanceCreation name -> 
 	  sprintf "QualifiedInstanceCreation(%s)" name
 
       | NameQualifiedInstanceCreation(q, name) ->
@@ -1011,10 +1011,10 @@ module Primary = struct
 
       | SuperMethodInvocation name -> sprintf "SuperMethodInvocation(%s)" name
 
-      | ClassSuperMethodInvocation name ->
+      | ClassSuperMethodInvocation name -> 
 	  sprintf "ClassSuperMethodInvocation(%s)" name
 
-      | TypeMethodInvocation(name, ident) ->
+      | TypeMethodInvocation(name, ident) -> 
 	  sprintf "TypeMethodInvocation(%s,%s)" name ident
 
       | ArrayAccess -> "ArrayAccess"
@@ -1100,8 +1100,8 @@ module Primary = struct
     | TypeNewMethodReference name            -> name^"::new"
     | AmbiguousName name                     -> "?"^name
     | AmbiguousMethodInvocation name         -> "?"^name
-
-  let to_short_string ?(ignore_identifiers_flag=false) =
+    
+  let to_short_string ?(ignore_identifiers_flag=false) = 
     let combo = combo ~ignore_identifiers_flag in function
     | Name name          -> combo 0 [name]
     | This               -> mkstr 1
@@ -1136,9 +1136,9 @@ module Primary = struct
     | TypeNewMethodReference name           -> combo 25 [name]
     | AmbiguousName name                    -> combo 26 [name]
     | AmbiguousMethodInvocation name        -> combo 27 [name]
-
-  let to_tag p =
-    let name, attrs =
+    
+  let to_tag p = 
+    let name, attrs = 
       match p with
       | Name name                              -> "Name", ["name",xmlenc name]
       | This                                   -> "This", []
@@ -1227,7 +1227,7 @@ module Expression = struct
     | _ -> false
 
   let to_string e =
-    let str =
+    let str = 
       match e with
       | Cond                  -> "Cond"
       | BinaryOperator bo     -> BinaryOperator.to_string bo
@@ -1269,7 +1269,7 @@ module Expression = struct
     | Lambda                -> mkstr 7
 
   let to_tag e =
-    let name, attrs =
+    let name, attrs = 
       match e with
       | Cond                  -> "Conditional", []
       | BinaryOperator bo     -> BinaryOperator.to_tag bo
@@ -1293,7 +1293,7 @@ end (* of module Expression *)
 
 
 module Annotation = struct
-  type t =
+  type t = 
     | Normal of name
     | Marker of name
     | SingleElement of name
@@ -1397,7 +1397,7 @@ module Statement = struct
 
 
   let to_string s =
-    let str =
+    let str = 
       match s with
       | Empty        -> "Empty"
       | Assert       -> "Assert"
@@ -1411,14 +1411,14 @@ module Statement = struct
       | Synchronized -> "Synchronized"
       | Return       -> "Return"
       | Throw        -> "Throw"
-      | Break ident_opt ->
-	  let s =
+      | Break ident_opt -> 
+	  let s = 
 	    match ident_opt with None -> "" | Some ident -> "(" ^ ident ^ ")"
 	  in
 	  "Break" ^ s
 
-      | Continue ident_opt ->
-	  let s =
+      | Continue ident_opt -> 
+	  let s = 
 	    match ident_opt with None -> "" | Some ident -> "(" ^ ident ^ ")"
 	  in
 	  "Continue" ^ s
@@ -1468,13 +1468,13 @@ module Statement = struct
     | Return       -> mkstr 10
     | Throw        -> mkstr 11
     | Break ident_opt ->
-	let l =
+	let l = 
 	  match ident_opt with None -> [] | Some ident -> [ident]
 	in
 	catstr ([mkstr 12] @ l)
 
     | Continue ident_opt ->
-	let l =
+	let l = 
 	  match ident_opt with None -> [] | Some ident -> [ident]
 	in
 	catstr ([mkstr 13] @ l)
@@ -1503,7 +1503,7 @@ module Statement = struct
 
 
   let to_tag s =
-    let name, attrs =
+    let name, attrs = 
       match s with
       | Empty           -> "EmptyStatement", []
       | Assert          -> "AssertStatement", []
@@ -1517,13 +1517,13 @@ module Statement = struct
       | Synchronized    -> "SynchronizedStatement", []
       | Return          -> "ReturnStatement", []
       | Throw           -> "ThrowStatement", []
-      | Break ident_opt ->
+      | Break ident_opt -> 
 	  let attrs =
 	    match ident_opt with None -> [] | Some ident -> [label_attr_name,ident]
 	  in
 	  "BreakStatement", attrs
 
-      | Continue ident_opt ->
+      | Continue ident_opt -> 
 	  let attrs =
 	    match ident_opt with None -> [] | Some ident -> [label_attr_name,ident]
 	  in
@@ -1563,7 +1563,7 @@ module Statement = struct
     (*| Method _, Constructor _ | Constructor _, Method _ !!! should be activated after patchast test *)
 	-> true
     | l1, l2 -> anonymize l1 = anonymize l2
-
+    
 end (* of module Statement *)
 
 
@@ -1706,8 +1706,8 @@ type t = (* Label *)
   | InterfaceBody of name (* interface name *)
   | PackageDeclaration of name
 
-(* import declarations *)
-  | IDsingle of name (* type name *)
+(* import declarations *) 
+  | IDsingle of name (* type name *) 
   | IDtypeOnDemand of name
   | IDsingleStatic of name * name
   | IDstaticOnDemand of name (* package name or type name *)
@@ -1763,9 +1763,9 @@ let rec to_string = function
   | StaticInitializer                       -> "StaticInitializer"
   | InstanceInitializer                     -> "InstanceInitializer"
   | Block tid                               -> sprintf "Block(%s)" (tid_to_string tid)
-  | LocalVariableDeclaration(isstmt, vdids) ->
+  | LocalVariableDeclaration(isstmt, vdids) -> 
       sprintf "LocalVariableDeclaration(%B,%s)" isstmt (vdids_to_string vdids)
-  | VariableDeclarator(name, dims, islocal) ->
+  | VariableDeclarator(name, dims, islocal) -> 
       sprintf "VariableDeclarator(%s,%d,%B)" name dims islocal
   | CatchClause tid                         -> sprintf "CatchClause(%s)" (tid_to_string tid)
   | Finally                                 -> "Finally"
@@ -1783,7 +1783,7 @@ let rec to_string = function
   | WildcardBoundsExtends                   -> "WildcardBoundsExtends"
   | WildcardBoundsSuper                     -> "WildcardBoundsSuper"
   | Parameters name                         -> sprintf "Parameters(%s)" name
-  | Parameter(name, dims, va)               ->
+  | Parameter(name, dims, va)               -> 
       sprintf "Parameter(%s,%d,%s)" name dims (if va then "..." else "")
 
   | TypeParameter name                      -> sprintf "TypeParameter(%s)" name
@@ -1939,7 +1939,7 @@ let rec to_simple_string = function
   | InstanceInitializer         -> "<init>"
   | Block tid                   -> "<block>"
   | LocalVariableDeclaration(isstmt, vdids) -> "<vdecl>"
-  | VariableDeclarator(name, dims, islocal) ->
+  | VariableDeclarator(name, dims, islocal) -> 
       name^(if dims = 0 then "" else sprintf "[%d" dims)^(if islocal then "L" else "F")
   | CatchClause tid             -> "catch"
   | Finally                     -> "finally"
@@ -1957,7 +1957,7 @@ let rec to_simple_string = function
   | WildcardBoundsExtends       -> "? extends"
   | WildcardBoundsSuper         -> "? super"
   | Parameters name             -> "<params>"
-  | Parameter(name, dims, va)   ->
+  | Parameter(name, dims, va)   -> 
       name^(if dims = 0 then "" else sprintf "[%d]" dims)^(if va then "..." else "")
   | TypeParameter name          -> name
   | TypeParameters name         -> "<ty_params>"
@@ -2025,7 +2025,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | StaticInitializer                       -> mkstr 18
   | InstanceInitializer                     -> mkstr 19
   | Block tid                               -> catstr [mkstr 20; tid_to_string tid]
-  | VariableDeclarator(name, dims, islocal) ->
+  | VariableDeclarator(name, dims, islocal) -> 
       combo 21 [name; string_of_int dims; if islocal then "L" else "F"]
   | CatchClause tid                         -> catstr [mkstr 23; tid_to_string tid]
   | Finally                                 -> mkstr 24
@@ -2092,7 +2092,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | EmptyDeclaration                        -> mkstr 87
 
 let to_tag l =
-  let name, attrs =
+  let name, attrs = 
     match l with
     | Type ty                     -> Type.to_tag ty
     | Primary p                   -> Primary.to_tag p
@@ -2124,7 +2124,7 @@ let to_tag l =
     | InstanceInitializer      -> "InstanceInitializer", []
 
     | Block tid                   -> "Block", mktidattr tid
-    | VariableDeclarator(name, d, islocal) ->
+    | VariableDeclarator(name, d, islocal) -> 
 	"VariableDeclarator", ["name",xmlenc name;
 				dims_attr_name,string_of_int d;
 				islocal_attr_name,string_of_bool islocal
@@ -2175,7 +2175,7 @@ let to_tag l =
     | PackageDeclaration name     -> "PackageDeclaration", ["name",xmlenc name]
 
 (* import declaration *)
-    | IDsingle name               -> "SingleTypeImportDeclaration", ["name",xmlenc name]
+    | IDsingle name               -> "SingleTypeImportDeclaration", ["name",xmlenc name] 
     | IDtypeOnDemand name         -> "TypeImportOnDemandDeclaration", ["name",xmlenc name]
     | IDsingleStatic(name, ident) -> "SingleStaticImportDeclaration", ["name",xmlenc name;ident_attr_name,ident]
     | IDstaticOnDemand name       -> "StaticImportOnDemandDeclaration", ["name",xmlenc name]
@@ -2217,20 +2217,20 @@ let to_tag l =
 
 
 
-let to_char lab =
+let to_char lab = 
   let to_index = function
     | Type ty -> 0
     | Primary p -> 1
     | Expression e -> 2
     | Statement s -> (* 3 *) Statement.to_index s (* 90 - *)
     | Modifier m -> 4
-    | Annotation a -> 5
+    | Annotation a -> 5 
 
     | TypeBound -> 6
     | ThisInvocation -> 7
     | SuperInvocation -> 8
-    | PrimaryInvocation -> 9
-    | NameInvocation name -> 10
+    | PrimaryInvocation -> 9 
+    | NameInvocation name -> 10 
     | SLconstant -> 11
     | SLdefault -> 12
     | EVconditional -> 13
@@ -2259,7 +2259,7 @@ let to_char lab =
     | TypeParameter name -> 39
     | TypeParameters name -> 40
     | ArrayInitializer -> 41
-    | Modifiers name -> 42
+    | Modifiers name -> 42 
     | FieldDeclaration vdids -> 43
     | Method(name, msig) -> 48
     | Super -> 49
@@ -2271,7 +2271,7 @@ let to_char lab =
     | Enum name -> 56
     | EnumConstant name -> 57
     | Extends -> 58
-    | Implements -> 59
+    | Implements -> 59 
     | ClassBody name -> 60
     | EnumBody name -> 61
     | Interface name -> 62
@@ -2316,7 +2316,7 @@ let of_classname ?(resolve=true) name = Type (Type.make_class ~resolve name)
 
 let of_literal ?(reduce=false) lit = Primary (Primary.of_literal ~reduce lit)
 
-let of_binary_operator bo =
+let of_binary_operator bo = 
   Expression (Expression.of_binary_operator bo)
 
 
@@ -2326,16 +2326,16 @@ let mkelab ?(tid=null_tid) se e =
   else
     Expression e
 
-let mkplab ?(tid=null_tid) se p =
+let mkplab ?(tid=null_tid) se p = 
   if se then
-    mkelab ~tid se (Expression.make_primary p)
+    mkelab ~tid se (Expression.make_primary p) 
   else
     Primary p
 
-let of_assignment_operator ?(is_stmt=false) ao tid =
+let of_assignment_operator ?(is_stmt=false) ao tid = 
   mkelab is_stmt (Expression.of_assignment_operator ao tid)
 
-let of_unary_operator ?(is_stmt=false) uo =
+let of_unary_operator ?(is_stmt=false) uo = 
   mkelab is_stmt (Expression.of_unary_operator uo)
 
 let get_expr = function
@@ -2358,12 +2358,12 @@ let is_hunk_boundary plab clab =
 
 
 (* These labels are collapsible whether they are leaves or not. *)
-let forced_to_be_collapsible lab =
+let forced_to_be_collapsible lab = 
   false
 
-let is_collapse_target options lab =
+let is_collapse_target options lab = 
   if options#no_collapse_flag then false
-  else
+  else 
     match lab with
     | Statement _
     | Primary _
@@ -2403,7 +2403,7 @@ let is_collapse_target options lab =
     | InferredFormalParameters
     | ArrayInitializer
       -> true
-    | _ -> false
+    | _ -> false      
 
 let is_statement_expression = function
   (*| Primary p -> begin
@@ -2450,6 +2450,9 @@ let is_compatible lab1 lab2 =
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
+  | ClassBody _, InterfaceBody _ | InterfaceBody _, ClassBody _ -> true
+  | ClassBody _, EnumBody _ | EnumBody _, ClassBody _ -> true
+  | EnumBody _, InterfaceBody _ | InterfaceBody _, EnumBody _ -> true
   | _ -> false
 
 let quasi_eq lab1 lab2 =
@@ -2470,7 +2473,7 @@ let quasi_eq lab1 lab2 =
   end
   | _ -> false
 
-let relabel_allowed (lab1, lab2) =
+let relabel_allowed (lab1, lab2) = 
   let allowed =
     match lab1, lab2 with
     | Statement stmt1, Statement stmt2 -> Statement.relabel_allowed(stmt1, stmt2)
@@ -2501,13 +2504,13 @@ let relabel_allowed (lab1, lab2) =
 
     | Primary (Primary.Name _), Qualifier _
     | Qualifier _, Primary (Primary.Name _)
-    | Primary (Primary.FieldAccess _), Qualifier _
+    | Primary (Primary.FieldAccess _), Qualifier _ 
     | Qualifier _, Primary (Primary.FieldAccess _)
 
     | Primary (Primary.Name _), Primary (Primary.FieldAccess _)
     | Primary (Primary.FieldAccess _), Primary (Primary.Name _)
 
-    | Primary _, Expression _
+    | Primary _, Expression _ 
     | Expression _, Primary _
 
     | Expression Expression.Cond, Statement Statement.If _
@@ -2601,7 +2604,7 @@ let is_named = function
   | TypeParameters _
   | Modifiers _
   | FieldDeclaration _
-  | Method _
+  | Method _ 
   | Qualifier _
   | Throws _
   | MethodBody _
@@ -2610,7 +2613,8 @@ let is_named = function
   | EnumConstant _
   | ClassBody _
   | EnumBody _
-  | Interface _
+  | Interface _ 
+  | Specifier _
   | AnnotationType _
   | AnnotationTypeBody _
   | InterfaceBody _
@@ -2641,12 +2645,13 @@ let is_named_orig = function
   | VariableDeclarator _
   | Parameter _
   | TypeParameter _
-  | Method _
+  | Method _ 
   | Qualifier _
   | Class _
   | Enum _
   | EnumConstant _
-  | Interface _
+  | Interface _ 
+  | Specifier _
   | AnnotationType _
   | ElementDeclaration _
   | PackageDeclaration _
@@ -2664,8 +2669,8 @@ let is_named_orig = function
 
 
 let is_to_be_notified = function
-  | Class _
-  | Interface _
+  | Class _ 
+  | Interface _ 
   | Method _ -> true
   | _ -> false
 
@@ -2674,16 +2679,16 @@ let is_partition = function
   | IDtypeOnDemand _
   | IDsingleStatic _
   | IDstaticOnDemand _
-  | Class _
+  | Class _ 
   | Enum _
-  | Interface _
+  | Interface _ 
   | Method _ -> true
   | _ -> false
 
 
 let is_boundary = function
-  | Class _
-  | Interface _
+  | Class _ 
+  | Interface _ 
   | Method _
   | ImportDeclarations
   | TypeDeclarations
@@ -2692,7 +2697,7 @@ let is_boundary = function
 
 let is_sequence = function
   | Block _
-  | MethodBody _
+  | MethodBody _ 
   | ConstructorBody _
   | SwitchBlock
   | ClassBody _
@@ -2768,7 +2773,7 @@ let is_statement = function
   | _ -> false
 
 let is_statement_or_block = function
-  | Statement _
+  | Statement _ 
   | Block _ -> true
   | _ -> false
 
@@ -2906,7 +2911,7 @@ let is_assert = function
   | _ -> false
 
 let is_for = function
-  | Statement
+  | Statement 
       (Statement.For
   | Statement.ForEnhanced) -> true
   | _ -> false
@@ -2948,7 +2953,7 @@ let is_local_variabledeclarator = function
   | _ -> raise (Invalid_argument "Java.Label.is_local_variabledeclarator")
 
 let is_literal = function
-  | Primary (Primary.Literal _)
+  | Primary (Primary.Literal _) 
   | Expression (Expression.Primary (Primary.Literal _)) -> true
   | _ -> false
 
@@ -3010,7 +3015,7 @@ let is_throws = function
 
 let is_expression = function
   | Primary _
-  | Expression _
+  | Expression _ 
     -> true
   | _ -> false
 
@@ -3154,8 +3159,8 @@ let is_unaryop = function
 let is_binaryop = function
   | Expression (
     Expression.Cast
-  | Expression.BinaryOperator _
-  | Expression.Instanceof
+  | Expression.BinaryOperator _ 
+  | Expression.Instanceof 
   | Expression.AssignmentOperator _) -> true
   | _ -> false
 
@@ -3171,7 +3176,7 @@ let get_ident_use = function
 let is_explicitctorinvok = function
   | ThisInvocation
   | SuperInvocation
-  | PrimaryInvocation
+  | PrimaryInvocation 
   | NameInvocation _
     -> true
   | _ -> false
@@ -3251,7 +3256,7 @@ let scope_creating lab =
 
 (* for fact extraction *)
 
-let get_category lab =
+let get_category lab = 
   let name, _ = to_tag lab in
   name
 
@@ -3261,8 +3266,8 @@ let get_dims = function
       -> dims
   | _ -> failwith "Java_label.get_dims: no dimensions"
 
-let get_name lab =
-  let n =
+let get_name lab = 
+  let n = 
     match lab with
     | Type ty -> Type.get_name ty
     | Primary prim -> Primary.get_name prim
@@ -3299,17 +3304,17 @@ let get_name lab =
     | ElementDeclaration name
     | IDsingle name
     | IDtypeOnDemand name
-    | IDstaticOnDemand name
+    | IDstaticOnDemand name 
     | FieldDeclarations name
     | InferredFormalParameter name
     | Resource(name, _)
     | CatchParameter(name, _)
       -> name
 
-    | LocalVariableDeclaration(_, name_dim_list) ->
+    | LocalVariableDeclaration(_, name_dim_list) -> 
 	String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
 
-    | FieldDeclaration name_dim_list ->
+    | FieldDeclaration name_dim_list -> 
 	String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
 
     | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]
@@ -3353,7 +3358,7 @@ let get_dimensions = function
   | Type t -> Type.get_dimensions t
   | _ -> 0
 
-let cannot_be_keyroot nd =
+let cannot_be_keyroot nd = 
   match getlab nd with
   | Class _
   | ClassBody _ -> true
@@ -3401,14 +3406,14 @@ let of_elem_data =
 
   in
   let mks s = Statement s in
-  let mke a e =
+  let mke a e = 
     try
       let tid = find_stmttid a in
       mks (Statement.Expression(e, tid))
     with
       Not_found -> Expression e
   in
-  let mkp a p =
+  let mkp a p = 
     try
       let tid = find_stmttid a in
       mks (Statement.Expression(Expression.Primary p, tid))
@@ -3470,8 +3475,8 @@ let of_elem_data =
     "Complement",    (fun a -> mkuop a UnaryOperator.Complement);
     "Negation",      (fun a -> mkuop a UnaryOperator.Not);
 
-    "Mult",    (fun a -> mkbop a BinaryOperator.Mul);
-    "Div",     (fun a -> mkbop a BinaryOperator.Div);
+    "Mult",    (fun a -> mkbop a BinaryOperator.Mul);     
+    "Div",     (fun a -> mkbop a BinaryOperator.Div);     
     "Mod",     (fun a -> mkbop a BinaryOperator.Mod);
     "Add",     (fun a -> mkbop a BinaryOperator.Add);
     "Subt",    (fun a -> mkbop a BinaryOperator.Sub);
@@ -3550,7 +3555,7 @@ let of_elem_data =
     "SwitchStatement",          (fun a -> mks Statement.Switch);
     "SynchronizedStatement",    (fun a -> mks Statement.Synchronized);
     "ReturnStatement",          (fun a -> mks Statement.Return);
-    "ThrowStatement",           (fun a -> mks Statement.Throw);
+    "ThrowStatement",           (fun a -> mks Statement.Throw); 
     "BreakStatement",           (fun a -> mks (Statement.Break(find_attr_opt a label_attr_name)));
     "ContinueStatement",        (fun a -> mks (Statement.Continue(find_attr_opt a label_attr_name)));
     "LabeledStatement",         (fun a -> mks (Statement.Labeled(find_attr a label_attr_name)));
