@@ -315,9 +315,16 @@ module F (Stat : Parser_aux.STATE_T) = struct
 	raise EOF_reached
 
   |   _ ->
-      lexing_error lexbuf (Printf.sprintf "invalid symbol(%s)" (Ulexing.utf8_lexeme lexbuf))
+      let s = Ulexing.utf8_lexeme lexbuf in
+      if env#keep_going_flag then begin
+        let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
+        Common.warning_loc loc "invalid symbol(%s)" s;
+        token lexbuf
+      end
+      else
+        lexing_error lexbuf (Printf.sprintf "invalid symbol(%s)" s)
 
-
+	
 
   and traditional_comment st = lexer
   |   "*/" -> env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st (Ulexing.lexeme_end lexbuf))
