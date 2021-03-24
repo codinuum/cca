@@ -227,7 +227,7 @@ let merge loc0 loc1 =
       loc
   end
 
-let collapse_forward
+let collapse_forward ?(len=1)
     { filename = fn0;
       start_offset = so0;
       end_offset   = eo0;
@@ -239,14 +239,14 @@ let collapse_forward
 =
     { filename = fn0;
       start_offset = so0;
-      end_offset   = so0;
+      end_offset   = so0+len-1;
       start_line   = sl0;
       start_char   = sc0;
       end_line     = sl0;
-      end_char     = sc0;
+      end_char     = sc0+len-1;
     }
 
-let collapse_backward
+let collapse_backward ?(len=1)
     { filename = fn0;
       start_offset = so0;
       end_offset   = eo0;
@@ -257,10 +257,10 @@ let collapse_backward
     }
 =
     { filename = fn0;
-      start_offset = eo0;
+      start_offset = eo0-len+1;
       end_offset   = eo0;
       start_line   = el0;
-      start_char   = ec0;
+      start_char   = ec0-len+1;
       end_line     = el0;
       end_char     = ec0;
     }

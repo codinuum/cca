@@ -2450,6 +2450,9 @@ let is_compatible lab1 lab2 =
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
+  | ClassBody _, InterfaceBody _ | InterfaceBody _, ClassBody _ -> true
+  | ClassBody _, EnumBody _ | EnumBody _, ClassBody _ -> true
+  | EnumBody _, InterfaceBody _ | InterfaceBody _, EnumBody _ -> true
   | _ -> false
 
 let quasi_eq lab1 lab2 =
@@ -2611,6 +2614,7 @@ let is_named = function
   | ClassBody _
   | EnumBody _
   | Interface _
+  | Specifier _
   | AnnotationType _
   | AnnotationTypeBody _
   | InterfaceBody _
@@ -2646,7 +2650,8 @@ let is_named_orig = function
   | Class _
   | Enum _
   | EnumConstant _
-  | Interface _
+  | Interface _ 
+  | Specifier _
   | AnnotationType _
   | ElementDeclaration _
   | PackageDeclaration _

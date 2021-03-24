@@ -1363,7 +1363,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 let n2 = Info.get_node info2 in
                 n1#data#is_named_orig && n2#data#is_named_orig ||
                 (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
-                n1#data#more_anonymized_label <> n2#data#more_anonymized_label
+                (not (n1#data#is_compatible_with n2#data) &&
+                 n1#data#more_anonymized_label <> n2#data#more_anonymized_label)
               in
               if ok then begin
                 let loc1 = Info.get_loc info1 in

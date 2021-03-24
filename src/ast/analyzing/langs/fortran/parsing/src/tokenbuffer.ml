@@ -400,6 +400,7 @@ module F (Stat : Aux.STATE_T) = struct
    else
      raise Not_found
 
+ let toxxx_pat = Str.regexp "to\\([0-9]+\\)$"
 
  let hack_token (tokensrc : Tokensource.c) ((_tok, _loc) as _qtoken) =
     let loc = ref _loc in
@@ -1120,8 +1121,27 @@ module F (Stat : Aux.STATE_T) = struct
                           end
                           else begin (* not env#in_format_context *)
                             if is_head_of_stmt_ then begin
-                              DEBUG_MSG "<identifier> --> <pp-identifier>";
-                              tok := PP_IDENTIFIER s0
+                              if
+                                env#current_source#lang_config#is_fixed_source_form &&
+                                String.lowercase_ascii s0 = "go" &&
+                                Str.string_match toxxx_pat (String.lowercase_ascii s0') 0
+                              then begin
+                                DEBUG_MSG "GO TO<x> --> GO_TO <x>";
+                                let _, l0 = discard() in
+                                let l' = Loc.collapse_backward ~len:2 l0 in
+                                tokensrc#prepend (INT_LITERAL (Str.matched_group 1 s0'), l');
+                                let s_ =
+                                  s0^
+                                  (String.make (l0.Loc.start_offset-(!loc).Loc.end_offset-1) ' ')^
+                                  (String.sub s0' 0 2)
+                                in
+                                tok := GO_TO s_;
+                                loc := merge_locs !loc (Loc.collapse_forward ~len:2 l0)
+                              end
+                              else begin
+                                DEBUG_MSG "<identifier> --> <pp-identifier>";
+                                tok := PP_IDENTIFIER s0
+                              end
                             end
                             else begin
                               let is_kind_size =

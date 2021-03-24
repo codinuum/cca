@@ -42,8 +42,8 @@ val start_to_string : ?show_ext:bool -> ?short:bool -> ?prefix:string -> ?suffix
 val end_to_string : ?show_ext:bool -> ?short:bool -> ?prefix:string -> ?suffix:string -> t -> string
 val normalize_fname : string -> string
 val merge : t -> t -> t
-val collapse_forward : t -> t
-val collapse_backward : t -> t
+val collapse_forward : ?len:int -> t -> t
+val collapse_backward : ?len:int -> t -> t
 val widen : t -> int -> t
 val is_contained : t -> t -> bool
 val to_offsets : t -> (int * int)
