@@ -799,6 +799,7 @@ module Modifier = struct
     | Strictfp
 (*    | Annotation*)
     | Default
+    | Error of string
 
   let to_string m =
     let str =
@@ -816,6 +817,7 @@ module Modifier = struct
       | Strictfp     -> "Strictfp"
 (*      | Annotation   -> "Annotation"*)
       | Default      -> "Default"
+      | Error s      -> "Error:"^s
     in
     "Modifier." ^ str
 
@@ -839,6 +841,7 @@ module Modifier = struct
     | Strictfp     -> "strictfp"
 (*    | Annotation   -> "@"*)
     | Default      -> "default"
+    | Error s      -> s
 
   let to_short_string = function
     | Public       -> mkstr 0
@@ -854,25 +857,24 @@ module Modifier = struct
     | Strictfp     -> mkstr 10
 (*    | Annotation   -> mkstr 11*)
     | Default      -> mkstr 12
+    | Error s      -> combo 13 [s]
 
   let to_tag m =
-    let name =
-      match m with
-      | Public       -> "Public"
-      | Protected    -> "Protected"
-      | Private      -> "Private"
-      | Static       -> "Static"
-      | Abstract     -> "Abstract"
-      | Final        -> "Final"
-      | Native       -> "Native"
-      | Synchronized -> "Synchronized"
-      | Transient    -> "Transient"
-      | Volatile     -> "Volatile"
-      | Strictfp     -> "Strictfp"
-(*      | Annotation   -> "Annotation"*)
-      | Default      -> "Default"
-    in
-    name, []
+    match m with
+    | Public       -> "Public", []
+    | Protected    -> "Protected", []
+    | Private      -> "Private", []
+    | Static       -> "Static", []
+    | Abstract     -> "Abstract", []
+    | Final        -> "Final", []
+    | Native       -> "Native", []
+    | Synchronized -> "Synchronized", []
+    | Transient    -> "Transient", []
+    | Volatile     -> "Volatile", []
+    | Strictfp     -> "Strictfp", []
+(*    | Annotation   -> "Annotation"*)
+    | Default      -> "Default", []
+    | Error s      -> "ErrorModifier", ["contents",xmlenc s]
 
 end (* of module Modifier *)
 
@@ -3508,6 +3510,7 @@ let of_elem_data =
     "Strictfp",     (fun a -> mkmod Modifier.Strictfp);
 (*    "Annotation",   (fun a -> mkmod Modifier.Annotation);*)
     "Default",      (fun a -> mkmod Modifier.Default);
+    "ErrorModifier", (fun a -> mkmod (Modifier.Error(find_attr a "contents")));
 
     "Name",                          (fun a -> mkp a Primary.(Name(find_name a)));
     "This",                          (fun a -> mkp a Primary.This);
