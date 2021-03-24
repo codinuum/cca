@@ -488,6 +488,7 @@ and pr_modifier m =
   | Mstrictfp     -> pr_string "strictfp"
   | Mannotation a -> pr_annotation a
   | Mdefault      -> pr_string "default"
+  | Merror s      -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 
 and pr_modifiers ms =

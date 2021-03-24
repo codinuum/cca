@@ -67,7 +67,7 @@ open Stat
 
 %token <Ast.statement> STMT
 %token <Ast.block_statement> BLOCK_STMT
-%token <string> MARKER ERROR ERROR_STMT
+%token <string> MARKER ERROR ERROR_STMT ERROR_MOD
 %token GT_7
 %token EOP
 
@@ -446,12 +446,12 @@ qualified_name:
       let _, id = i in
       mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
     }
-| s=ERROR DOT i=identifier
+(*| s=ERROR DOT i=identifier
     { 
       let n = mkerrname $startofs $endofs(s) s in
       let _, id = i in
       mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
-    }
+    }*)
 ;
 
 
@@ -541,7 +541,7 @@ single_type_import_declaration:
 ;
 
 static_single_type_import_declaration:
-| IMPORT STATIC n=name DOT i=identifier SEMICOLON 
+| IMPORT STATIC n=name DOT i=identifier SEMICOLON
     { 
       let fqn_opt = ref None in
       begin
@@ -638,6 +638,7 @@ modifiers:
 annotation_or_modifier:
 | a=annotation     { annot_to_mod a }
 | m=adhoc_modifier { mkmod $startofs $endofs m }
+| s=ERROR_MOD { mkerrmod $startofs $endofs s }
 ;
 
 adhoc_modifier:
@@ -764,6 +765,15 @@ super_opt:
 
 interfaces:
 | IMPLEMENTS i=interface_type_list { mkim $startofs $endofs i }
+| IMPLEMENTS i=interface_type_list IMPLEMENTS j=interface_type_list
+    { 
+      if env#keep_going_flag then begin
+        parse_warning $startofs $endofs "odd implements specification";
+        mkim $startofs $endofs (i@j)
+      end
+      else
+        parse_error $startofs $endofs "odd implements specification"
+    }
 ;
 
 %inline

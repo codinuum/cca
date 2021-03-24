@@ -696,6 +696,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
                 | Ast.Mvolatile     -> L.Modifier.Volatile
                 | Ast.Mstrictfp     -> L.Modifier.Strictfp
                 | Ast.Mdefault      -> L.Modifier.Default
+                | Ast.Merror s      -> L.Modifier.Error s
                 | Ast.Mannotation _ -> assert false
               in
 	      let nd = self#mkleaf (L.Modifier lab) in

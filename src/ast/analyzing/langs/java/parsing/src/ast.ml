@@ -394,6 +394,7 @@ and modifier_desc =
   | Mstrictfp
   | Mannotation of annotation
   | Mdefault
+  | Merror of string
 
 and variable_initializer = { vi_desc : variable_initializer_desc; vi_loc : loc; }
 and variable_initializer_desc =

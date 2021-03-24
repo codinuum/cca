@@ -434,13 +434,15 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     let peek_nth = peek_nth queue ulexbuf in
 
+    let discard() = ignore (take()) in
+
     let res =
       let t = take() in
       let tok, st, ed = Token.decompose t in
       match tok with
       | ENUM loc -> begin
-          let t2, tok2 = peek_nth 1 in
-          let t3, tok3 = peek_nth 2 in
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (IMPLEMENTS _ | LBRACE) -> t
           | _ -> begin
@@ -450,7 +452,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           end
       end
       | DEFAULT loc -> begin
-          let t2, tok2 = peek_nth 1 in
+          let _, tok2 = peek_nth 1 in
           match tok2 with
           | COLON -> begin
               DEBUG_MSG "DEFAULT --> DEFAULT__COLON";
@@ -460,7 +462,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | _ -> t
       end
       | AT loc -> begin
-          let t2, tok2 = peek_nth 1 in
+          let _, tok2 = peek_nth 1 in
           match tok2 with
           | INTERFACE _ -> begin
               DEBUG_MSG "AT --> AT__INTERFACE";
@@ -509,6 +511,35 @@ module F (Stat : Parser_aux.STATE_T) = struct
           with
           | Exit -> t
           | Modified_token m -> m
+      end
+      | SEMICOLON when env#keep_going_flag -> begin
+          match Obj.obj env#last_rawtoken with
+          | SEMICOLON -> begin
+              let t', tok' = peek_nth 1 in
+              DEBUG_MSG "tok' = %s" (Token.rawtoken_to_string tok');
+              match tok' with
+              | IMPORT _ -> begin
+                  discard();
+                  t'
+              end
+              | _ -> t
+          end
+          | _ -> t
+      end
+      | IDENTIFIER(loc, s) when env#keep_going_flag -> begin
+          match Obj.obj env#last_rawtoken with
+          | LBRACE -> begin
+              let _, tok' = peek_nth 1 in
+              DEBUG_MSG "tok' = %s" (Token.rawtoken_to_string tok');
+              match tok' with
+              | PUBLIC _ | PROTECTED _ | PRIVATE _ -> begin
+                  DEBUG_MSG "IDENTIFIER --> ERROR_MOD";
+                  Common.warning_loc loc "'%s': invalid modifier" s;
+                  Token.create (ERROR_MOD s) st ed
+              end
+              | _ -> t
+          end
+          | _ -> t
       end
       | _ -> t
     in (* res *)

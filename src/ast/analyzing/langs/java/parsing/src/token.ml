@@ -25,6 +25,7 @@ let rawtoken_to_string = function
   | STMT _       -> "STMT"
   | BLOCK_STMT _ -> "BLOCK_STMT"
   | ERROR_STMT s -> "ERROR_STMT:" ^ s
+  | ERROR_MOD s  -> "ERROR_MOD:" ^ s
   | ERROR s      -> "ERROR:" ^ s
   | MARKER s     -> "MARKER:" ^ s
   | GT_7         -> "GT_7"
@@ -153,6 +154,7 @@ let rawtoken_to_orig = function
   | STMT _       -> "<stmt>"
   | BLOCK_STMT _ -> "<block-stmt>"
   | ERROR_STMT s -> s
+  | ERROR_MOD s  -> s
   | ERROR s      -> s
   | MARKER s     -> s
   | GT_7         -> ">>>>>>>"

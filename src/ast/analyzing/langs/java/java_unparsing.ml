@@ -250,6 +250,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       | L.Modifier.Strictfp     -> pr_string "strictfp"
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
       | L.Modifier.Default      -> pr_string "default"
+      | L.Modifier.Error s      -> pr_string s
   end
 
   | L.ElementValuePair i -> pr_id i; pr_string "="; pr_nth_child 0

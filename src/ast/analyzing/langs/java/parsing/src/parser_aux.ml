@@ -1495,6 +1495,14 @@ module F (Stat : STATE_T) = struct
   let mktyargs so eo d = _mktyargs (get_loc so eo) d
   let mktype so eo d = _mktype (get_loc so eo) d
   let mkmod so eo d = _mkmod (get_loc so eo) d
+  let mkerrmod so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    if env#keep_going_flag then
+      { m_desc=Merror s; m_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
+
   let mkmods so eo ms = { ms_modifiers=ms; ms_loc=(get_loc so eo) }
   let mkaop so eo d = { ao_desc=d; ao_loc=(get_loc so eo) }
   let mkstmt so eo d = { s_desc=d; s_loc=(get_loc so eo) }
