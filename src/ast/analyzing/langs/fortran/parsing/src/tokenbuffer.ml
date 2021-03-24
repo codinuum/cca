@@ -17,7 +17,7 @@
 
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
-(* 
+(*
  * tokenbuffer.ml
  *
  * Buffer for tokens
@@ -52,9 +52,9 @@ let exponent_pat = Str.regexp "[de][0-9]+$"
 
 type partial_parser = (Token.t, Partial.t) MenhirLib.Convert.revised
 
-type parse_result = 
+type parse_result =
   | Rcomplete of Partial.t
-  | Rincomplete 
+  | Rincomplete
   | Runknown
 
 exception Empty
@@ -106,7 +106,7 @@ module F (Stat : Aux.STATE_T) = struct
 (*    | EXTERNAL _*)
     | FUNCTION _
     | INTRINSIC _
-    | PROGRAM _ 
+    | PROGRAM _
     | RESULT _
     | SAVE _
     | SIMPLE_ATTR _
@@ -182,8 +182,8 @@ module F (Stat : Aux.STATE_T) = struct
     DEBUG_MSG "last=%s" (Token.rawtoken_to_string last);
     let b =
       match last with
-      | EOL | EOP | SEMICOLON 
-      | PP_INCLUDE__FILE _ | PP_DEFINE__IDENT__BODY _ | PP_UNDEF__IDENT _ 
+      | EOL | EOP | SEMICOLON
+      | PP_INCLUDE__FILE _ | PP_DEFINE__IDENT__BODY _ | PP_UNDEF__IDENT _
       | PP_ISSUE__MESG _ (*| PP_ERROR__MESG _ | PP_WARNING__MESG _*)
       | PP_UNKNOWN__REST _
       | INCLUDE__FILE _ | OPTIONS__OPTS _
@@ -209,18 +209,18 @@ module F (Stat : Aux.STATE_T) = struct
     env#in_type_spec_context &&
     (match tok with
     (*| EXTERNAL _ | PROTECTED _ | VALUE _ | VOLATILE _ *)
-    | SIMPLE_ATTR _ 
+    | SIMPLE_ATTR _
     | PARAMETER _ | ALLOCATABLE _ | DIMENSION _ | CODIMENSION _ | INTENT _
     | INTRINSIC _ | OPTIONAL _ | POINTER _ | SAVE _ | TARGET _
-    | ASYNCHRONOUS _ | BIND _ 
-    | FUNCTION _ 
+    | ASYNCHRONOUS _ | BIND _
+    | FUNCTION _
       -> false
     | INTENT_SPEC _ -> not env#in_intent_context
     | _ -> true
     )
 
   let get_if_action_cond last_tok tok =
-    (is_head_of_stmt last_tok) && 
+    (is_head_of_stmt last_tok) &&
     (match tok with
     | IF _ | END_PROGRAM _ | END_FUNCTION _ | END_SUBROUTINE _ -> false
     | _ -> true
@@ -252,7 +252,7 @@ module F (Stat : Aux.STATE_T) = struct
 
         | LPAREN -> begin
             match tok with
-            | LEN _ | KIND _ 
+            | LEN _ | KIND _
             | BLOCK _ | CRITICAL _
             | DEFAULT _ | RECORD _ (*| OPTIONS _*)
               -> true
@@ -262,7 +262,7 @@ module F (Stat : Aux.STATE_T) = struct
 	| _ -> false
       in
       let paren_cond =
-	env#in_paren_context && 
+	env#in_paren_context &&
 	(match tok with
 	| KIND _ | LEN _ (*| STAT _*) -> begin
 	    match next_tok with
@@ -271,11 +271,11 @@ module F (Stat : Aux.STATE_T) = struct
         end
 	| INTENT_SPEC _ -> false
 
-        | DOUBLE_PRECISION _ | DOUBLE _ 
+        | DOUBLE_PRECISION _ | DOUBLE _
         | DOUBLE_COMPLEX _ | CHARACTER _ | TYPE _ | BYTE _ | CLASS _
         (*| INTEGER _ | REAL _ | COMPLEX _ | LOGICAL _*) | KINDED_TYPE_SPEC _
         | PP_MACRO_TYPE_SPEC _ ->
-            not env#in_allocate_context && 
+            not env#in_allocate_context &&
             not env#in_type_guard_context &&
             not env#in_procedure_context &&
             not env#in_type_context
@@ -308,15 +308,15 @@ module F (Stat : Aux.STATE_T) = struct
 
       let character_cond =
         match tok with
-        | KIND _ | LEN _ 
+        | KIND _ | LEN _
         | PUBLIC _ | PRIVATE _ | ABSTRACT _
         | PASS _ | NOPASS _ | NON_OVERRIDABLE _ | DEFERRED _
-        | PARAMETER _ | ALLOCATABLE _ | DIMENSION _ | CODIMENSION _ 
+        | PARAMETER _ | ALLOCATABLE _ | DIMENSION _ | CODIMENSION _
         | INTENT _ | INTRINSIC _ | OPTIONAL _ | POINTER _ | SAVE _ | TARGET _
         | ASYNCHRONOUS _ | BIND _ | SIMPLE_ATTR _
         (*| EXTERNAL _ | PROTECTED _ | VALUE _ | VOLATILE _ *)
         (*| AUTOMATIC _ | STATIC _*)
-        | FUNCTION _ 
+        | FUNCTION _
           -> false
         | INTENT_SPEC _ -> not env#in_intent_context
         | _ -> env#in_character_context
@@ -355,10 +355,10 @@ module F (Stat : Aux.STATE_T) = struct
 
       let if_action_cond = get_if_action_cond last_tok tok in
 
-      last_cond || 
-      next_cond || 
+      last_cond ||
+      next_cond ||
       ((env#in_name_context || paren_cond) && (not if_action_cond)) ||
-      env#in_io_control_context || 
+      env#in_io_control_context ||
       env#in_array_ctor_context ||
       env#in_only_context ||
       character_cond ||
@@ -374,7 +374,7 @@ module F (Stat : Aux.STATE_T) = struct
       | BYTE _ | CLASS _
       | DOUBLE_PRECISION _ | DOUBLE _ | CHARACTER _ | TYPE _ | PP_MACRO_TYPE_SPEC _
         -> env#in_typeof_context
-            
+
       | _ -> false
     in
 
@@ -418,7 +418,7 @@ module F (Stat : Aux.STATE_T) = struct
 (*    let next_tok = ref (tokensrc#peek_next_rawtok()) in*)
     let next_tok = ref (tokensrc#peek_nth_rawtok 1) in
 
-    let peek_next() = 
+    let peek_next() =
       if !discarded then begin
         (*next_tok := tokensrc#peek_next_rawtok();*)
         next_tok := tokensrc#peek_nth_rawtok 1;
@@ -475,7 +475,7 @@ module F (Stat : Aux.STATE_T) = struct
 
                 | COMMA | WHILE _ | CONCURRENT _ -> if !depth = 0 then raise Exit
 
-                | EOL | SEMICOLON | NOTHING | EOF _ -> 
+                | EOL | SEMICOLON | NOTHING | EOF _ ->
                     if !eq_found then begin
                       DEBUG_MSG "DO --> <identifier>";
                       tok := IDENTIFIER s;
@@ -491,7 +491,7 @@ module F (Stat : Aux.STATE_T) = struct
       | _ -> ()
     end;
 
-    begin 
+    begin
       match !tok with
       | IDENTIFIER s -> begin
           match peek_next() with
@@ -555,7 +555,7 @@ module F (Stat : Aux.STATE_T) = struct
     end;
 
     begin (* <keyword>|<data-edit-desc>|<position-edit-desc> --> <identifier> *)
-      let cond = 
+      let cond =
         (Token.is_keyword !tok) ||
         (match !tok with
         | DATA_EDIT_DESC _ | POSITION_EDIT_DESC _ -> not env#in_format_context
@@ -569,9 +569,9 @@ module F (Stat : Aux.STATE_T) = struct
 	if in_name_context then begin
           match !tok with
           (*| INTEGER s | REAL s | COMPLEX s | LOGICAL s*) | KINDED_TYPE_SPEC s
-          | DOUBLE_PRECISION s | DOUBLE s | CHARACTER s | BYTE s 
+          | DOUBLE_PRECISION s | DOUBLE s | CHARACTER s | BYTE s
           | CLASS s | TYPE s | PP_MACRO_TYPE_SPEC s
-          | LEN s | KIND s 
+          | LEN s | KIND s
               -> begin
                 if is_head_of_stmt_ then begin
                   () (* handled by other rules *)
@@ -593,7 +593,7 @@ module F (Stat : Aux.STATE_T) = struct
                   end
                   | Exit -> begin
                       match !tok with
-                      | LEN s' | KIND s' -> 
+                      | LEN s' | KIND s' ->
                           if (peek_next()) = LPAREN then begin
                             DEBUG_MSG "<keyword> --> <identifier>";
                             tok := IDENTIFIER s'
@@ -667,7 +667,7 @@ module F (Stat : Aux.STATE_T) = struct
             tok := IDENTIFIER s
           end
       end
-      | PARAMETER s | PRIVATE s | PUBLIC s | ALLOCATABLE s 
+      | PARAMETER s | PRIVATE s | PUBLIC s | ALLOCATABLE s
       | DIMENSION s | CODIMENSION s
       (*| EXTERNAL s | PROTECTED s | VALUE s | VOLATILE s*) | SIMPLE_ATTR s
       | INTENT s | INTRINSIC s | OPTIONAL s | POINTER s | SAVE s | TARGET s
@@ -688,9 +688,9 @@ module F (Stat : Aux.STATE_T) = struct
       (*| INTEGER s | REAL s | COMPLEX s | LOGICAL s*) | KINDED_TYPE_SPEC s
       | BYTE s
       | DOUBLE_PRECISION s | DOUBLE s | CHARACTER s -> begin
-          if 
-            not is_head_of_stmt_ && 
-            not env#in_array_ctor_context && 
+          if
+            not is_head_of_stmt_ &&
+            not env#in_array_ctor_context &&
             not env#in_implicit_context &&
             not env#in_allocate_context &&
             not env#in_typeof_context &&
@@ -714,7 +714,7 @@ module F (Stat : Aux.STATE_T) = struct
       match !tok with
       | TARGET s | PUBLIC s | PRIVATE s | SAVE s | OPTIONAL s
       (*| EXTERNAL s | PROTECTED s | VALUE s | VOLATILE s*) | SIMPLE_ATTR s
-      | ALLOCATABLE s | INTRINSIC s | USE s | STOP s | ASYNCHRONOUS s 
+      | ALLOCATABLE s | INTRINSIC s | USE s | STOP s | ASYNCHRONOUS s
       | STRUCTURE s | ENUM s | UNION s | MAP s | ABSTRACT s | END s | ENUMERATOR s
       | SEQUENCE s | ASSIGN s | NOPASS s | NON_OVERRIDABLE s | DEFERRED s
         -> begin (* <keyword> ('='|'(') *)
@@ -726,7 +726,7 @@ module F (Stat : Aux.STATE_T) = struct
           end
           | _ -> ()
       end
-      | PARAMETER s | INTENT s (*| DIMENSION s*) | EXTENDS s 
+      | PARAMETER s | INTENT s (*| DIMENSION s*) | EXTENDS s
       | PASS s
         -> begin (* <keyword> = *)
           DEBUG_MSG "checking if %s is an identifier" (Token.rawtoken_to_string !tok);
@@ -740,7 +740,7 @@ module F (Stat : Aux.STATE_T) = struct
       | WHERE s | DATA s | BIND s | TO s | DIMENSION s | CODIMENSION s
       | ASSOCIATE s | BLOCK s | CRITICAL s
       (*| INTEGER s | REAL s | COMPLEX s | LOGICAL s*) | KINDED_TYPE_SPEC s
-      | DOUBLE_PRECISION s | DOUBLE s| CHARACTER s | BYTE s 
+      | DOUBLE_PRECISION s | DOUBLE s| CHARACTER s | BYTE s
       | ENTRY s | FIND s | DO s | CASE s | POINTER s | IF s | FORMAT s
       | DELETE s | UNLOCK s | ENCODE s | DECODE s | REWRITE s | ACCEPT s
       | FINAL s | GENERIC s | LOCK s | SYNC s | CLASS s | TYPE s
@@ -851,7 +851,7 @@ module F (Stat : Aux.STATE_T) = struct
           let nth = ref 1 in
 	  try
 	    while true do
-	      match tokensrc#peek_nth_rawtok !nth with 
+	      match tokensrc#peek_nth_rawtok !nth with
               | COMMA -> raise Exit
               | EOL | SEMICOLON -> begin
                   match !tok with
@@ -864,13 +864,13 @@ module F (Stat : Aux.STATE_T) = struct
                   DEBUG_MSG "[FUNCTION|SUBROUTINE -> <identifier>] str=\"%s\"" !str;
                   incr nth
 	      end
-	      | x -> 
-                  DEBUG_MSG "[FUNCTION|SUBROUTINE -> <identifier>] %s" (Token.rawtoken_to_string x); 
+	      | x ->
+                  DEBUG_MSG "[FUNCTION|SUBROUTINE -> <identifier>] %s" (Token.rawtoken_to_string x);
                   raise Not_found
 	    done
 	  with
           | Not_found -> ()
-	  | Exit -> 
+	  | Exit ->
               DEBUG_MSG "FUNCTION|SUBROUTINE --> <identifier>";
               tok := IDENTIFIER !str;
               if !nth > 1 then begin
@@ -936,7 +936,7 @@ module F (Stat : Aux.STATE_T) = struct
           try
             while true do
 	      let tok', loc' = tokensrc#peek_nth !n in
-	      DEBUG_MSG "peeking %s token: %s[%s]" 
+	      DEBUG_MSG "peeking %s token: %s[%s]"
                 (num_to_ordinal !n) (Token.rawtoken_to_string tok') (Loc.to_string loc');
 	      begin
 	        match tok' with
@@ -964,9 +964,9 @@ module F (Stat : Aux.STATE_T) = struct
           let next_tok, next_loc = tokensrc#peek_nth 1 in
           if !loc.Loc.end_offset + 1 = next_loc.Loc.start_offset then begin
             try
-              let s = 
-                Token.get_keyword 
-                  ~elsef:(function IDENTIFIER x | PP_IDENTIFIER x -> x | _ -> raise Not_found) 
+              let s =
+                Token.get_keyword
+                  ~elsef:(function IDENTIFIER x | PP_IDENTIFIER x -> x | _ -> raise Not_found)
                   next_tok
               in
               let new_s = "$"^s in
@@ -980,7 +980,7 @@ module F (Stat : Aux.STATE_T) = struct
       | _ -> ()
     end;
     begin (* <identifier> ('$' <keyword>|<identifier>|<pp-identifier>)+ --> <identifier> *)
-      match !tok with 
+      match !tok with
       | IDENTIFIER s -> begin
           match peek_next() with
           | DOLLAR -> begin (* some compilers interpret '$' as an extra alphabet *)
@@ -1002,9 +1002,9 @@ module F (Stat : Aux.STATE_T) = struct
                     end
                     | _ -> begin
                         try
-                          let s' = 
-                            Token.get_keyword 
-                              ~elsef:(function IDENTIFIER x | PP_IDENTIFIER x -> x | _ -> raise Not_found) 
+                          let s' =
+                            Token.get_keyword
+                              ~elsef:(function IDENTIFIER x | PP_IDENTIFIER x -> x | _ -> raise Not_found)
                               nth_tok
                           in
                           if !prev_is_dollar then begin
@@ -1076,7 +1076,7 @@ module F (Stat : Aux.STATE_T) = struct
           begin
 	    match peek_next() with
             (*| COMPLEX s'*) | KINDED_TYPE_SPEC s'
-	    | IDENTIFIER s' | DATA s' | CASE s' | TO s' | PRECISION s' | FILE s' 
+	    | IDENTIFIER s' | DATA s' | CASE s' | TO s' | PRECISION s' | FILE s'
             | TYPE s'
               -> begin (* <identifier> --> <pp-identifier>|<keyword> *)
 	        try
@@ -1235,7 +1235,7 @@ module F (Stat : Aux.STATE_T) = struct
       | _ -> ()
     end;
 
-    begin 
+    begin
       match !tok with
       | REAL_LITERAL real -> begin
           match peek_next() with
@@ -1281,7 +1281,7 @@ module F (Stat : Aux.STATE_T) = struct
     end;
 
     let check_exponent ?(discard_n_tokens=0) nth_ini significand next_tok =
-      DEBUG_MSG "nth_ini=%d significand=\"%s\" next_tok=%s" 
+      DEBUG_MSG "nth_ini=%d significand=\"%s\" next_tok=%s"
         nth_ini significand (Token.rawtoken_to_string next_tok);
 
       match next_tok with
@@ -1370,7 +1370,7 @@ module F (Stat : Aux.STATE_T) = struct
       | _ -> ()
     in (* check_exponent *)
 
-    begin                                   
+    begin
       match !tok with
       | INT_LITERAL int -> begin
           let next_tok = peek_next() in
@@ -1393,7 +1393,7 @@ module F (Stat : Aux.STATE_T) = struct
                       let loc' = ref !loc in
                       for i = 1 to !nth do
                         let _, loc'' = discard() in
-                        loc' := loc'' 
+                        loc' := loc''
                       done;
                       loc := merge_locs !loc !loc';
                       raise Exit
@@ -1403,7 +1403,7 @@ module F (Stat : Aux.STATE_T) = struct
                       let loc' = ref !loc in
                       for i = 1 to (!nth-1) do
                         let _, loc'' = discard() in
-                        loc' := loc'' 
+                        loc' := loc''
                       done;
                       loc := merge_locs !loc !loc';
                       raise Exit
@@ -1412,7 +1412,7 @@ module F (Stat : Aux.STATE_T) = struct
               with
                 Exit -> ()
           end
-          | DOT -> begin (* <int-literal> '.' <exponent> --> <real-literal> *) 
+          | DOT -> begin (* <int-literal> '.' <exponent> --> <real-literal> *)
               let tok2 = tokensrc#peek_nth_rawtok 2 in
               match tok2 with
               | INT_LITERAL s -> begin
@@ -1468,18 +1468,18 @@ module F (Stat : Aux.STATE_T) = struct
       | _ -> ()
     end;
 
-    let get_keyword_or_ident = 
-      Token.get_keyword ~elsef:(function IDENTIFIER s -> s | _ -> raise Not_found) 
+    let get_keyword_or_ident =
+      Token.get_keyword ~elsef:(function IDENTIFIER s -> s | _ -> raise Not_found)
     in
-    let get_keyword_or_ident_or_continued_ident = 
-      Token.get_keyword 
+    let get_keyword_or_ident_or_continued_ident =
+      Token.get_keyword
         ~elsef:
-        (function 
-          | IDENTIFIER s | CONTINUED_IDENTIFIER s -> s 
-          | _ -> raise Not_found) 
+        (function
+          | IDENTIFIER s | CONTINUED_IDENTIFIER s -> s
+          | _ -> raise Not_found)
     in
 
-    begin 
+    begin
       match !tok with
       | DOT -> begin
           try
@@ -1586,7 +1586,7 @@ module F (Stat : Aux.STATE_T) = struct
       | _ -> ()
     end;
 
-    begin 
+    begin
       match !tok with
       | IDENTIFIER s | PP_IDENTIFIER s when begin
           peek_next() == LPAREN &&
@@ -1606,14 +1606,14 @@ module F (Stat : Aux.STATE_T) = struct
               try
                 while true do
                   let nth_tok = tokensrc#peek_nth_rawtok !nth in
-                  DEBUG_MSG "implicit spec detection in progress: nth_tok=\"%s\"" 
+                  DEBUG_MSG "implicit spec detection in progress: nth_tok=\"%s\""
                     (Token.rawtoken_to_string nth_tok);
                   match nth_tok with
-                  | RPAREN -> 
+                  | RPAREN ->
                       decr level;
                       incr nth
 
-                  | LPAREN -> 
+                  | LPAREN ->
                       single_lparen := false;
                       raise Exit
 
@@ -1643,8 +1643,8 @@ module F (Stat : Aux.STATE_T) = struct
                 tok := LPAREN__GO_TO
             end
             | READ _ | WRITE _ | REWRITE _ | FIND _ | ACCEPT _
-            | PP_MACRO_ID_RW(M.K_WRITE, _|M.K_READ_WRITE, _) 
-            | PP_MACRO_WRITE _ | PP_MACRO_READ_WRITE _ 
+            | PP_MACRO_ID_RW(M.K_WRITE, _|M.K_READ_WRITE, _)
+            | PP_MACRO_WRITE _ | PP_MACRO_READ_WRITE _
               -> begin
                 DEBUG_MSG "'(' --> <lparen-io-control-spec>";
                 tok := LPAREN__io_control_spec
@@ -1665,7 +1665,7 @@ module F (Stat : Aux.STATE_T) = struct
                 | SLASH -> begin (* '(' '/' --> '(/' *)
                     match last_tok with
                     | FORMAT _ | IDENTIFIER _ | OPERATOR _ | LINDA_TYPEOF _ -> ()
-                    | _ -> 
+                    | _ ->
                         if not env#in_format_context then begin
                           DEBUG_MSG "'(' '/' --> '(/'";
                           tok := LPAREN_SLASH;
@@ -1680,7 +1680,7 @@ module F (Stat : Aux.STATE_T) = struct
       end
       | COMMA -> begin (* ',' '/' --> <comma-slash> '/' *)
           match peek_next() with
-          | SLASH -> 
+          | SLASH ->
               if env#in_slash_name_context (* not env#in_format_context *) then begin
                 DEBUG_MSG "',' '/' --> <comma-slash> '/'";
                 tok := COMMA__SLASH
@@ -1849,7 +1849,7 @@ module F (Stat : Aux.STATE_T) = struct
       match !tok with
       | SLASH -> begin (* '/' ')' --> <slash-rparen> *)
           match peek_next() with
-          | RPAREN -> 
+          | RPAREN ->
               if env#in_array_ctor_context then begin
                 DEBUG_MSG "'/' ')' --> <slash-rparen>";
                 tok := SLASH_RPAREN;
@@ -1893,7 +1893,7 @@ module F (Stat : Aux.STATE_T) = struct
                 let second_tok = tokensrc#peek_nth_rawtok 2 in
                 match second_tok with
                 | DO _ | IF _ | WHERE _ | FORALL _ | SELECT_CASE _ | SELECT_TYPE _
-                | ASSOCIATE _ | BLOCK _ | CRITICAL _ -> 
+                | ASSOCIATE _ | BLOCK _ | CRITICAL _ ->
                     tok := CONSTRUCT_NAME s
 
                 | IDENTIFIER s' -> begin
@@ -1940,7 +1940,7 @@ module F (Stat : Aux.STATE_T) = struct
                   let second_tok = tokensrc#peek_nth_rawtok 2 in
                   match second_tok with
                   | PLUS | MINUS -> begin
-                      let sign = 
+                      let sign =
                         match second_tok with
                         | PLUS -> "+"
                         | MINUS -> "-"
@@ -1974,7 +1974,7 @@ module F (Stat : Aux.STATE_T) = struct
                 let second_tok = tokensrc#peek_nth_rawtok 2 in
                 match second_tok with
                 | PLUS | MINUS -> begin
-                    let sign = 
+                    let sign =
                       match second_tok with
                       | PLUS -> "+"
                       | MINUS -> "-"
@@ -2011,7 +2011,7 @@ module F (Stat : Aux.STATE_T) = struct
           if not env#in_data_context then begin
             match last_tok with
             | SLASH | STAR | STAR_STAR | PLUS | MINUS -> begin
-                DEBUG_MSG "'+' --> <uplus>";    
+                DEBUG_MSG "'+' --> <uplus>";
                 tok := UPLUS
             end
             | _ -> ()
@@ -2029,7 +2029,7 @@ module F (Stat : Aux.STATE_T) = struct
       end
       | STAR -> begin (* '*' '*' -> '**' *)
           match peek_next() with
-          | STAR -> 
+          | STAR ->
               DEBUG_MSG "'*' '*' -> '**'";
               tok := STAR_STAR;
               let _, loc' = discard() in
@@ -2055,17 +2055,17 @@ module F (Stat : Aux.STATE_T) = struct
     end;
 
     if is_head_of_stmt_ then begin
-      match !tok with 
+      match !tok with
       | SYNC s -> begin
           match peek_next() with
           | IDENTIFIER s' -> begin
               match String.lowercase_ascii s' with
               | "all" | "images" | "memory" -> ()
-              | _ -> 
+              | _ ->
                   DEBUG_MSG "SYNC --> <identifier>";
                   tok := IDENTIFIER s
           end
-          | _ -> 
+          | _ ->
               DEBUG_MSG "SYNC --> <identifier>";
               tok := IDENTIFIER s
       end
@@ -2078,7 +2078,7 @@ module F (Stat : Aux.STATE_T) = struct
 
 
     if is_head_of_stmt_ then begin (* <identifier>|<pp-identifier> --> <pp-macro-id> *)
-      match !tok with 
+      match !tok with
       | IDENTIFIER s | PP_IDENTIFIER s -> begin
           match peek_next() with
           | COMMA | COLON_COLON -> begin (* <identifier>|<pp-identifier> (','|'::') *)
@@ -2136,7 +2136,7 @@ module F (Stat : Aux.STATE_T) = struct
                                 incr nth;
                                 incr depth;
                                 try
-                                  while true do 
+                                  while true do
                                     let nth_tok2 = tokensrc#peek_nth_rawtok !nth in
                                     begin
                                       match nth_tok2 with
@@ -2160,7 +2160,7 @@ module F (Stat : Aux.STATE_T) = struct
                                     end;
                                     incr nth
                                   done
-                                with 
+                                with
                                   Exit -> ()
                             end
                             | IDENTIFIER _ -> begin (* excluding <type-spec> '('...')' <identifier> *)
@@ -2259,7 +2259,7 @@ module F (Stat : Aux.STATE_T) = struct
 
 
     if is_head_of_stmt_ && env#in_select_type_context then begin
-      match !tok with 
+      match !tok with
       | TYPE _ | CLASS _ -> begin
           match peek_next() with
           | IDENTIFIER s' -> begin
@@ -2329,7 +2329,7 @@ module F (Stat : Aux.STATE_T) = struct
               tok := IDENTIFIER s
           end
           | Exit -> ()
-        end  
+        end
       end
       | _ -> ()
     end;
@@ -2498,21 +2498,21 @@ module F (Stat : Aux.STATE_T) = struct
       end
 
       | LBRACKET -> begin
-          DEBUG_MSG "entering array constructor context ([)"; 
+          DEBUG_MSG "entering array constructor context ([)";
           env#enter_array_ctor_context
       end
       | RBRACKET -> begin
-          DEBUG_MSG "exiting array constructor context (])"; 
+          DEBUG_MSG "exiting array constructor context (])";
           env#exit_array_ctor_context
       end
 
       | FORMAT _ -> begin
-          DEBUG_MSG "entering format context"; 
+          DEBUG_MSG "entering format context";
 	  env#enter_format_context
       end
 
       | PRINT _ | READ _ -> begin
-          DEBUG_MSG "entering io-control context (print|read)"; 
+          DEBUG_MSG "entering io-control context (print|read)";
           env#enter_name_context;
           env#enter_io_control_context
       end
@@ -2521,9 +2521,9 @@ module F (Stat : Aux.STATE_T) = struct
           env#enter_name_context
       end
 
-      | PP_MACRO_ID_RW(M.K_WRITE, _|M.K_READ_WRITE, _) 
+      | PP_MACRO_ID_RW(M.K_WRITE, _|M.K_READ_WRITE, _)
       | PP_MACRO_WRITE _ | PP_MACRO_READ_WRITE _ -> begin
-          DEBUG_MSG "entering io-control context (<pp-macro-id>)"; 
+          DEBUG_MSG "entering io-control context (<pp-macro-id>)";
           env#enter_name_context;
           env#enter_io_control_context
       end
@@ -2543,7 +2543,7 @@ module F (Stat : Aux.STATE_T) = struct
       | PUBLIC _ | PRIVATE _ -> begin
           if is_head_of_stmt_ then begin
             match peek_next() with
-            | IDENTIFIER _ | OPERATOR _ | ASSIGNMENT _ | READ _ | WRITE _ 
+            | IDENTIFIER _ | OPERATOR _ | ASSIGNMENT _ | READ _ | WRITE _
             | COLON_COLON
               -> env#enter_access_context
             | _ -> ()
@@ -2590,7 +2590,7 @@ module F (Stat : Aux.STATE_T) = struct
 
       | COMMON _ ->
           DEBUG_MSG "entering name context";
-          env#enter_name_context; 
+          env#enter_name_context;
           env#enter_slash_name_context
 
       | VFE_BEGIN _ -> env#enter_vfe_context
@@ -2617,7 +2617,7 @@ module F (Stat : Aux.STATE_T) = struct
     begin
       match peek_next() with (* when in pp-branch *)
       | END_FRAGMENT -> begin
-          if env#fragment_impossible then 
+          if env#fragment_impossible then
             match tokensrc#peek_nth_rawtok 2 with
             | EOF _ -> ()
             | _ -> ignore (discard())
@@ -2644,7 +2644,7 @@ module F (Stat : Aux.STATE_T) = struct
     tokensrc#set_prev_loc tokensrc#get_last_loc;
     tokensrc#set_last_rawtok !tok;
     tokensrc#set_last_loc !loc;
-    
+
     qtoken
     (* end of hack_token *)
 
@@ -2669,7 +2669,7 @@ module F (Stat : Aux.STATE_T) = struct
 
     method get_stream =
       let q = queue#copy in
-      let f i = 
+      let f i =
         try
           Some q#take
         with
@@ -2682,19 +2682,19 @@ module F (Stat : Aux.STATE_T) = struct
 
     method to_string =
       let buf = Buffer.create 0 in
-      self#iter 
-	(fun qtok -> 
-          Buffer.add_string buf 
+      self#iter
+	(fun qtok ->
+          Buffer.add_string buf
             (sprintf "%s\n" (Token.qtoken_to_string qtok))
         );
       Buffer.contents buf
-      
+
 
     method _set_queue q = queue <- q
     method _raw = queue
     method clear = queue#clear
 
-    method _add qtok = 
+    method _add qtok =
       ast_cache <- Runknown;
       queue#add qtok
 
@@ -2729,22 +2729,22 @@ module F (Stat : Aux.STATE_T) = struct
 
     method is_empty = queue#is_empty
 
-    method peek = 
+    method peek =
       try
 	queue#peek
-      with 
+      with
 	Xqueue.Empty -> raise Empty
 
     method peek_nth n = queue#peek_nth n
 
-    method take = 
+    method take =
       try
 	queue#take
-      with 
+      with
 	Xqueue.Empty -> raise Empty
 
-    method receive_all : 'self -> unit = 
-      fun buf -> 
+    method receive_all : 'self -> unit =
+      fun buf ->
 	let q = buf#_raw in
 	if q#length > 0 then
 	  ast_cache <- Runknown;
@@ -2760,19 +2760,19 @@ module F (Stat : Aux.STATE_T) = struct
         let st = ref Loc.dummy in
         let ed = ref Loc.dummy in
         self#iter
-          (fun (tok, loc) -> 
+          (fun (tok, loc) ->
             match tok with
             | END_FRAGMENT | EOL -> ()
-            | _ -> 
+            | _ ->
                 if !started then
                   ed := loc
                 else begin
-                  st := loc; 
+                  st := loc;
                   started := true
                 end
           );
         merge_locs !st !ed
-      with 
+      with
 	Xqueue.Empty -> raise Empty
 
     method get_last =
@@ -2785,7 +2785,7 @@ module F (Stat : Aux.STATE_T) = struct
 
 
 
-    method ends_with_EOL = 
+    method ends_with_EOL =
       match self#get_last_EOL with
       | Some _ -> true
       | None -> false
@@ -2803,7 +2803,7 @@ module F (Stat : Aux.STATE_T) = struct
 
               | EOL -> Some t
 
-              | STMT _ 
+              | STMT _
               | SPEC_PART_CONSTRUCT _
               | EXEC_PART_CONSTRUCT _
               | PP_INCLUDE__FILE _
@@ -2813,7 +2813,7 @@ module F (Stat : Aux.STATE_T) = struct
               | PP_WARNING__MESG _
 *)
               | OMP _ | OCL _ | ACC _ | XLF _ | DEC _
-                -> 
+                ->
                   let _, _pos = Loc.to_lexposs loc in
                   let pos = Loc.incr_lexpos _pos in
                   let loc' = loc_of_lexposs pos pos in
@@ -2866,13 +2866,13 @@ module F (Stat : Aux.STATE_T) = struct
     method _parse_by : ?cache:bool -> token_handler -> partial_parser -> Partial.t =
       fun ?(cache=true) handler _parser ->
 	DEBUG_MSG "called";
-	
-	match ast_cache with 
+
+	match ast_cache with
 	| Rcomplete p ->
 	    DEBUG_MSG "using cached value (complete)";
 	    p
 
-	| Rincomplete -> 
+	| Rincomplete ->
 	    DEBUG_MSG "using cached value (incomplete)";
 	    raise Incomplete
 
@@ -2884,13 +2884,13 @@ module F (Stat : Aux.STATE_T) = struct
 
 	    let scanner() =
 	      try
-                let token = 
+                let token =
                   tokensrc#get_token (handler tokensrc)
                 in
                 DEBUG_MSG "---------> %s" (Token.to_string token);
                 token
-	      with 
-	      | Tokensource.Empty -> 
+	      with
+	      | Tokensource.Empty ->
 		  if tokensrc#eop_flag then begin
                     DEBUG_MSG "raising End_of_file";
 		    raise End_of_file
@@ -2900,8 +2900,8 @@ module F (Stat : Aux.STATE_T) = struct
 		    tokensrc#set_eop_flag;
 
 		    BEGIN_DEBUG
-		      DEBUG_MSG "last token: %s[%s]" 
-		      (Token.rawtoken_to_string tokensrc#get_last_rawtok) 
+		      DEBUG_MSG "last token: %s[%s]"
+		      (Token.rawtoken_to_string tokensrc#get_last_rawtok)
                       (Loc.to_string tokensrc#get_last_loc);
 		    DEBUG_MSG "EOP[%s]"
 		      (Loc.to_string (env#current_pos_mgr#lexposs_to_loc ed ed));
@@ -2918,7 +2918,7 @@ module F (Stat : Aux.STATE_T) = struct
 	      env#clear_partial_parsing_flag;
 (*
   check_error p;
- *)    
+ *)
 	      DEBUG_MSG "result: PARSED";
 
               Partial.set_length p self#total_length;
@@ -2927,7 +2927,7 @@ module F (Stat : Aux.STATE_T) = struct
 	        ast_cache <- Rcomplete p;
 	      p
 
-	    with 
+	    with
 	      exn ->
 		DEBUG_MSG "result: FAILED (%s)" (Printexc.to_string exn);
 		env#clear_partial_parsing_flag;
@@ -2938,8 +2938,8 @@ module F (Stat : Aux.STATE_T) = struct
 
 
     method parse_by ?(cache=true) p =
-      self#_parse_by ~cache 
-        (fun tokensrc qtoken -> 
+      self#_parse_by ~cache
+        (fun tokensrc qtoken ->
           let qtoken' = hack_token (tokensrc :> Tokensource.c) qtoken in
           PB.qtoken_to_token qtoken'
         )
@@ -2950,13 +2950,13 @@ module F (Stat : Aux.STATE_T) = struct
 
 
   class c (btag : Branch.tag) = object (self : 'self)
-      
+
     inherit base as super
 
     val mutable context = C.unknown()
 
     method to_string =
-      sprintf "%s@[%s]\n%s" 
+      sprintf "%s@[%s]\n%s"
         (Branch.tag_to_string btag) (C.to_string context) super#to_string
 
     method dump =
@@ -2969,11 +2969,11 @@ module F (Stat : Aux.STATE_T) = struct
       copy#set_context context;
       copy
 
-    method set_context c = 
+    method set_context c =
       DEBUG_MSG "[%s]: %s" (Branch.tag_to_string btag) (C.to_string c);
       context <- c
 
-    method get_context = 
+    method get_context =
 (*      DEBUG_MSG "%s" (C.to_string context); *)
       context
 
@@ -2982,7 +2982,7 @@ module F (Stat : Aux.STATE_T) = struct
     method parse_by ?(cache=true) p =
       super#_parse_by ~cache
         (fun tokensrc qtoken ->
-          
+
           let qtoken' = hack_token (tokensrc :> Tokensource.c) qtoken in
 (*
 	  context_stack#deactivate_top;
@@ -2999,7 +2999,7 @@ module F (Stat : Aux.STATE_T) = struct
           let rt = Token.qtoken_to_rawtoken qtoken' in
           begin
             match rt with
-            | END _ | END_BLOCK_DATA _ | END_FUNCTION _ 
+            | END _ | END_BLOCK_DATA _ | END_FUNCTION _
             | END_SUBROUTINE _ | END_PROGRAM _ | END_MODULE _ | END_SUBMODULE _
             | CONTAINS _
               -> begin
@@ -3037,19 +3037,19 @@ module F (Stat : Aux.STATE_T) = struct
           DEBUG_MSG "Partial.Spec_Exec";
           self#clear;
           try
-            let of_spec_exec, c, l = 
+            let of_spec_exec, c, l =
               match sp_nd_opt, ep_nd_opt with
-              | Some sp_nd, None -> 
+              | Some sp_nd, None ->
                   DEBUG_MSG "sp_nd: %s" sp_nd#to_string;
                   Xoption.iter C.resolve_into_spec context_opt;
                   TokenF.of_spec_part_construct, C.Tspecification_part, sp_nd#children
 
-              | None, Some ep_nd -> 
+              | None, Some ep_nd ->
                   DEBUG_MSG "ep_nd: %s" ep_nd#to_string;
                   Xoption.iter C.resolve_into_exec context_opt;
                   TokenF.of_exec_part_construct, C.Texecution_part, ep_nd#children
 
-              | Some sp_nd, Some ep_nd -> 
+              | Some sp_nd, Some ep_nd ->
                   DEBUG_MSG "sp_nd: %s" sp_nd#to_string;
                   DEBUG_MSG "ep_nd: %s" ep_nd#to_string;
                   Xoption.iter C.resolve_into_exec context_opt;
@@ -3062,7 +3062,7 @@ module F (Stat : Aux.STATE_T) = struct
             END_DEBUG;
             self#add (of_spec_exec spec (tag_to_node c btag l))
           with
-          | Undefined -> 
+          | Undefined ->
               let specs, execs = Ast.spec_opt_exec_opt_to_children_pair (sp_nd_opt, ep_nd_opt) in
               List.iter (fun nd -> self#add (TokenF.of_spec_part_construct spec nd)) specs;
               List.iter (fun nd -> self#add (TokenF.of_exec_part_construct spec nd)) execs
@@ -3136,7 +3136,7 @@ module F (Stat : Aux.STATE_T) = struct
       end
       | Partial.ActionStmt(spec, nd) -> begin
           DEBUG_MSG "Partial.ActionStmt";
-          let eol = 
+          let eol =
             let _, p = A.node_to_lexposs nd in
             PB.make_qtoken EOL p p
           in
@@ -3145,7 +3145,7 @@ module F (Stat : Aux.STATE_T) = struct
             self#add (TokenF.of_action_stmt spec (tag_to_node C.Taction_stmt btag [nd]));
             self#add eol
           with
-            Undefined -> 
+            Undefined ->
               self#add (TokenF.of_action_stmt spec nd);
               self#add eol
       end
