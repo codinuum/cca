@@ -480,7 +480,7 @@ module Literal = struct
     | True              -> mkstr 2
     | False             -> mkstr 3
     | Character str     -> catstr [mkstr 4; str]
-    | String str        -> 
+    | String str        ->
 	if (String.length str) > string_len_threshold then
 	  catstr [mkstr 5; Digest.to_hex (Digest.string str)]
 	else
