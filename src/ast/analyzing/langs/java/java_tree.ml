@@ -1886,6 +1886,43 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	  [nd]
       | Ast.CBDempty -> [self#mkleaf L.EmptyDeclaration]
       | Ast.CBDerror s -> [self#mkleaf (L.Error s)]
+      | Ast.CBDpointcut p ->
+          let ident = p.Ast.pcd_name in
+          let mods = p.Ast.pcd_modifiers in
+          let params = p.Ast.pcd_parameters in
+          let mod_nodes = self#of_modifiers_opt L.Kpointcut ident mods in
+          let p_nodes = self#of_parameters ident p.Ast.pcd_parameters_loc params in
+          let e_nodes = of_opt self#of_pointcut_expr p.Ast.pcd_pointcut_expr in
+          let ordinal_tbl_opt =
+            Some (new ordinal_tbl [List.length mod_nodes;
+                                   List.length p_nodes;
+                                   List.length e_nodes;
+                                 ])
+          in
+          let children = mod_nodes @ p_nodes @ e_nodes in
+          let nd = self#mknode ~ordinal_tbl_opt (L.Pointcut ident) children in
+          set_loc nd p.Ast.pcd_loc;
+          [nd]
+      | Ast.CBDdeclare d ->
+          let lab, children, ordinal_tbl_opt =
+            match d.dd_desc with
+            | Ast.DDparents(k, c, x_opt, i_opt) ->
+                let x_nodes = self#of_extends_class_opt x_opt in
+                let i_nodes = self#of_implements_opt i_opt in
+                let ordinal_tbl_opt =
+                  Some (new ordinal_tbl [1;
+                                         List.length x_nodes;
+                                         List.length i_nodes;
+                                       ])
+                in
+                L.DeclareParents, (self#of_classname_pattern_expr c)::(x_nodes@i_nodes), ordinal_tbl_opt
+            | Ast.DDmessage(k, p, s) -> L.DeclareMessage k, [self#of_pointcut_expr p; self#of_primary s], None
+            | Ast.DDsoft(k, p) -> L.DeclareSoft, [self#of_pointcut_expr p], None
+            | Ast.DDprecedence(k, cl) -> L.DeclarePrecedence, List.map self#of_classname_pattern_expr cl, None
+          in
+          let nd = self#mknode ~ordinal_tbl_opt lab children in
+          set_loc nd d.Ast.dd_loc;
+          [nd]
     in
     List.iter
       (fun nd ->
@@ -1893,6 +1930,35 @@ class translator options = let bid_gen = new BID.generator in object (self)
           set_loc nd loc
       ) nds;
     nds
+
+  method of_pointcut_expr pe =
+    let lab, children =
+      match pe.pe_desc with
+      | Ast.PEand(pe0, pe1) -> L.PointcutAnd, [self#of_pointcut_expr pe0; self#of_pointcut_expr pe1]
+      | Ast.PEor(pe0, pe1) -> L.PointcutOr, [self#of_pointcut_expr pe0; self#of_pointcut_expr pe1]
+      | Ast.PEnot pe0 -> L.PointcutNot, [self#of_pointcut_expr pe0]
+      | Ast.PEparen pe0 -> L.PointcutParen, [self#of_pointcut_expr pe0]
+      | Ast.PEwithin cpe -> L.PointcutWithin, [self#of_classname_pattern_expr cpe]
+    in
+    let nd = self#mknode lab children in
+    set_loc nd pe.Ast.pe_loc;
+    nd
+
+  method of_classname_pattern_expr cpe =
+    let lab, children =
+      match cpe.cpe_desc with
+      | CPEand(cpe0, cpe1) ->
+          L.ClassnamePatternAnd, [self#of_classname_pattern_expr cpe0; self#of_classname_pattern_expr cpe1]
+      | CPEor(cpe0, cpe1) ->
+          L.ClassnamePatternOr, [self#of_classname_pattern_expr cpe0; self#of_classname_pattern_expr cpe1]
+      | CPEnot cpe0 -> L.ClassnamePatternNot, [self#of_classname_pattern_expr cpe0]
+      | CPEparen cpe0 -> L.ClassnamePatternParen, [self#of_classname_pattern_expr cpe0]
+      | CPEname n -> L.ClassnamePatternName n, []
+      | CPEnamePlus n -> L.ClassnamePatternNamePlus n, []
+    in
+    let nd = self#mknode lab children in
+    set_loc nd cpe.Ast.cpe_loc;
+    nd
 
   method of_constructor_body name signature cnb =
     let ctor_invk = cnb.Ast.cnb_explicit_constructor_invocation in
@@ -1911,6 +1977,9 @@ class translator options = let bid_gen = new BID.generator in object (self)
 
   method of_class_body cname cb =
     let body = cb.Ast.cb_class_body_declarations in
+    self#_of_class_body cname body cb.Ast.cb_loc
+
+  method _of_class_body cname body loc =
     let children =
       List.flatten (List.map self#of_class_body_declaration body)
     in
@@ -1975,7 +2044,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
     in
     let nd = self#mklnode (L.ClassBody cname) children' in
     self#add_true_children nd (Array.of_list children);
-    set_loc nd cb.Ast.cb_loc;
+    set_loc nd loc;
     nd
 
   method of_enum_body name eb =
@@ -2126,9 +2195,9 @@ class translator options = let bid_gen = new BID.generator in object (self)
            ]
           in
           let ident = h.Ast.ch_identifier in
-	  let specifier_node = self#of_class_declaration_head L.Kclass otbl h in
-	  let children = specifier_node @ [self#of_class_body ident body] in
-	  self#mknode (L.Class ident) children
+          let specifier_node = self#of_class_declaration_head L.Kclass otbl h in
+          let children = specifier_node @ [self#of_class_body ident body] in
+          self#mknode (L.Class ident) children
 
       | Ast.CDenum(h, body) ->
           let otbl =
@@ -2137,12 +2206,28 @@ class translator options = let bid_gen = new BID.generator in object (self)
            ]
           in
           let ident = h.Ast.ch_identifier in
-	  let specifier_node = self#of_class_declaration_head L.Kenum otbl h in
-	  let children = specifier_node @ [self#of_enum_body ident body] in
-	  self#mknode (L.Enum ident) children
+          let specifier_node = self#of_class_declaration_head L.Kenum otbl h in
+          let children = specifier_node @ [self#of_enum_body ident body] in
+          self#mknode (L.Enum ident) children
+
+      | Ast.CDaspect(h, body) ->
+          let otbl =
+            [if h.Ast.ch_modifiers <> None then 1 else 0;
+             if h.Ast.ch_extends_class <> None then 1 else 0;
+             if h.Ast.ch_implements <> None then 1 else 0;
+           ]
+          in
+          let ident = h.Ast.ch_identifier in
+          let specifier_node = self#of_class_declaration_head L.Kaspect otbl h in
+          let children = specifier_node @ [self#of_aspect_body ident body] in
+          self#mknode (L.Aspect ident) children
     in
     set_loc nd cd.Ast.cd_loc;
     nd
+
+  method of_aspect_body aname abd =
+    let body = abd.Ast.abd_aspect_body_declarations in
+    self#_of_class_body aname body abd.Ast.abd_loc
 
   method of_abstract_method_declaration amd =
     self#of_method_header amd.Ast.amd_method_header
@@ -2282,6 +2367,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.TDclass class_decl -> [self#of_class_declaration true class_decl]
       | Ast.TDinterface iface_decl -> [self#of_interface_declaration true iface_decl]
       | Ast.TDempty -> [self#mkleaf L.EmptyDeclaration]
+      | Ast.TDerror s -> [self#mkleaf (L.Error s)]
+      | Ast.TDorphan cbd -> self#of_class_body_declaration cbd
     in
     let loc = td.Ast.td_loc in
     List.iter (fun nd -> set_loc nd loc) nds;
@@ -2309,8 +2396,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
 	    | Ast.IDsingleStatic(name, ident) ->
 		self#mkleaf (L.IDsingleStatic(L.conv_name ~resolve:false name, ident))
 
-	    | Ast.IDstaticOnDemand name ->
-		self#mkleaf (L.IDstaticOnDemand (L.conv_name name))
+	    | Ast.IDstaticOnDemand name -> self#mkleaf (L.IDstaticOnDemand (L.conv_name name))
+            | Ast.IDerror s -> self#mkleaf (L.Error s)
 	  in
 	  set_loc nd id.Ast.id_loc;
 	  nd

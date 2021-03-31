@@ -150,6 +150,12 @@ let rawtoken_to_string = function
 
   | EOF -> "EOF"
 
+  | ASPECT _       -> "ASPECT"
+  | POINTCUT _     -> "POINTCUT"
+  | WITHIN _       -> "WITHIN"
+  | DECLARE _      -> "DECLARE"
+  | DOT_DOT        -> "DOT_DOT"
+
 let rawtoken_to_orig = function
   | STMT _       -> "<stmt>"
   | BLOCK_STMT _ -> "<block-stmt>"
@@ -278,6 +284,13 @@ let rawtoken_to_orig = function
   | WHILE _          -> "while"
 
   | EOF -> ""
+
+  | ASPECT _         -> "aspect"
+  | POINTCUT _       -> "pointcut"
+  | WITHIN _         -> "within"
+  | DECLARE _        -> "declare"
+  | DOT_DOT          -> ".."
+
 
 
 let to_string (pos_mgr : Position.manager) (tok, st, ed) =

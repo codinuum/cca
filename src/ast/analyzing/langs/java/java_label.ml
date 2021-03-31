@@ -1591,6 +1591,8 @@ type kind =
   | Kparameter
   | Klocal
   | Kany
+  | Kaspect
+  | Kpointcut
 
 let kind_sep = "#"
 
@@ -1600,13 +1602,15 @@ let kind_to_suffix k =
   | Kclass       -> "C"
   | Kinterface   -> "I"
   | Kenum        -> "E"
-  | Kannotation  -> "A"
+  | Kannotation  -> "@"
   | Kfield       -> "f"
   | Kconstructor -> "c"
   | Kmethod      -> "m"
   | Kparameter   -> "p"
   | Klocal       -> "l"
   | Kany         -> "*"
+  | Kaspect      -> "A"
+  | Kpointcut    -> "/"
 
 let kind_to_string = function
   | Kclass       -> "Class"
@@ -1619,6 +1623,8 @@ let kind_to_string = function
   | Kparameter   -> "Parameter"
   | Klocal       -> "Local"
   | Kany         -> ""
+  | Kaspect      -> "Aspect"
+  | Kpointcut    -> "Pointcut"
 
 let kind_to_short_string = function
   | Kclass       -> mkstr 0
@@ -1631,6 +1637,8 @@ let kind_to_short_string = function
   | Kparameter   -> mkstr 7
   | Klocal       -> mkstr 8
   | Kany         -> mkstr 9
+  | Kaspect      -> mkstr 10
+  | Kpointcut    -> mkstr 11
 
 type t = (* Label *)
 (*    Dummy *)
@@ -1738,6 +1746,23 @@ type t = (* Label *)
 
   | EmptyDeclaration
 
+  | Aspect of name
+  | Pointcut of name
+  | DeclareParents
+  | DeclareMessage of string
+  | DeclareSoft
+  | DeclarePrecedence
+  | PointcutAnd
+  | PointcutOr
+  | PointcutNot
+  | PointcutParen
+  | PointcutWithin
+  | ClassnamePatternAnd
+  | ClassnamePatternOr
+  | ClassnamePatternNot
+  | ClassnamePatternParen
+  | ClassnamePatternName of name
+  | ClassnamePatternNamePlus of name
 
 
 let rec to_string = function
@@ -1834,6 +1859,25 @@ let rec to_string = function
   | HugeArray(sz, c)                        -> sprintf "HugeArray(%d):%s\n" sz c
 
   | EmptyDeclaration                        -> "EmptyDeclaration"
+
+  | Aspect name                   -> sprintf "Aspect(%s)" name
+  | Pointcut name                 -> sprintf "Pointcut(%s)" name
+  | DeclareParents                -> "DeclareParents"
+  | DeclareMessage kwd            -> sprintf "DeclareMessage(%s)" kwd
+  | DeclareSoft                   -> "DeclareSoft"
+  | DeclarePrecedence             -> "DeclarePrecedence"
+  | PointcutAnd                   -> "PointcutAnd"
+  | PointcutOr                    -> "PointcutOr"
+  | PointcutNot                   -> "PointcutNot"
+  | PointcutParen                 -> "PointcutParen"
+  | PointcutWithin                -> "PointcutWithin"
+  | ClassnamePatternAnd           -> "ClassnamePatternAnd"
+  | ClassnamePatternOr            -> "ClassnamePatternOr"
+  | ClassnamePatternNot           -> "ClassnamePatternNot"
+  | ClassnamePatternParen         -> "ClassnamePatternParen"
+  | ClassnamePatternName name     -> sprintf "ClassnamePatternName(%s)" name
+  | ClassnamePatternNamePlus name -> sprintf "ClassnamePatternNamePlus(%s)" name
+
 
 let anonymize ?(more=false) = function
   | Type ty                        -> Type (Type.anonymize ty)
@@ -2003,6 +2047,23 @@ let rec to_simple_string = function
   | Error s                     -> s
   | HugeArray(sz, c)            -> c
   | EmptyDeclaration            -> ";"
+  | Aspect name                   -> "aspect "^name
+  | Pointcut name                 -> "pointcut "^name
+  | DeclareParents                -> "declare parents"
+  | DeclareMessage kwd            -> sprintf "declare %s" kwd
+  | DeclareSoft                   -> "declare soft"
+  | DeclarePrecedence             -> "declare precedence"
+  | PointcutAnd                   -> "&&"
+  | PointcutOr                    -> "||"
+  | PointcutNot                   -> "!"
+  | PointcutParen                 -> "()"
+  | PointcutWithin                -> "within"
+  | ClassnamePatternAnd           -> "&&"
+  | ClassnamePatternOr            -> "||"
+  | ClassnamePatternNot           -> "!"
+  | ClassnamePatternParen         -> "()"
+  | ClassnamePatternName name     -> name
+  | ClassnamePatternNamePlus name -> name^"+"
 
 let rec to_short_string ?(ignore_identifiers_flag=false) =
   let combo = combo ~ignore_identifiers_flag in function
@@ -2092,6 +2153,24 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 86 [string_of_int sz; h]
   | EmptyDeclaration                        -> mkstr 87
+  | Aspect name                   -> combo 88 [name]
+  | Pointcut name                 -> combo 89 [name]
+  | DeclareParents                -> mkstr 90
+  | DeclareMessage kwd            -> combo 91 [kwd]
+  | DeclareSoft                   -> mkstr 92
+  | DeclarePrecedence             -> mkstr 93
+  | PointcutAnd                   -> mkstr 94
+  | PointcutOr                    -> mkstr 95
+  | PointcutNot                   -> mkstr 96
+  | PointcutParen                 -> mkstr 97
+  | PointcutWithin                -> mkstr 98
+  | ClassnamePatternAnd           -> mkstr 99
+  | ClassnamePatternOr            -> mkstr 100
+  | ClassnamePatternNot           -> mkstr 101
+  | ClassnamePatternParen         -> mkstr 102
+  | ClassnamePatternName name     -> combo 103 [name]
+  | ClassnamePatternNamePlus name -> combo 104 [name]
+
 
 let to_tag l =
   let name, attrs =
@@ -2214,6 +2293,25 @@ let to_tag l =
     | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code",xmlenc c]
 
     | EmptyDeclaration -> "EmptyDeclaration", []
+
+    | Aspect name                   -> "Aspect", ["name",xmlenc name]
+    | Pointcut name                 -> "Pointcut", ["name",xmlenc name]
+    | DeclareParents                -> "DeclareParents", []
+    | DeclareMessage kwd            -> "DeclareMessage", ["level",kwd]
+    | DeclareSoft                   -> "DeclareSoft", []
+    | DeclarePrecedence             -> "DeclarePrecedence", []
+    | PointcutAnd                   -> "PointcutAnd", []
+    | PointcutOr                    -> "PointcutOr", []
+    | PointcutNot                   -> "PointcutNot", []
+    | PointcutParen                 -> "PointcutParen", []
+    | PointcutWithin                -> "PointcutWithin", []
+    | ClassnamePatternAnd           -> "ClassnamePatternAnd", []
+    | ClassnamePatternOr            -> "ClassnamePatternOr", []
+    | ClassnamePatternNot           -> "ClassnamePatternNot", []
+    | ClassnamePatternParen         -> "ClassnamePatternParen", []
+    | ClassnamePatternName name     -> "ClassnamePatternName", ["name",xmlenc name]
+    | ClassnamePatternNamePlus name -> "ClassnamePatternNamePlus", ["name",xmlenc name]
+
   in
   name, attrs
 
@@ -2305,6 +2403,23 @@ let to_char lab =
     | AnnotDim                   -> 89
     | HugeArray _ -> 90
     | EmptyDeclaration -> 91
+    | Aspect name                   -> 92
+    | Pointcut name                 -> 93
+    | DeclareParents                -> 94
+    | DeclareMessage kwd            -> 95
+    | DeclareSoft                   -> 96
+    | DeclarePrecedence             -> 97
+    | PointcutAnd                   -> 98
+    | PointcutOr                    -> 99
+    | PointcutNot                   -> 100
+    | PointcutParen                 -> 101
+    | PointcutWithin                -> 102
+    | ClassnamePatternAnd           -> 103
+    | ClassnamePatternOr            -> 104
+    | ClassnamePatternNot           -> 105
+    | ClassnamePatternParen         -> 106
+    | ClassnamePatternName name     -> 107
+    | ClassnamePatternNamePlus name -> 108
   in
   char_pool.(to_index lab)
 
@@ -2404,6 +2519,23 @@ let is_collapse_target options lab =
     | FieldDeclarations _
     | InferredFormalParameters
     | ArrayInitializer
+
+    | Aspect _
+    | Pointcut _
+    | DeclareParents
+    | DeclareMessage _
+    | DeclareSoft
+    | DeclarePrecedence
+    | PointcutAnd
+    | PointcutOr
+    | PointcutNot
+    | PointcutParen
+    | PointcutWithin
+    | ClassnamePatternAnd
+    | ClassnamePatternOr
+    | ClassnamePatternNot
+    | ClassnamePatternParen
+
       -> true
     | _ -> false
 
@@ -2633,6 +2765,10 @@ let is_named = function
   | CatchParameter _
     -> true
 
+  | ClassnamePatternName _
+  | ClassnamePatternNamePlus _
+      -> true
+
   | _ -> false
 
 let is_named_orig = function
@@ -2667,6 +2803,10 @@ let is_named_orig = function
   | HugeArray _
     -> true
 
+  | ClassnamePatternName _
+  | ClassnamePatternNamePlus _
+      -> true
+
   | _ -> false
 
 
@@ -2685,6 +2825,7 @@ let is_partition = function
   | Enum _
   | Interface _
   | Method _ -> true
+  | Pointcut _ -> true
   | _ -> false
 
 
@@ -2695,6 +2836,7 @@ let is_boundary = function
   | ImportDeclarations
   | TypeDeclarations
   | CompilationUnit -> true
+  | Aspect _ -> true
   | _ -> false
 
 let is_sequence = function
@@ -2813,6 +2955,7 @@ let is_classbodydecl = function
   | InstanceInitializer
   | Constructor _
   | EmptyDeclaration
+  | Aspect _
     -> true
   | _ -> false
 
@@ -3244,6 +3387,41 @@ let is_annot_dim = function
   | AnnotDim -> true
   | _ -> false
 
+let is_aspect = function
+  | Aspect _ -> true
+  | _ -> false
+
+let is_pointcut = function
+  | Pointcut _ -> true
+  | _ -> false
+
+let is_declare = function
+  | DeclareParents
+  | DeclareMessage _
+  | DeclareSoft
+  | DeclarePrecedence
+    -> true
+  | _ -> false
+
+let is_pointcut_expr = function
+  | PointcutAnd
+  | PointcutOr
+  | PointcutNot
+  | PointcutParen
+  | PointcutWithin
+      -> true
+  | _ -> false
+
+let is_classname_pattern_expr = function
+  | ClassnamePatternAnd
+  | ClassnamePatternOr
+  | ClassnamePatternNot
+  | ClassnamePatternParen
+  | ClassnamePatternName _
+  | ClassnamePatternNamePlus _
+      -> true
+  | _ -> false
+
 let scope_creating lab =
   is_compilationunit lab ||
   is_class lab ||
@@ -3253,7 +3431,8 @@ let scope_creating lab =
   is_method lab ||
   is_methodbody lab ||
   is_block lab ||
-  is_try lab
+  is_try lab ||
+  is_aspect lab
 
 
 (* for fact extraction *)
@@ -3324,6 +3503,10 @@ let get_name lab =
     | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       "HUGE_ARRAY_"^h
+
+    | ClassnamePatternName name
+    | ClassnamePatternNamePlus name
+        -> name
 
     | _ -> begin
         (*WARN_MSG "name not found: %s" (to_string lab);*)
@@ -3681,6 +3864,24 @@ let of_elem_data =
     "HugeArray",
     (fun a -> HugeArray (int_of_string (find_attr a "size"), xmldec(find_attr a "code")));
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
+
+    "Aspect",                   (fun a -> Aspect(find_name a));
+    "Pointcut",                 (fun a -> Pointcut(find_name a));
+    "DeclareParents",           (fun a -> DeclareParents);
+    "DeclareMessage",           (fun a -> DeclareMessage(find_attr a "level"));
+    "DeclareSoft",              (fun a -> DeclareSoft);
+    "DeclarePrecedence",        (fun a -> DeclarePrecedence);
+    "PointcutAnd",              (fun a -> PointcutAnd);
+    "PointcutOr",               (fun a -> PointcutOr);
+    "PointcutNot",              (fun a -> PointcutNot);
+    "PointcutParen",            (fun a -> PointcutParen);
+    "PointcutWithin",           (fun a -> PointcutWithin);
+    "ClassnamePatternAnd",      (fun a -> ClassnamePatternAnd);
+    "ClassnamePatternOr",       (fun a -> ClassnamePatternOr);
+    "ClassnamePatternNot",      (fun a -> ClassnamePatternNot);
+    "ClassnamePatternParen",    (fun a -> ClassnamePatternParen);
+    "ClassnamePatternName",     (fun a -> ClassnamePatternName(find_name a));
+    "ClassnamePatternNamePlus", (fun a -> ClassnamePatternNamePlus(find_name a));
    ]
   in
   let tbl = Hashtbl.create (List.length tag_list) in

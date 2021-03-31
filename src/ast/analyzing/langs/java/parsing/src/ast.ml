@@ -427,6 +427,7 @@ and class_declaration = { cd_desc : class_declaration_desc; cd_loc : loc; }
 and class_declaration_desc =
   | CDclass of class_declaration_head * class_body
   | CDenum  of class_declaration_head * enum_body
+  | CDaspect of class_declaration_head * aspect_body
 
 and type_parameters = { tps_type_parameters : type_parameter list;
 			tps_loc             : loc;
@@ -477,6 +478,49 @@ and class_body_declaration_desc =
   | CBDconstructor of constructor_declaration
   | CBDempty
   | CBDerror of string
+  | CBDpointcut of pointcut_declaration
+  | CBDdeclare of declare_declaration
+
+and declare_declaration = { dd_desc : declare_declaration_desc;
+                            dd_loc  : loc;
+                          }
+
+and declare_declaration_desc =
+  | DDparents of string * classname_pattern_expr * extends_class option * implements option
+  | DDmessage of string * pointcut_expr * primary
+  | DDsoft of string * pointcut_expr
+  | DDprecedence of string * classname_pattern_expr list
+
+and pointcut_declaration = { pcd_modifiers       : modifiers option;
+                             pcd_name            : identifier;
+                             pcd_parameters_loc  : loc;
+                             pcd_parameters      : formal_parameter list;
+                             pcd_pointcut_expr   : pointcut_expr option;
+                             pcd_loc             : loc;
+                           }
+
+and pointcut_expr = { pe_desc : pointcut_expr_desc;
+                      pe_loc  : loc;
+                    }
+
+and pointcut_expr_desc =
+  | PEand of pointcut_expr * pointcut_expr
+  | PEor of pointcut_expr * pointcut_expr
+  | PEnot of pointcut_expr
+  | PEparen of pointcut_expr
+  | PEwithin of classname_pattern_expr
+
+and classname_pattern_expr = { cpe_desc : classname_pattern_expr_desc;
+                               cpe_loc  : loc;
+                             }
+
+and classname_pattern_expr_desc =
+  | CPEand of classname_pattern_expr * classname_pattern_expr
+  | CPEor of classname_pattern_expr * classname_pattern_expr
+  | CPEnot of classname_pattern_expr
+  | CPEparen of classname_pattern_expr
+  | CPEname of string
+  | CPEnamePlus of string
 
 and field_declaration = { fd_modifiers            : modifiers option;
 			  fd_type                 : javatype;
@@ -584,6 +628,11 @@ and interface_member_declaration =
   | IMDclass of class_declaration
   | IMDinterface of interface_declaration
   | IMDempty
+
+and aspect_body =
+        { abd_aspect_body_declarations : class_body_declaration list;
+          abd_loc                      : loc;
+        }
 
 and block_statement = { bs_desc  : block_statement_desc;
 			bs_loc   : loc;
@@ -824,13 +873,15 @@ and import_declaration_desc =
   | IDtypeOnDemand of name (* of package or type *)
   | IDsingleStatic of name (* of type *) * identifier
   | IDstaticOnDemand of name (* of package or type *)
+  | IDerror of string
 
 type type_declaration = { td_desc : type_declaration_desc; td_loc : loc; }
 and type_declaration_desc =
   | TDclass of class_declaration
   | TDinterface of interface_declaration
   | TDempty
-
+  | TDerror of string
+  | TDorphan of class_body_declaration
 
 type compilation_unit =
     { cu_package   : package_declaration option;
@@ -1088,6 +1139,12 @@ and proc_class_declaration f cd =
   | CDenum(eh, eb) ->
       proc_class_declaration_head f eh;
       proc_enum_body f eb
+  | CDaspect(ah, ab) ->
+      proc_class_declaration_head f ah;
+      proc_aspect_body f ab
+
+and proc_aspect_body f ab =
+  List.iter (proc_class_body_declaration f) ab.abd_aspect_body_declarations
 
 and proc_enum_body f eb =
   List.iter (proc_enum_constant f) eb.eb_enum_constants;
@@ -1263,6 +1320,7 @@ let proc_import_declaration f id =
   | IDtypeOnDemand n
   | IDsingleStatic(n, _)
   | IDstaticOnDemand n -> f n
+  | IDerror _ -> ()
 
 class c (compilation_unit : compilation_unit) = object (self)
   inherit Ast_base.c

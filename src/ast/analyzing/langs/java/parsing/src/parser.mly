@@ -65,6 +65,10 @@ open Stat
 %token <Ast.Loc.t> SHORT STATIC STRICTFP SUPER SWITCH SYNCHRONIZED
 %token <Ast.Loc.t> THIS THROW THROWS TRANSIENT TRY VOLATILE VOID WHILE
 
+(* AspectJ *)
+%token <Ast.Loc.t> ASPECT POINTCUT WITHIN DECLARE
+%token DOT_DOT
+
 %token <Ast.statement> STMT
 %token <Ast.block_statement> BLOCK_STMT
 %token <string> MARKER ERROR ERROR_STMT ERROR_MOD
@@ -468,6 +472,16 @@ compilation_unit:
 |                                              t=type_declarations  { mkcu None [] t }
 |                       i=import_declarations  t=type_declarations0 { mkcu None i t }
 | p=package_declaration i=import_declarations0 t=type_declarations0 { mkcu (Some p) i t }
+
+| p=package_declaration i=import_declarations0 t=type_declarations i2=import_declarations t2=type_declarations0
+    { 
+      if env#keep_going_flag then begin
+        parse_warning $startofs(i2) $endofs(i2) "illegal import declaration(s)";
+        mkcu (Some p) (i@i2) (t@t2)
+      end
+      else
+        parse_error $startofs(i2) $endofs(i2) "illegal import declaration(s)"
+    }
 ;
 
 %inline
@@ -493,7 +507,22 @@ type_declarations:
 ; 
 
 package_declaration:
-| a=annotations0 p=PACKAGE n=name SEMICOLON 
+| p=_package_declaration { p }
+| n=name p=_package_declaration
+    { 
+      let s = P.name_to_simple_string n in
+      if env#keep_going_flag then begin
+        parse_warning $startofs(n) $endofs(n) "syntax error: %s" s;
+        p
+      end
+      else
+        parse_error $startofs(n) $endofs(n) (sprintf "syntax error: %s" s)
+    }
+;
+
+%inline
+_package_declaration:
+| a=annotations0 p=PACKAGE n=name SEMICOLON
     { 
       let pname = P.name_to_simple_string n in
       env#set_current_package_name pname;
@@ -515,6 +544,8 @@ import_declaration:
 | t=type_import_on_demand_declaration        { t }
 | s=static_single_type_import_declaration    { s }
 | s=static_type_import_on_demand_declaration { s }
+| s=MARKER { mkerrimpdecl $startofs $endofs s }
+(*| s=ERROR  { mkerrimpdecl $startofs $endofs s }*)
 ;
 
 single_type_import_declaration:
@@ -623,6 +654,17 @@ type_declaration:
 | e=enum_declaration      { mktd $startofs $endofs (TDclass e) }
 | i=interface_declaration { mktd $startofs $endofs (TDinterface i) }
 | SEMICOLON               { mktd $startofs $endofs TDempty }
+| a=aspect_declaration    { mktd $startofs $endofs (TDclass a) }
+| m=method_declaration (* orphan method *)
+    { 
+      if env#keep_going_flag then begin
+        parse_warning $startofs $endofs "orphan method declaration";
+        mktd $startofs $endofs (TDorphan m)
+      end
+      else
+        parse_error $startofs $endofs "orphan method declaration"
+    }
+| s=ERROR { mkerrtd $startofs $endofs s }
 ;
 
 %inline
@@ -746,7 +788,7 @@ class_declaration_head:
       let ms, id = ch0 in
       mkch $startofs $endofs ms id ts_opt s_opt i_opt
     }
-
+;
 class_declaration:
 | ch=class_declaration_head b=class_body
     { 
@@ -806,7 +848,7 @@ class_body_declaration:
 | i=instance_initializer     { i }
 | c=constructor_declaration  { mkcbd $startofs $endofs (CBDconstructor c) }
 (*| error                      { mkerrcbd $startofs $endofs "" }*)
-(*| s=ERROR                    { mkerrcbd $startofs $endofs s }*)
+| s=ERROR                    { mkerrcbd $startofs $endofs s }
 ;
 
 class_member_declaration:
@@ -817,6 +859,7 @@ class_member_declaration:
 | i=interface_declaration { mkcbd $startofs $endofs (CBDinterface i) }
 | SEMICOLON               { mkcbd $startofs $endofs CBDempty }
 | s=MARKER                { mkerrcbd $startofs $endofs s }
+| a=aspect_declaration    { mkcbd $startofs $endofs (CBDclass a) }
 ;
 
 enum_declaration_head0:
@@ -927,6 +970,127 @@ field_declaration:
     }
 ;
 
+aspect_declaration_head0:
+| m_opt=modifiers_opt ASPECT i=identifier 
+    { 
+      let _, id = i in
+      register_identifier_as_class (mkfqn_cls id) id;
+      begin_scope ~kind:(FKclass id) ();
+      m_opt, id
+    }
+;
+aspect_declaration_head:
+| ah0=aspect_declaration_head0 s_opt=super_opt i_opt=interfaces_opt
+    { 
+      let ms, id = ah0 in
+      mkch $startofs $endofs ms id None s_opt i_opt
+    }
+;
+aspect_declaration:
+| ah=aspect_declaration_head b=aspect_body
+    { 
+      mkcd $startofs $endofs (CDaspect(ah, b))
+    }
+;
+aspect_body:
+| LBRACE                             RBRACE { end_scope(); mkabd $startofs $endofs [] }
+| LBRACE al=aspect_body_declarations RBRACE { end_scope(); mkabd $startofs $endofs al }
+;
+aspect_body_declarations:
+|                             a=aspect_body_declaration { [a] }
+| al=aspect_body_declarations a=aspect_body_declaration { al@[a] }
+;
+aspect_body_declaration:
+| c=class_body_declaration { c }
+| p=pointcut_declaration  { mkcbd $startofs $endofs (CBDpointcut p) }
+| d=declare_declaration { mkcbd $startofs $endofs (CBDdeclare d) }
+;
+declare_declaration:
+| DECLARE k=identifier COLON c=classname_pattern_expr s=super_ext SEMICOLON
+    { 
+      let _, kwd = k in 
+      mkdd $startofs $endofs (DDparents(kwd, c, Some s, None))
+    }
+| DECLARE k=identifier COLON c=classname_pattern_expr i=interfaces SEMICOLON
+    { 
+      let _, kwd = k in
+      mkdd $startofs $endofs (DDparents(kwd, c, None, Some i))
+    }
+| DECLARE k=identifier COLON p=pointcut_expr COLON s=primary SEMICOLON
+    { 
+      let _, kwd = k in
+      mkdd $startofs $endofs (DDmessage(kwd, p, s))
+    }
+| DECLARE k=identifier COLON p=pointcut_expr SEMICOLON
+    { 
+      let _, kwd = k in
+      mkdd $startofs $endofs (DDsoft(kwd, p))
+    }
+| DECLARE k=identifier COLON cl=classname_pattern_expr_list SEMICOLON
+    { 
+      let _, kwd = k in
+      mkdd $startofs $endofs (DDprecedence(kwd, cl))
+    }
+;
+classname_pattern_expr_list:
+|                                      c=classname_pattern_expr { [c] }
+| cl=classname_pattern_expr_list COMMA c=classname_pattern_expr { cl@[c] }
+;
+pointcut_declaration:
+| m_opt=modifiers_opt POINTCUT i=identifier lp=LPAREN f=formal_parameter_list0 rp=RPAREN SEMICOLON
+    { 
+      let _, id = i in
+      mkpcd $symbolstartofs $endofs m_opt id (Loc.merge lp rp) f None
+    }
+| m_opt=modifiers_opt POINTCUT i=identifier lp=LPAREN f=formal_parameter_list0 rp=RPAREN COLON p=pointcut_expr SEMICOLON
+    { 
+      let _, id = i in
+      mkpcd $symbolstartofs $endofs m_opt id (Loc.merge lp rp) f (Some p)
+   }
+;
+pointcut_expr:
+|                         o=or_pointcut_expr { o }
+| p=pointcut_expr AND_AND o=or_pointcut_expr { mkpe $startofs $endofs (PEand(p, o)) }
+;
+or_pointcut_expr:
+|                          u=unary_pointcut_expr { u }
+| o=or_pointcut_expr OR_OR u=unary_pointcut_expr { mkpe $startofs $endofs (PEor(o, u)) }
+;
+unary_pointcut_expr:
+| p=basic_pointcut_expr { p }
+| EXCLAM u=unary_pointcut_expr { mkpe $startofs $endofs (PEnot u) }
+;
+basic_pointcut_expr:
+| LPAREN p=pointcut_expr RPAREN { mkpe $startofs $endofs (PEparen p) }
+| WITHIN LPAREN c=classname_pattern_expr RPAREN { mkpe $startofs $endofs (PEwithin c) }
+;
+classname_pattern_expr:
+|                                a=and_classname_pattern_expr { a }
+| c=classname_pattern_expr OR_OR a=and_classname_pattern_expr { mkcpe $startofs $endofs (CPEor(c, a)) }
+;
+and_classname_pattern_expr:
+|                                      u=unary_classname_pattern_expr { u }
+| a=and_classname_pattern_expr AND_AND u=unary_classname_pattern_expr { mkcpe $startofs $endofs (CPEand(a, u)) }
+;
+unary_classname_pattern_expr:
+| b=basic_classname_pattern_expr { b }
+| EXCLAM u=unary_classname_pattern_expr { mkcpe $startofs $endofs (CPEnot u) }
+;
+basic_classname_pattern_expr:
+| n=name_pattern { mkcpe $startofs $endofs (CPEname n) }
+| n=name_pattern PLUS { mkcpe $startofs $endofs (CPEnamePlus n) }
+| LPAREN c=classname_pattern_expr RPAREN { mkcpe $startofs $endofs (CPEparen c) }
+;
+name_pattern:
+|                        s=simple_name_pattern { s }
+| n=name_pattern DOT     s=simple_name_pattern { n^"."^s }
+| n=name_pattern DOT_DOT s=simple_name_pattern { n^".."^s }
+;
+simple_name_pattern:
+| STAR         { "*" }
+| i=identifier { let _, id = i in id }
+;
+
 %inline
 variable_declarators:
 | l=clist(variable_declarator) { l }
@@ -1007,6 +1171,22 @@ method_declarator:
 	 let params_loc = Loc.merge lparen_loc rp in
 	 (id, params_loc, f), 0 
        }
+| m=method_declarator_head i=identifier rp=RPAREN 
+       { 
+         if env#keep_going_flag then begin
+           parse_warning $startofs(rp) $endofs(rp) "identifier expected";
+	   let id, lparen_loc = m in
+	   let params_loc = Loc.merge lparen_loc rp in
+           let t =
+             mktype $startofs(i) $endofs(i)
+               (TclassOrInterface([TSname([], mkname $startofs(i) $endofs(i) (Nsimple(ref NAunknown, (snd i))))]))
+           in
+           let f = [mkfp (fst i) None t ("_", 0) false] in
+	   (id, params_loc, f), 0
+         end
+         else
+           parse_error $startofs(rp) $endofs(rp) "identifier expected"
+       }
 | m=method_declarator LBRACKET RBRACKET { let md, dim = m in md, dim + 1 }
 ;
 
@@ -1027,7 +1207,6 @@ formal_parameter:
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
       mkfp loc v t d false 
     }
-
 | v=variable_modifiers_opt t=unann_type ELLIPSIS d=variable_declarator_id 
     { 
       let loc = 

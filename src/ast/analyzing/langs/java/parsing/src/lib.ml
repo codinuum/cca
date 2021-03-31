@@ -246,15 +246,13 @@ class parser_c = object (self)
     let rec loop ckpt =
       match ckpt with
       | I.InputNeeded _menv -> begin
-          let sn = I.current_state_number _menv in
-          DEBUG_MSG "[InputNeeded] %d" sn;
+          DEBUG_MSG "[InputNeeded] %d" (I.current_state_number _menv);
           let tok = scanner#get_token() in
           let ckpt = I.offer ckpt tok in
           loop ckpt
       end
       | I.Shifting (_menv, menv_, b) -> begin
-          let sn = I.current_state_number _menv in
-          DEBUG_MSG "[Shifting] %d" sn;
+          DEBUG_MSG "[Shifting] %d" (I.current_state_number _menv);
           env#set_shift_flag;
           let proc_shift (_, l, r0, r, i) =
             match l, r0, r with
@@ -338,6 +336,11 @@ class parser_c = object (self)
                 env#enter_method;
                 env#open_block;
                 save_state menv_;
+                raise Exit
+            end
+            | I.X (I.N N_aspect_body), _, I.X (I.T T_RBRACE) -> begin
+                save_state menv_;
+                env#exit_context;
                 raise Exit
             end
             | I.X (I.N N_labeled_statement_head), _, I.X (I.T T_COLON) -> begin
@@ -525,6 +528,11 @@ class parser_c = object (self)
                 env#enter_class;
                 raise Exit
             end
+            | I.X (I.N N_aspect_body), _, I.X (I.T T_LBRACE) -> begin
+                (*save_state menv_;*)
+                env#enter_class;
+                raise Exit
+            end
             | I.X (I.N N_field_declaration), _, I.X (I.T T_SEMICOLON) -> begin
                 save_state menv_;
                 raise Exit
@@ -637,8 +645,7 @@ class parser_c = object (self)
                 rollback_record <- []
           end;
 
-          let sn = I.current_state_number _menv in
-          DEBUG_MSG "[AboutToReduce] %d" sn;
+          DEBUG_MSG "[AboutToReduce] %d" (I.current_state_number _menv);
           begin
             let lhs = I.lhs prod in
             match lhs with

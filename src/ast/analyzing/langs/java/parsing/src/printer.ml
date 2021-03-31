@@ -40,6 +40,7 @@ let pr_lparen() = print_string "("
 let pr_rparen() = print_string ")"
 let pr_semicolon() = print_string ";"
 let pr_bor()    = print_string "|"
+let pr_colon()  = pr_string ":"
 
 let pad i = pr_string (String.make i ' ')
 
@@ -716,7 +717,6 @@ and pr_method_header mh =
   pr_throws_op mh.mh_throws;
   close_box()
 
-
 and pr_block_statement sty bs =
   match bs.bs_desc with
   | BSlocal lvd -> pr_local_variable_declaration_statement lvd
@@ -791,7 +791,7 @@ and pr_statement sty s =
   | SforEnhanced(fp, e, s) ->
       pr_string "for (";
       pr_formal_parameter fp;
-      pr_string ":";
+      pr_colon();
       pr_expression 0 e;
       pr_space();
       pr_rparen(); pr_space();
@@ -799,7 +799,7 @@ and pr_statement sty s =
 
   | Sassert1 e -> pr_string "assert "; pr_expression 0 e; pr_semicolon()
   | Sassert2(e1, e2) -> pr_string "assert "; pr_expression 0 e1;
-      pr_string ":"; pr_expression 0 e2; pr_semicolon()
+      pr_colon(); pr_expression 0 e2; pr_semicolon()
 
   | Serror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
@@ -844,7 +844,7 @@ and pr_catches sty cs = pr_list pr_space (pr_catch_clause sty) cs
 
 and pr_switch_label sl =
   match sl.sl_desc with
-  | SLconstant ce -> pr_string "case "; pr_expression 0 ce; pr_string ":"
+  | SLconstant ce -> pr_string "case "; pr_expression 0 ce; pr_colon()
   | SLdefault -> pr_string "default:"
 
 and pr_switch_block sty sb =
@@ -941,6 +941,57 @@ and pr_class_body_declaration cbd =
   | CBDconstructor cd -> pr_constructor_declaration cd
   | CBDempty -> pr_semicolon()
   | CBDerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
+  | CBDpointcut p -> pr_pointcut_declaration p
+  | CBDdeclare d -> pr_declare_declaration d
+
+and pr_declare_declaration dd =
+  match dd.dd_desc with
+  | DDparents(kwd, c, x_opt, i_opt) ->
+      pr_string "declare "; pr_string kwd; pr_colon(); pr_classname_pattern_expr c;
+      pr_option pr_extends_class x_opt;
+      pr_option pr_implements i_opt;
+      pr_semicolon()
+  | DDmessage(kwd, p, s) ->
+      pr_string "declare "; pr_string kwd; pr_colon(); pr_pointcut_expr p; pr_colon(); pr_primary 0 s; pr_semicolon()
+  | DDsoft(kwd, p) ->
+      pr_string "declare "; pr_string kwd; pr_colon(); pr_pointcut_expr p; pr_semicolon()
+  | DDprecedence(kwd, cl) ->
+      pr_string "declare "; pr_string kwd; pr_colon(); pr_classname_pattern_expr_list cl; pr_semicolon()
+
+and pr_classname_pattern_expr_list cl = pr_list pr_comma pr_classname_pattern_expr cl
+
+and pr_pointcut_declaration pcd =
+  open_box 0;
+  begin
+    match pcd.pcd_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1
+  end;
+  pr_string "pointcut ";
+  pr_id pcd.pcd_name;
+  pr_lparen(); pr_formal_parameters pcd.pcd_parameters; pr_rparen();
+  begin
+    match pcd.pcd_pointcut_expr with
+    | None -> ()
+    | Some pe -> pr_colon(); pr_pointcut_expr pe
+  end;
+  pr_semicolon();
+  close_box()
+
+and pr_pointcut_expr pe =
+  match pe.pe_desc with
+  | PEand(pe0, pe1) -> pr_pointcut_expr pe0; pr_string " && "; pr_pointcut_expr pe1
+  | PEor(pe0, pe1) -> pr_pointcut_expr pe0; pr_string " || "; pr_pointcut_expr pe1
+  | PEnot pe0 -> pr_string "!"; pr_pointcut_expr pe0
+  | PEparen pe0 -> pr_lparen(); pr_pointcut_expr pe0; pr_rparen()
+  | PEwithin cpe -> pr_string "within"; pr_lparen(); pr_classname_pattern_expr cpe; pr_rparen()
+
+and pr_classname_pattern_expr cpe =
+  match cpe.cpe_desc with
+  | CPEand(cpe0, cpe1) -> pr_classname_pattern_expr cpe0; pr_string " && "; pr_classname_pattern_expr cpe1
+  | CPEor(cpe0, cpe1) -> pr_classname_pattern_expr cpe0; pr_string " || "; pr_classname_pattern_expr cpe1
+  | CPEnot cpe0 -> pr_string "!"; pr_classname_pattern_expr cpe0
+  | CPEparen cpe0 -> pr_lparen(); pr_classname_pattern_expr cpe0; pr_rparen()
+  | CPEname n -> pr_string n
+  | CPEnamePlus n -> pr_string n; pr_string "+"
 
 and pr_interface_member_declaration = function
   | IMDconstant fd -> pr_field_declaration fd
@@ -1085,6 +1136,14 @@ and pr_enum_body eb =
       pr_class_body_declarations body;
       pr_block_end()
 
+and pr_aspect_body ab =
+  match ab.abd_aspect_body_declarations with
+  | [] -> pr_string " {}"
+  | body ->
+      pr_block_begin_tall();
+      pr_class_body_declarations body;
+      pr_block_end()
+
 and pr_arguments args = pr_lparen(); pr_argument_list args; pr_rparen()
 
 and pr_enum_constants ecs = pr_hovlist pr_comma pr_enum_constant ecs
@@ -1145,12 +1204,15 @@ and pr_class_declaration cd =
   match cd.cd_desc with
   | CDclass(ch, body) -> pr_class_declaration_head "class" ch; pr_class_body body; close_box()
   | CDenum(eh, body)  -> pr_class_declaration_head "enum" eh; pr_enum_body body; close_box()
+  | CDaspect(ah, body) -> pr_class_declaration_head "aspect" ah; pr_aspect_body body; close_box()
 
 let pr_type_declaration td =
   match td.td_desc with
   | TDclass cd -> pr_class_declaration cd
   | TDinterface id -> pr_interface_declaration id
   | TDempty -> pr_semicolon()
+  | TDerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
+  | TDorphan cbd -> pr_class_body_declaration cbd
 
 let pr_type_declarations = pr_list pr_newline pr_type_declaration
 
@@ -1171,6 +1233,7 @@ let pr_import_declaration id =
       pr_semicolon()
   | IDstaticOnDemand n ->
       pr_string "import static "; pr_name n; pr_string ".*;"
+  | IDerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 let pr_import_declarations = pr_list pr_newline pr_import_declaration
 
