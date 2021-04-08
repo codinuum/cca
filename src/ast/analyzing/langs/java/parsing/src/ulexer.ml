@@ -392,7 +392,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let tok, st, ed = Token.decompose t in
     match tok with
     | ENUM loc
-    | ASSERT loc -> Token.create (IDENTIFIER(loc, name)) st ed
+    | ASSERT loc
+    | ASPECT loc | POINTCUT loc | WITHIN loc | DECLARE loc
+      -> Token.create (IDENTIFIER(loc, name)) st ed
     | _ -> t
 
 
@@ -614,6 +616,36 @@ module F (Stat : Parser_aux.STATE_T) = struct
               | _ -> t
           end
           | _ -> t
+      end
+      | WITHIN _ when not env#in_declare_flag && not env#in_pointcut_flag -> begin
+          DEBUG_MSG "WITHIN --> <identifier>";
+          kw_to_ident "within" t
+      end
+      | DECLARE _ when not env#in_aspect_flag -> begin
+          DEBUG_MSG "DECLARE --> <identifier>";
+          kw_to_ident "declare" t
+      end
+      | POINTCUT _ when not env#in_aspect_flag -> begin
+          DEBUG_MSG "POINTCUT --> <identifier>";
+          kw_to_ident "pointcut" t
+      end
+      | ASPECT _ when begin
+          match Obj.obj env#last_rawtoken with
+          | PUBLIC _ | PROTECTED _ | PRIVATE _
+          | STATIC _ | ABSTRACT _
+          | FINAL _ | NATIVE _ | SYNCHRONIZED _ | TRANSIENT _ | VOLATILE _
+          | STRICTFP _ | DEFAULT _ -> false
+          | LBRACE | SEMICOLON -> begin
+              let _, tok2 = peek_nth 1 in
+              let _, tok3 = peek_nth 2 in
+              match tok2, tok3 with
+              | IDENTIFIER _, (EXTENDS _ | IMPLEMENTS _ | LBRACE) -> false
+              | _ -> true
+          end
+          | _ -> true
+      end -> begin
+          DEBUG_MSG "ASPECT --> <identifier>";
+          kw_to_ident "aspect" t
       end
       | _ -> t
     in (* res *)

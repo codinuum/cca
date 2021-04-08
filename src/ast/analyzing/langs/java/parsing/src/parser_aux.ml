@@ -151,9 +151,33 @@ class env = object (self)
   val mutable class_flag = false
   val mutable shift_flag = false
 
+  val mutable in_aspect_flag = false
+  val mutable in_declare_flag = false
+  val mutable in_pointcut_flag = false
+
   val mutable g_brace_level = 0
 
   val context_stack = Stack.create ()
+
+  method in_declare_flag = in_declare_flag
+
+  method set_in_declare_flag =
+    DEBUG_MSG "set";
+    in_declare_flag <- true
+
+  method clear_in_declare_flag =
+    DEBUG_MSG "clear";
+    in_declare_flag <- false
+
+  method in_pointcut_flag = in_pointcut_flag
+
+  method set_in_pointcut_flag =
+    DEBUG_MSG "set";
+    in_pointcut_flag <- true
+
+  method clear_in_pointcut_flag =
+    DEBUG_MSG "clear";
+    in_pointcut_flag <- false
 
   method shift_flag = shift_flag
 
@@ -174,6 +198,16 @@ class env = object (self)
   method clear_class_flag =
     DEBUG_MSG "clear";
     class_flag <- false
+
+  method in_aspect_flag = in_aspect_flag
+
+  method set_in_aspect_flag =
+    DEBUG_MSG "set";
+    in_aspect_flag <- true
+
+  method clear_in_aspect_flag =
+    DEBUG_MSG "clear";
+    in_aspect_flag <- false
 
   method context_stack_rep =
     let buf = Buffer.create 0 in

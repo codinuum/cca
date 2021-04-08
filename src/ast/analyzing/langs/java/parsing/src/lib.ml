@@ -256,7 +256,25 @@ class parser_c = object (self)
           env#set_shift_flag;
           let proc_shift (_, l, r0, r, i) =
             match l, r0, r with
+            | I.X (I.N N_declare_declaration), _, I.X (I.T T_DECLARE) -> begin
+                env#set_in_declare_flag;
+                raise Exit
+            end
+            | I.X (I.N N_declare_declaration), _, I.X (I.T T_SEMICOLON) -> begin
+                env#clear_in_declare_flag;
+                raise Exit
+            end
+            | I.X (I.N N_pointcut_declaration), _, I.X (I.T T_POINTCUT) -> begin
+                env#set_in_pointcut_flag;
+                raise Exit
+            end
+            | I.X (I.N N_pointcut_declaration), _, I.X (I.T T_SEMICOLON) -> begin
+                env#clear_in_pointcut_flag;
+                raise Exit
+            end
+
             | I.X (I.N N_block), _, I.X (I.T T_LBRACE) -> begin
+                DEBUG_MSG "@";
                 env#open_block;
                 save_state menv_;
                 raise Exit
@@ -296,6 +314,7 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_switch_block), _, I.X (I.T T_LBRACE) -> begin
+                DEBUG_MSG "@";
                 env#open_block;
                 save_state menv_;
                 raise Exit
@@ -333,6 +352,7 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_constructor_body), _, I.X (I.T T_LBRACE) -> begin
+                DEBUG_MSG "@";
                 env#enter_method;
                 env#open_block;
                 save_state menv_;
@@ -341,6 +361,7 @@ class parser_c = object (self)
             | I.X (I.N N_aspect_body), _, I.X (I.T T_RBRACE) -> begin
                 save_state menv_;
                 env#exit_context;
+                env#clear_in_aspect_flag;
                 raise Exit
             end
             | I.X (I.N N_labeled_statement_head), _, I.X (I.T T_COLON) -> begin
@@ -531,6 +552,7 @@ class parser_c = object (self)
             | I.X (I.N N_aspect_body), _, I.X (I.T T_LBRACE) -> begin
                 (*save_state menv_;*)
                 env#enter_class;
+                env#set_in_aspect_flag;
                 raise Exit
             end
             | I.X (I.N N_field_declaration), _, I.X (I.T T_SEMICOLON) -> begin
@@ -542,8 +564,13 @@ class parser_c = object (self)
                 env#exit_context;
                 raise Exit
             end
+            | I.X (I.N N_annotation_type_body), _, I.X (I.T T_LBRACE) -> begin
+                env#enter_class;
+                raise Exit
+            end
             | I.X (I.N N_annotation_type_body), _, I.X (I.T T_RBRACE) -> begin
                 save_state menv_;
+                env#exit_context;
                 raise Exit
             end
             | I.X (I.N N_class_member_declaration), _, I.X (I.T T_SEMICOLON) -> begin
