@@ -151,9 +151,9 @@ let rec conv_name ?(resolve=true) n =
   | Ast.Nsimple(attr, ident) -> begin
       if resolve then
         try
-	  Ast.get_resolved_name !attr
+          Ast.get_resolved_name !attr
         with
-	  Not_found -> ident
+          Not_found -> ident
       else
         ident
   end
@@ -165,9 +165,9 @@ let rec conv_name ?(resolve=true) n =
       in
       if resolve then
         try
-	  Ast.get_resolved_name !attr
+          Ast.get_resolved_name !attr
         with
-	  Not_found -> (conv_name name)^sep^ident
+          Not_found -> (conv_name name)^sep^ident
       else
         (conv_name ~resolve name)^sep^ident
   | Ast.Nerror s -> s
@@ -365,8 +365,8 @@ module Type = struct
       | Class n            -> "ClassType", ["name",xmlenc n]
       | Interface n        -> "InterfaceType", ["name",xmlenc n]
       | Array(lab, dims)   ->
-	  let name, attrs = conv lab in
-	  name, attrs @ ["dimensions",string_of_int dims]
+          let name, attrs = conv lab in
+          name, attrs @ ["dimensions",string_of_int dims]
       | Void               -> "Void", []
     in
     let name, attrs = conv ty in
@@ -459,10 +459,10 @@ module Literal = struct
     | False             -> "false"
     | Character str     -> sprintf "'%s'" str
     | String str        ->
-	if (String.length str) > string_len_threshold then
-	  "\""^(Digest.to_hex (Digest.string str))^"\""
-	else
-	  "\""^(String.escaped str)^"\""
+        if (String.length str) > string_len_threshold then
+          "\""^(Digest.to_hex (Digest.string str))^"\""
+        else
+          "\""^(String.escaped str)^"\""
     | Null              -> "null"
 
   let to_value = function
@@ -481,10 +481,10 @@ module Literal = struct
     | False             -> mkstr 3
     | Character str     -> catstr [mkstr 4; str]
     | String str        ->
-	if (String.length str) > string_len_threshold then
-	  catstr [mkstr 5; Digest.to_hex (Digest.string str)]
-	else
-	  catstr [mkstr 6; str]
+        if (String.length str) > string_len_threshold then
+          catstr [mkstr 5; Digest.to_hex (Digest.string str)]
+        else
+          catstr [mkstr 6; str]
     | Null              -> mkstr 7
 
 
@@ -944,10 +944,10 @@ module Primary = struct
       -> String.concat "::" [name; identifier]
 
     | Literal (Literal.String s) ->
-	if s = "" then
-	  raise Not_found
-	else
-	  s
+        if s = "" then
+          raise Not_found
+        else
+          s
     (*| Literal (Literal.String s) -> s
     | Literal (Literal.Character s|Literal.Integer s|Literal.FloatingPoint s) -> s*)
 
@@ -998,10 +998,10 @@ module Primary = struct
 (*      | QualifiedNew name -> sprintf "QualifiedNew(%s)" name *)
       | InstanceCreation n -> sprintf "InstanceCreation(%s)" n
       | QualifiedInstanceCreation name ->
-	  sprintf "QualifiedInstanceCreation(%s)" name
+          sprintf "QualifiedInstanceCreation(%s)" name
 
       | NameQualifiedInstanceCreation(q, name) ->
-	  sprintf "NameQualifiedInstanceCreation(%s,%s)" q name
+          sprintf "NameQualifiedInstanceCreation(%s,%s)" q name
 
       | FieldAccess name           -> sprintf "FieldAccess(%s)" name
       | SuperFieldAccess name      -> sprintf "SuperFieldAccess(%s)" name
@@ -1014,10 +1014,10 @@ module Primary = struct
       | SuperMethodInvocation name -> sprintf "SuperMethodInvocation(%s)" name
 
       | ClassSuperMethodInvocation name ->
-	  sprintf "ClassSuperMethodInvocation(%s)" name
+          sprintf "ClassSuperMethodInvocation(%s)" name
 
       | TypeMethodInvocation(name, ident) ->
-	  sprintf "TypeMethodInvocation(%s,%s)" name ident
+          sprintf "TypeMethodInvocation(%s,%s)" name ident
 
       | ArrayAccess -> "ArrayAccess"
 
@@ -1349,7 +1349,7 @@ module Annotation = struct
     let name, attrs =
       match a with
       | Normal name        -> "NormalAnnotation", ["name",xmlenc name]
-      |	Marker name        -> "MarkerAnnotation", ["name",xmlenc name]
+      | Marker name        -> "MarkerAnnotation", ["name",xmlenc name]
       | SingleElement name -> "SingleElementAnnotation", ["name",xmlenc name]
     in
     name, attrs
@@ -1414,16 +1414,16 @@ module Statement = struct
       | Return       -> "Return"
       | Throw        -> "Throw"
       | Break ident_opt ->
-	  let s =
-	    match ident_opt with None -> "" | Some ident -> "(" ^ ident ^ ")"
-	  in
-	  "Break" ^ s
+          let s =
+            match ident_opt with None -> "" | Some ident -> "(" ^ ident ^ ")"
+          in
+          "Break" ^ s
 
       | Continue ident_opt ->
-	  let s =
-	    match ident_opt with None -> "" | Some ident -> "(" ^ ident ^ ")"
-	  in
-	  "Continue" ^ s
+          let s =
+            match ident_opt with None -> "" | Some ident -> "(" ^ ident ^ ")"
+          in
+          "Continue" ^ s
 
       | Labeled ident -> sprintf "Labeled(%s)" ident
       | Expression(se, tid) -> (Expression.to_string se)^"("^(tid_to_string tid)^")"
@@ -1470,16 +1470,16 @@ module Statement = struct
     | Return       -> mkstr 10
     | Throw        -> mkstr 11
     | Break ident_opt ->
-	let l =
-	  match ident_opt with None -> [] | Some ident -> [ident]
-	in
-	catstr ([mkstr 12] @ l)
+        let l =
+          match ident_opt with None -> [] | Some ident -> [ident]
+        in
+        catstr ([mkstr 12] @ l)
 
     | Continue ident_opt ->
-	let l =
-	  match ident_opt with None -> [] | Some ident -> [ident]
-	in
-	catstr ([mkstr 13] @ l)
+        let l =
+          match ident_opt with None -> [] | Some ident -> [ident]
+        in
+        catstr ([mkstr 13] @ l)
 
     | Labeled ident       -> catstr [mkstr 14; ident]
     | Expression(se, tid) -> catstr [mkstr 15; Expression.to_short_string se; tid_to_string tid]
@@ -1520,16 +1520,16 @@ module Statement = struct
       | Return          -> "ReturnStatement", []
       | Throw           -> "ThrowStatement", []
       | Break ident_opt ->
-	  let attrs =
-	    match ident_opt with None -> [] | Some ident -> [label_attr_name,ident]
-	  in
-	  "BreakStatement", attrs
+          let attrs =
+            match ident_opt with None -> [] | Some ident -> [label_attr_name,ident]
+          in
+          "BreakStatement", attrs
 
       | Continue ident_opt ->
-	  let attrs =
-	    match ident_opt with None -> [] | Some ident -> [label_attr_name,ident]
-	  in
-	  "ContinueStatement", attrs
+          let attrs =
+            match ident_opt with None -> [] | Some ident -> [label_attr_name,ident]
+          in
+          "ContinueStatement", attrs
 
       | Labeled ident       -> "LabeledStatement", [label_attr_name,ident]
 
@@ -1563,7 +1563,7 @@ module Statement = struct
     (*| Return, Expression(Expression.AssignmentOperator _, _) |
       Expression(Expression.AssignmentOperator _, _), Return*)
     (*| Method _, Constructor _ | Constructor _, Method _ !!! should be activated after patchast test *)
-	-> true
+        -> true
     | l1, l2 -> anonymize l1 = anonymize l2
 
 end (* of module Statement *)
@@ -1581,25 +1581,25 @@ let make_annotation s =
   (Some s : annotation)
 
 type kind =
-  | Kclass
-  | Kinterface
-  | Kenum
-  | Kannotation
-  | Kfield
-  | Kconstructor
-  | Kmethod
-  | Kparameter
-  | Klocal
+  | Kclass of name
+  | Kinterface of name
+  | Kenum of name
+  | Kannotation of name
+  | Kfield of name
+  | Kconstructor of name
+  | Kmethod of name
+  | Kparameter of name
+  | Klocal of name
   | Kany
-  | Kaspect
-  | Kpointcut
+  | Kaspect of name
+  | Kpointcut of name
 
-let kind_sep = "#"
+(*let kind_sep = "#"
 
 let kind_to_suffix k =
   kind_sep^
   match k with
-  | Kclass       -> "C"
+  | Kclass _     -> "C"
   | Kinterface   -> "I"
   | Kenum        -> "E"
   | Kannotation  -> "@"
@@ -1610,35 +1610,91 @@ let kind_to_suffix k =
   | Klocal       -> "l"
   | Kany         -> "*"
   | Kaspect      -> "A"
-  | Kpointcut    -> "/"
+  | Kpointcut    -> "/"*)
+
+let kind_to_anonymous_string = function
+  | Kclass n       -> "Class"
+  | Kinterface n   -> "Interface"
+  | Kenum n        -> "Enum"
+  | Kannotation n  -> "Annotation"
+  | Kfield n       -> "Field"
+  | Kconstructor n -> "Constructor"
+  | Kmethod n      -> "Method"
+  | Kparameter n   -> "Parameter"
+  | Klocal n       -> "Local"
+  | Kany           -> ""
+  | Kaspect n      -> "Aspect"
+  | Kpointcut n    -> "Pointcut"
 
 let kind_to_string = function
-  | Kclass       -> "Class"
-  | Kinterface   -> "Interface"
-  | Kenum        -> "Enum"
-  | Kannotation  -> "Annotation"
-  | Kfield       -> "Field"
-  | Kconstructor -> "Constructor"
-  | Kmethod      -> "Method"
-  | Kparameter   -> "Parameter"
-  | Klocal       -> "Local"
-  | Kany         -> ""
-  | Kaspect      -> "Aspect"
-  | Kpointcut    -> "Pointcut"
+  | Kclass n       -> "Class:"^n
+  | Kinterface n   -> "Interface:"^n
+  | Kenum n        -> "Enum:"^n
+  | Kannotation n  -> "Annotation:"^n
+  | Kfield n       -> "Field:"^n
+  | Kconstructor n -> "Constructor:"^n
+  | Kmethod n      -> "Method:"^n
+  | Kparameter n   -> "Parameter:"^n
+  | Klocal n       -> "Local:"^n
+  | Kany           -> ""
+  | Kaspect n      -> "Aspect:"^n
+  | Kpointcut n    -> "Pointcut:"^n
+
+let kind_to_attrs = function
+  | Kclass n       -> ["kind","class";"name",xmlenc n]
+  | Kinterface n   -> ["kind","interface";"name",xmlenc n]
+  | Kenum n        -> ["kind","enum";"name",xmlenc n]
+  | Kannotation n  -> ["kind","annotation";"name",xmlenc n]
+  | Kfield n       -> ["kind","field";"name",xmlenc n]
+  | Kconstructor n -> ["kind","constructor";"name",xmlenc n]
+  | Kmethod n      -> ["kind","method";"name",xmlenc n]
+  | Kparameter n   -> ["kind","parameter";"name",xmlenc n]
+  | Klocal n       -> ["kind","local";"name",xmlenc n]
+  | Kaspect n      -> ["kind","aspect";"name",xmlenc n]
+  | Kpointcut n    -> ["kind","pointcut";"name",xmlenc n]
+  | Kany           -> []
+
+let kind_to_name_attrs = function
+  | Kclass n
+  | Kinterface n
+  | Kenum n
+  | Kannotation n
+  | Kfield n
+  | Kconstructor n
+  | Kmethod n
+  | Kparameter n
+  | Klocal n
+  | Kaspect n
+  | Kpointcut n    -> ["name",xmlenc n]
+  | Kany           -> []
+
+let kind_to_name = function
+  | Kclass n
+  | Kinterface n
+  | Kenum n
+  | Kannotation n
+  | Kfield n
+  | Kconstructor n
+  | Kmethod n
+  | Kparameter n
+  | Klocal n
+  | Kaspect n
+  | Kpointcut n    -> n
+  | Kany           -> ""
 
 let kind_to_short_string = function
-  | Kclass       -> mkstr 0
-  | Kinterface   -> mkstr 1
-  | Kenum        -> mkstr 2
-  | Kannotation  -> mkstr 3
-  | Kfield       -> mkstr 4
-  | Kconstructor -> mkstr 5
-  | Kmethod      -> mkstr 6
-  | Kparameter   -> mkstr 7
-  | Klocal       -> mkstr 8
-  | Kany         -> mkstr 9
-  | Kaspect      -> mkstr 10
-  | Kpointcut    -> mkstr 11
+  | Kclass n       -> combo 0 [n]
+  | Kinterface n   -> combo 1 [n]
+  | Kenum n        -> combo 2 [n]
+  | Kannotation n  -> combo 3 [n]
+  | Kfield n       -> combo 4 [n]
+  | Kconstructor n -> combo 5 [n]
+  | Kmethod n      -> combo 6 [n]
+  | Kparameter n   -> combo 7 [n]
+  | Klocal n       -> combo 8 [n]
+  | Kany           -> mkstr 9
+  | Kaspect n      -> combo 10 [n]
+  | Kpointcut n    -> combo 11 [n]
 
 type t = (* Label *)
 (*    Dummy *)
@@ -1694,7 +1750,7 @@ type t = (* Label *)
   | TypeParameter of name (* type variable *)
   | TypeParameters of name
   | ArrayInitializer
-  | Modifiers of name
+  | Modifiers of kind
   | FieldDeclaration of (name * dims) list
   | Method of name * signature
   | Super
@@ -1816,14 +1872,14 @@ let rec to_string = function
   | TypeParameter name                      -> sprintf "TypeParameter(%s)" name
   | TypeParameters name                     -> sprintf "TypeParameters(%s)" name
   | ArrayInitializer                        -> "ArrayInitializer"
-  | Modifiers name                          -> sprintf "Modifiers(%s)" name
+  | Modifiers k                             -> sprintf "Modifiers(%s)" (kind_to_string k)
   | FieldDeclaration vdids                  -> sprintf "FieldDeclaration(%s)" (vdids_to_string vdids)
   | Method(name, msig)                      -> sprintf "Method(%s%s)" name msig
   | Super                                   -> "Super"
   | Qualifier q                             -> sprintf "Qualifier(%s)" q
   | Throws name                             -> sprintf "Throws(%s)" name
   | MethodBody(name, msig)                  -> sprintf "MethodBody(%s%s)" name msig
-  | Specifier k                             -> "Specifier:"^(kind_to_string k)
+  | Specifier k                             -> sprintf "Specifier(%s)" (kind_to_string k)
   | Class name                              -> sprintf "Class(%s)" name
   | Enum name                               -> sprintf "Enum(%s)" name
   | EnumConstant name                       -> sprintf "EnumConstant(%s)" name
@@ -1888,45 +1944,45 @@ let anonymize ?(more=false) = function
   | Statement s                    -> Statement (Statement.anonymize ~more s)
   | Annotation a                   -> Annotation (Annotation.anonymize a)
   (*| Modifier m                     -> Modifier (Modifier.anonymize m)*)
-  | NameInvocation name            -> NameInvocation ""
-  | ElementValuePair name          -> ElementValuePair ""
+  | NameInvocation _               -> NameInvocation ""
+  | ElementValuePair _             -> ElementValuePair ""
   | Constructor(name, msig)        -> if true(*more*) then Constructor("", "") else Constructor("", msig)
   | ConstructorBody(name, msig)    -> if more then ConstructorBody("", "") else ConstructorBody("", msig)
   | LocalVariableDeclaration(b, vdids) -> LocalVariableDeclaration(b, [])
   | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, true)
-  | NamedArguments name            -> NamedArguments ""
+  | NamedArguments _               -> NamedArguments ""
   | TypeArguments(nth, name)       -> TypeArguments(1, "")
-  | Parameters name                -> Parameters ""
+  | Parameters _                   -> Parameters ""
   | Parameter(name, dims, va)      -> Parameter("", 0, false)
-  | TypeParameter name             -> TypeParameter ""
-  | TypeParameters name            -> TypeParameters ""
-  | Modifiers name                 -> Modifiers ""
-  | FieldDeclaration vdids         -> FieldDeclaration []
+  | TypeParameter _                -> TypeParameter ""
+  | TypeParameters _               -> TypeParameters ""
+  | Modifiers _                    -> Modifiers Kany
+  | FieldDeclaration _             -> FieldDeclaration []
   | Method(name, msig)             -> if true(*more*) then Method("", "") else Method("", msig)
-  | Qualifier q                    -> Qualifier ""
+  | Qualifier _                    -> Qualifier ""
   | Throws name                    -> Throws ""
   | MethodBody(name, msig)         -> if more then MethodBody("", "") else MethodBody("", msig)
-  | Specifier k                    -> Specifier Kany
-  | Class name                     -> Class ""
-  | Enum name                      -> Enum ""
-  | EnumConstant name              -> EnumConstant ""
-  | ClassBody name                 -> ClassBody ""
-  | EnumBody name                  -> EnumBody ""
-  | Interface name                 -> Interface ""
-  | AnnotationType name            -> AnnotationType ""
-  | AnnotationTypeBody name        -> AnnotationTypeBody ""
-  | InterfaceBody name             -> InterfaceBody ""
-  | PackageDeclaration name        -> PackageDeclaration ""
-  | IDsingle name                  -> IDsingle ""
-  | IDtypeOnDemand name            -> IDtypeOnDemand ""
-  | IDsingleStatic(name, ident)    -> IDsingleStatic("", "")
-  | IDstaticOnDemand name          -> IDstaticOnDemand ""
-  | ElementDeclaration name        -> ElementDeclaration ""
-  | FieldDeclarations name         -> FieldDeclarations ""
+  | Specifier _                    -> Specifier Kany
+  | Class _                        -> Class ""
+  | Enum _                         -> Enum ""
+  | EnumConstant _                 -> EnumConstant ""
+  | ClassBody _                    -> ClassBody ""
+  | EnumBody _                     -> EnumBody ""
+  | Interface _                    -> Interface ""
+  | AnnotationType _               -> AnnotationType ""
+  | AnnotationTypeBody _           -> AnnotationTypeBody ""
+  | InterfaceBody _                -> InterfaceBody ""
+  | PackageDeclaration _           -> PackageDeclaration ""
+  | IDsingle _                     -> IDsingle ""
+  | IDtypeOnDemand _               -> IDtypeOnDemand ""
+  | IDsingleStatic _               -> IDsingleStatic("", "")
+  | IDstaticOnDemand _             -> IDstaticOnDemand ""
+  | ElementDeclaration _           -> ElementDeclaration ""
+  | FieldDeclarations _            -> FieldDeclarations ""
   | ForInit tid                    -> ForInit (anonymize_tid ~more tid)
   | ForCond tid                    -> ForCond (anonymize_tid ~more tid)
   | ForUpdate tid                  -> ForUpdate (anonymize_tid ~more tid)
-  | InferredFormalParameter name   -> InferredFormalParameter ""
+  | InferredFormalParameter _      -> InferredFormalParameter ""
   | Resource(name, dims)           -> Resource("", 0)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
   | HugeArray _                    -> HugeArray(0, "")
@@ -2008,14 +2064,14 @@ let rec to_simple_string = function
   | TypeParameter name          -> name
   | TypeParameters name         -> "<ty_params>"
   | ArrayInitializer            -> "<array-init>"
-  | Modifiers name              -> "<mods>"
+  | Modifiers _                 -> "<mods>"
   | FieldDeclaration vdids      -> "<fdecl>"
   | Method(name, msig)          -> name
   | Super                       -> "super"
   | Qualifier q                 -> q
   | Throws name                 -> "throws"
   | MethodBody(name, msig)      -> "<body>"
-  | Specifier k                 -> "<spec"^(kind_to_suffix k)^">"
+  | Specifier k                 -> "<spec:"^(kind_to_string k)^">"
   | Class name                  -> name
   | Enum name                   -> name
   | EnumConstant name           -> name
@@ -2107,7 +2163,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | TypeParameter name                      -> combo 39 [name]
   | TypeParameters name                     -> combo 40 [name]
   | ArrayInitializer                        -> mkstr 41
-  | Modifiers name                          -> catstr [mkstr 42; name]
+  | Modifiers k                             -> catstr [mkstr 42; kind_to_short_string k]
   | FieldDeclaration vdids                  -> catstr [mkstr 43; vdids_to_string vdids]
   | Method(name, msig)                      -> combo 44 [name; msig]
   | Super                                   -> mkstr 45
@@ -2206,10 +2262,10 @@ let to_tag l =
 
     | Block tid                   -> "Block", mktidattr tid
     | VariableDeclarator(name, d, islocal) ->
-	"VariableDeclarator", ["name",xmlenc name;
-				dims_attr_name,string_of_int d;
-				islocal_attr_name,string_of_bool islocal
-			      ]
+        "VariableDeclarator", ["name",xmlenc name;
+                                dims_attr_name,string_of_int d;
+                                islocal_attr_name,string_of_bool islocal
+                              ]
     | CatchClause tid             -> "CatchClause", mktidattr tid
     | Finally                     -> "Finally", []
     | ForInit tid                 -> "ForInit", mktidattr tid
@@ -2233,14 +2289,14 @@ let to_tag l =
     | TypeParameter name          -> "TypeParameter", ["name",xmlenc name]
     | TypeParameters name         -> "TypeParameters", ["name",xmlenc name]
     | ArrayInitializer            -> "ArrayInitializer", []
-    | Modifiers name              -> "Modifiers", ["name",xmlenc name]
+    | Modifiers k                 -> "Modifiers", kind_to_attrs k
     | FieldDeclaration vdids      -> "FieldDeclaration", [vdids_attr_name,vdids_to_string vdids]
     | Method(name, msig)          -> "MethodDeclaration", ["name",xmlenc name;"signature",xmlenc msig]
     | Super                       -> "Super", []
     | Qualifier q                 -> "Qualifier", ["name",xmlenc q]
     | Throws name                 -> "Throws", ["name",xmlenc name]
     | MethodBody(name, msig)      -> "MethodBody", ["name",xmlenc name;"signature",xmlenc msig]
-    | Specifier k                 -> (kind_to_string k)^"Specifier", []
+    | Specifier k                 -> (kind_to_anonymous_string k)^"Specifier", kind_to_name_attrs k
     | Class name                  -> "ClassDeclaration", ["name",xmlenc name]
     | Enum name                   -> "EnumDeclaration", ["name",xmlenc name]
     | EnumConstant name           -> "EnumConstant", ["name",xmlenc name]
@@ -2359,7 +2415,7 @@ let to_char lab =
     | TypeParameter name -> 39
     | TypeParameters name -> 40
     | ArrayInitializer -> 41
-    | Modifiers name -> 42
+    | Modifiers _ -> 42
     | FieldDeclaration vdids -> 43
     | Method(name, msig) -> 48
     | Super -> 49
@@ -3467,7 +3523,6 @@ let get_name lab =
     | Parameter(name, _, _)
     | TypeParameter name
     | TypeParameters name
-    | Modifiers name
     | Method(name, _)
     | Qualifier name
     | Throws name
@@ -3493,10 +3548,10 @@ let get_name lab =
       -> name
 
     | LocalVariableDeclaration(_, name_dim_list) ->
-	String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
+        String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
 
     | FieldDeclaration name_dim_list ->
-	String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
+        String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
 
     | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]
 
@@ -3507,6 +3562,9 @@ let get_name lab =
     | ClassnamePatternName name
     | ClassnamePatternNamePlus name
         -> name
+
+    | Modifiers k
+    | Specifier k -> kind_to_name k
 
     | _ -> begin
         (*WARN_MSG "name not found: %s" (to_string lab);*)
@@ -3579,6 +3637,25 @@ let is_error = function
 open Astml.Attr
 
 let find_name x = Scanf.unescaped (find_name x)
+
+let find_kind a =
+  try
+    let n = find_name a in
+    match find_attr a "kind" with
+    | "class" -> Kclass n
+    | "interface" -> Kinterface n
+    | "enum" -> Kenum n
+    | "annotation" -> Kannotation n
+    | "field" -> Kfield n
+    | "constructor" -> Kconstructor n
+    | "method" -> Kmethod n
+    | "parameter" -> Kparameter n
+    | "local" -> Klocal n
+    | "aspect" -> Kaspect n
+    | "pointcut" -> Kpointcut n
+    | _ -> Kany
+  with
+    _ -> Kany
 
 let of_elem_data =
 
@@ -3813,7 +3890,7 @@ let of_elem_data =
     "TypeParameter",             (fun a -> TypeParameter(find_name a));
     "TypeParameters",            (fun a -> TypeParameters(find_name a));
     "ArrayInitializer",          (fun a -> ArrayInitializer);
-    "Modifiers",                 (fun a -> Modifiers(find_name a));
+    "Modifiers",                 (fun a -> Modifiers(find_kind a));
     "FieldDeclaration",          (fun a -> FieldDeclaration(find_vdids a));
     "MethodDeclaration",         (fun a -> Method(find_name a, find_sig a));
     "Super",                     (fun a -> Super);
@@ -3822,10 +3899,10 @@ let of_elem_data =
     "MethodBody",                (fun a -> MethodBody(find_name a, find_sig a));
 
     "Specifier",                 (fun a -> Specifier Kany);
-    "ClassSpecifier",            (fun a -> Specifier Kclass);
-    "InterfaceSpecifier",        (fun a -> Specifier Kinterface);
-    "EnumSpecifier",             (fun a -> Specifier Kenum);
-    "AnnotationSpecifier",       (fun a -> Specifier Kannotation);
+    "ClassSpecifier",            (fun a -> Specifier (Kclass(find_name a)));
+    "InterfaceSpecifier",        (fun a -> Specifier (Kinterface(find_name a)));
+    "EnumSpecifier",             (fun a -> Specifier (Kenum(find_name a)));
+    "AnnotationSpecifier",       (fun a -> Specifier (Kannotation(find_name a)));
 
     "ClassDeclaration",          (fun a -> Class(find_name a));
     "EnumDeclaration",           (fun a -> Enum(find_name a));
