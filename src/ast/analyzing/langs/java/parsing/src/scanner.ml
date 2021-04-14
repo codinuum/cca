@@ -157,7 +157,7 @@ module F (Stat : Aux.STATE_T) = struct
           for i = 1 to n do
             let token = U.get_token queue ulexbuf in
             DEBUG_MSG ">> %s" (Token.to_string env#current_pos_mgr token);
-            ()
+            ignore token
           done
       end
       | _ -> ()
@@ -175,9 +175,25 @@ module F (Stat : Aux.STATE_T) = struct
       let has_error = self#has_error in
       let rawtok, stp, edp = Token.decompose token in
       if env#keep_going_flag && stp <> Lexing.dummy_pos && edp <> Lexing.dummy_pos then begin
-        let add_braces () =
+        let add_braces ?(global=false) () =
           let blv = env#block_level in
+          DEBUG_MSG "blv=%d" blv;
           match rawtok with
+          | RBRACE when global -> begin
+              let gblv = env#g_brace_level in
+              DEBUG_MSG "g_brace_level=%d" gblv;
+              DEBUG_MSG "context_stack: %s" (env#context_stack_rep);
+              let n = gblv - 1 in
+              DEBUG_MSG "n=%d" n;
+              let loc = loc_of_poss stp edp in
+              DEBUG_MSG "adding %d closing braces" n;
+              Common.warning_loc loc "adding %d closing braces" n;
+              let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
+              for i = 1 to n do
+                self#prepend_token t;
+                (*env#close_block*)
+              done
+          end
           | RBRACE when blv = 1 -> ()
           | RBRACE when blv = 0 && begin match env#context_stack_as_list with
             | C_method _ :: C_class _ :: C_method _ :: _ -> true
@@ -219,6 +235,7 @@ module F (Stat : Aux.STATE_T) = struct
                 DEBUG_MSG "@";
                 let t1, rt1 = self#peek_nth 1 in
                 match rt1 with
+                | EOF when env#g_brace_level > 1 -> add_braces ~global:true ()
                 | EOF -> ()
                 | NATIVE _ when not has_error -> add_braces()
                 | PUBLIC _ | PROTECTED _ | PRIVATE _ | ABSTRACT _ | STATIC _
@@ -226,32 +243,32 @@ module F (Stat : Aux.STATE_T) = struct
                 | SYNCHRONIZED _ when
                     let _, rt2 = self#peek_nth 2 in
                     match rt2 with LPAREN _ -> false | _ -> not has_error -> add_braces()
-                | SEMICOLON
-                  when rawtok == RBRACE && env#block_level = 1 && not env#at_array && not env#at_lambda && begin
-                  match env#current_context with
-                  | C_method mstat -> begin
-                      match Aux.stack_to_list mstat.m_stack with
-                      | SC_new :: SC_array :: _ -> false
-                      | _ -> true
-                  end
-                  | _ -> true
-                  end -> begin
-                    DEBUG_MSG "";
-                    let t2, rt2 = self#peek_nth 2 in
-                    match rt2 with
-                    | RBRACE -> ()
-                    | IDENTIFIER _ when not env#at_array && not has_error -> begin
-                        match env#context_stack_as_list with
-                        | C_method _ :: C_class _ :: C_method _ :: _ -> begin
-                            let loc = loc_of_poss stp edp in
-                            DEBUG_MSG "adding a closing brace";
-                            Common.warning_loc loc "adding a closing brace";
-                            let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
-                            self#prepend_token t;
-                        end
-                        | _ -> ()
+                | SEMICOLON when begin
+                    rawtok == RBRACE && env#block_level = 1 && not env#at_array && not env#at_lambda &&
+                    match env#current_context with
+                    | C_method mstat -> begin
+                        match Aux.stack_to_list mstat.m_stack with
+                        | SC_new :: SC_array :: _ -> false
+                        | _ -> true
                     end
-                    | _ -> ()
+                    | _ -> true
+                end -> begin
+                  DEBUG_MSG "";
+                  let t2, rt2 = self#peek_nth 2 in
+                  match rt2 with
+                  | RBRACE -> ()
+                  | IDENTIFIER _ when not env#at_array && not has_error -> begin
+                      match env#context_stack_as_list with
+                      | C_method _ :: C_class _ :: C_method _ :: _ -> begin
+                          let loc = loc_of_poss stp edp in
+                          DEBUG_MSG "adding a closing brace";
+                          Common.warning_loc loc "adding a closing brace";
+                          let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
+                          self#prepend_token t;
+                      end
+                      | _ -> ()
+                  end
+                  | _ -> ()
                 end
                 | AT _ when not has_error && self#method_follows -> add_braces()
                 | RPAREN _ when not has_error && begin
@@ -267,6 +284,15 @@ module F (Stat : Aux.STATE_T) = struct
                   DEBUG_MSG "adding a closing brace";
                   Common.warning_loc loc "adding a closing brace";
                   let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
+                  self#prepend_token t;
+                end
+                | FOR _ | WHILE _ | DO _ | IF _ | SWITCH _ | RETURN _ when begin
+                    rawtok == RBRACE && env#block_level = 1
+                end -> begin
+                  let loc = loc_of_poss stp edp in
+                  DEBUG_MSG "adding an opening brace";
+                  Common.warning_loc loc "adding an opening brace";
+                  let t = Token.create Tokens_.LBRACE Lexing.dummy_pos Lexing.dummy_pos in
                   self#prepend_token t;
                 end
                 | _ -> ()
@@ -334,6 +360,18 @@ module F (Stat : Aux.STATE_T) = struct
               self#prepend_token token;
               t, Token.to_rawtoken t
             end
+          | RBRACE when env#in_method && not env#at_array && begin
+              match last_rawtoken with
+              | ELSE _ -> true
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "discarding a closing brace";
+            let loc = loc_of_poss stp edp in
+            Common.warning_loc loc "discarding a closing brace";
+            let t1_rt1 = self#peek_nth 1 in
+            self#discard_tokens 1;
+            t1_rt1
+          end
           | RBRACE when env#in_method && env#block_level = 1 && not env#at_array -> begin
               DEBUG_MSG "@";
               match env#context_stack_as_list with
@@ -342,7 +380,7 @@ module F (Stat : Aux.STATE_T) = struct
               | C_method mstat :: _ when mstat.m_block_level = 1 && begin
                   let t1, rt1 = self#peek_nth 1 in
                   match rt1 with
-                  | RETURN _ -> true
+                  | RETURN _ | ELSE _ -> true
                   | _ -> false
               end -> begin
                 DEBUG_MSG "discarding a closing brace";
@@ -567,20 +605,26 @@ module F (Stat : Aux.STATE_T) = struct
         match rawtok with
         | EOP (*| ERROR _ | ERROR_STMT _*) -> ()
 
-        | LPAREN _ | LPAREN__LAMBDA _ ->
+        | LPAREN _ | LPAREN__LAMBDA _ -> begin
             env#open_paren;
             shadow_queue#add token;
             shadow_q#add token
-
-        | RPAREN _ when env#paren_level > 0 ->
+        end
+        | RPAREN _ when env#paren_level > 0 -> begin
             env#close_paren;
             shadow_queue#add token;
             shadow_q#add token
-
-        | LBRACE | RBRACE ->
+        end
+        | LBRACE -> begin
+            env#g_open_brace;
             shadow_queue#add token;
             shadow_q#add token
-
+        end
+        | RBRACE -> begin
+            env#g_close_brace;
+            shadow_queue#add token;
+            shadow_q#add token
+        end
         | _ -> shadow_queue#add token
       end;
       DEBUG_MSG "---------- %s" (Token.to_string env#current_pos_mgr token);

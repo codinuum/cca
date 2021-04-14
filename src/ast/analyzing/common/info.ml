@@ -30,9 +30,9 @@ exception Dummy_info
 
 
 type 'node_t t = { i_node         : 'node_t option;
-	           i_loc          : Loc.t;
-	           mutable i_size : int;
-	         }
+                   i_loc          : Loc.t;
+                   mutable i_size : int;
+                 }
 
 let make nd = { i_node=Some nd;
                 i_loc=nd#data#src_loc;
@@ -49,7 +49,7 @@ let get_desc info =
   | None -> "dummy"
   | Some nd ->
       sprintf "%s[%d]%s"
-	nd#data#label nd#initial_pos (if nd#is_collapsed then "$" else "")
+        nd#data#label nd#initial_pos (if nd#is_collapsed then "$" else "")
 
 let get_gindex info =
   match info.i_node with
@@ -76,31 +76,31 @@ let is_included info0 info =
   (get_loc info0).Loc.end_offset <= (get_loc info).Loc.end_offset
 
 let of_region ?(fname="") (st, ed) = { i_node=None;
-			               i_loc=Loc.make ~fname st ed 0 0 0 0;
-			               i_size = -1;
-			 }
+                                       i_loc=Loc.make ~fname st ed 0 0 0 0;
+                                       i_size = -1;
+                         }
 
 let to_string ({ i_node=nd_op; i_loc=loc; i_size=sz; } as info) =
   match nd_op with
   | None -> sprintf "<none>(%s)" (Loc.to_string loc)
   | Some nd ->
       sprintf "(%a:%a)%s[%d]%s(%s)%d"
-	UID.ps nd#uid GI.ps (get_gid info)
-	nd#data#label
-	nd#initial_pos
-	(if nd#is_collapsed then "$" else "")
-	(Loc.to_string loc) sz
+        UID.ps nd#uid GI.ps (get_gid info)
+        nd#data#label
+        nd#initial_pos
+        (if nd#is_collapsed then "$" else "")
+        (Loc.to_string loc) sz
 
 let to_string_gid ({ i_node=nd_op; i_loc=loc; i_size=sz; } as info) =
   match nd_op with
   | None -> sprintf "<dummy>(%s)" (Loc.to_string loc)
   | Some nd ->
       sprintf "(%a)%s[%d]%s(%s)%d"
-	GI.ps (get_gid info)
-	nd#data#label
-	nd#initial_pos
-	(if nd#is_collapsed then "$" else "")
-	(Loc.to_string loc) sz
+        GI.ps (get_gid info)
+        nd#data#label
+        nd#initial_pos
+        (if nd#is_collapsed then "$" else "")
+        (Loc.to_string loc) sz
 
 let to_region info =
   let loc = get_loc info in
@@ -120,10 +120,10 @@ let resolve_inclusion_of_infos infos =
   let filtered =
     List.filter
       (fun info ->
-	not
-	  (List.exists
-	     (fun info' -> is_included info' info && info' <> info)
-	     infos)
+        not
+          (List.exists
+             (fun info' -> is_included info' info && info' <> info)
+             infos)
       ) infos
   in
   DEBUG_MSG "filtered: %s" (infos_to_string filtered);
@@ -145,13 +145,13 @@ let sort_infos infos = (* assumes disjoint *)
   let cmp info1 info2 =
     let m1 =
       float_of_int((get_loc info1).Loc.start_offset
-		     + (get_loc info1).Loc.end_offset)
-	/. 2.0
+                     + (get_loc info1).Loc.end_offset)
+        /. 2.0
     in
     let m2 =
       float_of_int((get_loc info2).Loc.start_offset
-		     + (get_loc info2).Loc.end_offset)
-	/. 2.0
+                     + (get_loc info2).Loc.end_offset)
+        /. 2.0
     in
     compare m1 m2
   in
@@ -160,8 +160,8 @@ let sort_infos infos = (* assumes disjoint *)
   DEBUG_MSG "sorted: %s"
     (Xlist.to_string
        (fun info ->
-	 let s, e = to_region info in
-	 sprintf "%d-%d" s e)
+         let s, e = to_region info in
+         sprintf "%d-%d" s e)
        ", " sorted);
 
   sorted
@@ -223,21 +223,21 @@ let segment (info, infos) = (* assume sorted infos *)
   try
     List.iter
       (fun loc0 ->
-	let so = loc0.Loc.start_offset in
-	let eo = loc0.Loc.end_offset in
-	if so = start_offset && eo = end_offset then (* treat as phantom *)
-	  raise (Phantom (eo, so)) (* swap offsets to denote phantom *)
-	else
-	  if (eo <> 0) then
-	    if not (so = start_offset && eo = end_offset) then
-	      if so = start_offset then
-		l := [eo + 1]
-	      else if eo = end_offset then
-		l := (so - 1)::!l
-	      else
-		l := (eo + 1)::(so - 1)::!l
-	    else
-	      raise Segment
+        let so = loc0.Loc.start_offset in
+        let eo = loc0.Loc.end_offset in
+        if so = start_offset && eo = end_offset then (* treat as phantom *)
+          raise (Phantom (eo, so)) (* swap offsets to denote phantom *)
+        else
+          if (eo <> 0) then
+            if not (so = start_offset && eo = end_offset) then
+              if so = start_offset then
+                l := [eo + 1]
+              else if eo = end_offset then
+                l := (so - 1)::!l
+              else
+                l := (eo + 1)::(so - 1)::!l
+            else
+              raise Segment
       ) locs;
 
     if ((List.length !l) mod 2) <> 0 then

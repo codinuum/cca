@@ -68,12 +68,12 @@ let parser_tbl = (* PREFIX * NS *)
 let get_prefix_by_ns ns =
   let rec loop = function
     | (p, ns')::rest ->
-	if ns = ns' then
-	  p
-	else
-	  loop rest
+        if ns = ns' then
+          p
+        else
+          loop rest
     | [] ->
-	raise Not_found
+        raise Not_found
   in
   loop parser_tbl
 

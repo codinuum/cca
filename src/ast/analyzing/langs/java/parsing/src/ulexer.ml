@@ -45,58 +45,63 @@ let escape_dollar = Str.global_replace dollar_pat "&#36;"
 
 let find_keyword =
   let keyword_list =
-      [
-	"abstract",     (fun l -> ABSTRACT l);
-	"assert",       (fun l -> ASSERT l);
-	"boolean",      (fun l -> BOOLEAN l);
-	"break",        (fun l -> BREAK l);
-	"byte",         (fun l -> BYTE l);
-	"case",         (fun l -> CASE l);
-	"catch",        (fun l -> CATCH l);
-	"char",         (fun l -> CHAR l);
-	"class",        (fun l -> CLASS l);
-	"const",        (fun l -> CONST l);
-	"continue",     (fun l -> CONTINUE l);
-	"default",      (fun l -> DEFAULT l);
-	"do",           (fun l -> DO l);
-	"double",       (fun l -> DOUBLE l);
-	"else",         (fun l -> ELSE l);
-	"enum",         (fun l -> ENUM l);
-	"extends",      (fun l -> EXTENDS l);
-	"final",        (fun l -> FINAL l);
-	"finally",      (fun l -> FINALLY l);
-	"float",        (fun l -> FLOAT l);
-	"for",          (fun l -> FOR l);
-	"goto",         (fun l -> GOTO l);
-	"if",           (fun l -> IF l);
-	"implements",   (fun l -> IMPLEMENTS l);
-	"import",       (fun l -> IMPORT l);
-	"instanceof",   (fun l -> INSTANCEOF l);
-	"int",          (fun l -> INT l);
-	"interface",    (fun l -> INTERFACE l);
-	"long",         (fun l -> LONG l);
-	"native",       (fun l -> NATIVE l);
-	"new",          (fun l -> NEW l);
-	"package",      (fun l -> PACKAGE l);
-	"private",      (fun l -> PRIVATE l);
-	"protected",    (fun l -> PROTECTED l);
-	"public",       (fun l -> PUBLIC l);
-	"return",       (fun l -> RETURN l);
-	"short",        (fun l -> SHORT l);
-	"static",       (fun l -> STATIC l);
-	"strictfp",     (fun l -> STRICTFP l);
-	"super",        (fun l -> SUPER l);
-	"switch",       (fun l -> SWITCH l);
-	"synchronized", (fun l -> SYNCHRONIZED l);
-	"this",         (fun l -> THIS l);
-	"throw",        (fun l -> THROW l);
-	"throws",       (fun l -> THROWS l);
-	"transient",    (fun l -> TRANSIENT l);
-	"try",          (fun l -> TRY l);
-	"void",         (fun l -> VOID l);
-	"volatile",     (fun l -> VOLATILE l);
-	"while",        (fun l -> WHILE l);
-      ] in
+    [
+     "abstract",     (fun l -> ABSTRACT l);
+     "assert",       (fun l -> ASSERT l);
+     "boolean",      (fun l -> BOOLEAN l);
+     "break",        (fun l -> BREAK l);
+     "byte",         (fun l -> BYTE l);
+     "case",         (fun l -> CASE l);
+     "catch",        (fun l -> CATCH l);
+     "char",         (fun l -> CHAR l);
+     "class",        (fun l -> CLASS l);
+     "const",        (fun l -> CONST l);
+     "continue",     (fun l -> CONTINUE l);
+     "default",      (fun l -> DEFAULT l);
+     "do",           (fun l -> DO l);
+     "double",       (fun l -> DOUBLE l);
+     "else",         (fun l -> ELSE l);
+     "enum",         (fun l -> ENUM l);
+     "extends",      (fun l -> EXTENDS l);
+     "final",        (fun l -> FINAL l);
+     "finally",      (fun l -> FINALLY l);
+     "float",        (fun l -> FLOAT l);
+     "for",          (fun l -> FOR l);
+     "goto",         (fun l -> GOTO l);
+     "if",           (fun l -> IF l);
+     "implements",   (fun l -> IMPLEMENTS l);
+     "import",       (fun l -> IMPORT l);
+     "instanceof",   (fun l -> INSTANCEOF l);
+     "int",          (fun l -> INT l);
+     "interface",    (fun l -> INTERFACE l);
+     "long",         (fun l -> LONG l);
+     "native",       (fun l -> NATIVE l);
+     "new",          (fun l -> NEW l);
+     "package",      (fun l -> PACKAGE l);
+     "private",      (fun l -> PRIVATE l);
+     "protected",    (fun l -> PROTECTED l);
+     "public",       (fun l -> PUBLIC l);
+     "return",       (fun l -> RETURN l);
+     "short",        (fun l -> SHORT l);
+     "static",       (fun l -> STATIC l);
+     "strictfp",     (fun l -> STRICTFP l);
+     "super",        (fun l -> SUPER l);
+     "switch",       (fun l -> SWITCH l);
+     "synchronized", (fun l -> SYNCHRONIZED l);
+     "this",         (fun l -> THIS l);
+     "throw",        (fun l -> THROW l);
+     "throws",       (fun l -> THROWS l);
+     "transient",    (fun l -> TRANSIENT l);
+     "try",          (fun l -> TRY l);
+     "void",         (fun l -> VOID l);
+     "volatile",     (fun l -> VOLATILE l);
+     "while",        (fun l -> WHILE l);
+
+     "aspect",       (fun l -> ASPECT l);
+     "pointcut",     (fun l -> POINTCUT l);
+     "within",       (fun l -> WITHIN l);
+     "declare",      (fun l -> DECLARE l);
+   ] in
   let keyword_table = Hashtbl.create (List.length keyword_list) in
   let _ =
     List.iter (fun (kwd, tok) -> Hashtbl.add keyword_table kwd tok)
@@ -274,6 +279,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
   |   ">>>=" -> mktok GT_GT_GT_EQ lexbuf
   |   "..." -> mktok ELLIPSIS lexbuf
   |   "::" -> mktok COLON_COLON lexbuf
+  |   ".." -> mktok DOT_DOT lexbuf
 
   |   '(' -> mktok (LPAREN(Aux.get_loc_for_lex lexbuf)) lexbuf
   |   ')' -> mktok (RPAREN(Aux.get_loc_for_lex lexbuf)) lexbuf
@@ -386,7 +392,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let tok, st, ed = Token.decompose t in
     match tok with
     | ENUM loc
-    | ASSERT loc -> Token.create (IDENTIFIER(loc, name)) st ed
+    | ASSERT loc
+    | ASPECT loc | POINTCUT loc | WITHIN loc | DECLARE loc
+      -> Token.create (IDENTIFIER(loc, name)) st ed
     | _ -> t
 
 
@@ -434,13 +442,18 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
     let peek_nth = peek_nth queue ulexbuf in
 
+    let discard() =
+      let _, _, ed = Token.decompose (take()) in
+      ed
+    in
+
     let res =
       let t = take() in
       let tok, st, ed = Token.decompose t in
       match tok with
       | ENUM loc -> begin
-          let t2, tok2 = peek_nth 1 in
-          let t3, tok3 = peek_nth 2 in
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (IMPLEMENTS _ | LBRACE) -> t
           | _ -> begin
@@ -450,7 +463,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           end
       end
       | DEFAULT loc -> begin
-          let t2, tok2 = peek_nth 1 in
+          let _, tok2 = peek_nth 1 in
           match tok2 with
           | COLON -> begin
               DEBUG_MSG "DEFAULT --> DEFAULT__COLON";
@@ -460,7 +473,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | _ -> t
       end
       | AT loc -> begin
-          let t2, tok2 = peek_nth 1 in
+          let _, tok2 = peek_nth 1 in
           match tok2 with
           | INTERFACE _ -> begin
               DEBUG_MSG "AT --> AT__INTERFACE";
@@ -509,6 +522,130 @@ module F (Stat : Parser_aux.STATE_T) = struct
           with
           | Exit -> t
           | Modified_token m -> m
+      end
+      | SEMICOLON when env#keep_going_flag -> begin
+          match Obj.obj env#last_rawtoken with
+          | SEMICOLON -> begin
+              let t', tok' = peek_nth 1 in
+              DEBUG_MSG "tok' = %s" (Token.rawtoken_to_string tok');
+              match tok' with
+              | IMPORT _ -> begin
+                  let _ = discard() in
+                  t'
+              end
+              | _ -> t
+          end
+          | _ -> t
+      end
+      | IDENTIFIER(loc, s) when env#keep_going_flag -> begin
+          match Obj.obj env#last_rawtoken with
+          | LBRACE | SEMICOLON -> begin
+              let _, tok' = peek_nth 1 in
+              DEBUG_MSG "tok' = %s" (Token.rawtoken_to_string tok');
+              match tok' with
+              | IMPORT _ -> begin
+                  DEBUG_MSG "IDENTIFIER --> ERROR";
+                  Common.warning_loc loc "'%s': invalid import" s;
+                  Token.create (ERROR s) st ed
+              end
+              | PUBLIC _ | PROTECTED _ | PRIVATE _ | STATIC _ | FINAL _ -> begin
+                  DEBUG_MSG "IDENTIFIER --> ERROR_MOD";
+                  Common.warning_loc loc "'%s': invalid modifier" s;
+                  Token.create (ERROR_MOD s) st ed
+              end
+              | FOR _ | WHILE _ | DO _ | IF _ | SWITCH _ | RETURN _ -> begin
+                  DEBUG_MSG "IDENTIFIER --> ERROR_STMT";
+                  Common.warning_loc loc "'%s': invalid statement" s;
+                  Token.create (ERROR_STMT s) st ed
+              end
+              | DOT when begin
+                  let _, tok'' = peek_nth 2 in
+                  DEBUG_MSG "tok'' = %s" (Token.rawtoken_to_string tok'');
+                  match tok'' with
+                  | RBRACE -> true
+                  | _ -> false
+              end -> begin
+                DEBUG_MSG "IDENTIFIER DOT --> ERROR";
+                Common.warning_loc loc "'%s.': syntax error" s;
+                let ed_ = discard() in
+                Token.create (ERROR (s^".")) st ed_
+              end
+              | IDENTIFIER(loc', s') -> begin
+                  let _, tok'' = peek_nth 2 in
+                  DEBUG_MSG "tok'' = %s" (Token.rawtoken_to_string tok'');
+                  match tok'' with
+                  | IDENTIFIER(loc'', s'') -> begin
+                      let buf = Buffer.create 0 in
+                      Buffer.add_string buf s;
+                      Buffer.add_string buf " ";
+                      Buffer.add_string buf s';
+                      Buffer.add_string buf " ";
+                      Buffer.add_string buf s'';
+                      let nth = ref 3 in
+                      begin
+                        try
+                          while true do
+                            let _, nth_tok = peek_nth !nth in
+                            DEBUG_MSG "%dth tok = %s" !nth (Token.rawtoken_to_string nth_tok);
+                            match nth_tok with
+                            | IDENTIFIER(_, nth_s) -> begin
+                                incr nth;
+                                Buffer.add_string buf " ";
+                                Buffer.add_string buf nth_s
+                            end
+                            | EXCLAM -> begin
+                                incr nth;
+                                Buffer.add_string buf "!"
+                            end
+                            | _ -> raise Exit
+                          done
+                        with
+                          Exit -> ()
+                      end;
+                      let ed_ = ref ed in
+                      for i = 1 to !nth do
+                        ed_ := discard()
+                      done;
+                      let err = Buffer.contents buf in
+                      DEBUG_MSG "IDENTIFIER --> ERROR";
+                      Common.warning_loc loc "'%s': syntax error" err;
+                      Token.create (ERROR err) st !ed_
+                  end
+                  | _ -> t
+              end
+              | _ -> t
+          end
+          | _ -> t
+      end
+      | WITHIN _ when not env#in_declare_flag && not env#in_pointcut_flag -> begin
+          DEBUG_MSG "WITHIN --> <identifier>";
+          kw_to_ident "within" t
+      end
+      | DECLARE _ when not env#in_aspect_flag -> begin
+          DEBUG_MSG "DECLARE --> <identifier>";
+          kw_to_ident "declare" t
+      end
+      | POINTCUT _ when not env#in_aspect_flag -> begin
+          DEBUG_MSG "POINTCUT --> <identifier>";
+          kw_to_ident "pointcut" t
+      end
+      | ASPECT _ when begin
+          match Obj.obj env#last_rawtoken with
+          | PUBLIC _ | PROTECTED _ | PRIVATE _
+          | STATIC _ | ABSTRACT _
+          | FINAL _ | NATIVE _ | SYNCHRONIZED _ | TRANSIENT _ | VOLATILE _
+          | STRICTFP _ | DEFAULT _ -> false
+          | LBRACE | SEMICOLON -> begin
+              let _, tok2 = peek_nth 1 in
+              let _, tok3 = peek_nth 2 in
+              match tok2, tok3 with
+              | IDENTIFIER _, (EXTENDS _ | IMPLEMENTS _ | LBRACE) -> false
+              | _ -> true
+          end
+          | _ -> true
+      end -> begin
+          DEBUG_MSG "ASPECT --> <identifier>";
+          kw_to_ident "aspect" t
       end
       | _ -> t
     in (* res *)

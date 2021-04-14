@@ -250,6 +250,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       | L.Modifier.Strictfp     -> pr_string "strictfp"
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
       | L.Modifier.Default      -> pr_string "default"
+      | L.Modifier.Error s      -> pr_string s
   end
 
   | L.ElementValuePair i -> pr_id i; pr_string "="; pr_nth_child 0
@@ -305,6 +306,66 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_annotationtypebody children;
       pb#close_box()
+
+  | L.Aspect i ->
+      let specs = get_specs children in
+      pb#open_vbox 0;
+      pb#open_box 0;
+      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
+      pr_string "aspect"; pr_space(); pr_id i;
+      pr_selected ~fail_on_error L.is_extends specs;
+      pr_selected ~fail_on_error L.is_implements specs;
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_classbody children;
+      pb#close_box()
+
+  | L.Pointcut i ->
+      pb#open_vbox 0;
+      pb#open_box 0;
+      pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
+      pr_string "pointcut"; pr_space(); pr_id i;
+      pr_parameters ~fail_on_error children;
+      pr_selected ~fail_on_error ~head:pr_colon L.is_pointcut_expr children;
+      pb#close_box();
+      pr_semicolon();
+      pb#close_box()
+
+  | L.DeclareParents ->
+      pr_string "declare"; pr_space(); pr_string "parents";
+      pr_selected ~fail_on_error ~head:pr_colon L.is_classname_pattern_expr children;
+      pr_selected ~fail_on_error L.is_extends children;
+      pr_selected ~fail_on_error L.is_implements children;
+      pr_semicolon()
+
+  | L.DeclareMessage k ->
+      pr_string "declare"; pr_space(); pr_string k;
+      pr_selected ~fail_on_error ~head:pr_colon L.is_pointcut_expr children;
+      pr_selected ~fail_on_error ~head:pr_colon L.is_primary children;
+      pr_semicolon()
+
+  | L.DeclareSoft ->
+      pr_string "declare"; pr_space(); pr_string "soft";
+      pr_selected ~fail_on_error ~head:pr_colon L.is_pointcut_expr children;
+      pr_semicolon()
+
+  | L.DeclarePrecedence ->
+      pr_string "declare"; pr_space(); pr_string "precedence";
+      pr_selected ~fail_on_error ~head:pr_colon ~sep:pr_comma L.is_classname_pattern_expr children;
+      pr_semicolon()
+
+  | L.PointcutAnd -> pr_nth_child 0; pr_space(); pr_string "&&"; pr_space(); pr_nth_child 1
+  | L.PointcutOr -> pr_nth_child 0; pr_space(); pr_string "||"; pr_space(); pr_nth_child 1
+  | L.PointcutNot -> pr_string "!"; pr_nth_child 0
+  | L.PointcutParen -> pr_lparen(); pr_nth_child 0; pr_rparen()
+  | L.PointcutWithin -> pr_string "within"; pr_lparen(); pr_nth_child 0; pr_rparen()
+
+  | L.ClassnamePatternAnd -> pr_nth_child 0; pr_space(); pr_string "&&"; pr_space(); pr_nth_child 1
+  | L.ClassnamePatternOr -> pr_nth_child 0; pr_space(); pr_string "||"; pr_space(); pr_nth_child 1
+  | L.ClassnamePatternNot -> pr_string "!"; pr_nth_child 0
+  | L.ClassnamePatternParen -> pr_lparen(); pr_nth_child 0; pr_rparen()
+  | L.ClassnamePatternName n -> pr_name n
+  | L.ClassnamePatternNamePlus n -> pr_name n; pr_string "+"
+
 
   | L.ClassBody _ ->
         if nchildren = 0 then

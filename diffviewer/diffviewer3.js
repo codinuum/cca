@@ -1040,7 +1040,10 @@
 
       }
       var cmp = function(a, b) {
-        return a.from.line - b.from.line;
+        var x = a.from.line - b.from.line;
+        if (x === 0)
+          x = b.to.line - a.to.line;
+        return x;
       }
       this.marksL.sort(cmp);
       this.marksR.sort(cmp);
@@ -1050,17 +1053,40 @@
   DtsScrollbarAnnotation.prototype.mark = function() {
     if (this.annotationL && this.annotationR) {
       //console.log("marking...");
-/*
-      for (var i = 0; i < this.marksL.length; i++) {
-        var m = this.marksL[i];
-        console.log('L: ['+m.from.line+'-'+m.to.line+']');
+      if (this.marksL.length > 0) {
+        var from = this.marksL[0].from.line;
+        var to = this.marksL[0].to.line;
+        var marks = [this.marksL[0]];
+        for (var i = 0; i < this.marksL.length; i++) {
+          var m = this.marksL[i];
+          //console.log('L: ['+m.from.line+'-'+m.to.line+']');
+          if (from !== undefined && to !== undefined) {
+            if (to < m.from.line) {
+              from = m.from.line;
+              to = m.to.line;
+              marks.push(m);
+            }
+          }
+        }
+        this.marksL = marks;
       }
-
-      for (var i = 0; i < this.marksR.length; i++) {
-        var m = this.marksR[i];
-        console.log('R: ['+m.from.line+'-'+m.to.line+']');
+      if (this.marksR.length > 0) {
+        var from = this.marksR[0].from.line;
+        var to = this.marksR[0].to.line;
+        var marks = [this.marksR[0]];
+        for (var i = 0; i < this.marksR.length; i++) {
+          var m = this.marksR[i];
+          //console.log('R: ['+m.from.line+'-'+m.to.line+']');
+          if (from !== undefined && to !== undefined) {
+            if (to < m.from.line) {
+              from = m.from.line;
+              to = m.to.line;
+              marks.push(m);
+            }
+          }
+        }
+        this.marksR = marks;
       }
-*/
       try { // the following occasionally fails
         this.annotationL.update(this.marksL);
         this.annotationR.update(this.marksR);
@@ -1074,13 +1100,13 @@
     //try { // the following occasionally fails
 
     try {
-      if (this.annotationL)
+      if (this.annotationL !== null)
         this.annotationL.clear();
     } catch (exn) {
       console.log("annotationL: caught exception: "+exn);
     }
     try {
-      if (this.annotationR)
+      if (this.annotationR !== null)
         this.annotationR.clear();
     } catch (exn) {
       console.log("annotationR: caught exception: "+exn);

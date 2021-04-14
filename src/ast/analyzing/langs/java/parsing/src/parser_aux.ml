@@ -151,7 +151,33 @@ class env = object (self)
   val mutable class_flag = false
   val mutable shift_flag = false
 
+  val mutable in_aspect_flag = false
+  val mutable in_declare_flag = false
+  val mutable in_pointcut_flag = false
+
+  val mutable g_brace_level = 0
+
   val context_stack = Stack.create ()
+
+  method in_declare_flag = in_declare_flag
+
+  method set_in_declare_flag =
+    DEBUG_MSG "set";
+    in_declare_flag <- true
+
+  method clear_in_declare_flag =
+    DEBUG_MSG "clear";
+    in_declare_flag <- false
+
+  method in_pointcut_flag = in_pointcut_flag
+
+  method set_in_pointcut_flag =
+    DEBUG_MSG "set";
+    in_pointcut_flag <- true
+
+  method clear_in_pointcut_flag =
+    DEBUG_MSG "clear";
+    in_pointcut_flag <- false
 
   method shift_flag = shift_flag
 
@@ -172,6 +198,16 @@ class env = object (self)
   method clear_class_flag =
     DEBUG_MSG "clear";
     class_flag <- false
+
+  method in_aspect_flag = in_aspect_flag
+
+  method set_in_aspect_flag =
+    DEBUG_MSG "set";
+    in_aspect_flag <- true
+
+  method clear_in_aspect_flag =
+    DEBUG_MSG "clear";
+    in_aspect_flag <- false
 
   method context_stack_rep =
     let buf = Buffer.create 0 in
@@ -258,6 +294,14 @@ class env = object (self)
       | C_method mstat -> Stack.top mstat.m_stack = SC_block
       | _ -> false
     end
+
+  method g_brace_level = g_brace_level
+
+  method g_open_brace =
+    g_brace_level <- g_brace_level + 1
+
+  method g_close_brace =
+    g_brace_level <- g_brace_level - 1
 
   method res_level =
     DEBUG_MSG "context_stack: %s" (self#context_stack_rep);
@@ -1391,8 +1435,6 @@ module F (Stat : STATE_T) = struct
     tyname
 
   let is_type_name n =
-    let ss = P.name_to_simple_string n in
-    DEBUG_MSG "\"%s\"" ss;
     let b =
       try
         let _ = get_type_name n in
@@ -1400,7 +1442,7 @@ module F (Stat : STATE_T) = struct
       with
         Not_found -> false
     in
-    DEBUG_MSG "%s --> %B" ss b;
+    DEBUG_MSG "%s --> %B" (P.name_to_simple_string n) b;
     b
 
   let is_expr_name n =
@@ -1495,6 +1537,14 @@ module F (Stat : STATE_T) = struct
   let mktyargs so eo d = _mktyargs (get_loc so eo) d
   let mktype so eo d = _mktype (get_loc so eo) d
   let mkmod so eo d = _mkmod (get_loc so eo) d
+  let mkerrmod so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    if env#keep_going_flag then
+      { m_desc=Merror s; m_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
+
   let mkmods so eo ms = { ms_modifiers=ms; ms_loc=(get_loc so eo) }
   let mkaop so eo d = { ao_desc=d; ao_loc=(get_loc so eo) }
   let mkstmt so eo d = { s_desc=d; s_loc=(get_loc so eo) }
@@ -1628,6 +1678,14 @@ module F (Stat : STATE_T) = struct
   let simple_name_to_expr so eo n = _simple_name_to_expr (get_loc so eo) n
   let name_to_expr so eo n = _name_to_expr (get_loc so eo) n
   let mkimpdecl so eo d = { id_desc=d; id_loc=(get_loc so eo) }
+  let mkerrimpdecl so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    if env#keep_going_flag then
+      { id_desc=IDerror s; id_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
+
   let mkcic so eo d = { cic_desc=d; cic_loc=(get_loc so eo) }
   let mkcb so eo decls = { cb_class_body_declarations=decls; cb_loc=(get_loc so eo) }
   let mkcbd so eo d = _mkcbd (get_loc so eo) d
@@ -1648,6 +1706,19 @@ module F (Stat : STATE_T) = struct
 			      eb_class_body_declarations=cbds;
 			      eb_loc=(get_loc so eo)
 			    }
+
+  let mkabd so eo decls = { abd_aspect_body_declarations=decls; abd_loc=(get_loc so eo) }
+  let mkdd so eo d = { dd_desc=d; dd_loc=(get_loc so eo) }
+  let mkpcd so eo m i pl p pe = { pcd_modifiers=m;
+                                  pcd_name=i;
+                                  pcd_parameters_loc=pl;
+                                  pcd_parameters=p;
+                                  pcd_pointcut_expr=pe;
+                                  pcd_loc=(get_loc so eo);
+                               }
+  let mkpe so eo d = { pe_desc=d; pe_loc=(get_loc so eo) }
+  let mkcpe so eo d = { cpe_desc=d; cpe_loc=(get_loc so eo) }
+
   let mkvd so eo vdid vdini = { vd_variable_declarator_id=vdid;
 				vd_variable_initializer=vdini;
 				vd_is_local=(ref true);
@@ -1718,6 +1789,14 @@ module F (Stat : STATE_T) = struct
   let mkfinally so eo b = { f_block=b; f_loc=(get_loc so eo)}
   let mkmi so eo d = { mi_desc=d; mi_loc=(get_loc so eo) }
   let mktd so eo d = { td_desc=d; td_loc=(get_loc so eo) }
+  let mkerrtd so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    if env#keep_going_flag then
+      { td_desc=TDerror s; td_loc=loc }
+    else
+      parse_error_loc loc "syntax error: %s" s
+
   let mkaa so eo d = { aa_desc=d; aa_loc=(get_loc so eo) }
   let mkch so eo ms id ts_opt s_opt i_opt = _mkch (get_loc so eo) ms id ts_opt s_opt i_opt
   let mkcd so eo d = _mkcd (get_loc so eo) d
