@@ -65,6 +65,7 @@ let rawtoken_to_string = function
   | ACC_SPEC_MACRO s     -> sprintf "ACC_SPEC_MACRO:%s" s
   | DECL_SPEC_MACRO s    -> sprintf "DECL_SPEC_MACRO:%s" s
   | CC_MACRO s           -> sprintf "CC_MACRO:%s" s
+  | LAM_MACRO s          -> sprintf "LAM_MACRO:%s" s
   | CV_MACRO s           -> sprintf "CV_MACRO:%s" s
   | NOEXCEPT_MACRO s     -> sprintf "NOEXCEPT_MACRO:%s" s
   | NS_MACRO s           -> sprintf "NS_MACRO:%s" s
@@ -106,12 +107,14 @@ let rawtoken_to_string = function
   | IDENT_DSM s           -> sprintf "IDENT_DSM:%s" s
   | IDENT_BHM s           -> sprintf "IDENT_BHM:%s" s
   | IDENT_BEM s           -> sprintf "IDENT_BEM:%s" s
+  | IDENT_BSM s           -> sprintf "IDENT_BSM:%s" s
   | IDENT_CHM s           -> sprintf "IDENT_CHM:%s" s
   | IDENT_AGM s           -> sprintf "IDENT_AGM:%s" s
   | IDENT_LOM s           -> sprintf "IDENT_LOM:%s" s
   | IDENT_PDM s           -> sprintf "IDENT_PDM:%s" s
   | IDENT_VM s            -> sprintf "IDENT_VM:%s" s
   | IDENT_SXM s           -> sprintf "IDENT_SXM:%s" s
+  | IDENT_DSL s           -> sprintf "IDENT_DSL:%s" s
 
   | AT                    -> "AT"
   | BS                    -> "BS"
@@ -144,6 +147,7 @@ let rawtoken_to_string = function
   | SUB_REQUIRES          -> "SUB_REQUIRES"
   | ELAB_ENUM             -> "ELAB_ENUM"
   | ELAB_CLASS            -> "ELAB_CLASS"
+  | EXTERN_X s            -> "EXTERN_X:"^s
   | ODD_ELSE              -> "ODD_ELSE"
   | ODD_FOR               -> "ODD_FOR"
   | ODD_LBRACE            -> "ODD_LBRACE"
@@ -513,6 +517,7 @@ let rawtoken_to_repr = function
   | ACC_SPEC_MACRO s     -> s
   | DECL_SPEC_MACRO s    -> s
   | CC_MACRO s           -> s
+  | LAM_MACRO s          -> s
   | CV_MACRO s           -> s
   | NOEXCEPT_MACRO s     -> s
   | NS_MACRO s           -> s
@@ -554,12 +559,14 @@ let rawtoken_to_repr = function
   | IDENT_DSM s           -> s
   | IDENT_BHM s           -> s
   | IDENT_BEM s           -> s
+  | IDENT_BSM s           -> s
   | IDENT_CHM s           -> s
   | IDENT_AGM s           -> s
   | IDENT_LOM s           -> s
   | IDENT_PDM s           -> s
   | IDENT_VM s            -> s
   | IDENT_SXM s           -> s
+  | IDENT_DSL s           -> s
 
   | AT                    -> "@"
   | BS                    -> "\\"
@@ -592,6 +599,7 @@ let rawtoken_to_repr = function
   | SUB_REQUIRES          -> "requires"
   | ELAB_ENUM             -> "enum"
   | ELAB_CLASS            -> "class"
+  | EXTERN_X s            -> sprintf "extern %s" s
   | ODD_ELSE              -> "else"
   | ODD_FOR               -> "for"
   | ODD_LBRACE            -> "{"

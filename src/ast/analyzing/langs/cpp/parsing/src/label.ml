@@ -596,6 +596,7 @@ type t =
   | BaseClause
   | BaseMacro of ident
   | BaseSpecMacro of ident
+  | BaseSpecMacroInvocation of ident
   | SuffixMacro of ident
   | ClassVirtSpecifierFinal
   | ClassVirtSpecifierMsSealed
@@ -614,6 +615,7 @@ type t =
   | LambdaDeclarator
   | ParenthesizedInitList
   | LambdaIntroducer
+  | LambdaIntroducerMacro of ident
   | AbstractPackDeclarator
   | AbstractPack
   | RequirementBody
@@ -786,11 +788,14 @@ type t =
   | ObjcCatchClause
   | ObjcFinally
   | ObjcMethodMacroInvocation of ident
+  | ObjcKeywordName of ident
 
   | SwiftArg of ident
   | SwiftFunCall
 
   | HugeArray of int * string
+  | DslMacroArgument
+  | ParametersAndQualifiersList
 
 let to_string = function
   | DUMMY -> "DUMMY"
@@ -1324,6 +1329,7 @@ let to_string = function
   | BaseClause                     -> "BaseClause"
   | BaseMacro i                    -> "BaseMacro:"^i
   | BaseSpecMacro i                -> "BaseSpecMacro:"^i
+  | BaseSpecMacroInvocation i      -> "BaseSpecMacroInvocation:"^i
   | SuffixMacro i                  -> "SuffixMacro:"^i
   | ClassVirtSpecifierFinal        -> "ClassVirtSpecifierFinal"
   | ClassVirtSpecifierMsSealed     -> "ClassVirtSpecifierMsSealed"
@@ -1342,6 +1348,7 @@ let to_string = function
   | LambdaDeclarator               -> "LambdaDeclarator"
   | ParenthesizedInitList          -> "ParenthesizedInitList"
   | LambdaIntroducer               -> "LambdaIntroducer"
+  | LambdaIntroducerMacro i        -> "LambdaIntroducerMacro:"^i
   | AbstractPackDeclarator         -> "AbstractPackDeclarator"
   | AbstractPack                   -> "AbstractPack"
   | RequirementBody                -> "RequirementBody"
@@ -1521,12 +1528,14 @@ let to_string = function
   | ObjcCatchClause -> "ObjcCatchClause"
   | ObjcFinally     -> "ObjcFinally"
   | ObjcMethodMacroInvocation i -> "ObjcMethodMacroInvocation:"^i
+  | ObjcKeywordName i -> "ObjcKeywordName:"^i
 
   | SwiftArg i   -> "SwiftArg:"^i
   | SwiftFunCall -> "SwiftFunCall"
 
   | HugeArray(sz, c) -> sprintf "HugeArray(%d):%s\n" sz c
-
+  | DslMacroArgument -> "DslMacroArgument"
+  | ParametersAndQualifiersList -> "ParametersAndQualifiersList"
 
 
 let to_simple_string = function
@@ -2068,6 +2077,7 @@ let to_simple_string = function
   | BaseClause                     -> "<base-clause>"
   | BaseMacro i                    -> i
   | BaseSpecMacro i                -> i
+  | BaseSpecMacroInvocation i      -> i
   | SuffixMacro i                  -> i
   | ClassVirtSpecifierFinal        -> "final"
   | ClassVirtSpecifierMsSealed     -> "sealed"
@@ -2086,6 +2096,7 @@ let to_simple_string = function
   | LambdaDeclarator               -> "<lambda-declarator>"
   | ParenthesizedInitList          -> "<parenthesized-init-list>"
   | LambdaIntroducer               -> "<lambda-introducer>"
+  | LambdaIntroducerMacro i        -> i
   | AbstractPackDeclarator         -> "<abstract-pack-declarator>"
   | AbstractPack                   -> "<abstract-pack>"
   | RequirementBody                -> "<requirement-body>"
@@ -2265,11 +2276,14 @@ let to_simple_string = function
   | ObjcCatchClause -> "@catch"
   | ObjcFinally     -> "@finally"
   | ObjcMethodMacroInvocation i -> i
+  | ObjcKeywordName i -> i^":"
 
   | SwiftArg i   -> i^":"
   | SwiftFunCall -> "<swift-function-call>"
 
   | HugeArray(_, c) -> c
+  | DslMacroArgument -> "<dsl-macro-argument>"
+  | ParametersAndQualifiersList -> "<parameters-and-qualifiers-list>"
 
 
 let to_tag : t -> string * (string * string) list = function
@@ -2824,6 +2838,7 @@ let to_tag : t -> string * (string * string) list = function
   | BaseClause                     -> "BaseClause", []
   | BaseMacro i                    -> "BaseMacro", ["ident",i]
   | BaseSpecMacro i                -> "BaseSpecMacro", ["ident",i]
+  | BaseSpecMacroInvocation i      -> "BaseSpecMacroInvocation", ["ident",i]
   | SuffixMacro i                  -> "SuffixMacro", ["ident",i]
   | ClassVirtSpecifierFinal        -> "ClassVirtSpecifierFinal", []
   | ClassVirtSpecifierMsSealed     -> "ClassVirtSpecifierMsSealed", []
@@ -2842,6 +2857,7 @@ let to_tag : t -> string * (string * string) list = function
   | LambdaDeclarator               -> "LambdaDeclarator", []
   | ParenthesizedInitList          -> "ParenthesizedInitList", []
   | LambdaIntroducer               -> "LambdaIntroducer", []
+  | LambdaIntroducerMacro i        -> "LambdaIntroducer", ["ident",i]
   | AbstractPackDeclarator         -> "AbstractPackDeclarator", []
   | AbstractPack                   -> "AbstractPack", []
   | RequirementBody                -> "RequirementBody", []
@@ -3023,12 +3039,14 @@ let to_tag : t -> string * (string * string) list = function
   | ObjcCatchClause -> "ObjcCatchClause", []
   | ObjcFinally     -> "ObjcFinally", []
   | ObjcMethodMacroInvocation i -> "ObjcMethodMacroInvocation", ["ident",i]
+  | ObjcKeywordName i -> "ObjcKeywordName", ["ident",i]
 
   | SwiftArg i   -> "SwiftArg", ["ident",i]
   | SwiftFunCall -> "SwiftFunCall", []
 
   | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code", c]
-
+  | DslMacroArgument -> "DslMacroArgument", []
+  | ParametersAndQualifiersList -> "ParametersAndQualifiersList", []
 
 
 let get_name : t -> string = function
@@ -3131,6 +3149,7 @@ let get_name : t -> string = function
   | PtrOperatorMacro n
   | BaseMacro n
   | BaseSpecMacro n
+  | BaseSpecMacroInvocation n
   | SuffixMacro n
   | DeclSpecifierMacro n
   | DeclSpecifierMacroInvocation n
@@ -3146,6 +3165,7 @@ let get_name : t -> string = function
   | EnumHeadEnumMacro n
   | FunctionBodyMacroInvocation n
   | LambdaCaptureMacroInvocation n
+  | LambdaIntroducerMacro n
     -> n
 
   | PpInclude x -> x

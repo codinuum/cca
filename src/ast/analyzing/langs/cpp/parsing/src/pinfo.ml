@@ -31,7 +31,7 @@ let decode_ident =
   Str.replace_first pat ""
 
 type pp_if_cond = PP_IF of string * Obj.t list | PP_IFDEF of ident | PP_IFNDEF of ident
-type pp_if_cond_sub = PP_NONE | PP_CLOSING
+type pp_if_cond_sub = PP_NONE | PP_CLOSING | PP_STR
 
 type pp_compl = {
     mutable c_brace : int;
@@ -56,6 +56,8 @@ type pp_if_section_info = {
     mutable i_odd_canceled          : bool;
     mutable i_broken                : bool;
     mutable i_paren_closing         : bool;
+    mutable i_brace_closing         : int;
+    mutable i_brace_opening         : bool;
     mutable i_func_head             : bool;
     mutable i_func_body             : bool;
     mutable i_semicolon             : bool;
@@ -64,6 +66,8 @@ type pp_if_section_info = {
     mutable i_asm                   : bool;
     mutable i_pp_if_compl           : pp_compl;
     mutable i_lack_of_dtor          : bool;
+    mutable i_class_brace_opening   : bool;
+    mutable i_follows_comma         : bool;
   }
 
 let pp_if_cond_to_string = function
@@ -74,6 +78,7 @@ let pp_if_cond_to_string = function
 let pp_if_cond_sub_to_string = function
   | PP_NONE -> ""
   | PP_CLOSING -> "closing"
+  | PP_STR -> "str"
 
 let pp_compl_to_string {
   c_brace=blv;
@@ -102,6 +107,8 @@ let pp_if_section_info_to_string {
   i_odd_canceled=oc;
   i_broken=b;
   i_paren_closing=pcl;
+  i_brace_closing=bcl;
+  i_brace_opening=bo;
   i_func_head=fh;
   i_func_body=fb;
   i_semicolon=s;
@@ -110,12 +117,16 @@ let pp_if_section_info_to_string {
   i_asm=a;
   i_pp_if_compl=cmpl;
   i_lack_of_dtor=lod;
+  i_class_brace_opening=cbo;
+  i_follows_comma=fcm;
 } =
   let l =
     ["odd",       o;
      "odd_canceled", oc;
      "broken",    b;
      ")",         pcl;
+     sprintf "}%d" bcl, bcl > 0;
+     "{",         bo;
      "func_head", fh;
      "func_body", fb;
      ";",         s;
@@ -123,6 +134,8 @@ let pp_if_section_info_to_string {
      "?",         ce;
      "asm",       a;
      "lack_of_dtor", lod;
+     "C{",        cbo;
+     ",_",        fcm;
    ] in
   let flags = String.concat "" (List.map (fun (k, v) -> "["^k^"]") (List.filter (fun (k, v) -> v) l)) in
   sprintf "{%s%s@%d;%s,%s;%sLv{:%d;Lv(:%d;Lv<:%d;\"{\":%d;\"}\":%d;%s%s%s%s}"
@@ -153,6 +166,8 @@ let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=None) ?(pp_else=None) 
   i_odd_canceled=false;
   i_broken=false;
   i_paren_closing=false;
+  i_brace_closing=0;
+  i_brace_opening=false;
   i_func_head=false;
   i_func_body=false;
   i_semicolon=false;
@@ -161,6 +176,8 @@ let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=None) ?(pp_else=None) 
   i_asm=false;
   i_pp_if_compl={c_brace=0;c_paren=0};
   i_lack_of_dtor=false;
+  i_class_brace_opening=false;
+  i_follows_comma=false;
 }
 
 let dummy_info = make_pp_if_section_info 0 C.TOP C.INI 0 0 0 (PP_IF("", []))
@@ -844,7 +861,7 @@ module Name = struct
       | Class of ident
       | Enum of ident
       | Params
-      | Block of int
+      | Block of int * string
 
     let to_string = function
       | Top          -> "Top"
@@ -853,7 +870,7 @@ module Name = struct
       | Class i      -> sprintf "Class(%s)" i
       | Enum i       -> sprintf "Enum(%s)" i
       | Params       -> "Params"
-      | Block ln     -> sprintf "Block@%d" ln
+      | Block(ln, p) -> sprintf "Block@%d%s" ln (if p = "" then "" else "["^p^"]")
 
     let get_name = function
       | Namespace nn -> NestedNamespace.to_string nn
@@ -1196,6 +1213,11 @@ module Name = struct
               if prefix = !q then
                 q := ""
           end
+          | Block(_, p) when p != "" -> begin
+              q := p^(!q);
+              if prefix = !q then
+                q := ""
+          end
           | _ -> ()
         ) _stack;
       DEBUG_MSG "qualifier=%s" !q;
@@ -1234,6 +1256,8 @@ module Name = struct
       Stack.clear _stack;
       popped_frame <- new stack_frame Scope.Top;
 
+    method after_params = popped_frame#scope == Scope.Params
+
     method enter_scope scope =
       DEBUG_MSG "entering %s scope" (Scope.to_string scope);
       Stack.push (new stack_frame scope) _stack
@@ -1243,17 +1267,17 @@ module Name = struct
     method enter_class i = self#enter_scope (Scope.Class i)
     method enter_enum i = self#enter_scope (Scope.Enum i)
     method enter_params () = self#enter_scope Scope.Params
-    method enter_block ln =
+    method enter_block ?(prefix="") ln =
       if popped_frame#scope == Scope.Params then begin
         DEBUG_MSG "changing last poped frame to Block";
-        popped_frame#change_scope (Scope.Block ln);
+        popped_frame#change_scope (Scope.Block(ln, prefix));
         DEBUG_MSG "entering %s scope" (Scope.to_string popped_frame#scope);
         Stack.push popped_frame _stack;
         DEBUG_MSG "%s" self#top#to_string;
         popped_frame <- new stack_frame Scope.Top
       end
       else
-        self#enter_scope (Scope.Block ln)
+        self#enter_scope (Scope.Block(ln, ""))
 
     method _exit_scope chk_scp =
       let frm = Stack.pop _stack in

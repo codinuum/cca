@@ -997,13 +997,16 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | BaseClause                       -> pr_seq()
   | BaseMacro i                      -> pr_id i
   | BaseSpecMacro i                  -> pr_id i
+  | BaseSpecMacroInvocation i        -> pr_macro_invocation i
   | SuffixMacro i                    -> pr_id i
   | SuffixMacroInvocation i          -> pr_macro_invocation i
+  | DslMacroArgument                 -> pr_lparen(); pr_seq(); pr_rparen()
   | ClassVirtSpecifierFinal          -> pr_string "final"
   | ClassVirtSpecifierMsSealed       -> pr_string "sealed"
   | ClassName i when nchildren = 0   -> pr_id (Ast.decode_ident i)
   | ClassName i                      -> pr_nth_child 0
   | ClassHeadName n                  -> pr_seq ~sep:pr_none ()
+  | LambdaIntroducerMacro i          -> pr_id i
   | MacroArgument                    -> pr_seq()
   | NoptrNewDeclarator -> begin
       pr_nth_children 0; pr_lbracket(); pr_nth_children 1; pr_rbracket(); pr_nth_children 2
@@ -1086,6 +1089,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       pr_nth_children ~head:pad1 4;
       pb#close_box()
   end
+  | ParametersAndQualifiersList -> pr_lparen(); pr_seq ~sep:pr_comma (); pr_rparen()
   | ParamDeclMacro i                  -> pr_id i
   | ParamDeclMacroInvocation i        -> pr_macro_invocation i
   | ParametersMacro i                 -> pr_id i
@@ -1278,6 +1282,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ObjcTry                                  -> pr_string "@try"
   | ObjcCatchClause                          -> pr_string "@catch"
   | ObjcFinally                              -> pr_string "@finally"
+  | ObjcKeywordName ""                       -> pr_colon()
+  | ObjcKeywordName i                        -> pr_string i; pr_colon()
   end;
 
   let suffix = node#data#get_suffix in
