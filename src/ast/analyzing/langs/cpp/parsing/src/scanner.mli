@@ -72,6 +72,9 @@ class type c_t = object
         unit -> int * T.token list list
   method peek_rawtoken_up_to_rbrace : ?noexcept:bool ->
       ?from:int -> ?lv_ofs:int -> ?filt:(T.token -> bool) -> unit -> int * T.token list
+  method peek_rawtoken_up_to_rbrace_split_at_comma :
+      ?from:int -> ?ignore_pp:bool -> ?ignore_templ_lv:bool -> ?lv_ofs:int -> ?filt:(T.token list -> bool) ->
+        ?check_semicolon:bool -> unit -> int * T.token list list
   method peek_rawtoken_up_to_rbracket :
       ?from:int -> ?lv_ofs:int -> ?filt:(T.token -> bool) -> unit -> int * T.token list
 
@@ -90,8 +93,8 @@ class type c_t = object
   method reg_macro_fun : string -> unit
 
   method is_ty : ?strong:bool -> ?defined:bool -> ?weak:bool -> T.token -> bool
-  method check_if_param : ?weak:bool -> T.token list -> bool
-  method check_if_params : ?weak:bool -> T.token list list -> bool
+  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list -> bool
+  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list list -> bool
   method check_if_noptr_dtor : ?weak:bool -> T.token list -> bool
   method check_if_noptr_dtor_ : ?weak:bool -> T.token list -> bool
   method check_if_macro_arg : T.token list -> bool

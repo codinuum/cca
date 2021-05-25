@@ -205,6 +205,7 @@ class parser_c = object (self)
       | T_EXPLICIT -> "EXPLICIT"
       | T_EXPORT -> "EXPORT"
       | T_EXTERN -> "EXTERN"
+      | T_EXTERN_X -> "EXTERN_X"
       | T_FALSE -> "FALSE"
       | T_FINAL -> "FINAL"
       | T_FLOAT -> "FLOAT"
@@ -234,10 +235,12 @@ class parser_c = object (self)
       | T_IDENT_BEM -> "IDENT_BEM"
       | T_IDENT_BHM -> "IDENT_BHM"
       | T_IDENT_BM -> "IDENT_BM"
+      | T_IDENT_BSM -> "IDENT_BSM"
       | T_IDENT_C -> "IDENT_C"
       | T_IDENT_CHM -> "IDENT_CHM"
       | T_IDENT_CM -> "IDENT_CM"
       | T_IDENT_DM -> "IDENT_DM"
+      | T_IDENT_DSL -> "IDENT_DSL"
       | T_IDENT_DSM -> "IDENT_DSM"
       | T_IDENT_E -> "IDENT_E"
       | T_IDENT_EM -> "IDENT_EM"
@@ -265,6 +268,7 @@ class parser_c = object (self)
       | T_INT_LITERAL -> "INT_LITERAL"
       | T_INT_MACRO -> "INT_MACRO"
       | T_LAM_LBRACKET -> "LAM_LBRACKET"
+      | T_LAM_MACRO -> "LAM_MACRO"
       | T_LAM_MARKER -> "LAM_MARKER"
       | T_LBRACE -> "LBRACE"
       | T_LBRACKET -> "LBRACKET"
@@ -647,6 +651,8 @@ class parser_c = object (self)
       | N_delete_expression -> "delete_expression"
       | N_designated_initializer_clause -> "designated_initializer_clause"
       | N_designator -> "designator"
+      | N_dsl_macro -> "dsl_macro"
+      | N_dsl_macro_args -> "dsl_macro_args"
       | N_dtors_sub -> "dtors_sub"
       | N_elaborated_type_specifier -> "elaborated_type_specifier"
       | N_empty_declaration -> "empty_declaration"
@@ -848,6 +854,7 @@ class parser_c = object (self)
       | N_nonempty_list_pp_gnu_asm_if_section_ -> "nonempty_list(pp_gnu_asm_if_section)"
       | N_nonempty_list_QUEST_ -> "nonempty_list(QUEST)"
       | N_nonempty_list_q_prop_token_ -> "nonempty_list(q_prop_token)"
+      | N_nonempty_list_RBRACE_ -> "nonempty_list(RBRACE)"
       | N_nonempty_list_swift_arg_ -> "nonempty_list(swift_arg)"
       | N_nonempty_list_token_ -> "nonempty_list(token)"
       | N_noptr_abstract_declarator -> "noptr_abstract_declarator"
@@ -870,6 +877,8 @@ class parser_c = object (self)
       | N_objc_interface_decl -> "objc_interface_decl"
       | N_objc_keyword_arg -> "objc_keyword_arg"
       | N_objc_keyword_dtor -> "objc_keyword_dtor"
+      | N_objc_keyword_name -> "objc_keyword_arg_name"
+      | N_objc_keyword_name_list -> "objc_keyword_arg_name_list"
       | N_objc_keyword_selector -> "objc_keyword_selector"
       | N_objc_message_expr -> "objc_message_expr"
       | N_objc_message_selector -> "objc_message_selector"
@@ -1206,6 +1215,7 @@ class parser_c = object (self)
       | N_separated_nonempty_list_COMMA_objc_class_name_ -> "clist(objc_class_name)"
       | N_separated_nonempty_list_COMMA_objc_property_attr_ -> "clist(objc_property_attr)"
       | N_separated_nonempty_list_COMMA_objc_struct_dtor_ -> "clist(objc_struct_dtor)"
+      | N_separated_nonempty_list_COMMA_parameters_and_qualifiers_ -> "clist(parameters_and_qualifiers)"
       | N_separated_nonempty_list_COMMA_type_id_ -> "clist(type_id)"
       | N_shift_expression -> "shift_expression"
       | N_simple_capture -> "simple_capture"
@@ -1476,6 +1486,24 @@ class parser_c = object (self)
                 env#clear_asm_shader_flag();
                 raise Exit
             end
+            | I.X (I.N N_dsl_macro_args), _, I.X (I.T T_RPAREN) -> begin
+                env#clear_dsl_flag();
+                raise Exit
+            end
+
+            | I.X (I.N N_pp_base_clause_if_group), _, I.X (I.T T_CLASS_LBRACE) -> begin
+                env#set_class_brace_opening_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_base_clause_elif_group), _, I.X (I.T T_CLASS_LBRACE) -> begin
+                env#set_class_brace_opening_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_base_clause_else_group), _, I.X (I.T T_CLASS_LBRACE) -> begin
+                env#set_class_brace_opening_info();
+                raise Exit
+            end
+
             | I.X (I.N N_pp_aexpr_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
                 raise Exit
@@ -1556,15 +1584,27 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_pp_expr_if_group), _, I.X (I.T T_COMMA) when i = 3 -> begin
-                env#set_comma_info();
+                begin
+                  match scanner#peek_rawtoken() with
+                  | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_comma_info()
+                  | _ -> ()
+                end;
                 raise Exit
             end
             | I.X (I.N N_pp_expr_elif_group), _, I.X (I.T T_COMMA) when i = 3 -> begin
-                env#set_comma_info();
+                begin
+                  match scanner#peek_rawtoken() with
+                  | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_comma_info()
+                  | _ -> ()
+                end;
                 raise Exit
             end
             | I.X (I.N N_pp_expr_else_group), _, I.X (I.T T_COMMA) when i = 3 -> begin
-                env#set_comma_info();
+                begin
+                  match scanner#peek_rawtoken() with
+                  | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_comma_info()
+                  | _ -> ()
+                end;
                 raise Exit
             end
             | I.X (I.N N_pp_templ_arg_if_group), _, I.X (I.T T_COMMA) when i = 3 -> begin
@@ -1739,7 +1779,31 @@ class parser_c = object (self)
                 env#set_pp_top_label (Label.StringLiteral "");
                 raise Exit
             end
+            | I.X (I.N N_pp_str_elif_group), _, I.X (I.T T_STR_LITERAL) -> begin
+                env#set_pp_top_label (Label.StringLiteral "");
+                raise Exit
+            end
+            | I.X (I.N N_pp_str_else_group), _, I.X (I.T T_STR_LITERAL) -> begin
+                env#set_pp_top_label (Label.StringLiteral "");
+                raise Exit
+            end
             | I.X (I.N N_pp_str_if_group), _, I.X (I.T T_SEMICOLON) -> begin
+                begin
+                  match env#pp_top_label with
+                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | _ -> ()
+                end;
+                raise Exit
+            end
+            | I.X (I.N N_pp_str_elif_group), _, I.X (I.T T_SEMICOLON) -> begin
+                begin
+                  match env#pp_top_label with
+                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | _ -> ()
+                end;
+                raise Exit
+            end
+            | I.X (I.N N_pp_str_else_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
                   | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
@@ -2052,20 +2116,30 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_parameters_and_qualifiers), I.X (I.T T_TY_LPAREN)::x::_, I.X (I.T T_RPAREN) -> begin
-                if env#in_body_brace_flag then
+                if env#in_body_brace_flag && scanner#context != NEW then
                   scanner#ctx_stmt()
                 else if scanner#context == CLASS then
                   ()
                 else if scanner#context != MEM then
                   if env#stack#in_class then
                     scanner#ctx_mem()
-                  else
+                  else if scanner#context != NEW then
                     scanner#ctx_top();
                 env#set_end_of_params_flag();
                 env#stack#exit_params();
                 env#clear_ty_param_key_flag();
                 raise Exit
             end
+
+            | I.X (I.N N_macro_arg), I.X (I.T T_TY_LPAREN)::x::_, I.X (I.T T_RPAREN) -> begin
+                begin
+                  match x with
+                  | I.X (I.N N_separated_nonempty_list_COMMA_parameters_and_qualifiers_) -> env#stack#exit_params()
+                  | _ -> ()
+                end;
+                raise Exit
+            end
+
             | I.X (I.N N_handler), _, I.X (I.T T_TY_LPAREN) -> begin
                 env#stack#enter_params();
                 scanner#ctx_stmt();
@@ -2079,6 +2153,10 @@ class parser_c = object (self)
             end
             | I.X (I.N N_primary_expression), _, I.X (I.T T_RPAREN) -> begin
                 env#set_expr_flag();
+                raise Exit
+            end
+            | I.X (I.N N_lambda_introducer), _, I.X (I.T T_LAM_MACRO) -> begin
+                scanner#push_context();
                 raise Exit
             end
             | I.X (I.N N_lambda_introducer), _, I.X (I.T T_LAM_LBRACKET) -> begin
@@ -2171,35 +2249,40 @@ class parser_c = object (self)
                 else
                   scanner#ctx_top();
                 scanner#ctx_ini();
-                iter_items ~ith:2 menv_
-                  (fun item ->
-                    match item with
-                    | sn, I.X (I.N N_pp_decl_if_group), _, _, _ -> begin
-                        begin
-                          match scanner#peek_rawtoken() with
-                          | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
+                begin
+                  match PB.token_to_rawtoken scanner#current_token with
+                  | SEMICOLON true ->
+                      iter_items ~ith:2 menv_
+                        (fun item ->
+                          match item with
+                          | sn, I.X (I.N N_pp_decl_if_group), _, _, _ -> begin
+                              begin
+                                match scanner#peek_rawtoken() with
+                                | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
+                                | _ -> ()
+                              end;
+                              raise Exit
+                          end
+                          | sn, I.X (I.N N_pp_decl_elif_group), _, _, _ -> begin
+                              begin
+                                match scanner#peek_rawtoken() with
+                                | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
+                                | _ -> ()
+                              end;
+                              raise Exit
+                          end
+                          | sn, I.X (I.N N_pp_decl_else_group), _, _, _ -> begin
+                              begin
+                                match scanner#peek_rawtoken() with
+                                | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
+                                | _ -> ()
+                              end;
+                              raise Exit
+                          end
                           | _ -> ()
-                        end;
-                        raise Exit
-                    end
-                    | sn, I.X (I.N N_pp_decl_elif_group), _, _, _ -> begin
-                        begin
-                          match scanner#peek_rawtoken() with
-                          | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
-                          | _ -> ()
-                        end;
-                        raise Exit
-                    end
-                    | sn, I.X (I.N N_pp_decl_else_group), _, _, _ -> begin
-                        begin
-                          match scanner#peek_rawtoken() with
-                          | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> env#set_semicolon_info()
-                          | _ -> ()
-                        end;
-                        raise Exit
-                    end
-                    | _ -> ()
-                  );
+                        )
+                  | _ -> ()
+                end;
                 raise Exit
             end
             | I.X (I.N N_enumerator_list), _, I.X (I.T T_COMMA) -> begin
@@ -2346,6 +2429,7 @@ class parser_c = object (self)
             | I.X (I.N N_label), _, I.X (I.T T_COLON) -> begin
                 let sn = I.current_state_number menv_ in
                 ctx_start_of_stmt sn;
+                env#set_end_of_label_flag();
                 raise Exit
             end
             | I.X (I.N N_braced_init_list), _, I.X (I.T T_INI_LBRACE) -> begin
@@ -2429,6 +2513,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_decl_macro_call_), _, I.X (I.T T_LPAREN) -> begin
                 env#enter_macro_arg();
+                env#change_paren_kind PK_MACRO;
                 raise Exit
             end
             | I.X (I.N N_decl_macro_call_), _, I.X (I.T T_RPAREN) -> begin
@@ -2473,6 +2558,10 @@ class parser_c = object (self)
             end
             | I.X (I.N N_id_macro_call), _, I.X (I.T T_LPAREN) -> begin
                 env#enter_macro_arg();
+                raise Exit
+            end
+            | I.X (I.N N_alias_declaration), _, I.X (I.T T_SEMICOLON) -> begin
+                scanner#ctx_ini();
                 raise Exit
             end
             | I.X (I.N N_member_declaration), _, I.X (I.T T_SEMICOLON) -> begin
@@ -2623,7 +2712,11 @@ class parser_c = object (self)
                 if
                   try
                     match (env#stack#peek_nth 2)#scope with
-                    | Pinfo.Name.Scope.Block _ -> true
+                    | Pinfo.Name.Scope.Block _ -> begin
+                        match (env#stack#peek_nth 1)#scope with
+                        | Pinfo.Name.Scope.Class _ -> false
+                        | _ -> true
+                    end
                     | _ -> false
                   with
                     _ -> false
@@ -3410,7 +3503,13 @@ class parser_c = object (self)
                         raise Exit
                     end
                     | sn, I.X (I.N N_pp_func_body_if_section), _, _, _ -> begin
-                        scanner#ctx_top();
+                        begin
+                          try
+                            match (env#stack#top)#scope with
+                            | Pinfo.Name.Scope.Class _ -> scanner#ctx_mem();
+                            | _ -> scanner#ctx_top();
+                          with _ -> scanner#ctx_top();
+                        end;
                         scanner#ctx_ini();
                         raise Exit
                     end
@@ -3840,6 +3939,19 @@ class parser_c = object (self)
                 raise Exit
             end
 
+            | I.X (I.N N_pp_cond_tl_if_group), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_cond_tl_elif_group), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_cond_tl_else_group), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+
             | I.X (I.N N_pp_decl_if_group_broken), rhs, I.X (I.T T_LBRACE) -> begin
                 if List.nth rhs (i-2) = I.X (I.T T_EQ) then begin
                   env#enter_braced_init();
@@ -3885,6 +3997,32 @@ class parser_c = object (self)
                 end
                 | _ -> ()
             end
+            | I.X (I.N N_pp_minit_if_group), _, I.X (I.T T_LBRACE) -> begin
+                env#set_brace_opening_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_minit_elif_group), _, I.X (I.T T_LBRACE) -> begin
+                env#set_brace_opening_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_minit_else_group), _, I.X (I.T T_LBRACE) -> begin
+                env#set_brace_opening_info();
+                raise Exit
+            end
+
+            | I.X (I.N N_pp_minit_if_group), _, I.X (I.T T_RBRACE) -> begin
+                env#clear_brace_opening_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_minit_elif_group), _, I.X (I.T T_RBRACE) -> begin
+                env#clear_brace_opening_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_minit_else_group), _, I.X (I.T T_RBRACE) -> begin
+                env#clear_brace_opening_info();
+                raise Exit
+            end
+
             (*| I.X (I.N N_conditional_expression), _, I.X (I.T T_QUEST) -> begin
                 scanner#ctx_expr();
                 scanner#ctx_ini();
@@ -4002,7 +4140,12 @@ class parser_c = object (self)
                   scanner#ctx_top();
                 scanner#ctx_ini()
             end
-            | I.X (I.N N_pp_func_head_elif_group_broken) -> begin
+            | I.X (I.N N_pp_func_head_elif_group_broken) when begin
+                let rt, _, _ = scanner#current_token in
+                match rt with
+                | PP_ENDIF _ -> false
+                | _ -> true
+            end -> begin
                 if env#stack#in_class then
                   scanner#ctx_mem()
                 else

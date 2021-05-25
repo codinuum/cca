@@ -341,6 +341,59 @@ let get_char_ty_v pat s =
 let encode_ident = I.encode_ident
 let decode_ident = I.decode_ident
 
+let prefix_of_encoded s =
+  DEBUG_MSG "s=%s" s;
+  if s = "" then
+    s
+  else
+  let len = String.length s in
+  let last_pos = ref 0 in
+  let pos = ref 0 in
+  let len_s = ref "" in
+  let skipped = ref true in
+  begin
+    try
+      while true do
+        let c = s.[!pos] in
+        let ci = Char.code c in
+        if 48 <= ci && ci <= 57 then begin
+          skipped := false;
+          len_s := !len_s ^ (Char.escaped c);
+          incr pos
+        end
+        else if !skipped then begin
+          DEBUG_MSG "skipped: %c" c;
+          incr pos;
+          if !pos >= len then
+            raise Exit
+        end
+        else begin
+          let i = int_of_string !len_s in
+          DEBUG_MSG "i=%d" i;
+          len_s := "";
+          pos := !pos + i;
+          if !pos >= len then
+            raise Exit
+          else begin
+            DEBUG_MSG "last_pos: %d -> %d" !last_pos !pos;
+            last_pos := !pos;
+            skipped := true
+          end
+        end
+      done
+    with
+      Exit -> ()
+  end;
+  if !last_pos = 0 then begin
+    DEBUG_MSG "s'=\"\"";
+    ""
+  end
+  else begin
+    let s' = String.sub s 0 !last_pos in
+    DEBUG_MSG "s'=%s" s';
+    s'
+  end
+
 let rec encode_name =
   let pat = Str.regexp "::" in
   let f name =
@@ -873,8 +926,8 @@ and uqn_of_unqualified_id (nd : node) =
   | Destructor -> begin
       let c = nd#nth_child 0 in
       match c#label with
-      | TypeName _ | SimpleTemplateId _ -> "~"^(uqn_of_type_name c) (* ! *)
-      | DecltypeSpecifier -> "~"^(encode_decltype c) (* ! *)
+      | TypeName _ | SimpleTemplateId _ -> "D"^(uqn_of_type_name c) (* ! *)
+      | DecltypeSpecifier -> "D"^(encode_decltype c) (* ! *)
       | _ -> assert false
   end
   | IdentifierMacroInvocation i -> uqn_of_ident_macro_invocation nd
@@ -1096,6 +1149,9 @@ and base_spec_of_node ns (nd : node) =
   end
   | BaseSpecMacro i -> begin
       new N.Spec.base_spec (mk_macro_id i)
+  end
+  | BaseSpecMacroInvocation i -> begin
+      new N.Spec.base_spec (mk_macro_call_id i)
   end
   | _ -> invalid_arg "Cpp.Ast.base_spec_of_node"
 

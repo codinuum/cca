@@ -793,6 +793,11 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | UnsignedLong -> mkstr2 645
   | DummyBody -> mkstr2 647
   | FunctionHeadMacro i -> combo2 648 [i]
+  | DslMacroArgument -> mkstr2 649
+  | ObjcKeywordName i -> combo2 650 [i]
+  | ParametersAndQualifiersList -> mkstr2 651
+  | LambdaIntroducerMacro i -> combo2 652 [i]
+  | BaseSpecMacroInvocation i -> combo2 653 [i]
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -1295,6 +1300,8 @@ let _anonymize ?(more=false) ?(most=false) = function
   | AsmDirective _                           -> AsmDirective ""
   | VaArgs _                                 -> VaArgs ""
   | PtrMacro _                               -> PtrMacro ""
+  | LambdaCaptureMacroInvocation _           -> LambdaCaptureMacroInvocation ""
+  | LambdaIntroducerMacro _                  -> LambdaIntroducerMacro ""
   | ObjcProtocolDeclaration _                -> ObjcProtocolDeclaration ""
   | ObjcClassInterface _                     -> ObjcClassInterface ""
   | ObjcCategoryInterface _                  -> ObjcCategoryInterface("", "")
@@ -1308,6 +1315,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | ObjcKeywordArgument _                    -> ObjcKeywordArgument ""
   | ObjcSelectorExpression _                 -> ObjcSelectorExpression ""
   | ObjcMethodMacroInvocation _              -> ObjcMethodMacroInvocation ""
+  | ObjcKeywordName _                        -> ObjcKeywordName ""
 
   | SuffixMacroInvocation _ -> SuffixMacroInvocation ""
 
@@ -2834,6 +2842,7 @@ let of_elem_data =
     "LambdaDeclarator",             (fun a -> LambdaDeclarator);
     "ParenthesizedInitList",        (fun a -> ParenthesizedInitList);
     "LambdaIntroducer",             (fun a -> LambdaIntroducer);
+    "LambdaIntroducerMacro",        (fun a -> LambdaIntroducerMacro(find_ident a));
     "AbstractPackDeclarator",       (fun a -> AbstractPackDeclarator);
     "AbstractPack",                 (fun a -> AbstractPack);
     "RequirementBody",              (fun a -> RequirementBody);
@@ -2945,6 +2954,8 @@ let of_elem_data =
     "HugeArray",                    (fun a -> HugeArray(find_size a, find_code a));
     "TemplateArguments",            (fun a -> TemplateArguments);
     "SuffixMacroInvocation",        (fun a -> SuffixMacroInvocation(find_ident a));
+    "DslMacroArgument",             (fun a -> DslMacroArgument);
+    "ParametersAndQualifiersList",  (fun a -> ParametersAndQualifiersList);
 
 (* Objective-C *)
     "ObjcAutoreleasepool",                      (fun a -> ObjcAutoreleasepool);
@@ -2962,6 +2973,7 @@ let of_elem_data =
     "ObjcInstanceVariables",                    (fun a -> ObjcInstanceVariables);
     "ObjcInterfaceDeclaration",                 (fun a -> ObjcInterfaceDeclaration);
     "ObjcKeywordArgument",                      (fun a -> ObjcKeywordArgument(find_ident a));
+    "ObjcKeywordName",                          (fun a -> ObjcKeywordName(find_ident a));
     "ObjcKeywordDeclarator",                    (fun a -> ObjcKeywordDeclarator(find_ident a));
     "ObjcKeywordSelector",                      (fun a -> ObjcKeywordSelector);
     "ObjcMessageExpression",                    (fun a -> ObjcMessageExpression);
