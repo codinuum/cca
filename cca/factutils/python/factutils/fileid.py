@@ -26,7 +26,6 @@ import logging
 from .exn import Invalid_argument
 from .const import SUB_SEP, SUB_SUB_SEP
 
-#import pathsetup
 
 logger = logging.getLogger()
 

@@ -23,7 +23,6 @@ import logging
 
 from .const import SUB_SEP
 
-#import pathsetup
 
 logger = logging.getLogger()
 

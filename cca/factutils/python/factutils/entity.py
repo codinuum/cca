@@ -28,7 +28,6 @@ from .fileid import FileDigest, FileDesc
 from . import fileid
 from . import range
 
-#import pathsetup
 
 
 class External(Resource):

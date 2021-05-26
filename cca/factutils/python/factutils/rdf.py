@@ -21,7 +21,6 @@
 import RDF
 import logging
 
-#import pathsetup
 
 logger = logging.getLogger()
 

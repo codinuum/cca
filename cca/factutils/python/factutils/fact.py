@@ -29,7 +29,6 @@ from functools import reduce
 from .const import SPEC_NS, PREDICATE_NS, RELEASE_NS, SVNREV_NS, GITREV_NS, GUARD_NS
 from .rdf import Resource, Literal, Predicate, RDFNode
 
-#import pathsetup
 
 logger = logging.getLogger()
 
