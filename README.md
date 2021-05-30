@@ -57,7 +57,7 @@ You can run both Diff/AST and DiffViewer by the following line.
 ### Requirements
 
 * [OCaml](http://ocaml.org/) (>=4.11.1)
-* [OPAM](https://opam.ocaml.org/) (for installing camlzip, cryptokit, csv, git-unix, menhir, ocamlnet, pxp, ulex, uuidm, and volt.)
+* [OPAM](https://opam.ocaml.org/)
 
 ### Installation
 
