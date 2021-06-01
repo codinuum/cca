@@ -5949,6 +5949,7 @@ end;
       let glue_filt u1 u2 =
         let n1 = tree1#search_node_by_uid u1 in
         let n2 = tree2#search_node_by_uid u2 in
+        n1#data#relabel_allowed n2#data ||
         not n1#data#is_named_orig && not n2#data#is_named_orig &&
         n1#data#anonymized_label = n2#data#anonymized_label
       in

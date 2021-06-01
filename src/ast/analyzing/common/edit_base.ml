@@ -3905,9 +3905,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               raise Exit
             end
         );
+      DEBUG_MSG "false";
       false
     with
-      Exit -> true
+      Exit -> DEBUG_MSG "true"; true
 
   method dump_delta
       ?(extra_ns_decls=([] : (string * string) list))
