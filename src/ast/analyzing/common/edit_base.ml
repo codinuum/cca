@@ -1229,7 +1229,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     let segs_to_json idx ?(st=(-1)) ?(ed=(-1)) _segs =
       match _segs with
-      | [s, e] when st = e && ed = s -> ""
+      | [s, e] when st >= 0 && ed >= 0 && st <> ed && st = e && ed = s -> ""
       | _ ->
       let segs = List.filter (fun (s, e) -> s <= e) _segs in
       let seg_to_json (s, e) = sprintf "{\"start\":%d,\"end\":%d}" s e in
