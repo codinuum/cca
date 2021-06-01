@@ -1281,7 +1281,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       | Ast.Pparen expr ->
           let e_nd = self#of_expression expr in
           let tid = self#mktid e_nd in
-          self#mknode (L.Primary (L.Primary.Paren tid)) [self#of_expression expr]
+          self#mknode (L.Primary (L.Primary.Paren tid)) [e_nd]
 
       | Ast.PclassInstanceCreation class_instance_creation ->
           self#of_class_instance_creation class_instance_creation
@@ -1616,7 +1616,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
           self#mknode lab
-            [self#of_expression e;
+            [e_;
              self#of_statement ~block_context:"if" s] (* order sensitive s -> e *)
 
       | Ast.SifThenElse(e, s1, s2) ->
@@ -1625,7 +1625,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
           self#mknode lab
-            [self#of_expression e;
+            [e_;
              self#of_statement ~block_context:"if" s1;
              self#of_statement ~block_context:"if" s2] (* order sensitive s2 -> s1 -> e *)
 
