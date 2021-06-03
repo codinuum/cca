@@ -868,6 +868,53 @@ class ['node_t] c cenv = object (self : 'self)
     with
       Sys_error s -> WARN_MSG s
 
+  method dump_json ?(comp=Comp.none) fname =
+    let tree1 = cenv#tree1 in
+    let tree2 = cenv#tree2 in
+    let _fprintf ch fmt =
+      Printf.ksprintf (fun s -> ignore (ch#output_ s 0 (String.length s))) fmt
+    in
+    let dump_node ch nd =
+      let loc = nd#data#src_loc in
+      let so = loc.Loc.start_offset in
+      let eo = loc.Loc.end_offset in
+      let sl = loc.Loc.start_line in
+      let el = loc.Loc.end_line in
+      let lab = nd#data#get_category in
+      _fprintf ch "{";
+      _fprintf ch "\"label\":\"%s\"" lab;
+      _fprintf ch ",\"start_offset\":%d,\"end_offset\":%d,\"start_line\":%d,\"end_line\":%d" so eo sl el;
+      _fprintf ch "}";
+    in
+    let dump_map ?(comma=false) ch map =
+      let comma_flag = ref comma in
+      Hashtbl.iter
+        (fun u1 u2 ->
+          let n1 = tree1#search_node_by_uid u1 in
+          let n2 = tree2#search_node_by_uid u2 in
+
+          if !comma_flag then
+            _fprintf ch ",";
+          _fprintf ch "[";
+          dump_node ch n1;
+          _fprintf ch ",";
+          dump_node ch n2;
+          _fprintf ch "]";
+          comma_flag := true;
+
+        ) map;
+      !comma_flag
+    in
+    try
+      let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
+      _fprintf ch "[";
+      let comma = dump_map ch map in
+      dump_map ~comma ch s_map;
+      _fprintf ch "]";
+      ch#close
+    with
+    | Xchannel.Error s -> WARN_MSG s
+
 
   method dump_with_info ?(comp=Comp.none) fname =
     let _fprintf ch fmt =

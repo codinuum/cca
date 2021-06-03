@@ -1046,6 +1046,7 @@ module F (Label : Spec.LABEL_T) = struct
       Stat.File.dump_diff_stat dstat diff_stat;
 
       uidmapping#dump_with_info ~comp:Compression.gzip (dmap^".gz");
+      uidmapping#dump_json ~comp:Compression.gzip (dmap^".json.gz");
 
       if options#fact_for_mapping_flag then
 	Lang.extract_mapping_fact options lang uidmapping dmapfact tree1 tree2;

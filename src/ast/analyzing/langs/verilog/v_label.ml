@@ -2109,6 +2109,8 @@ let is_stmt = function
   | Stmt _ -> true
   | _ -> false
 
+let is_statement = is_stmt
+
 let is_pp_define = function
   | CompilerDirective (CompilerDirective.Define _) -> true
   | _ -> false

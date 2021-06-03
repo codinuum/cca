@@ -62,7 +62,7 @@ module type T = sig
   val is_typeparameter         : t -> bool
   val is_typeparameters        : t -> bool
   val is_typearguments         : ?nth:int -> t -> bool
-  val is_statement             : t -> bool
+  (*val is_statement             : t -> bool*)
   val is_field                 : t -> bool
   val is_type                  : t -> bool
   val is_class                 : t -> bool
@@ -2727,6 +2727,8 @@ let relabel_allowed (lab1, lab2) =
 
     | CatchClause _, CatchClause _
 
+    | LocalVariableDeclaration _, Resource _ | Resource _, LocalVariableDeclaration _
+
 (*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
 
@@ -2889,6 +2891,7 @@ let is_boundary = function
   | Class _
   | Interface _
   | Method _
+  | Constructor _
   | ImportDeclarations
   | TypeDeclarations
   | CompilationUnit -> true
@@ -2970,6 +2973,7 @@ let is_typearguments ?(nth=1) = function
 
 let is_statement = function
   | Statement _ -> true
+  | LocalVariableDeclaration(true, _) -> true
   | _ -> false
 
 let is_statement_or_block = function

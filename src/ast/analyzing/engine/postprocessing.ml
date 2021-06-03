@@ -3516,7 +3516,7 @@ module F (Label : Spec.LABEL_T) = struct
           if (get_count tbl1 u1) = 0 && (get_count tbl2 u2) = 0 then begin
             if
               not (Xset.mem _set1 u1) && not (Xset.mem _set2 u2) ||
-              not options#dump_delta_flag && _are_named_orig u1 u2 ||
+              not (options#dump_delta_flag || options#conservative_flag) && _are_named_orig u1 u2 ||
               _is_mapped u1 u2
             then begin
               tbl_add tbl1 u1;
@@ -5917,7 +5917,7 @@ end;
     end;
 
     (* *)
-    if options#dump_delta_flag then begin
+    if options#dump_delta_flag || options#conservative_flag then begin
       elaborate_edits_for_delta options tree1 tree2 uidmapping edits;
 
       let dels, inss =

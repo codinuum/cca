@@ -1228,13 +1228,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method dump_diff_json_ch ?(line_align=[]) (tree1 : 'tree_t) (tree2 : 'tree_t) =
 
     let segs_to_json idx ?(st=(-1)) ?(ed=(-1)) _segs =
-      match _segs with
-      | [s, e] when st >= 0 && ed >= 0 && st <> ed && st = e && ed = s -> ""
-      | _ ->
       let segs = List.filter (fun (s, e) -> s <= e) _segs in
       let seg_to_json (s, e) = sprintf "{\"start\":%d,\"end\":%d}" s e in
       let extra =
-        if st >= 0 && ed >= 0 && st <= ed then
+        if st >= 0 && st <= ed then
           sprintf "\"start%d\":%d,\"end%d\":%d" idx st idx ed
         else
           ""
@@ -1414,7 +1411,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 n1#data#is_named_orig && n2#data#is_named_orig ||
                 (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
                 (not (n1#data#is_compatible_with n2#data) &&
-                 n1#data#more_anonymized_label <> n2#data#more_anonymized_label)
+                 n1#data#more_anonymized_label <> n2#data#more_anonymized_label) ||
+                 n1#data#has_value && n2#data#has_value && n1#data#get_value <> n2#data#get_value
               in
               if ok then begin
                 let loc1 = Info.get_loc info1 in

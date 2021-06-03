@@ -1361,6 +1361,12 @@ let is_real_literal = function
   | Primary (Primary.Literal (Literal.FloatNumber _)) -> true
   | _ -> false
 
+let is_statement = function
+  | Statement _
+  | SimpleStatement _
+    -> true
+  | _ -> false
+
 
 (* for fact extraction *)
 

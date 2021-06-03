@@ -1721,6 +1721,8 @@ let is_stmt = function
     -> true
   | _ -> false
 
+let is_statement = is_stmt
+
 let get_ident_use = function
   | _ -> ""
 
