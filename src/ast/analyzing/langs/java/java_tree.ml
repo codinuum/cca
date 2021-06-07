@@ -1278,6 +1278,8 @@ class translator options = let bid_gen = new BID.generator in object (self)
           in
           self#mkleaf ~orig_lab_opt (L.Primary (L.Primary.QualifiedThis (L.conv_name name)))
 
+      | Ast.Pparen expr when options#ast_reduction_flag -> self#of_expression expr
+
       | Ast.Pparen expr ->
           let e_nd = self#of_expression expr in
           let tid = self#mktid e_nd in
