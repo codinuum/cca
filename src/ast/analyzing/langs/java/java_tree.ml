@@ -644,7 +644,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
       match tbound with
       | None -> []
       | Some tb when options#ast_reduction_flag -> begin
-          let t = P.type_to_string tb.Ast.tb_reference_type in
+          let t = P.type_to_string ~show_attr:false tb.Ast.tb_reference_type in
           if t = "java.lang.Object" then
             []
           else

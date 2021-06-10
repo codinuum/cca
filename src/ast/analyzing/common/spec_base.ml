@@ -64,7 +64,7 @@ class type node_data_t_shared = object ('self)
 
   method label           : string
   method _label          : Obj.t
-  method is_compatible_with : 'self -> bool
+  method is_compatible_with : ?weak:bool -> 'self -> bool
   method relabel_allowed    : 'self -> bool
   method quasi_eq           : 'self -> bool
   method to_be_notified  : bool

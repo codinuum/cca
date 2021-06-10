@@ -682,7 +682,7 @@ let check_attrs attrs elem_attrs =
 
 let conv_pat pat = "^"^pat^"$"
 
-let is_compatible _ _ = false
+let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
   | _ -> false

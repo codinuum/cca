@@ -2145,7 +2145,7 @@ let is_expr = function
   | lab -> is_primary lab
 
 
-let is_compatible _ _ = false
+let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
   | _ -> false

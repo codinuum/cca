@@ -1332,15 +1332,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     DEBUG_MSG "* DUMPING DIFF DATA (%d edit(s))\n" self#get_nedits;
 
-    let mkpath tree =
+    (*let mkpath tree =
       if Storage.kind_is_fs tree#source_kind then
         tree#source_fullpath
       else
         tree#source_path
-    in
+    in*)
 
-    let iginfos1 = List.map (Info.of_region ~fname:(mkpath tree1)) ignored1 in
-    let iginfos2 = List.map (Info.of_region ~fname:(mkpath tree2)) ignored2 in
+    let iginfos1 = List.map (Info.of_region (*~fname:(mkpath tree1)*)) ignored1 in
+    let iginfos2 = List.map (Info.of_region (*~fname:(mkpath tree2)*)) ignored2 in
 
     BEGIN_DEBUG
       DEBUG_MSG "ignored regions1: %s" (segments_to_string ignored1);
@@ -1410,7 +1410,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 let n2 = Info.get_node info2 in
                 n1#data#is_named_orig && n2#data#is_named_orig ||
                 (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
-                (not (n1#data#is_compatible_with n2#data) &&
+                (not (n1#data#is_compatible_with ?weak:(Some true) n2#data) &&
                  n1#data#more_anonymized_label <> n2#data#more_anonymized_label) ||
                  n1#data#has_value && n2#data#has_value && n1#data#get_value <> n2#data#get_value
               in

@@ -326,10 +326,10 @@ module Tree (L : Spec.LABEL_T) = struct
       method relabel_allowed (ndat : 'self) =
 	L.relabel_allowed (lab, (Obj.obj ndat#_label : L.t))
 
-      method is_compatible_with (ndat : 'self) =
-        L.is_compatible lab (Obj.obj ndat#_label : L.t) ||
+      method is_compatible_with ?(weak=false) (ndat : 'self) =
+        L.is_compatible ~weak lab (Obj.obj ndat#_label : L.t) ||
         match orig_lab_opt, ndat#orig_lab_opt with
-        | Some l1, Some o2 -> L.is_compatible l1 (Obj.obj o2)
+        | Some l1, Some o2 -> L.is_compatible ~weak l1 (Obj.obj o2)
         | _ -> false
 
       method is_order_insensitive = L.is_order_insensitive lab
@@ -481,10 +481,10 @@ module Tree (L : Spec.LABEL_T) = struct
               self#elem_name_for_delta = x#elem_name_for_delta ||
               (match self#orig_lab_opt, x#orig_lab_opt with
               | Some o1, Some o2 -> o1 = o2
-              | Some o1, None -> L.is_compatible (Obj.obj o1) (Obj.obj x#_label)
-              | None, Some o2 -> L.is_compatible (Obj.obj _label) (Obj.obj o2)
+              | Some o1, None -> L.is_compatible ~weak:true (Obj.obj o1) (Obj.obj x#_label)
+              | None, Some o2 -> L.is_compatible ~weak:true (Obj.obj _label) (Obj.obj o2)
               | _ -> false) ||
-              self#is_compatible_with x)
+              self#is_compatible_with ~weak:true x)
           else
             (fun x -> _label = x#_label && self#orig_lab_opt = x#orig_lab_opt);
 	self#update

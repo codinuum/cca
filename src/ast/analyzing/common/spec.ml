@@ -357,7 +357,7 @@ module type LABEL_T = sig
 
   val relabel_allowed          : t * t -> bool
   val quasi_eq                 : t -> t -> bool
-  val is_compatible            : t -> t -> bool
+  val is_compatible            : ?weak:bool -> t -> t -> bool
   val is_order_insensitive     : t -> bool
   val move_disallowed          : t -> bool
   val is_common                : t -> bool

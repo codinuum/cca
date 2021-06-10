@@ -1885,7 +1885,7 @@ let has_non_trivial_value lab =
   with
     Not_found -> false
 
-let is_compatible _ _ = false
+let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
   | _ -> false
