@@ -45,6 +45,7 @@ class c = object (self)
   val mutable trust_tree_matcher_flag      = true
   val mutable use_adjacency_matches_flag   = true
   val mutable no_unnamed_node_move_flag    = false
+  val mutable conservative_flag            = true
 
 (* *)
 
@@ -156,6 +157,10 @@ class c = object (self)
   method no_unnamed_node_move_flag = no_unnamed_node_move_flag
   method set_no_unnamed_node_move_flag = no_unnamed_node_move_flag <- true
   method clear_no_unnamed_node_move_flag = no_unnamed_node_move_flag <- false
+
+  method conservative_flag = conservative_flag
+  method set_conservative_flag = conservative_flag <- true
+  method clear_conservative_flag = conservative_flag <- false
 
 (* *)
 

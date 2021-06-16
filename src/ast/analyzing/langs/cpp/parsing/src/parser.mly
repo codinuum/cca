@@ -825,7 +825,7 @@ odd_stmt:
       mknode ~pvec:[List.length ll; 1] $startpos $endpos L.LabeledStatement (ll @ [s])
     }
 ;
-%inline
+(*%inline*)
 _odd_stmt:
 | e=expression { e }
 | e=expression ODD_RBRACE { e }
@@ -1110,7 +1110,7 @@ odd_if_stmt:
       mknode ~pvec $startpos(i) $endpos L.IfStatement (cl @ il @ [c])
     }
 ;
-%inline
+(*%inline*)
 odd_else_stmt:
 | RBRACE ELSE o=odd_if_stmt_open
     { 
@@ -1158,7 +1158,7 @@ pp_stmt_else_group:
 | p=pp_else sl=statement_seq o=odd_stmt
     { mknode ~pvec:[1; List.length sl + 1] $startpos $endpos (_pp_else_group p) (p::sl@[o]) }
 ;
-%inline
+(*%inline*)
 odd_if_stmt_open:
 | IF c_opt=ioption(constexpr) LPAREN i_opt=ioption(init_statement) c=condition RPAREN
     l=LBRACE sl=stmt_seq0
@@ -1979,7 +1979,7 @@ pp_gnu_asm_else_group:
     { mknode ~pvec:[1; 1; 0] $startpos $endpos (_pp_else_group p) [p; c] }
 ;
 
-%inline
+(*%inline*)
 gnu_asm_token:
 | i=IDENT          { mktok $startpos $endpos (T.IDENT i) }
 | i=IDENT_V        { mktok $startpos $endpos (T.IDENT i) }
@@ -2057,7 +2057,7 @@ gnu_asm_token:
 | s=OBJC_UNKNOWN   { mktok $startpos $endpos (T.OBJC_UNKNOWN s) }
 ;
 
-%inline
+(*%inline*)
 asm_token:
 | LPAREN    { mktok $startpos $endpos T.LPAREN }
 | TY_LPAREN { mktok $startpos $endpos T.TY_LPAREN }
@@ -6654,7 +6654,7 @@ has_include_expression:
 | HAS_INCLUDE LPAREN s=STR_LITERAL RPAREN
     { mkleaf $startpos $endpos (L.HasIncludeExpression s) }
 ;
-%inline
+(*%inline*)
 header_name_token:
 | i=IDENT     { i }
 | i=IDENT_V   { i }
@@ -8579,7 +8579,7 @@ lambda_expression:
 | lh=_lambda_expression DUMMY_STMT { lh }
 ;
 
-%inline
+(*%inline*)
 _lambda_expression:
 | l=lambda_introducer
     { 
@@ -9850,7 +9850,7 @@ restricted_decl:
 | d=DECL_MACRO { mkleaf $startpos $endpos (L.DeclarationMacro d) }
 ;
 
-%inline
+(*%inline*)
 q_prop_token:
 | i=IDENT        { mkleaf $startpos $endpos (L.Identifier i) }
 | i=IDENT_V      { mkleaf $startpos $endpos (L.Identifier i) }

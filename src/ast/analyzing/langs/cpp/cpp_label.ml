@@ -1721,6 +1721,8 @@ let is_stmt = function
     -> true
   | _ -> false
 
+let is_statement = is_stmt
+
 let get_ident_use = function
   | _ -> ""
 
@@ -2214,7 +2216,7 @@ let is_desig_old = function
   | _ -> false
 
 
-let is_compatible lab1 lab2 =
+let is_compatible ?(weak=false) lab1 lab2 =
   match lab1, lab2 with
   | _ -> false
 

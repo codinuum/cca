@@ -62,7 +62,7 @@ module type T = sig
   val is_typeparameter         : t -> bool
   val is_typeparameters        : t -> bool
   val is_typearguments         : ?nth:int -> t -> bool
-  val is_statement             : t -> bool
+  (*val is_statement             : t -> bool*)
   val is_field                 : t -> bool
   val is_type                  : t -> bool
   val is_class                 : t -> bool
@@ -411,8 +411,10 @@ module Literal = struct
     Str.global_replace escaped_double_quote_pat "\"" s
 
   let escaped_single_quote_pat = Str.regexp_string "\\'"
+  let tab_pat = Str.regexp_string "\t"
   let reduce_string s = (* remove slash followed by single quote *)
-    Str.global_replace escaped_single_quote_pat "'" s
+    let s_ = Str.global_replace escaped_single_quote_pat "'" s in
+    Str.global_replace tab_pat "\\t" s_
 
   let of_literal ?(reduce=false) = function
     | Ast.Lcharacter str when reduce -> (Character (reduce_char str))
@@ -2635,14 +2637,14 @@ let is_statement_expression = function
   end
   | _ -> false
 
-let is_compatible lab1 lab2 =
+let is_compatible ?(weak=false) lab1 lab2 =
   match lab1, lab2 with
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
-  | ClassBody _, InterfaceBody _ | InterfaceBody _, ClassBody _ -> true
-  | ClassBody _, EnumBody _ | EnumBody _, ClassBody _ -> true
-  | EnumBody _, InterfaceBody _ | InterfaceBody _, EnumBody _ -> true
+  | ClassBody _, InterfaceBody _ | InterfaceBody _, ClassBody _ when weak -> true (* invalid when dumping delta *)
+  | ClassBody _, EnumBody _ | EnumBody _, ClassBody _ when weak -> true
+  | EnumBody _, InterfaceBody _ | InterfaceBody _, EnumBody _ when weak -> true
   | _ -> false
 
 let quasi_eq lab1 lab2 =
@@ -2726,6 +2728,8 @@ let relabel_allowed (lab1, lab2) =
     | WildcardBoundsSuper, Type _ | Type _, WildcardBoundsSuper
 
     | CatchClause _, CatchClause _
+
+    | LocalVariableDeclaration _, Resource _ | Resource _, LocalVariableDeclaration _
 
 (*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
@@ -2889,6 +2893,7 @@ let is_boundary = function
   | Class _
   | Interface _
   | Method _
+  | Constructor _
   | ImportDeclarations
   | TypeDeclarations
   | CompilationUnit -> true
@@ -2970,6 +2975,7 @@ let is_typearguments ?(nth=1) = function
 
 let is_statement = function
   | Statement _ -> true
+  | LocalVariableDeclaration(true, _) -> true
   | _ -> false
 
 let is_statement_or_block = function

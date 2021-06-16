@@ -529,6 +529,8 @@ class parser_c = object (self)
       | N__init_statement -> "_init_statement"
       | N__initializer_list -> "_initializer_list"
       | N__namespace_alias_definition -> "_namespace_alias_definition"
+      | N__lambda_expression -> "_lambda_expression"
+      | N__odd_stmt -> "_odd_stmt"
       | N__opaque_enum_declaration -> "_opaque_enum_declaration"
       | N__pp_define -> "_pp_define"
       | N__pp_dinit_if_section_list -> "_pp_dinit_if_section_list"
@@ -569,6 +571,7 @@ class parser_c = object (self)
       | N_alignment_specifier -> "alignment_specifier"
       | N_and_expression -> "and_expression"
       | N_asm_block -> "asm_block"
+      | N_asm_token -> "asm_token"
       | N_assignment_expression -> "assignment_expression"
       | N_assignment_operator -> "assignment_operator"
       | N_attr_macro_call -> "attr_macro_call"
@@ -688,9 +691,11 @@ class parser_c = object (self)
       | N_function_try_block -> "function_try_block"
       | N_gnu_asm_attr -> "gnu_asm_attr"
       | N_gnu_asm_frag_seq -> "gnu_asm_frag_seq"
+      | N_gnu_asm_token -> "gnu_asm_token"
       | N_gnu_attribute -> "gnu_attribute"
       | N_gnu_attribute_seq -> "gnu_attribute_seq"
       | N_handler -> "handler"
+      | N_header_name_token -> "header_name_token"
       | N_handler_seq -> "handler_seq"
       | N_has_attribute_expression -> "has_attribute_expression"
       | N_has_include_expression -> "has_include_expression"
@@ -904,7 +909,9 @@ class parser_c = object (self)
       | N_objc_try -> "objc_try"
       | N_objc_visibility_spec -> "objc_visibility_spec"
       | N_odd_decl -> "odd_decl"
+      | N_odd_else_stmt -> "odd_else_stmt"
       | N_odd_expr -> "odd_expr"
+      | N_odd_if_stmt_open -> "odd_if_stmt_open"
       | N_odd_mult_expr -> "odd_mult_expr"
       | N_odd_mem_decl -> "odd_mem_decl"
       | N_odd_stmt -> "odd_stmt"
@@ -1178,6 +1185,7 @@ class parser_c = object (self)
       | N_ptr_declarator -> "ptr_declarator"
       | N_ptr_operator -> "ptr_operator"
       | N_pure_specifier -> "pure_specifier"
+      | N_q_prop_token -> "q_prop_token"
       | N_qualified_id -> "qualified_id"
       | N_quasi_keyword -> "quasi_keyword"
       | N_ref_qualifier -> "ref_qualifier"
@@ -3978,6 +3986,29 @@ class parser_c = object (self)
                     raise Exit
                 end
                 | _ -> ()
+            end
+            | I.X (I.N N_odd_if_stmt_open), _, I.X (I.T T_LBRACE) -> begin
+                match scanner#peek_rawtoken() with
+                | PP_ELIF _ | PP_ELSE _ -> begin
+                    scanner#enter_block();
+                    DEBUG_MSG "!!! info=%s" (Pinfo.pp_if_section_info_to_string env#pp_if_section_top_info);
+                    iter_items_w ~from_ith:7 ~to_ith:7 menv_
+                      (function
+                        | sn, I.X (I.N N_pp_stmt_if_group), _, _, _ -> ()
+                        | _ -> env#set_broken_info();
+                      );
+                    raise Exit
+                end
+                | _ -> begin
+                    iter_items_w ~from_ith:7 ~to_ith:7 menv_
+                      (function
+                        | sn, I.X (I.N N_pp_stmt_if_group), _, _, _ -> begin
+                            ctx_start_of_stmt sn;
+                            raise Exit
+                        end
+                        | _ -> ()
+                      )
+                end
             end
             | I.X (I.N N_pp_stmt_if_group_broken), _, I.X (I.T T_COMMA_BROKEN) -> begin
                 match scanner#peek_rawtoken() with

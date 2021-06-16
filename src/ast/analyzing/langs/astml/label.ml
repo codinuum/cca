@@ -153,6 +153,7 @@ let is_string_literal { elem_name=name; elem_attrs=attrs; } =
 
 let is_int_literal lab = false (* not yet *)
 let is_real_literal lab = false (* not yet *)
+let is_statement lab = false (* not yet *)
 
 let to_string { elem_name=elem; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns; } =
   let attrs_s =
@@ -681,7 +682,7 @@ let check_attrs attrs elem_attrs =
 
 let conv_pat pat = "^"^pat^"$"
 
-let is_compatible _ _ = false
+let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
   | _ -> false

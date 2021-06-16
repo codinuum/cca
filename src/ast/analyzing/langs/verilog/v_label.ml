@@ -1885,7 +1885,7 @@ let has_non_trivial_value lab =
   with
     Not_found -> false
 
-let is_compatible _ _ = false
+let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
   | _ -> false
@@ -2108,6 +2108,8 @@ let is_expr = function
 let is_stmt = function
   | Stmt _ -> true
   | _ -> false
+
+let is_statement = is_stmt
 
 let is_pp_define = function
   | CompilerDirective (CompilerDirective.Define _) -> true

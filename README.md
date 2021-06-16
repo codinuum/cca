@@ -52,7 +52,22 @@ You can run both Diff/AST and DiffViewer by the following line.
 
     $ ./cca.py diffast -c results --view samples/java/0/Test.java samples/java/1/Test.java
 
+## Installing parsers and Diff/AST
+
+### Requirements
+
+* [OCaml](http://ocaml.org/) (>=4.11.1)
+* [OPAM](https://opam.ocaml.org/)
+
+### Installation
+
+The following will install `parsesrc` and `diffast`.
+
+    $ opam install cca
+
 ## Building parsers and Diff/AST
+
+You can also build parsers and Diff/AST in person.
 
 ### Requirements
 

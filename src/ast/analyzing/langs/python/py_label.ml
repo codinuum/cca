@@ -1269,7 +1269,7 @@ let is_named_orig = function
   | Statement stmt -> Statement.is_named_orig stmt
   | _ -> false
 
-let is_compatible _ _ = false
+let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
   | _ -> false
@@ -1359,6 +1359,12 @@ let is_int_literal = function
 
 let is_real_literal = function
   | Primary (Primary.Literal (Literal.FloatNumber _)) -> true
+  | _ -> false
+
+let is_statement = function
+  | Statement _
+  | SimpleStatement _
+    -> true
   | _ -> false
 
 

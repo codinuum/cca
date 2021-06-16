@@ -3,10 +3,11 @@ FROM ubuntu:20.04
 MAINTAINER codinuum
 
 RUN set -x && \
-    useradd -r -s /bin/nologin cca && \
     mkdir -p /opt/cca/modules && \
     mkdir -p /var/lib/cca && \
-    mkdir /root/src
+    useradd -r -d /opt/cca -s /bin/nologin cca && \
+    chown -R cca:cca /opt/cca && \
+    chown -R cca:cca /var/lib/cca
 
 COPY LICENSE /opt/cca/
 COPY cca /opt/cca/
@@ -27,35 +28,38 @@ RUN set -x && \
             unixodbc \
             openjdk-8-jdk \
             python3 python3-dev \
-            python3-distutils \
-            python3-psutil \
             python3-pygit2 \
-            python3-distutils \
+            python3-svn \
+            python3-daemon \
+            python3-venv \
             wget ca-certificates \
             git rsync && \
     wget https://bootstrap.pypa.io/get-pip.py && \
     python3 get-pip.py && \
-    pip3 install pyodbc simplejson && \
+    pip3 install pyodbc setuptools build javalang && \
     rm get-pip.py
-
-RUN set -x && \
-    cd /root && \
-    git clone https://github.com/dajobe/redland-bindings && \
-    cd redland-bindings && \
-    ./autogen.sh --with-python=python3 && \
-    make install && \
-    cd /root && \
-    rm -r redland-bindings
 
 RUN set -x && \
     cd /root && \
     git clone https://github.com/openlink/virtuoso-opensource && \
     cd virtuoso-opensource && \
     ./autogen.sh && \
-    env CFLAGS='-O2 -m64' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad --enable-isparql-vad --enable-rdfmappers-vad && \
+    env CFLAGS='-O2 -m64' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
+    --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
+    --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad \
+    --enable-isparql-vad --enable-rdfmappers-vad && \
     make && make install && \
     cd /root && \
     rm -r virtuoso-opensource
+
+COPY python /root/python
+
+RUN set -x && \
+    cd /root/python && \
+    python3 -m build && \
+    pip3 install dist/cca-*.tar.gz && \
+    cd /root && \
+    rm -r python
 
 COPY src /root/src/
 
@@ -74,7 +78,10 @@ RUN set -x && \
     cp modules/Mfortran*.cmxs /opt/cca/modules/ && \
     cp modules/Mcpp*.cmxs /opt/cca/modules/ && \
     cd /root && \
-    rm -r src
+    rm -r src && \
+    echo 'test -r /root/.opam/opam-init/init.sh && . /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> .bashrc && \
+    echo 'export PATH=/opt/cca/bin:${PATH}' >> .bashrc
+
 
 RUN set -x && \
     apt-get autoremove -y && \

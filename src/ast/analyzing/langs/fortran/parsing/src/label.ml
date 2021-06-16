@@ -1974,6 +1974,8 @@ let is_stmt = function
   | Stmt _ -> true
   | _ -> false
 
+let is_statement = is_stmt
+
 let get_stmt_label = function
   | Stmt stmt -> Stmt.get_stmt_label stmt
   | _ -> raise Not_found

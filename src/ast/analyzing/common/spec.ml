@@ -65,8 +65,9 @@ class type node_data_t = object ('self)
   method has_value    : bool
   method has_non_trivial_value : bool
   method is_string_literal : bool
-  method is_int_literal : bool
-  method is_real_literal : bool
+  method is_int_literal    : bool
+  method is_real_literal   : bool
+  method is_statement      : bool
 
   method move_disallowed : bool
   method is_common       : bool
@@ -356,7 +357,7 @@ module type LABEL_T = sig
 
   val relabel_allowed          : t * t -> bool
   val quasi_eq                 : t -> t -> bool
-  val is_compatible            : t -> t -> bool
+  val is_compatible            : ?weak:bool -> t -> t -> bool
   val is_order_insensitive     : t -> bool
   val move_disallowed          : t -> bool
   val is_common                : t -> bool
@@ -391,6 +392,8 @@ module type LABEL_T = sig
   val is_string_literal  : t -> bool
   val is_int_literal     : t -> bool
   val is_real_literal    : t -> bool
+
+  val is_statement       : t -> bool
 
   val to_tag             : t -> string * (string * string) list
 
