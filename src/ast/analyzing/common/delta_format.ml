@@ -286,7 +286,8 @@ module IrreversibleFormat = struct
 
           | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to,
                   key_opt, adj_opt, depth_opt, shift_opt) -> begin
-                    interpreter#reg_deleted path_from paths_from (Some (key_of_mid mid));
+                    if mctl <> MinsertOnly then
+                      interpreter#reg_deleted path_from paths_from (Some (key_of_mid mid));
                     if mctl <> MdeleteOnly then
                       interpreter#reg_moved_subtree
                         ~key_opt ~adj_opt ~depth_opt ~shift_opt

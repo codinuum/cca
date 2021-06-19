@@ -197,7 +197,27 @@ module Type = struct
   let common_classes =
     let s = Xset.create 0 in
     List.iter (Xset.add s)
-      ["java.lang.Object";"java.lang.String"];
+      ["java.lang.Object";
+       "java.lang.Void";
+       "java.lang.Character";
+       "java.lang.String";
+       "java.lang.Byte";
+       "java.lang.Short";
+       "java.lang.Integer";
+       "java.lang.Long";
+       "java.lang.Float";
+       "java.lang.Double";
+       "java.lang.reflect.Array";
+       "java.lang.reflect.Modifier";
+       "java.lang.reflect.Constructor";
+       "java.lang.reflect.Method";
+       "java.lang.reflect.Parameter";
+       "java.lang.reflect.Field";
+       "java.util.List";
+       "java.util.Iterator";
+       "java.util.Map";
+       "java.util.Set"
+     ];
     s
 
   let is_common = function
@@ -2715,7 +2735,11 @@ let relabel_allowed (lab1, lab2) =
     | Method _, Constructor _ | Constructor _, Method _
 
     | MethodBody _, MethodBody _
+    | MethodBody _, ConstructorBody _ | ConstructorBody _, MethodBody _
     | ConstructorBody _, ConstructorBody _
+
+    | MethodBody _, Block _ | Block _, MethodBody _
+    | ConstructorBody _, Block _ | Block _, ConstructorBody _
 
     | Type _, Type _
     | Primary _, Primary _

@@ -5597,12 +5597,35 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       Invalid_argument _ ->
         failwith "Delta.interpreter#acc: invalid tree path access"
 
+  method acc_from r p =
+    try
+      tree#initial_acc ?from:(Some r) p
+    with
+      Invalid_argument _ ->
+        failwith "Delta.interpreter#acc: invalid tree path access"
+
   method acc_parent ?(ignore_ofs=false) p =
     try
       tree#initial_acc_parent ?ignore_ofs:(Some ignore_ofs) ?from:None p
     with
       Invalid_argument _ ->
         failwith "Delta.interpreter#acc_parent: invalid tree path access"
+
+  method boundary_to_nds_from ?(junc=false) rt (paths : boundary) =
+    List.map
+      (fun bpath ->
+        let nd = self#acc_from rt bpath#path in
+        if bpath#upstream > 0 then begin
+          match bpath#key_opt with
+          | Some _ -> self#reg_quasi_upstream_node nd bpath#upstream
+          | _ -> self#reg_upstream_node nd bpath#upstream
+        end;
+        if junc && bpath#upstream < 2 then begin
+          DEBUG_MSG "junc_node: %a" nps nd;
+          Xset.add junc_nodes nd
+        end;
+        nd
+      ) paths
 
   method boundary_to_nds ?(junc=false) path (paths : boundary) =
     List.map
@@ -5929,13 +5952,26 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | MdeleteOnly -> ()
     | _ -> begin
         let apply nd =
+	  DEBUG_MSG "nd=%s" nd#initial_to_string;
           let q = Queue.create() in
           subtree#preorder_scan_all
             (fun n ->
 	      DEBUG_MSG "     queueing %s" n#initial_to_string;
 	      Queue.add n#data q
             );
-          scan_initial_cluster nd (self#boundary_to_nds path paths)
+          (*let nds = self#boundary_to_nds path paths in*)
+          let nds =
+            try
+              self#boundary_to_nds_from nd paths
+            with
+              _ ->
+                DEBUG_MSG "boundary_to_nds_from: failed";
+                self#boundary_to_nds path paths
+          in
+          BEGIN_DEBUG
+            List.iteri (fun i n -> DEBUG_MSG "%d: %s" i n#initial_to_string) nds;
+          END_DEBUG;
+          scan_initial_cluster nd nds
             (fun n ->
 	      DEBUG_MSG "     n -> %s" n#initial_to_string;
 	      try

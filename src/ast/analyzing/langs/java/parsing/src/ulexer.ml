@@ -322,13 +322,14 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   |   _ ->
       let s = Ulexing.utf8_lexeme lexbuf in
+      let mes = Printf.sprintf "invalid symbol(%s)" s in
       if env#keep_going_flag then begin
         let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
-        Common.warning_loc loc "invalid symbol(%s)" s;
-        token lexbuf
+        Common.warning_loc loc "%s" mes;
+        mktok (ERROR mes) lexbuf
       end
       else
-        lexing_error lexbuf (Printf.sprintf "invalid symbol(%s)" s)
+        lexing_error lexbuf mes
 
 	
 
