@@ -214,13 +214,21 @@ module Type = struct
        "java.lang.reflect.Parameter";
        "java.lang.reflect.Field";
        "java.util.List";
+       "java.util.Collection";
        "java.util.Iterator";
        "java.util.Map";
-       "java.util.Set"
+       "java.util.Set";
+       "java.util.ArrayList";
+       "java.util.HashMap";
+       "java.util.BitSet";
+       "java.util.HashSet";
      ];
     s
 
   let is_common = function
+    | Byte | Short | Int | Long | Char
+    | Float | Double | Boolean | Void
+      -> true
     | ClassOrInterface n
     | Class n
       -> Xset.mem common_classes n

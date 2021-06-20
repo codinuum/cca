@@ -2401,7 +2401,9 @@ module Edit = struct
                       (List.map
                          (fun x ->
                            try
-                             Hashtbl.find stable_node_group_tbl x
+                             let g = Hashtbl.find stable_node_group_tbl x in
+                             DEBUG_MSG "%a -> %a" nps x nps g;
+                             g
                            with
                              Not_found -> List.hd ss
                          ) ss)(*REGRESSION:thinkaurelius/titan 223 vs excilys/androidannotations 57*)
@@ -2863,7 +2865,7 @@ module Edit = struct
               end;
 
               let sub_canceled_stable_node_tbl = Hashtbl.create 0 in
-
+              let has_no_stable_desc x = get_p_descendants is_stable x = [] in
               List.iter
                 (fun n ->
                   DEBUG_MSG "n=%a" nps n;
@@ -2889,22 +2891,38 @@ module Edit = struct
                           (match !grp_sep_opt with
                           | Some sep -> sep#gindex > n#gindex
                           | None -> false) ||
-                          same_stable_node_group ~weak:true ss then begin
+                          same_stable_node_group ~weak:true ss
+                        then begin
                           let range = List.map (fun (tn', _) -> tn') tns' in
                           DEBUG_MSG "comp_cand: %a -> [%a]" nps n nsps range;
                           Hashtbl.add comp_cand_tbl n range
                         end
                         else begin
                           let lcond() =
-                            match get_left_sibling_opt n with
-                            | Some x -> not (List.memq x excluded)
-                            | _ -> false
+                            let b =
+                              match get_left_sibling_opt n with
+                              | Some x -> begin
+                                  DEBUG_MSG "left sibling of %a: %a" nps n nps x;
+                                  not (List.memq x excluded) || has_no_stable_desc x
+                              end
+                              | _ -> false
+                            in
+                            DEBUG_MSG "b=%B" b;
+                            b
                           in
                           let rcond() =
-                            match get_right_sibling_opt n with
-                            | Some x -> not (List.memq x excluded)
-                            | _ -> false
+                            let b =
+                              match get_right_sibling_opt n with
+                              | Some x -> begin
+                                  DEBUG_MSG "right sibling of %a: %a" nps n nps x;
+                                  not (List.memq x excluded) || has_no_stable_desc x
+                              end
+                              | _ -> false
+                            in
+                            DEBUG_MSG "b=%B" b;
+                            b
                           in
+                          DEBUG_MSG "n#initial_parent=%a nd=%a" nps n#initial_parent nps nd;
                           if n#initial_parent != nd || lcond() || rcond() then begin
                             let len = List.length ss in
                             let count = ref 0 in
@@ -7136,8 +7154,10 @@ module Edit = struct
                                 DEBUG_MSG "!!!!!";
                                 false
                               end
-                              else if is_ancestor a' anc' then
+                              else if is_ancestor a' anc' then begin
+                                DEBUG_MSG "a' is an ancestor of anc'";
                                 true
+                              end
                               else if
                                 not
                                   (lsn'#initial_parent == a' && rsn'#initial_parent == a' &&
@@ -9146,7 +9166,9 @@ module Edit = struct
                                         a'#initial_children ppos (p-1)) &&
                                    (List.nth paths (p - ppos))#key_opt = Some k0) ||
                                    is_ancestor a' t' &&
-                                   array_range_exists (fun x' -> is_ancestor x' pnd') t'#initial_children p (p+nb-1))
+                                   array_range_exists
+                                     (fun x' -> x' == pnd' || is_ancestor x' pnd')
+                                     t'#initial_children p (p+nb-1))
                                 with
                                   Not_found -> raise Defer
                                       (*try
@@ -9195,9 +9217,26 @@ module Edit = struct
                           DEBUG_MSG "pca=%a" nsps (Array.to_list pca);
                           Array.exists pred pca))
                         then begin
-                          path_to#set_upstream 1;
-                          path_to#set_key_opt k_opt;
-                          DEBUG_MSG "nd=%a path_to=%s" nps nd path_to#to_string
+                          let to_be_canceled =
+                            let moveon x = not (is_stable x) in
+                            has_p_descendant ~moveon
+                              (fun x -> is_stable x &&
+                                let x' = nmap x in
+                                List.exists
+                                  (fun (k_opt', _, _) ->
+                                    DEBUG_MSG "parent key found: %a -> %s" nps x' (key_opt_to_string k_opt');
+                                    k_opt' = k_opt
+                                  ) (Hashtbl.find_all parent_spec_tbl x')
+                              ) nd
+                          in
+                          if to_be_canceled then begin
+                            DEBUG_MSG "nd=%a: modification canceled" nps nd
+                          end
+                          else begin
+                            path_to#set_upstream 1;
+                            path_to#set_key_opt k_opt;
+                            DEBUG_MSG "nd=%a path_to=%s" nps nd path_to#to_string
+                          end
                         end
                         else if
                           has_upper &&
