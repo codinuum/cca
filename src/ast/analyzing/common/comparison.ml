@@ -1174,8 +1174,7 @@ class ['node_t, 'tree_t] c
 	      List.iter
 		(fun (u1, u2) ->
 		  DEBUG_MSG "  removing %a-%a" UID.ps u1 UID.ps u2;
-
-		  uidmapping#remove u1 u2
+		  ignore (uidmapping#remove u1 u2)
 		) !to_be_removed
 	    end;
 
@@ -1692,8 +1691,8 @@ class ['node_t, 'tree_t] c
 	try
 	  let u1' = uidmapping#find u1 in
 	  if u1' <> u2 then begin
-            uidmapping#remove u1 u1';
-	    removed_pairs := (u1, u1') :: !removed_pairs
+            if uidmapping#remove u1 u1' then
+	      removed_pairs := (u1, u1') :: !removed_pairs
           end
 	with
 	  Not_found -> ()
@@ -1702,8 +1701,8 @@ class ['node_t, 'tree_t] c
 	try
 	  let u2' = uidmapping#inv_find u2 in
 	  if u2' <> u1 then begin
-            uidmapping#remove u2' u2;
-	    removed_pairs := (u2', u2) :: !removed_pairs
+            if uidmapping#remove u2' u2 then
+	      removed_pairs := (u2', u2) :: !removed_pairs
           end
 	with
 	  Not_found -> ()
@@ -1756,8 +1755,8 @@ class ['node_t, 'tree_t] c
 	        try
 		  let u1' = uidmapping#find u1 in
 		  if u1' <> u2 then begin
-                    uidmapping#remove u1 u1';
-		    removed_pairs := (u1, u1') :: !removed_pairs
+                    if uidmapping#remove u1 u1' then
+		      removed_pairs := (u1, u1') :: !removed_pairs
                   end
 	        with
 		  Not_found -> ()
@@ -1766,8 +1765,8 @@ class ['node_t, 'tree_t] c
 	        try
 		  let u2' = uidmapping#inv_find u2 in
 		  if u2' <> u1 then begin
-                    uidmapping#remove u2' u2;
-		    removed_pairs := (u2', u2) :: !removed_pairs
+                    if uidmapping#remove u2' u2 then
+		      removed_pairs := (u2', u2) :: !removed_pairs
                   end
 	        with
 		  Not_found -> ()
@@ -1985,9 +1984,9 @@ class ['node_t, 'tree_t] c
 
         Xset.iter
 	  (fun (u1, u2) ->
-	    uidmapping#remove u1 u2;
-	    removed_pairs := (u1, u2) :: !removed_pairs
-	  ) to_be_removed;
+ 	    if uidmapping#remove u1 u2 then
+	      removed_pairs := (u1, u2) :: !removed_pairs
+ 	  ) to_be_removed;
 
         BEGIN_DEBUG
 	  List.iter
@@ -2272,6 +2271,18 @@ class ['node_t, 'tree_t] c
       DEBUG_MSG "%d pairs added by multiple node matches." !count
 
     end; (* if options#multi_node_match_flag *)
+
+    let added_then_removed_pairs = Xlist.intersection !removed_pairs !added_pairs in
+    BEGIN_DEBUG
+      List.iter
+      (fun (u1, u2) ->
+        DEBUG_MSG "added then removed pair: %a-%a" UID.ps u1 UID.ps u2
+      ) added_then_removed_pairs
+    END_DEBUG;
+    if added_then_removed_pairs <> [] then begin
+      removed_pairs := Xlist.subtract !removed_pairs added_then_removed_pairs;
+      added_pairs := Xlist.subtract !added_pairs added_then_removed_pairs
+    end;
 
     BEGIN_DEBUG
       List.iter

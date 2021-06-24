@@ -269,7 +269,7 @@ class type uidmapping_t = object ('self)
   method mem_unsettled : UID.t -> bool
   method mem_settled   : UID.t -> bool
 
-  method remove         : UID.t -> UID.t -> unit
+  method remove         : UID.t -> UID.t -> bool
   method remove_settled : UID.t -> UID.t -> unit
 
   method filter : (UID.t -> UID.t -> bool) -> unit

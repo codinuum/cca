@@ -413,6 +413,7 @@ let get_adjusted_path
     get_mem_pos
     pos_cache
     is_simple_ins
+    _is_excluded
     is_excluded
     is_stable
     root
@@ -468,6 +469,16 @@ let get_adjusted_path
                     is_excluded_map.(i) <- false
                   end
               end
+              | Some false -> begin
+                  let ci = children.(i) in
+                  if
+                    not b && _is_excluded ci && not (is_stable ci) &&
+                    stable_descendant_map.(i) = 0
+                  then begin
+                    DEBUG_MSG "is_excluded_map: %d -> true" i;
+                    is_excluded_map.(i) <- true
+                  end
+              end
               | _ -> ()
             ) is_excluded_map
         end;
@@ -510,6 +521,7 @@ let get_adjusted_path
                 let is_simple_ins_str =
                   match c_is_simple_ins with
                   | Some true -> ", is_simple_ins"
+                  | Some false -> ", not_simple_ins"
                   | _ -> ""
                 in
                 DEBUG_MSG "  %d %a (is_excluded=%B, is_stable=%B%s)"

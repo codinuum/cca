@@ -187,7 +187,7 @@ let speclist =
    "-dump:delta:minimize:more", Arg.Unit (fun () -> options#set_minimize_delta_more_flag),
    "\tminimize delta more";
 (*   "-dump:delta:out", Arg.String set_dump_delta_out, "FILE\tdump delta into file";*)
-   "-dump:delta:rev", Arg.Unit set_dump_rev_delta, "\tgenerate reversible delta";
+   (*"-dump:delta:rev", Arg.Unit set_dump_rev_delta, "\tgenerate reversible delta";*)
    (*"-dump:delta:irrev", Arg.Unit set_dump_irrev_delta, "\tgenerate irreversible delta";*)
    "-dump:delta:compress", Arg.Unit set_dump_compressed_delta, "\tdump compressed AST";
 

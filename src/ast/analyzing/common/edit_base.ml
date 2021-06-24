@@ -853,7 +853,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               DEBUG_MSG "%a(count=%d): %s -> %s" MID.ps !mid !count rt1#data#label rt2#data#label;
               if !count = 1 && (is_anon rt1 || is_anon rt2) then begin
                 DEBUG_MSG "single move of anonymous node: %s" (to_string mov);
-                uidmapping#remove u1 u2;
+                let _ = uidmapping#remove u1 u2 in
                 self#remove_edit mov;
                 begin
                   try
@@ -2412,12 +2412,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           | _ -> assert false
         in
 
-        if tree#size_of_initial_cluster (nd, exnds) > 1 then begin
+        let sz = tree#size_of_initial_cluster (nd, exnds) in
+        DEBUG_MSG "size of initial cluster: %d" sz;
+
+        if sz > 1 then begin
 
           self#remove_edit ed;
 
           tree#scan_initial_cluster (nd, exnds)
             (fun n ->
+              DEBUG_MSG "n=%a" UID.ps n#uid;
               if
                 not (List.exists (fun p -> tree#initial_subtree_mem p n) !processed) &&
                 not (is_ghost_node n)
@@ -2895,7 +2899,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 let es2 = self#find2 u2 in
                 List.iter self#remove_edit es2;
 
-                uidmapping#remove u1 u2
+                ignore (uidmapping#remove u1 u2)
               ) !ndps
           in
 
@@ -2958,7 +2962,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   DEBUG_MSG "%a -> mov1" UID.ps !p1;
                   let u1' = uidmapping#find !p1 in
                   List.iter self#remove_edit (self#find12 !p1 u1');
-                  uidmapping#remove !p1 u1';
+                  let _ = uidmapping#remove !p1 u1' in
                   self#add_edit (make_insert (tree2#search_node_by_uid u1'))
                 end;
                 ignore (uidmapping#add_unsettled !p1 n2#uid);
@@ -2985,7 +2989,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   DEBUG_MSG "%a -> mov2" UID.ps !p2;
                   let u2' = uidmapping#inv_find !p2 in
                   List.iter self#remove_edit (self#find12 u2' !p2);
-                  uidmapping#remove u2' !p2;
+                  let _ = uidmapping#remove u2' !p2 in
                   self#add_edit (make_delete (tree1#search_node_by_uid u2'))
                 end;
                 ignore (uidmapping#add_unsettled n1#uid !p2);
@@ -3864,7 +3868,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                     (fun (u1, u2) ->
                       DEBUG_MSG "removing %a-%a" UID.ps u1 UID.ps u2;
 
-                      uidmapping#remove u1 u2;
+                      let _ = uidmapping#remove u1 u2 in
 
                       assert (not (uidmapping#mem_cod u2));
 

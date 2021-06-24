@@ -5498,13 +5498,14 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         let excluded_nds =
           List.map (fun p -> self#acc (Path.concat nd#apath p#path)) paths_from
         in
+        let _is_excluded n = List.memq n excluded_nds in
         let is_excluded lv n = List.memq n excluded_nds in
 
         let pos_cache = Hashtbl.create 0 in
 
         let get_adj_path =
           let f _ = raise Not_found in
-          get_adjusted_path f f f pos_cache (fun _ -> None) is_excluded self#is_stable nd
+          get_adjusted_path f f f pos_cache (fun _ -> None) _is_excluded is_excluded self#is_stable nd
         in
 
         let tbl =

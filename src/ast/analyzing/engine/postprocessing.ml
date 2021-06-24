@@ -592,7 +592,7 @@ module F (Label : Spec.LABEL_T) = struct
             let lgi2 = (tree2#initial_leftmost nd2)#gindex in
             try
               let lg1, g1, lg2, g2 = Hashtbl.find mtbl !mid in
-              if gi1 > g1 && gi2 > g2 then
+              if lgi1 < g1 && g1 < gi1 && lgi2 < g2 && g2 < gi2 then
                 Hashtbl.replace mtbl !mid (lgi1, gi1, lgi2, gi2)
             with
               Not_found ->
@@ -1413,7 +1413,7 @@ module F (Label : Spec.LABEL_T) = struct
                             nd1 nd1' (fun d -> dnc := d)
                             nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
                             (fun d -> b := true; dnc := d);
-                          !b, !dnc, (fun () -> uidmapping#remove u1 u1')
+                          !b, !dnc, (fun () -> ignore (uidmapping#remove u1 u1'))
                       with
                         Not_found -> assert false
                     else
@@ -1438,7 +1438,7 @@ module F (Label : Spec.LABEL_T) = struct
                             nd2' nd2 (fun d -> dnc := d)
                             nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
                             (fun d -> b := true; dnc := d);
-                          !b, !dnc, (fun () -> uidmapping#remove u2' u2)
+                          !b, !dnc, (fun () -> ignore (uidmapping#remove u2' u2))
                       with
                         Not_found -> assert false
                     else
@@ -3732,15 +3732,17 @@ module F (Label : Spec.LABEL_T) = struct
              )))
           then begin
             List.iter
-              (fun (u1, u2) ->
-                if u1 <> uid1 then begin
-                  uidmapping#remove u1 u2;
-                  DEBUG_MSG "removed %a-%a" UID.ps u1 UID.ps u2
+              (fun ((u1, u2) as u1_u2) ->
+                if u1 <> uid1 || u2 <> uid2 then begin
+                  if uidmapping#remove u1 u2 then begin
+                    removed_pairs := u1_u2 :: !removed_pairs;
+                    DEBUG_MSG "removed %a-%a" UID.ps u1 UID.ps u2;
+                  end
                 end
               ) !to_be_removed;
             ignore (uidmapping#add_unsettled uid1 uid2);
 
-            removed_pairs := !to_be_removed @ !removed_pairs;
+            (*removed_pairs := !to_be_removed @ !removed_pairs;*)
             added_pairs := (uid1, uid2) :: !added_pairs;
 
             DEBUG_MSG "added %a-%a (%a-%a)"
@@ -3754,11 +3756,14 @@ module F (Label : Spec.LABEL_T) = struct
     BEGIN_DEBUG
       DEBUG_MSG "uidmapping:\n%s\n" uidmapping#to_string;
       List.iter
-        (fun (u1, u2) ->
-          let n1 = tree1#search_node_by_uid u1 in
-          let n2 = tree2#search_node_by_uid u2 in
-          DEBUG_MSG "added_pair: %a-%a (%a-%a)" UID.ps u1 UID.ps u2 GI.ps n1#gindex GI.ps n2#gindex
-        ) !added_pairs;
+        (fun (name, pairs) ->
+          List.iter
+            (fun (u1, u2) ->
+              let n1 = tree1#search_node_by_uid u1 in
+              let n2 = tree2#search_node_by_uid u2 in
+              DEBUG_MSG "%s: %a-%a (%a-%a)" name UID.ps u1 UID.ps u2 GI.ps n1#gindex GI.ps n2#gindex
+            ) pairs
+        ) [("removed_pair", !removed_pairs); ("added_pair", !added_pairs)]
     END_DEBUG;
 
     Xprint.verbose options#verbose_flag "glueing completed.";
@@ -3780,7 +3785,16 @@ module F (Label : Spec.LABEL_T) = struct
     List.iter
       (fun (u1, u2) ->
         DEBUG_MSG "checking %a-%a" UID.ps u1 UID.ps u2;
-        List.iter edits#remove_edit (edits#find12 u1 u2);
+        let eds = edits#find12 u1 u2 in
+        BEGIN_DEBUG
+          List.iter (fun ed -> DEBUG_MSG "removing %s" (Edit.to_string ed)) eds
+        END_DEBUG;
+        if eds = [] then begin
+          DEBUG_MSG "none found";
+        end
+        else begin
+          List.iter edits#remove_edit eds;
+        end;
         let n1 = tree1#search_node_by_uid u1 in
         let n2 = tree2#search_node_by_uid u2 in
         let del = Edit.make_delete n1 in
@@ -4406,7 +4420,7 @@ end;
               try
                 match edits#find_rel12 uid1 uid2 with
                 | Edit.Relabel _ as rel ->
-                    uidmapping#remove uid1 uid2;
+                    let _ = uidmapping#remove uid1 uid2 in
                     edits#remove_edit mov;
                     edits#remove_edit rel;
                     edits#add_edit (Edit.Delete(false, uid1, info1, ex1));
@@ -4533,6 +4547,7 @@ end;
 
       Hashtbl.iter
         (fun mid s ->
+          DEBUG_MSG "mid=%a" MID.ps mid;
           Xset.iter
             (fun (nd1, nd2) ->
               let is_bad =
@@ -4864,7 +4879,7 @@ end;
 
                   DEBUG_MSG "removing unstable movrel: %s" (Editop.to_string rel);
 
-                  uidmapping#remove uid1 uid2;
+                  let _ = uidmapping#remove uid1 uid2 in
                   edits#remove_edit mov;
                   edits#remove_edit rel;
                   edits#add_edit (Edit.Delete(false, uid1, info1, ex1));
@@ -4956,7 +4971,7 @@ end;
                 | Edit.Move(_, kind, (uid1, info1, ex1), (uid2, info2, ex2)) -> begin
                     let nd1 = Info.get_node info1 in
                     let nd2 = Info.get_node info2 in
-                    uidmapping#remove uid1 uid2;
+                    let _ = uidmapping#remove uid1 uid2 in
                     edits#remove_edit mov;
                     begin
                       try
@@ -5021,7 +5036,7 @@ end;
                 tree1#initial_subtree_mem rt1 nd1 ||
                 tree2#initial_subtree_mem rt2 nd2
               then begin
-                uidmapping#remove uid1 uid2;
+                let _ = uidmapping#remove uid1 uid2 in
                 edits#remove_edit mov;
                 begin
                   try
