@@ -1423,6 +1423,10 @@ module Edit = struct
             DEBUG_MSG "%a -> true" nps x';
             Some true
           end
+          else if self#find_key_opt x'#uid = None then begin
+            DEBUG_MSG "%a -> false" nps x';
+            Some false
+          end
           else if
             try Hashtbl.mem ancto_tbl (self#find_key x'#uid) with _ -> false
           then begin
@@ -1554,8 +1558,12 @@ module Edit = struct
               get_p_descendants is_stable' x' = [] &&
               try
                 let xk = self#find_key x'#uid in
+                DEBUG_MSG "xk=%s" (key_to_string xk);
                 let a, (pt, ps) =  Hashtbl.find ancto_tbl xk in
-                Hashtbl.mem edit_parent_tbl xk || Hashtbl.mem parent_key_tbl xk
+                DEBUG_MSG "a=%a" nps a;
+                let b = Hashtbl.mem edit_parent_tbl xk || Hashtbl.mem parent_key_tbl xk in
+                DEBUG_MSG "b=%B" b;
+                b
               with _ -> false
             then
               false
@@ -2666,6 +2674,7 @@ module Edit = struct
                 (String.concat ";" (List.map string_of_int (Array.to_list fmap)));
 
               let lift_cands = ref [] in
+              let _lift_cands = Xset.create 0 in
 
               let pmap' = Array.make len' 0 in
               let pmap'' = Array.make len' 0 in
@@ -2675,7 +2684,6 @@ module Edit = struct
                 DEBUG_MSG "idx=%d, ranges=[%s]" idx
                   (String.concat ", "
                      (List.map (fun (a, b) -> sprintf "%d-%d" a b) ranges));
-
                 List.iteri
                   (fun i (a, b) ->
                     pmap'.(i) <- a;
@@ -2762,13 +2770,14 @@ module Edit = struct
                     DEBUG_MSG "pk_opt=%s" (key_opt_to_string pk_opt);
                     if
                       canceled && key_opt = pk_opt ||
-                      List.for_all (fun (a, b) -> a > i || i > b) ranges ||
+                      (List.for_all (fun (a, b) -> a > i || i > b) ranges) ||
                       (match sub_ins_idx_opt with Some j -> j = i | _ -> false) ||
                       Xset.mem to_be_canceled sn && (not extra_lift_flag || !sub_ins_opt = None)
                     then begin
                       let mem = get_anc_in_mem sn in
-                      DEBUG_MSG "lift cand: i=%d mem=%a" i nps mem;
+                      DEBUG_MSG "lift cand: i=%d (%a) mem=%a" i nps sn nps mem;
                       lift_cands := (i, mem, true) :: !lift_cands;
+                      Xset.add _lift_cands sn;
                       update_groups sn mem;
                       DEBUG_MSG "stability of %a will be ignored" nps sn;
                       self#cancel_stable_node sn
@@ -2778,6 +2787,7 @@ module Edit = struct
 
               let wtbl = Hashtbl.create 0 in
               let qwtbl = Hashtbl.create 0 in
+              let is_stable__ x = is_stable_ x && not (Xset.mem _lift_cands x) in
               begin
                 match m_p_n_list with
                 | [] -> assert false
@@ -2797,16 +2807,19 @@ module Edit = struct
                               (fun w ->
                                 DEBUG_MSG "w=%a" nps w;
                                 (*let moveon x = not (is_stable x) in*)
-                                let moveon x = not (self#is_canceled_stable_node x && x#initial_pos = 0) in
+                                let moveon x =
+                                  not (self#is_canceled_stable_node x && x#initial_pos = 0) &&
+                                  not (Xset.mem _lift_cands x)
+                                in
                                 let context_cond =
                                   ((not (is_stable w) ||
                                   let w' = nmap w in
                                   List.exists (fun t' -> t' == w' || is_ancestor t' w') top_nds')) &&
                                   (is_stable w && List.memq (nmap w) top_nds' ||
-                                  let lss = get_p_left_nodes ~moveon is_stable_ w nd in
+                                  let lss = get_p_left_nodes ~moveon is_stable__ w nd in
                                   DEBUG_MSG "lss=[%a]" nsps lss;
                                   if lss <> [] then begin
-                                    let rss = get_p_right_nodes ~moveon is_stable_ w nd in
+                                    let rss = get_p_right_nodes ~moveon is_stable__ w nd in
                                     DEBUG_MSG "rss=[%a]" nsps rss;
                                     if rss <> [] then begin
                                       let get_grp sn =
@@ -3164,6 +3177,37 @@ module Edit = struct
               in
               DEBUG_MSG "group_heads: [%a]" nsps group_heads;
 
+              (* adjusting group_tbl *)
+              if Hashtbl.length group_tbl > 0 then begin
+                DEBUG_MSG "adjusting group_tbl...";
+                let l = ref [] in
+                Hashtbl.iter
+                  (fun n gn ->
+                    try
+                      Xset.iter
+                        (fun x ->
+                          if is_ancestor n x then begin
+                            DEBUG_MSG "to be removed: %a -> %a" nps n nps gn;
+                            l := n :: !l;
+                            raise Exit
+                          end
+                        ) _lift_cands
+                    with
+                      Exit -> ()
+                  ) group_tbl;
+                List.iter (Hashtbl.remove group_tbl) !l;
+                DEBUG_MSG "done.";
+                BEGIN_DEBUG
+                  if !l <> [] then begin
+                    DEBUG_MSG "group_tbl:";
+                    Hashtbl.iter
+                      (fun n tn ->
+                        DEBUG_MSG " %a -> %a" nps n nps tn
+                      ) group_tbl
+                  end;
+                END_DEBUG
+              end;
+
               let node_tbl = Hashtbl.create 0 in (* path -> node * pos * range * node *)
 
               let orig_path_tbl = Hashtbl.create 0 in (* boundary_path -> boundary_path *)
@@ -3189,10 +3233,19 @@ module Edit = struct
                   DEBUG_MSG "rp=%s" (Path.to_string rp);
                   let pos = (Path.tail rp).Elem.pos in
                   let path =
+                    let _is_simple_ins x =
+                      let b =
+                        not (is_stable x) &&
+                        Xset.mem quasi_walls x &&
+                        not (has_p_descendant is_stable__ x)
+                      in
+                      DEBUG_MSG "%a -> %B" nps x b;
+                      b
+                    in
                     let is_excluded lv x =
                       let b =
                         self#is_excluded x &&
-                        (lv > 0 || not (Xset.mem walls x))
+                        (lv > 0 || not (Xset.mem walls x) || _is_simple_ins x)
                       in
                       DEBUG_MSG "x=%a b=%B" nps x b;
                       b
@@ -7609,7 +7662,7 @@ module Edit = struct
                             let w_grp_cond =
                               if is_stable wall then
                                 let wall' = nmap wall in
-                                DEBUG_MSG "a'=%a wall'=%a" nps a' nps wall';
+                                DEBUG_MSG "a'=%a wall'=%a idx=%d" nps a' nps wall' idx;
                                 if wall'#initial_parent != a' then begin
                                   check_flag := true;
                                   fun x ->
@@ -7669,7 +7722,7 @@ module Edit = struct
                               else
                                 0
                             in
-                            DEBUG_MSG "ini=%d" ini;
+                            DEBUG_MSG "ini=%d nd=%a" ini nps nd;
                             let c = ref ini in
                             (*REGRESSION:broadgsa/gatk 27 vs griddynamics/jagger 140*)
                             for i = idx + 1(*0*) to nd#initial_pos - 1 do
@@ -9583,7 +9636,11 @@ module Edit = struct
 
         let reg_edit_parent tbl parent_key_opt mkkey =
           match parent_key_opt with
-          | Some k -> Hashtbl.add tbl (mkkey()) k
+          | Some k -> begin
+              let k' = mkkey() in
+              DEBUG_MSG "%s -> %s" (key_to_string k') (key_to_string k);
+              Hashtbl.add tbl k' k
+          end
           | None -> ()
         in
 
@@ -9774,7 +9831,7 @@ module Edit = struct
                   self#is_stable2 self#is_stable1
                   get_path1 uidmapping#inv_find uidmapping#find tree2 tree1
                   nd2 excluded2_ remote_stable_nds2
-             in
+              in
 
               info_add anc1;
               paths_info_add anc1 path1 excepted_paths1 (stid_to_str stid) tree2 nd2;
@@ -10073,6 +10130,12 @@ module Edit = struct
               Hashtbl.add movins_tbl mid
                 (anc1to, path1to, excepted_paths1to, simple1, key_opt1, adj_opt1, depth_opt1, shift_opt1);
 
+              if irreversible_flag then begin
+                reg_edit_parent edit_parent_tbl1 key_opt1 (fun () -> key_of_mid mid);
+              end
+              else begin
+                (* not yet *)
+              end;
               []
           end
           | Move(mid, _, nd1, excluded1, nd2, excluded2) -> begin
@@ -10190,7 +10253,8 @@ module Edit = struct
                         n1
                     in
                     DEBUG_MSG "indirect_conflict: %a -> %B" nps n1 indirect_conflict;
-                    let force_lift0 =
+                    DEBUG_MSG "n1=%a n2=%a nd1=%a" nps n1 nps n2 nps nd1;
+                    (*let force_lift0 =
                       try
                         (*let n2 = nmap1 n1 in*)
                         let p2 = n2#initial_parent in
@@ -10202,10 +10266,10 @@ module Edit = struct
                         upc > 0
                       with _ -> false
                     in
-                    DEBUG_MSG "force_lift0: %a -> %B" nps n1 force_lift0;
+                    DEBUG_MSG "force_lift0: %a -> %B" nps n1 force_lift0;*)
 
                     let force_lift =
-                      force_lift0 ||
+                      (*force_lift0 ||*)
                       check_to_be_lifted
                         self#is_stable1 self#is_stable2
                         nmap1 lifted_nodes1 tree1 uidmapping#inv_find
@@ -10695,7 +10759,7 @@ module Edit = struct
                           key_opt1 adj_opt1 depth_opt1 shift_opt1)
                 in
 
-                reg_edit_parent edit_parent_tbl1 key_opt1 (fun () -> key_of_mid mid);
+                (*reg_edit_parent edit_parent_tbl1 key_opt1 (fun () -> key_of_mid mid);*)
 
                 (*setup_parent_path_tbl parent_path_tbl1 path1to excepted_paths1to nd2;*)
 
