@@ -1481,22 +1481,24 @@ module Edit = struct
         DEBUG_MSG "unstable_top_nodes=[%a]" nsps unstable_top_nodes;
         let get_group x' =
           DEBUG_MSG "x'=%a" nps x';
+          if self#is_canceled_stable_node x' then
+            raise Not_found;
           let ss =
             if is_stable' x' then
               [nmap' x']
             else
               let moveon x' = not (is_stable' x') in
               List.map nmap' (get_p_descendants ~moveon is_stable_' x')
-            in
-            DEBUG_MSG "ss=[%a]" nsps ss;
-            let grps =
-              List.filter
-                (fun tn -> List.exists (fun s -> tn == s || is_ancestor tn s) ss)
-                unstable_top_nodes
-            in
-            match grps with
-            | [grp] -> DEBUG_MSG "grp=%a" nps grp; grp
-            | _ -> raise Not_found
+          in
+          DEBUG_MSG "ss=[%a]" nsps ss;
+          let grps =
+            List.filter
+              (fun tn -> List.exists (fun s -> tn == s || is_ancestor tn s) ss)
+              unstable_top_nodes
+          in
+          match grps with
+          | [grp] -> DEBUG_MSG "grp=%a" nps grp; grp
+          | _ -> raise Not_found
         in
 
         let is_excluded =
@@ -2813,6 +2815,7 @@ module Edit = struct
                                 in
                                 let context_cond =
                                   ((not (is_stable w) ||
+                                  not (Xset.mem _lift_cands w) &&
                                   let w' = nmap w in
                                   List.exists (fun t' -> t' == w' || is_ancestor t' w') top_nds')) &&
                                   (is_stable w && List.memq (nmap w) top_nds' ||
@@ -3186,7 +3189,7 @@ module Edit = struct
                     try
                       Xset.iter
                         (fun x ->
-                          if is_ancestor n x then begin
+                          if n == x || is_ancestor n x then begin
                             DEBUG_MSG "to be removed: %a -> %a" nps n nps gn;
                             l := n :: !l;
                             raise Exit
