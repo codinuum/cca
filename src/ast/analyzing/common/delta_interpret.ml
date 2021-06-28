@@ -305,6 +305,11 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | Some k -> Hashtbl.add upstream_dest_tbl nd k
     | None -> ()
 
+  method private unforce_upstream nd =
+    DEBUG_MSG "%a: unforced" nps nd;
+    Xset.remove forced_upstream_nodes nd;
+    Hashtbl.remove upstream_dest_tbl nd
+
   method private set_upstream_dest nd k =
     DEBUG_MSG "nd=%a k=%s" nps nd (key_to_string k);
     Hashtbl.add upstream_dest_tbl nd k
@@ -455,8 +460,12 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     Xset.mem extra_upstream_roots nd
 
   method private reg_root_of_upstream_staying_move nd =
-    DEBUG_MSG "upstream_staying_move: %s" nd#initial_to_string;
+    DEBUG_MSG "registering upstream_staying_move: %s" nd#initial_to_string;
     Xset.add roots_of_upstream_staying_move nd
+
+  method private unreg_root_of_upstream_staying_move nd =
+    DEBUG_MSG "unregistering upstream_staying_move: %s" nd#initial_to_string;
+    Xset.remove roots_of_upstream_staying_move nd
 
   method private is_root_of_upstream_staying_move nd =
     Xset.mem roots_of_upstream_staying_move nd
@@ -1502,6 +1511,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     let prune_tbl = Hashtbl.create 0 in
 
+    let excluded_insert_roots = Xset.create 0 in
+
     let extra_roots_tbl = Hashtbl.create 0 in
 
     let upstream_tbl = Hashtbl.create 0 in (* excluded node -> upstream count *)
@@ -1853,6 +1864,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       !count
     in (* get_upstream_count *)
 
+    let skey_to_string (il, nl) =
+      sprintf "%s,[%a]" (String.concat ":" (List.map string_of_int il)) nsps nl
+    in
     let get_skey cache rt n =
       try
         Hashtbl.find cache n
@@ -1877,11 +1891,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           done;
           let key = !posl, (get_p_descendants self#is_stable n) in
           Hashtbl.add cache n key;
+          DEBUG_MSG "%a -> %s" nps n (skey_to_string key);
           key
     in
-    (*let skey_to_string skey =
-      String.concat ":" (List.map string_of_int skey)
-    in*)
     let cmp_skey_sub sns0 sns1 =
       let sns1_ = Xlist.subtractq sns1 sns0 in
       if sns0 <> [] && sns1_ <> [] then
@@ -2884,7 +2896,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                       raise Not_found;
 
                     let k = self#find_parent_key e in
-                    DEBUG_MSG "parent key found: %s" (key_to_string k);
+                    DEBUG_MSG "parent key found: %a -> %s" nps e (key_to_string k);
                     match k with
                     | K_mid _ -> begin
                         let (pnd, pos, ofs) = self#find_parent e in
@@ -2945,7 +2957,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                 if has_upstream_descendant e && not (self#is_deleted e) then begin
                   try
                     let k = self#find_parent_key e in
-                    DEBUG_MSG "parent key found: %s" (key_to_string k);
+                    DEBUG_MSG "parent key found: %a -> %s" nps e (key_to_string k);
                     match k with
                     | K_mid _ -> begin
                         let (pnd, pos, ofs) = self#find_parent e in
@@ -4025,7 +4037,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                       else begin
                         try
                           let k = self#find_parent_key e in
-                          DEBUG_MSG "k=%s" (key_to_string k);
+                          DEBUG_MSG "e=%a k=%s" nps e (key_to_string k);
                           let is_odd =
                             try
                               (self#find_key e) = k
@@ -4309,6 +4321,55 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
 
     begin
+      DEBUG_MSG "updating prune_tbl...";
+      let ktbl = Hashtbl.create 0 in
+      List.iter
+        (fun n ->
+          try
+            let k = self#find_key_of_deleted n in
+            tbl_add ktbl k n
+          with _ -> ()
+        ) (Hashtbl.fold (fun nd _ l -> nd :: l) prune_tbl []);
+      let is_stable_and_has_parent_key_stable x =
+        self#is_stable x && self#has_parent_key_stable x
+      in
+      Hashtbl.iter
+        (fun k ns ->
+          match ns with
+          | [] | [_] -> ()
+          | _ -> begin
+              let ns = sort_nodes_by_gindex ns in
+              DEBUG_MSG "%s -> [%a]" (key_to_string k) nsps ns;
+              let rec scan = function
+                | [] | [_] -> ()
+                | x::rest -> begin
+                    DEBUG_MSG "x=%a" nps x;
+                    List.iter
+                      (fun y ->
+                        DEBUG_MSG "y=%a" nps y;
+                        let ys = (try Hashtbl.find prune_tbl y with _ -> []) in
+                        if List.exists is_stable_and_has_parent_key_stable ys then
+                          List.iter
+                            (fun z ->
+                              if
+                                self#is_insert z && not (self#is_forced_upstream x) &&
+                                is_ancestor z x &&
+                                List.exists
+                                  is_stable_and_has_parent_key_stable
+                                  (try Hashtbl.find prune_tbl x with _ -> [])
+                              then begin
+                                DEBUG_MSG "prune_tbl: add %a -> %a" nps z nps x;
+                                Xset.add excluded_insert_roots z;
+                                tbl_add prune_tbl z x
+                              end
+                            ) ys
+                      ) (List.filter (fun w -> is_ancestor w x) rest);
+                    scan rest
+                end
+              in
+              scan ns
+          end
+        ) ktbl;
       let rec get_nds nd =
         List.flatten
           (List.map
@@ -4327,6 +4388,28 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                        [x]
                      else
                        List.flatten (List.map get_nds ds)*)
+               else if self#is_insert x then begin
+                 DEBUG_MSG "x=%a" nps x;
+                 Xset.add excluded_insert_roots x;
+                 try
+                   let filt x =
+                     self#has_parent_key_stable x ||
+                     self#is_forced_upstream x &&
+                     try self#get_upstream_dest x = K_stable with _ -> false
+                   in
+                   let nds = x::(List.filter filt (get_nds x)) in
+                   DEBUG_MSG "%a: nds=[%a]" nps x nsps nds;
+                   List.iter
+                     (fun x ->
+                       if self#is_forced_upstream x then
+                         self#unforce_upstream x;
+                       if self#is_root_of_upstream_staying_move x then
+                         self#unreg_root_of_upstream_staying_move x
+                     ) nds;
+                   nds
+                 with
+                   Not_found -> [x]
+               end
                else
                  [x]
              ) (Hashtbl.find prune_tbl nd)
@@ -4336,20 +4419,27 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       let got_nds = Xset.create 0 in
       List.iter
         (fun n ->
+          DEBUG_MSG "n=%a" nps n;
           let nds =
             List.filter (fun x -> not (Xset.mem got_nds x)) (get_nds n)
           in
+          DEBUG_MSG "nds=[%a]" nsps nds;
           List.iter (Xset.add got_nds) nds;
           Hashtbl.add tbl n nds
         ) (sort_nodes_by_gindex ~descending:true
              (Hashtbl.fold (fun nd _ l -> nd :: l) prune_tbl []));
 
+      DEBUG_MSG "excluded_insert_roots=[%a]" nsps (Xset.to_list excluded_insert_roots);
+
       Hashtbl.clear prune_tbl;
       Hashtbl.iter
         (fun n ns ->
-          DEBUG_MSG "%a -> [%a]" nps n nsps ns;
-          Hashtbl.add prune_tbl n ns
-        ) tbl
+          if not (Xset.mem excluded_insert_roots n) then begin
+            DEBUG_MSG "%a -> [%a]" nps n nsps ns;
+            Hashtbl.add prune_tbl n ns
+          end
+        ) tbl;
+      DEBUG_MSG "prune_tbl updated.";
     end;
 
     DEBUG_MSG "dels_with_root_shifts: [%s]"
