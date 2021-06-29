@@ -1148,6 +1148,7 @@ module Edit = struct
           not (is_stable' x') &&
           let moveon x' = not (is_stable' x') in
           let ss' = get_p_descendants ~moveon is_stable_' x' in
+          DEBUG_MSG "ss'=[%a]" nsps ss';
           (match ss' with
           | [] -> true
           | [_] when not exact -> true
@@ -6003,7 +6004,14 @@ module Edit = struct
                                             if nd#initial_parent == a then begin
                                               let k1 = self#get_key_of_node_to_be_lifted nd in
                                               DEBUG_MSG "k1=%s base_cand'=%a" (key_to_string k1) nps !base_cand';
-                                              res := (Some k1, 1, Some (get_subpath k1 !base_cand'));
+                                              let bn =
+                                                if Hashtbl.mem comp_cand_tbl !base_cand' then
+                                                  !cur'
+                                                else
+                                                  !base_cand'
+                                              in
+                                              DEBUG_MSG "bn=%a" nps bn;
+                                              res := (Some k1, 1, Some (get_subpath k1 bn));
                                               raise Exit
                                             end
                                           with Not_found -> ()
@@ -7473,6 +7481,7 @@ module Edit = struct
                     DEBUG_MSG "is_simple: %a -> %B" nps nd is_simple;
 
                     if is_simple then begin
+                      DEBUG_MSG "simple_ins_root: %a" nps nd;
                       Xset.add simple_ins_roots nd;
                       default ()
                     end
@@ -8214,8 +8223,8 @@ module Edit = struct
           in
           let is_simple_ins x' =
             let b =
-              Xset.mem simple_ins_roots' x' ||
-              self#_is_simple_ins tree' is_stable' is_stable_' nmap' ~top_nodes x'
+              Xset.mem simple_ins_roots' x'(* ||
+              self#_is_simple_ins tree' is_stable' is_stable_' nmap' ~top_nodes x'*)
             in
             DEBUG_MSG "%a -> %B" nps x' b;
             b
@@ -9731,8 +9740,10 @@ module Edit = struct
                 info_add anc2;
                 paths_info_add anc2 path2 excepted_paths2 (stid_to_str stid) tree1 nd1;
 
-                if simple2 then
+                if simple2 then begin
+                  DEBUG_MSG "simple_ins_root: %a" nps nd1;
                   Xset.add simple_ins_roots1 nd1;
+                end;
 
                 recover_excluded filtered_out1; (* recovering excluded1 *)
 
@@ -9839,8 +9850,10 @@ module Edit = struct
               info_add anc1;
               paths_info_add anc1 path1 excepted_paths1 (stid_to_str stid) tree2 nd2;
 
-              if simple1 then
+              if simple1 then begin
+                DEBUG_MSG "simple_ins_root: %a" nps nd2;
                 Xset.add simple_ins_roots2 nd2;
+              end;
 
               recover_excluded filtered_out2; (* recovering excluded2 *)
 
@@ -10092,8 +10105,10 @@ module Edit = struct
               DEBUG_MSG "excepted_paths1to: %s"
                 (boundary_to_string excepted_paths1to);
 
-              if simple1 then
+              if simple1 then begin
+                DEBUG_MSG "simple_ins_root: %a" nps nd2;
                 Xset.add simple_ins_roots2 nd2;
+              end;
 
               recover_excluded filtered_out2; (* recovering excluded2 *)
 
@@ -10800,8 +10815,10 @@ module Edit = struct
                 DEBUG_MSG "excepted_paths2to: %s"
                   (boundary_to_string excepted_paths2to);
 
-                if simple2 then
+                if simple2 then begin
+                  DEBUG_MSG "simple_ins_root: %a" nps nd1;
                   Xset.add simple_ins_roots1 nd1;
+                end;
 
                 recover_excluded filtered_out1; (* recovering excluded1 *)
 
