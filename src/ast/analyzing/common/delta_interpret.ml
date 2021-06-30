@@ -3906,7 +3906,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                 if self#is_stable x then
                                   self#is_true_stable_node (*~weak:true*) x
                                 else
-                                  self#has_true_stable_descendant ~weak:true x
+                                  self#has_true_stable_descendant (*~weak:true*) x
                               in
                               let rec check ?(top=true) left right =
                                 if left <> [] && right <> [] then
