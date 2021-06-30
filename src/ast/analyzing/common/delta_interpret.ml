@@ -2006,7 +2006,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       | _ -> "?"
     in
     let idx_cache = Hashtbl.create 0 in
-    let get_idx n =
+    let get_idx ?(strict=false) n =
       DEBUG_MSG "n=%a" nps n;
       try
         let idx = Hashtbl.find idx_cache n in
@@ -2036,7 +2036,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                 | Some ((K_stid _ | K_mid _ | K_stable) as xk) -> begin
                     DEBUG_MSG "qupc=%d xk=%s" (self#get_quasi_upstream_count x) (key_to_string xk);
                     if self#get_quasi_upstream_count x = 0 then
-                      (*false*)xk = K_stable
+                      if strict then
+                        false
+                      else
+                        (*false*)xk = K_stable
                     else begin
                       match !ins_key_opt_stack with
                       | [] -> false
@@ -3083,7 +3086,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       DEBUG_MSG "pnd=%a pos=%d nd=%a" nps pnd pos nps nd;
       let nd0 = pnd#initial_children.(pos) in
       DEBUG_MSG "nd0=%a" nps nd0;
-        match get_idx nd0, get_idx nd with
+      let strict = self#is_stable pnd in
+        match get_idx ~strict nd0, get_idx ~strict nd with
         | (Some st0, Some ed0), (Some st, Some ed) when ed < st0 -> -1
         | (Some st0, Some ed0), (Some st, Some ed) when ed0 < st -> 1
         | (Some st0, Some ed0), (Some st, Some ed) when st = st0 && ed0 > ed -> -1
@@ -3900,9 +3904,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               DEBUG_MSG "right_stable=[%a]" nsps !right_stable;
                               let filt x =
                                 if self#is_stable x then
-                                  self#is_true_stable_node x
+                                  self#is_true_stable_node (*~weak:true*) x
                                 else
-                                  self#has_true_stable_descendant x
+                                  self#has_true_stable_descendant ~weak:true x
                               in
                               let rec check ?(top=true) left right =
                                 if left <> [] && right <> [] then

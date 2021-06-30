@@ -1134,7 +1134,7 @@ module Edit = struct
 
       (* experimental *)
       method private _is_simple_ins tree is_stable' is_stable_' nmap' ?(exact=true) ?(top_nodes=[]) x' =
-        DEBUG_MSG "x'=%a" nps x';
+        DEBUG_MSG "x'=%a top_nodes=[%a]" nps x' nsps top_nodes;
         let ancto_tbl =
           if tree == tree1 then
             anc1to_tbl
@@ -6967,7 +6967,29 @@ module Edit = struct
               end
             in
             let ci = children.(i) in
-            DEBUG_MSG "i=%d ci=%a" i nps ci;
+            let ck_opt = self#find_key_opt ci#uid in
+            DEBUG_MSG "i=%d ci=%a ck_opt=%s" i nps ci (key_opt_to_string ck_opt);
+            let ci_is_top_ins_root =
+              is_stable ci#initial_parent &&
+              match ck_opt with
+              | Some ck when try get_subtree_root ck == ci with _ -> false -> true
+              | _ -> false
+            in
+            DEBUG_MSG "ci_is_top_ins_root=%B" ci_is_top_ins_root;
+            let can_ignore_lift x =
+              let b =
+                ci_is_top_ins_root &&
+                not
+                  (has_p_ancestor ~limit_opt:(Some ci)
+                     (fun y ->
+                       match self#find_key_opt y#uid with
+                       | Some _ as yk_opt -> yk_opt <> ck_opt
+                       | _ -> false
+                     ) x)
+              in
+              DEBUG_MSG "%a -> %B" nps x b;
+              b
+            in
             scanner ci
               (fun n ->
                 DEBUG_MSG "n=%a" nps n;
@@ -6976,10 +6998,12 @@ module Edit = struct
                   DEBUG_MSG "n'=%a" nps n';
                   if
                     is_stable' n' &&
+                    (can_ignore_lift n ||
                     not (Xset.mem lifted_nodes n') &&
                     not (self#is_node_to_be_lifted n) &&
-                    not (self#is_canceled_stable_node n)
+                    not (self#is_canceled_stable_node n))
                   then begin
+                    if can_ignore_lift n && (Xset.mem lifted_nodes n' || self#is_node_to_be_lifted n || self#is_canceled_stable_node n) then DEBUG_MSG "!!!!!!!!!!";
                     if forward then begin
                       begin
                         match !_stable_nodes' with
@@ -8185,6 +8209,13 @@ module Edit = struct
           let pos = path#position in
           let nb = List.length paths in
           DEBUG_MSG "anc=%a pos=%d nb=%d" nps anc pos nb;
+          let comp_flag =
+            path#offset = 0.0 &&
+            match paths with
+            | [] -> false
+            | p::_ -> p#key_opt <> None
+          in
+          DEBUG_MSG "comp_flag=%B" comp_flag;
           let group_heads = ref [] in
           let group_tbl = Hashtbl.create 0 in
           let foreign_mem_list = ref [] in
@@ -8223,8 +8254,8 @@ module Edit = struct
           in
           let is_simple_ins x' =
             let b =
-              Xset.mem simple_ins_roots' x'(* ||
-              self#_is_simple_ins tree' is_stable' is_stable_' nmap' ~top_nodes x'*)
+              Xset.mem simple_ins_roots' x' ||
+              not comp_flag && self#_is_simple_ins tree' is_stable' is_stable_' nmap' ~top_nodes x'
             in
             DEBUG_MSG "%a -> %B" nps x' b;
             b

@@ -30,6 +30,7 @@ let del_fg = "#000000"
 let ins_bg = "#B2CDF9"
 let ins_fg = "#000000"
 
+exception Found
 
 let verbose_msg options x = Xprint.verbose options#verbose_flag x
 let node_type_to_string = XML.node_type_to_string
@@ -219,6 +220,29 @@ let has_p_sibling pred nd =
       x != nd && pred x
     ) nd#initial_parent#initial_children
 
+let has_p_ancestor ?(limit_opt=None) pred nd =
+  let moveon =
+    match limit_opt with
+    | Some r -> fun x -> x != r
+    | _ -> fun x -> true
+  in
+  try
+    let cur = ref nd#initial_parent in
+    while true do
+      if moveon !cur then begin
+        if pred !cur then
+          raise Found
+        else
+          cur := (!cur)#initial_parent
+      end
+      else
+        raise Exit
+    done;
+    false
+  with
+  | Found -> true
+  | _ -> false
+
 let get_p_ancestor ?(moveon=fun _ -> true) pred nd =
   try
     let cur = ref nd#initial_parent in
@@ -326,7 +350,6 @@ let get_ancestors nd =
     (Xlist.to_string (fun (n, pos) -> sprintf "(%a,%d)" nps n pos) ";" !l);
   !l
 
-exception Found
 let is_ancestor a n =
   try
     scan_ancestors n
