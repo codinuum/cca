@@ -1580,6 +1580,30 @@ module Edit = struct
                 DEBUG_MSG "c'=%a cg=[%a]" nps c' nsps cg;
                 Xlist.intersectionq cg top_nodes_ <> []
               ) ca' 0 (x'#initial_pos-1)) &&*)
+            (match self#find_key_opt x'#initial_parent#uid with
+            | Some k -> begin
+                is_stable' x' &&
+                try
+                  let x = nmap' x' in
+                  DEBUG_MSG "x=%a" nps x;
+                  let a, (pt, ps) =  Hashtbl.find ancto_tbl k in
+                  let pos = pt#position in
+                  let nb = List.length ps in
+                  DEBUG_MSG "a=%a pos=%d nb=%d" nps a pos nb;
+                  let ca = a#initial_children in
+                  for i = pos to pos + nb - 1 do
+                    if is_ancestor ca.(i) x then begin
+                      DEBUG_MSG "i=%d: %a is an ancestor of %a" i nps ca.(i) nps x;
+                      raise Exit
+                    end
+                  done;
+                  true
+                with
+                | Exit -> false
+                | _ -> true
+            end
+            | _ -> true
+            ) &&
             array_range_exists
               (fun c' ->
                 c' != x' &&
@@ -1588,9 +1612,11 @@ module Edit = struct
                     DEBUG_MSG "ck=%s" (key_to_string ck);
                     try
                       let a, (pt, ps) = Hashtbl.find ancto_tbl ck in
-                      DEBUG_MSG "c'=%a a=%a" nps c' nps a;
+                      let pos = pt#position in
+                      let nb = List.length ps in
+                      DEBUG_MSG "c'=%a a=%a pos=%d nb=%d" nps c' nps a pos nb;
                       List.exists (fun tn -> is_ancestor tn a) top_nodes_ &&
-                      List.for_all (fun x -> is_ancestor a x) bnds
+                      List.for_all (fun bn -> is_ancestor a bn) bnds
                     with _ -> false
                 end
                 | _ -> false
@@ -1640,7 +1666,7 @@ module Edit = struct
           then begin
             (*DEBUG_MSG "%a is (has) a canceled_stable_node" nps bn';*)
             fun lv x' ->
-              DEBUG_MSG "x'=%a" nps x';
+              DEBUG_MSG "x'=%a lv=%d" nps x' lv;
               if lv > 0 then
                 _is_excluded x'
               (*else if lv = 0 && all_excluded_stable then
@@ -1653,6 +1679,7 @@ module Edit = struct
                 true
               else
                 let base_cond = x' == bn' || extra_base_cond x' in
+                DEBUG_MSG "base_cond=%B" base_cond;
                 let b =
                   _is_excluded x' &&
                   (base_cond ||
@@ -4462,6 +4489,22 @@ module Edit = struct
 
               let paths = filter_paths_i pos_shift paths_count paths in
 
+              if paths = [] then begin
+                let anc', path', paths, upc, simple =
+                  let is_excluded _ = self#is_excluded in
+                  let get_group _ = raise Not_found in
+                  let group_heads = [] in
+                  let is_simple_ins = fun _ -> None in
+                  get_path'
+                    (get_adjusted_path
+                       ~get_group ~group_heads ~is_simple_ins ~get_iparent_opt:None ~is_excluded)
+                    nd excluded
+                in
+                DEBUG_MSG "anc'=%a path'=%s upc=%d simple=%B"
+                  nps anc' (Path.to_string path') upc simple;
+                anc', path', paths, upc, simple
+              end
+              else begin
               begin
                 let to_be_invalidated = ref [] in
                 let top_nds' = Xset.create 0 in
@@ -4539,9 +4582,8 @@ module Edit = struct
                     end
                   ) wtbl
               end;
-
               anc', path', paths, 0, false
-
+              end
           end
         in (* anc', path', paths, upstream, simple *)
         DEBUG_MSG "anc'=%a path'=%s upstream=%d simple=%B"
@@ -7361,7 +7403,12 @@ module Edit = struct
                               end
                               else if is_ancestor a' anc' then begin
                                 DEBUG_MSG "a' is an ancestor of anc'";
-                                true
+                                if !l_has_conflicts && is_simple0 then begin
+                                  DEBUG_MSG "l_has_conflicts && is_simple0";
+                                  false
+                                end
+                                else
+                                  true
                               end
                               else if
                                 not
@@ -7698,8 +7745,14 @@ module Edit = struct
                             let w_grp_cond =
                               if is_stable wall then
                                 let wall' = nmap wall in
-                                DEBUG_MSG "a'=%a wall'=%a idx=%d" nps a' nps wall' idx;
-                                if wall'#initial_parent != a' then begin
+                                let t' =
+                                  try
+                                    let t', _ = Hashtbl.find ancto_tbl (self#find_key pnd#uid) in
+                                    t'
+                                  with _ -> a'
+                                in
+                                DEBUG_MSG "t'=%a wall'=%a idx=%d" nps t' nps wall' idx;
+                                if wall'#initial_parent != t' then begin
                                   check_flag := true;
                                   fun x ->
                                     try
@@ -9890,19 +9943,21 @@ module Edit = struct
 
               let path2 = new path_c nd2#apath in
 
+              let excluded2_ =
+                (List.filter
+                   (fun n2 ->
+                     self#is_stable2 n2 && not (self#is_canceled_stable_node n2)
+                   ) excluded2)
+              in
+              DEBUG_MSG "excluded2 (stable and not canceled): [%a]" nsps excluded2_;
               let excepted_nds2 =
                 List.filter
                   (fun n2 ->
                     self#is_stable2 n2 && not (self#is_canceled_stable_node n2) ||
                     List.mem_assq n2 remote_stable_tbl2
-                  ) excluded2
+                  ) excluded2_
               in
               DEBUG_MSG "excepted_nds2: [%a]" nsps excepted_nds2;
-              DEBUG_MSG "excluded2 (stable and not canceled): [%a]" nsps
-                (List.filter
-                   (fun n2 ->
-                     self#is_stable2 n2 && not (self#is_canceled_stable_node n2)
-                   ) excluded2);
 
               let key_opt, adj_opt, depth_opt, shift_opt =
                 get_parent_info excepted_nds2 nd2 path1 tree1 uidmapping#inv_find

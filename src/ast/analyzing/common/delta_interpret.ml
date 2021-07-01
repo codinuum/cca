@@ -3856,6 +3856,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                 in
                                 ref (f key rest)
                               in
+                              DEBUG_MSG "cur=%a" nps !cur;
                               let ca = ref !cur#initial_parent#initial_children in
                               begin
                                 try
@@ -3902,11 +3903,13 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               end;
                               DEBUG_MSG "left_stable=[%a]" nsps !left_stable;
                               DEBUG_MSG "right_stable=[%a]" nsps !right_stable;
+                              let weak = ins#initial_parent != sn in
+                              DEBUG_MSG "weak=%B" weak;
                               let filt x =
                                 if self#is_stable x then
                                   self#is_true_stable_node (*~weak:true*) x
                                 else
-                                  self#has_true_stable_descendant (*~weak:true*) x
+                                  self#has_true_stable_descendant ~weak x
                               in
                               let rec check ?(top=true) left right =
                                 if left <> [] && right <> [] then

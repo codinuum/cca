@@ -3619,6 +3619,8 @@ let get_value = function
   | Primary (Primary.Literal lit)
   | Expression (Expression.Primary (Primary.Literal lit)) ->
       Literal.to_value lit
+  | Primary (Primary.ArrayCreationDims dims)
+  | Expression (Expression.Primary (Primary.ArrayCreationDims dims)) -> Type.dims_to_string dims
   | _ -> raise Not_found
 
 let has_value = function
