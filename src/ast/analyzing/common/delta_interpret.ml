@@ -212,7 +212,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
   val staying_moves = Xset.create 0
 
-  val deferred_relabel_tbl = Hashtbl.create 0 (* node -> unit *)
+  val move_relabel_tbl = Hashtbl.create 0 (* node -> unit *)
+
+  val mutable deferred_relabel_list = [] (* unit -> unit *)
 
   val pos_trans_tbl = Hashtbl.create 0 (* node -> (pos, ofs) -> node *)
   val extra_pos_trans_tbl = Hashtbl.create 0 (* node -> (pos, ofs) -> node *)
@@ -230,6 +232,13 @@ class ['tree] interpreter (tree : 'tree) = object (self)
   val composition_tbl = Hashtbl.create 0
 
   (*val no_trans_mutations = Xset.create 0*)
+
+  method add_deferred_relabel f = deferred_relabel_list <- f::deferred_relabel_list
+
+  method do_deferred_relabels() =
+    DEBUG_MSG "performing deferred relabels...";
+    List.iter (fun f -> f()) deferred_relabel_list;
+    DEBUG_MSG "done."
 
   method private get_path nd =
     DEBUG_MSG "nd=%a" nps nd;
@@ -5471,11 +5480,11 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     DEBUG_MSG "nd=%s" nd#initial_to_string;
 
-    let find_deferred_relabel nd =
-      Hashtbl.find deferred_relabel_tbl nd
+    let find_move_relabel nd =
+      Hashtbl.find move_relabel_tbl nd
     in
     let subtree =
-      tree#make_subtree_copy ?find_hook:(Some find_deferred_relabel) nd
+      tree#make_subtree_copy ?find_hook:(Some find_move_relabel) nd
     in
 
     subtree#setup_apath;
@@ -6046,91 +6055,76 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
 
   method interpret_change ?(mctl=Mfull) (path : path_c) paths (subtree : 'tree) =
+    let apply nd =
+      DEBUG_MSG "nd=%s" nd#initial_to_string;
+      let q = Queue.create() in
+      subtree#preorder_scan_all
+        (fun n ->
+	  DEBUG_MSG "     queueing %s" n#initial_to_string;
+	  Queue.add n#data q
+        );
+      (*let nds = self#boundary_to_nds path paths in*)
+      let nds =
+        try
+          self#boundary_to_nds_from nd paths
+        with
+          _ ->
+            DEBUG_MSG "boundary_to_nds_from: failed";
+            self#boundary_to_nds path paths
+      in
+      BEGIN_DEBUG
+        List.iteri (fun i n -> DEBUG_MSG "%d: %s" i n#initial_to_string) nds;
+      END_DEBUG;
+      scan_initial_cluster nd nds
+        (fun n ->
+	  DEBUG_MSG "     n -> %s" n#initial_to_string;
+	  try
+	    let d = Queue.take q in
+	    n#set_data d
+	  with
+            Queue.Empty ->
+              let ed_str =
+	        sprintf "Dchange(path:%s,%s,\n%s)"
+	          path#to_string (boundary_to_string paths)
+                  subtree#initial_to_string
+              in
+	      Xprint.error
+                "invalid delta: inconsistent change: %s" ed_str
+        )
+    in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd =
-	  DEBUG_MSG "nd=%s" nd#initial_to_string;
-          let q = Queue.create() in
-          subtree#preorder_scan_all
-            (fun n ->
-	      DEBUG_MSG "     queueing %s" n#initial_to_string;
-	      Queue.add n#data q
-            );
-          (*let nds = self#boundary_to_nds path paths in*)
-          let nds =
-            try
-              self#boundary_to_nds_from nd paths
-            with
-              _ ->
-                DEBUG_MSG "boundary_to_nds_from: failed";
-                self#boundary_to_nds path paths
-          in
-          BEGIN_DEBUG
-            List.iteri (fun i n -> DEBUG_MSG "%d: %s" i n#initial_to_string) nds;
-          END_DEBUG;
-          scan_initial_cluster nd nds
-            (fun n ->
-	      DEBUG_MSG "     n -> %s" n#initial_to_string;
-	      try
-	        let d = Queue.take q in
-	        n#set_data d
-	      with
-                Queue.Empty ->
-                  let ed_str =
-	            sprintf "Dchange(path:%s,%s,\n%s)"
-	              path#to_string (boundary_to_string paths)
-                      subtree#initial_to_string
-                  in
-	          Xprint.error
-                    "invalid delta: inconsistent change: %s" ed_str
-            )
-        in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | Mfull -> apply nd
 
   method interpret_change_attr ?(mctl=Mfull) (path : path_c) attr v =
+    let apply nd = nd#data#change_attr attr v in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd = nd#data#change_attr attr v in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | Mfull -> apply nd
 
   method interpret_delete_attr ?(mctl=Mfull) (path : path_c) attr =
+    let apply nd = nd#data#delete_attr attr in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd = nd#data#delete_attr attr in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | Mfull -> apply nd
 
   method interpret_insert_attr ?(mctl=Mfull) (path : path_c) attr v =
+    let apply nd = nd#data#insert_attr attr v in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd = nd#data#insert_attr attr v in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | Mfull -> apply nd
+
 
 end (* of class Delta.interpreter *)

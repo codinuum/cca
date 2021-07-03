@@ -511,6 +511,10 @@ let get_adjusted_path
         let pos' = ref 0 in
 
         let incr_count =
+          let incr_ x =
+            DEBUG_MSG "%d -> %d" !x (!x + 1);
+            incr x
+          in
           match get_iparent_opt with
           | Some f -> begin
               let d_list = ref [] in
@@ -521,17 +525,17 @@ let get_adjusted_path
                   | h::_ -> begin
                       if d != h then begin
                         d_list := d :: !d_list;
-                        incr count
+                        incr_ count
                       end
                   end
                   | [] -> begin
                       d_list := [d];
-                      incr count
+                      incr_ count
                   end
                 with
-                  Not_found -> incr count
+                  Not_found -> incr_ count
           end
-          | None -> fun _ -> incr count
+          | None -> fun _ -> incr_ count
         in
 
         begin
@@ -584,12 +588,24 @@ let get_adjusted_path
                   with _ -> ()
                 end
                 else (*if not c_is_excluded then *)begin
-                  incr_count c;
+                  let incr_flag = ref true in
                   begin
                     try
-                      cur_grp_opt := Some (i, get_group c)
+                      let g = get_group c in
+                      begin
+                        match !cur_grp_opt with
+                        | Some (i', g') -> begin
+                            DEBUG_MSG "grp: (%d,%a) -> (%d,%a)" i' nps g' i nps g;
+                            if (i' = pos - 1 || i' = i - 1) && g' == g then
+                              incr_flag := false
+                        end
+                        | _ -> ()
+                      end;
+                      cur_grp_opt := Some (i, g)
                     with _ -> ()
                   end;
+                  if !incr_flag then
+                    incr_count c;
                   if i < pos || i > pos then begin
                     let o = pos - i in
                     DEBUG_MSG "offset: %d -> %d" !offset o;

@@ -5033,7 +5033,7 @@ end;
               let nd1 = Info.get_node info1 in
               let nd2 = Info.get_node info2 in
               if
-                tree1#initial_subtree_mem rt1 nd1 ||
+                tree1#initial_subtree_mem rt1 nd1 &&
                 tree2#initial_subtree_mem rt2 nd2
               then begin
                 let _ = uidmapping#remove uid1 uid2 in
@@ -5066,6 +5066,7 @@ end;
               DEBUG_MSG "n2=%s" n2#initial_to_string;
               DEBUG_MSG "similarity=%f" sim;*)
               if sim < sim_thresh then begin
+                DEBUG_MSG "elaborating edits on %s -- %s (similarity=%f)" n1#initial_to_string n2#initial_to_string sim;
                 Xprint.verbose options#verbose_flag "elaborating edits on %s -- %s (similarity=%f)"
                   n1#initial_to_string n2#initial_to_string sim;
                 eliminate_edits n1 n2
@@ -5933,6 +5934,7 @@ end;
 
     (* *)
     if options#dump_delta_flag || options#conservative_flag then begin
+      DEBUG_MSG "elaborating edits...";
       elaborate_edits_for_delta options tree1 tree2 uidmapping edits;
 
       let dels, inss =
@@ -6028,18 +6030,20 @@ end;
         in
         b*)
       in
-if not options#no_glue_flag then begin
-      let rps, aps, _ =
-        glue_deletes_and_inserts options cenv tree1 tree2
-          ~no_mapping_override:true ~no_moves:true ~is_move ~glue_filt
-          uidmapping pre_uidmapping
-      in
-      sync_edits options tree1 tree2 edits rps aps;
-end;
+      if not options#no_glue_flag then begin
+        let rps, aps, _ =
+          glue_deletes_and_inserts options cenv tree1 tree2
+            ~no_mapping_override:true ~no_moves:true ~is_move ~glue_filt
+            uidmapping pre_uidmapping
+        in
+        sync_edits options tree1 tree2 edits rps aps;
+      end;
+
       if options#no_moves_flag then begin
         ignore (decompose_moves (fun _ _ -> true) options edits uidmapping 0);
       end;
 
+      DEBUG_MSG "done.";
     end;
 
     (*DEBUG_MSG "pre_uidmapping:\n%s\n" pre_uidmapping#to_string;*)

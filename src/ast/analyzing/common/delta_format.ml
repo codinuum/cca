@@ -296,6 +296,8 @@ module IrreversibleFormat = struct
           | _ -> ()
         ) delta;
 
+      interpreter#do_deferred_relabels();
+
       List.iter
         (fun ed ->
           match ed with
