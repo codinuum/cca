@@ -5027,28 +5027,63 @@ end;
     in
     let eliminate_edits rt1 rt2 =
       DEBUG_MSG "rt1=%a rt2=%a" UID.ps rt1#uid UID.ps rt2#uid;
+      let bname_opt =
+        if rt1#data#is_named_orig && rt2#data#is_named_orig && rt1#data#get_name = rt2#data#get_name then
+          Some rt1#data#get_name
+        else
+          None
+      in
+      let has_boundary_of_same_name =
+        match bname_opt with
+        | Some bn -> begin
+            DEBUG_MSG "boundary name: %s" bn;
+            fun nd ->
+              (try
+                nd#data#get_name = bn
+              with _ -> false) ||
+              try
+                scan_ancestors nd
+                  (fun n ->
+                    if n#data#is_boundary && n#data#get_name = bn then
+                      raise Exit
+                  );
+                false
+              with
+              | Exit -> true
+              |  _ -> false
+        end
+        | None -> fun _ -> false
+      in
       edits#iter_moves
         (function
           | Edit.Move(_, kind, (uid1, info1, ex1), (uid2, info2, ex2)) as mov -> begin
               let nd1 = Info.get_node info1 in
               let nd2 = Info.get_node info2 in
-              if
-                tree1#initial_subtree_mem rt1 nd1 &&
-                tree2#initial_subtree_mem rt2 nd2
-              then begin
-                let _ = uidmapping#remove uid1 uid2 in
-                edits#remove_edit mov;
-                begin
-                  try
-                    match edits#find_rel12 uid1 uid2 with
-                    | Edit.Relabel _ as rel ->
-                        edits#remove_edit rel
-                    | _ -> assert false
-                  with
-                    Not_found -> ()
-                end;
-                edits#add_edit (Edit.Delete(false, uid1, info1, ex1));
-                edits#add_edit (Edit.Insert(false, uid2, info2, ex2));
+              let b1 = tree1#initial_subtree_mem rt1 nd1 in
+              let b2 = tree2#initial_subtree_mem rt2 nd2 in
+              if b1 || b2 then begin
+                if
+                  (not b1 || not b2) &&
+                  has_boundary_of_same_name nd1 && has_boundary_of_same_name nd2
+                then begin
+                  DEBUG_MSG "not eliminated: %s" (Edit.to_string mov)
+                end
+                else begin
+                  DEBUG_MSG "eliminating %s" (Edit.to_string mov);
+                  let _ = uidmapping#remove uid1 uid2 in
+                  edits#remove_edit mov;
+                  begin
+                    try
+                      match edits#find_rel12 uid1 uid2 with
+                      | Edit.Relabel _ as rel ->
+                          edits#remove_edit rel
+                      | _ -> assert false
+                    with
+                      Not_found -> ()
+                  end;
+                  edits#add_edit (Edit.Delete(false, uid1, info1, ex1));
+                  edits#add_edit (Edit.Insert(false, uid2, info2, ex2));
+                end
               end
           end
           | _ -> assert false
@@ -5066,9 +5101,10 @@ end;
               DEBUG_MSG "n2=%s" n2#initial_to_string;
               DEBUG_MSG "similarity=%f" sim;*)
               if sim < sim_thresh then begin
-                DEBUG_MSG "elaborating edits on %s -- %s (similarity=%f)" n1#initial_to_string n2#initial_to_string sim;
+                DEBUG_MSG "elaborating edits on %a-%a (similarity=%f)" UID.ps n1#uid UID.ps n2#uid sim;
                 Xprint.verbose options#verbose_flag "elaborating edits on %s -- %s (similarity=%f)"
                   n1#initial_to_string n2#initial_to_string sim;
+
                 eliminate_edits n1 n2
               end
             with
