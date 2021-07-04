@@ -5063,8 +5063,13 @@ end;
               let b2 = tree2#initial_subtree_mem rt2 nd2 in
               if b1 || b2 then begin
                 if
-                  (not b1 || not b2) &&
-                  has_boundary_of_same_name nd1 && has_boundary_of_same_name nd2
+                  (not b1 || not b2) && has_boundary_of_same_name nd1 && has_boundary_of_same_name nd2 ||
+                  match bname_opt with
+                  | Some bn ->
+                      nd1 == rt1 && nd2 == rt2 ||
+                      nd1#data#get_name = bn && nd2#data#get_name = bn &&
+                      tree1#is_initial_ancestor rt1 nd1 && tree2#is_initial_ancestor rt2 nd2
+                  | _ -> false
                 then begin
                   DEBUG_MSG "not eliminated: %s" (Edit.to_string mov)
                 end

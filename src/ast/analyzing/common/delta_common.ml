@@ -596,11 +596,12 @@ let get_adjusted_path
                         match !cur_grp_opt with
                         | Some (i', g') -> begin
                             DEBUG_MSG "grp: (%d,%a) -> (%d,%a)" i' nps g' i nps g;
-                            if (i' = pos - 1 || i' = i - 1) && g' == g then
+                            if (i' = pos - 1 || i' < i) && g' == g then
                               incr_flag := false
                         end
                         | _ -> ()
                       end;
+                      DEBUG_MSG "grp: (%d,%a)" i nps g;
                       cur_grp_opt := Some (i, g)
                     with _ -> ()
                   end;

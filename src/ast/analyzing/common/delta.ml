@@ -1386,7 +1386,7 @@ module Edit = struct
 
       method get_subpath tree tree' nmap' ?(ins_point_opt=None) k bn' =
         let lifted_nodes, is_stable, is_stable', get_ipos, get_iofs,
-          stid_of_key, simple_ins_roots, ancto_tbl, is_ancestor_key, edit_parent_tbl, parent_key_tbl =
+          stid_of_key, simple_ins_roots, ancto_tbl, is_ancestor_key, edit_parent_tbl, parent_key_tbl, rev_ancto_tbl =
           if tree == tree1 then
             lifted_nodes1,
             self#is_stable1,
@@ -1396,7 +1396,8 @@ module Edit = struct
             self#stid_of_key2,
             simple_ins_roots2,
             anc1to_tbl,
-            self#is_ancestor_key1, edit_parent_tbl1, parent_key_tbl1
+            self#is_ancestor_key1, edit_parent_tbl1, parent_key_tbl1,
+            rev_anc1to_tbl
           else
             lifted_nodes2,
             self#is_stable2,
@@ -1406,7 +1407,8 @@ module Edit = struct
             self#stid_of_key1,
             simple_ins_roots1,
             anc2to_tbl,
-            self#is_ancestor_key2, edit_parent_tbl2, parent_key_tbl2
+            self#is_ancestor_key2, edit_parent_tbl2, parent_key_tbl2,
+            rev_anc2to_tbl
         in
         let stid = stid_of_key k in
         let rt' = self#get_subtree_root stid in
@@ -1932,6 +1934,28 @@ module Edit = struct
                       DEBUG_MSG "ss=[%a]" nsps ss;
                       let xg = get_grp x' in
                       DEBUG_MSG "xg=[%a]" nsps xg;
+
+                      try
+                        match xg with
+                        | [g] -> begin
+                            let ks = Hashtbl.find rev_ancto_tbl (g#initial_parent, g#initial_pos) in
+                            DEBUG_MSG "g#initial_parent=%a pos=%d ks=[%s]"
+                              nps g#initial_parent g#initial_pos (keys_to_string ks);
+                            match ks with
+                            | [k] -> begin
+                                let pk = self#find_key x'#initial_parent#uid in
+                                DEBUG_MSG "pk=%s" (key_to_string pk);
+                                if pk = k then
+                                  false
+                                else
+                                  raise Not_found
+                            end
+                            | _ -> raise Not_found
+                        end
+                        | _ -> raise Not_found
+                      with
+                        Not_found ->
+
                       array_range_exists
                         (fun c' ->
                           let cg = get_grp c' in
