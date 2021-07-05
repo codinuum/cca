@@ -76,26 +76,6 @@ let rev_array_exists f a =
   with
     Exit -> true
 
-let array_range_exists f a st ed =
-  try
-    for i = st to ed do
-      if f a.(i) then
-        raise Exit
-    done;
-    false
-  with
-    Exit -> true
-
-let array_range_forall f a st ed =
-  try
-    for i = st to ed do
-      if not (f a.(i)) then
-        raise Exit
-    done;
-    true
-  with
-    Exit -> false
-
 exception Defer
 
 module Edit = struct
@@ -1938,6 +1918,20 @@ module Edit = struct
                       try
                         match xg with
                         | [g] -> begin
+                            begin
+                              let ca' = x'#initial_parent#initial_children in
+                              let flag = ref false in
+                              for i = xpos - 1 downto 0 do
+                                if !flag && get_grp ca'.(i) = [g] then begin
+                                  DEBUG_MSG "%a belong to %a group" nps ca'.(i) nps g;
+                                  raise Not_found
+                                end;
+                                if Xset.mem simple_ins_roots ca'.(i) then begin
+                                  DEBUG_MSG "%a is a simple ins root" nps ca'.(i);
+                                  flag := true
+                                end
+                              done
+                            end;
                             let ks = Hashtbl.find rev_ancto_tbl (g#initial_parent, g#initial_pos) in
                             DEBUG_MSG "g#initial_parent=%a pos=%d ks=[%s]"
                               nps g#initial_parent g#initial_pos (keys_to_string ks);

@@ -37,6 +37,26 @@ let node_type_to_string = XML.node_type_to_string
 let mids_to_string mids =
   String.concat ";" (List.map MID.to_string mids)
 
+let array_range_exists f a st ed =
+  try
+    for i = st to ed do
+      if f a.(i) then
+        raise Exit
+    done;
+    false
+  with
+    Exit -> true
+
+let array_range_forall f a st ed =
+  try
+    for i = st to ed do
+      if not (f a.(i)) then
+        raise Exit
+    done;
+    true
+  with
+    Exit -> false
+
 let get_range l = (* (min, max) *)
   match l with
   | [] -> invalid_arg "get_range"
