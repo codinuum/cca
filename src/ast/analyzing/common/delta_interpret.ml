@@ -235,6 +235,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
   method add_deferred_relabel f = deferred_relabel_list <- f::deferred_relabel_list
 
+  method add_move_relabel nd f = Hashtbl.add move_relabel_tbl nd f
+
   method do_deferred_relabels() =
     DEBUG_MSG "performing deferred relabels...";
     List.iter (fun f -> f()) deferred_relabel_list;
@@ -6096,7 +6098,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
     | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
-    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | MinsertOnly -> self#add_move_relabel nd apply
     | Mfull -> apply nd
 
   method interpret_change_attr ?(mctl=Mfull) (path : path_c) attr v =
@@ -6105,7 +6107,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
     | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
-    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | MinsertOnly -> self#add_move_relabel nd apply
     | Mfull -> apply nd
 
   method interpret_delete_attr ?(mctl=Mfull) (path : path_c) attr =
@@ -6114,7 +6116,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
     | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
-    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | MinsertOnly -> self#add_move_relabel nd apply
     | Mfull -> apply nd
 
   method interpret_insert_attr ?(mctl=Mfull) (path : path_c) attr v =
@@ -6123,7 +6125,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
     | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
-    | MinsertOnly -> Hashtbl.add move_relabel_tbl nd apply
+    | MinsertOnly -> self#add_move_relabel nd apply
     | Mfull -> apply nd
 
 
