@@ -4412,7 +4412,7 @@ end;
 
     let suggested_pairs = Xset.create 0 in
 
-    if options#no_movrel_flag then begin (* eliminate ALL movrels *)
+    if options#no_movrels_flag then begin (* eliminate ALL movrels *)
       DEBUG_MSG "removing ALL movrels...";
       edits#iter_moves
         (function
@@ -5065,11 +5065,22 @@ end;
                 if
                   (not b1 || not b2) && has_boundary_of_same_name nd1 && has_boundary_of_same_name nd2 ||
                   match bname_opt with
-                  | Some bn ->
+                  | Some bn -> begin
                       nd1 == rt1 && nd2 == rt2 ||
                       nd1#data#get_name = bn && nd2#data#get_name = bn &&
                       tree1#is_initial_ancestor rt1 nd1 && tree2#is_initial_ancestor rt2 nd2
-                  | _ -> false
+                  end
+                  | _ -> begin
+                      nd1#data#subtree_equals nd2#data ||
+                      Array.exists
+                        (fun c1 ->
+                          try
+                            let c2 = nmap c1 in
+                            c2#initial_parent == nd2
+                          with
+                            Not_found -> false
+                        ) nd1#initial_children
+                  end
                 then begin
                   DEBUG_MSG "not eliminated: %s" (Edit.to_string mov)
                 end

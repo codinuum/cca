@@ -447,7 +447,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "super"; pr_arguments ~fail_on_error children; pr_semicolon()
 
   | L.Constructor(name, signature) ->
-      pb#open_vbox 0;
+      (*pb#open_vbox 0;*)
       pb#open_box 0;
       pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
@@ -456,7 +456,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error L.is_throws children;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_ctorbody children;
-      pb#close_box()
+      (*pb#close_box()*)
 
   | L.ConstructorBody _ ->
       pb#pr_block_begin_short();
@@ -613,7 +613,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_id i; pr_dims dims
 
   | L.Method(i, _) ->
-      pb#open_vbox 0;
+      (*pb#open_vbox 0;*)
       pb#open_box 0;
       pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
@@ -624,7 +624,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style ~head:pad1 ~otherwise:pr_semicolon
         L.is_methodbody children;
-      pb#close_box()
+      (*pb#close_box()*)
 
   | L.MethodBody _ ->
       if nchildren = 0 then

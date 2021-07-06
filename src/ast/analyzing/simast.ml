@@ -129,7 +129,7 @@ let speclist =
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
    sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
 *)
-   "-nomovrel", Arg.Unit (fun () -> options#set_no_movrel_flag), "\tdisable movrel generation";
+   "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
 (*
    "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
    sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;

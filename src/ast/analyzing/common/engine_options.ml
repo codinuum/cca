@@ -36,7 +36,7 @@ class c = object (self)
   val mutable no_moves_flag                = false
   val mutable no_glue_flag                 = false
   val mutable simple_glue_flag             = false
-  val mutable no_movrel_flag               = false
+  val mutable no_movrels_flag              = false
   val mutable no_relabel_elim_flag         = false
   val mutable prematch_early_resolve_flag  = false
   val mutable prematch_flag                = true
@@ -110,9 +110,9 @@ class c = object (self)
   method set_group_relabels_flag = group_relabels_flag <- true
   method clear_group_relabels_flag = group_relabels_flag <- false
 
-  method no_movrel_flag = no_movrel_flag
-  method set_no_movrel_flag = no_movrel_flag <- true
-  method clear_no_movrel_flag = no_movrel_flag <- false
+  method no_movrels_flag = no_movrels_flag
+  method set_no_movrels_flag = no_movrels_flag <- true
+  method clear_no_movrels_flag = no_movrels_flag <- false
 
   method prematch_flag = prematch_flag
   method set_prematch_flag = prematch_flag <- true
