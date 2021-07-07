@@ -5071,12 +5071,12 @@ end;
                       tree1#is_initial_ancestor rt1 nd1 && tree2#is_initial_ancestor rt2 nd2
                   end
                   | _ -> begin
-                      nd1#data#subtree_equals nd2#data ||
+                      nd1#initial_nchildren > 0 && nd1#data#subtree_equals nd2#data ||
                       Array.exists
                         (fun c1 ->
                           try
                             let c2 = nmap c1 in
-                            c2#initial_parent == nd2
+                            c2#initial_parent == nd2 && c1#initial_nchildren > 0 && c1#data#subtree_equals c2#data
                           with
                             Not_found -> false
                         ) nd1#initial_children
