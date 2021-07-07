@@ -306,20 +306,16 @@ module F (Label : Spec.LABEL_T) = struct
           false
     in
 
-    let children1 =
-      Array.to_list (Array.map (fun n -> n#uid) nd1#initial_children)
-    in
-    let children2 =
-      Array.to_list (Array.map (fun n -> n#uid) nd2#initial_children)
-    in
+    let children1 = Array.map (fun n -> n#uid) nd1#initial_children in
+    let children2 = Array.map (fun n -> n#uid) nd2#initial_children in
 (*
     let pseudo_match = is_pseudo_match nd1 nd2 in
 
     let to_be_exact = exact && not pseudo_match in
 *)
     let children_cond =
-      let nchildren1 = List.length children1 in
-      let nchildren2 = List.length children2 in
+      let nchildren1 = Array.length children1 in
+      let nchildren2 = Array.length children2 in
 
       if nchildren1 = 0 || nchildren2 = 0 then
         true
@@ -331,11 +327,11 @@ module F (Label : Spec.LABEL_T) = struct
 
         else
           let nmapped =
-            List.fold_left
+            Array.fold_left
               (fun n u ->
                 try
                   let u' = uidmapping#find u in
-                  if List.memq u' children2 then
+                  if Array.memq u' children2 then
                     let nd1 =
                       try
                         tree1#search_node_by_uid u
@@ -4996,6 +4992,23 @@ end;
 
   (* *)
   let elaborate_edits_for_delta options ?(sim_thresh=0.1) tree1 tree2 uidmapping edits =
+
+    let move_size_tbl = Hashtbl.create 0 in
+    edits#iter_moves
+      (function
+        | Edit.Move(mid, _, (_, info1, _), (_, info2, _)) -> begin
+            let nd1 = Info.get_node info1 in
+            let nd2 = Info.get_node info2 in
+            if nd1#data#eq nd2#data then
+              try
+                let sz = Hashtbl.find move_size_tbl !mid in
+                Hashtbl.replace move_size_tbl !mid (sz + 1)
+              with
+                Not_found -> Hashtbl.add move_size_tbl !mid 1
+        end
+        | _ -> assert false
+      );
+
     let nmap n = tree2#search_node_by_uid (uidmapping#find n#uid) in
     let get_subtree_similarity nd1 nd2 =
       let sz1 = tree1#whole_initial_subtree_size nd1 in
@@ -5028,8 +5041,10 @@ end;
     let eliminate_edits rt1 rt2 =
       DEBUG_MSG "rt1=%a rt2=%a" UID.ps rt1#uid UID.ps rt2#uid;
       let bname_opt =
-        if rt1#data#is_named_orig && rt2#data#is_named_orig && rt1#data#get_name = rt2#data#get_name then
+        if rt1#data#is_named_orig && rt2#data#is_named_orig && rt1#data#get_name = rt2#data#get_name then begin
+          DEBUG_MSG "boundary name: %s" rt1#data#get_name;
           Some rt1#data#get_name
+        end
         else
           None
       in
@@ -5054,9 +5069,24 @@ end;
         end
         | None -> fun _ -> false
       in
+      let is_good_pair ?(mid=MID.unknown) n1 n2 =
+        let b =
+          not n1#data#is_common &&
+          n1#data#_digest <> None &&
+          n1#initial_nchildren > 0 &&
+          n1#data#subtree_equals n2#data ||
+          try
+            let sz = Hashtbl.find move_size_tbl mid in
+            DEBUG_MSG "mid=%a sz=%d" MID.ps mid sz;
+            sz > 16
+          with _ -> false
+        in
+        DEBUG_MSG "%a %a-%a -> %B" MID.ps mid nps n1 nps n2 b;
+        b
+      in
       edits#iter_moves
         (function
-          | Edit.Move(_, kind, (uid1, info1, ex1), (uid2, info2, ex2)) as mov -> begin
+          | Edit.Move(mid, kind, (uid1, info1, ex1), (uid2, info2, ex2)) as mov -> begin
               let nd1 = Info.get_node info1 in
               let nd2 = Info.get_node info2 in
               let b1 = tree1#initial_subtree_mem rt1 nd1 in
@@ -5070,13 +5100,14 @@ end;
                       nd1#data#get_name = bn && nd2#data#get_name = bn &&
                       tree1#is_initial_ancestor rt1 nd1 && tree2#is_initial_ancestor rt2 nd2
                   end
-                  | _ -> begin
-                      nd1#initial_nchildren > 0 && nd1#data#subtree_equals nd2#data ||
+                  | _  -> begin
+                      is_good_pair ~mid:!mid nd1 nd2 ||
                       Array.exists
                         (fun c1 ->
                           try
                             let c2 = nmap c1 in
-                            c2#initial_parent == nd2 && c1#initial_nchildren > 0 && c1#data#subtree_equals c2#data
+                            c2#initial_parent == nd2 &&
+                            is_good_pair c1 c2
                           with
                             Not_found -> false
                         ) nd1#initial_children

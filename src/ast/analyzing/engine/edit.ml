@@ -584,17 +584,19 @@ let adjust_renames
         let bi2 = get_bid n2 in
         if n1#data#eq n2#data then begin
 
+          let name = try n1#data#get_name with _ -> "" in
+
           if is_def n1 && is_def n2 then begin
             set_tbl_def non_rename_bid_tbl1 bi1;
             set_tbl_def non_rename_bid_tbl2 bi2;
 
-            DEBUG_MSG "non_rename (def): %a-%a" BID.ps bi1 BID.ps bi2;
+            DEBUG_MSG "non_rename (def): %a-%a (%s)" BID.ps bi1 BID.ps bi2 name;
           end
           else if is_use n1 && is_use n2 then begin
             set_tbl_use non_rename_bid_tbl1 bi1;
             set_tbl_use non_rename_bid_tbl2 bi2;
 
-            DEBUG_MSG "non_rename (use): %a-%a" BID.ps bi1 BID.ps bi2;
+            DEBUG_MSG "non_rename (use): %a-%a (%s)" BID.ps bi1 BID.ps bi2 name;
           end
 
         end
