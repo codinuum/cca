@@ -607,6 +607,20 @@ class translator options = let bid_gen = new BID.generator in object (self)
     set_loc nd param.Ast.fp_loc;
     nd
 
+  method of_for_header param =
+    let name, dims = param.Ast.fp_variable_declarator_id in
+    let mods = param.Ast.fp_modifiers in
+    let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
+    let ordinal_tbl_opt =
+      Some (new ordinal_tbl [List.length mod_nodes; 1])
+    in
+    let nd =
+      self#mknode ~ordinal_tbl_opt (L.ForHeader(name, dims))
+        (mod_nodes @ [self#of_javatype 0 param.Ast.fp_type])
+    in
+    set_loc nd param.Ast.fp_loc;
+    nd
+
   method of_parameters mname aloc params =
     match params with
     | [] -> []
@@ -1673,7 +1687,7 @@ class translator options = let bid_gen = new BID.generator in object (self)
 
       | Ast.SforEnhanced(param, e, s) ->
           self#mknode (L.Statement L.Statement.ForEnhanced)
-            [self#of_parameter param;
+            [self#of_for_header param;
              self#of_expression e;
              self#of_statement ~block_context:"for" s]
 

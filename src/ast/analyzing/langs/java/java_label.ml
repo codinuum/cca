@@ -1832,6 +1832,8 @@ type t = (* Label *)
 
   | EmptyDeclaration
 
+  | ForHeader of name * dims
+
   | Aspect of name
   | Pointcut of name
   | DeclareParents
@@ -1946,6 +1948,8 @@ let rec to_string = function
 
   | EmptyDeclaration                        -> "EmptyDeclaration"
 
+  | ForHeader(name, dims)                   -> sprintf "ForHeader(%s,%d)" name dims
+
   | Aspect name                   -> sprintf "Aspect(%s)" name
   | Pointcut name                 -> sprintf "Pointcut(%s)" name
   | DeclareParents                -> "DeclareParents"
@@ -2015,6 +2019,7 @@ let anonymize ?(more=false) = function
   | InferredFormalParameter _      -> InferredFormalParameter ""
   | Resource(name, dims)           -> Resource("", 0)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
+  | ForHeader(name, dims)          -> ForHeader("", 0)
   | HugeArray _                    -> HugeArray(0, "")
   | Block tid                      -> Block null_tid
 
@@ -2127,12 +2132,13 @@ let rec to_simple_string = function
   | InferredFormalParameters     -> "<inferred_formal_parameters>"
   | InferredFormalParameter name -> name
   | ResourceSpec                -> "<resource_spec>"
-  | Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d" dims)
+  | Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | AnnotDim                    -> "[]"
   | Error s                     -> s
   | HugeArray(sz, c)            -> c
   | EmptyDeclaration            -> ";"
+  | ForHeader(name, dims)         -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | Aspect name                   -> "aspect "^name
   | Pointcut name                 -> "pointcut "^name
   | DeclareParents                -> "declare parents"
@@ -2233,12 +2239,13 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | ConstructorBody(name, msig)             -> combo 81 [name;msig]
   | ResourceSpec                            -> mkstr 82
   | Resource(name, dims)                    -> combo 83 [name; string_of_int dims]
-  | CatchParameter(name, dims)              -> combo 84 [name; (string_of_int dims)]
+  | CatchParameter(name, dims)              -> combo 84 [name; string_of_int dims]
   | AnnotDim                                -> mkstr 85
   | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 86 [string_of_int sz; h]
   | EmptyDeclaration                        -> mkstr 87
+  | ForHeader(name, dims)                   -> combo 105 [name; string_of_int dims]
   | Aspect name                   -> combo 88 [name]
   | Pointcut name                 -> combo 89 [name]
   | DeclareParents                -> mkstr 90
@@ -2380,6 +2387,9 @@ let to_tag l =
 
     | EmptyDeclaration -> "EmptyDeclaration", []
 
+    | ForHeader(name, dims) -> "ForHeader", ["name",xmlenc name;
+                                             dims_attr_name,string_of_int dims]
+
     | Aspect name                   -> "Aspect", ["name",xmlenc name]
     | Pointcut name                 -> "Pointcut", ["name",xmlenc name]
     | DeclareParents                -> "DeclareParents", []
@@ -2489,6 +2499,7 @@ let to_char lab =
     | AnnotDim                   -> 89
     | HugeArray _ -> 90
     | EmptyDeclaration -> 91
+    | ForHeader _ -> 109
     | Aspect name                   -> 92
     | Pointcut name                 -> 93
     | DeclareParents                -> 94
@@ -2766,6 +2777,10 @@ let relabel_allowed (lab1, lab2) =
 (*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
 
+    | Parameter _, CatchParameter _ | CatchParameter _, Parameter _
+    | Parameter _, ForHeader _ | ForHeader _, Parameter _
+    | ForHeader _, CatchParameter _ | CatchParameter _, ForHeader _
+
       -> true
 
     | l1, l2 -> anonymize2 l1 = anonymize2 l2
@@ -2855,6 +2870,7 @@ let is_named = function
   | InferredFormalParameter _
   | Resource _
   | CatchParameter _
+  | ForHeader _
     -> true
 
   | ClassnamePatternName _
@@ -2892,6 +2908,7 @@ let is_named_orig = function
   | InferredFormalParameter _
   | Resource _
   | CatchParameter _
+  | ForHeader _
   | HugeArray _
     -> true
 
@@ -3538,6 +3555,7 @@ let get_category lab =
 let get_dims = function
   | Parameter(_, dims, _)
   | CatchParameter(_, dims)
+  | ForHeader(_, dims)
       -> dims
   | _ -> failwith "Java_label.get_dims: no dimensions"
 
@@ -3583,6 +3601,7 @@ let get_name lab =
     | InferredFormalParameter name
     | Resource(name, _)
     | CatchParameter(name, _)
+    | ForHeader(name, _)
       -> name
 
     | LocalVariableDeclaration(_, name_dim_list) ->
@@ -3981,6 +4000,8 @@ let of_elem_data =
     "HugeArray",
     (fun a -> HugeArray (int_of_string (find_attr a "size"), xmldec(find_attr a "code")));
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
+
+    "ForHeader", (fun a -> ForHeader(find_name a, find_dims a));
 
     "Aspect",                   (fun a -> Aspect(find_name a));
     "Pointcut",                 (fun a -> Pointcut(find_name a));

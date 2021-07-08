@@ -4893,7 +4893,7 @@ module Edit = struct
 
         let top_nda =
           match parent_ins_point_opt with
-          | Some (_, t, p, bn) -> Array.sub t#initial_children p bn
+          | Some (_, t, p, bn) when bn > 0 -> Array.sub t#initial_children p bn
           | _ -> [||]
         in
         DEBUG_MSG "top_nda=[%a]" nsps (Array.to_list top_nda);

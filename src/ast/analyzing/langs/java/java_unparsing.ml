@@ -612,6 +612,15 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pad 1;
       pr_id i; pr_dims dims
 
+  | L.ForHeader(i, dims) ->
+      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      let a' = find_nodes L.is_type children in
+      if (Array.length a') > 0 then begin
+        pb#pr_a pr_none (pr_node ~fail_on_error ~va ~blk_style ~prec) a';
+      end;
+      pad 1;
+      pr_id i; pr_dims dims
+
   | L.Method(i, _) ->
       (*pb#open_vbox 0;*)
       pb#open_box 0;
