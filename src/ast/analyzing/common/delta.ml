@@ -2346,7 +2346,8 @@ module Edit = struct
                 x#initial_pos > 0 ||
                 Array.exists (fun y -> not (self#is_excluded y)) ca ||
                 is_stable x || has_p_descendant is_stable x ||
-                Array.for_all (fun y -> not (is_stable y)) ca && not (Xset.mem walls x) && not (has_p_descendant is_stable x))
+                Array.for_all (fun y -> not (is_stable y)) ca &&
+                not (Xset.mem walls x) && not (has_p_descendant is_stable x))
                 in
                 DEBUG_MSG "x=%a b=%B" nps x b;
                 b
@@ -4754,11 +4755,11 @@ module Edit = struct
           is_stable is_stable' tree tree' nmap nmap'
           nd nd'
           =
-        let stid_of_key, ancto_tbl, is_ancestor_key, get_subtree_root_by_key' =
+        let stid_of_key, ancto_tbl, is_ancestor_key, get_subtree_root_by_key', simple_ins_roots =
           if tree == tree1 then
-            self#stid_of_key2, anc1to_tbl, self#is_ancestor_key1, self#get_subtree_root_by_key2
+            self#stid_of_key2, anc1to_tbl, self#is_ancestor_key1, self#get_subtree_root_by_key2, simple_ins_roots2
           else
-            self#stid_of_key1, anc2to_tbl, self#is_ancestor_key2, self#get_subtree_root_by_key1
+            self#stid_of_key1, anc2to_tbl, self#is_ancestor_key2, self#get_subtree_root_by_key1, simple_ins_roots1
         in
         let has_stable_descendant n =
           is_stable n || has_p_descendant is_stable n
@@ -4892,9 +4893,13 @@ module Edit = struct
 
         let has_conflicts' n' =
           DEBUG_MSG "n'=%a" nps n';
+          let is_simple_ins = Xset.mem simple_ins_roots n' in
+          DEBUG_MSG "is_simple_ins=%B" is_simple_ins;
           try
-            (*if not (is_stable' n'#initial_parent) then
-              raise Not_found;*)
+            if not (is_stable' n'#initial_parent) && (is_simple_ins || has_p_descendant is_stable n') then begin
+              DEBUG_MSG "nd'=%a n'=%a" nps nd' nps n';
+              raise Not_found
+            end;
             match self#find_key_opt n'#uid with
             | Some k -> begin
                 DEBUG_MSG "k=%s" (key_to_string k);
@@ -4927,7 +4932,8 @@ module Edit = struct
                   if
                     (pnd_stable' ||
                     match parent_ins_point_opt with
-                    | Some (_, x, xp, xnb) -> is_ancestor x a || overlaps xp (xp+xnb-1) pos (pos+nb-1)
+                    | Some (_, x, xp, xnb) ->
+                        is_ancestor x a || x == a && xnb > 0 && nb > 0 && overlaps xp (xp+xnb-1) pos (pos+nb-1)
                     | None -> false)
                   then
                     raise Exit
@@ -9441,8 +9447,8 @@ module Edit = struct
                                   let t', (pt, ps) = Hashtbl.find ancto_tbl k0 in
                                   let p = pt#position in
                                   let nb = List.length ps in
-                                  DEBUG_MSG "t'=%a p=%d nb=%d" nps t' p nb;
-                                  nb = 1 && t' == a' && overlaps ppos (ppos+nbdry-1) p (p+nb-1) ||
+                                  DEBUG_MSG "a'=%a ppos=%d nbdry=%d: t'=%a p=%d nb=%d" nps a' ppos nbdry nps t' p nb;
+                                  nb = 1 && t' == a' && ppos <> p && overlaps ppos (ppos+nbdry-1) p (p+nb-1) ||
                                   nb > 1 &&
                                   (t' == a' &&
                                    (p = ppos ||

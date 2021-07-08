@@ -5112,7 +5112,7 @@ end;
                   end
                   | None when begin
                       try
-                        nd1#data#get_name = rt1#data#get_name && nd2#data#get_name = rt2#data#get_name
+                        nd1#data#get_name = rt1#data#get_name || nd2#data#get_name = rt2#data#get_name
                       with _ -> false
                   end -> false
                   | _  -> begin
