@@ -4891,14 +4891,30 @@ module Edit = struct
 
         let pnd_stable' = is_stable' nd'#initial_parent in
 
+        let top_nda =
+          match parent_ins_point_opt with
+          | Some (_, t, p, bn) -> Array.sub t#initial_children p bn
+          | _ -> [||]
+        in
+        DEBUG_MSG "top_nda=[%a]" nsps (Array.to_list top_nda);
+
         let has_conflicts' n' =
           DEBUG_MSG "n'=%a" nps n';
           let is_simple_ins = Xset.mem simple_ins_roots n' in
           DEBUG_MSG "is_simple_ins=%B" is_simple_ins;
           try
-            if not (is_stable' n'#initial_parent) && (is_simple_ins || has_p_descendant is_stable n') then begin
-              DEBUG_MSG "nd'=%a n'=%a" nps nd' nps n';
-              raise Not_found
+            if not (is_stable' n'#initial_parent) then begin
+              if
+                is_simple_ins ||
+                top_nda <> [||] &&
+                let ss' = get_p_descendants ~moveon:(fun x' -> not (is_stable' x')) is_stable' n' in
+                let ss = List.map nmap' ss' in
+                DEBUG_MSG "ss=[%a]" nsps ss;
+                not (List.exists (fun s -> Array.exists (fun t -> is_ancestor t s) top_nda) ss)
+              then begin
+                DEBUG_MSG "nd'=%a n'=%a" nps nd' nps n';
+                raise Not_found
+              end
             end;
             match self#find_key_opt n'#uid with
             | Some k -> begin
