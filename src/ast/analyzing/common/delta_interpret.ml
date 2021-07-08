@@ -4915,15 +4915,15 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                         end;
                         !l
                       in
-                      let anc, pos, stable_nd_list = find_anc_of_key ~excluded_keys pk nd in
+                      let anc, pos, stable_nd_list = find_anc_of_key ~excluded_keys pk n in
                       let min_gi, max_gi =
                         try
                           get_range (List.map (fun x -> x#gindex) stable_nd_list)
                         with
                           Invalid_argument _ -> GI.dummy, GI.dummy
                       in
-                      DEBUG_MSG "anc of nd=%a -> %a (pos=%d,min_gi=%a,max_gi=%a)"
-                        nps nd nps anc pos GI.ps min_gi GI.ps max_gi;
+                      DEBUG_MSG "anc of n=%a -> %a (pos=%d,min_gi=%a,max_gi=%a)"
+                        nps n nps anc pos GI.ps min_gi GI.ps max_gi;
 
                       let dir =
                         if max_gi > 0 && min_gi > 0 then begin

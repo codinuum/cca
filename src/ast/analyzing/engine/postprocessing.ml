@@ -5069,22 +5069,32 @@ end;
         end
         | None -> fun _ -> false
       in
+      let safe_subroot_list = ref [] in
       let is_good_pair ?(mid=MID.unknown) n1 n2 =
-        let b =
+        let b0 =
           not n1#data#is_common &&
           n1#data#_digest <> None &&
           n1#initial_nchildren > 0 &&
-          n1#data#subtree_equals n2#data ||
-          try
+          n1#data#subtree_equals n2#data
+        in
+        if b0 then
+          safe_subroot_list := (n1, n2) :: !safe_subroot_list;
+        let b =
+          b0 ||
+          (try
             let sz = Hashtbl.find move_size_tbl mid in
             DEBUG_MSG "mid=%a sz=%d" MID.ps mid sz;
             sz > 16
-          with _ -> false
+          with _ -> false) ||
+          List.exists
+            (fun (r1, r2) ->
+              tree1#is_initial_ancestor r1 n1 && tree2#is_initial_ancestor r2 n2
+            ) !safe_subroot_list
         in
         DEBUG_MSG "%a %a-%a -> %B" MID.ps mid nps n1 nps n2 b;
         b
       in
-      edits#iter_moves
+      edits#iter_moves_topdown
         (function
           | Edit.Move(mid, kind, (uid1, info1, ex1), (uid2, info2, ex2)) as mov -> begin
               let nd1 = Info.get_node info1 in
@@ -5100,6 +5110,11 @@ end;
                       nd1#data#get_name = bn && nd2#data#get_name = bn &&
                       tree1#is_initial_ancestor rt1 nd1 && tree2#is_initial_ancestor rt2 nd2
                   end
+                  | None when begin
+                      try
+                        nd1#data#get_name = rt1#data#get_name && nd2#data#get_name = rt2#data#get_name
+                      with _ -> false
+                  end -> false
                   | _  -> begin
                       is_good_pair ~mid:!mid nd1 nd2 ||
                       Array.exists

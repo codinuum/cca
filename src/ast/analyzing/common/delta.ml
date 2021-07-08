@@ -4750,7 +4750,7 @@ module Edit = struct
               Exit -> false
         end
 
-      method private get_conflicts ?(ancto_opt=None) ?(parent_ins_target_opt=None)
+      method private get_conflicts ?(ancto_opt=None) ?(parent_ins_point_opt=None)
           is_stable is_stable' tree tree' nmap nmap'
           nd nd'
           =
@@ -4772,29 +4772,31 @@ module Edit = struct
           | None -> DEBUG_MSG "ancto="
         END_DEBUG;
         BEGIN_DEBUG
-          match parent_ins_target_opt with
-          | Some (k, x) -> DEBUG_MSG "parent_ins_target=(%s,%a)" (key_to_string k) nps x
+          match parent_ins_point_opt with
+          | Some (k, x, pos, nb) -> DEBUG_MSG "parent_ins_target=(%s,%a,%d,%d)" (key_to_string k) nps x pos nb
           | None -> DEBUG_MSG "parent_ins_target="
         END_DEBUG;
 
-        let parent_ins_target_opt =
-          match parent_ins_target_opt with
-          | Some _ -> parent_ins_target_opt
+        let parent_ins_point_opt =
+          match parent_ins_point_opt with
+          | Some _ -> parent_ins_point_opt
           | None ->
               match self#find_key_opt nd'#initial_parent#uid with
               | Some k' -> begin
                   DEBUG_MSG "k'=%s" (key_to_string k');
                   try
-                    let t', _ = Hashtbl.find anc1to_tbl k' in
-                    DEBUG_MSG "t'=%a" nps t';
-                    Some (k', t')
+                    let t', (pt', ps') = Hashtbl.find ancto_tbl k' in
+                    let pos' = pt'#position in
+                    let nb' = List.length ps' in
+                    DEBUG_MSG "t'=%a pos'=%d nb'=%d" nps t' pos' nb';
+                    Some (k', t', pos', nb')
                   with _ -> None
               end
               | None -> None
         in
         let parent_parent_ins_key_opt =
-          match parent_ins_target_opt with
-          | Some (k, _) -> begin
+          match parent_ins_point_opt with
+          | Some (k, _, _, _) -> begin
               try
                 let r = get_subtree_root_by_key' k in
                 DEBUG_MSG "r=%a" nps r;
@@ -4891,8 +4893,8 @@ module Edit = struct
         let has_conflicts' n' =
           DEBUG_MSG "n'=%a" nps n';
           try
-            if not (is_stable' n'#initial_parent) then
-              raise Not_found;
+            (*if not (is_stable' n'#initial_parent) then
+              raise Not_found;*)
             match self#find_key_opt n'#uid with
             | Some k -> begin
                 DEBUG_MSG "k=%s" (key_to_string k);
@@ -4903,13 +4905,13 @@ module Edit = struct
                 let a_children = a#initial_children in
                 try
                   if array_range_exists (fun x -> is_ancestor x nd) a_children pos (pos+nb-1) then begin
-                  begin
-                    match parent_parent_ins_target_opt with
-                    | Some a' ->
-                        if is_ancestor a' a then
-                          raise Exit
-                    | _ -> ()
-                  end;
+                    begin
+                      match parent_parent_ins_target_opt with
+                      | Some a' ->
+                          if is_ancestor a' a then
+                            raise Exit
+                      | _ -> ()
+                    end;
                   (*for i = pos to pos + nb - 1 do
                     let ci = a_children.(i) in
                     DEBUG_MSG "i=%d ci=%a" i nps ci;
@@ -4924,8 +4926,8 @@ module Edit = struct
                   done;*)
                   if
                     (pnd_stable' ||
-                    match parent_ins_target_opt with
-                    | Some (_, x) -> is_ancestor x a
+                    match parent_ins_point_opt with
+                    | Some (_, x, xp, xnb) -> is_ancestor x a || overlaps xp (xp+xnb-1) pos (pos+nb-1)
                     | None -> false)
                   then
                     raise Exit
@@ -5422,7 +5424,7 @@ module Edit = struct
             let nd' = nmap nd in
 
             let conflicts', staying_move_only, conflicting_staying_moves, insttbl =
-              self#get_conflicts ~parent_ins_target_opt is_stable is_stable' tree tree' nmap nmap' nd nd'
+              self#get_conflicts ~parent_ins_point_opt is_stable is_stable' tree tree' nmap nmap' nd nd'
             in
             let has_conflict = conflicts' <> [] in
             DEBUG_MSG "has_conflict: %a -> %B" nps nd has_conflict;
@@ -9440,6 +9442,7 @@ module Edit = struct
                                   let p = pt#position in
                                   let nb = List.length ps in
                                   DEBUG_MSG "t'=%a p=%d nb=%d" nps t' p nb;
+                                  nb = 1 && t' == a' && overlaps ppos (ppos+nbdry-1) p (p+nb-1) ||
                                   nb > 1 &&
                                   (t' == a' &&
                                    (p = ppos ||
@@ -10513,7 +10516,7 @@ module Edit = struct
                               pos <= xp && xp <= pos + nboundary - 1 ||
                               let conflicts', _, _, _ =
                                 self#get_conflicts
-                                  ~parent_ins_target_opt:(Some (k, t1))
+                                  ~parent_ins_point_opt:(Some (k, t1, p1, nb1))
                                   self#is_stable1 self#is_stable2 tree1 tree2 nmap1 nmap2 n1 n2
                               in
                               conflicts' <> []
