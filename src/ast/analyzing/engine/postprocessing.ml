@@ -609,11 +609,40 @@ module F (Label : Spec.LABEL_T) = struct
 
     mtbl
 
-  let make_parent_move_tbl move_region_tbl edits =
-    let parent_move_tbl = Hashtbl.create 0 in
+  let make_move_member_tbl edits =
+    let tbl = Hashtbl.create 0 in
     edits#iter_moves
       (function
-        | Edit.Move(mid, _, (_, info1, _), (_, info2, _)) ->
+        | Edit.Move(mid, _, (_, info1, _), (_, info2, _)) -> begin
+            let nd1 = Info.get_node info1 in
+            let nd2 = Info.get_node info2 in
+            try
+              let pl = Hashtbl.find tbl !mid in
+              Hashtbl.replace tbl !mid ((nd1, nd2)::pl)
+            with
+              Not_found -> Hashtbl.add tbl !mid [nd1, nd2]
+        end
+        | _ -> assert false
+      );
+    tbl
+
+  let make_parent_move_tbl tree1 tree2 move_region_tbl edits =
+    let mem_tbl = make_move_member_tbl edits in
+
+    let mem_move_tbl = Hashtbl.create 0 in
+    edits#iter_moves
+      (function
+        | Edit.Move(mid, _, _, _) -> begin
+            if not (Hashtbl.mem mem_move_tbl !mid) then
+              Hashtbl.add mem_move_tbl !mid [!mid]
+        end
+        | _ -> assert false
+      );
+
+    let parent_move_tbl = Hashtbl.create 0 in
+    edits#iter_moves_bottomup
+      (function
+        | Edit.Move(mid, kind, (_, info1, _), (_, info2, _)) -> begin
             let nd1 = Info.get_node info1 in
             let nd2 = Info.get_node info2 in
             let gi1 = nd1#gindex in
@@ -623,9 +652,30 @@ module F (Label : Spec.LABEL_T) = struct
                 if
                   lmg1 <= gi1 && gi1 < g1 &&
                   lmg2 <= gi2 && gi2 < g2 &&
-                  !mid <> m
+                  !mid <> m &&
+                  (!kind <> Edit.Mpermutation ||
+                  try
+                    let ml = Hashtbl.find mem_move_tbl m in
+                    List.for_all
+                      (fun m ->
+                        let pl = try Hashtbl.find mem_tbl m with _ -> [] in
+                        List.for_all
+                          (fun (n1, n2) ->
+                            not (UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 n1 n2)
+                          ) pl
+                      ) ml
+                  with
+                    Not_found -> true)
                 then begin
                   DEBUG_MSG "parent move of %a --> %a" MID.ps !mid MID.ps m;
+                  begin
+                    try
+                      let ml = Hashtbl.find mem_move_tbl m in
+                      if not (List.mem !mid ml) then
+                        Hashtbl.replace mem_move_tbl m (!mid::ml)
+                    with
+                      Not_found -> ()
+                  end;
                   begin
                     try
                       let (pm, pg1, pg2) = Hashtbl.find parent_move_tbl !mid in
@@ -636,7 +686,7 @@ module F (Label : Spec.LABEL_T) = struct
                   end
                 end
               ) move_region_tbl
-
+        end
         | _ -> assert false
       );
     parent_move_tbl
@@ -5698,7 +5748,7 @@ end;
     let (* odd_movs_exist *) _ = eliminate_odd_relabels options tree1 tree2 edits uidmapping in
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-    let parent_move_tbl = make_parent_move_tbl move_region_tbl edits in
+    let parent_move_tbl = make_parent_move_tbl tree1 tree2 move_region_tbl edits in
     let child_move_tbl  = make_child_move_tbl parent_move_tbl in
 
     let suggested_pairs =
@@ -5714,7 +5764,7 @@ end;
     end;
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-    let parent_move_tbl = make_parent_move_tbl move_region_tbl edits in
+    let parent_move_tbl = make_parent_move_tbl tree1 tree2 move_region_tbl edits in
     let child_move_tbl  = make_child_move_tbl parent_move_tbl in
 
     let suggested_pairs0 =
@@ -5916,7 +5966,7 @@ end;
     DEBUG_MSG "IDENTIFYING RELATIVE PERMUTATIONS...";
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-    let parent_move_tbl = make_parent_move_tbl move_region_tbl edits in
+    let parent_move_tbl = make_parent_move_tbl tree1 tree2 move_region_tbl edits in
     let child_move_tbl  = make_child_move_tbl parent_move_tbl in
 
     let _mid_fusion_tbl = Hashtbl.create 0 in
