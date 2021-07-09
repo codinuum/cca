@@ -7782,6 +7782,11 @@ module Edit = struct
                       DEBUG_MSG "has_wall=%B" has_wall;
                       let quasi_wall_count =
                         match wall_opt with(*REGRESSION:elastic/elasticsearch 179, elastic/elasticsearch 264*)
+                        | Some (idx, wall) when begin
+                            try
+                              wall == nd#initial_parent#initial_children.(nd#initial_pos-1)
+                            with _ -> false
+                        end -> 0
                         | Some (idx, wall) -> begin
                             let check_flag = ref false in
                             let w_grp_cond =

@@ -4543,7 +4543,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
       ) not_upstream;
 
-    let find_anc_of_key ?(excluded_keys=[]) k nd =
+    let find_anc_of_key ?(excluded_keys=[]) ?(weak=false) k nd =
       DEBUG_MSG "k=%s nd=%a excluded_keys=[%s]"
         (key_to_string k) nps nd (String.concat ";" (List.map key_to_string excluded_keys));
       (*Printf.printf "k=%s nd=%s\n" (key_to_string k) nd#initial_to_string;*)
@@ -4556,13 +4556,13 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           (fun x ->
             DEBUG_MSG "x=%a" nps x;
             let ss =
-              if (*self#is_stable x*)self#is_true_stable_node x then
+              if (*self#is_stable x*)(self#is_true_stable_node ~weak) x then
                 if key_filt x#initial_parent then
                   [x]
                 else
                   []
               else
-                get_p_descendants ~moveon (*self#is_stable*)self#is_true_stable_node x
+                get_p_descendants ~moveon (*self#is_stable*)(self#is_true_stable_node ~weak) x
             in
             DEBUG_MSG "stable nodes: [%a]" nsps ss;
             List.iter (Xset.add stable_nodes) ss
@@ -4915,7 +4915,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                         end;
                         !l
                       in
-                      let anc, pos, stable_nd_list = find_anc_of_key ~excluded_keys pk n in
+                      let anc, pos, stable_nd_list = find_anc_of_key ~excluded_keys ~weak:true pk n in
                       let min_gi, max_gi =
                         try
                           get_range (List.map (fun x -> x#gindex) stable_nd_list)
@@ -4927,7 +4927,12 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
                       let dir =
                         if max_gi > 0 && min_gi > 0 then begin
-                          let ss = get_p_descendants self#is_stable n in
+                          let ss =
+                            if self#is_stable n then
+                              [n]
+                            else
+                              get_p_descendants self#is_stable n
+                          in
                           DEBUG_MSG "n=%a ss=[%a]" nps n nsps ss;
                           if ss = [] then begin
                             let lss = get_p_left_nodes self#is_stable n nd in
