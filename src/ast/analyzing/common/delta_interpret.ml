@@ -5367,44 +5367,56 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         match p#key_opt with
         | Some k -> begin
             let n = self#acc (Path.concat path#path p#path) in
-            Hashtbl.add parent_key_tbl n k;
 
-            DEBUG_MSG "%a -> %s" nps n (key_to_string k);
+            let nl = ref [n] in
 
-            match p#sub_path_opt with
-            | Some sp -> begin
-                DEBUG_MSG "sp=%s" (Path.to_string sp);
-                try
-                  let subtree = self#find_subtree k in
-                  DEBUG_MSG "subtree:\n%s\n" subtree#to_string;
-                  let a = subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:None sp in
-                  DEBUG_MSG "a.partial=%B a.nelems=%d" a.Otree.partial a.Otree.nelems;
-                  let pnd, elem = a.Otree.node, a.Otree.elem in
-                  DEBUG_MSG "pnd=%a" nps pnd;
-                  if a.Otree.partial then begin
-                    let rp = Path.remove_head_n a.Otree.nelems sp in
-                    let resolver() = (* parent resolution is deferred *)
-                      DEBUG_MSG "n=%a, pnd=%a" nps n nps pnd;
-                      DEBUG_MSG "sp=%s, rp=%s" (Path.to_string sp) (Path.to_string rp);
-                      let a' =
-                        subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:(Some pnd) rp
-                      in
-                      let pnd', elem' = a'.Otree.node, a'.Otree.elem in
-                      let pos', ofs' = elem'.Elem.pos, elem'.Elem.ofs in
-                      DEBUG_MSG "(%a, %d, %f)" nps pnd' pos' ofs';
-                      (pnd', pos', ofs')
-                    in
-                    self#register_parent_resolver n resolver
-                  end
-                  else begin
-                    let pos, ofs = elem.Elem.pos, elem.Elem.ofs in
-                    DEBUG_MSG "parent_tbl: %a -> (%a, %d, %f)" nps n nps pnd pos ofs;
-                    self#add_to_parent_tbl n (pnd, pos, ofs)
-                  end
-                with
-                  Not_found -> ()
-            end
-            | None -> ()
+            if not (self#is_stable n) then begin
+              DEBUG_MSG "%a is not stable! adjusting...";
+              let moveon x = not (self#is_stable x) in
+              nl := get_p_descendants ~moveon self#is_stable n;
+              DEBUG_MSG "%a -> [%a]" nps n nsps !nl
+            end;
+
+            List.iter
+              (fun n ->
+                DEBUG_MSG "n=%a" nps n;
+                Hashtbl.add parent_key_tbl n k;
+                DEBUG_MSG "%a -> %s" nps n (key_to_string k);
+                match p#sub_path_opt with
+                | Some sp -> begin
+                    DEBUG_MSG "sp=%s" (Path.to_string sp);
+                    try
+                      let subtree = self#find_subtree k in
+                      DEBUG_MSG "subtree:\n%s\n" subtree#to_string;
+                      let a = subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:None sp in
+                      DEBUG_MSG "a.partial=%B a.nelems=%d" a.Otree.partial a.Otree.nelems;
+                      let pnd, elem = a.Otree.node, a.Otree.elem in
+                      DEBUG_MSG "pnd=%a" nps pnd;
+                      if a.Otree.partial then begin
+                        let rp = Path.remove_head_n a.Otree.nelems sp in
+                        let resolver() = (* parent resolution is deferred *)
+                          DEBUG_MSG "n=%a, pnd=%a" nps n nps pnd;
+                          DEBUG_MSG "sp=%s, rp=%s" (Path.to_string sp) (Path.to_string rp);
+                          let a' =
+                            subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:(Some pnd) rp
+                          in
+                          let pnd', elem' = a'.Otree.node, a'.Otree.elem in
+                          let pos', ofs' = elem'.Elem.pos, elem'.Elem.ofs in
+                          DEBUG_MSG "(%a, %d, %f)" nps pnd' pos' ofs';
+                          (pnd', pos', ofs')
+                        in
+                        self#register_parent_resolver n resolver
+                      end
+                      else begin
+                        let pos, ofs = elem.Elem.pos, elem.Elem.ofs in
+                        DEBUG_MSG "parent_tbl: %a -> (%a, %d, %f)" nps n nps pnd pos ofs;
+                        self#add_to_parent_tbl n (pnd, pos, ofs)
+                      end
+                    with
+                      Not_found -> ()
+                end
+                | None -> ()
+              ) !nl
         end
         | None -> ()
       ) paths
