@@ -640,6 +640,15 @@ module F (Label : Spec.LABEL_T) = struct
       );
 
     let parent_move_tbl = Hashtbl.create 0 in
+
+    let move_list =
+      List.fast_sort
+        (fun (_, _, g1, _, _) (_, _, g2, _, _) -> Stdlib.compare g1 g2)
+        (Hashtbl.fold
+           (fun m (lmg1, g1, lmg2, g2) l ->
+             (m, lmg1, g1, lmg2, g2)::l
+           ) move_region_tbl [])
+    in
     edits#iter_moves_bottomup
       (function
         | Edit.Move(mid, kind, (_, info1, _), (_, info2, _)) -> begin
@@ -647,45 +656,56 @@ module F (Label : Spec.LABEL_T) = struct
             let nd2 = Info.get_node info2 in
             let gi1 = nd1#gindex in
             let gi2 = nd2#gindex in
-            Hashtbl.iter
-              (fun m (lmg1, g1, lmg2, g2) ->
-                if
-                  lmg1 <= gi1 && gi1 < g1 &&
-                  lmg2 <= gi2 && gi2 < g2 &&
-                  !mid <> m &&
-                  (!kind <> Edit.Mpermutation ||
-                  try
-                    let ml = Hashtbl.find mem_move_tbl m in
-                    List.for_all
-                      (fun m ->
-                        let pl = try Hashtbl.find mem_tbl m with _ -> [] in
+            DEBUG_MSG "mid=%a (%a, %a)" MID.ps !mid GI.ps gi1 GI.ps gi2;
+            try
+              List.iter
+                (fun (m, lmg1, g1, lmg2, g2) ->
+                  DEBUG_MSG "m=%a (%a-%a, %a-%a)" MID.ps m GI.ps lmg1 GI.ps g1 GI.ps lmg2 GI.ps g2;
+                  if
+                    lmg1 <= gi1 && gi1 < g1 &&
+                    lmg2 <= gi2 && gi2 < g2 &&
+                    !mid <> m &&
+                    let b =
+                      !kind <> Edit.Mpermutation ||
+                      try
+                        let ml = Hashtbl.find mem_move_tbl m in
                         List.for_all
-                          (fun (n1, n2) ->
-                            not (UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 n1 n2)
-                          ) pl
-                      ) ml
-                  with
-                    Not_found -> true)
-                then begin
-                  DEBUG_MSG "parent move of %a --> %a" MID.ps !mid MID.ps m;
-                  begin
-                    try
-                      let ml = Hashtbl.find mem_move_tbl m in
-                      if not (List.mem !mid ml) then
-                        Hashtbl.replace mem_move_tbl m (!mid::ml)
-                    with
-                      Not_found -> ()
-                  end;
-                  begin
-                    try
-                      let (pm, pg1, pg2) = Hashtbl.find parent_move_tbl !mid in
-                      if pm <> m && g1 <= pg1 (* && g2 <= pg2 *) then
-                        Hashtbl.replace parent_move_tbl !mid (m, g1, g2)
-                    with
-                      Not_found -> Hashtbl.add parent_move_tbl !mid (m, g1, g2)
+                          (fun m ->
+                            let pl = try Hashtbl.find mem_tbl m with _ -> [] in
+                            List.for_all
+                              (fun (n1, n2) ->
+                                not (UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 n1 n2)
+                              ) pl
+                          ) ml
+                      with
+                        Not_found -> true
+                    in
+                    DEBUG_MSG "b=%B" b;
+                    if not b then
+                      raise Exit;
+                    b
+                  then begin
+                    DEBUG_MSG "parent move of %a --> %a" MID.ps !mid MID.ps m;
+                    begin
+                      try
+                        let ml = Hashtbl.find mem_move_tbl m in
+                        if not (List.mem !mid ml) then
+                          Hashtbl.replace mem_move_tbl m (!mid::ml)
+                      with
+                        Not_found -> ()
+                    end;
+                    begin
+                      try
+                        let (pm, pg1, pg2) = Hashtbl.find parent_move_tbl !mid in
+                        if pm <> m && g1 <= pg1 (* && g2 <= pg2 *) then
+                          Hashtbl.replace parent_move_tbl !mid (m, g1, g2)
+                      with
+                        Not_found -> Hashtbl.add parent_move_tbl !mid (m, g1, g2)
+                    end
                   end
-                end
-              ) move_region_tbl
+                ) move_list
+            with
+              Exit -> ()
         end
         | _ -> assert false
       );

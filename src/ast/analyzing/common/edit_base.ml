@@ -154,6 +154,15 @@ let merge_segments segs_list =
 (* edit operations *)
 include Editop
 
+let node_to_uid_string nd =
+  Printf.sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
+
+let nodes_to_uids_string nds =
+  String.concat ";" (List.map node_to_uid_string nds)
+
+let nps () = node_to_uid_string
+let nsps () = nodes_to_uids_string
+
 let get_mid = function
   | Move(mid, _, _, _) -> !mid
   | _ -> assert false
@@ -2503,6 +2512,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         let exnds1 = List.map Info.get_node !ex1 in
         let exnds2 = List.map Info.get_node !ex2 in
 
+        DEBUG_MSG "exnds1=[%a]" nsps exnds1;
+        DEBUG_MSG "exnds2=[%a]" nsps exnds2;
+
         let processed = ref [] in
 
         if tree1#size_of_initial_cluster (nd1, exnds1) > 1 then begin
@@ -2516,6 +2528,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
           List.iter2
             (fun n1 n2 ->
+              DEBUG_MSG "n1=%a n2=%a" nps n1 nps n2;
               if
                 not (List.exists (fun p -> tree1#initial_subtree_mem p n1) !processed) &&
                 not (is_ghost_node n1)
