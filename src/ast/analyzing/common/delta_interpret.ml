@@ -5371,7 +5371,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             let nl = ref [n] in
 
             if not (self#is_stable n) then begin
-              DEBUG_MSG "%a is not stable! adjusting...";
+              DEBUG_MSG "%a is not stable! adjusting..." nps n;
               let moveon x = not (self#is_stable x) in
               nl := get_p_descendants ~moveon self#is_stable n;
               DEBUG_MSG "%a -> [%a]" nps n nsps !nl

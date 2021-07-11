@@ -4999,24 +4999,40 @@ end;
     let sz_tbl = Hashtbl.create 0 in
     edits#iter_moves
       (function
-        | Edit.Move(mid, _, _, _) as mov -> begin
-            let sz, ml =
+        | Edit.Move(mid, kind, (_, info1, _), (_, info2, _)) as mov -> begin
+            let nd1 = Info.get_node info1 in
+            let nd2 = Info.get_node info2 in
+            let gi1 = nd1#gindex in
+            let gi2 = nd2#gindex in
+            let sz, k, r1, r2, ml =
               try
-                let _sz, _ml = (Hashtbl.find sz_tbl !mid) in
-                _sz + 1, mov::_ml
+                let _sz, _k, _r1, _r2, _ml = (Hashtbl.find sz_tbl !mid) in
+                let k, r1, r2 =
+                  if gi1 > _r1#gindex && gi2 > _r2#gindex then
+                    !kind, nd1, nd2
+                  else
+                    _k, _r1, _r2
+                in
+                _sz + 1, k, r1, r2, mov::_ml
               with
-                Not_found -> 1, [mov]
+                Not_found -> 1, !kind, nd1, nd2, [mov]
             in
-            Hashtbl.replace sz_tbl !mid (sz, ml)
+            Hashtbl.replace sz_tbl !mid (sz, k, r1, r2, ml)
         end
         | _ -> assert false
       );
     let dels = Xset.create 0 in
     let inss = Xset.create 0 in
     Hashtbl.iter
-      (fun mid (sz, movl) ->
-        DEBUG_MSG "%a: sz=%d" MID.ps mid sz;
-        if size_limit = 0 || sz <= size_limit then begin
+      (fun mid (sz, kind, rt1, rt2, movl) ->
+        DEBUG_MSG "%a: %s %a-%a sz=%d" MID.ps mid (Edit.move_kind_to_string kind) nps rt1 nps rt2 sz;
+        if
+          kind = Edit.Mpermutation &&
+          try uidmapping#find rt1#initial_parent#uid = rt2#initial_parent#uid with _ -> false
+        then begin
+          DEBUG_MSG "parents of %a-%a are mapped" nps rt1 nps rt2;
+        end
+        else if size_limit = 0 || sz <= size_limit then begin
           let cond =
             List.for_all
               (function
