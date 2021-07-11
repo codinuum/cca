@@ -170,13 +170,18 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
         with
           _ -> pr_string error_symbol
   in
+  let spc ?(blk_style=BSshort) n =
+    match blk_style with
+    | BSshort -> pad n
+    | BStall -> pr_break n 0
+  in
 
   match getlab node with
   | L.Error s -> pr_string s
 
   | L.CatchParameter(n, dims) ->
       pb#open_box pb#indent;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      pr_selected ~fail_on_error L.is_modifiers children;
       pr_selected ~fail_on_error ~sep:pr_bor ~tail:pr_space L.is_type children;
       pr_id n; pr_dims dims;
       pb#close_box()
@@ -188,7 +193,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.Resource(n, dims) ->
       pb#open_box pb#indent;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      pr_selected ~fail_on_error L.is_modifiers children;
       pr_selected ~fail_on_error ~tail:pr_space L.is_type children;
       pr_id n; pr_dims dims; pad 1; pr_string "="; pr_space();
       pr_selected ~fail_on_error L.is_expression children;
@@ -222,35 +227,39 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       | L.Annotation.Normal n ->
           pr_string "@"; pr_name n; pr_lparen();
           pb#pr_va pr_comma (pr_node ~fail_on_error) children;
-          pr_rparen()
+          pr_rparen();
+          pr_space()
 
-      | L.Annotation.Marker n -> pr_string "@"; pr_name n
+      | L.Annotation.Marker n -> pr_string "@"; pr_name n; pr_space()
 
       | L.Annotation.SingleElement n ->
           pr_string "@"; pr_name n; pr_lparen();
           pr_nth_child 0;
-          pr_rparen()
+          pr_rparen();
+          pr_space()
   end
 
-  | L.Modifiers _ ->
-      pb#open_hbox(); pb#pr_a pr_space (pr_node ~fail_on_error) children; pb#close_box()
+  | L.Modifiers _ -> pb#pr_a pr_none (pr_node ~fail_on_error) children
 
   | L.Modifier m -> begin
-      match m with
-      | L.Modifier.Public       -> pr_string "public"
-      | L.Modifier.Protected    -> pr_string "protected"
-      | L.Modifier.Private      -> pr_string "private"
-      | L.Modifier.Static       -> pr_string "static"
-      | L.Modifier.Abstract     -> pr_string "abstract"
-      | L.Modifier.Final        -> pr_string "final"
-      | L.Modifier.Native       -> pr_string "native"
-      | L.Modifier.Synchronized -> pr_string "synchronized"
-      | L.Modifier.Transient    -> pr_string "transient"
-      | L.Modifier.Volatile     -> pr_string "volatile"
-      | L.Modifier.Strictfp     -> pr_string "strictfp"
+      begin
+        match m with
+        | L.Modifier.Public       -> pr_string "public"
+        | L.Modifier.Protected    -> pr_string "protected"
+        | L.Modifier.Private      -> pr_string "private"
+        | L.Modifier.Static       -> pr_string "static"
+        | L.Modifier.Abstract     -> pr_string "abstract"
+        | L.Modifier.Final        -> pr_string "final"
+        | L.Modifier.Native       -> pr_string "native"
+        | L.Modifier.Synchronized -> pr_string "synchronized"
+        | L.Modifier.Transient    -> pr_string "transient"
+        | L.Modifier.Volatile     -> pr_string "volatile"
+        | L.Modifier.Strictfp     -> pr_string "strictfp"
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
-      | L.Modifier.Default      -> pr_string "default"
-      | L.Modifier.Error s      -> pr_string s
+        | L.Modifier.Default      -> pr_string "default"
+        | L.Modifier.Error s      -> pr_string s
+      end;
+      pad 1
   end
 
   | L.ElementValuePair i -> pr_id i; pr_string "="; pr_nth_child 0
@@ -265,7 +274,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       let specs = get_specs children in
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
       pr_string "class "; pr_id i;
       pr_selected ~fail_on_error L.is_typeparameters specs;
       pr_selected ~fail_on_error L.is_extends specs;
@@ -278,7 +287,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       let specs = get_specs children in
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
       pr_string "enum "; pr_id i;
       pr_selected ~fail_on_error L.is_implements specs;
       pb#close_box();
@@ -289,7 +298,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       let specs = get_specs children in
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
       pr_string "interface "; pr_id i;
       pr_typeparameters ~fail_on_error specs;
       pr_selected ~fail_on_error L.is_extendsinterfaces specs;
@@ -301,7 +310,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       let specs = get_specs children in
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
       pr_string "@interface "; pr_id i;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_annotationtypebody children;
@@ -311,7 +320,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       let specs = get_specs children in
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers specs;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
       pr_string "aspect"; pr_space(); pr_id i;
       pr_selected ~fail_on_error L.is_extends specs;
       pr_selected ~fail_on_error L.is_implements specs;
@@ -322,7 +331,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.Pointcut i ->
       pb#open_vbox 0;
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers children;
       pr_string "pointcut"; pr_space(); pr_id i;
       pr_parameters ~fail_on_error children;
       pr_selected ~fail_on_error ~head:pr_colon L.is_pointcut_expr children;
@@ -449,7 +458,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.Constructor(name, signature) ->
       (*pb#open_vbox 0;*)
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
       pr_id name;
       pr_parameters ~fail_on_error children; pad 1;
@@ -506,7 +515,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.ElementDeclaration i ->
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
+      pr_selected ~fail_on_error L.is_modifiers children;
       pr_selected ~fail_on_error L.is_type children; pad 1; pr_id i; pr_string "()";
       pr_selected ~fail_on_error L.is_annot_dim children;
       pr_selected ~fail_on_error ~head:(fun _ -> pr_string " default ")
@@ -522,7 +531,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.FieldDeclaration _ ->
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      pr_selected ~fail_on_error L.is_modifiers children;
       pr_selected ~fail_on_error ~tail:pr_space L.is_type children;
       pr_selected ~fail_on_error ~sep:pr_comma ~tail:pr_semicolon
         L.is_variabledeclarator children;
@@ -595,12 +604,14 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.Throws _ when nchildren = 0 -> ()
   | L.Throws _ ->
-      pr_break 1 pb#indent; pr_string "throws "; pr_types ~fail_on_error children; pr_space()
+      pr_break 1 pb#indent; pr_string "throws "; pr_types ~fail_on_error children
 
   | L.Parameters _ -> pb#pr_hova pr_comma (pr_node ~fail_on_error) children
 
   | L.Parameter(i, dims, va) ->
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      pb#open_hbox();
+      pr_selected ~fail_on_error L.is_modifiers children;
+      pb#close_box();
 
       (*pr_selected ~fail_on_error L.is_type children;*)
       let a' = find_nodes L.is_type children in
@@ -613,7 +624,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_id i; pr_dims dims
 
   | L.ForHeader(i, dims) ->
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      pr_selected ~fail_on_error L.is_modifiers children;
       let a' = find_nodes L.is_type children in
       if (Array.length a') > 0 then begin
         pb#pr_a pr_none (pr_node ~fail_on_error ~va ~blk_style ~prec) a';
@@ -624,12 +635,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.Method(i, _) ->
       (*pb#open_vbox 0;*)
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pad1 L.is_modifiers children;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
       pr_selected ~fail_on_error L.is_type children; pad 1;
       pr_id i;
       pr_parameters ~fail_on_error children;
-      pr_selected ~fail_on_error ~head:pad1 L.is_throws children;
+      pr_selected ~fail_on_error L.is_throws children;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style ~head:pad1 ~otherwise:pr_semicolon
         L.is_methodbody children;
@@ -650,9 +661,16 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.Finally -> pr_string "finally"; pr_nth_child 0
   | L.CatchClause _ ->
-      pr_string "catch (";
-      pr_nth_child 0;
-      pr_rparen(); pr_space();
+      pr_string "catch ("; pr_nth_child 0; pr_rparen();
+      begin
+        try
+          if L.is_block (getlab (children.(1))) then
+            pad 1
+          else
+            pr_break 1 pb#indent;
+        with
+          _ -> pad 1
+      end;
       pr_nth_child 1
 
   | L.SLconstant -> pr_string "case "; pr_nth_child 0; pr_string ":"
@@ -701,7 +719,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
             pr_nth_child 1;
             if nchildren > 2 then begin
               let else_part = children.(2) in
-              pr_space(); pr_string "else";
+              spc ~blk_style 1; pr_string "else";
               let else_lab = getlab else_part in
               if L.is_block else_lab || L.is_if else_lab then
                 pad 1
@@ -713,22 +731,55 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
       | L.Statement.For ->
           pr_string "for (";
-          pr_selected ~fail_on_error L.is_forinit children; pr_semicolon();
-          pr_selected ~fail_on_error L.is_forcond children; pr_semicolon();
-          pr_selected ~fail_on_error L.is_forupdate children; pr_rparen(); pr_space();
-          pr_selected ~fail_on_error ~blk_style L.is_statement_or_block children
+          pb#open_box 0;
+          pr_selected ~fail_on_error L.is_forinit children;
+          pr_semicolon(); pr_space();
+          pr_selected ~fail_on_error L.is_forcond children;
+          pr_semicolon(); pr_space();
+          pr_selected ~fail_on_error L.is_forupdate children;
+          pr_rparen();
+          pb#close_box();
+          if nchildren > 0 then begin
+            let last = children.(nchildren - 1) in
+            begin
+              try
+                let lab = getlab last in
+                if L.is_block lab then
+                  pad 1
+                else if L.is_statement lab then
+                  pr_break 1 pb#indent
+                else
+                  pad 1
+              with
+                _ -> pad 1
+            end;
+            pr_selected ~fail_on_error ~blk_style L.is_statement_or_block children
+          end
 
       | L.Statement.ForEnhanced ->
-          pr_string "for (";
-          pr_nth_child 0;
-          pr_string " : ";
-          pr_nth_child 1;
-          pr_rparen();
-          pr_space();
+          pr_string "for ("; pr_nth_child 0; pr_string " : "; pr_nth_child 1; pr_rparen();
+          begin
+            try
+              if L.is_block (getlab (children.(2))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
           pr_nth_child 2
 
       | L.Statement.While ->
-          pr_string "while ("; pr_nth_child 0; pr_rparen(); pr_space();
+          pr_string "while ("; pr_nth_child 0; pr_rparen();
+          begin
+            try
+              if L.is_block (getlab (children.(1))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
           pr_nth_child 1
 
       | L.Statement.Do ->
@@ -743,11 +794,29 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           pr_selected ~fail_on_error ~tail:pad1 L.is_finally children
 
       | L.Statement.Switch ->
-          pr_string "switch ("; pr_nth_child 0; pr_rparen(); pr_space();
+          pr_string "switch ("; pr_nth_child 0; pr_rparen();
+          begin
+            try
+              if L.is_switchblock (getlab (children.(1))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
           pr_nth_child 1
 
       | L.Statement.Synchronized ->
-          pr_string "synchronized ("; pr_nth_child 0; pr_rparen(); pr_space();
+          pr_string "synchronized ("; pr_nth_child 0; pr_rparen();
+          begin
+            try
+              if L.is_block (getlab (children.(1))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
           pr_nth_child 1
 
       | L.Statement.Return ->
@@ -777,7 +846,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.LocalVariableDeclaration(isstmt, _) ->
       pb#open_box 0;
-      pr_selected ~fail_on_error ~tail:pr_space L.is_modifiers children;
+      pr_selected ~fail_on_error L.is_modifiers children;
       pr_selected ~fail_on_error ~tail:pr_space L.is_type children;
       pr_selected ~fail_on_error ~sep:pr_comma L.is_variabledeclarator children;
       if isstmt then begin
