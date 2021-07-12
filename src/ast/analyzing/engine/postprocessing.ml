@@ -4966,6 +4966,22 @@ end;
     suggested_pairs
   (* end of handle_movrels *)
 
+  let get_subtree_similarity tree1 tree2 nmap nd1 nd2 =
+    let sz1 = tree1#whole_initial_subtree_size nd1 in
+    let sz2 = tree2#whole_initial_subtree_size nd2 in
+    let mapped_node_count = ref 0 in
+    tree1#scan_whole_initial_subtree nd1
+      (fun n1 ->
+        try
+          let n2 = nmap n1 in
+          if tree2#initial_subtree_mem nd2 n2 && n1#data#equals n2#data then
+            incr mapped_node_count
+        with
+          Not_found -> ()
+      );
+    let sim = 2.0 *. (float !mapped_node_count) /. (float (sz1 + sz2)) in
+    sim
+
   (* eliminate small move of unnamed entities *)
   let decompose_moves ?(weak=false) is_xxx_pair options edits uidmapping size_limit =
     (*let is_stable1 n =
@@ -5016,7 +5032,13 @@ end;
                   else
                     _k, _r1, _r2
                 in
-                _sz + 1, k, r1, r2, mov::_ml
+                let sz =
+                  if nd1#data#eq nd2#data then
+                    _sz + 1
+                  else
+                    _sz
+                in
+                sz, k, r1, r2, mov::_ml
               with
                 Not_found -> 1, !kind, nd1, nd2, [mov]
             in
@@ -5133,22 +5155,7 @@ end;
       );
 
     let nmap n = tree2#search_node_by_uid (uidmapping#find n#uid) in
-    let get_subtree_similarity nd1 nd2 =
-      let sz1 = tree1#whole_initial_subtree_size nd1 in
-      let sz2 = tree2#whole_initial_subtree_size nd2 in
-      let mapped_node_count = ref 0 in
-      tree1#scan_whole_initial_subtree nd1
-        (fun n1 ->
-          try
-            let n2 = nmap n1 in
-            if tree2#initial_subtree_mem nd2 n2 && n1#data#equals n2#data then
-              incr mapped_node_count
-          with
-            Not_found -> ()
-        );
-      let sim = 2.0 *. (float !mapped_node_count) /. (float (sz1 + sz2)) in
-      sim
-    in
+    let get_subtree_similarity = get_subtree_similarity tree1 tree2 nmap in
     let visited = Xset.create 0 in
     let is_ancestor_of_visited n =
       try
