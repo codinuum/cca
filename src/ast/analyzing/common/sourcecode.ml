@@ -128,6 +128,8 @@ let merge_locs nds =
 
 let is_ghost_node nd = nd#data#src_loc = Loc.ghost
 
+let dec_attrs = List.map (fun (a, v) -> a, (XML._decode_string v))
+
 module Tree (L : Spec.LABEL_T) = struct
 
   let of_elem_data name attrs =
@@ -266,7 +268,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method change_attr (attr : string) (v : string) =
         let name, attrs, _ = self#orig_to_elem_data_for_delta in
         if List.mem_assoc attr attrs then begin
-          let attrs' = List.remove_assoc attr attrs in
+          let attrs' = dec_attrs (List.remove_assoc attr attrs) in
           let lab' = of_elem_data name ((attr, v)::attrs') in
           DEBUG_MSG "%s -> %s" (L.to_string lab) (L.to_string lab');
           orig_lab_opt <- Some lab';
@@ -275,13 +277,13 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method delete_attr (attr : string) =
         let name, attrs, _ = self#orig_to_elem_data_for_delta in
-        let attrs' = List.remove_assoc attr attrs in
+        let attrs' = dec_attrs (List.remove_assoc attr attrs) in
         orig_lab_opt <- Some (of_elem_data name attrs');
         (*self#update*)
 
       method insert_attr (attr : string) (v : string) =
         let name, attrs, _ = self#orig_to_elem_data_for_delta in
-        let attrs' = List.remove_assoc attr attrs in
+        let attrs' = dec_attrs (List.remove_assoc attr attrs) in
         orig_lab_opt <- Some (of_elem_data name ((attr, v)::attrs'));
         (*self#update*)
 

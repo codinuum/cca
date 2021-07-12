@@ -4922,9 +4922,11 @@ end;
 
                         let ratio = (float (!t0 * 2)) /. (float (n_mapped1 + n_mapped2)) in
 
-                        DEBUG_MSG "stability: (num of exact matches)/(num of moved): %a --> %d/%d=%f" MID.ps !mid c t stability;
+                        DEBUG_MSG "stability: (num of exact matches)/(num of moved): %a --> %d/%d=%f"
+                          MID.ps !mid c t stability;
                         DEBUG_MSG "num of mapped nodes: %d - %d" n_mapped1 n_mapped2;
-                        DEBUG_MSG "movrel ratio: (num of moved)/(num of mapped): %f" ratio;
+                        DEBUG_MSG "movrel ratio: (num of moved)/(num of mapped): %f/%f=%f"
+                          (float (!t0 * 2)) (float (n_mapped1 + n_mapped2)) ratio;
 
                         Hashtbl.add stbl !mid (stability, ratio, t, n_mapped1, n_mapped2);
                         stability, ratio, t, n_mapped1, n_mapped2
@@ -4932,14 +4934,15 @@ end;
                 in (* end of let stability, ratio, nmoved, nmapped1, nmapped2 *)
 
                 let bad_movrel =
-                  stability <= options#movrel_stability_threshold && (* || *) (* && *)
-                  (ratio <= options#movrel_ratio_threshold || nmoved = 1 (* || (nmapped1 = 1 || nmapped2 = 1) *))
+                  stability <= options#movrel_stability_threshold &&
+                  (ratio <= options#movrel_ratio_threshold || nmoved = 1(* || nmapped1 = 1 || nmapped2 = 1 *))
                 in
 
                 DEBUG_MSG "stability:%f <= %f --> %B"
                   stability options#movrel_stability_threshold (stability <= options#movrel_stability_threshold);
                 DEBUG_MSG "ratio:%f <= %f --> %B"
                   ratio options#movrel_ratio_threshold (ratio <= options#movrel_ratio_threshold);
+                DEBUG_MSG "nmoved:%d = 1 --> %B" nmoved (nmoved=1);
 
                 if bad_movrel then begin
 
@@ -4964,7 +4967,7 @@ end;
   (* end of handle_movrels *)
 
   (* eliminate small move of unnamed entities *)
-  let decompose_moves is_xxx_pair options edits uidmapping size_limit =
+  let decompose_moves ?(weak=false) is_xxx_pair options edits uidmapping size_limit =
     (*let is_stable1 n =
       match edits#find1 n#uid with
       | []
@@ -5023,14 +5026,48 @@ end;
       );
     let dels = Xset.create 0 in
     let inss = Xset.create 0 in
+    let boundary_cond n1 n2 =
+      let b =
+        not n1#data#is_boundary && not n2#data#is_boundary &&
+        List.for_all
+          (fun n ->
+            let children = n#initial_parent#initial_children in
+            Array.for_all (fun c -> not c#data#is_boundary) children
+          ) [n1; n2]
+      in
+      DEBUG_MSG "%a-%a: %B" nps n1 nps n2 b;
+      b
+    in
     Hashtbl.iter
       (fun mid (sz, kind, rt1, rt2, movl) ->
         DEBUG_MSG "%a: %s %a-%a sz=%d" MID.ps mid (Edit.move_kind_to_string kind) nps rt1 nps rt2 sz;
         if
-          kind = Edit.Mpermutation &&
+          weak &&
+          boundary_cond rt1 rt2 && kind = Edit.Mpermutation &&
           try uidmapping#find rt1#initial_parent#uid = rt2#initial_parent#uid with _ -> false
         then begin
           DEBUG_MSG "parents of %a-%a are mapped" nps rt1 nps rt2;
+          if sz = 1 then begin
+            if rt1#initial_nchildren = 1 && rt2#initial_nchildren = 1 then begin
+              let c1 = rt1#initial_children.(0) in
+              let c2 = rt2#initial_children.(0) in
+              try
+                let del = edits#find_del c1#uid in
+                let ins = edits#find_ins c2#uid in
+                let _ = uidmapping#add_unsettled c1#uid c2#uid in
+                edits#remove_edit del;
+                edits#remove_edit ins;
+                let m = Edit.make_move mid (c1#uid, mkinfo c1) (c2#uid, mkinfo c2) in
+                DEBUG_MSG "adding %s" (Edit.to_string m);
+                edits#add_edit m;
+                if not (c1#data#eq c2#data) then begin
+                  let r = Edit.make_relabel c1 c2 in
+                  DEBUG_MSG "adding %s" (Edit.to_string r);
+                  edits#add_edit r
+                end
+              with _ -> ()
+            end
+          end
         end
         else if size_limit = 0 || sz <= size_limit then begin
           let cond =
@@ -6144,7 +6181,7 @@ end;
             DEBUG_MSG "%s %s -> %B" n1#data#label n2#data#label b;
             b
           in
-          decompose_moves is_unnamed_or_changed_pair options edits uidmapping 16
+          decompose_moves ~weak:true is_unnamed_or_changed_pair options edits uidmapping 16
         end
       in
       let glue_filt u1 u2 =

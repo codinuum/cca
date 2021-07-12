@@ -57,15 +57,14 @@ let decode_string = subst inv_rules
 
 (*let unsafe_chars = "'\t\n"^Netencoding.Html.unsafe_chars_html4*)
 let unsafe_chars = Netencoding.Html.unsafe_chars_html4
-
+let _encode_string = Netencoding.Html.encode ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 ~unsafe_chars ()
+let _decode_string = Netencoding.Html.decode ~entity_base:`Xml ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 ()
 let encode_string s =
   let x = String.escaped s in
-  Netencoding.Html.encode ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 ~unsafe_chars () x
+   _encode_string x
 
 let decode_string s =
-  let x =
-    Netencoding.Html.decode ~entity_base:`Xml ~in_enc:`Enc_utf8 ~out_enc:`Enc_utf8 () s
-  in
+  let x = _decode_string s in
   Scanf.unescaped x
 
 

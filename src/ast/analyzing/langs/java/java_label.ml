@@ -2944,6 +2944,7 @@ let is_boundary = function
   | Method _
   | Constructor _
   | ImportDeclarations
+  | FieldDeclarations _
   | TypeDeclarations
   | CompilationUnit -> true
   | Aspect _ -> true
@@ -3696,6 +3697,12 @@ let is_error = function
 open Astml.Attr
 
 let find_name x = Scanf.unescaped (find_name x)
+let find_code x =
+  let s = (find_attr x "code") in
+  try
+    Scanf.unescaped s
+  with
+    e -> print_string s; raise e
 
 let find_kind a =
   try
@@ -3996,9 +4003,9 @@ let of_elem_data =
     "AmbiguousName",                            (fun a -> mkp a Primary.(AmbiguousName(find_name a)));
     "AmbiguousMethodInvocation",                (fun a -> mkp a Primary.(AmbiguousMethodInvocation(find_name a)));
 
-    "Error",                                    (fun a -> Error(xmldec(find_attr a "contents")));
+    "Error",                                    (fun a -> Error(find_attr a "contents"));
     "HugeArray",
-    (fun a -> HugeArray (int_of_string (find_attr a "size"), xmldec(find_attr a "code")));
+    (fun a -> HugeArray (int_of_string (find_attr a "size"), (find_code a)));
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
 
     "ForHeader", (fun a -> ForHeader(find_name a, find_dims a));
@@ -4030,7 +4037,7 @@ let of_elem_data =
     try
       (Hashtbl.find tbl name) attrs
     with
-    | Not_found -> failwith ("Java_label.of_tag: tag not found: "^name)
-    | e -> failwith ("Java_label.of_tag: "^(Printexc.to_string e))
+    | Not_found -> failwith ("Java_label.of_elem_data: tag not found: "^name)
+    | e -> failwith ("Java_label.of_elem_data: "^(Printexc.to_string e))
   in
   of_elem
