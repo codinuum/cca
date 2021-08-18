@@ -331,7 +331,7 @@ let get_p_right_nodes ?(moveon=fun _ -> true) ?(reset=fun _ -> false) pred nd rt
     with
       Otree.Parent_not_found _ -> ()
   end;
-  List.flatten !l
+  List.flatten (List.rev !l)
 
 let scan_ancestors ?(moveon=fun x -> true) nd f =
   let visited = ref [nd] in
@@ -564,15 +564,17 @@ let get_adjusted_path
             Array.iteri
               (fun i c ->
                 let c_is_excluded = is_excluded_map.(i) in
-                let c_is_simple_ins = is_simple_ins_map.(i) in
-                let is_simple_ins_str =
-                  match c_is_simple_ins with
-                  | Some true -> ", is_simple_ins"
-                  | Some false -> ", not_simple_ins"
-                  | _ -> ""
-                in
-                DEBUG_MSG "  %d %a (is_excluded=%B, is_stable=%B%s)"
-                  i nps c c_is_excluded (is_stable c) is_simple_ins_str;
+                BEGIN_DEBUG
+                  let c_is_simple_ins = is_simple_ins_map.(i) in
+                  let is_simple_ins_str =
+                    match c_is_simple_ins with
+                    | Some true -> ", is_simple_ins"
+                    | Some false -> ", not_simple_ins"
+                    | _ -> ""
+                  in
+                  DEBUG_MSG "  %d %a (is_excluded=%B, is_stable=%B%s)"
+                    i nps c c_is_excluded (is_stable c) is_simple_ins_str;
+                END_DEBUG;
                 try
                   if lv > 0 then
                     raise Not_found;

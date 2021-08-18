@@ -46,7 +46,8 @@ class c = object (self)
   val mutable use_adjacency_matches_flag   = true
   val mutable no_unnamed_node_move_flag    = false
   val mutable conservative_flag            = true
-
+  val mutable ignore_move_of_unordered_flag = false
+  val mutable ignore_non_orig_relabel_flag = false
 (* *)
 
   val mutable dump_size_threshold = 16
@@ -161,6 +162,14 @@ class c = object (self)
   method conservative_flag = conservative_flag
   method set_conservative_flag = conservative_flag <- true
   method clear_conservative_flag = conservative_flag <- false
+
+  method ignore_move_of_unordered_flag = ignore_move_of_unordered_flag
+  method set_ignore_move_of_unordered_flag = ignore_move_of_unordered_flag <- true
+  method clear_ignore_move_of_unordered_flag = ignore_move_of_unordered_flag <- false
+
+  method ignore_non_orig_relabel_flag = ignore_non_orig_relabel_flag
+  method set_ignore_non_orig_relabel_flag = ignore_non_orig_relabel_flag <- true
+  method clear_ignore_non_orig_relabel_flag = ignore_non_orig_relabel_flag <- false
 
 (* *)
 

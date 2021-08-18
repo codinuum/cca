@@ -232,15 +232,25 @@ module IrreversibleFormat = struct
     delta
     (* end of func Delta.IrreversibleFormat.of_doc *)
 
-  let patch options tree_factory ?(fail_on_error=true) file doc_root ch =
+  let patch options tree_factory ?(fail_on_error=true) ?(normalized_delta=false) file doc_root ch =
     try
       let delta = of_doc options tree_factory doc_root in
+
+      if normalized_delta then begin
+        verbose_msg options "normalized delta";
+        options#set_sort_unordered_flag;
+        options#clear_recover_orig_ast_flag
+      end
+      else begin
+        options#clear_sort_unordered_flag;
+        options#set_recover_orig_ast_flag
+      end;
 
       let tree = tree_factory#from_file file in
 
       DEBUG_MSG "T:\n%s\n" tree#to_string;
 
-      if not options#weak_flag then begin
+      if not normalized_delta then begin
         tree#recover_true_children ~initial_only:false ();
         DEBUG_MSG "T:\n%s\n" tree#to_string
       end;
@@ -274,20 +284,125 @@ module IrreversibleFormat = struct
         incr dstid_count;
         i
       in
+      let movs = ref [] in
+      let mov_tbl = Hashtbl.create 0 in (* mid -> mov *)
       List.iter
         (fun ed ->
           match ed with
-          | Ddelete(path, paths) ->
+          | Ddelete(path, paths) -> begin
               interpreter#reg_deleted path paths (Some (gen_del_stid_key()))
+          end
+          | Dmove(mctl, mid, path_from, paths_from, _, _, _, _, _, _) when mctl <> MinsertOnly -> begin
+              let nd = interpreter#acc path_from#path in
+              movs := (nd, ed)::!movs;
+              Hashtbl.add mov_tbl mid ed
+          end
+          | _ -> ()
+        ) delta;
 
+      let movs =
+        let cmp (n0, _) (n1, _) = compare n0#gindex n1#gindex in
+        List.fast_sort cmp !movs
+      in
+      List.iter
+        (fun (_, ed) ->
+          match ed with
+          | Dmove(mctl, mid, path_from, paths_from, _, _, _, _, _, _) when mctl <> MinsertOnly -> begin
+              interpreter#reg_deleted path_from paths_from (Some (key_of_mid mid));
+          end
+          | _ -> ()
+        ) movs;
+
+      let delta =
+        List.map
+          (fun ed ->
+            match ed with
+            | Dinsert(stid, subtree, path, [], None, None, None, None) -> begin
+                if (*path#offset <> 0.0 && *)path#upstream = 0 && path#key_opt = None then begin
+                  try
+                    let _ppath, elem = Path.split path#path in
+                    let nd = interpreter#acc _ppath in
+                    match interpreter#find_key_opt_of_deleted nd with
+                    | Some (K_mid mid) as key_opt' -> begin
+                        DEBUG_MSG "_ppath=%s elem=%s nd=%a %s %s" (Path.to_string _ppath) (Path.Elem.to_string elem)
+                          nps nd nd#data#label (Loc.to_string nd#data#src_loc);
+                        DEBUG_MSG "mid=%a" MID.ps mid;
+                        match Hashtbl.find mov_tbl mid with
+                        | Dmove(mctl, mid, path_from, paths_from, path_to, [], _, _, _, _) as mov when begin
+                            path_to#parent_path <> path_from#path &&
+                            List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from
+                        end -> begin
+                          DEBUG_MSG "found: %s" (edit_to_string mov);
+                          let _path', depth' =
+                            let rp' = Path.append (Path.remove_head path_from#path _ppath) elem in
+                            Path.concat path_to#path rp', Path.length rp'
+                          in
+                          let path' = new path_c _path' in
+                          let depth_opt' = Some depth' in
+                          let ed' = Dinsert(stid, subtree, path', [], key_opt', None, depth_opt', None) in
+                          DEBUG_MSG "%s" (edit_to_string ed);
+                          DEBUG_MSG " -> %s" (edit_to_string ed');
+                          ed'
+                        end
+                        | _ -> ed
+                    end
+                    | _ -> ed
+                  with
+                    _ -> ed
+                end
+                else
+                  ed
+            end
+            | Dmove(mctl0, mid0, path_from0, paths_from0, path, [], None, None, None, None) -> begin
+                if (*path#offset <> 0.0 && *)path#upstream = 0 && path#key_opt = None then begin
+                  try
+                    let _ppath, elem = Path.split path#path in
+                    let nd = interpreter#acc _ppath in
+                    match interpreter#find_key_opt_of_deleted nd with
+                    | Some (K_mid mid) as key_opt' -> begin
+                        DEBUG_MSG "_ppath=%s elem=%s nd=%a %s %s" (Path.to_string _ppath) (Path.Elem.to_string elem)
+                          nps nd nd#data#label (Loc.to_string nd#data#src_loc);
+                        DEBUG_MSG "mid=%a" MID.ps mid;
+                        match Hashtbl.find mov_tbl mid with
+                        | Dmove(mctl, mid, path_from, paths_from, path_to, [], _, _, _, _) as mov when begin
+                            path_to#parent_path <> path_from#path &&
+                            List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from
+                        end -> begin
+                          DEBUG_MSG "found: %s" (edit_to_string mov);
+                          let _path', depth' =
+                            let rp' = Path.append (Path.remove_head path_from#path _ppath) elem in
+                            Path.concat path_to#path rp', Path.length rp'
+                          in
+                          let path' = new path_c _path' in
+                          let depth_opt' = Some depth' in
+                          let ed' =
+                            Dmove(mctl0, mid0, path_from0, paths_from0, path', [], key_opt', None, depth_opt', None)
+                          in
+                          DEBUG_MSG "%s" (edit_to_string ed);
+                          DEBUG_MSG " -> %s" (edit_to_string ed');
+                          ed'
+                        end
+                        | _ -> ed
+                    end
+                    | _ -> ed
+                  with
+                    _ -> ed
+                end
+                else
+                  ed
+            end
+            | _ -> ed
+          ) delta
+      in
+
+      List.iter
+        (fun ed ->
+          match ed with
           | Dinsert(stid, subtree, path, paths, key_opt, adj_opt, depth_opt, shift_opt) ->
-              interpreter#reg_subtree
-                ~key_opt ~adj_opt ~depth_opt ~shift_opt stid subtree path paths
+              interpreter#reg_subtree ~key_opt ~adj_opt ~depth_opt ~shift_opt stid subtree path paths
 
           | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to,
                   key_opt, adj_opt, depth_opt, shift_opt) -> begin
-                    if mctl <> MinsertOnly then
-                      interpreter#reg_deleted path_from paths_from (Some (key_of_mid mid));
                     if mctl <> MdeleteOnly then
                       interpreter#reg_moved_subtree
                         ~key_opt ~adj_opt ~depth_opt ~shift_opt
@@ -343,6 +458,8 @@ module IrreversibleFormat = struct
       interpreter#shift_positions();
 
       (*DEBUG_MSG "final tree:\n%s" tree#initial_to_string;*)
+
+      DEBUG_MSG "T (final):\n%s\n" tree#to_string;
 
       (*try*)
         tree#unparse_ch ~fail_on_error ch
@@ -675,7 +792,7 @@ module ReversibleFormat = struct
     delta
   (* end of func Delta.ReversibleFormat.of_doc *)
 
-  let patch options tree_factory ?(fail_on_error=true) ?(reverse=false) file doc_root ch =
+  let patch options tree_factory ?(fail_on_error=true) ?(reverse=false) ?(normalized_delta=false) file doc_root ch =
     try
       let delta =
 	let orig = of_doc options tree_factory doc_root in
@@ -684,9 +801,19 @@ module ReversibleFormat = struct
 	else
           orig
       in
+      if normalized_delta then begin
+        verbose_msg options "normalized delta";
+        options#set_sort_unordered_flag;
+        options#clear_recover_orig_ast_flag
+      end
+      else begin
+        options#clear_sort_unordered_flag;
+        options#set_recover_orig_ast_flag
+      end;
+
       let tree = tree_factory#from_file file in
 
-      if not options#weak_flag then
+      if not normalized_delta then
         tree#recover_true_children ~initial_only:true ();
 
       let interpreter = new interpreter tree in
@@ -800,20 +927,21 @@ module Format = struct
       (tree_factory : 'tree tree_t SB.tree_factory_t)
       ?(fail_on_error=true)
       ?(reverse=false)
+      ?(normalized_delta=false)
       file
       (doc_root : SB.xnode_t)
       reversible
       =
     if reversible then begin
       verbose_msg options "reversible delta format";
-      ReversibleFormat.patch options tree_factory ~fail_on_error ~reverse file doc_root
+      ReversibleFormat.patch options tree_factory ~fail_on_error ~reverse ~normalized_delta file doc_root
     end
     else begin
       verbose_msg options "irreversible delta format";
       if reverse then
         failwith "Delta.Format.patch: irreversible delta"
       else
-        IrreversibleFormat.patch options tree_factory ~fail_on_error file doc_root
+        IrreversibleFormat.patch options tree_factory ~fail_on_error ~normalized_delta file doc_root
     end
 
   let patch
@@ -824,10 +952,10 @@ module Format = struct
       file
       delta_file
       =
-    let doc_root, reversible =
+    let doc_root, reversible, normalized_delta =
       parse_file options tree_factory#namespace_manager delta_file
     in
-    _patch options tree_factory ~fail_on_error ~reverse file doc_root reversible
+    _patch options tree_factory ~fail_on_error ~reverse ~normalized_delta file doc_root reversible
 
 
 end (* of module Delta.Format *)

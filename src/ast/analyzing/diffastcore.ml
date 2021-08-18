@@ -133,7 +133,7 @@ class c options = object (self)
 	let _ = Cache.prepare_cache_dir options cache_path in
 	let tree = self#__parse_file ~proj_root ~version file in
 
-        if not options#weak_flag then
+        if options#recover_orig_ast_flag then
           tree#recover_true_children ~initial_only:true ();
 
 	if options#dots_flag then begin

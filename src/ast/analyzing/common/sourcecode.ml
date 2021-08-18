@@ -272,6 +272,7 @@ module Tree (L : Spec.LABEL_T) = struct
           let lab' = of_elem_data name ((attr, v)::attrs') in
           DEBUG_MSG "%s -> %s" (L.to_string lab) (L.to_string lab');
           orig_lab_opt <- Some lab';
+          DEBUG_MSG "%s" self#to_string
           (*self#update*)
         end
 
@@ -413,7 +414,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method to_elem_data = L.to_elem_data self#src_loc lab
 
-      method to_elem_data_for_delta = L.to_elem_data ~strip:true self#src_loc lab
+      method to_elem_data_for_delta = L.to_elem_data ~strip:true ?afilt:None self#src_loc lab
 
       method orig_to_elem_data_for_delta =
         let lab_ =
@@ -421,7 +422,16 @@ module Tree (L : Spec.LABEL_T) = struct
           | Some l -> l
           | None -> lab
         in
-        L.to_elem_data ~strip:true self#src_loc lab_
+        L.to_elem_data ~strip:true ?afilt:None self#src_loc lab_
+
+      method orig_to_elem_data_for_eq =
+        let lab_ =
+          match orig_lab_opt with
+          | Some l -> l
+          | None -> lab
+        in
+        let afilt a = not (Xstring.startswith a "___") in
+        L.to_elem_data ~strip:true ~afilt self#src_loc lab_
 
       method eq ndat = _eq ndat
         (*_label = ndat#_label && self#orig_lab_opt = ndat#orig_lab_opt*)
@@ -456,6 +466,11 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method get_category = category
       method get_name = L.get_name lab
+      method get_orig_name =
+        match orig_lab_opt with
+        | Some o -> L.get_name o
+        | None -> self#get_name
+
       method get_value = L.get_value lab
       method has_value = L.has_value lab
       method has_non_trivial_value = L.has_non_trivial_value lab
@@ -475,7 +490,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       initializer
         _eq <-
-          if options#weak_flag then
+          if options#weak_eq_flag then
             (fun x ->
               _label = x#_label && self#orig_lab_opt = x#orig_lab_opt ||
               (not self#is_named_orig) && (not self#has_value) &&
@@ -488,7 +503,7 @@ module Tree (L : Spec.LABEL_T) = struct
               | _ -> false) ||
               self#is_compatible_with ~weak:true x)
           else
-            (fun x -> _label = x#_label && self#orig_lab_opt = x#orig_lab_opt);
+            (fun x -> _label = x#_label && self#orig_lab_opt = x#orig_lab_opt(*self#orig_to_elem_data_for_eq = x#orig_to_elem_data_for_eq*));
 	self#update
 
 
@@ -591,15 +606,20 @@ module Tree (L : Spec.LABEL_T) = struct
     inherit [ node_t ] Otree.otree2 root is_whole as super
 
 
-    method private create root is_whole = new c options root is_whole
+    method private create root is_whole =
+      let t = new c options root is_whole in
+      t#setup_initial_children;
+      t
 
     method extra_namespaces = ([] : (string * string) list)
 
-    method unparse_subtree_ch : ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit =
-      fun ?(fail_on_error=true) _ _ ->
+    method unparse_subtree_ch :
+        ?no_boxing:bool -> ?no_header:bool -> ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit =
+      fun ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) _ _ ->
         failwith "Sourcecode.unparse_subtree_ch: unparser is not implemented yet"
 
-    method unparse_ch ?(fail_on_error=true) = self#unparse_subtree_ch ~fail_on_error root
+    method unparse_ch ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) =
+      self#unparse_subtree_ch ~no_boxing ~no_header ~fail_on_error root
 
     method get_digest nd =
       let st = self#create nd false in
@@ -825,7 +845,15 @@ module Tree (L : Spec.LABEL_T) = struct
 	);
       List.rev !res
 
+    method initial_subtree_to_rep nd =
+      let buf = Buffer.create 0 in
+      self#scan_whole_initial_subtree nd
+        (fun n ->
+          Buffer.add_string buf n#to_rep
+        );
+      Buffer.contents buf
 
+    method initial_to_rep = self#initial_subtree_to_rep root
 
     method subtree_to_simple_string gid =
       let nd = self#search_node_by_gindex gid in
@@ -1895,7 +1923,15 @@ module Tree (L : Spec.LABEL_T) = struct
 end (* of functor Sourcecode.Tree *)
 
 
-
+let scan_ancestors ?(moveon=fun x -> true) nd f =
+  try
+    let cur = ref nd in
+    while (moveon !cur) do
+      cur := (!cur)#initial_parent;
+      f !cur
+    done
+  with
+    Otreediff.Otree.Parent_not_found _ -> ()
 
 let find_nearest_p_ancestor_node pred nd =
   let rec scan n =
@@ -1926,6 +1962,16 @@ let find_nearest_mapped_ancestor_node is_mapped nd =
   let a = scan nd in
   DEBUG_MSG "%a --> %a" UID.ps nd#uid UID.ps a#uid;
   a
+
+let scan_descendants ?(moveon=fun _ -> true) nd f =
+  let rec scan nd =
+    f nd;
+    if moveon nd then begin
+      Array.iter scan nd#initial_children
+    end
+  in
+  if moveon nd then
+    Array.iter scan nd#initial_children
 
 let find_nearest_mapped_descendant_nodes is_mapped node =
   let rec get nd =

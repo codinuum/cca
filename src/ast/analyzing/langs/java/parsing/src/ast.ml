@@ -68,23 +68,29 @@ let iattr_to_str = function
   | IAarray -> "array"
 
 
-type frame_kind = FKclass of string | FKtypeparameter | FKother
+type frame_kind = FKclass of string * bool(* has_super *)ref | FKtypeparameter | FKother
 
 let frame_kind_to_string = function
-  | FKclass s -> "class:"^s
+  | FKclass(s, x) -> sprintf "class:%s:%B" s !x
   | FKtypeparameter -> "typeparameter"
   | FKother -> "other"
 
+let is_class_frame = function
+  | FKclass _ -> true
+  | _ -> false
 class frame kind = object (self)
   val tbl = (Hashtbl.create 0 : (string, identifier_attribute) Hashtbl.t)
 
   val qtbl = (Hashtbl.create 0 : (string, identifier_attribute) Hashtbl.t)
 
+  method kind = kind
+
   method is_typeparameter_frame = kind = FKtypeparameter
+  method is_class_frame = is_class_frame kind
 
   method get_class_name =
     match kind with
-    | FKclass n -> n
+    | FKclass(n, _) -> n
     | _ -> raise Not_found
 
   method private _add t id attr =
@@ -115,7 +121,7 @@ class frame kind = object (self)
     Hashtbl.iter f tbl
 
   method to_string =
-    sprintf "FRAME[%s]:\n{%s}\n{%s}\n"
+    sprintf "FRAME[%s]:\nIDENT:{%s}\nQNAME:{%s}\n"
       (frame_kind_to_string kind)
       (Hashtbl.fold (fun id _ s -> id^";"^s) tbl "")
       (Hashtbl.fold (fun qn _ s -> qn^";"^s) qtbl "")
@@ -206,7 +212,7 @@ let set_attribute lattr attr name =
   let rec set_attr a n =
     match n.n_desc with
     | Nsimple(at, _) -> set1 at a
-    | Nqualified(at, n, _) -> set1 at a; set_attr a n
+    | Nqualified(at, n, _) -> set1 at a;(* set_attr a n*)
     | _ -> ()
   in
   match name.n_desc with
@@ -218,8 +224,8 @@ let set_attribute_PT_T rr = set_attribute NApackageOrType (NAtype rr)
 let set_attribute_P_T rr  = set_attribute NApackage (NAtype rr)
 let set_attribute_PT_PT   = set_attribute NApackageOrType NApackageOrType
 let set_attribute_P_P     = set_attribute NApackage NApackage
-let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod
-let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression
+(*let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod*)
+(*let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression*)
 
 
 let get_name_attribute name =
@@ -227,6 +233,11 @@ let get_name_attribute name =
   | Nsimple(attr, _)
   | Nqualified(attr, _, _) -> !attr
   | _ -> NAunknown
+
+let compose_name ?(attr=ref NAunknown) name ident =
+  let desc = Nqualified(attr, name, ident) in
+  let loc = Loc.widen name.n_loc ((String.length ident) + 1) in
+  {n_desc=desc;n_loc=loc}
 
 let decompose_name name =
   match name.n_desc with
@@ -240,11 +251,22 @@ let rec leftmost_of_name n =
   | Nqualified(_, n, _) -> leftmost_of_name n
   | _ -> ref NAunknown, "?"
 
+let rec leftmost_name n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> n
+  | Nqualified(_, n, _) -> leftmost_name n
+  | _ -> n
+
 let rightmost_identifier n =
   match n.n_desc with
   | Nsimple(_, id) -> id
   | Nqualified(_, _, id) -> id
   | _ -> "?"
+
+let rightmost_name n =
+  match n.n_desc with
+  | Nqualified(a, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
+  | _ -> n
 
 let get_qualifier name =
   match name.n_desc with
@@ -270,6 +292,22 @@ let is_ambiguous_name name =
 let is_type_name name =
   match get_name_attribute name with
   | NAtype _ -> true
+  | NApackageOrType -> true
+  | _ -> false
+
+let is_type name =
+  match get_name_attribute name with
+  | NAtype _ -> true
+  | _ -> false
+
+let is_package_or_type_name name =
+  match get_name_attribute name with
+  | NApackageOrType -> true
+  | _ -> false
+
+let is_expression name =
+  match get_name_attribute name with
+  | NAexpression -> true
   | _ -> false
 
 let is_unknown_name name =
@@ -623,6 +661,10 @@ and interface_method_declaration = { amd_method_header : method_header;
 				  }
 
 and interface_member_declaration =
+    { imd_desc : interface_member_declaration_desc;
+      imd_loc  : loc;
+    }
+and interface_member_declaration_desc =
   | IMDconstant of field_declaration
   | IMDinterfaceMethod of interface_method_declaration
   | IMDclass of class_declaration
@@ -854,13 +896,14 @@ and resource_spec = { rs_resources : resource list;
                       rs_loc       : loc;
                     }
 
-and resource =
-    { r_modifiers              : modifiers option;
-      r_type                   : javatype;
-      r_variable_declarator_id : variable_declarator_id;
-      r_expr                   : expression;
-      r_loc                    : loc;
-    }
+and resource = { r_desc : resource_desc;
+                 r_loc  : loc;
+               }
+
+and resource_desc =
+  | RlocalVarDecl of local_variable_declaration
+  | RfieldAccess of field_access
+  | Rname of name
 
 type package_declaration = { pd_annotations : annotations;
 			     pd_name        : name;
@@ -889,9 +932,9 @@ type compilation_unit =
       cu_tydecls   : type_declaration list;
     }
 
+let _mkprim loc d = { p_desc=d; p_loc=loc }
+
 let mh_is_generic mh = mh.mh_type_parameters <> None
-
-
 
 let proc_op proc f op =
   match op with
@@ -939,17 +982,49 @@ and proc_expression f e =
   | Einstanceof(e0, ty) -> proc_expression f e0; proc_type f ty
   | Econd(e0, e1, e2) -> List.iter (proc_expression f) [e0; e1; e2]
   | Eassignment(lhs, _, rhs) -> List.iter (proc_expression f) [lhs; rhs]
+  | Elambda(_, b) -> proc_lambda_block f b
   | _ -> ()
 
+and proc_lambda_block f = function
+  | LBexpr e -> proc_expression f e
+  | LBblock b -> proc_block f b
+
+and _name_to_facc name =
+  match name.n_desc with
+  | Nsimple(a, i) -> begin
+      match !a with
+      | NAexpression -> PfieldAccess(FAimplicit name)
+      | _ -> Pname name
+  end
+  | Nqualified(a, n, i) -> PfieldAccess(FAprimary(name_to_facc n, i))
+  | Nerror s -> Pname name
+
+and name_to_facc name = _mkprim name.n_loc (_name_to_facc name)
+
 and proc_primary f p =
+  DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
   match p.p_desc with
-  | Pname n -> f n
+  | Pname n -> begin
+      f n;
+      DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
+      if is_qualified n then begin
+        let q = get_qualifier n in
+        if is_expression q then
+          p.p_desc <- _name_to_facc n
+      end
+  end
   | PclassLiteral ty -> proc_type f ty
   | PqualifiedThis n -> f n
   | Pparen e -> proc_expression f e
   | PclassInstanceCreation cic -> proc_class_instance_creation f cic
+  | PfieldAccess (FAimplicit n) when is_type_name n -> begin
+      f n;
+      DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
+      p.p_desc <- Pname n
+  end
   | PfieldAccess (FAimplicit n) when is_ambiguous_name n -> begin
       f n;
+      DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
       if is_type_name n then
         p.p_desc <- Pname n
   end
@@ -1004,12 +1079,14 @@ and proc_type_parameters f tps =
   List.iter (proc_type_parameter f) tps.tps_type_parameters
 
 and proc_method_header f mh =
+  proc_op proc_modifiers f mh.mh_modifiers;
   proc_op proc_type_parameters f mh.mh_type_parameters;
   proc_type f mh.mh_return_type;
   List.iter (proc_formal_parameter f) mh.mh_parameters;
   proc_op proc_throws f mh.mh_throws
 
 and proc_formal_parameter f fp =
+  proc_op proc_modifiers f fp.fp_modifiers;
   proc_type f fp.fp_type
 
 and proc_throws f th =
@@ -1028,6 +1105,7 @@ and proc_variable_declarator f vd =
   proc_op proc_variable_initializer f vd.vd_variable_initializer
 
 and proc_local_variable_declaration f lvd =
+  proc_op proc_modifiers f lvd.lvd_modifiers;
   proc_type f lvd.lvd_type;
   List.iter (proc_variable_declarator f) lvd.lvd_variable_declarators
 
@@ -1095,14 +1173,17 @@ and proc_statement f s =
 and proc_resource_spec f rs = List.iter (proc_resource f) rs.rs_resources
 
 and proc_resource f r =
-  proc_type f r.r_type;
-  proc_expression f r.r_expr
+  match r.r_desc with
+  | RlocalVarDecl lvd -> proc_local_variable_declaration f lvd
+  | RfieldAccess fa -> proc_field_access f fa
+  | Rname n -> f n
 
 and proc_catch f c =
   proc_catch_formal_parameter f c.c_formal_parameter;
   proc_block f c.c_block
 
 and proc_catch_formal_parameter f cfp =
+  proc_op proc_modifiers f cfp.cfp_modifiers;
   List.iter (proc_type f) cfp.cfp_type_list
 
 and proc_for_init f fi =
@@ -1127,6 +1208,7 @@ and proc_implements f im =
   List.iter (proc_type f) im.im_interfaces
 
 and proc_class_declaration_head f ch =
+  proc_op proc_modifiers f ch.ch_modifiers;
   proc_op proc_type_parameters f ch.ch_type_parameters;
   proc_op proc_extends_class f ch.ch_extends_class;
   proc_op proc_implements f ch.ch_implements
@@ -1156,6 +1238,7 @@ and proc_enum_constant f ec =
   proc_op proc_class_body f ec.ec_class_body
 
 and proc_interface_declaration_head f ifh =
+  proc_op proc_modifiers f ifh.ifh_modifiers;
   proc_op proc_type_parameters f ifh.ifh_type_parameters;
   proc_op (fun f ei -> List.iter (proc_type f) ei.exi_interfaces) f ifh.ifh_extends_interfaces
 
@@ -1182,14 +1265,23 @@ and proc_interface_body f ib =
   List.iter (proc_interface_member_declaration f) ib.ib_member_declarations
 
 and proc_interface_member_declaration f imd =
-  match imd with
+  match imd.imd_desc with
   | IMDconstant fd         -> proc_field_declaration f fd
   | IMDinterfaceMethod amd -> proc_interface_method_declaration f amd
   | IMDclass cd            -> proc_class_declaration f cd
   | IMDinterface ifd       -> proc_interface_declaration f ifd
   | _ -> ()
 
+and proc_modifiers f ms =
+  List.iter (proc_modifier f) ms.ms_modifiers
+
+and proc_modifier f m =
+  match m.m_desc with
+  | Mannotation a -> proc_annotation f a
+  | _ -> ()
+
 and proc_field_declaration f fd =
+  proc_op proc_modifiers f fd.fd_modifiers;
   proc_type f fd.fd_type;
   List.iter (proc_variable_declarator f) fd.fd_variable_declarators
 
@@ -1198,6 +1290,7 @@ and proc_interface_method_declaration f amd =
   proc_op proc_block f amd.amd_body
 
 and proc_constructor_declaration f cnd =
+  proc_op proc_modifiers f cnd.cnd_modifiers;
   proc_op proc_type_parameters f cnd.cnd_type_parameters;
   List.iter (proc_formal_parameter f) cnd.cnd_parameters;
   proc_op proc_throws f cnd.cnd_throws;
@@ -1270,27 +1363,65 @@ and proc_field_access f fa =
   | FAclassSuper(n, _) -> f n
   | _ -> ()
 
+and name_attribute_to_string = function
+  | NApackage       -> "P"
+  | NAtype r        -> "T"
+  | NAexpression    -> "E"
+  | NAmethod        -> "M"
+  | NApackageOrType -> "PT"
+  | NAstatic r      -> "S"
+  | NAambiguous r   -> "A"
+  | NAunknown       -> "U"
+
+and name_to_simple_string name =
+  match name.n_desc with
+  | Nsimple(attr, sn) -> sn
+  | Nqualified(attr, n, sn) ->
+      sprintf "%s.%s" (name_to_simple_string n) sn
+  | Nerror s -> s
+
+and name_to_string name =
+  match name.n_desc with
+  | Nsimple(attr, sn) ->
+      sprintf "(%s)_%s" sn (name_attribute_to_string !attr)
+
+  | Nqualified(attr, n, sn) ->
+      sprintf "(%s.%s)_%s" (name_to_string n) sn (name_attribute_to_string !attr)
+
+  | Nerror s -> s
+
+and prim_to_string p =
+  match p.p_desc with
+  | Pname n -> sprintf "Pname:%s" (name_to_string n)
+  | PfieldAccess (FAimplicit n) -> sprintf "PfieldAccess:FAimplicit:%s" (name_to_string n)
+  | _ -> "<prim>"
+
 and proc_method_invocation f mi =
-  match mi.mi_desc with
-  | MImethodName(n, args) ->
-      f n;
-      proc_arguments f args
-  | MIprimary(p, tas_op, id, args) -> begin
-      proc_primary f p;
-      proc_op proc_type_arguments f tas_op;
-      proc_arguments f args;
-      match p.p_desc with
-      | Pname n when is_type_name n -> mi.mi_desc <- MItypeName(n, tas_op, id, args)
-      | _ -> ()
-  end
-  | MIsuper(_, tas_op, _, args) ->
-      proc_op proc_type_arguments f tas_op;
-      proc_arguments f args
-  | MItypeName(n, tas_op, _, args)
-  | MIclassSuper(_, _, n, tas_op, _, args) ->
-      f n;
-      proc_op proc_type_arguments f tas_op;
-      proc_arguments f args
+  let proc = function
+    | MImethodName(n, args) ->
+        f n;
+        proc_arguments f args
+    | MIprimary(p, tas_op, id, args) -> begin
+        DEBUG_MSG "[%s] %s %s" (Loc.to_string mi.mi_loc) (prim_to_string p) id;
+        proc_primary f p;
+        proc_op proc_type_arguments f tas_op;
+        proc_arguments f args;
+        DEBUG_MSG "[%s] %s %s" (Loc.to_string mi.mi_loc) (prim_to_string p) id;
+        match p.p_desc with
+        | Pname n | PfieldAccess (FAimplicit n) when is_type_name n ->
+            mi.mi_desc <- MItypeName(n, tas_op, id, args)
+        | _ -> ()
+    end
+    | MIsuper(_, tas_op, _, args) ->
+        proc_op proc_type_arguments f tas_op;
+        proc_arguments f args
+    | MItypeName(n, tas_op, _, args)
+    | MIclassSuper(_, _, n, tas_op, _, args) ->
+        f n;
+        proc_op proc_type_arguments f tas_op;
+        proc_arguments f args
+  in
+  proc mi.mi_desc
 
 and proc_array_access f aa =
   match aa.aa_desc with
@@ -1324,6 +1455,18 @@ let proc_import_declaration f id =
 
 class c (compilation_unit : compilation_unit) = object (self)
   inherit Ast_base.c
+
+  val mutable nintegers = -1
+  val mutable nfloats   = -1
+  val mutable nstrings  = -1
+
+  method set_nintegers x = nintegers <- x
+  method set_nfloats x = nfloats <- x
+  method set_nstrings x = nstrings <- x
+
+  method nintegers = nintegers
+  method nfloats = nfloats
+  method nstrings = nstrings
 
   method compilation_unit = compilation_unit
 

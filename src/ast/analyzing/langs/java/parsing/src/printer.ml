@@ -577,30 +577,32 @@ and pr_array_creation_expression = function
 
 and pr_method_invocation mi =
   open_box 0;
-  let _ = match mi.mi_desc with
-  | MImethodName(n, args) ->
-      pr_name n; pr_lparen(); pr_argument_list args; pr_string ")";
-  | MIprimary(p, tyargs_opt, id, args) ->
-      pr_primary (get_precedence ".") p; pr_string ".";
-      pr_option pr_type_arguments tyargs_opt;
-      pr_id id;
-      pr_lparen(); pr_argument_list args; pr_string ")"
-  | MItypeName(n, tyargs_opt, id, args) ->
-      pr_name n; pr_string ".";
-      pr_option pr_type_arguments tyargs_opt;
-      pr_id id;
-      pr_lparen(); pr_argument_list args; pr_string ")"
-  | MIsuper(_, tyargs_opt, id, args) ->
-      pr_string "super.";
-      pr_option pr_type_arguments tyargs_opt;
-      pr_id id;
-      pr_lparen(); pr_argument_list args; pr_string ")"
-  | MIclassSuper(_, _, n, tyargs_opt, id, args) ->
-      pr_name n; pr_string ".super.";
-      pr_option pr_type_arguments tyargs_opt;
-      pr_id id;
-      pr_lparen(); pr_argument_list args; pr_string ")"
-  in close_box()
+  let pr_mi_d = function
+    | MImethodName(n, args) ->
+        pr_name n; pr_lparen(); pr_argument_list args; pr_string ")";
+    | MIprimary(p, tyargs_opt, id, args) ->
+        pr_primary (get_precedence ".") p; pr_string ".";
+        pr_option pr_type_arguments tyargs_opt;
+        pr_id id;
+        pr_lparen(); pr_argument_list args; pr_string ")"
+    | MItypeName(n, tyargs_opt, id, args) ->
+        pr_name n; pr_string ".";
+        pr_option pr_type_arguments tyargs_opt;
+        pr_id id;
+        pr_lparen(); pr_argument_list args; pr_string ")"
+    | MIsuper(_, tyargs_opt, id, args) ->
+        pr_string "super.";
+        pr_option pr_type_arguments tyargs_opt;
+        pr_id id;
+        pr_lparen(); pr_argument_list args; pr_string ")"
+    | MIclassSuper(_, _, n, tyargs_opt, id, args) ->
+        pr_name n; pr_string ".super.";
+        pr_option pr_type_arguments tyargs_opt;
+        pr_id id;
+        pr_lparen(); pr_argument_list args; pr_string ")"
+  in
+  let _ = pr_mi_d mi.mi_desc in
+  close_box()
 
 and pr_field_access = function
   | FAprimary(p, id) -> pr_primary (get_precedence ".") p; pr_string "."; pr_id id
@@ -813,12 +815,10 @@ and pr_resource_spec rs =
   pr_rparen()
 
 and pr_resource r =
-  pr_option pr_modifiers r.r_modifiers;
-  pr_type r.r_type;
-  pad 1;
-  pr_variable_declarator_id r.r_variable_declarator_id;
-  pad 1; pr_string "="; pad 1;
-  pr_expression 0 r.r_expr
+  match r.r_desc with
+  | RlocalVarDecl lvd -> pr_local_variable_declaration lvd
+  | RfieldAccess fa -> pr_field_access fa
+  | Rname n -> pr_name n
 
 and pr_catch_clause sty c =
   pr_string "catch (";
@@ -993,7 +993,8 @@ and pr_classname_pattern_expr cpe =
   | CPEname n -> pr_string n
   | CPEnamePlus n -> pr_string n; pr_string "+"
 
-and pr_interface_member_declaration = function
+and pr_interface_member_declaration imd =
+  match imd.imd_desc with
   | IMDconstant fd -> pr_field_declaration fd
   | IMDinterfaceMethod amd -> pr_interface_method_declaration amd
   | IMDclass cd -> pr_class_declaration cd

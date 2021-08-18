@@ -78,6 +78,8 @@ let pr_option : 'a. ('a -> unit) -> 'a option -> unit =
 
 class ppbox = object (self)
 
+  val mutable boxing_flag = true
+
   val mutable indent = 2
 
   val mutable orig_functions = Format.get_formatter_out_functions()
@@ -85,6 +87,10 @@ class ppbox = object (self)
   val box_stack = Stack.create()
 
   method indent = indent
+
+  method boxing_flag = boxing_flag
+  method disable_boxing() = boxing_flag <- false
+  method enable_boxing() = boxing_flag <- true
 
   method private enter_box b = Stack.push b box_stack
   method private exit_box()  = ignore (Stack.pop box_stack)
@@ -107,12 +113,12 @@ class ppbox = object (self)
         | Bhov i -> self#open_hovbox i; if i > 0 then pad i
       ) stat
 
-  method open_box i    = self#enter_box (B i); Format.open_box i
-  method open_hbox()   = self#enter_box Bh; Format.open_hbox()
-  method open_vbox i   = self#enter_box (Bv i); Format.open_vbox i
-  method open_hvbox i  = self#enter_box (Bhv i); Format.open_hvbox i
-  method open_hovbox i = self#enter_box (Bhov i); Format.open_hovbox i
-  method close_box()   = self#exit_box(); Format.close_box()
+  method open_box i    = self#enter_box (B i); if boxing_flag then Format.open_box i
+  method open_hbox()   = self#enter_box Bh; if boxing_flag then Format.open_hbox()
+  method open_vbox i   = self#enter_box (Bv i); if boxing_flag then Format.open_vbox i
+  method open_hvbox i  = self#enter_box (Bhv i); if boxing_flag then Format.open_hvbox i
+  method open_hovbox i = self#enter_box (Bhov i); if boxing_flag then Format.open_hovbox i
+  method close_box()   = self#exit_box(); if boxing_flag then Format.close_box()
 
   method enable_backslash_newline() =
     orig_functions <- Format.get_formatter_out_functions();

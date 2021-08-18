@@ -368,13 +368,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method is_consistent_with ed =
     let result =
       match ed with
-      | Delete(_, u, _, _) ->
+      | Delete(w, u, _, _) ->
           let eds = self#find1 u in
           begin
             match eds with
               [] -> true
-            | [ed'] ->
-                let b = ed = ed' in
+            | [Delete(w', u', _, _) as ed'] ->
+                let b = w = w' && u = u' in
 
                 BEGIN_DEBUG
                   if b then
@@ -391,16 +391,21 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 false
 
-            | _ -> assert false
+            | _ ->
+                List.iter
+                  (fun ed' ->
+                    DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
+                  ) eds;
+                assert false
           end
 
-      | Insert(_, v, _, _)  ->
+      | Insert(w, v, _, _)  ->
           let eds = self#find2 v in
           begin
             match eds with
             | [] -> true
-            | [ed'] ->
-                let b = ed = ed' in
+            | [Insert(w', v', _, _) as ed'] ->
+                let b = w = w' && v = v' in
 
                 BEGIN_DEBUG
                   if b then
@@ -417,7 +422,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 false
 
-            | _ -> assert false
+            | _ ->
+                List.iter
+                  (fun ed' ->
+                    DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
+                  ) eds;
+                assert false
           end
 
       | Relabel(_, (u, _, _), (v, _, _)) ->
@@ -453,10 +463,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 false
 
-            | _ -> assert false
+            | _ ->
+                List.iter
+                  (fun ed' ->
+                    DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
+                  ) eds;
+                assert false
           end
 
-      | Move(_, _, (u, _, _), (v, _, _)) ->
+      | Move(m, k, (u, _, x), (v, _, y)) ->
           let eds = self#find12 u v in
           begin
             match eds with
@@ -471,8 +486,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 b
 
-            | [ed'] ->
-                let b = ed = ed' in
+            | [Move(m', k', (u', _, x'), (v', _, y')) as ed'] ->
+                let b = u = u' && !m = !m' && !k = !k' && (!x = !x' || !x' = []) && (!y = !y' || !y' = []) in
 
                 BEGIN_DEBUG
                   if b then
@@ -489,7 +504,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 false
 
-            | _ -> assert false
+            | _ ->
+                List.iter
+                  (fun ed' ->
+                    DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
+                  ) eds;
+                assert false
           end
     in
     result
@@ -506,7 +526,17 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     | Delete(_, uid, _, _) -> add del_tbl uid edit
     | Insert(_, uid, _, _) -> add ins_tbl uid edit
     | Relabel(_, (uid1, _, _), (uid2, _, _))    -> add2 rel1_tbl rel2_tbl uid1 uid2 edit
-    | Move(_, _, (uid1, _, _), (uid2, _, _)) -> add2 mov1_tbl mov2_tbl uid1 uid2 edit
+    | Move(_, _, (uid1, _, _), (uid2, _, _)) -> begin
+        add2 mov1_tbl mov2_tbl uid1 uid2 edit;
+        begin
+          try
+            match self#find_rel12 uid1 uid2 with
+            | Relabel(movrel, _, _) -> movrel := true
+            | _ -> assert false
+          with
+            Not_found -> ()
+        end
+    end
 
 
 
@@ -536,9 +566,18 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     | Relabel(_, (u1, _, _), (u2, _, _)) ->
         (*Hashtbl.remove*)tbl_remove rel1_tbl u1;
         (*Hashtbl.remove*)tbl_remove rel2_tbl u2
-    | Move(_, _, (u1, _, _), (u2, _, _)) ->
+    | Move(_, _, (u1, _, _), (u2, _, _)) -> begin
         (*Hashtbl.remove*)tbl_remove mov1_tbl u1;
-        (*Hashtbl.remove*)tbl_remove mov2_tbl u2
+        (*Hashtbl.remove*)tbl_remove mov2_tbl u2;
+        begin
+          try
+            match self#find_rel12 u1 u2 with
+            | Relabel(movrel, _, _) -> movrel := false
+            | _ -> assert false
+          with
+            Not_found -> ()
+        end
+    end
 
 
   method remove_del uid =
@@ -897,8 +936,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         | _ -> assert false
       );
 
-    Hashtbl.iter (* singletons are excluded and assign fresh id for members *)
+    Hashtbl.iter (* exclude singletons and assign fresh id for members *)
       (fun mid movs ->
+        DEBUG_MSG "mid=%a" MID.ps mid;
         if (List.length movs) > 1 then begin
           List.iter
             (function
@@ -950,9 +990,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           Not_found -> ()
       ) table_pairs;
 
-    if !res <> [] then
+    (*if !res <> [] then
       DEBUG_MSG "%a-%a -> [%s]"
-        UID.ps uid1 UID.ps uid2 (Xlist.to_string to_string ";" !res);
+        UID.ps uid1 UID.ps uid2 (Xlist.to_string to_string ";" !res);*)
 
     !res
 
@@ -1421,7 +1461,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
                 (not (n1#data#is_compatible_with ?weak:(Some true) n2#data) &&
                  n1#data#more_anonymized_label <> n2#data#more_anonymized_label) ||
-                 n1#data#has_value && n2#data#has_value && n1#data#get_value <> n2#data#get_value
+                 n1#data#has_value && n2#data#has_value && n1#data#get_value <> n2#data#get_value ||
+                 match n1#data#orig_lab_opt, n2#data#orig_lab_opt with
+                 | Some o1, Some o2 -> o1 <> o2
+                 | _ -> false
               in
               if ok then begin
                 let loc1 = Info.get_loc info1 in
@@ -2122,8 +2165,52 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     let normal_flag = ref true in
 
+    let node_eq =
+      if options#ignore_non_orig_relabel_flag && not options#weak_eq_flag then
+        fun n1 n2 ->
+          if not n1#data#is_named_orig && not n2#data#is_named_orig then
+            n1#data#elem_name_for_delta = n2#data#elem_name_for_delta
+          else
+            match n1#data#orig_lab_opt, n2#data#orig_lab_opt with
+            | Some o1, Some o2 -> o1 = o2
+            | _ -> n1#data#eq n2#data
+      else
+        fun n1 n2 -> n1#data#eq n2#data
+    in
+    let tree_eq t1 t2 =
+      let rec scan nds1 nds2 =
+	match nds1, nds2 with
+	| [], [] -> true
+	| nd1::rest1, nd2::rest2 ->
+
+	    DEBUG_MSG "%a - %a" UID.ps nd1#uid UID.ps nd2#uid;
+
+	    (if node_eq nd1 nd2 then
+	      let cl1 = Array.to_list nd1#children in
+	      let cl2 = Array.to_list nd2#children in
+	      let sub = scan cl1 cl2 in
+	      sub
+	    else begin
+	      WARN_MSG "%s != %s" (nd1#to_string) (nd2#to_string);
+	      false
+	    end)
+	      &&
+	    (scan rest1 rest2)
+	| nd::_, [] ->
+	    WARN_MSG "number of children mismatch: (>) %s [%s,...]"
+	      (nd#parent#to_string) (nd#to_string);
+	    false
+
+	| [], nd::_ ->
+	    WARN_MSG "number of children mismatch: (<) %s [%s,...]"
+	      (nd#parent#to_string) (nd#to_string);
+	    false
+      in
+      scan [t1#root] [t2#root]
+    in
+
     (* initializing trees *)
-    if not options#weak_flag then begin
+    if options#recover_orig_ast_flag then begin
       tree1#recover_true_children ~initial_only:false ();
       tree2#recover_true_children ~initial_only:false ()
     end;
@@ -2257,12 +2344,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             tree2#scan_cluster_u (uid2, uids2) (fun n -> Queue.add n q);
             tree1#scan_cluster_u (uid1, uids1)
               (fun n ->
-                let nd' = Queue.take q in
-                let d = nd'#data in
-                if not (n#data#eq d) then begin
+                let n' = Queue.take q in
+                if not (node_eq n n') then begin
                   normal_flag := false;
                   WARN_MSG "move: <%a:%s> != <%a:%s>"
-                    UID.ps n#uid n#data#to_string UID.ps nd'#uid d#to_string
+                    UID.ps n#uid n#data#to_string UID.ps n'#uid n'#data#to_string
                 end
               );
 
@@ -2278,7 +2364,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       tree1#to_string tree2#to_string;
 
     (* now tree1 should equals to tree2 *)
-    let result = tree1#equals tree2 && !normal_flag in
+    let result = tree_eq tree1 tree2 && !normal_flag in
 
     result
 
@@ -2763,13 +2849,21 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
               let cond0 =
                 not (List.mem uid' !cands) &&
-                (nd'#data#eq nd#data) &&
+                (nd'#data#eq nd#data(* ||
+                  (try not nd'#initial_parent#data#is_boundary with _ -> false) &&
+                  (try not nd#initial_parent#data#is_boundary with _ -> false) &&
+                  not nd'#data#is_named_orig && not nd#data#is_named_orig &&
+                  nd'#data#anonymized_label = nd#data#anonymized_label*)
+                ) &&
                 (mem_del_or_ins uid' || (mem_mov1 uid' && uid0 <> uid')) &&
                 (not (is_mov nd nd'))
               in
 
               DEBUG_MSG "not (List.mem uid' !cands) --> %B" (not (List.mem uid' !cands));
-              DEBUG_MSG "nd'#data#eq nd#data --> %B" (nd'#data#eq nd#data);
+              DEBUG_MSG "nd'#data#eq nd#data --> %B"
+                (nd'#data#eq nd#data(* ||
+                not nd'#data#is_named_orig && not nd#data#is_named_orig &&
+                nd'#data#anonymized_label = nd#data#anonymized_label*));
               DEBUG_MSG "mem_del_or_ins uid' || (mem_mov1 uid' && uid0 <> uid') --> %B"
                 (mem_del_or_ins uid' || (mem_mov1 uid' && uid0 <> uid'));
               DEBUG_MSG "not (is_mov nd nd') --> %B" (not (is_mov nd nd'));
@@ -3641,7 +3735,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             (fun cand ->
               not (is_invalid_cand cand) &&
               (List.exists directly_connected_to_stable_match cand ||
-              List.length cand > 1 ||
+              List.length cand > 2 ||
               not_contained_in_move cand(* ||
               match cand with
               | [n1, n2] -> n1#data#equals n2#data

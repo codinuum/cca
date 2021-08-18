@@ -102,8 +102,8 @@ type node_t = node_data_t SB.node_t
 class type tree_t = object ('self)
   inherit [ node_t ] SB.tree_t_shared
 
-  method unparse_subtree_ch       : ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit
-  method unparse_ch               : ?fail_on_error:bool -> SB.OutChannel.t -> unit
+  method unparse_subtree_ch       : ?no_boxing:bool -> ?no_header:bool -> ?fail_on_error:bool -> node_t -> SB.OutChannel.t -> unit
+  method unparse_ch               : ?no_boxing:bool -> ?no_header:bool -> ?fail_on_error:bool -> SB.OutChannel.t -> unit
 
   method set_true_parent_tbl      : (UID.t, node_t) Hashtbl.t -> unit
   method find_true_parent         : UID.t -> node_t
@@ -352,7 +352,7 @@ module type LABEL_T = sig
   val to_short_string  : ?ignore_identifiers_flag:bool -> t -> string
   val to_simple_string : t -> string
 
-  val to_elem_data     : ?strip:bool -> Loc.t -> t -> string * (string * string) list * string
+  val to_elem_data     : ?strip:bool -> ?afilt:(string -> bool) -> Loc.t -> t -> string * (string * string) list * string
   val of_elem_data     : string -> (string * string) list -> string -> t
 
   val relabel_allowed          : t * t -> bool

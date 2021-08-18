@@ -25,8 +25,8 @@ module P = Printer
 
 exception Attrs_found of identifier_attribute list
 exception Unknown of string
-exception Str_found of string
-
+exception Type_found of string
+exception Expr_found
 
 type sub_context =
   | SC_block
@@ -158,6 +158,30 @@ class env = object (self)
   val mutable g_brace_level = 0
 
   val context_stack = Stack.create ()
+
+  val mutable nintegers = -1
+  val mutable nfloats   = -1
+  val mutable nstrings  = -1
+
+  method incr_nintegers() =
+    if nintegers < 0 then
+      nintegers <- 1
+    else
+      nintegers <- nintegers + 1
+  method incr_nfloats() =
+    if nfloats < 0 then
+      nfloats <- 1
+    else
+      nfloats <- nfloats + 1
+  method incr_nstrings() =
+    if nstrings < 0 then
+      nstrings <- 1
+    else
+      nstrings <- nstrings + 1
+
+  method nintegers = nintegers
+  method nfloats = nfloats
+  method nstrings = nstrings
 
   method in_declare_flag = in_declare_flag
 
@@ -583,7 +607,9 @@ class env = object (self)
   method end_scope() =
     DEBUG_MSG "POP(%d)" (Stack.length stack);
     try
-      ignore (Stack.pop stack)
+      let frm = Stack.pop stack in
+      (*if is_class_frame frm#kind && self#in_class then begin
+      end*)()
     with
       Stack.Empty ->
 	raise (Internal_error "Parser_aux.end_scope: stack empty")
@@ -594,6 +620,21 @@ class env = object (self)
     with
       Stack.Empty ->
 	raise (Internal_error "Parser_aux.current_frame: stack empty")
+
+  method set_has_super() =
+    try
+      match self#current_frame#kind with
+      | FKclass(_, x) -> x := true
+      | _ -> ()
+    with _ -> ()
+
+  method has_super =
+    try
+      let frame = self#find_frame is_class_frame in
+      match frame#kind with
+      | FKclass _ -> true
+      | _ -> false
+    with _ -> false
 
   method peek_frame skip =
     if skip < 0 then
@@ -620,6 +661,7 @@ class env = object (self)
   method private get_frame ?(skip=0) attr =
     DEBUG_MSG "skip=%d" skip;
     if attr <> IAtypeparameter && self#current_frame#is_typeparameter_frame then begin
+      DEBUG_MSG "@typeparameter_frame";
       let count = ref 0 in
       try
         Stack.iter
@@ -638,6 +680,22 @@ class env = object (self)
     else
       self#peek_frame skip
 
+  method private find_frame ?(outer=0) filt =
+    let count = ref 0 in
+    let flag = ref false in
+    try
+      Stack.iter
+        (fun f ->
+          if !flag then incr count;
+          if !flag && !count >= outer then raise (Frame_found f);
+          if filt f#kind then begin
+            flag := true;
+            if outer = 0 then raise (Frame_found f)
+          end
+        ) stack;
+      raise Not_found
+    with
+      Frame_found f -> f
 
   method register_identifier ?(qualify=false) ?(skip=0) ident attr =
     DEBUG_MSG "REGISTER(%d): \"%s\" -> %s"
@@ -647,7 +705,7 @@ class env = object (self)
     frame#add ident attr;
 
     if qualify then begin
-      let class_names= self#surrounding_class_names in
+      let class_names = self#surrounding_class_names in
       DEBUG_MSG "class_names=[%s]" (String.concat "," class_names);
       let rec iter = function
         | [] -> ()
@@ -697,6 +755,13 @@ class env = object (self)
       let frame = self#get_frame ~skip attr in
       frame#qadd qname attr
     end
+
+
+  method register_qname_at_class ?(outer=0) qname attr =
+    DEBUG_MSG "REGISTER(%d): \"%s\" -> %s" (Stack.length stack) qname (iattr_to_str attr);
+    let frame = self#find_frame ~outer is_class_frame in
+    frame#qadd qname attr
+
 
   method register_global_qname qname attr =
     if is_qualified_qname qname then begin
@@ -762,25 +827,35 @@ class env = object (self)
       ) stack;
     !l
 
-  method inner_most_class =
-    let s = Stack.copy stack in
-    let _ = Stack.pop s in
+  method inner_most_class ?(exclude_current=false) () =
+    DEBUG_MSG "exclude_current=%B" exclude_current;
+    let s =
+      if exclude_current then
+        Stack.copy stack
+      else
+        stack
+    in
+    if exclude_current then
+      ignore (Stack.pop s);
     try
       Stack.iter
 	(fun frame ->
-	  frame#iter
+          match frame#kind with
+          | FKclass(cn, _) -> raise (Attrs_found [IAclass cn])
+          | _ -> ()
+	  (*frame#iter
 	    (fun id a ->
 	      match a with
 	      | IAclass s | IAinterface s -> raise (Attrs_found [a])
 	      | _ -> ()
-	    )
+	    )*)
 	) s;
       raise Not_found
     with
       Attrs_found [a] -> a
 
 
-  method resolve name =
+  method resolve ?(force_defer=false) name =
     let ss = P.name_to_simple_string name in
     DEBUG_MSG "resolving \"%s\"" ss;
     let res =
@@ -800,7 +875,10 @@ class env = object (self)
 	    | _ -> assert false
 	  in
 	  DEBUG_MSG "resolved: %s --> %s" ss res;
-	  R_resolved res
+          if force_defer then
+            raise Not_found
+          else
+	    R_resolved res
 	with
 	  Not_found ->
 	    let frms = self#copy_current_stack in
@@ -815,7 +893,10 @@ class env = object (self)
 	try
 	  let res = classtbl#resolve_qualified_type_name qname in
 	  DEBUG_MSG "resolved: %s --> %s" qname res;
-	  R_resolved res
+          if force_defer then
+            raise Not_found
+          else
+	    R_resolved res
 	with
 	  Not_found ->
             let s = replace_dot_with_dollar ss in
@@ -832,6 +913,25 @@ class env = object (self)
   (* method resolve *)
 
   method finalize_name_attribute nattr_ref =
+    DEBUG_MSG "nattr=%s" (P.name_attribute_to_string !nattr_ref);
+    let rec check_attr ?(continue=true) find_all id = function
+      | IAclass s | IAinterface s | IAtypename s as ia -> begin
+          DEBUG_MSG "found: %s" (iattr_to_str ia);
+          raise (Type_found (if s = "" then id else s))
+      end
+      | IAfield | IAarray | IAexpression as ia -> begin
+          DEBUG_MSG "found: %s" (iattr_to_str ia);
+          raise Expr_found
+      end
+      | _ when not continue -> ()
+      | ia -> begin
+          DEBUG_MSG "%s" (iattr_to_str ia);
+          let attrs = find_all id in
+          DEBUG_MSG "finding all: %s -> [%s]" id (Xlist.to_string iattr_to_str ";" attrs);
+          List.iter (check_attr ~continue:false find_all id) (List.tl attrs);
+          raise Not_found
+      end
+    in
     try
       let a =
         match !nattr_ref with
@@ -840,31 +940,32 @@ class env = object (self)
 	    DEBUG_MSG "TYPE(%s)" ln;
             NAtype (R_resolved ln)
         end
+        | NAambiguous (R_resolved s) -> DEBUG_MSG "NAambiguous (R_resolved %s)" s; raise Not_found
         | NAambiguous (R_deferred(id, frames, cand)) -> begin
+            DEBUG_MSG "id=%s cand=%s" id cand;
 	    try
 	      Stack.iter
 	        (fun frame ->
                   DEBUG_MSG "%s" frame#to_string;
 		  try
-		    match frame#find id with
-		    | IAclass s | IAinterface s | IAtypename s ->
-                        DEBUG_MSG "found: %s" s;
-                        raise (Str_found (if s = "" then id else s))
-		    | _ -> raise Not_found
+                    check_attr frame#find_all id (frame#find id)
 		  with
 		    Not_found ->
                       try
-                        match frame#qfind id with
-		        | IAclass s | IAinterface s | IAtypename s ->
-                            DEBUG_MSG "found: %s" s;
-                            raise (Str_found (if s = "" then id else s))
-		        | _ -> ()
+                        check_attr frame#qfind_all id (frame#qfind id)
                       with
-                        Not_found -> ()
+                        Not_found ->
+                          try
+                            let id_ = replace_dollar_with_dot id in
+                            if id_ <> id then
+                              check_attr frame#qfind_all id_ (frame#qfind id_)
+                          with
+                            Not_found -> ()
 	        ) frames;
               !nattr_ref
 	    with
-	    | Str_found s -> NAtype (R_resolved s)
+	    | Type_found s -> NAtype (R_resolved s)
+            | Expr_found   -> NAexpression
         end
         | _ -> raise Not_found
       in
@@ -886,14 +987,14 @@ class env = object (self)
 		try
 		  match frame#find lname with
 		  | IAclass s | IAinterface s | IAtypename s ->
-                      raise (Str_found s)
+                      raise (Type_found s)
 		  | _ -> ()
 		with
 		  Not_found -> ()
 	      ) frames;
 	    raise Not_found
 	  with
-	  | Str_found s -> s
+	  | Type_found s -> s
 	  | Not_found ->
 	      if cand <> "" then
 		cand
@@ -933,6 +1034,21 @@ class env = object (self)
 
   method reclassify_identifier (attr, ident) =
     DEBUG_MSG "attr=%s ident=%s" (P.name_attribute_to_string !attr) ident;
+    if self#in_method then begin
+      match !attr with
+      | NAexpression -> begin
+	let afilt = function
+          | IAvariable -> true
+          | _ -> false
+        in
+        try
+	  let _ = self#lookup_identifier ~afilt ident in
+          ()
+        with
+          Not_found -> self#register_qname_at_class ident IAexpression
+      end
+      | _ -> ()
+    end;
     let check2() =
       DEBUG_MSG "checking...";
       try (* not yet (only class names are resolved) *)
@@ -966,7 +1082,9 @@ class env = object (self)
       with
 	Not_found -> check2()
     in
-    attr := check1()
+    let a = check1() in
+    if a <> NAunknown then
+      attr := a
 
   method get_package_name name = (* package or normal type or nested type *)
     let qname = P.name_to_simple_string name in
@@ -1024,6 +1142,15 @@ class env = object (self)
   method resolve_qualified_type_name name =
     let qname = P.name_to_simple_string name in
     classtbl#_resolve_qualified_type_name (self#get_package_name name) qname
+
+  method set_attribute_A ?(force_defer=false) name =
+    let rec set n =
+      match n.n_desc with
+      | Nsimple(at, _) -> set1 at (NAambiguous (self#resolve ~force_defer n))
+      | Nqualified(at0, n0, _) -> set n0; set1 at0 (NAambiguous (self#resolve ~force_defer n))
+      | _ -> ()
+    in
+    set name
 
   method init =
     global_frame <- new frame FKother;
@@ -1130,6 +1257,11 @@ module F (Stat : STATE_T) = struct
   let register_qname_as_typename ?(skip=0) n =
     register_qname ?skip:(Some skip) n (IAtypename "")
 
+  let register_qname_as_typename_at_class ?(outer=0) n =
+    let ss = P.name_to_simple_string n in
+    DEBUG_MSG "\"%s\"" ss;
+    env#register_qname_at_class ~outer ss (IAtypename "")
+
   let register_qname_as_method n        = register_qname n IAmethod
   let register_qname_as_static_member n = register_qname n (IAstatic "")
   let register_qname_as_parameter n     = register_qname n IAparameter
@@ -1150,7 +1282,7 @@ module F (Stat : STATE_T) = struct
   let annot_to_mod a = _mkmod a.a_loc (Mannotation a)
   let annots_to_mods = List.map annot_to_mod
   let _mkexpr loc d = { e_desc=d; e_loc=loc }
-  let _mkprim loc d = { p_desc=d; p_loc=loc }
+
   let _mkannot loc d = { a_desc=d; a_loc=loc }
   let name_to_ty a n = _mkty n.n_loc (TclassOrInterface [TSname(a, n)])
   let name_to_ty_args loc a n args = _mkty loc (TclassOrInterface [TSapply(a, n, args)])
@@ -1195,6 +1327,7 @@ module F (Stat : STATE_T) = struct
 			       }
   let _mkargs loc args = { as_arguments=args; as_loc=loc }
   let _mkatmd loc d = { atmd_desc=d; atmd_loc=loc }
+  let _mkimd loc d = { imd_desc=d; imd_loc=loc }
   let _mkch loc ms id ts_opt s_opt i_opt = { ch_modifiers=ms;
                                              ch_identifier=id;
                                              ch_type_parameters=ts_opt;
@@ -1220,7 +1353,7 @@ module F (Stat : STATE_T) = struct
 				       mh_throws=t;
 				       mh_loc=loc
 				     }
-  let mkimd loc mh b = { amd_method_header=mh; amd_body=b; amd_loc=loc }
+  let mkimed loc mh b = { amd_method_header=mh; amd_body=b; amd_loc=loc }
   let mkcnd loc m tp n pl p t b = { cnd_modifiers=m;
 				    cnd_type_parameters=tp;
 				    cnd_name=n;
@@ -1232,26 +1365,28 @@ module F (Stat : STATE_T) = struct
 				  }
 
 
-  let _mkfqn sep id =
+  let _mkfqn ?(exclude_current=false) sep id =
+    let add_pkg_name s =
+      let pname = env#current_package_name in
+      if pname = "" then
+	s
+      else
+	pname^"."^s
+    in
     let fqn =
       try
-	match env#inner_most_class with
-	| IAclass s | IAinterface s | IAtypename s -> s^sep^id
+	match env#inner_most_class ~exclude_current () with
+	| IAclass s | IAinterface s | IAtypename s -> add_pkg_name (s^sep^id)
 	| _ -> raise Not_found
       with
-	Not_found ->
-	  let pname = env#current_package_name in
-	  if pname = "" then
-	    id
-	  else
-	    pname^"."^id
+	Not_found -> add_pkg_name id
     in
     DEBUG_MSG "\"%s\" -> \"%s\"" id fqn;
     fqn
 
-  let mkfqn = _mkfqn "."
+  let mkfqn ?(exclude_current=false) = _mkfqn ~exclude_current "."
 
-  let mkfqn_cls = _mkfqn "$"
+  let mkfqn_cls ?(exclude_current=false) = _mkfqn ~exclude_current "$"
 
 
   let is_local_name n =
@@ -1328,13 +1463,13 @@ module F (Stat : STATE_T) = struct
               List.iter
                 (fun a ->
 	          match a with
-	          | IAclass s | IAinterface s | IAtypename s -> raise (Str_found s)
-                  | IAtypeparameter -> raise (Str_found id)
+	          | IAclass s | IAinterface s | IAtypename s -> raise (Type_found s)
+                  | IAtypeparameter -> raise (Type_found id)
                   | _ -> ()
                 ) "" attrs;
               raise Not_found
             with
-              Str_found s -> s
+              Type_found s -> s
           end
 *)
 	  let rec doit i =
@@ -1410,10 +1545,10 @@ module F (Stat : STATE_T) = struct
                 Not_found -> env#classtbl#resolve i
       end
       | Nqualified(_, n, i) -> begin
-          try
+          (*try
             get_tyname (env#lookup_identifier ~afilt i)
           with
-            Not_found ->
+            Not_found ->*)
               let ss = P.name_to_simple_string name in
               let tn = get_tyname (env#lookup_qname ~afilt ss) in
               if tn = "" then
@@ -1613,8 +1748,8 @@ module F (Stat : STATE_T) = struct
         _mkprim name.n_loc (PfieldAccess(FAprimary(name_to_facc n, i)))
     | Nerror s -> _mkprim name.n_loc (Pname name)
 
-  let _name_to_prim loc n =
-    DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
+  let _name_to_prim ?(whole=true) loc n =
+    DEBUG_MSG "[%s] %s (whole=%B)" (Loc.to_string loc) (P.name_to_string n) whole;
     let id = rightmost_identifier n in
     try
       let q = get_qualifier n in
@@ -1629,7 +1764,7 @@ module F (Stat : STATE_T) = struct
       if is_tyname then begin
         DEBUG_MSG "tyname=\"%s\"" tyname;
         set_name_attribute (NAtype (R_resolved tyname)) q;
-        let na = NAambiguous (env#resolve n) in
+        let na = NAambiguous (env#resolve ~force_defer:true n) in
         DEBUG_MSG "na=%s" (P.name_attribute_to_string na);
         set_name_attribute ~force:true na n;
         DEBUG_MSG "n=%s" (P.name_to_string n);
@@ -1639,44 +1774,53 @@ module F (Stat : STATE_T) = struct
         name_to_facc n
       end
       else begin
-        set_name_attribute (NAambiguous (env#resolve q)) q;
+        if whole then
+          set_name_attribute (NAambiguous (env#resolve q)) q
+        else
+          set_name_attribute ~force:true (NAambiguous (env#resolve ~force_defer:true n)) n;
+        DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
         _mkprim loc (Pname n)
       end
     with
       Not_found -> begin (* n is a simple name *)
-	try
-          let rec iter = function
-            | [] -> begin
-                set_name_attribute NAexpression n;
-                _mkprim loc (PfieldAccess(FAimplicit n))
+        if is_field_access n then begin
+          name_to_facc n
+        end
+        else
+	  try
+            let rec iter = function
+              | [] -> begin
+                  set_name_attribute NAexpression n;
+                  _mkprim loc (PfieldAccess(FAimplicit n))
+              end
+              | (IAstatic fqn)::_ -> begin
+                  DEBUG_MSG "fqn=\"%s\"" fqn;
+                  set_name_attribute (NAstatic (R_resolved fqn)) n;
+	          _mkprim loc (Pname n)
+              end
+	      | IAfield::_ -> begin
+                  set_name_attribute NAexpression n;
+                  _mkprim loc (PfieldAccess(FAimplicit n))
+              end
+	      | (IAvariable | IAparameter)::_ -> begin
+                  set_name_attribute NAexpression n;
+	          _mkprim loc (Pname n)
+              end
+	      | _::rest -> iter rest
+            in
+            iter (env#lookup_identifier id)
+	  with
+	    Not_found -> begin
+              set_name_attribute (NAambiguous (env#resolve n)) n;
+              DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
+              _mkprim loc (PfieldAccess(FAimplicit n))
             end
-            | (IAstatic fqn)::_ -> begin
-                DEBUG_MSG "fqn=\"%s\"" fqn;
-                set_name_attribute (NAstatic (R_resolved fqn)) n;
-                _simple_name_to_prim loc n
-            end
-	    | IAfield::_ -> begin
-                set_name_attribute NAexpression n;
-                _mkprim loc (PfieldAccess(FAimplicit n))
-            end
-	    | (IAvariable | IAparameter)::_ -> begin
-                set_name_attribute NAexpression n;
-                _simple_name_to_prim loc n
-            end
-	    | _::rest -> iter rest
-          in
-          iter (env#lookup_identifier id)
-	with
-	  Not_found -> begin
-            set_name_attribute (NAambiguous (env#resolve n)) n;
-            _mkprim loc (PfieldAccess(FAimplicit n))
-          end
       end
 
-  let _name_to_expr loc n = _mkexpr loc (Eprimary (_name_to_prim loc n))
+  let _name_to_expr ?(whole=true) loc n = _mkexpr loc (Eprimary (_name_to_prim ~whole loc n))
   let name_to_prim so eo n = _name_to_prim (get_loc so eo) n
   let simple_name_to_expr so eo n = _simple_name_to_expr (get_loc so eo) n
-  let name_to_expr so eo n = _name_to_expr (get_loc so eo) n
+  let name_to_expr ?(whole=true) so eo n = _name_to_expr ~whole (get_loc so eo) n
   let mkimpdecl so eo d = { id_desc=d; id_loc=(get_loc so eo) }
   let mkerrimpdecl so eo s =
     let loc = get_loc so eo in
@@ -1755,6 +1899,7 @@ module F (Stat : STATE_T) = struct
   let mkib so eo imds = { ib_member_declarations=imds; ib_loc=(get_loc so eo) }
   let mkatb so eo ateds = { atb_member_declarations=ateds; atb_loc=(get_loc so eo) }
   let mkatmd so eo d = _mkatmd (get_loc so eo) d
+  let mkimd so eo d = _mkimd (get_loc so eo) d
   let mkbs so eo d = { bs_desc=d; bs_loc=(get_loc so eo) }
   let mkad so eo a = { ad_annotations=a; ad_loc=(get_loc so eo) }
 
@@ -1773,12 +1918,9 @@ module F (Stat : STATE_T) = struct
 				lvd_loc=(get_loc so eo)
 			      }
   let mkfi so eo d = { fi_desc=d; fi_loc=(get_loc so eo) }
-  let mkres loc m t d e = { r_modifiers=m;
-                            r_type=t;
-                            r_variable_declarator_id=d;
-                            r_expr=e;
-                            r_loc=loc;
-                          }
+  let mkres so eo d = { r_desc=d;
+                        r_loc=(get_loc so eo);
+                      }
   let mkresspec so eo rl = { rs_resources=rl; rs_loc=(get_loc so eo) }
   let mkcfp loc ms tl vdid = { cfp_modifiers=ms;
 			       cfp_type_list=tl;
@@ -1815,5 +1957,33 @@ module F (Stat : STATE_T) = struct
     | Some ts -> List.iter (fun _ -> end_scope()) ts.tps_type_parameters
     | None -> ()
 
+  let is_predefined_annotation =
+    let l =
+      [
+       "Target";
+       "Retention";
+       "Inherited";
+       "Override";
+       "SuppressWarnings";
+       "Deprecated";
+       "SafeVarargs";
+       "Repeatable";
+       "FunctionalInterface"
+     ]
+    in
+    let predefined_annotations = Xset.create 0 in
+    List.iter (Xset.add predefined_annotations) l;
+    fun a ->
+      match a.a_desc with
+      | Anormal(n, _) | Amarker n -> Xset.mem predefined_annotations (P.name_to_string n)
+      | _ -> false
+
+  let has_user_defined_annotation ms =
+    List.exists
+      (fun m ->
+        match m.m_desc with
+        | Mannotation a -> not (is_predefined_annotation a)
+        | _ -> false
+      ) ms.ms_modifiers
 
 end (* of functor Parser_aux.F *)

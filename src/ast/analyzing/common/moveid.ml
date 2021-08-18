@@ -25,6 +25,8 @@ let to_raw = function
 
 let of_string s = MOVE (int_of_string s)
 
+let of_int i = MOVE i
+
 let unknown = MOVE (-1)
 
 let p ch mid = Stdlib.output_string ch (to_string mid)

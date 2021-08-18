@@ -308,3 +308,111 @@ let find_file_name_with_exts fname exts =
       None
     with
       File_found f -> Some f
+
+let node_to_uid_string nd =
+  Printf.sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
+
+let nodes_to_uids_string nds =
+  String.concat ";" (List.map node_to_uid_string nds)
+
+let nps () = node_to_uid_string
+let nsps () = nodes_to_uids_string
+
+let next_to_each_other n1 n2 =
+  try
+    n1#initial_parent == n2#initial_parent && abs (n1#initial_pos - n2#initial_pos) = 1
+  with _ -> false
+
+let get_p_ancestor ?(moveon=fun _ -> true) pred nd =
+  try
+    let cur = ref nd#initial_parent in
+    while moveon !cur && not (pred !cur) do
+      cur := (!cur)#initial_parent
+    done;
+
+    if not (moveon !cur) || not (pred !cur) then
+      raise Not_found;
+    (*DEBUG_MSG "found: %a" nps !cur;*)
+    !cur
+  with
+    Otreediff.Otree.Parent_not_found _ -> raise Not_found
+
+let has_p_ancestor ?(moveon=fun _ -> true) pred nd =
+  let b =
+    try
+      let _ = get_p_ancestor ~moveon pred nd in
+      true
+    with Not_found -> false
+  in
+  DEBUG_MSG "%a -> %B" nps nd b;
+  b
+
+let rec get_p_descendants ?(moveon=fun x -> true) pred nd =
+  if moveon nd then
+    List.flatten
+      (List.map
+         (fun n ->
+           if pred n then
+             n ::
+             (if moveon n then begin
+               let l = get_p_descendants ~moveon pred n in
+               (*if l <> [] then
+                 DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;*)
+               l
+             end
+             else
+               [])
+           else
+             get_p_descendants ~moveon pred n
+         )
+         (Array.to_list nd#initial_children))
+  else
+    []
+
+let has_p_descendant ?(moveon=fun x -> true) pred nd =
+  let rec _has_p_descendant ?(moveon=fun x -> true) pred nd =
+    if moveon nd then
+      List.iter
+        (fun n ->
+          if pred n then
+            raise Exit
+          else
+            _has_p_descendant ~moveon pred n
+        )
+        (Array.to_list nd#initial_children)
+  in
+  try
+    _has_p_descendant ~moveon pred nd;
+    false
+  with
+    Exit -> true
+
+let is_cross_boundary uidmapping n1 n2 =
+  let b =
+    try
+      let a1 = get_p_ancestor (fun x -> x#data#is_boundary) n1 in
+      let a2 = get_p_ancestor (fun x -> x#data#is_boundary) n2 in
+      not (try uidmapping#find a1#uid = a2#uid with _ -> false)
+    with
+      _ -> false
+  in
+  DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
+  b
+
+let inv_assq k l =
+  let res_opt =
+    List.fold_left
+      (fun opt (x0, y0) ->
+        match opt with
+        | None -> begin
+            if y0 == k then
+              Some x0
+            else
+              opt
+        end
+        | _ -> opt
+      ) None l
+  in
+  match res_opt with
+  | Some x -> x
+  | None -> raise Not_found

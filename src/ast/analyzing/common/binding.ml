@@ -70,23 +70,25 @@ let use_to_string = function
   | Used i  -> Printf.sprintf "Used:%d" i
   | Unknown -> "Unknown"
 
+type is_local = bool
+
 type t =
   | NoBinding
-  | Def of ID.t * use
+  | Def of ID.t * use * is_local
   | Use of ID.t * Loc.t option (* loc of def *)
 
 let to_string = function
   | NoBinding         -> "NoBinding"
-  | Def(bid, use)     -> Printf.sprintf "Def(%a,%s)" ID.ps bid (use_to_string use)
+  | Def(bid, use, is_local) -> Printf.sprintf "Def(%a,%s,%B)" ID.ps bid (use_to_string use) is_local
   | Use(bid, loc_opt) ->
       Printf.sprintf "Use(%a%s)" ID.ps bid
         (match loc_opt with Some loc -> ":"^(Loc.to_string loc) | None -> "")
 
-let make_def id u = Def(id, u)
+let make_def id u b = Def(id, u, b)
 
-let make_used_def id n = Def(id, Used n)
-let make_unused_def id = Def(id, Used 0)
-let make_unknown_def id = Def(id, Unknown)
+let make_used_def id n b = Def(id, Used n, b)
+let make_unused_def id b = Def(id, Used 0, b)
+let make_unknown_def id b = Def(id, Unknown, b)
 
 let make_use ?(loc_opt=None) id = Use(id, loc_opt)
 
@@ -102,24 +104,32 @@ let is_def = function
   | Def _ -> true
   | _ -> false
 
+let is_local_def = function
+  | Def(_, _, b) -> b
+  | _ -> false
+
+let is_non_local_def = function
+  | Def(_, _, b) -> not b
+  | _ -> false
+
 let is_used_def = function
-  | Def(_, Used n) -> n > 0
+  | Def(_, Used n, _) -> n > 0
   | _ -> false
 
 let is_unused_def = function
-  | Def(_, Used 0) -> true
+  | Def(_, Used 0, _) -> true
   | _ -> false
 
 let get_bid = function
-  | Def(bid, _) | Use(bid, _) -> bid
+  | Def(bid, _, _) | Use(bid, _) -> bid
   | NoBinding -> raise Not_found
 
 let get_bid_opt = function
-  | Def(bid, _) | Use(bid, _) -> Some bid
+  | Def(bid, _, _) | Use(bid, _) -> Some bid
   | NoBinding -> None
 
 let get_use_count = function
-  | Def(_, Used n) -> n
+  | Def(_, Used n, _) -> n
   | _ -> raise Not_found
 
 let get_loc = function

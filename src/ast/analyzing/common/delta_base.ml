@@ -84,6 +84,7 @@ let ov_attr        = mktag "old_value"
 let nv_attr        = mktag "new_value"
 let v_attr         = mktag "value"
 let rvs_attr       = mktag "reversible"
+let normd_attr     = mktag "normalized"
 let lang_attr      = mktag "lang"
 let stid_attr      = mktag "stid"
 let adj_attr       = mktag "adj"
@@ -199,7 +200,7 @@ class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
   method key_opt = key_opt
 
   method path = path
-
+  method parent_path = Path.get_parent path
   method position = Path.get_position path
   method offset = Path.get_offset path
 
@@ -408,7 +409,14 @@ let parse_file options ns_mgr file =
 	          (sprintf "invalid value of \"%s\" attribute" rvs_attr)
 *)
           in
-          root, reversible
+          let normalized_delta =
+            try
+	      bool_of_string (get_attr root normd_attr)
+            with
+              _ -> false
+          in
+          DEBUG_MSG "reversible=%B normalized_delta=%B" reversible normalized_delta;
+          root, reversible, normalized_delta
         end
         else
           invalid_delta root "not a delta element"
@@ -588,6 +596,7 @@ let ns_decls_to_string ns_decls =
 let make_st_elem_root
     ?(extra_ns_decls=[])
     ?(irreversible_flag=false)
+    ?(normalized_delta_flag=false)
     lang
     digest1 digest2
     =
@@ -595,6 +604,7 @@ let make_st_elem_root
     root_tag
     (ns_decl_to_string (delta_prefix, delta_ns))
     (attrs_to_string [(rvs_attr, string_of_bool (not irreversible_flag));
+                      (normd_attr, string_of_bool normalized_delta_flag);
                       (lang_attr,lang);
                       (digest1_attr,digest1);
                       (digest2_attr,digest2)])
@@ -603,12 +613,13 @@ let make_st_elem_root
 let output_st_elem_root
     ?(extra_ns_decls=[])
     ?(irreversible_flag=false)
+    ?(normalized_delta_flag=false)
     lang
     digest1 digest2
     ch
     =
   let s =
-    make_st_elem_root ~extra_ns_decls ~irreversible_flag lang digest1 digest2
+    make_st_elem_root ~extra_ns_decls ~irreversible_flag ~normalized_delta_flag lang digest1 digest2
   in
   fprintf ch "%s" s
 

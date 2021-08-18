@@ -72,6 +72,8 @@ let name_of_elem_data (_, attrs, _) =
           v
         else
           ""
+      else if Xstring.endswith a ":ident" then
+        n^" "^v
       else
         n
     ) "" attrs

@@ -67,8 +67,6 @@ let speclist =
    "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\tdo not fail on syntax error";
 
    "-reverse", Arg.Set reverse_flag, "\tapply reversed delta";
-
-   "-weak", Arg.Unit (fun () -> options#set_weak_flag), "\tweaken node equation and node permutation detection";
  ]
 
 let _ =

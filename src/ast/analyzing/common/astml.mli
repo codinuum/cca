@@ -72,7 +72,7 @@ val str_lit_to_path : string -> string
 val to_elem_data :
   string ->
   ('a -> string * (string * string) list) ->
-  ?strip:bool -> Loc.t -> 'a -> string * (string * string) list * string
+  ?strip:bool -> ?afilt:(string -> bool) -> Loc.t -> 'a -> string * (string * string) list * string
 
 module Attr : sig
   val _find_attr : ('a * 'b) list -> 'a -> 'b

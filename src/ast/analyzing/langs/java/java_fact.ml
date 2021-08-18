@@ -373,10 +373,10 @@ class extractor options cache_path tree = object (self)
 	  self#add (entity, p_initializer, self#mkentity rhs_nd)
       end;
 
-      if L.is_resource lab then begin
+      (*if L.is_resource lab then begin
 	let name = L.get_name lab in
         stack#register name nd
-      end;
+      end;*)
 
       if L.is_primaryname lab then begin
 	let name = L.get_name lab in

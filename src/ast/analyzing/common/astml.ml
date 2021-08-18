@@ -143,14 +143,17 @@ let str_lit_to_path s =
     raise (Invalid_argument (sprintf "Astml.str_lit_to_path: \"%s\"" s))
 *)
 
-let to_elem_data lang_prefix to_tag ?(strip=false) loc lab =
+let to_elem_data lang_prefix to_tag ?(strip=false) ?(afilt=(fun _ -> true)) loc lab =
   let add_lang_prefix = add_prefix lang_prefix in
   let name, _attrs = to_tag lab in
   let attrs =
-    List.map
+    List.filter_map
       (fun (a, v) ->
-        (if strip then a else add_lang_prefix a),
-        v
+        if afilt a then begin
+          Some ((if strip then a else add_lang_prefix a), v)
+        end
+        else
+          None
       ) _attrs
   in
   let attrs =

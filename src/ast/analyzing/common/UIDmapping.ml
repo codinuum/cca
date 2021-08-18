@@ -912,7 +912,7 @@ class ['node_t] c cenv = object (self : 'self)
       let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
       _fprintf ch "[";
       let comma = dump_map ch map in
-      dump_map ~comma ch s_map;
+      let _ = dump_map ~comma ch s_map in
       _fprintf ch "]";
       ch#close
     with

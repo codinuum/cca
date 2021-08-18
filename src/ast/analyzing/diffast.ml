@@ -39,6 +39,25 @@ let keyword = ref ""
 
 (* setters *)
 
+let set_weak_flags() =
+  options#set_weak_eq_flag;
+  options#set_strip_empty_flag;
+  options#set_ignore_non_orig_relabel_flag;
+  options#set_ignore_move_of_unordered_flag;
+  options#clear_recover_orig_ast_flag;
+  options#set_sort_unordered_flag
+
+let set_minimize_delta_flags() =
+  options#set_ignore_non_orig_relabel_flag;
+  options#set_minimize_delta_flag
+
+let set_minimize_delta_more_flags() =
+  set_minimize_delta_flags();
+  (*options#set_strip_empty_flag;*)
+  options#set_ignore_move_of_unordered_flag;
+  (*options#clear_recover_orig_ast_flag;*)
+  options#set_sort_unordered_flag
+
 let set_viewer_mode_flags() =
   options#set_viewer_flag
 
@@ -182,9 +201,9 @@ let speclist =
 
 (* delta *)
    "-dump:delta", Arg.Unit (fun () -> options#set_dump_delta_flag), "\tdump delta";
-   "-dump:delta:minimize", Arg.Unit (fun () -> options#set_minimize_delta_flag),
+   "-dump:delta:minimize", Arg.Unit set_minimize_delta_flags,
    "\tminimize delta";
-   "-dump:delta:minimize:more", Arg.Unit (fun () -> options#set_minimize_delta_more_flag),
+   "-dump:delta:minimize:more", Arg.Unit set_minimize_delta_more_flags,
    "\tminimize delta more";
 (*   "-dump:delta:out", Arg.String set_dump_delta_out, "FILE\tdump delta into file";*)
    (*"-dump:delta:rev", Arg.Unit set_dump_rev_delta, "\tgenerate reversible delta";*)
@@ -275,7 +294,7 @@ let speclist =
    "-nounm", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
    "\tsuppress moves of unnamed nodes";
 
-   "-weak", Arg.Unit (fun () -> options#set_weak_flag), "\tweaken node equation and node permutation detection";
+   "-weak", Arg.Unit set_weak_flags, "\tweaken node equation and node permutation detection";
 
    "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag), "\tbe aggressive";
 
@@ -534,6 +553,8 @@ let _ =
 
 (* main routine *)
 let _ =
+  if options#dump_delta_flag && not options#conservative_flag then
+    Xprint.warning "aggressive mode does not guarantees consistent delta!";
   try
     if not old_file#exists then
       failwith (sprintf "not found: %s" old_file#path);
@@ -642,4 +663,3 @@ let _ =
 *)
 
   (*| e -> Xprint.error ~head:"[EXCEPTION]" "%s" (Printexc.to_string e); exit 1*)
-

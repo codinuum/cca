@@ -51,6 +51,9 @@ val pr_name : string -> unit
 val pr_id : string -> unit
 val pr_option : ('a -> unit) -> 'a option -> unit
 class ppbox : object
+  method boxing_flag : bool
+  method enable_boxing : unit -> unit
+  method disable_boxing : unit -> unit
   method private checkpoint_box : unit -> box list
   method close_box : unit -> unit
   method disable_backslash_newline : unit -> unit
