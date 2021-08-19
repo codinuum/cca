@@ -7024,13 +7024,22 @@ end;
     (* calculate fixpoint *)
     let mid_fusion_tbl = Hashtbl.create 0 in
 
-    let rec find_anc_move m =
+    let rec _find_anc_move visited m =
+      Xset.add visited m;
       try
         let m' = Hashtbl.find _mid_fusion_tbl m in
-        find_anc_move m'
+        DEBUG_MSG "%a -> %a" MID.ps m MID.ps m';
+        if Xset.mem visited m' then begin
+          DEBUG_MSG "loop detected!";
+          m
+        end
+        else
+          _find_anc_move visited m'
       with
         Not_found -> m
     in
+    let find_anc_move m = _find_anc_move (Xset.create 0) m in
+
     let boundary_exists tree rt n =
       let b =
         (*try
