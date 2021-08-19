@@ -38,7 +38,8 @@ let elaborate_edits
   |]
   in
   let handle_weak = not options#dump_delta_flag in
-  Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters
+  let _ = Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters in
+  ()
 
 
 let _ =

@@ -1255,7 +1255,7 @@ class env = object (self)
             let ispec = new N.ImplicitSpec.c tspec in
             let lod = N.Spec.loc_of_decl_implicit node#orig_loc in
             let bid = self#genbid lod in
-            node#set_binding (B.make_unknown_def bid);
+            node#set_binding (B.make_unknown_def bid true);
             ispec#set_letter_spec_list
               (Xlist.filter_map
                  (fun ls -> N.ImplicitSpec.letter_spec_of_label ls#label) lss);
@@ -1541,7 +1541,7 @@ module F (Stat : STATE_T) = struct
     let spec = mkspec ospec in
 
     if is_dummy_node then begin
-      node#set_binding (B.make_unknown_def bid);
+      node#set_binding (B.make_unknown_def bid true);
       node#set_info (I.mknamespec spec)
     end;
 
@@ -1683,7 +1683,7 @@ module F (Stat : STATE_T) = struct
         in (* a_opt *)
         let lod = N.Spec.loc_of_decl_explicit node#orig_loc in
         let bid = env#genbid lod in
-        node#set_binding (B.make_unknown_def bid);
+        node#set_binding (B.make_unknown_def bid true);
 
         let spec =
           match env#lookup_name ~afilt:N.Spec.has_data_object_spec n with
@@ -1722,7 +1722,7 @@ module F (Stat : STATE_T) = struct
     | L.ProcDecl n -> begin
         let lod = N.Spec.loc_of_decl_explicit node#orig_loc in
         let bid = env#genbid lod in
-        node#set_binding (B.make_unknown_def bid);
+        node#set_binding (B.make_unknown_def bid true);
 
         let pspec = N.Spec.mkproc ~loc_of_decl:lod ~bid_opt:(Some bid) pi in
 
@@ -2104,13 +2104,13 @@ module F (Stat : STATE_T) = struct
                 if multi_bind then begin
                   if first_time then begin
                     DEBUG_MSG "adding %a" BID.ps bid;
-                    node#add_binding (B.make_unknown_def bid);
+                    node#add_binding (B.make_unknown_def bid true);
                     node#add_info (I.mknamespec spec)
                   end
                 end
                 else begin
                   DEBUG_MSG "setting %a" BID.ps bid;
-                  node#set_binding (B.make_unknown_def bid);
+                  node#set_binding (B.make_unknown_def bid true);
                   node#set_info (I.mknamespec spec)
                 end
               with

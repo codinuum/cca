@@ -2186,7 +2186,7 @@ class env = object (self)
         in
         n#set_info (I.from_spec spec);
         if is_local then begin
-          n#set_binding (B.make_unknown_def bid)
+          n#set_binding (B.make_unknown_def bid is_local)
         end;
         frm#register qn spec
       ) (Ast.qn_type_list_of_simple_decl nd)

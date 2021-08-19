@@ -238,13 +238,13 @@ let of_ast options ast =
       begin
         match binding with
         | B.NoBinding -> ()
-        | B.Def(bid, use) -> begin
+        | B.Def(bid, use, _) -> begin
             DEBUG_MSG "bid=%a" B.ID.ps bid;
             let b =
               match use with
               | B.Unknown -> begin
                   try
-                    B.make_used_def bid (Hashtbl.find utbl bid)
+                    B.make_used_def bid (Hashtbl.find utbl bid) true
                   with
                     Not_found -> binding
               end
@@ -268,13 +268,13 @@ let of_ast options ast =
           (fun binding ->
             match binding with
             | B.NoBinding -> ()
-            | B.Def(bid, use) -> begin
+            | B.Def(bid, use, _) -> begin
                 DEBUG_MSG "bid=%a" B.ID.ps bid;
                 let b =
                   match use with
                   | B.Unknown -> begin
                       try
-                        B.make_used_def bid (Hashtbl.find utbl bid)
+                        B.make_used_def bid (Hashtbl.find utbl bid) true
                       with
                         Not_found -> binding
                   end

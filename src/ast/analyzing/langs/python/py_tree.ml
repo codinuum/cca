@@ -54,8 +54,8 @@ class c options root is_whole = object
 
   method private create root is_whole = new c options root is_whole
 
-  method unparse_subtree_ch ?(fail_on_error=true) =
-    make_unparser (Py_unparsing.unparse ~fail_on_error)
+  method unparse_subtree_ch ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) =
+    make_unparser (Py_unparsing.unparse ~no_boxing ~no_header ~fail_on_error)
 
 end
 
