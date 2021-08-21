@@ -452,6 +452,8 @@ module Edit = struct
 
       val movins_tbl = Hashtbl.create 0
 
+      val group_tbl = Hashtbl.create 0
+
       initializer
         List.iter
           (fun ed ->
@@ -489,6 +491,7 @@ module Edit = struct
                     options#ignore_non_orig_relabel_flag &&
                     (not nd1#data#is_named_orig) && (not nd1#data#has_value) &&
                     (not nd2#data#is_named_orig) && (not nd2#data#has_value) &&
+                    nd1#data#anonymized_label = nd2#data#anonymized_label &&
                     nd1#data#elem_name_for_delta = nd2#data#elem_name_for_delta
                   then begin
                     DEBUG_MSG "filtered: %s" (to_string ed);
@@ -8482,7 +8485,7 @@ module Edit = struct
           in
           DEBUG_MSG "comp_flag=%B" comp_flag;
           let group_heads = ref [] in
-          let group_tbl = Hashtbl.create 0 in
+          (*let group_tbl = Hashtbl.create 0 in*)
           let foreign_mem_list = ref [] in
           let patha = Array.of_list paths in
           List.iter
@@ -9328,6 +9331,7 @@ module Edit = struct
             | Some _ -> begin
                 path_to#set_key_opt key_opt;
                 path_to#set_upstream 1;
+                path_to#set_stay false;
                 DEBUG_MSG "nd=%a path_to=%s" nps nd path_to#to_string
             end
             | _ -> ()
@@ -9393,6 +9397,7 @@ module Edit = struct
                 DEBUG_MSG "%s" path_to#to_string;
                 (*path_to#set_upstream 0;*)
                 path_to#set_key_opt ko;
+                path_to#set_stay false;
                 DEBUG_MSG " -> %s" path_to#to_string;
             end
             | _ -> ()
@@ -9579,6 +9584,7 @@ module Edit = struct
                 path_to#upstream = 0
               then begin
                 path_to#set_upstream 1;
+                path_to#set_stay false;
                 DEBUG_MSG "path_to=%s" path_to#to_string
               end
               else if not (is_stable pnd) then begin
@@ -9713,6 +9719,7 @@ module Edit = struct
                           end
                           else begin
                             path_to#set_upstream 1;
+                            path_to#set_stay false;
                             path_to#set_key_opt k_opt;
                             DEBUG_MSG "nd=%a path_to=%s" nps nd path_to#to_string
                           end
@@ -9737,6 +9744,7 @@ module Edit = struct
                           with _ -> false
                         then begin
                           path_to#set_upstream 1;
+                          path_to#set_stay false;
                           path_to#set_key_opt k_opt;
                           DEBUG_MSG "nd=%a path_to=%s" nps nd path_to#to_string
                         end
@@ -10218,6 +10226,9 @@ module Edit = struct
               if path1#upstream > 0 then begin
                 DEBUG_MSG "upstream_key: %s" (key_to_string stid_key);
                 Xset.add upstream_keys1 stid_key
+              end
+              else if self#is_moved anc1 then begin
+                path1#set_stay true
               end;
 
               self#reg_parent_key1 excepted_paths1 stid_key;
@@ -10442,6 +10453,9 @@ module Edit = struct
               if path1to#upstream > 0 then begin
                 DEBUG_MSG "upstream_key: %s" (key_to_string mid_key);
                 Xset.add upstream_keys1 mid_key
+              end
+              else if self#is_moved anc1to then begin
+                path1to#set_stay true
               end;
 
               self#reg_parent_key1 excepted_paths1to mid_key;
@@ -10827,10 +10841,13 @@ module Edit = struct
                             (*else if self#paths_to_have_frac_ofs excepted_paths1to then
                               fun _ x -> is_excluded x*)
                             else
+                              let group_heads =
+                                Hashtbl.fold (fun _ nl l -> try (List.hd (List.rev nl))::l with _ -> l) group_tbl []
+                              in
                               fun _ x ->
                                 let b =
                                   x == n2 ||
-                                  (*self#*)is_excluded x &&
+                                  (*self#*)is_excluded x && not (List.memq x group_heads) &&
                                   (self#is_stable2 x ||
                                   not (is_simple_ins x) ||
                                   let moveon x = not (self#is_stable2 x) in

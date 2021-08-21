@@ -318,7 +318,7 @@ module IrreversibleFormat = struct
           (fun ed ->
             match ed with
             | Dinsert(stid, subtree, path, [], None, None, None, None) -> begin
-                if (*path#offset <> 0.0 && *)path#upstream = 0 && path#key_opt = None then begin
+                if (*path#offset <> 0.0 && *)not path#stay && path#upstream = 0 && path#key_opt = None then begin
                   try
                     let _ppath, elem = Path.split path#path in
                     let nd = interpreter#acc _ppath in
@@ -328,7 +328,8 @@ module IrreversibleFormat = struct
                           nps nd nd#data#label (Loc.to_string nd#data#src_loc);
                         DEBUG_MSG "mid=%a" MID.ps mid;
                         match Hashtbl.find mov_tbl mid with
-                        | Dmove(mctl, mid, path_from, paths_from, path_to, [], _, _, _, _) as mov when begin
+                        | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
+                            DEBUG_MSG "checking %s" (edit_to_string mov);
                             path_to#parent_path <> path_from#path &&
                             List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from
                         end -> begin
@@ -354,7 +355,7 @@ module IrreversibleFormat = struct
                   ed
             end
             | Dmove(mctl0, mid0, path_from0, paths_from0, path, [], None, None, None, None) -> begin
-                if (*path#offset <> 0.0 && *)path#upstream = 0 && path#key_opt = None then begin
+                if (*path#offset <> 0.0 && *)not path#stay && path#upstream = 0 && path#key_opt = None then begin
                   try
                     let _ppath, elem = Path.split path#path in
                     let nd = interpreter#acc _ppath in
@@ -364,7 +365,7 @@ module IrreversibleFormat = struct
                           nps nd nd#data#label (Loc.to_string nd#data#src_loc);
                         DEBUG_MSG "mid=%a" MID.ps mid;
                         match Hashtbl.find mov_tbl mid with
-                        | Dmove(mctl, mid, path_from, paths_from, path_to, [], _, _, _, _) as mov when begin
+                        | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
                             path_to#parent_path <> path_from#path &&
                             List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from
                         end -> begin

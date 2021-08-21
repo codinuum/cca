@@ -3933,7 +3933,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               let weak = ins#initial_parent != sn in
                               DEBUG_MSG "weak=%B" weak;
                               let filt x =
+                                (not dest_key_cond || is_ancestor ins x) &&
                                 if self#is_stable x then
+                                  (try self#find_parent_key x <> key with _ -> true) &&
                                   self#is_true_stable_node ~weak:dest_key_cond(*~weak:true*) x
                                 else
                                   self#has_true_stable_descendant ~weak x

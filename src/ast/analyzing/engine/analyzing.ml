@@ -1382,6 +1382,7 @@ end;
                 | _ when begin
                     (not nd1#data#is_named_orig) && (not nd1#data#has_value) &&
                     (not nd2#data#is_named_orig) && (not nd2#data#has_value) &&
+                    nd1#data#anonymized_label = nd2#data#anonymized_label &&
                     nd1#data#elem_name_for_delta = nd2#data#elem_name_for_delta
                 end -> begin
                   DEBUG_MSG "filtered: %s" (Edit.to_string rel);

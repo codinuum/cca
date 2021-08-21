@@ -173,6 +173,7 @@ let path_opt_to_string = function
 
 
 let ups_sym = "^"
+let stay_sym = "$"
 let key_sep_sym = ":"
 let sub_path_sep_sym = "@"
 
@@ -184,10 +185,11 @@ let ups_to_str upstream =
       sprintf "%s%d" ups_sym upstream
   else ""
 
-class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
+class path_c ?(upstream=0) ?(key_opt=None) ?(stay=false) path = object (self)
 
   val mutable upstream = upstream
   val mutable key_opt = (key_opt : subtree_key option)
+  val mutable stay = stay
 
   initializer
     if upstream > 0 then
@@ -199,6 +201,9 @@ class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
   method set_key_opt k_opt = key_opt <- k_opt
   method key_opt = key_opt
 
+  method stay = stay
+  method set_stay b = stay <- b
+
   method path = path
   method parent_path = Path.get_parent path
   method position = Path.get_position path
@@ -208,6 +213,7 @@ class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
 
   method to_string =
     (Path.to_string path)^
+    (if stay then stay_sym else "")^
     (ups_to_str upstream)^
     (match key_opt with
     | Some key -> key_sep_sym^(key_to_raw key)
@@ -249,11 +255,14 @@ let _path_of_string create s =
     | [p] -> begin
         if Xstring.endswith s ups_sym then
           let s' = String.sub s 0 ((String.length s) - 1) in
-          create 1 s'
+          create 1 s' false
+        else if Xstring.endswith s stay_sym then
+          let s' = String.sub s 0 ((String.length s) - 1) in
+          create 0 s' true
         else
-          create 0 s
+          create 0 s false
     end
-    | [p;u] -> create (int_of_string u) p
+    | [p;u] -> create (int_of_string u) p false
     | _ -> raise (Path.Invalid_path s)
   with
     _ -> raise (Path.Invalid_path s)
@@ -261,8 +270,7 @@ let _path_of_string create s =
 let path_of_string s =
   let get ?(key_opt=None) s =
     _path_of_string
-      (fun u s ->
-        new path_c ~upstream:u ~key_opt (Path.of_string s))
+      (fun u s b -> new path_c ~upstream:u ~key_opt ~stay:b (Path.of_string s))
       s
   in
   let path =
@@ -283,7 +291,7 @@ let path_of_string s =
 let boundary_path_of_string s =
   let get ?(key_opt=None) ?(sub_path_opt=None) s =
     _path_of_string
-      (fun u s ->
+      (fun u s _ ->
         new boundary_path ~upstream:u ~key_opt ~sub_path_opt (Path.of_string s))
       s
   in
