@@ -2522,6 +2522,7 @@ module F (Label : Spec.LABEL_T) = struct
 
         let size_cond =
           (nmembers1 > 1 || nmembers2 > 1) &&
+          (float (min nmembers1 nmembers2)) /. (float (max nmembers1 nmembers2)) > 0.1 &&
           (nmembers1 < options#match_algo_threshold) && (nmembers2 < options#match_algo_threshold)
         in
 
@@ -5356,7 +5357,14 @@ end;
                     _k, _r1, _r2
                 in
                 let sz =
-                  if nd1#data#eq nd2#data && nd1#data#is_named_orig then
+                  if
+                    (nd1#data#eq nd2#data(* ||
+                    match nd1#data#orig_lab_opt, nd2#data#orig_lab_opt with
+                    | Some o1, Some o2 -> o1 = o2
+                    | _ -> false*)
+                    ) &&
+                    nd1#data#is_named_orig
+                  then
                     _sz + 1
                   else
                     _sz
@@ -5370,7 +5378,17 @@ end;
                 sz, esz, _tsz+1, k, r1, r2, mov::_ml
               with
                 Not_found ->
-                  (if nd1#data#eq nd2#data && nd1#data#is_named_orig then 1 else 0),
+                  (if
+                    (nd1#data#eq nd2#data(* ||
+                    match nd1#data#orig_lab_opt, nd2#data#orig_lab_opt with
+                    | Some o1, Some o2 -> o1 = o2
+                    | _ -> false*)
+                    ) &&
+                    nd1#data#is_named_orig
+                  then
+                    1
+                  else
+                    0),
                   (if nd1#data#eq nd2#data then 1 else 0),
                   1, !kind, nd1, nd2, [mov]
             in
@@ -7238,7 +7256,11 @@ end;
           let is_unnamed_or_changed_pair n1 n2 =
             let b =
             (not
-               (n1#data#eq n2#data &&
+               ((n1#data#eq n2#data(* ||
+               match n1#data#orig_lab_opt, n2#data#orig_lab_opt with
+               | Some o1, Some o2 -> o1 = o2
+               | _ -> false*)
+               ) &&
                 (n1#data#is_named_orig && n2#data#is_named_orig ||
                 n1#data#has_non_trivial_value && n2#data#has_non_trivial_value)
                )) ||

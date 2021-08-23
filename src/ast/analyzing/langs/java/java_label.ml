@@ -2781,6 +2781,9 @@ let relabel_allowed (lab1, lab2) =
         | _ -> false
     end
 
+    | Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
+    | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
+
     | Statement (Statement.Expression _), lab
     | lab, Statement (Statement.Expression _) -> is_statement_expression lab
 
