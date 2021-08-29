@@ -350,11 +350,11 @@ QUERIES = get_queries(weak=False)
 
 def find(base_dir, proj_id, foutdir, outdir, pw, port,
          limit=None, lang=None, method='odbc', change_enumeration=False, per_ver=False,
-         query_prec=False, conf=None):
+         query_prec=False, conf=None, url_base_path='..'):
 
     find_change_patterns.find(QUERY_DIR, QUERIES, PREDICATE_TBL, FactExtractor,
                               base_dir, proj_id, foutdir, outdir, pw, port,
-                              limit, lang, method, change_enumeration, per_ver, query_prec, conf=conf)
+                              limit, lang, method, change_enumeration, per_ver, query_prec, conf=conf, url_base_path=url_base_path)
 
 def main():
     find_change_patterns.main(QUERY_DIR, 
