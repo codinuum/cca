@@ -617,7 +617,7 @@ let to_xml_string { elem_name=elem; elem_attrs=attrs; elem_parser=_; } =
   in
   sprintf "%s%s" elem attrs_s
 
-let to_tag lab =
+let to_tag ?(strip=false) lab =
   lab.elem_name, lab.elem_attrs
 
 let to_elem_data ?(strip=false) ?(afilt=fun _ -> true) loc lab = (* elem name * (string * string) list * content *)

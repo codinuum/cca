@@ -1156,7 +1156,7 @@ let to_simple_string = function
 
   | ProcName n               -> n
 
-let to_tag = function
+let to_tag ?(strip=false) = function
   | DUMMY                     -> "DUMMY", []
 
   | EMPTY                     -> "EMPTY", []

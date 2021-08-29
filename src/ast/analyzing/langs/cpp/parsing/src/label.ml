@@ -2286,7 +2286,7 @@ let to_simple_string = function
   | ParametersAndQualifiersList -> "<parameters-and-qualifiers-list>"
 
 
-let to_tag : t -> string * (string * string) list = function
+let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DUMMY -> "DUMMY", []
   | EMPTY -> "EMPTY", []
   | AMBIGUOUS_CONSTRUCT -> "AMBIGUOUS_CONSTRUCT", []

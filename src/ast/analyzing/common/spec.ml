@@ -395,7 +395,7 @@ module type LABEL_T = sig
 
   val is_statement       : t -> bool
 
-  val to_tag             : t -> string * (string * string) list
+  val to_tag             : ?strip:bool -> t -> string * (string * string) list
 
 end (* of module type LABEL_T *)
 

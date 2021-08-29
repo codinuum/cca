@@ -71,7 +71,7 @@ val path_attr_name : string
 val str_lit_to_path : string -> string
 val to_elem_data :
   string ->
-  ('a -> string * (string * string) list) ->
+  (?strip:bool -> 'a -> string * (string * string) list) ->
   ?strip:bool -> ?afilt:(string -> bool) -> Loc.t -> 'a -> string * (string * string) list * string
 
 module Attr : sig
@@ -79,6 +79,7 @@ module Attr : sig
   val find_attr : ?default:string -> ('a * string) list -> 'a -> string
   val find_attr_opt : ('a * 'b) list -> 'a -> 'b option
   val find_tid : (string * string) list -> string * string
+  val _find_stmttid : (string * string) list -> string * string
   val find_stmttid : (string * string) list -> string * string
   val find_bool : ('a * string) list -> 'a -> bool
   val find_int : ('a * string) list -> 'a -> int

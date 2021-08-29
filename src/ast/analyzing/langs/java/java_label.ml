@@ -2310,7 +2310,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
 
 let sig_attr_name = "___signature"
 
-let to_tag l =
+let to_tag ?(strip=false) l =
   let name, attrs =
     match l with
     | Type ty                     -> Type.to_tag ty
@@ -2337,11 +2337,13 @@ let to_tag l =
 
 (* class body declaration *)
     | Constructor(name, msig)     -> "ConstructorDeclaration", ["name",xmlenc name;sig_attr_name,xmlenc msig]
+    | ConstructorBody _ when strip -> "ConstructorBody", []
     | ConstructorBody(name, msig) -> "ConstructorBody", ["name",xmlenc name;sig_attr_name,xmlenc msig]
 
     | StaticInitializer        -> "StaticInitializer", []
     | InstanceInitializer      -> "InstanceInitializer", []
 
+    | Block _ when strip          -> "Block", []
     | Block tid                   -> "Block", mktidattr tid
     | VariableDeclarator(name, d, islocal) ->
         "VariableDeclarator", ["name",xmlenc name;
@@ -2350,6 +2352,9 @@ let to_tag l =
                               ]
     | CatchClause tid             -> "CatchClause", mktidattr tid
     | Finally                     -> "Finally", []
+    | ForInit _ when strip        -> "ForInit", []
+    | ForCond _ when strip        -> "ForCond", []
+    | ForUpdate _ when strip      -> "ForUpdate", []
     | ForInit tid                 -> "ForInit", mktidattr tid
     | ForCond tid                 -> "ForCond", mktidattr tid
     | ForUpdate tid               -> "ForUpdate", mktidattr tid
@@ -2360,6 +2365,7 @@ let to_tag l =
     | Arguments                   -> "Arguments", []
     | Annotations                 -> "Annotations", []
 
+    | NamedArguments _ when strip -> "Arguments", []
     | NamedArguments name         -> "Arguments", ["name",xmlenc name]
 
     | TypeArguments(nth, name)    -> "TypeArguments", ["nth",string_of_int nth;"name",xmlenc name]
@@ -2371,9 +2377,11 @@ let to_tag l =
     | TypeParameter name          -> "TypeParameter", ["name",xmlenc name]
     | TypeParameters name         -> "TypeParameters", ["name",xmlenc name]
     | ArrayInitializer            -> "ArrayInitializer", []
+    | Modifiers _ when strip      -> "Modifiers", []
     | Modifiers k                 -> "Modifiers", kind_to_attrs k
     | FieldDeclaration vdids      -> "FieldDeclaration", [vdids_attr_name,vdids_to_string vdids]
     | Method(name, msig)          -> "MethodDeclaration", ["name",xmlenc name;sig_attr_name,xmlenc msig]
+    | MethodBody _ when strip     -> "MethodBody", []
     | MethodBody(name, msig)      -> "MethodBody", ["name",xmlenc name;sig_attr_name,xmlenc msig]
     | Super                       -> "Super", []
     | Qualifier q                 -> "Qualifier", ["name",xmlenc q]
@@ -3808,14 +3816,14 @@ let of_elem_data =
   let mks s = Statement s in
   let mke a e =
     try
-      let tid = find_stmttid a in
+      let tid = _find_stmttid a in
       mks (Statement.Expression(e, tid))
     with
       Not_found -> Expression e
   in
   let mkp a p =
     try
-      let tid = find_stmttid a in
+      let tid = _find_stmttid a in
       mks (Statement.Expression(Expression.Primary p, tid))
     with
       Not_found -> Primary p
