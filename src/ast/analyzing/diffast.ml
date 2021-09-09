@@ -296,7 +296,7 @@ let speclist =
 
    "-weak", Arg.Unit set_weak_flags, "\tweaken node equation and node permutation detection";
 
-   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag), "\tbe aggressive";
+   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag), "\taggressively find moves";
 
 (* mode *)
    "-searchonly", Arg.Set_string keyword, "\tKEYWORD\tsearch keyword only";
