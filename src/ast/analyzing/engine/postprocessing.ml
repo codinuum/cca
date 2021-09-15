@@ -5177,6 +5177,7 @@ end;
                 in (* end of let stability, ratio, nmoved, nmapped1, nmapped2 *)
 
                 let bad_movrel =
+                  (try nd1#data#get_orig_name <> nd2#data#get_orig_name with _ -> true) &&
                   stability <= options#movrel_stability_threshold &&
                   (ratio <= options#movrel_ratio_threshold || nmoved = 1(* || nmapped1 = 1 || nmapped2 = 1 *))
                 in
@@ -5742,7 +5743,7 @@ end;
                  DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
                  let dn2 = get_dn d2 in
                  DEBUG_MSG "dn2=%a %s %s" nps dn2 dn2#data#label (Loc.to_string dn2#data#src_loc);
-                 if dn2#data#is_named_orig then
+                 if dn2#data#is_named_orig && is_ins dn2 && not (tree2#is_initial_ancestor rt2 dn2) then
                    Xset.add names1 dn2#data#get_name
                with _ -> ()
              ) ds1;
@@ -5750,7 +5751,9 @@ end;
            (Xset.length names1 > 0) &&
            has_p_descendant
              (fun x ->
-               let b = x#data#is_named_orig && Xset.mem names1 x#data#get_name && is_ins x in
+               let b =
+                 x#data#is_named_orig && Xset.mem names1 x#data#get_name && is_ins x
+               in
                if b then
                  DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
                b
@@ -5766,7 +5769,7 @@ end;
                  DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
                  let dn1 = get_dn d1 in
                  DEBUG_MSG "dn1=%a %s %s" nps dn1 dn1#data#label (Loc.to_string dn1#data#src_loc);
-                 if dn1#data#is_named_orig then
+                 if dn1#data#is_named_orig && is_del dn1 && not (tree1#is_initial_ancestor rt1 dn1) then
                    Xset.add names2 dn1#data#get_name
                with _ -> ()
              ) ds2;
@@ -5774,7 +5777,9 @@ end;
            (Xset.length names2 > 0) &&
            has_p_descendant
              (fun x ->
-               let b = x#data#is_named_orig && Xset.mem names2 x#data#get_name && is_del x in
+               let b =
+                 x#data#is_named_orig && Xset.mem names2 x#data#get_name && is_del x
+               in
                if b then
                  DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
                b
@@ -5782,7 +5787,7 @@ end;
           )
         then begin
           DEBUG_MSG "local variable inlining or extraction";
-          Xset.add movs (mid, rt1, rt2)
+          (*Xset.add movs (mid, rt1, rt2)*)
         end
         else if
           not force &&
