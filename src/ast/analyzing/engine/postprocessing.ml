@@ -5651,7 +5651,7 @@ end;
                 is_staying_opt := Some b;
                 b
         in
-
+        let get_bn = get_p_ancestor (fun x -> x#data#is_boundary) in
         if
           (*rt1#data#is_boundary && rt2#data#is_boundary &&
           has_p_descendant
@@ -5720,10 +5720,77 @@ end;
           not force &&
           sz > 0 &&
           not rt1#data#is_boundary && not rt2#data#is_boundary &&
+          not rt1#data#is_sequence && not rt2#data#is_sequence &&
+          (*rt1#data#is_named_orig && rt2#data#is_named_orig &&*)
+          rt1#initial_nchildren > 0 && rt2#initial_nchildren > 0 &&
+          let bn1 = get_bn rt1 in
+          let bn2 = get_bn rt2 in
+          DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
+          DEBUG_MSG "bn2: %a %s %s" nps bn2 bn2#data#label (Loc.to_string bn2#data#src_loc);
+          is_map bn1 bn2 &&
+          let moveon x = not x#data#is_sequence in
+          let get_mapped_descendants mem = get_p_descendants ~moveon (fun x -> mem x#uid) in
+          let get_dn = get_p_ancestor (fun x -> B.is_def x#data#binding) in
+          (
+           (let ds1 = get_mapped_descendants uidmapping#mem_dom rt1 in
+           let names1 = Xset.create 0 in
+           List.iter
+             (fun d1 ->
+               DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
+               try
+                 let d2 = nmap1 d1 in
+                 DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
+                 let dn2 = get_dn d2 in
+                 DEBUG_MSG "dn2=%a %s %s" nps dn2 dn2#data#label (Loc.to_string dn2#data#src_loc);
+                 if dn2#data#is_named_orig then
+                   Xset.add names1 dn2#data#get_name
+               with _ -> ()
+             ) ds1;
+           DEBUG_MSG "defined names1: [%s]" (Xlist.to_string (fun x -> x) "," (Xset.to_list names1));
+           (Xset.length names1 > 0) &&
+           has_p_descendant
+             (fun x ->
+               let b = x#data#is_named_orig && Xset.mem names1 x#data#get_name && is_ins x in
+               if b then
+                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
+               b
+             ) rt2)
+         ||
+           (let ds2 = get_mapped_descendants uidmapping#mem_cod rt2 in
+           let names2 = Xset.create 0 in
+           List.iter
+             (fun d2 ->
+               DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
+               try
+                 let d1 = nmap2 d2 in
+                 DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
+                 let dn1 = get_dn d1 in
+                 DEBUG_MSG "dn1=%a %s %s" nps dn1 dn1#data#label (Loc.to_string dn1#data#src_loc);
+                 if dn1#data#is_named_orig then
+                   Xset.add names2 dn1#data#get_name
+               with _ -> ()
+             ) ds2;
+           DEBUG_MSG "defined names2: [%s]" (Xlist.to_string (fun x -> x) "," (Xset.to_list names2));
+           (Xset.length names2 > 0) &&
+           has_p_descendant
+             (fun x ->
+               let b = x#data#is_named_orig && Xset.mem names2 x#data#get_name && is_del x in
+               if b then
+                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
+               b
+             ) rt1)
+          )
+        then begin
+          DEBUG_MSG "local variable inlining or extraction";
+          Xset.add movs (mid, rt1, rt2)
+        end
+        else if
+          not force &&
+          sz > 0 &&
+          not rt1#data#is_boundary && not rt2#data#is_boundary &&
           rt1#data#is_named_orig && rt2#data#is_named_orig(* && has_uniq_match rt1 rt2*) &&
           rt1#initial_nchildren > 0 && rt2#initial_nchildren > 0 &&
           (
-           let get_bn = get_p_ancestor (fun x -> x#data#is_boundary) in
            let has_same_name n x =
              try
                let b = x#data#get_name = n in
@@ -7284,7 +7351,11 @@ end;
                 ) &&
                 match cenv#multiple_node_matches#find n1#data#_label with
                 | _, [] | [], _ | [_], [_] -> raise Not_found
-                | l1, l2 -> DEBUG_MSG "freq1=%d freq2=%d" (List.length l1) (List.length l2); true
+                | l1, l2 ->
+                    let freq1 = List.length l1 in
+                    let freq2 = List.length l2 in
+                    DEBUG_MSG "freq1=%d freq2=%d" freq1 freq2;
+                    true(*freq1 > 1 && freq2 > 1*)
               with
                 _ -> begin
                   let freq1 = List.length (try cenv#get_use1 (Edit.get_bid n1) with _ -> []) in
@@ -7296,6 +7367,11 @@ end;
             in
             DEBUG_MSG "%s %s -> %B" n1#data#label n2#data#label b;
             b
+          in
+          let get_mid n =
+            match edits#find_mov1 n#uid with
+            | Edit.Move(id, _, _, _) -> !id
+            | _ -> raise Not_found
           in
           let is_unstable_pair n1 n2 =
             let b =
@@ -7309,16 +7385,25 @@ end;
 
                       if tree2#is_initial_ancestor a' n2 then
                         DEBUG_MSG "a'=%a is an ancestor of n2=%a" nps a' nps n2
-                      else if n1#initial_nchildren = 0 then
+                      else if
+                        n1#initial_nchildren = 0 &&
+                        try
+                          get_mid n1 <> get_mid n1#initial_parent
+                        with _ -> true
+                      then begin
+                        DEBUG_MSG "@";
                         raise Exit
+                      end
                       else if
                         let lab1 = n1#data#label in
                         Array.exists
                           (fun x' ->
                             not (uidmapping#mem_cod x'#uid) && x'#data#label = lab1
                           ) a'#initial_children
-                      then
+                      then begin
+                        DEBUG_MSG "@";
                         raise Exit
+                      end
                       else
                         Sourcecode.scan_descendants ~moveon:(fun x -> not (is_stable1 x)) n1
                           (fun d ->
