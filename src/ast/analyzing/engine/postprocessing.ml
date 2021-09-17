@@ -7151,6 +7151,30 @@ end;
       DEBUG_MSG "%a %a -> %B" nps rt nps n b;
       b
     in
+    let stable_map_exists rt1 rt2 n1 n2 =
+      let nmap n = tree2#search_node_by_uid (uidmapping#find n#uid) in
+      let is_stable_map n1 n2 =
+        let b =
+          (try (tree2#search_node_by_uid (uidmapping#find n1#uid)) == n2 with _ -> false) &&
+          not (edits#mem_mov12 n1#uid n2#uid)
+        in
+        DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
+        b
+      in
+      let moveon x = x != rt1 in
+      let b =
+        has_p_ancestor ~moveon
+          (fun x1 ->
+            try
+              let x2 = nmap x1 in
+              is_stable_map x1 x2 &&
+              tree2#is_initial_ancestor rt2 x2 && tree2#is_initial_ancestor x2 n2
+            with _ -> false
+          ) n1
+      in
+      DEBUG_MSG "%a %a -> %B" nps n1 nps n2 b;
+      b
+    in
     Hashtbl.iter
       (fun m0 m1 ->
         let m' = find_anc_move m1 in
@@ -7162,6 +7186,14 @@ end;
           boundary_exists tree1 n1' n1 || boundary_exists tree2 n2' n2
         then*)
          ()
+        else if stable_map_exists n1' n2' n1 n2 then begin
+          DEBUG_MSG "%a %s %s -- %a %s %s"
+            UID.ps n1'#uid n1'#data#label (Loc.to_string n1'#data#src_loc)
+            UID.ps n2'#uid n2'#data#label (Loc.to_string n2'#data#src_loc);
+          DEBUG_MSG "%a %s %s -- %a %s %s"
+            UID.ps n1#uid n1#data#label (Loc.to_string n1#data#src_loc)
+            UID.ps n2#uid n2#data#label (Loc.to_string n2#data#src_loc)
+        end
         else begin
           DEBUG_MSG "changing move id: %a --> %a" MID.ps m0 MID.ps m';
           Hashtbl.add mid_fusion_tbl m0 m'
