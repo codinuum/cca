@@ -1232,6 +1232,11 @@ class Finder(object):
         first_path_sub = None
 
         for lang in self._result.keys():
+            try:
+                xkey_tbl_lang = xkey_tbl[lang]
+            except KeyError:
+                xkey_tbl_lang = {}
+                xkey_tbl[lang] = xkey_tbl_lang
 
             ver_tbl = self._result[lang]
             ver_pairs = list(ver_tbl.keys())
@@ -1250,6 +1255,14 @@ class Finder(object):
 
                 lver0 = get_localname(ver0)
                 lver1 = get_localname(ver1)
+
+                lvp = f'{lver0}:{lver1}'
+                local_count = 0
+                try:
+                    xkey_tbl_lang_vp = xkey_tbl_lang[lvp]
+                except KeyError:
+                    xkey_tbl_lang_vp = {}
+                    xkey_tbl_lang[lvp] = xkey_tbl_lang_vp
 
                 path_sub = os.path.join(html_dir, '%d.html' % ver_pair_count)
 
@@ -1424,11 +1437,12 @@ class Finder(object):
                                 others_tbl = self.get_others(change_pat, ent0, ent1)
 
                                 count += 1
+                                local_count += 1
 
                                 ln0 = get_localname(str(ent0.get_uri()))
                                 ln1 = get_localname(str(ent1.get_uri()))
                                 xkey = '%s:%s:%s' % (change_pat, ln0, ln1)
-                                xkey_tbl[xkey] = count
+                                xkey_tbl_lang_vp[xkey] = local_count
 
                                 ### BEGIN EXTRACT FACT
                                 chgpat_node = None
@@ -1721,7 +1735,8 @@ class Finder(object):
         ##
 
         with open(os.path.join(outdir, self._proj_id+'.json'), 'w') as f:
-            json.dump(xkey_tbl, f)
+            tbl = {self._proj_id : xkey_tbl}
+            json.dump(tbl, f)
             
 
 
