@@ -107,7 +107,7 @@ Q_ENUM_REMOVAL = 'enumerate_removals.rq'
 
 HTML_HEAD = '''<html>
 <head><title>%(proj_id)s</title>
-<link rel="stylesheet" type="text/css" href="../demo.css"/>
+<link rel="stylesheet" type="text/css" href="%(url_base_path)s/demo.css"/>
 </head>
 <body>
 
@@ -135,7 +135,7 @@ HTML_TAIL = '''</div></body></html>
 
 FRAME_PAGE = '''<html>
 <head><title>%(proj_id)s</title>
-<link rel="stylesheet" type="text/css" href="../demo.css"/>
+<link rel="stylesheet" type="text/css" href="%(url_base_path)s/demo.css"/>
 </head>
 <body>
 <h1>%(proj_id)s</h1>
@@ -161,7 +161,7 @@ APPLET = '''
 <table class="noframe" border="0" cellspacing="0" cellpadding="0"><tr><td>
 <span class="variable">%(var0)s</span> -> <span class="variable">%(var1)s</span> (%(startl0)dL,%(startc0)dC - %(startl1)dL,%(startc1)dC)
 </td><td>
-<form id="%(form_id)s" method="POST" action="../cgi-bin/openviewer" target="_blank">
+<form id="%(form_id)s" method="POST" action="%(url_base_path)s/cgi-bin/openviewer" target="_blank">
 <input type="hidden" name="proj_id" value="%(proj_id)s">
 <input type="hidden" name="hash_algo" value="%(algo)s">
 <input type="hidden" name="ver0" value="%(ver0)s">
@@ -973,7 +973,7 @@ class Finder(object):
         f.write('</table>\n')
 
 
-    def make_applet_html(self, vpid, form_id, var0, var1, ent0, ent1, ver0, ver1, desc='{}', ess0='[]', ess1='[]', ess01='[]'):
+    def make_applet_html(self, vpid, form_id, var0, var1, ent0, ent1, ver0, ver1, desc='{}', ess0='[]', ess1='[]', ess01='[]', url_base_path='..'):
         fid0 = ent0.get_file_id()
         fid1 = ent1.get_file_id()
 
@@ -1008,6 +1008,7 @@ class Finder(object):
                 'src1' : url1,
                 'vpid' : vpid,
                 'form_id' : form_id,
+                'url_base_path' : url_base_path,
             }
 
             r0 = ent0.get_range()
@@ -1158,7 +1159,7 @@ class Finder(object):
 
 
 
-    def dump(self, outdir, foutdir=None):
+    def dump(self, outdir, foutdir=None, url_base_path='..'):
 
         if not os.path.exists(outdir):
             logger.warning('creating "%s"...' % outdir)
@@ -1209,7 +1210,7 @@ class Finder(object):
                         for change_pat in r_tbl.keys():
                             count_tbl[change_pat] = count_tbl.get(change_pat, 0) + len(r_tbl[change_pat])
 
-        html_head = HTML_HEAD % {'proj_id': self._proj_id }
+        html_head = HTML_HEAD % {'proj_id':self._proj_id,'url_base_path':url_base_path}
 
         f_summary.write(html_head)
 
@@ -1231,6 +1232,11 @@ class Finder(object):
         first_path_sub = None
 
         for lang in self._result.keys():
+            try:
+                xkey_tbl_lang = xkey_tbl[lang]
+            except KeyError:
+                xkey_tbl_lang = {}
+                xkey_tbl[lang] = xkey_tbl_lang
 
             ver_tbl = self._result[lang]
             ver_pairs = list(ver_tbl.keys())
@@ -1249,6 +1255,14 @@ class Finder(object):
 
                 lver0 = get_localname(ver0)
                 lver1 = get_localname(ver1)
+
+                lvp = f'{lver0}:{lver1}'
+                local_count = 0
+                try:
+                    xkey_tbl_lang_vp = xkey_tbl_lang[lvp]
+                except KeyError:
+                    xkey_tbl_lang_vp = {}
+                    xkey_tbl_lang[lvp] = xkey_tbl_lang_vp
 
                 path_sub = os.path.join(html_dir, '%d.html' % ver_pair_count)
 
@@ -1400,6 +1414,7 @@ class Finder(object):
                         'desc' : '{}',
                         'ess0' : '[]',
                         'ess1' : '[]',
+                        'url_base_path' : url_base_path,
                     }
                     item_data = {}
 
@@ -1422,11 +1437,12 @@ class Finder(object):
                                 others_tbl = self.get_others(change_pat, ent0, ent1)
 
                                 count += 1
+                                local_count += 1
 
                                 ln0 = get_localname(str(ent0.get_uri()))
                                 ln1 = get_localname(str(ent1.get_uri()))
                                 xkey = '%s:%s:%s' % (change_pat, ln0, ln1)
-                                xkey_tbl[xkey] = count
+                                xkey_tbl_lang_vp[xkey] = local_count
 
                                 ### BEGIN EXTRACT FACT
                                 chgpat_node = None
@@ -1599,7 +1615,7 @@ class Finder(object):
 
                                     form_id = '%d-%d' % (count, sub_count)
                                     
-                                    a = self.make_applet_html(vpid, form_id, v0, v1, e0, e1, ver0, ver1, desc_str, ess0_str, ess1_str, ess01_str)
+                                    a = self.make_applet_html(vpid, form_id, v0, v1, e0, e1, ver0, ver1, desc_str, ess0_str, ess1_str, ess01_str, url_base_path)
 
                                     if a:
                                         aps.append(a)
@@ -1694,6 +1710,7 @@ class Finder(object):
                                'summary' : summary,
                                'first'   : first,
                                'year'    : datetime.today().year,
+                               'url_base_path' : url_base_path,
                                })
 
         f.close()
@@ -1718,7 +1735,8 @@ class Finder(object):
         ##
 
         with open(os.path.join(outdir, self._proj_id+'.json'), 'w') as f:
-            json.dump(xkey_tbl, f)
+            tbl = {self._proj_id : xkey_tbl}
+            json.dump(tbl, f)
             
 
 
@@ -2463,7 +2481,7 @@ class Finder(object):
 
 def find(query_dir, queries, predicate_tbl, extra_fact_extractor,
          base_dir, proj_id, foutdir, outdir, pw, port,
-         limit, lang, method, change_enumeration, per_ver, query_prec, conf=None):
+         limit, lang, method, change_enumeration, per_ver, query_prec, conf=None, url_base_path='..'):
 
     finder = Finder(query_dir, queries, base_dir, proj_id,
                     predicate_tbl=predicate_tbl, limit=limit, lang=lang,
@@ -2479,7 +2497,7 @@ def find(query_dir, queries, predicate_tbl, extra_fact_extractor,
     if fact_outdir == DEFAULT_FACT_OUTPUT_DIR:
         fact_outdir = fact_outdir.replace('<PROJ_ID>', proj_id)
 
-    finder.dump(outdir, fact_outdir)
+    finder.dump(outdir, fact_outdir, url_base_path=url_base_path)
 
 
 def main(query_dir, queries, desc, predicate_tbl=None, extra_fact_extractor=None):

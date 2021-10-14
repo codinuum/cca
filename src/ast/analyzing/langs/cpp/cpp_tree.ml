@@ -43,8 +43,8 @@ class c options root is_whole = object
 
   method private create root is_whole = new c options root is_whole
 
-  method unparse_subtree_ch ?(fail_on_error=true) =
-    make_unparser (Cpp_unparsing.unparse ~fail_on_error)
+  method unparse_subtree_ch ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) =
+    make_unparser (Cpp_unparsing.unparse ~no_boxing ~no_header ~fail_on_error)
 
 end
 
@@ -326,7 +326,7 @@ let of_ast options ast =
         | B.NoBinding -> begin
             try
               match (I.get_spec info)#bid_opt with
-              | Some b -> B.make_unknown_def b
+              | Some b -> B.make_unknown_def b true
               | _ -> binding
             with
               _ -> binding
@@ -369,13 +369,13 @@ let of_ast options ast =
       let handle_binding binding =
         match binding with
         | B.NoBinding -> ()
-        | B.Def(bid, use) -> begin
+        | B.Def(bid, use, _) -> begin
             DEBUG_MSG "bid=%a" B.ID.ps bid;
             let b =
               match use with
               | B.Unknown -> begin
                   try
-                    B.make_used_def bid (Hashtbl.find utbl bid)
+                    B.make_used_def bid (Hashtbl.find utbl bid) true
                   with
                     Not_found -> binding
               end

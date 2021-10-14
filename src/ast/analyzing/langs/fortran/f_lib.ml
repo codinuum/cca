@@ -42,7 +42,8 @@ let elaborate_edits
     is_var_name;
   |]
   in
-  Edit.adjust_renames options cenv uidmapping edits filters
+  let _ = Edit.adjust_renames options cenv uidmapping edits filters in
+  ()
 
 
 let _ =

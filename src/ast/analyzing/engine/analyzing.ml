@@ -940,6 +940,7 @@ module F (Label : Spec.LABEL_T) = struct
       options
       lang
       cenv
+      (orig_edits : Edit.seq)
       (edits : Edit.seq)
       (uidmapping : node_t UIDmapping.c)
       (tree1 : tree_t)
@@ -955,10 +956,10 @@ module F (Label : Spec.LABEL_T) = struct
     let dmapfact  = Filename.concat cache_path Stat.map_file_name^".nt" in
     let dsrc      = Filename.concat cache_path Stat.sources_file_name in
     let dparser   = Filename.concat cache_path Stat.parser_file_name in
-    let dchange   = Filename.concat cache_path Stat.changes_file_name in
+    (*let dchange   = Filename.concat cache_path Stat.changes_file_name in*)
     let ddot1     = Filename.concat cache_path Stat.dot_file_name1 in
     let ddot2     = Filename.concat cache_path Stat.dot_file_name2 in
-    let delta     = Filename.concat cache_path Delta_base.delta_file_name^".xml" in
+    (*let delta     = Filename.concat cache_path Delta_base.delta_file_name^".xml" in*)
 
     let is_modified = not edits#is_empty in
 
@@ -1059,7 +1060,7 @@ module F (Label : Spec.LABEL_T) = struct
       if options#verbose_flag then
 	edits#show_diff_stat ~short:true tree1 tree2 uidmapping;
 
-      let edits_copy = edits#copy in
+      (*let edits_copy = edits#copy in
       edits_copy#ungroup tree1 tree2;
       edits_copy#cleanup_ghost tree1 tree2;
 
@@ -1067,7 +1068,7 @@ module F (Label : Spec.LABEL_T) = struct
 
       if options#dump_delta_flag then begin
         edits#dump_delta tree1 tree2 uidmapping edits_copy delta
-      end;
+      end;*)
 
       if options#dump_ccs_flag then begin (* dump common code structure *)
 
@@ -1126,7 +1127,7 @@ module F (Label : Spec.LABEL_T) = struct
       else begin (* dump_ccs_flag = false *)
 
 	if options#check_flag then
-	  if edits#check tree1 tree2 uidmapping then begin
+	  if orig_edits#check tree1 tree2 uidmapping then begin
 	    Xprint.message "result check: PASSED!"
 	  end
 	  else begin
@@ -1324,7 +1325,7 @@ end;
 
       DEBUG_MSG "uidmapping BEFORE EDIT SEQ GENERATION: %s" uidmapping#to_string;
 
-      if not options#weak_flag then begin
+      if options#recover_orig_ast_flag then begin
         tree1#recover_true_children ~initial_only:true ();
         tree2#recover_true_children ~initial_only:true ()
       end;
@@ -1343,6 +1344,114 @@ end;
 
       Xprint.verbose options#verbose_flag "fixing up edit sequences...";
       Postprocessing.fixup_edits options lang cenv tree1 tree2 pruned edits uidmapping pre_uidmapping;
+
+      if options#dump_delta_flag then begin
+        let delta = Filename.concat cache_path Delta_base.delta_file_name^".xml" in
+        let dchange = Filename.concat cache_path Stat.changes_file_name in
+
+        let edits_copy = edits#copy in
+        edits_copy#ungroup tree1 tree2;
+        edits_copy#cleanup_ghost tree1 tree2;
+
+        Edit.dump_changes options lang tree1 tree2 uidmapping edits_copy edits dchange;
+        edits#dump_delta tree1 tree2 uidmapping edits_copy delta
+      end;
+
+      let orig_edits =
+        if options#ignore_non_orig_relabel_flag || options#ignore_move_of_unordered_flag then
+          edits#copy
+        else
+          edits
+      in
+
+      if options#ignore_non_orig_relabel_flag then begin
+        DEBUG_MSG "filtering relabels...";
+        edits#filter_relabels
+          (function
+            | Relabel(movrel, (uid1, info1, exc1), (uid2, info2, exc2)) as rel -> begin
+                let nd1 = Info.get_node info1 in
+                let nd2 = Info.get_node info2 in
+                (*let is_order_insensitive n = n#data#is_order_insensitive in
+                let has_order_insensitive n = Array.exists is_order_insensitive n#initial_children in
+                not (has_order_insensitive nd1 || has_order_insensitive nd2) &&*)
+                match nd1#data#orig_lab_opt, nd2#data#orig_lab_opt with
+                | Some o1, Some o2 when o1 = o2 -> begin
+                    DEBUG_MSG "filtered: %s" (Edit.to_string rel);
+                    false
+                end
+                | _ when begin
+                    (not nd1#data#is_named_orig) && (not nd1#data#has_value) &&
+                    (not nd2#data#is_named_orig) && (not nd2#data#has_value) &&
+                    nd1#data#anonymized_label = nd2#data#anonymized_label &&
+                    nd1#data#elem_name_for_delta = nd2#data#elem_name_for_delta
+                end -> begin
+                  DEBUG_MSG "filtered: %s" (Edit.to_string rel);
+                  false
+                end
+                | _ when nd1#data#orig_to_elem_data_for_eq = nd2#data#orig_to_elem_data_for_eq -> begin
+                    DEBUG_MSG "filtered: %s" (Edit.to_string rel);
+                    false
+                end
+
+                | _ -> true
+            end
+            | _ -> true
+          )
+      end;
+      if options#ignore_move_of_unordered_flag(* && not options#recover_orig_ast_flag*) then begin
+        DEBUG_MSG "filtering moves...";
+        edits#filter_moves
+          (function
+            | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
+                let nd1 = Info.get_node info1 in
+                let nd2 = Info.get_node info2 in
+                if
+                  nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
+                  !exc1 = [] && !exc2 = [] &&
+                  let pnd1 = nd1#initial_parent in
+                  let pnd2 = nd2#initial_parent in
+                  (try (uidmapping#find pnd1#uid) = pnd2#uid with _ -> false) &&
+                  (try
+                    edits#iter_moves
+                      (function
+	                | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
+                            List.iter
+                              (fun inf ->
+                                if Info.get_node inf == nd1 then
+                                  raise Exit
+                              ) !e1
+                        end
+                        | _ -> assert false
+                      );
+                    true
+                  with
+                    Exit -> false) &&
+                  match edits#find12 pnd1#uid pnd2#uid with
+                  | [] -> true
+                  | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
+                  | _ -> false
+                then begin
+                  DEBUG_MSG "filtered: %s" (Edit.to_string mov);
+                  begin
+                    edits#iter_relabels
+                      (function
+                        | Relabel(movrel, (u1, i1, _), (u2, i2, _)) -> begin
+                            let n1 = Info.get_node i1 in
+                            let n2 = Info.get_node i2 in
+                            if tree1#is_initial_ancestor nd1 n1 && tree2#is_initial_ancestor nd2 n2 then
+                              movrel := false
+                        end
+                        | _ -> ()
+                      )
+                  end;
+                  false
+                end
+                else
+                  true
+            end
+            | _ -> true
+          )
+      end;
       Xprint.verbose options#verbose_flag "done.";
 
       BEGIN_DEBUG
@@ -1350,7 +1459,7 @@ end;
         DEBUG_MSG "|moved_nodes|=%d" (Xset.length moved_nodes);
       END_DEBUG;
 
-      let diff_status = get_diff_status options lang cenv edits uidmapping tree1 tree2 in
+      let diff_status = get_diff_status options lang cenv orig_edits edits uidmapping tree1 tree2 in
 
       if cenv#use_adjacency_cache then
 	DEBUG_MSG "size of adjacency cache: %d (cache hit: %d)"
@@ -1413,17 +1522,22 @@ end;
 (*
     try
 *)
-      let tree_builder1 = lang#make_tree_builder options in
-      let tree_builder2 = lang#make_tree_builder options in
 
       if options#viewer_flag then
 	printf "%c%!" Const.viewer_mode_status_PARSE;
 
-      let tree1 = tree_builder1#build_tree file1 in
-      let tree2 = tree_builder2#build_tree file2 in
-
-      extra_source_files1 <- tree_builder1#extra_source_files;
-      extra_source_files2 <- tree_builder2#extra_source_files;
+      let tree1 =
+        let tree_builder1 = lang#make_tree_builder options in
+        let t = tree_builder1#build_tree file1 in
+        extra_source_files1 <- tree_builder1#extra_source_files;
+        t
+      in
+      let tree2 =
+        let tree_builder2 = lang#make_tree_builder options in
+        let t = tree_builder2#build_tree file2 in
+        extra_source_files2 <- tree_builder2#extra_source_files;
+        t
+      in
 
       let has_elaborate_edits = lang#has_elaborate_edits in
 
@@ -1528,7 +1642,7 @@ end;
             ignore (uidmapping#add_settled nd1#uid nd2#uid)
           );
         let edits = new Edit.seq options in
-        get_diff_status options lang cenv edits uidmapping tree1 tree2
+        get_diff_status options lang cenv edits edits uidmapping tree1 tree2
       end
       else begin
 
@@ -1549,10 +1663,89 @@ end;
 	    Not_found -> Hashtbl.add tbl x [nd]
         in
 
+	let ltbl1 = Hashtbl.create 0 in
+	let ltbl2 = Hashtbl.create 0 in
+
+        let getlab n =
+          (*match n#data#orig_lab_opt with
+            | Some o -> o
+            | None -> *)n#data#_label
+        in
+
+        if options#preprune_flag || options#prematch_flag then begin
+
+	  tree1#fast_scan_whole_initial (fun nd -> add ltbl1 (getlab nd) nd);
+	  tree2#fast_scan_whole_initial (fun nd -> add ltbl2 (getlab nd) nd);
+
+	  BEGIN_DEBUG
+	    List.iter
+	      (fun (tag, tbl) ->
+	        Hashtbl.iter
+                  (fun l nds ->
+                    DEBUG_MSG "%s: [%s]%s --> %d times (%s)"
+                      tag
+                      (Label.to_string (Obj.obj l))
+                      (if (List.hd nds)#initial_nchildren = 0 then "[LEAF]" else "")
+                      (List.length nds)
+                      (String.concat ";" (List.map (fun n -> UID.to_string n#uid) nds))
+                  ) tbl;
+                DEBUG_MSG "%d entries in %s" (Hashtbl.length tbl) tag
+              ) [("ltbl1", ltbl1); ("ltbl2", ltbl2)]
+          END_DEBUG;
+
+          let visited1 = Xset.create 0 in
+          let visited2 = Xset.create 0 in
+
+          let rec check_ancestors nd1 nd2 =
+            DEBUG_MSG "%a-%a" Misc.nps nd1 Misc.nps nd2;
+            try
+              let pnd1 = nd1#initial_parent in
+              let pnd2 = nd2#initial_parent in
+
+              if
+                pnd1#data#is_boundary || pnd2#data#is_boundary ||
+                Xset.mem visited1 pnd1 || Xset.mem visited2 pnd2
+              then
+                raise Exit;
+
+              if
+                pnd1#data#anonymized_label = pnd2#data#anonymized_label &&
+                nd1#data#eq nd2#data && pnd1#data#is_sequence
+              then begin
+                cenv#add_permutation_hub_cand pnd1 pnd2 nd1#data#label
+              end
+              else begin
+                Xset.add visited1 pnd1;
+                Xset.add visited2 pnd2;
+              end;
+
+              if pnd1#data#anonymized_label = pnd2#data#anonymized_label then
+                check_ancestors pnd1 pnd2
+
+            with _ -> ()
+          in
+
+	  Hashtbl.iter
+	    (fun _lab nds1 ->
+	      let lab = Obj.obj _lab in
+	      try
+	        let nds2 = Hashtbl.find ltbl2 _lab in
+	        if Label.is_named lab || Label.is_string_literal lab || Label.is_int_literal lab then begin
+                  match nds1, nds2 with
+                  | [nd1], [nd2] -> check_ancestors nd1 nd2
+                  | _ -> ()
+                end
+              with
+                Not_found -> ()
+            ) ltbl1;
+
+          cenv#finalize_permutation_hub_tbl();
+
+        end;
+
         let sort_nds =
 	  List.fast_sort (fun nd1 nd2 -> Stdlib.compare nd2#gindex nd1#gindex)
         in
-
 
         let pruned1 = ref [] in
         let pruned2 = ref [] in
@@ -1572,6 +1765,14 @@ end;
 	  tree1#fast_scan_whole_initial
 	    (fun nd ->
 	      match nd#data#digest with
+              | None when begin
+                  nd#data#has_non_trivial_value && nd#initial_nchildren = 0 &&
+                  cenv#under_permutation_hub1 nd
+              end -> begin
+                let v = nd#data#get_value in
+                DEBUG_MSG "value(tree1): %a(%a) -> %s" UID.ps nd#uid GI.ps nd#gindex v;
+                add tbl1 v nd
+              end
 	      | None -> ()
 	      | Some d ->
 		  DEBUG_MSG "digest(tree1): %a(%a) -> %s"
@@ -1582,6 +1783,14 @@ end;
 	  tree2#fast_scan_whole_initial
 	    (fun nd ->
 	      match nd#data#digest with
+              | None when begin
+                  nd#data#has_non_trivial_value && nd#initial_nchildren = 0 &&
+                  cenv#under_permutation_hub2 nd
+              end -> begin
+                let v = nd#data#get_value in
+                DEBUG_MSG "value(tree1): %a(%a) -> %s" UID.ps nd#uid GI.ps nd#gindex v;
+                add tbl2 v nd
+              end
 	      | None -> ()
 	      | Some d ->
 		  DEBUG_MSG "digest(tree2): %a(%a) -> %s"
@@ -1658,7 +1867,7 @@ end;
 
                       BEGIN_DEBUG
                         let sz = tree1#whole_initial_subtree_size nd1 in
-		        DEBUG_MSG "digest match: %a(%s) <--> %a(%s) <%s> (size=%d)"
+		        DEBUG_MSG "digest (or value) match: %a(%s) <--> %a(%s) <%s> (size=%d)"
 		          UID.ps nd1#uid (Loc.to_string nd1#data#src_loc)
 		          UID.ps nd2#uid (Loc.to_string nd2#data#src_loc)
 		          nd1#data#label sz;
@@ -1666,7 +1875,10 @@ end;
 
 		      pre_map_add (nd1, nd2);
 
-		      if nd1#data#is_boundary then begin
+		      if
+                        nd1#data#is_boundary ||
+                        nd1#data#has_non_trivial_value && nd1#initial_nchildren = 0
+                      then begin
 		        pruned1 := nd1::!pruned1;
 		        pruned2 := nd2::!pruned2;
 		      end
@@ -1680,11 +1892,12 @@ end;
 	        | _ -> begin
 		    let nds1 = List.filter (fun n -> tree1#root != n) nds1 in
 		    let nds2 = List.filter (fun n -> tree2#root != n) nds2 in
+                    if nds1 <> [] && nds2 <> [] then begin
 		    let ndmems1 = List.map (fun nd -> nd, getmems tree1 nd) nds1 in
 		    let ndmems2 = List.map (fun nd -> nd, getmems tree2 nd) nds2 in
 
 		    BEGIN_DEBUG
-		      DEBUG_MSG "multiple digest match: %s" (Digest.to_hex d);
+		      DEBUG_MSG "multiple digest match: %s" ((List.hd nds1)#data#label)(*(Digest.to_hex d)*);
   		      DEBUG_MSG "[%s] <--> [%s]"
 		        (Xlist.to_string (fun (n, _) -> UID.to_string n#uid) ";" ndmems1)
 		        (Xlist.to_string (fun (n, _) -> UID.to_string n#uid) ";" ndmems2);
@@ -1698,11 +1911,12 @@ end;
                     END_DEBUG;
 
 		    multiple_subtree_matches#add d (ndmems1, ndmems2)
+                    end
                 end
 	      with
                 Not_found -> ()
 	    ) tbl1;
-
+          DEBUG_MSG "@";
 
 	  let _ = tree1#expand_all in
 	  let _ = tree2#expand_all in
@@ -1780,30 +1994,6 @@ end;
               Found -> true
 	  in
 
-	  let ltbl1 = Hashtbl.create 0 in
-	  let ltbl2 = Hashtbl.create 0 in
-
-	  tree1#fast_scan_whole_initial (fun nd -> add ltbl1 nd#data#_label nd);
-	  tree2#fast_scan_whole_initial (fun nd -> add ltbl2 nd#data#_label nd);
-
-
-	  BEGIN_DEBUG
-	    List.iter
-	      (fun (tag, tbl) ->
-	        Hashtbl.iter
-		  (fun l nds ->
-                    DEBUG_MSG "%s: [%s]%s --> %d times (%s)"
-                      tag
-                      (Label.to_string (Obj.obj l))
-                      (if (List.hd nds)#initial_nchildren = 0 then "[LEAF]" else "")
-                      (List.length nds)
-                      (String.concat ";" (List.map (fun n -> UID.to_string n#uid) nds))
-                  ) tbl;
-                DEBUG_MSG "%d entries in %s" (Hashtbl.length tbl) tag
-              ) [("ltbl1", ltbl1); ("ltbl2", ltbl2)]
-          END_DEBUG;
-
-
 	  let rt1, rt2 = tree1#root, tree2#root in
 
 
@@ -1837,7 +2027,7 @@ end;
 	  in
 
 	  let register_matches _nds1 _nds2 =
-
+            DEBUG_MSG "_nds1=[%a] _nds2=[%a]" Misc.nsps _nds1 Misc.nsps _nds2;
 	    let len1 = List.length _nds1 in
 	    let len2 = List.length _nds2 in
 	    let thresh = options#prematch_cands_threshold in
@@ -1847,6 +2037,8 @@ end;
 	    else
 	      let nds1 = List.filter prematch_ok1 _nds1 in
 	      let nds2 = List.filter prematch_ok2 _nds2 in
+
+              DEBUG_MSG "nds1=[%a] nds2=[%a]" Misc.nsps nds1 Misc.nsps nds2;
 
 	      match nds1, nds2 with
 	      | [nd1], [nd2] -> reg nd1 nd2
@@ -1909,8 +2101,9 @@ end;
                   else
                     nds1, nds2
                 in*)
-	        if Label.is_named lab || Label.is_string_literal lab then
+	        if Label.is_named lab || Label.is_string_literal lab || Label.is_int_literal lab then begin
 		  register_matches nds1 nds2;
+                end;
 	        if options#multi_node_match_flag then
 		  multiple_node_matches#add _lab (nds1, nds2)
 	      with

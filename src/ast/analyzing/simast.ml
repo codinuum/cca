@@ -36,6 +36,10 @@ let keyword = ref ""
 
 (* setters *)
 
+let _ =
+  options#set_ignore_non_orig_relabel_flag;
+  options#set_ignore_move_of_unordered_flag
+
 let set_dump_ast_flags() =
   parseonly_flag := true;
   options#set_dump_ast_flag;
@@ -57,7 +61,7 @@ let set_dump_src_flag() =
   options#set_no_collapse_flag
 
 let clear_prematch_flags() =
-  options#set_prematch_flag
+  options#clear_prematch_flag
 (*  options#clear_prematch_named_flag *)
 
 
@@ -129,7 +133,7 @@ let speclist =
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
    sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
 *)
-   "-nomovrel", Arg.Unit (fun () -> options#set_no_movrel_flag), "\tdisable movrel generation";
+   "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
 (*
    "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
    sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;

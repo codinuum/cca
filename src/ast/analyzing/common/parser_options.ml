@@ -154,10 +154,41 @@ class c = object (self)
   method latest_target = latest_target
   method set_latest_target x = latest_target <- x
 
-  val mutable weak_flag            = false (* weaken node equation and node permutation detection *)
-  method weak_flag = weak_flag
-  method set_weak_flag = weak_flag <- true
-  method clear_weak_flag = weak_flag <- false
+  val mutable sort_unordered_flag = false (* build ASTs with sorting unordered constructs *)
+  method sort_unordered_flag = sort_unordered_flag
+  method set_sort_unordered_flag = sort_unordered_flag <- true
+  method clear_sort_unordered_flag = sort_unordered_flag <- false
+
+  val mutable strip_empty_flag = false (* strip empty constructs *)
+  method strip_empty_flag = strip_empty_flag
+  method set_strip_empty_flag = strip_empty_flag <- true
+  method clear_strip_empty_flag = strip_empty_flag <- false
+
+  val mutable recover_orig_ast_flag = true (* recover original AST when generating edits *)
+  method recover_orig_ast_flag = recover_orig_ast_flag
+  method set_recover_orig_ast_flag = recover_orig_ast_flag <- true
+  method clear_recover_orig_ast_flag = recover_orig_ast_flag <- false
+
+  val mutable weak_eq_flag = false (* weaken node equation *)
+  method weak_eq_flag = weak_eq_flag
+  method set_weak_eq_flag = weak_eq_flag <- true
+  method clear_weak_eq_flag = weak_eq_flag <- false
+
+  val mutable anonymize_int_flag = false
+  method anonymize_int_flag = anonymize_int_flag
+  method set_anonymize_int_flag = anonymize_int_flag <- true
+  method clear_anonymize_int_flag = anonymize_int_flag <- false
+
+  val mutable anonymize_float_flag = false
+  method anonymize_float_flag = anonymize_float_flag
+  method set_anonymize_float_flag = anonymize_float_flag <- true
+  method clear_anonymize_float_flag = anonymize_float_flag <- false
+
+  val mutable anonymize_string_flag = false
+  method anonymize_string_flag = anonymize_string_flag
+  method set_anonymize_string_flag = anonymize_string_flag <- true
+  method clear_anonymize_string_flag = anonymize_string_flag <- false
+
 
   (* searchast *)
   val mutable sim_threshold = 0.8

@@ -1154,7 +1154,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Yield                 -> mkstr 65
   | Stride                -> mkstr 66
 
-let to_tag l =
+let to_tag ?(strip=false) l =
   let name, attrs =
     match l with
     | Dummy                 -> "Dummy", []

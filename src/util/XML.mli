@@ -18,6 +18,8 @@ module Comp = Compression
 
 val sprintf : ('a, unit, string) format -> 'a
 val header : string
+val _encode_string : string -> string
+val _decode_string : string -> string
 val encode_string : string -> string
 val decode_string : string -> string
 val get_local_part : string -> string

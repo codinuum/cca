@@ -89,6 +89,7 @@ class type node_data_t_shared = object ('self)
   method is_named_orig      : bool
 
   method get_name           : string
+  method get_orig_name      : string
 
   method _anonymized_label  : Obj.t
   method _anonymized2_label : Obj.t
@@ -102,6 +103,8 @@ class type node_data_t_shared = object ('self)
 
   method binding     : Binding.t
   method bindings    : Binding.t list
+
+  method orig_to_elem_data_for_eq    : string * (string * string) list * string
 
 
 (* for delta *)
@@ -130,6 +133,8 @@ class type [ 'node ] tree_t_shared = object ('self)
 
   method parser_name               : string
   method get_digest                : 'node -> Xhash.t
+  method initial_subtree_to_rep    : 'node -> string
+  method initial_to_rep            : string
   method set_source_path           : string -> unit
   method source_path               : string
   method set_ignored_regions       : (int * int) list -> unit
@@ -140,7 +145,7 @@ class type [ 'node ] tree_t_shared = object ('self)
   method make_subtree_from_path    : Path.t -> 'self
   method make_subtree_copy         : ?find_hook:('node -> 'node -> unit) -> 'node -> 'self
   method dump_subtree_for_delta_ch : 'node -> 'node list -> Xchannel.out_channel -> unit
-  method unparse_ch                : ?fail_on_error:bool -> OutChannel.t -> unit
+  method unparse_ch                : ?no_boxing:bool -> ?no_header:bool -> ?fail_on_error:bool -> OutChannel.t -> unit
   method extra_namespaces          : (string * string) list (* for subtrees in delta *)
 
 end (* of class type tree_t_shared *)

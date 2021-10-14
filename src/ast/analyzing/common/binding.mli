@@ -41,17 +41,21 @@ type use = Used of int | Unknown
 
 val use_to_string : use -> string
 
-type t = NoBinding | Def of ID.t * use | Use of ID.t * Loc.t option
+type is_local = bool
+
+type t = NoBinding | Def of ID.t * use * is_local | Use of ID.t * Loc.t option
 
 val to_string : t -> string
-val make_def : ID.t -> use -> t
-val make_used_def : ID.t -> int -> t
-val make_unused_def : ID.t -> t
-val make_unknown_def : ID.t -> t
+val make_def : ID.t -> use -> is_local -> t
+val make_used_def : ID.t -> int -> is_local -> t
+val make_unused_def : ID.t -> is_local -> t
+val make_unknown_def : ID.t -> is_local -> t
 val make_use : ?loc_opt:Loc.t option -> ID.t -> t
 val is_none : t -> bool
 val is_use : t -> bool
 val is_def : t -> bool
+val is_local_def : t -> bool
+val is_non_local_def : t -> bool
 val is_used_def : t -> bool
 val is_unused_def : t -> bool
 val get_bid : t -> ID.t

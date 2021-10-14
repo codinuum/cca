@@ -336,7 +336,7 @@ module F (L : Label.T) = struct
         begin
           let b = nd#data#binding in
           match b with
-          | B.Def(bid, use) ->
+          | B.Def(bid, use, _) ->
               DEBUG_MSG "%a" B.ID.ps bid;
               self#add (entity, p_binding, self#mkbinding (*~loc_opt*) bid)
           | B.Use(bid, loc_opt) ->
@@ -348,7 +348,7 @@ module F (L : Label.T) = struct
           List.iter
             (fun b ->
               match b with
-              | B.Def(bid, use) ->
+              | B.Def(bid, use, _) ->
                   DEBUG_MSG "%a" B.ID.ps bid;
                   self#add (entity, p_binding, self#mkbinding (*~loc_opt*) bid)
               | B.Use(bid, loc_opt) ->

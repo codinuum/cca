@@ -122,12 +122,12 @@ main:
 ;
 
 literal:
-| i=INTEGER_LITERAL        { Linteger i }
-| f=FLOATING_POINT_LITERAL { LfloatingPoint f }
+| i=INTEGER_LITERAL        { env#incr_nintegers(); Linteger i }
+| f=FLOATING_POINT_LITERAL { env#incr_nfloats(); LfloatingPoint f }
 | TRUE                     { Ltrue }
 | FALSE                    { Lfalse }
 | c=CHARACTER_LITERAL      { Lcharacter(String.sub c 1 ((String.length c) - 2)) }
-| s=STRING_LITERAL         { Lstring(String.sub s 1 ((String.length s) - 2)) }
+| s=STRING_LITERAL         { env#incr_nstrings(); Lstring(String.sub s 1 ((String.length s) - 2)) }
 | NULL                     { Lnull }
 ;
 
@@ -216,7 +216,10 @@ unann_class_or_interface_type_spec:
        | _ -> env#resolve n
      in
      set_attribute_PT_T rr n;
-     register_qname_as_typename n;
+     if env#in_method then
+       register_qname_as_typename_at_class ~outer:1 n
+     else
+       register_qname_as_typename n;
      [], [], n 
    }
 
@@ -772,8 +775,9 @@ class_declaration_head0:
 | m_opt=modifiers_opt CLASS i=identifier 
     { 
       let _, id = i in
-      register_identifier_as_class (mkfqn_cls id) id;
-      begin_scope ~kind:(FKclass id) ();
+      let fqn = mkfqn_cls id in
+      register_identifier_as_class fqn id;
+      begin_scope ~kind:(FKclass(id, ref false)) ();
       m_opt, id
     }
 ;
@@ -785,8 +789,13 @@ class_declaration_head:
     { 
       let ch0, ts_opt = ch1 in
       end_typeparameter_scope ts_opt;
-      let ms, id = ch0 in
-      mkch $startofs $endofs ms id ts_opt s_opt i_opt
+      let ms_opt, id = ch0 in
+      begin
+        match ms_opt with
+        | Some ms when has_user_defined_annotation ms -> env#set_has_super()
+        | _ -> ()
+      end;
+      mkch $startofs $endofs ms_opt id ts_opt s_opt i_opt
     }
 ;
 class_declaration:
@@ -797,7 +806,7 @@ class_declaration:
 ;
 
 super_ext:
-| EXTENDS ct=class_type { mkexc $startofs $endofs ct }
+| EXTENDS ct=class_type { env#set_has_super(); mkexc $startofs $endofs ct }
 ;
 
 %inline
@@ -870,7 +879,7 @@ enum_declaration_head0:
       | Common.JLS3 | Common.JLSx ->
 	  env#set_java_lang_spec_JLS3;
 	  register_identifier_as_class (mkfqn_cls id) id;
-	  begin_scope ~kind:(FKclass id) ();
+	  begin_scope ~kind:(FKclass(id, ref false)) ();
 	  m_opt, id
       | Common.JLS2 ->
 	  parse_error $symbolstartofs $endofs "'enum' declaration is not available in JLS2"
@@ -961,8 +970,10 @@ field_declaration:
 	| Some _ -> get_loc $symbolstartofs $endofs
       in
       List.iter 
-	(fun vd -> 
-	  register_identifier_as_field (fst vd.vd_variable_declarator_id) t;
+	(fun vd ->
+          let i = fst vd.vd_variable_declarator_id in
+	  register_identifier_as_field i t;
+	  (*env#register_identifier ~qualify:true i IAfield;*)
 	  vd.vd_is_local := false;
 	) v;
       Ast.proc_type (register_qname_as_typename ~skip:1) t;
@@ -975,7 +986,7 @@ aspect_declaration_head0:
     { 
       let _, id = i in
       register_identifier_as_class (mkfqn_cls id) id;
-      begin_scope ~kind:(FKclass id) ();
+      begin_scope ~kind:(FKclass(id, ref false)) ();
       m_opt, id
     }
 ;
@@ -1120,7 +1131,8 @@ variable_initializer:
 method_declaration:
 | mh=method_header b=method_body 
     { 
-      if mh_is_generic mh then end_scope();
+      end_typeparameter_scope mh.mh_type_parameters;
+      (*if mh_is_generic mh then end_scope();*)
       mkcbd $startofs $endofs (CBDmethod(mh, b)) 
     }
 ;
@@ -1356,7 +1368,7 @@ normal_interface_declaration_head0:
     { 
       let _, id = i in
       register_identifier_as_interface (mkfqn_cls id) id; 
-      begin_scope ~kind:(FKclass id) ();
+      begin_scope ~kind:(FKclass(id, ref false)) ();
       m_opt, id
     }
 ;
@@ -1384,7 +1396,7 @@ annotation_type_declaration_head:
     { 
       let _, id = i in
       register_identifier_as_interface (mkfqn_cls id) id;
-      begin_scope ~kind:(FKclass id) ();
+      begin_scope ~kind:(FKclass(id, ref false)) ();
       mkifh $startofs $endofs m_opt id None None
     }
 ;
@@ -1453,7 +1465,7 @@ extends_interfaces_opt:
 
 %inline
 extends_interfaces:
-| EXTENDS l=clist(interface_type) { l }
+| EXTENDS l=clist(interface_type) { env#set_has_super(); l }
 ;
 
 interface_body:
@@ -1466,12 +1478,12 @@ interface_member_declarations0:
 ;
 
 interface_member_declaration:
-| c=constant_declaration         { IMDconstant c }
-| a=interface_method_declaration { IMDinterfaceMethod a }
-| c=class_declaration            { IMDclass c }
-| e=enum_declaration             { IMDclass e }
-| i=interface_declaration        { IMDinterface i }
-| SEMICOLON                      { IMDempty }
+| c=constant_declaration         { _mkimd c.fd_loc (IMDconstant c) }
+| a=interface_method_declaration { _mkimd a.amd_loc (IMDinterfaceMethod a) }
+| c=class_declaration            { _mkimd c.cd_loc (IMDclass c) }
+| e=enum_declaration             { _mkimd e.cd_loc (IMDclass e) }
+| i=interface_declaration        { _mkimd i.ifd_loc (IMDinterface i) }
+| SEMICOLON                      { mkimd $startofs $endofs IMDempty }
 ;
 
 %inline
@@ -1484,7 +1496,7 @@ interface_method_declaration:
     { 
       if mh_is_generic mh then end_scope();
       let loc = Loc.merge mh.mh_loc (get_loc $startofs $endofs) in
-      mkimd loc mh b
+      mkimed loc mh b
     }
 ;
 
@@ -1791,11 +1803,17 @@ synchronized_statement:
 | SYNCHRONIZED LPAREN e=expr_or_err RPAREN b=block { mkstmt $startofs $endofs (Ssynchronized(e, b)) }
 ;
 
+try_head:
+| TRY { begin_scope() }
+;
+try_block:
+| try_head r_opt=resource_spec_opt b=block { end_scope(); r_opt, b }
+;
 try_statement:
-| TRY r_opt=resource_spec_opt b=block c=catches           { mkstmt $startofs $endofs (Stry(r_opt, b, Some c, None)) }
-| TRY r_opt=resource_spec_opt b=block           f=finally { mkstmt $startofs $endofs (Stry(r_opt, b, None, Some f)) }
-| TRY r_opt=resource_spec_opt b=block c=catches f=finally { mkstmt $startofs $endofs (Stry(r_opt, b, Some c, Some f)) }
-| TRY r_opt=resource_spec_opt b=block                     { mkstmt $startofs $endofs (Stry(r_opt, b, None, None)) }
+| tb=try_block c=catches           { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, Some c, None)) }
+| tb=try_block           f=finally { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, None, Some f)) }
+| tb=try_block c=catches f=finally { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, Some c, Some f)) }
+| tb=try_block                     { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, None, None)) }
 ;
 
 %inline
@@ -1813,16 +1831,9 @@ resource_list:
 ;
 
 resource:
-| m_opt=variable_modifiers_opt t=unann_type v=variable_declarator_id EQ e=expression 
-    { 
-      let loc = 
-	match m_opt with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
-      in
-      register_identifier_as_variable (fst v) t;
-      mkres loc m_opt t v e
-    }
+| l=local_variable_declaration { mkres $startofs $endofs (RlocalVarDecl l)}
+| f=field_access { mkres $startofs $endofs (RfieldAccess f) }
+| n=name { mkres $startofs $endofs (Rname n) }
 ;
 
 %inline
@@ -2095,7 +2106,7 @@ field_access:
 method_invocation:
 | n=name a=arguments
     { 
-      set_attribute_A_M (env#resolve n) n;
+      set_name_attribute NAmethod n;
       register_qname_as_method n;
       if is_local_name n then begin
 	mkmi $startofs $endofs (MImethodName(n, a)) 
@@ -2103,6 +2114,7 @@ method_invocation:
       else begin
 	try
 	  let q = get_qualifier n in
+          env#set_attribute_A q;
 	  let id = rightmost_identifier n in
 	  if
             is_local_name q ||
@@ -2113,10 +2125,10 @@ method_invocation:
             set_name_attribute NAexpression q;
             register_qname_as_expression q;
             env#reclassify_identifier(leftmost_of_name q);
-	    mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, None, id, a))
+	    mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
           end
           else begin
-            if is_type_name q then begin
+            if is_type_name q || not env#has_super then begin
               try
                 let fqn = get_type_fqn q in
                 set_attribute_PT_T (mkresolved fqn) q;
@@ -2130,7 +2142,7 @@ method_invocation:
             end
             else begin
               env#reclassify_identifier(leftmost_of_name q);
-              mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, None, id, a))
+              mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
               (*raise (Unknown "")*)
             end
           end
@@ -2163,7 +2175,7 @@ method_invocation:
         set_name_attribute NAexpression q;
         register_qname_as_expression q;
         env#reclassify_identifier(leftmost_of_name q);
-	mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, Some t, id, a))
+	mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
       end
       else begin
         if is_type_name q then begin
@@ -2180,7 +2192,7 @@ method_invocation:
         end
         else begin
           env#reclassify_identifier(leftmost_of_name q);
-          mkmi $startofs $endofs (MIprimary(_name_to_prim q.n_loc q, Some t, id, a))
+          mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
         end
       end
     }
@@ -2217,7 +2229,11 @@ method_invocation:
 array_access:
 | n=name LBRACKET e=expression RBRACKET               
     { 
-      set_attribute_A_E (env#resolve n) n;
+      set_name_attribute NAexpression n;
+      if is_qualified n then begin
+        let q = get_qualifier n in
+        env#set_attribute_A q
+      end;
       register_qname_as_array n;
       if is_local_name n then
 	mkaa $startofs $endofs (AAname(n, e))
@@ -2234,7 +2250,11 @@ postfix_expression:
 | p=primary                 { mkexpr $startofs $endofs (Eprimary p) }
 | n=name                      
     { 
-      set_attribute_A_E (env#resolve n) n;
+      set_name_attribute NAexpression n;
+      if is_qualified n then begin
+        let q = get_qualifier n in
+        env#set_attribute_A ~force_defer:true q
+      end;
       register_qname_as_expression n;
       env#reclassify_identifier(leftmost_of_name n);
       name_to_expr $startofs $endofs n

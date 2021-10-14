@@ -36,7 +36,7 @@ class c = object (self)
   val mutable no_moves_flag                = false
   val mutable no_glue_flag                 = false
   val mutable simple_glue_flag             = false
-  val mutable no_movrel_flag               = false
+  val mutable no_movrels_flag              = false
   val mutable no_relabel_elim_flag         = false
   val mutable prematch_early_resolve_flag  = false
   val mutable prematch_flag                = true
@@ -46,7 +46,8 @@ class c = object (self)
   val mutable use_adjacency_matches_flag   = true
   val mutable no_unnamed_node_move_flag    = false
   val mutable conservative_flag            = true
-
+  val mutable ignore_move_of_unordered_flag = false
+  val mutable ignore_non_orig_relabel_flag = false
 (* *)
 
   val mutable dump_size_threshold = 16
@@ -110,9 +111,9 @@ class c = object (self)
   method set_group_relabels_flag = group_relabels_flag <- true
   method clear_group_relabels_flag = group_relabels_flag <- false
 
-  method no_movrel_flag = no_movrel_flag
-  method set_no_movrel_flag = no_movrel_flag <- true
-  method clear_no_movrel_flag = no_movrel_flag <- false
+  method no_movrels_flag = no_movrels_flag
+  method set_no_movrels_flag = no_movrels_flag <- true
+  method clear_no_movrels_flag = no_movrels_flag <- false
 
   method prematch_flag = prematch_flag
   method set_prematch_flag = prematch_flag <- true
@@ -161,6 +162,14 @@ class c = object (self)
   method conservative_flag = conservative_flag
   method set_conservative_flag = conservative_flag <- true
   method clear_conservative_flag = conservative_flag <- false
+
+  method ignore_move_of_unordered_flag = ignore_move_of_unordered_flag
+  method set_ignore_move_of_unordered_flag = ignore_move_of_unordered_flag <- true
+  method clear_ignore_move_of_unordered_flag = ignore_move_of_unordered_flag <- false
+
+  method ignore_non_orig_relabel_flag = ignore_non_orig_relabel_flag
+  method set_ignore_non_orig_relabel_flag = ignore_non_orig_relabel_flag <- true
+  method clear_ignore_non_orig_relabel_flag = ignore_non_orig_relabel_flag <- false
 
 (* *)
 

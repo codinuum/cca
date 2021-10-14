@@ -44,7 +44,7 @@ RUN set -x && \
     git clone https://github.com/openlink/virtuoso-opensource && \
     cd virtuoso-opensource && \
     ./autogen.sh && \
-    env CFLAGS='-O2 -m64' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
+    env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
     --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
     --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad \
     --enable-isparql-vad --enable-rdfmappers-vad && \

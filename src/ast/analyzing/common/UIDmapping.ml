@@ -634,10 +634,13 @@ class ['node_t] c cenv = object (self : 'self)
 
           DEBUG_MSG "unsettled map %a-%a removed" UID.ps uid1 UID.ps uid2
         end;
-        self#clear_crossing_or_incompatible_matches_count_cache
+        self#clear_crossing_or_incompatible_matches_count_cache;
+        true
       end
+      else
+        false
     with
-      Not_found -> ()
+      Not_found -> false
 
   method remove_settled uid1 uid2 =
     DEBUG_MSG "%a-%a" UID.ps uid1 UID.ps uid2;
@@ -705,7 +708,7 @@ class ['node_t] c cenv = object (self : 'self)
 
   method promote uid1 uid2 =
     if self#has_unsettled_mapping uid1 uid2 then begin
-      self#remove uid1 uid2;
+      let _ = self#remove uid1 uid2 in
       self#add_settled ~stable:false uid1 uid2
     end
     else
@@ -713,7 +716,7 @@ class ['node_t] c cenv = object (self : 'self)
 
   method demote uid1 uid2 =
     if self#has_settled_mapping uid1 uid2 then begin
-      self#remove uid1 uid2;
+      let _ = self#remove uid1 uid2 in
       self#add_unsettled uid1 uid2
     end
     else
@@ -909,7 +912,7 @@ class ['node_t] c cenv = object (self : 'self)
       let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
       _fprintf ch "[";
       let comma = dump_map ch map in
-      dump_map ~comma ch s_map;
+      let _ = dump_map ~comma ch s_map in
       _fprintf ch "]";
       ch#close
     with
@@ -997,7 +1000,7 @@ class ['node_t] c cenv = object (self : 'self)
       (fun uid1 uid2 ->
 	if is_ghost_uid tree1 uid1 || is_ghost_uid tree2 uid2 then begin
 	  DEBUG_MSG "cleanup_ghost: %a-%a" UID.ps uid1 UID.ps uid2;
-	  self#remove uid1 uid2
+	  ignore (self#remove uid1 uid2)
 	end
       )
 

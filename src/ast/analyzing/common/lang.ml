@@ -39,7 +39,7 @@ end
 
 class virtual tree_patcher = object (self)
   method virtual _patch :
-      ?fail_on_error:bool -> ?reverse:bool ->
+      ?fail_on_error:bool -> ?reverse:bool -> ?normalized_delta:bool ->
         S.file -> SB.xnode_t -> bool -> SB.OutChannel.t -> unit
 
   method virtual patch :
@@ -49,7 +49,7 @@ end
 class make_null_tree_patcher _ _ = object
   inherit tree_patcher
 
-  method _patch ?(fail_on_error=true) ?(reverse=false) file delta_doc_root reversible ch =
+  method _patch ?(fail_on_error=true) ?(reverse=false) ?(normalized_delta=false) file delta_doc_root reversible ch =
     failwith "Lang.null_tree_patcher: not implemented yet"
 
   method patch ?(fail_on_error=true) ?(reverse=false) file delta ch =

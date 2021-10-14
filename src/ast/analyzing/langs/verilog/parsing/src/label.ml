@@ -1365,7 +1365,7 @@ let to_simple_string = function
 
     | Var                                      -> "var"
 
-let to_tag lab =
+let to_tag ?(strip=false) lab =
   let name, attrs =
     match lab with
     | Dummy                                    -> "DUMMY", []

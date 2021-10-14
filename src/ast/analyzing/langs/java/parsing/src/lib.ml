@@ -76,6 +76,10 @@ class parser_c = object (self)
       ast#set_missed_regions env#missed_regions#get_offsets;
       ast#set_missed_LOC env#missed_regions#get_LOC;
 
+      ast#set_nintegers env#nintegers;
+      ast#set_nfloats env#nfloats;
+      ast#set_nstrings env#nstrings;
+
       let resolve_qname nattr_ref qname =
         DEBUG_MSG "resolving \"%s\"..." qname;
         let attrs = env#lookup_global_qname qname in
@@ -96,15 +100,19 @@ class parser_c = object (self)
 	| Ast.Nsimple(nattr_r, id) -> begin
             DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
             match !nattr_r with
-	    | Ast.NAtype _ -> env#finalize_name_attribute nattr_r
-            | Ast.NAambiguous _ -> env#finalize_name_attribute nattr_r
-            | Ast.NAunknown -> resolve_qname nattr_r qname
-            | _ -> ()
+	    | Ast.NAtype _      -> DEBUG_MSG "NAtype"; env#finalize_name_attribute nattr_r
+            | Ast.NAambiguous _ -> DEBUG_MSG "NAambiguous"; env#finalize_name_attribute nattr_r
+            | Ast.NAunknown     -> DEBUG_MSG "NAunknown"; resolve_qname nattr_r qname
+            | a -> DEBUG_MSG "%s" (Printer.name_attribute_to_string a)
         end
 	| Ast.Nqualified(nattr_r, q, id) -> begin
             DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
 	    resolve_name q;
-            begin
+            if Ast.get_name_attribute q = Ast.NAexpression then begin
+              nattr_r := Ast.NAexpression
+            end
+            else begin
+              DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
               match !nattr_r with
               | Ast.NAtype _ -> env#finalize_name_attribute nattr_r
               | Ast.NAambiguous _ -> begin

@@ -30,11 +30,32 @@ let del_fg = "#000000"
 let ins_bg = "#B2CDF9"
 let ins_fg = "#000000"
 
+exception Found
 
 let verbose_msg options x = Xprint.verbose options#verbose_flag x
 let node_type_to_string = XML.node_type_to_string
 let mids_to_string mids =
   String.concat ";" (List.map MID.to_string mids)
+
+let array_range_exists f a st ed =
+  try
+    for i = st to ed do
+      if f a.(i) then
+        raise Exit
+    done;
+    false
+  with
+    Exit -> true
+
+let array_range_forall f a st ed =
+  try
+    for i = st to ed do
+      if not (f a.(i)) then
+        raise Exit
+    done;
+    true
+  with
+    Exit -> false
 
 let get_range l = (* (min, max) *)
   match l with
@@ -219,6 +240,29 @@ let has_p_sibling pred nd =
       x != nd && pred x
     ) nd#initial_parent#initial_children
 
+let has_p_ancestor ?(limit_opt=None) pred nd =
+  let moveon =
+    match limit_opt with
+    | Some r -> fun x -> x != r
+    | _ -> fun x -> true
+  in
+  try
+    let cur = ref nd#initial_parent in
+    while true do
+      if moveon !cur then begin
+        if pred !cur then
+          raise Found
+        else
+          cur := (!cur)#initial_parent
+      end
+      else
+        raise Exit
+    done;
+    false
+  with
+  | Found -> true
+  | _ -> false
+
 let get_p_ancestor ?(moveon=fun _ -> true) pred nd =
   try
     let cur = ref nd#initial_parent in
@@ -287,7 +331,7 @@ let get_p_right_nodes ?(moveon=fun _ -> true) ?(reset=fun _ -> false) pred nd rt
     with
       Otree.Parent_not_found _ -> ()
   end;
-  List.flatten !l
+  List.flatten (List.rev !l)
 
 let scan_ancestors ?(moveon=fun x -> true) nd f =
   let visited = ref [nd] in
@@ -326,7 +370,6 @@ let get_ancestors nd =
     (Xlist.to_string (fun (n, pos) -> sprintf "(%a,%d)" nps n pos) ";" !l);
   !l
 
-exception Found
 let is_ancestor a n =
   try
     scan_ancestors n
@@ -413,6 +456,7 @@ let get_adjusted_path
     get_mem_pos
     pos_cache
     is_simple_ins
+    _is_excluded
     is_excluded
     is_stable
     root
@@ -468,6 +512,16 @@ let get_adjusted_path
                     is_excluded_map.(i) <- false
                   end
               end
+              | Some false -> begin
+                  let ci = children.(i) in
+                  if
+                    not b && _is_excluded ci && not (is_stable ci) &&
+                    stable_descendant_map.(i) = 0
+                  then begin
+                    DEBUG_MSG "is_excluded_map: %d -> true" i;
+                    is_excluded_map.(i) <- true
+                  end
+              end
               | _ -> ()
             ) is_excluded_map
         end;
@@ -477,6 +531,10 @@ let get_adjusted_path
         let pos' = ref 0 in
 
         let incr_count =
+          let incr_ x =
+            DEBUG_MSG "%d -> %d" !x (!x + 1);
+            incr x
+          in
           match get_iparent_opt with
           | Some f -> begin
               let d_list = ref [] in
@@ -487,17 +545,17 @@ let get_adjusted_path
                   | h::_ -> begin
                       if d != h then begin
                         d_list := d :: !d_list;
-                        incr count
+                        incr_ count
                       end
                   end
                   | [] -> begin
                       d_list := [d];
-                      incr count
+                      incr_ count
                   end
                 with
-                  Not_found -> incr count
+                  Not_found -> incr_ count
           end
-          | None -> fun _ -> incr count
+          | None -> fun _ -> incr_ count
         in
 
         begin
@@ -506,14 +564,17 @@ let get_adjusted_path
             Array.iteri
               (fun i c ->
                 let c_is_excluded = is_excluded_map.(i) in
-                let c_is_simple_ins = is_simple_ins_map.(i) in
-                let is_simple_ins_str =
-                  match c_is_simple_ins with
-                  | Some true -> ", is_simple_ins"
-                  | _ -> ""
-                in
-                DEBUG_MSG "  %d %a (is_excluded=%B, is_stable=%B%s)"
-                  i nps c c_is_excluded (is_stable c) is_simple_ins_str;
+                BEGIN_DEBUG
+                  let c_is_simple_ins = is_simple_ins_map.(i) in
+                  let is_simple_ins_str =
+                    match c_is_simple_ins with
+                    | Some true -> ", is_simple_ins"
+                    | Some false -> ", not_simple_ins"
+                    | _ -> ""
+                  in
+                  DEBUG_MSG "  %d %a (is_excluded=%B, is_stable=%B%s)"
+                    i nps c c_is_excluded (is_stable c) is_simple_ins_str;
+                END_DEBUG;
                 try
                   if lv > 0 then
                     raise Not_found;
@@ -549,12 +610,25 @@ let get_adjusted_path
                   with _ -> ()
                 end
                 else (*if not c_is_excluded then *)begin
-                  incr_count c;
+                  let incr_flag = ref true in
                   begin
                     try
-                      cur_grp_opt := Some (i, get_group c)
+                      let g = get_group c in
+                      begin
+                        match !cur_grp_opt with
+                        | Some (i', g') -> begin
+                            DEBUG_MSG "grp: (%d,%a) -> (%d,%a)" i' nps g' i nps g;
+                            if (i' = pos - 1 || i' < i) && g' == g then
+                              incr_flag := false
+                        end
+                        | _ -> ()
+                      end;
+                      DEBUG_MSG "grp: (%d,%a)" i nps g;
+                      cur_grp_opt := Some (i, g)
                     with _ -> ()
                   end;
+                  if !incr_flag then
+                    incr_count c;
                   if i < pos || i > pos then begin
                     let o = pos - i in
                     DEBUG_MSG "offset: %d -> %d" !offset o;

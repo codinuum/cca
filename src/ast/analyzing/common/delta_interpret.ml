@@ -159,7 +159,6 @@ let int_set_to_string s =
      (List.map string_of_int
         (List.fast_sort compare (Xset.to_list s))))
 
-
 class ['tree] interpreter (tree : 'tree) = object (self)
 
   val op_tbl = Hashtbl.create 0 (* uid -> mutation list *)
@@ -187,6 +186,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
   val key_tbl = Hashtbl.create 0 (* node -> key *)
 
+  val del_spec_tbl = Hashtbl.create 0 (* key -> (path * path list) *)
+  val sub_del_spec_tbl = Hashtbl.create 0 (* mid -> (path * path list) *)
+
   val deleted_subtree_tbl = Hashtbl.create 0 (* node -> key *)
 
   val deleted_mems_tbl = Hashtbl.create 0 (* node -> (node * node list) list *)
@@ -212,7 +214,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
   val staying_moves = Xset.create 0
 
-  val deferred_relabel_tbl = Hashtbl.create 0 (* node -> unit *)
+  val move_relabel_tbl = Hashtbl.create 0 (* node -> unit *)
+
+  val mutable deferred_relabel_list = [] (* unit -> unit *)
 
   val pos_trans_tbl = Hashtbl.create 0 (* node -> (pos, ofs) -> node *)
   val extra_pos_trans_tbl = Hashtbl.create 0 (* node -> (pos, ofs) -> node *)
@@ -230,6 +234,15 @@ class ['tree] interpreter (tree : 'tree) = object (self)
   val composition_tbl = Hashtbl.create 0
 
   (*val no_trans_mutations = Xset.create 0*)
+
+  method add_deferred_relabel f = deferred_relabel_list <- f::deferred_relabel_list
+
+  method add_move_relabel nd f = Hashtbl.add move_relabel_tbl nd f
+
+  method do_deferred_relabels() =
+    DEBUG_MSG "performing deferred relabels...";
+    List.iter (fun f -> f()) deferred_relabel_list;
+    DEBUG_MSG "done."
 
   method private get_path nd =
     DEBUG_MSG "nd=%a" nps nd;
@@ -305,6 +318,11 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | Some k -> Hashtbl.add upstream_dest_tbl nd k
     | None -> ()
 
+  method private unforce_upstream nd =
+    DEBUG_MSG "%a: unforced" nps nd;
+    Xset.remove forced_upstream_nodes nd;
+    Hashtbl.remove upstream_dest_tbl nd
+
   method private set_upstream_dest nd k =
     DEBUG_MSG "nd=%a k=%s" nps nd (key_to_string k);
     Hashtbl.add upstream_dest_tbl nd k
@@ -358,7 +376,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     with
       Not_found -> None
 
-  method private find_key_opt_of_deleted nd =
+  method find_key_opt_of_deleted nd =
     let key_opt = self#_find_key_opt_of_deleted nd in
     match key_opt with
     | Some (K_del _) -> None
@@ -378,6 +396,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       Not_found -> not (self#is_deleted nd)
 
   method private find_key nd = Hashtbl.find key_tbl nd
+
+  method private remove_key = Hashtbl.remove key_tbl
 
   method private find_key_opt nd =
     try
@@ -455,8 +475,12 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     Xset.mem extra_upstream_roots nd
 
   method private reg_root_of_upstream_staying_move nd =
-    DEBUG_MSG "upstream_staying_move: %s" nd#initial_to_string;
+    DEBUG_MSG "registering upstream_staying_move: %s" nd#initial_to_string;
     Xset.add roots_of_upstream_staying_move nd
+
+  method private unreg_root_of_upstream_staying_move nd =
+    DEBUG_MSG "unregistering upstream_staying_move: %s" nd#initial_to_string;
+    Xset.remove roots_of_upstream_staying_move nd
 
   method private is_root_of_upstream_staying_move nd =
     Xset.mem roots_of_upstream_staying_move nd
@@ -1101,6 +1125,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             in
             if !changed_flag then
               to_be_translated := (u, ms') :: !to_be_translated
+
           ) nds
       ) op_tbl;
     List.iter
@@ -1369,7 +1394,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     self#setup_pos_trans_tbl();
 
     let nodes = Xset.create 0 in
-
+    DEBUG_MSG "@";
     self#_mutate(* ~overwrite:false*) nodes;
 
     (*Printf.printf "*** begin0\n";
@@ -1502,29 +1527,15 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     let prune_tbl = Hashtbl.create 0 in
 
+    let excluded_insert_roots = Xset.create 0 in
+
     let extra_roots_tbl = Hashtbl.create 0 in
 
     let upstream_tbl = Hashtbl.create 0 in (* excluded node -> upstream count *)
 
     let orig_upward_mem_tbl = Hashtbl.create 0 in (* node -> node *)
 
-    let skip_deleted ?(limit=tree#root) nd =
-      DEBUG_MSG "limit=%a nd=%a" nps limit nps nd;
-      let rec skip nd =
-        if nd == limit then
-          failwith "skip_deleted";
-        let pnd = nd#initial_parent in
-        if pnd == limit then
-          failwith "skip_deleted"
-        else if self#is_deleted pnd then
-          skip pnd
-        else
-          pnd, nd#initial_pos
-      in
-      let (n, pos) as res = skip nd in
-      DEBUG_MSG "-> %a pos=%d" nps n pos;
-      res
-    in
+    let skip_deleted = self#skip_deleted in
 
     let rec skip_inserted_ (*visited*) count (nd, pos) =
       (*if List.memq nd visited then begin
@@ -1534,6 +1545,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       DEBUG_MSG "count=%d %a" count nps nd;
       try
         let k = self#find_key nd in
+        let _ = k in
         DEBUG_MSG "found: %s" (key_to_string k);
         skip_inserted_ (*(nd::visited)*) (count+1) (nd#initial_parent, nd#initial_pos)
       with
@@ -1698,8 +1710,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           check n
         end;
 
-        let k_opt = self#find_key_opt_of_deleted n in
-        DEBUG_MSG "n=%a k_opt(deleted)=%s" nps n (key_opt_to_string k_opt);
+        (*let k_opt = self#find_key_opt_of_deleted n in*)
+        DEBUG_MSG "n=%a k_opt(deleted)=%s" nps n (key_opt_to_string (self#find_key_opt_of_deleted n));
         (*let ik0_opt = self#find_key_opt n in
         DEBUG_MSG "ik0_opt=%s" (key_opt_to_string ik0_opt);*)
         DEBUG_MSG "key_opts=[%s]" (String.concat ";" (List.map key_opt_to_string !key_opts));
@@ -1788,6 +1800,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       else
         try
           let a, _ = skip_deleted ~limit:nd n0 in
+          let _ = a in
           DEBUG_MSG "found: %a" nps a;
           true
         with
@@ -1853,6 +1866,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       !count
     in (* get_upstream_count *)
 
+    let skey_to_string (il, nl) =
+      sprintf "%s,[%a]" (String.concat ":" (List.map string_of_int il)) nsps nl
+    in
     let get_skey cache rt n =
       try
         Hashtbl.find cache n
@@ -1877,11 +1893,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           done;
           let key = !posl, (get_p_descendants self#is_stable n) in
           Hashtbl.add cache n key;
+          DEBUG_MSG "%a -> %s" nps n (skey_to_string key);
           key
     in
-    (*let skey_to_string skey =
-      String.concat ":" (List.map string_of_int skey)
-    in*)
     let cmp_skey_sub sns0 sns1 =
       let sns1_ = Xlist.subtractq sns1 sns0 in
       if sns0 <> [] && sns1_ <> [] then
@@ -1994,7 +2008,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       | _ -> "?"
     in
     let idx_cache = Hashtbl.create 0 in
-    let get_idx n =
+    let get_idx ?(strict=false) n =
       DEBUG_MSG "n=%a" nps n;
       try
         let idx = Hashtbl.find idx_cache n in
@@ -2024,7 +2038,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                 | Some ((K_stid _ | K_mid _ | K_stable) as xk) -> begin
                     DEBUG_MSG "qupc=%d xk=%s" (self#get_quasi_upstream_count x) (key_to_string xk);
                     if self#get_quasi_upstream_count x = 0 then
-                      (*false*)xk = K_stable
+                      if strict then
+                        false
+                      else
+                        (*false*)xk = K_stable
                     else begin
                       match !ins_key_opt_stack with
                       | [] -> false
@@ -2335,7 +2352,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         in
 
         let other_excluded =
-          let mems = self#get_deleted_mems nd in
+          DEBUG_MSG "nd=%a" nps nd;
+          let mems = try self#get_deleted_mems nd with Not_found -> [] in
           let has_no_upstream_descendant n =
             let b =
               try
@@ -2559,12 +2577,14 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                   not (Xset.mem blacklist x) &&
                   try
                     let kx = self#find_key x in
+                    let _ = kx in
                     DEBUG_MSG "x=%a kx=%s" nps x (key_to_string kx);
                     true
                   with
                     Not_found ->
                       try
                         let kx = self#_find_key_of_deleted x in
+                        let _ = kx in
                         DEBUG_MSG "x=%a kx=%s" nps x (key_to_string kx);
                         match get_p_descendants self#is_stable x with
                         | [_] -> true
@@ -2884,7 +2904,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                       raise Not_found;
 
                     let k = self#find_parent_key e in
-                    DEBUG_MSG "parent key found: %s" (key_to_string k);
+                    DEBUG_MSG "parent key found: %a -> %s" nps e (key_to_string k);
                     match k with
                     | K_mid _ -> begin
                         let (pnd, pos, ofs) = self#find_parent e in
@@ -2945,7 +2965,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                 if has_upstream_descendant e && not (self#is_deleted e) then begin
                   try
                     let k = self#find_parent_key e in
-                    DEBUG_MSG "parent key found: %s" (key_to_string k);
+                    DEBUG_MSG "parent key found: %a -> %s" nps e (key_to_string k);
                     match k with
                     | K_mid _ -> begin
                         let (pnd, pos, ofs) = self#find_parent e in
@@ -3020,8 +3040,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       );
     iter_parent
       (fun nd v ->
-        let n, p, o = v in
-        DEBUG_MSG "parent_tbl: %a -> (%a, %d, %f)" nps nd nps n p o;
+        BEGIN_DEBUG
+          let n, p, o = v in
+          DEBUG_MSG "parent_tbl: %a -> (%a, %d, %f)" nps nd nps n p o;
+        END_DEBUG;
         self#add_to_parent_tbl nd v
       );
 
@@ -3071,7 +3093,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       DEBUG_MSG "pnd=%a pos=%d nd=%a" nps pnd pos nps nd;
       let nd0 = pnd#initial_children.(pos) in
       DEBUG_MSG "nd0=%a" nps nd0;
-        match get_idx nd0, get_idx nd with
+      let strict = self#is_stable pnd in
+        match get_idx ~strict nd0, get_idx ~strict nd with
         | (Some st0, Some ed0), (Some st, Some ed) when ed < st0 -> -1
         | (Some st0, Some ed0), (Some st, Some ed) when ed0 < st -> 1
         | (Some st0, Some ed0), (Some st, Some ed) when st = st0 && ed0 > ed -> -1
@@ -3688,6 +3711,14 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                   DEBUG_MSG "is_insert=%B, is_forced_upstream=%B"
                     (self#is_insert e) (self#is_forced_upstream e);
 
+                  let dest_key_opt =
+                    try
+                      let dk = self#get_upstream_dest e in
+                      DEBUG_MSG "dk=%s" (key_to_string dk);
+                      Some dk
+                    with _ -> None
+                  in
+
                   let stable_cond () =
                     let b =
                       has_parent_key_stable && self#is_stable e &&
@@ -3810,6 +3841,12 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               with
                                 _ -> ()
                             in*)
+                            let dest_key_cond =
+                              match dest_key_opt with
+                              | Some dest_key when dest_key = key -> true
+                              | _ -> false
+                            in
+                            DEBUG_MSG "dest_key_cond=%B" dest_key_cond;
                             let dir =
                               (*try
                                 get_dir_ext()
@@ -3818,6 +3855,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               let left_stable = ref [] in
                               let right_stable = ref [] in
                               let cur =
+                                if dest_key_cond then
+                                  ref e
+                                else
                                 let rec f key = function
                                   | [] -> e
                                   | (ins0, _)::rest0 -> begin
@@ -3840,6 +3880,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                 in
                                 ref (f key rest)
                               in
+                              DEBUG_MSG "cur=%a" nps !cur;
                               let ca = ref !cur#initial_parent#initial_children in
                               begin
                                 try
@@ -3865,7 +3906,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                           self#has_true_stable_descendant ~weak:true ci &&
                                           try
                                             let moveon x = not (self#is_true_stable_node x) in
-                                            let _ = get_p_ancestor ~moveon self#is_forced_upstream ci in
+                                            let _ =
+                                              get_p_ancestor ~moveon
+                                                (Hashtbl.mem upstream_dest_tbl)(*self#is_forced_upstream*) ci
+                                            in
                                             false
                                           with _ -> true)
                                         then begin
@@ -3886,11 +3930,15 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               end;
                               DEBUG_MSG "left_stable=[%a]" nsps !left_stable;
                               DEBUG_MSG "right_stable=[%a]" nsps !right_stable;
+                              let weak = ins#initial_parent != sn in
+                              DEBUG_MSG "weak=%B" weak;
                               let filt x =
+                                (not dest_key_cond || is_ancestor ins x) &&
                                 if self#is_stable x then
-                                  self#is_true_stable_node x
+                                  (try self#find_parent_key x <> key with _ -> true) &&
+                                  self#is_true_stable_node ~weak:dest_key_cond(*~weak:true*) x
                                 else
-                                  self#has_true_stable_descendant x
+                                  self#has_true_stable_descendant ~weak x
                               in
                               let rec check ?(top=true) left right =
                                 if left <> [] && right <> [] then
@@ -3938,7 +3986,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                             Xset.add not_excluded e;
                             add_upstream_root e;
 
-                            if has_del then begin
+                            if has_del && not dest_key_cond then begin
                               let gen_op_tbl_modifier_spec() =
                                 let ml =
                                   try
@@ -4025,7 +4073,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                       else begin
                         try
                           let k = self#find_parent_key e in
-                          DEBUG_MSG "k=%s" (key_to_string k);
+                          DEBUG_MSG "e=%a k=%s" nps e (key_to_string k);
                           let is_odd =
                             try
                               (self#find_key e) = k
@@ -4309,6 +4357,55 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
 
     begin
+      DEBUG_MSG "updating prune_tbl...";
+      let ktbl = Hashtbl.create 0 in
+      List.iter
+        (fun n ->
+          try
+            let k = self#find_key_of_deleted n in
+            tbl_add ktbl k n
+          with _ -> ()
+        ) (Hashtbl.fold (fun nd _ l -> nd :: l) prune_tbl []);
+      let is_stable_and_has_parent_key_stable x =
+        self#is_stable x && self#has_parent_key_stable x
+      in
+      Hashtbl.iter
+        (fun k ns ->
+          match ns with
+          | [] | [_] -> ()
+          | _ -> begin
+              let ns = sort_nodes_by_gindex ns in
+              DEBUG_MSG "%s -> [%a]" (key_to_string k) nsps ns;
+              let rec scan = function
+                | [] | [_] -> ()
+                | x::rest -> begin
+                    DEBUG_MSG "x=%a" nps x;
+                    List.iter
+                      (fun y ->
+                        DEBUG_MSG "y=%a" nps y;
+                        let ys = (try Hashtbl.find prune_tbl y with _ -> []) in
+                        if List.exists is_stable_and_has_parent_key_stable ys then
+                          List.iter
+                            (fun z ->
+                              if
+                                self#is_insert z && not (self#is_forced_upstream x) &&
+                                is_ancestor z x &&
+                                List.exists
+                                  is_stable_and_has_parent_key_stable
+                                  (try Hashtbl.find prune_tbl x with _ -> [])
+                              then begin
+                                DEBUG_MSG "prune_tbl: add %a -> %a" nps z nps x;
+                                Xset.add excluded_insert_roots z;
+                                tbl_add prune_tbl z x
+                              end
+                            ) ys
+                      ) (List.filter (fun w -> is_ancestor w x) rest);
+                    scan rest
+                end
+              in
+              scan ns
+          end
+        ) ktbl;
       let rec get_nds nd =
         List.flatten
           (List.map
@@ -4327,6 +4424,28 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                        [x]
                      else
                        List.flatten (List.map get_nds ds)*)
+               else if self#is_insert x then begin
+                 DEBUG_MSG "x=%a" nps x;
+                 Xset.add excluded_insert_roots x;
+                 try
+                   let filt x =
+                     self#has_parent_key_stable x ||
+                     self#is_forced_upstream x &&
+                     try self#get_upstream_dest x = K_stable with _ -> false
+                   in
+                   let nds = x::(List.filter filt (get_nds x)) in
+                   DEBUG_MSG "%a: nds=[%a]" nps x nsps nds;
+                   List.iter
+                     (fun x ->
+                       if self#is_forced_upstream x then
+                         self#unforce_upstream x;
+                       if self#is_root_of_upstream_staying_move x then
+                         self#unreg_root_of_upstream_staying_move x
+                     ) nds;
+                   nds
+                 with
+                   Not_found -> [x]
+               end
                else
                  [x]
              ) (Hashtbl.find prune_tbl nd)
@@ -4336,20 +4455,27 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       let got_nds = Xset.create 0 in
       List.iter
         (fun n ->
+          DEBUG_MSG "n=%a" nps n;
           let nds =
             List.filter (fun x -> not (Xset.mem got_nds x)) (get_nds n)
           in
+          DEBUG_MSG "nds=[%a]" nsps nds;
           List.iter (Xset.add got_nds) nds;
           Hashtbl.add tbl n nds
         ) (sort_nodes_by_gindex ~descending:true
              (Hashtbl.fold (fun nd _ l -> nd :: l) prune_tbl []));
 
+      DEBUG_MSG "excluded_insert_roots=[%a]" nsps (Xset.to_list excluded_insert_roots);
+
       Hashtbl.clear prune_tbl;
       Hashtbl.iter
         (fun n ns ->
-          DEBUG_MSG "%a -> [%a]" nps n nsps ns;
-          Hashtbl.add prune_tbl n ns
-        ) tbl
+          if not (Xset.mem excluded_insert_roots n) then begin
+            DEBUG_MSG "%a -> [%a]" nps n nsps ns;
+            Hashtbl.add prune_tbl n ns
+          end
+        ) tbl;
+      DEBUG_MSG "prune_tbl updated.";
     end;
 
     DEBUG_MSG "dels_with_root_shifts: [%s]"
@@ -4435,7 +4561,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
       ) not_upstream;
 
-    let find_anc_of_key ?(excluded_keys=[]) k nd =
+    let find_anc_of_key ?(excluded_keys=[]) ?(weak=false) k nd =
       DEBUG_MSG "k=%s nd=%a excluded_keys=[%s]"
         (key_to_string k) nps nd (String.concat ";" (List.map key_to_string excluded_keys));
       (*Printf.printf "k=%s nd=%s\n" (key_to_string k) nd#initial_to_string;*)
@@ -4448,13 +4574,13 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           (fun x ->
             DEBUG_MSG "x=%a" nps x;
             let ss =
-              if (*self#is_stable x*)self#is_true_stable_node x then
+              if (*self#is_stable x*)(self#is_true_stable_node ~weak) x then
                 if key_filt x#initial_parent then
                   [x]
                 else
                   []
               else
-                get_p_descendants ~moveon (*self#is_stable*)self#is_true_stable_node x
+                get_p_descendants ~moveon (*self#is_stable*)(self#is_true_stable_node ~weak) x
             in
             DEBUG_MSG "stable nodes: [%a]" nsps ss;
             List.iter (Xset.add stable_nodes) ss
@@ -4530,8 +4656,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           else
             find_anc n
         in
-        let p = anc#initial_children.(pos) in
-        DEBUG_MSG "%a is to be pruned: pos=%d of %a" nps p pos nps anc;
+        DEBUG_MSG "%a is to be pruned: pos=%d of %a" nps anc#initial_children.(pos) pos nps anc;
         self#_prune_cluster anc pos [];
         Xset.add not_excluded n;
 
@@ -4807,19 +4932,41 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                         end;
                         !l
                       in
-                      let anc, pos, stable_nd_list = find_anc_of_key ~excluded_keys pk nd in
+                      let anc, pos, stable_nd_list = find_anc_of_key ~excluded_keys ~weak:true pk n in
+                      DEBUG_MSG "stable_nd_list=[%a]" nsps stable_nd_list;
+                      let stable_nd_list =
+                        let n = anc#initial_children.(pos) in
+                        if self#is_insert n then begin
+                          DEBUG_MSG "%a is an insert" nps n;
+                          let l =
+                            List.filter
+                              (fun x ->
+                                not (self#has_parent_key x)
+                              ) stable_nd_list
+                          in
+                          DEBUG_MSG "stable_nd_list -> [%a]" nsps l;
+                          l
+                        end
+                        else
+                          stable_nd_list
+                      in
                       let min_gi, max_gi =
                         try
                           get_range (List.map (fun x -> x#gindex) stable_nd_list)
                         with
                           Invalid_argument _ -> GI.dummy, GI.dummy
                       in
-                      DEBUG_MSG "anc of nd=%a -> %a (pos=%d,min_gi=%a,max_gi=%a)"
-                        nps nd nps anc pos GI.ps min_gi GI.ps max_gi;
+                      DEBUG_MSG "anc of n=%a -> %a (pos=%d,min_gi=%a,max_gi=%a)"
+                        nps n nps anc pos GI.ps min_gi GI.ps max_gi;
 
                       let dir =
                         if max_gi > 0 && min_gi > 0 then begin
-                          let ss = get_p_descendants self#is_stable n in
+                          let ss =
+                            if self#is_stable n then
+                              [n]
+                            else
+                              get_p_descendants self#is_stable n
+                          in
                           DEBUG_MSG "n=%a ss=[%a]" nps n nsps ss;
                           if ss = [] then begin
                             let lss = get_p_left_nodes self#is_stable n nd in
@@ -5163,6 +5310,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         ) !op_tbl_modifier_specs;
       Xset.iter
         (fun sn ->
+          DEBUG_MSG "sn=%a" nps sn;
           let ml =
             try
               Hashtbl.find op_tbl sn#uid
@@ -5215,6 +5363,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     self#translate_positions();
     handle_ins_tbl ins_tbl_;
     Xset.clear nodes;
+    DEBUG_MSG "@";
     self#_mutate ~get_idx_opt:(Some get_idx) nodes;
 
     BEGIN_DEBUG
@@ -5225,18 +5374,77 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
 
   method reg_deleted (path : path_c) (paths : boundary) (key_opt : subtree_key option) =
+    let move_flag =
+      match key_opt with
+      | Some (K_mid _ as mk) -> begin
+          if List.for_all (fun x -> x#upstream = 0 && x#key_opt = None && x#sub_path_opt = None) paths then
+            Hashtbl.add del_spec_tbl mk (path, paths);
+          true
+      end
+      | Some (K_del _ as dk) -> begin
+          if List.for_all (fun x -> x#upstream = 0 && x#key_opt = None && x#sub_path_opt = None) paths then
+            Hashtbl.add del_spec_tbl dk (path, paths);
+          false
+      end
+      | _ -> false
+    in
     let nd = self#acc path#path in
+    DEBUG_MSG "path=%s paths=[%s]" path#to_string (String.concat "; " (List.map (fun x -> x#to_string) paths));
+    DEBUG_MSG "nd=%a key=%s move_flag=%B" nps nd (key_opt_to_string key_opt) move_flag;
     let nds =
       List.map (fun p -> self#acc (Path.concat path#path p#path)) paths
     in
     let mems = ref [] in
+    let sub_del_mem_tbl = Hashtbl.create 0 in
     scan_initial_cluster nd nds
       (fun n ->
         DEBUG_MSG "%a -> %s" nps n (key_opt_to_string key_opt);
 
+        if move_flag && n != nd && Hashtbl.mem deleted_mems_tbl n then begin
+          try
+            match Hashtbl.find deleted_subtree_tbl n with
+            | Some (K_del _ as dk) -> begin
+                DEBUG_MSG "%s may be contained in %s" (key_to_string dk) (key_opt_to_string key_opt);
+                let ms = List.map (fun (x, _) -> x) (Hashtbl.find deleted_mems_tbl n) in
+                Hashtbl.add sub_del_mem_tbl dk ms
+            end
+            | Some (K_mid _ as mk) -> begin
+                DEBUG_MSG "%s may be contained in %s" (key_to_string mk) (key_opt_to_string key_opt);
+                let ms = List.map (fun (x, _) -> x) (Hashtbl.find deleted_mems_tbl n) in
+                Hashtbl.add sub_del_mem_tbl mk ms
+            end
+            | _ -> ()
+          with
+            Not_found -> ()
+        end;
+
         Hashtbl.add deleted_subtree_tbl n key_opt;
         mems := n :: !mems
       );
+
+    if move_flag then begin
+      match key_opt with
+      | Some (K_mid mid) -> begin
+          let rt_path = path#path in
+          Hashtbl.iter
+            (fun dk ms ->
+              if List.for_all (fun x -> List.memq x !mems) ms then begin
+                DEBUG_MSG "%s is properly contained in %s" (key_to_string dk) (key_opt_to_string key_opt);
+                try
+                  let p, pl = Hashtbl.find del_spec_tbl dk in
+                  let p' = new path_c (get_rel_path rt_path p#path) in
+                  let sub_del_spec = (p', pl) in
+                  DEBUG_MSG "sub_del_spec: (%s,[%s])"
+                    p'#to_string (String.concat ";" (List.map (fun x -> x#to_string) pl));
+                  Hashtbl.add sub_del_spec_tbl mid sub_del_spec
+                with
+                  _ -> DEBUG_MSG "%s contains decorated paths" (key_to_string dk);
+              end
+            ) sub_del_mem_tbl
+      end
+      | _ -> ()
+    end;
+
     Hashtbl.add deleted_mems_tbl nd
       (List.map
          (fun n ->
@@ -5254,44 +5462,56 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         match p#key_opt with
         | Some k -> begin
             let n = self#acc (Path.concat path#path p#path) in
-            Hashtbl.add parent_key_tbl n k;
 
-            DEBUG_MSG "%a -> %s" nps n (key_to_string k);
+            let nl = ref [n] in
 
-            match p#sub_path_opt with
-            | Some sp -> begin
-                DEBUG_MSG "sp=%s" (Path.to_string sp);
-                try
-                  let subtree = self#find_subtree k in
-                  DEBUG_MSG "subtree:\n%s\n" subtree#to_string;
-                  let a = subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:None sp in
-                  DEBUG_MSG "a.partial=%B a.nelems=%d" a.Otree.partial a.Otree.nelems;
-                  let pnd, elem = a.Otree.node, a.Otree.elem in
-                  DEBUG_MSG "pnd=%a" nps pnd;
-                  if a.Otree.partial then begin
-                    let rp = Path.remove_head_n a.Otree.nelems sp in
-                    let resolver() = (* parent resolution is deferred *)
-                      DEBUG_MSG "n=%a, pnd=%a" nps n nps pnd;
-                      DEBUG_MSG "sp=%s, rp=%s" (Path.to_string sp) (Path.to_string rp);
-                      let a' =
-                        subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:(Some pnd) rp
-                      in
-                      let pnd', elem' = a'.Otree.node, a'.Otree.elem in
-                      let pos', ofs' = elem'.Elem.pos, elem'.Elem.ofs in
-                      DEBUG_MSG "(%a, %d, %f)" nps pnd' pos' ofs';
-                      (pnd', pos', ofs')
-                    in
-                    self#register_parent_resolver n resolver
-                  end
-                  else begin
-                    let pos, ofs = elem.Elem.pos, elem.Elem.ofs in
-                    DEBUG_MSG "parent_tbl: %a -> (%a, %d, %f)" nps n nps pnd pos ofs;
-                    self#add_to_parent_tbl n (pnd, pos, ofs)
-                  end
-                with
-                  Not_found -> ()
-            end
-            | None -> ()
+            if not (self#is_stable n) then begin
+              DEBUG_MSG "%a is not stable! adjusting..." nps n;
+              let moveon x = not (self#is_stable x) in
+              nl := get_p_descendants ~moveon self#is_stable n;
+              DEBUG_MSG "%a -> [%a]" nps n nsps !nl
+            end;
+
+            List.iter
+              (fun n ->
+                DEBUG_MSG "n=%a" nps n;
+                Hashtbl.add parent_key_tbl n k;
+                DEBUG_MSG "%a -> %s" nps n (key_to_string k);
+                match p#sub_path_opt with
+                | Some sp -> begin
+                    DEBUG_MSG "sp=%s" (Path.to_string sp);
+                    try
+                      let subtree = self#find_subtree k in
+                      DEBUG_MSG "subtree:\n%s\n" subtree#to_string;
+                      let a = subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:None sp in
+                      DEBUG_MSG "a.partial=%B a.nelems=%d" a.Otree.partial a.Otree.nelems;
+                      let pnd, elem = a.Otree.node, a.Otree.elem in
+                      DEBUG_MSG "pnd=%a" nps pnd;
+                      if a.Otree.partial then begin
+                        let rp = Path.remove_head_n a.Otree.nelems sp in
+                        let resolver() = (* parent resolution is deferred *)
+                          DEBUG_MSG "n=%a, pnd=%a" nps n nps pnd;
+                          DEBUG_MSG "sp=%s, rp=%s" (Path.to_string sp) (Path.to_string rp);
+                          let a' =
+                            subtree#initial_acc_parent ?ignore_ofs:(Some true) ?from:(Some pnd) rp
+                          in
+                          let pnd', elem' = a'.Otree.node, a'.Otree.elem in
+                          let pos', ofs' = elem'.Elem.pos, elem'.Elem.ofs in
+                          DEBUG_MSG "(%a, %d, %f)" nps pnd' pos' ofs';
+                          (pnd', pos', ofs')
+                        in
+                        self#register_parent_resolver n resolver
+                      end
+                      else begin
+                        let pos, ofs = elem.Elem.pos, elem.Elem.ofs in
+                        DEBUG_MSG "parent_tbl: %a -> (%a, %d, %f)" nps n nps pnd pos ofs;
+                        self#add_to_parent_tbl n (pnd, pos, ofs)
+                      end
+                    with
+                      Not_found -> ()
+                end
+                | None -> ()
+              ) !nl
         end
         | None -> ()
       ) paths
@@ -5374,11 +5594,11 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     DEBUG_MSG "nd=%s" nd#initial_to_string;
 
-    let find_deferred_relabel nd =
-      Hashtbl.find deferred_relabel_tbl nd
+    let find_move_relabel nd =
+      Hashtbl.find move_relabel_tbl nd
     in
     let subtree =
-      tree#make_subtree_copy ?find_hook:(Some find_deferred_relabel) nd
+      tree#make_subtree_copy ?find_hook:(Some find_move_relabel) nd
     in
 
     subtree#setup_apath;
@@ -5394,6 +5614,52 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     subtree#prune_initial_nodes excluded;
 
     DEBUG_MSG "copied subtree:\n%s" subtree#initial_to_string;
+
+    let finally_deleted_nodes = Xset.create 0 in
+    begin
+      try
+        let compo_tbl = Hashtbl.create 0 in
+        let specs = Hashtbl.find_all sub_del_spec_tbl mid in
+        let specs_ =
+          List.map
+            (fun (p, pl) ->
+              DEBUG_MSG "sub_del_spec found: (%s,[%s])"
+                p#to_string (String.concat ";" (List.map (fun x -> x#to_string) pl));
+              let rt = subtree#acc ?from:None p#path in
+              let pnd = rt#initial_parent in
+              let pos = rt#initial_pos in
+              let nds = List.map (fun x -> subtree#acc ?from:(Some rt) x#path) pl in
+              DEBUG_MSG "rt=%a pnd=%a pos=%d nds=[%a]" nps rt nps pnd pos nsps nds;
+              Hashtbl.add compo_tbl rt (pos, nds);
+              (rt, pnd, pos, nds)
+            ) specs
+        in
+        let specs_ =
+          List.fast_sort (fun (n0, _, _, _) (n1, _, _, _) -> compare n1#gindex n0#gindex) specs_
+        in
+        let used = Xset.create 0 in
+        let rec trace n =
+          try
+            let pos, nds = Hashtbl.find compo_tbl n in
+            Xset.add used n;
+            List.flatten (List.map trace nds)
+          with
+            Not_found -> [n]
+        in
+        List.iter
+          (fun (rt, pnd, pos, nds) ->
+            if not (Xset.mem used rt) then begin
+              let nds' = List.flatten (List.map trace nds) in
+              DEBUG_MSG "rt=%a pnd=%a pos=%d nds'=[%a]" nps rt nps pnd pos nsps nds';
+              if nds' <> [] then begin
+                scan_initial_cluster rt nds' (fun x -> Xset.add finally_deleted_nodes x#uid)
+              end;
+              self#prune_cluster pnd pos nds'
+            end
+          ) specs_
+      with
+        Not_found -> ()
+    end;
 
     Hashtbl.add copied_subtree_tbl mid subtree;
     Hashtbl.add copied_subtree_sz_tbl mid (subtree#size_of_initial_cluster (subtree#root, []));
@@ -5418,8 +5684,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     subtree#scan_whole_initial
       (fun n ->
         DEBUG_MSG "%a -> %s" nps n (key_to_string key);
-
-        Hashtbl.add key_tbl n key
+        if Xset.mem finally_deleted_nodes n#uid then
+          DEBUG_MSG "canceled since %a will be deleted at last" nps n
+        else
+          Hashtbl.add key_tbl n key
       );
 (*
     let keys = Xlist.filter_map (fun p -> p#key_opt) paths_to in
@@ -5463,12 +5731,46 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
   method has_stable_descendant = self#has_p_descendant self#is_stable
 
+  method private skip_deleted ?(limit=tree#root) nd =
+    DEBUG_MSG "limit=%a nd=%a" nps limit nps nd;
+    let rec skip nd =
+      if nd == limit then
+        failwith "skip_deleted";
+      let pnd = nd#initial_parent in
+      if pnd == limit then
+        failwith "skip_deleted"
+      else if self#is_deleted pnd then
+        skip pnd
+      else
+        pnd, nd#initial_pos
+    in
+    let (n, pos) as res = skip nd in
+    DEBUG_MSG "-> %a pos=%d" nps n pos;
+    res
+
+  method private _check_key key =
+    DEBUG_MSG "key=%s" (key_to_string key);
+    try
+      let sr = (self#find_subtree key)#root in
+      DEBUG_MSG "sr=%a" nps sr;
+      self#is_forced_upstream sr ||
+      match self#find_key_opt sr#initial_parent with
+      | Some k -> self#_check_key k
+      | None -> begin
+          let a, _ = self#skip_deleted sr#initial_parent in
+          DEBUG_MSG "a=%a" nps a;
+          self#is_stable a
+      end
+    with
+      _ -> false
+
   method is_true_stable_node ?(weak=false) n =
     self#is_stable n &&
     if weak then
       match self#find_parent_key_opt n with
       | None -> true
       | Some K_stable -> DEBUG_MSG "!!!!! n=%a" nps n; true
+      | Some (K_mid _ | K_stid _ as k) when self#_check_key k -> DEBUG_MSG "!!!!! n=%a" nps n; true
       | _ -> false
     else
       not (self#has_parent_key n)
@@ -5481,6 +5783,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         match self#find_parent_key_opt x with
         | None -> true
         | Some K_stable -> DEBUG_MSG "!!!!! x=%a" nps x; true
+        | Some (K_mid _ | K_stid _ as k) when self#_check_key k -> DEBUG_MSG "!!!!! x=%a" nps x; true
         | _ -> false
       else
         not (self#has_parent_key x))
@@ -5498,13 +5801,14 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         let excluded_nds =
           List.map (fun p -> self#acc (Path.concat nd#apath p#path)) paths_from
         in
+        let _is_excluded n = List.memq n excluded_nds in
         let is_excluded lv n = List.memq n excluded_nds in
 
         let pos_cache = Hashtbl.create 0 in
 
         let get_adj_path =
           let f _ = raise Not_found in
-          get_adjusted_path f f f pos_cache (fun _ -> None) is_excluded self#is_stable nd
+          get_adjusted_path f f f pos_cache (fun _ -> None) _is_excluded is_excluded self#is_stable nd
         in
 
         let tbl =
@@ -5597,12 +5901,35 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       Invalid_argument _ ->
         failwith "Delta.interpreter#acc: invalid tree path access"
 
+  method acc_from r p =
+    try
+      tree#initial_acc ?from:(Some r) p
+    with
+      Invalid_argument _ ->
+        failwith "Delta.interpreter#acc: invalid tree path access"
+
   method acc_parent ?(ignore_ofs=false) p =
     try
       tree#initial_acc_parent ?ignore_ofs:(Some ignore_ofs) ?from:None p
     with
       Invalid_argument _ ->
         failwith "Delta.interpreter#acc_parent: invalid tree path access"
+
+  method boundary_to_nds_from ?(junc=false) rt (paths : boundary) =
+    List.map
+      (fun bpath ->
+        let nd = self#acc_from rt bpath#path in
+        if bpath#upstream > 0 then begin
+          match bpath#key_opt with
+          | Some _ -> self#reg_quasi_upstream_node nd bpath#upstream
+          | _ -> self#reg_upstream_node nd bpath#upstream
+        end;
+        if junc && bpath#upstream < 2 then begin
+          DEBUG_MSG "junc_node: %a" nps nd;
+          Xset.add junc_nodes nd
+        end;
+        nd
+      ) paths
 
   method boundary_to_nds ?(junc=false) path (paths : boundary) =
     List.map
@@ -5925,78 +6252,76 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
 
   method interpret_change ?(mctl=Mfull) (path : path_c) paths (subtree : 'tree) =
+    let apply nd =
+      DEBUG_MSG "nd=%s" nd#initial_to_string;
+      let q = Queue.create() in
+      subtree#preorder_scan_all
+        (fun n ->
+	  DEBUG_MSG "     queueing %s" n#initial_to_string;
+	  Queue.add n#data q
+        );
+      (*let nds = self#boundary_to_nds path paths in*)
+      let nds =
+        try
+          self#boundary_to_nds_from nd paths
+        with
+          _ ->
+            DEBUG_MSG "boundary_to_nds_from: failed";
+            self#boundary_to_nds path paths
+      in
+      BEGIN_DEBUG
+        List.iteri (fun i n -> DEBUG_MSG "%d: %s" i n#initial_to_string) nds;
+      END_DEBUG;
+      scan_initial_cluster nd nds
+        (fun n ->
+	  DEBUG_MSG "     n -> %s" n#initial_to_string;
+	  try
+	    let d = Queue.take q in
+	    n#set_data d
+	  with
+            Queue.Empty ->
+              let ed_str =
+	        sprintf "Dchange(path:%s,%s,\n%s)"
+	          path#to_string (boundary_to_string paths)
+                  subtree#initial_to_string
+              in
+	      Xprint.error
+                "invalid delta: inconsistent change: %s" ed_str
+        )
+    in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd =
-          let q = Queue.create() in
-          subtree#preorder_scan_all
-            (fun n ->
-	      DEBUG_MSG "     queueing %s" n#initial_to_string;
-	      Queue.add n#data q
-            );
-          scan_initial_cluster nd (self#boundary_to_nds path paths)
-            (fun n ->
-	      DEBUG_MSG "     n -> %s" n#initial_to_string;
-	      try
-	        let d = Queue.take q in
-	        n#set_data d
-	      with
-                Queue.Empty ->
-                  let ed_str =
-	            sprintf "Dchange(path:%s,%s,\n%s)"
-	              path#to_string (boundary_to_string paths)
-                      subtree#initial_to_string
-                  in
-	          Xprint.error
-                    "invalid delta: inconsistent change: %s" ed_str
-            )
-        in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> self#add_move_relabel nd apply
+    | Mfull -> apply nd
 
   method interpret_change_attr ?(mctl=Mfull) (path : path_c) attr v =
+    let apply nd = nd#data#change_attr attr v in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd = nd#data#change_attr attr v in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> self#add_move_relabel nd apply
+    | Mfull -> apply nd
 
   method interpret_delete_attr ?(mctl=Mfull) (path : path_c) attr =
+    let apply nd = nd#data#delete_attr attr in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd = nd#data#delete_attr attr in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> self#add_move_relabel nd apply
+    | Mfull -> apply nd
 
   method interpret_insert_attr ?(mctl=Mfull) (path : path_c) attr v =
+    let apply nd = nd#data#insert_attr attr v in
+    let nd = self#acc path#path in
+    DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
-    | MdeleteOnly -> ()
-    | _ -> begin
-        let apply nd = nd#data#insert_attr attr v in
-        let nd = self#acc path#path in
-	DEBUG_MSG "nd=%s" nd#initial_to_string;
-        match mctl with
-        | MinsertOnly -> Hashtbl.add deferred_relabel_tbl nd apply
-        | Mfull -> apply nd
-        | _ -> assert false
-    end
+    | MdeleteOnly -> self#add_deferred_relabel (fun () -> apply nd)
+    | MinsertOnly -> self#add_move_relabel nd apply
+    | Mfull -> apply nd
+
 
 end (* of class Delta.interpreter *)

@@ -269,7 +269,7 @@ let _ =
                 Dirtree_base.To_be_skipped -> ()
             end
             else begin
-              try
+              (*try*)
                 let _ =
                   astcore#parse_file
                     ~show_info:true
@@ -278,11 +278,11 @@ let _ =
 	            file
                 in
                 ()
-              with
+              (*with
               | Lang_base.Parse_error(head, msg)  -> Xprint.warning ~head "%s" msg
               | Xfile.No_such_file_or_directory f -> Xprint.warning "\"%s\": no such file or directory" f
               | Failure msg                       -> Xprint.warning ~head:"[FAILURE]" "%s" msg
-              | Lang_base.Error msg               -> Xprint.warning "%s" msg
+              | Lang_base.Error msg               -> Xprint.warning "%s" msg*)
             end
 
           end

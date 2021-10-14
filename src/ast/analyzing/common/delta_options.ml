@@ -29,12 +29,6 @@ class c = object
   method set_minimize_delta_flag = minimize_delta_flag <- true
   method clear_minimize_delta_flag = minimize_delta_flag <- false
 
-  val mutable minimize_delta_more_flag = false
-
-  method minimize_delta_more_flag = minimize_delta_more_flag
-  method set_minimize_delta_more_flag = minimize_delta_more_flag <- true
-  method clear_minimize_delta_more_flag = minimize_delta_more_flag <- false
-
   val mutable dump_delta_flag = false
 
   method dump_delta_flag = dump_delta_flag

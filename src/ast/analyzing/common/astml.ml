@@ -143,14 +143,17 @@ let str_lit_to_path s =
     raise (Invalid_argument (sprintf "Astml.str_lit_to_path: \"%s\"" s))
 *)
 
-let to_elem_data lang_prefix to_tag ?(strip=false) loc lab =
+let to_elem_data lang_prefix to_tag ?(strip=false) ?(afilt=(fun _ -> true)) loc lab =
   let add_lang_prefix = add_prefix lang_prefix in
-  let name, _attrs = to_tag lab in
+  let name, _attrs = to_tag ?strip:(Some strip) lab in
   let attrs =
-    List.map
+    List.filter_map
       (fun (a, v) ->
-        (if strip then a else add_lang_prefix a),
-        v
+        if afilt a then begin
+          Some ((if strip then a else add_lang_prefix a), v)
+        end
+        else
+          None
       ) _attrs
   in
   let attrs =
@@ -187,15 +190,25 @@ module Attr = struct
     with
       Not_found -> None
 
-  let find_tid attrs =
+  let _find_tid attrs =
     let e = _find_attr attrs tid_attr_name in
     let a = find_attr attrs ar_tid_attr_name in
     (e, a)
 
-  let find_stmttid attrs =
+  let find_tid attrs =
+    try
+      _find_tid attrs
+    with _ -> ("", "")
+
+  let _find_stmttid attrs =
     let e = _find_attr attrs stmttid_attr_name in
     let a = find_attr attrs ar_stmttid_attr_name in
     (e, a)
+
+  let find_stmttid attrs =
+    try
+      _find_stmttid attrs
+    with _ -> ("", "")
 
 
   let find_bool attrs n = bool_of_string (find_attr attrs n)

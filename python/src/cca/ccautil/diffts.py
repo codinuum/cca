@@ -153,10 +153,10 @@ def do_cmd(cmd):
         stat = proc.system(cmd)
         if stat == 0:
             break
-        
+
         time.sleep(1)
         logger.info('retrying...({}) cmd="{}"'.format(i, cmd))
-        
+
 
 #####
 
@@ -396,7 +396,9 @@ def diffts(diff_cmd, file1, file2,
            fact_encoding=Enc.FDLCO,
            fact_hash_algo=HashAlgo.MD5,
            dumpccs=False,
-           dironly=False, check=False,
+           dironly=False,
+           check=False,
+           aggressive=False,
            keep_filtered_temp=False,
            local_cache_name='',
            dump_delta=False,
@@ -492,6 +494,8 @@ def diffts(diff_cmd, file1, file2,
             check_opt = ' -check'
 
         other_opts = ''
+        if aggressive:
+            other_opts += ' -aggressive'
         if keep_filtered_temp:
             logger.info('keep filtered temp files')
             other_opts += ' -keep-filtered-temp-file'

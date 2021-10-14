@@ -160,7 +160,7 @@ let rec conv_name ?(resolve=true) n =
   | Ast.Nqualified(attr, name, ident) ->
       let sep =
         match (Ast.get_name_attribute name), !attr with
-        | Ast.NAtype _, Ast.NAtype _ -> "$"
+        | Ast.NAtype _, Ast.NAtype _ when resolve -> "$"
         | _ -> "."
       in
       if resolve then
@@ -197,10 +197,38 @@ module Type = struct
   let common_classes =
     let s = Xset.create 0 in
     List.iter (Xset.add s)
-      ["java.lang.Object";"java.lang.String"];
+      ["java.lang.Object";
+       "java.lang.Void";
+       "java.lang.Character";
+       "java.lang.String";
+       "java.lang.Byte";
+       "java.lang.Short";
+       "java.lang.Integer";
+       "java.lang.Long";
+       "java.lang.Float";
+       "java.lang.Double";
+       "java.lang.reflect.Array";
+       "java.lang.reflect.Modifier";
+       "java.lang.reflect.Constructor";
+       "java.lang.reflect.Method";
+       "java.lang.reflect.Parameter";
+       "java.lang.reflect.Field";
+       "java.util.List";
+       "java.util.Collection";
+       "java.util.Iterator";
+       "java.util.Map";
+       "java.util.Set";
+       "java.util.ArrayList";
+       "java.util.HashMap";
+       "java.util.BitSet";
+       "java.util.HashSet";
+     ];
     s
 
   let is_common = function
+    | Byte | Short | Int | Long | Char
+    | Float | Double | Boolean | Void
+      -> true
     | ClassOrInterface n
     | Class n
       -> Xset.mem common_classes n
@@ -210,7 +238,8 @@ module Type = struct
     | ClassOrInterface name
     | Class name
     | Interface name -> name
-    | Array(ty, dims) -> begin
+    | Array(ty, _) -> get_name ty
+(*    | Array(ty, dims) -> begin
         let dims_str = Printer.dims_to_short_string dims in
         let ty_str =
           try
@@ -228,7 +257,7 @@ module Type = struct
             | _ -> ""
         in
         ty_str^dims_str
-    end
+    end*)
     | _ -> raise Not_found
 
   let get_dimensions = function
@@ -239,7 +268,7 @@ module Type = struct
     | ClassOrInterface _
     | Class _
     | Interface _ -> true
-    | Array(ty, _) -> true(*is_named ty*)
+    | Array(ty, _) -> (*true*)is_named ty
     | _ -> false
 
   let rec is_named_orig = function
@@ -416,16 +445,27 @@ module Literal = struct
     let s_ = Str.global_replace escaped_single_quote_pat "'" s in
     Str.global_replace tab_pat "\\t" s_
 
-  let of_literal ?(reduce=false) = function
-    | Ast.Lcharacter str when reduce -> (Character (reduce_char str))
-    | Ast.Lstring str when reduce -> (String (reduce_string str))
-    | Ast.Linteger str -> (Integer str)
-    | Ast.LfloatingPoint str -> (FloatingPoint str)
-    | Ast.Ltrue -> True
-    | Ast.Lfalse -> False
-    | Ast.Lcharacter str -> (Character str)
-    | Ast.Lstring str -> (String str)
-    | Ast.Lnull -> Null
+  let of_literal
+      ?(anonymize_int=false)
+      ?(anonymize_float=false)
+      ?(anonymize_string=false)
+      ?(reduce=false)
+      =
+    function
+      | Ast.Linteger str when anonymize_int -> (Integer "")
+      | Ast.LfloatingPoint str when anonymize_float -> (FloatingPoint "")
+      | Ast.Lstring str when anonymize_string -> (String "")
+
+      | Ast.Lcharacter str when reduce -> (Character (reduce_char str))
+      | Ast.Lstring str when reduce -> (String (reduce_string str))
+
+      | Ast.Linteger str -> (Integer str)
+      | Ast.LfloatingPoint str -> (FloatingPoint str)
+      | Ast.Ltrue -> True
+      | Ast.Lfalse -> False
+      | Ast.Lcharacter str -> (Character str)
+      | Ast.Lstring str -> (String str)
+      | Ast.Lnull -> Null
 
   let to_string lit =
     let str =
@@ -892,7 +932,7 @@ module Primary = struct
 
     | InstanceCreation of name
     | QualifiedInstanceCreation of name
-    | NameQualifiedInstanceCreation of name * name
+    | NameQualifiedInstanceCreation of name * identifier
 
     | FieldAccess of identifier
     | SuperFieldAccess of identifier
@@ -902,7 +942,7 @@ module Primary = struct
     | SimpleMethodInvocation of name
     | SuperMethodInvocation of name
     | ClassSuperMethodInvocation of name
-    | TypeMethodInvocation of name * name
+    | TypeMethodInvocation of name * identifier
 
     | ArrayAccess
     | ArrayCreationInit
@@ -937,13 +977,13 @@ module Primary = struct
     | AmbiguousMethodInvocation name
       -> name
 
-    | NameQualifiedInstanceCreation(name1, name2)
-    | TypeMethodInvocation(name1, name2)
-      -> String.concat "." [name1; name2]
+    | NameQualifiedInstanceCreation(name, ident)
+    | TypeMethodInvocation(name, ident)
+      -> String.concat "." [name; ident]
 
-    | NameMethodReference(name, identifier)
-    | TypeSuperMethodReference(name, identifier)
-      -> String.concat "::" [name; identifier]
+    | NameMethodReference(name, ident)
+    | TypeSuperMethodReference(name, ident)
+      -> String.concat "::" [name; ident]
 
     | Literal (Literal.String s) ->
         if s = "" then
@@ -1002,8 +1042,8 @@ module Primary = struct
       | QualifiedInstanceCreation name ->
           sprintf "QualifiedInstanceCreation(%s)" name
 
-      | NameQualifiedInstanceCreation(q, name) ->
-          sprintf "NameQualifiedInstanceCreation(%s,%s)" q name
+      | NameQualifiedInstanceCreation(name, ident) ->
+          sprintf "NameQualifiedInstanceCreation(%s,%s)" name ident
 
       | FieldAccess name           -> sprintf "FieldAccess(%s)" name
       | SuperFieldAccess name      -> sprintf "SuperFieldAccess(%s)" name
@@ -1044,7 +1084,7 @@ module Primary = struct
     | QualifiedThis name                     -> QualifiedThis ""
     | InstanceCreation name                  -> InstanceCreation ""
     | QualifiedInstanceCreation name         -> QualifiedInstanceCreation ""
-    | NameQualifiedInstanceCreation(q, name) -> NameQualifiedInstanceCreation("", "")
+    | NameQualifiedInstanceCreation(name, ident) -> NameQualifiedInstanceCreation("", "")
     | FieldAccess name                       -> FieldAccess ""
     | SuperFieldAccess name                  -> SuperFieldAccess ""
     | ClassSuperFieldAccess name             -> ClassSuperFieldAccess ""
@@ -1071,6 +1111,13 @@ module Primary = struct
     | AmbiguousName _
       -> Name ""
 
+    (*| PrimaryMethodInvocation _
+    | SimpleMethodInvocation _
+    | SuperMethodInvocation _
+    | ClassSuperMethodInvocation _
+    | TypeMethodInvocation _
+      -> SimpleMethodInvocation ""*)
+
     (*| Literal lit -> Literal (Literal.anonymize2 lit)*)
 
     | lab -> anonymize ~more:true lab
@@ -1084,7 +1131,7 @@ module Primary = struct
     | QualifiedThis name                     -> name^".this"
     | InstanceCreation _                     -> "new"
     | QualifiedInstanceCreation name         -> name^".new"
-    | NameQualifiedInstanceCreation(q, name) -> q^"."^name^".new"
+    | NameQualifiedInstanceCreation(name, ident) -> name^".new "^ident
     | FieldAccess name                       -> sprintf "<field_acc:%s>" name
     | SuperFieldAccess name                  -> "super."^name
     | ClassSuperFieldAccess name             -> "class.super."^name
@@ -1115,7 +1162,7 @@ module Primary = struct
     | QualifiedThis name -> combo 5 [name]
     | InstanceCreation n                     -> combo 6 [n]
     | QualifiedInstanceCreation name         -> combo 7 [name]
-    | NameQualifiedInstanceCreation(q, name) -> combo 8 [q; name]
+    | NameQualifiedInstanceCreation(name, ident) -> combo 8 [name; ident]
 
     | FieldAccess name           -> catstr [mkstr 9; name]
     | SuperFieldAccess name      -> catstr [mkstr 10; name]
@@ -1153,7 +1200,7 @@ module Primary = struct
 (*      | QualifiedNew name                     -> "qualified_new", ["name",name] *)
       | InstanceCreation n                     -> "StandardInstanceCreation", ["name",xmlenc n]
       | QualifiedInstanceCreation name         -> "QualifiedInstanceCreation", ["name",xmlenc name]
-      | NameQualifiedInstanceCreation(q, name) -> "NameQualifiedInstanceCreation", (if q = "" then [] else ["qualifier",q]) @ ["name",xmlenc name]
+      | NameQualifiedInstanceCreation(name, ident) -> "NameQualifiedInstanceCreation", (if name = "" then [] else ["name",xmlenc name]) @ [ident_attr_name,xmlenc ident]
       | FieldAccess name                       -> "FieldAccess", ["name",xmlenc name]
       | SuperFieldAccess name                  -> "SuperFieldAccess", ["name",xmlenc name]
       | ClassSuperFieldAccess name             -> "ClassSuperFieldAccess", ["name",xmlenc name]
@@ -1177,7 +1224,13 @@ module Primary = struct
     name, attrs
 
 
-  let of_literal ?(reduce=false) lit = Literal (Literal.of_literal ~reduce lit)
+  let of_literal
+      ?(anonymize_int=false)
+      ?(anonymize_float=false)
+      ?(anonymize_string=false)
+      ?(reduce=false)
+      lit =
+    Literal (Literal.of_literal ~anonymize_int ~anonymize_float ~anonymize_string ~reduce lit)
 
   let sep_pat = Str.regexp "[.$]"
   let last_of_lname lname =
@@ -1311,7 +1364,7 @@ module Annotation = struct
     | _ -> true
 
   let move_disallowed = function
-    | Marker "Target"
+    (*| Marker "Target"
     | Marker "Retention"
     | Marker "Inherited"
     | Marker "Override"
@@ -1319,7 +1372,8 @@ module Annotation = struct
     | Marker "Deprecated"
     | Marker "SafeVarargs"
     | Marker "Repeatable"
-    | Marker "FunctionalInterface"
+    | Marker "FunctionalInterface"*)
+    | Marker _ | Normal _
       -> true
     | _ -> false
 
@@ -1332,8 +1386,9 @@ module Annotation = struct
     in
     "Annotation." ^ str
 
-  let anonymize = function
+  let anonymize ?(more=false) = function
     | Normal name        -> Normal ""
+    | Marker name when more -> Normal ""
     | Marker name        -> Marker ""
     | SingleElement name -> SingleElement ""
 
@@ -1433,12 +1488,13 @@ module Statement = struct
     "Statement." ^ str
 
   let anonymize ?(more=false) = function
-    | Break ident_opt     -> Break None
-    | Continue ident_opt  -> Continue None
-    | Labeled ident       -> Labeled ""
-    | Expression(se, tid) -> Expression(Expression.anonymize ~more se, anonymize_tid ~more tid)
-    | If tid              -> If null_tid(*(anonymize_tid ~more tid)*)
-    | stmt                -> stmt
+    (*| ForEnhanced when more -> For*)
+    | Break ident_opt       -> Break None
+    | Continue ident_opt    -> Continue None
+    | Labeled ident         -> Labeled ""
+    | Expression(se, tid)   -> Expression(Expression.anonymize ~more se, anonymize_tid ~more tid)
+    | If tid                -> If null_tid(*(anonymize_tid ~more tid)*)
+    | stmt                  -> stmt
 
   let to_simple_string = function
     | Empty        -> "<empty>"
@@ -1792,7 +1848,7 @@ type t = (* Label *)
   | InferredFormalParameter of name
 
   | ResourceSpec
-  | Resource of name * dims
+  (*| Resource of name * dims*)
 
   | CatchParameter of name * dims
 
@@ -1803,6 +1859,8 @@ type t = (* Label *)
   | HugeArray of int * string
 
   | EmptyDeclaration
+
+  | ForHeader of name * dims
 
   | Aspect of name
   | Pointcut of name
@@ -1908,7 +1966,7 @@ let rec to_string = function
   | InferredFormalParameter name            -> sprintf "InferredFormalParameter(%s)" name
 
   | ResourceSpec                            -> sprintf "ResourceSpec"
-  | Resource(name, dims)                    -> sprintf "Resource(%s,%d)" name dims
+  (*| Resource(name, dims)                    -> sprintf "Resource(%s,%d)" name dims*)
 
   | CatchParameter(name, dims)              -> sprintf "CatchParameter(%s,%d)" name dims
 
@@ -1917,6 +1975,8 @@ let rec to_string = function
   | HugeArray(sz, c)                        -> sprintf "HugeArray(%d):%s\n" sz c
 
   | EmptyDeclaration                        -> "EmptyDeclaration"
+
+  | ForHeader(name, dims)                   -> sprintf "ForHeader(%s,%d)" name dims
 
   | Aspect name                   -> sprintf "Aspect(%s)" name
   | Pointcut name                 -> sprintf "Pointcut(%s)" name
@@ -1938,19 +1998,36 @@ let rec to_string = function
 
 
 let anonymize ?(more=false) = function
+  | Constructor(name, msig) when more     -> Constructor("", "")
+  | ConstructorBody(name, msig) when more -> ConstructorBody("", "")
+  | Method(name, msig) when more          -> Method("", "")
+  | MethodBody(name, msig) when more      -> MethodBody("", "")
+
   | Type ty                        -> Type (Type.anonymize ty)
   | Primary p                      -> Primary (Primary.anonymize ~more p)
   | Expression (Primary p)         -> Primary (Primary.anonymize ~more p)
 (*  | Statement (Statement.Expression (Expression.Primary p, _)) -> Primary (Primary.anonymize ~more p)*)
   | Expression e                   -> Expression (Expression.anonymize ~more e)
   | Statement s                    -> Statement (Statement.anonymize ~more s)
-  | Annotation a                   -> Annotation (Annotation.anonymize a)
+  | Annotation a                   -> Annotation (Annotation.anonymize ~more a)
   (*| Modifier m                     -> Modifier (Modifier.anonymize m)*)
   | NameInvocation _               -> NameInvocation ""
   | ElementValuePair _             -> ElementValuePair ""
-  | Constructor(name, msig)        -> if true(*more*) then Constructor("", "") else Constructor("", msig)
-  | ConstructorBody(name, msig)    -> if more then ConstructorBody("", "") else ConstructorBody("", msig)
-  | LocalVariableDeclaration(b, vdids) -> LocalVariableDeclaration(b, [])
+
+  (*| Constructor(name, msig)        -> Constructor(name, "")
+  | ConstructorBody(name, msig)    -> ConstructorBody(name, "")
+  | Method(name, msig)             -> Method(name, "")
+  | MethodBody(name, msig)         -> MethodBody(name, "")*)
+  (*| Constructor(name, msig)        -> Constructor("", msig)*)
+  | ConstructorBody(name, msig)    -> ConstructorBody("", msig)
+  (*| Method(name, msig)             -> Method("", msig)*)
+  | MethodBody(name, msig)         -> MethodBody("", msig)
+  | Constructor(name, msig)        -> Constructor("", "")
+  (*| ConstructorBody(name, msig)    -> ConstructorBody("", "")*)
+  | Method(name, msig)             -> Method("", "")
+  (*| MethodBody(name, msig)         -> MethodBody("", "")*)
+
+  | LocalVariableDeclaration(b, vdids)      -> LocalVariableDeclaration(b, [])
   | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, true)
   | NamedArguments _               -> NamedArguments ""
   | TypeArguments(nth, name)       -> TypeArguments(1, "")
@@ -1960,10 +2037,8 @@ let anonymize ?(more=false) = function
   | TypeParameters _               -> TypeParameters ""
   | Modifiers _                    -> Modifiers Kany
   | FieldDeclaration _             -> FieldDeclaration []
-  | Method(name, msig)             -> if true(*more*) then Method("", "") else Method("", msig)
   | Qualifier _                    -> Qualifier ""
   | Throws name                    -> Throws ""
-  | MethodBody(name, msig)         -> if more then MethodBody("", "") else MethodBody("", msig)
   | Specifier _                    -> Specifier Kany
   | Class _                        -> Class ""
   | Enum _                         -> Enum ""
@@ -1985,8 +2060,9 @@ let anonymize ?(more=false) = function
   | ForCond tid                    -> ForCond (anonymize_tid ~more tid)
   | ForUpdate tid                  -> ForUpdate (anonymize_tid ~more tid)
   | InferredFormalParameter _      -> InferredFormalParameter ""
-  | Resource(name, dims)           -> Resource("", 0)
+  (*| Resource(name, dims)           -> Resource("", 0)*)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
+  | ForHeader(name, dims)          -> ForHeader("", 0)
   | HugeArray _                    -> HugeArray(0, "")
   | Block tid                      -> Block null_tid
 
@@ -2008,14 +2084,15 @@ let anonymize2 = function
   | InterfaceBody _ | EnumBody _                               -> ClassBody ""
   | Constructor _ | ConstructorBody _ | Method _ | MethodBody _ as lab -> anonymize ~more:false lab
   | Modifier m -> Modifier (Modifier.anonymize m)
+  | Statement Statement.ForEnhanced -> Statement Statement.For
   | lab -> anonymize ~more:true lab
 
 let anonymize3 = function
   | Method _ as lab             -> anonymize ~more:true lab
-  | MethodBody _                -> Block null_tid
+  | MethodBody _ | ConstructorBody _ -> Block null_tid
   (*| Type _                      -> Type (Type.Void)*)
   (*| Primary (Primary.Literal _) -> Primary (Primary.Literal Literal.Null)*)
-
+  (*| Statement Statement.ForEnhanced -> Statement Statement.For*)
   | lab -> anonymize ~more:true lab
 
 
@@ -2099,12 +2176,13 @@ let rec to_simple_string = function
   | InferredFormalParameters     -> "<inferred_formal_parameters>"
   | InferredFormalParameter name -> name
   | ResourceSpec                -> "<resource_spec>"
-  | Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d" dims)
+  (*| Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d]" dims)*)
   | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | AnnotDim                    -> "[]"
   | Error s                     -> s
   | HugeArray(sz, c)            -> c
   | EmptyDeclaration            -> ";"
+  | ForHeader(name, dims)         -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | Aspect name                   -> "aspect "^name
   | Pointcut name                 -> "pointcut "^name
   | DeclareParents                -> "declare parents"
@@ -2204,13 +2282,14 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | SwitchBlock                             -> mkstr 80
   | ConstructorBody(name, msig)             -> combo 81 [name;msig]
   | ResourceSpec                            -> mkstr 82
-  | Resource(name, dims)                    -> combo 83 [name; string_of_int dims]
-  | CatchParameter(name, dims)              -> combo 84 [name; (string_of_int dims)]
+  (*| Resource(name, dims)                    -> combo 83 [name; string_of_int dims]*)
+  | CatchParameter(name, dims)              -> combo 84 [name; string_of_int dims]
   | AnnotDim                                -> mkstr 85
   | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 86 [string_of_int sz; h]
   | EmptyDeclaration                        -> mkstr 87
+  | ForHeader(name, dims)                   -> combo 105 [name; string_of_int dims]
   | Aspect name                   -> combo 88 [name]
   | Pointcut name                 -> combo 89 [name]
   | DeclareParents                -> mkstr 90
@@ -2229,8 +2308,9 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | ClassnamePatternName name     -> combo 103 [name]
   | ClassnamePatternNamePlus name -> combo 104 [name]
 
+let sig_attr_name = "___signature"
 
-let to_tag l =
+let to_tag ?(strip=false) l =
   let name, attrs =
     match l with
     | Type ty                     -> Type.to_tag ty
@@ -2256,12 +2336,14 @@ let to_tag l =
     | ElementValuePair name       -> "ElementValuePair", ["name",xmlenc name]
 
 (* class body declaration *)
-    | Constructor(name, msig)     -> "ConstructorDeclaration", ["name",xmlenc name;"signature",xmlenc msig]
-    | ConstructorBody(name, msig) -> "ConstructorBody", ["name",xmlenc name;"signature",xmlenc msig]
+    | Constructor(name, msig)     -> "ConstructorDeclaration", ["name",xmlenc name;sig_attr_name,xmlenc msig]
+    | ConstructorBody _ when strip -> "ConstructorBody", []
+    | ConstructorBody(name, msig) -> "ConstructorBody", ["name",xmlenc name;sig_attr_name,xmlenc msig]
 
     | StaticInitializer        -> "StaticInitializer", []
     | InstanceInitializer      -> "InstanceInitializer", []
 
+    | Block _ when strip          -> "Block", []
     | Block tid                   -> "Block", mktidattr tid
     | VariableDeclarator(name, d, islocal) ->
         "VariableDeclarator", ["name",xmlenc name;
@@ -2270,6 +2352,9 @@ let to_tag l =
                               ]
     | CatchClause tid             -> "CatchClause", mktidattr tid
     | Finally                     -> "Finally", []
+    | ForInit _ when strip        -> "ForInit", []
+    | ForCond _ when strip        -> "ForCond", []
+    | ForUpdate _ when strip      -> "ForUpdate", []
     | ForInit tid                 -> "ForInit", mktidattr tid
     | ForCond tid                 -> "ForCond", mktidattr tid
     | ForUpdate tid               -> "ForUpdate", mktidattr tid
@@ -2280,6 +2365,7 @@ let to_tag l =
     | Arguments                   -> "Arguments", []
     | Annotations                 -> "Annotations", []
 
+    | NamedArguments _ when strip -> "Arguments", []
     | NamedArguments name         -> "Arguments", ["name",xmlenc name]
 
     | TypeArguments(nth, name)    -> "TypeArguments", ["nth",string_of_int nth;"name",xmlenc name]
@@ -2291,13 +2377,15 @@ let to_tag l =
     | TypeParameter name          -> "TypeParameter", ["name",xmlenc name]
     | TypeParameters name         -> "TypeParameters", ["name",xmlenc name]
     | ArrayInitializer            -> "ArrayInitializer", []
+    | Modifiers _ when strip      -> "Modifiers", []
     | Modifiers k                 -> "Modifiers", kind_to_attrs k
     | FieldDeclaration vdids      -> "FieldDeclaration", [vdids_attr_name,vdids_to_string vdids]
-    | Method(name, msig)          -> "MethodDeclaration", ["name",xmlenc name;"signature",xmlenc msig]
+    | Method(name, msig)          -> "MethodDeclaration", ["name",xmlenc name;sig_attr_name,xmlenc msig]
+    | MethodBody _ when strip     -> "MethodBody", []
+    | MethodBody(name, msig)      -> "MethodBody", ["name",xmlenc name;sig_attr_name,xmlenc msig]
     | Super                       -> "Super", []
     | Qualifier q                 -> "Qualifier", ["name",xmlenc q]
     | Throws name                 -> "Throws", ["name",xmlenc name]
-    | MethodBody(name, msig)      -> "MethodBody", ["name",xmlenc name;"signature",xmlenc msig]
     | Specifier k                 -> (kind_to_anonymous_string k)^"Specifier", kind_to_name_attrs k
     | Class name                  -> "ClassDeclaration", ["name",xmlenc name]
     | Enum name                   -> "EnumDeclaration", ["name",xmlenc name]
@@ -2338,8 +2426,8 @@ let to_tag l =
           "LocalVariableDeclaration"), [vdids_attr_name,vdids_to_string vdids]
 
     | ResourceSpec                -> "ResourceSpec", []
-    | Resource(name, dims)        -> "Resource", ["name",xmlenc name;
-                                                  dims_attr_name,string_of_int dims]
+    (*| Resource(name, dims)        -> "Resource", ["name",xmlenc name;
+                                                  dims_attr_name,string_of_int dims]*)
 
     | CatchParameter(name, dims)  -> "CatchParameter", ["name",xmlenc name;
                                                         dims_attr_name,string_of_int dims]
@@ -2351,6 +2439,9 @@ let to_tag l =
     | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code",xmlenc c]
 
     | EmptyDeclaration -> "EmptyDeclaration", []
+
+    | ForHeader(name, dims) -> "ForHeader", ["name",xmlenc name;
+                                             dims_attr_name,string_of_int dims]
 
     | Aspect name                   -> "Aspect", ["name",xmlenc name]
     | Pointcut name                 -> "Pointcut", ["name",xmlenc name]
@@ -2456,11 +2547,12 @@ let to_char lab =
     | SwitchBlock -> 84
     | ConstructorBody _ -> 85
     | ResourceSpec -> 86
-    | Resource _ -> 87
+    (*| Resource _ -> 87*)
     | CatchParameter(name, dims) -> 88
     | AnnotDim                   -> 89
     | HugeArray _ -> 90
     | EmptyDeclaration -> 91
+    | ForHeader _ -> 109
     | Aspect name                   -> 92
     | Pointcut name                 -> 93
     | DeclareParents                -> 94
@@ -2489,7 +2581,13 @@ let of_javatype ?(resolve=true) ty = (Type (Type.of_javatype ~resolve ty))
 
 let of_classname ?(resolve=true) name = Type (Type.make_class ~resolve name)
 
-let of_literal ?(reduce=false) lit = Primary (Primary.of_literal ~reduce lit)
+let of_literal
+    ?(anonymize_int=false)
+    ?(anonymize_float=false)
+    ?(anonymize_string=false)
+    ?(reduce=false)
+    lit =
+  Primary (Primary.of_literal ~anonymize_int ~anonymize_float ~anonymize_string ~reduce lit)
 
 let of_binary_operator bo =
   Expression (Expression.of_binary_operator bo)
@@ -2670,6 +2768,9 @@ let relabel_allowed (lab1, lab2) =
     match lab1, lab2 with
     | Statement stmt1, Statement stmt2 -> Statement.relabel_allowed(stmt1, stmt2)
 
+    | Statement (Statement.Expression(Expression.Primary _, _)), Primary _
+    | Primary _, Statement (Statement.Expression(Expression.Primary _, _)) -> true
+
     | Statement (Statement.Expression(e, _)), Primary p
     | Primary p, Statement (Statement.Expression(e, _)) -> begin
         match p with
@@ -2688,6 +2789,9 @@ let relabel_allowed (lab1, lab2) =
         | _ -> false
     end
 
+    | Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
+    | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
+
     | Statement (Statement.Expression _), lab
     | lab, Statement (Statement.Expression _) -> is_statement_expression lab
 
@@ -2702,6 +2806,9 @@ let relabel_allowed (lab1, lab2) =
     | Primary (Primary.Name _), Primary (Primary.FieldAccess _)
     | Primary (Primary.FieldAccess _), Primary (Primary.Name _)
 
+    | Type (Type.Class _), Primary (Primary.FieldAccess _)
+    | Primary (Primary.FieldAccess _), Type (Type.Class _)
+
     | Primary _, Expression _
     | Expression _, Primary _
 
@@ -2715,7 +2822,11 @@ let relabel_allowed (lab1, lab2) =
     | Method _, Constructor _ | Constructor _, Method _
 
     | MethodBody _, MethodBody _
+    | MethodBody _, ConstructorBody _ | ConstructorBody _, MethodBody _
     | ConstructorBody _, ConstructorBody _
+
+    | MethodBody _, Block _ | Block _, MethodBody _
+    | ConstructorBody _, Block _ | Block _, ConstructorBody _
 
     | Type _, Type _
     | Primary _, Primary _
@@ -2729,10 +2840,14 @@ let relabel_allowed (lab1, lab2) =
 
     | CatchClause _, CatchClause _
 
-    | LocalVariableDeclaration _, Resource _ | Resource _, LocalVariableDeclaration _
+    (*| LocalVariableDeclaration _, Resource _ | Resource _, LocalVariableDeclaration _*)
 
 (*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
+
+    | Parameter _, CatchParameter _ | CatchParameter _, Parameter _
+    | Parameter _, ForHeader _ | ForHeader _, Parameter _
+    | ForHeader _, CatchParameter _ | CatchParameter _, ForHeader _
 
       -> true
 
@@ -2821,8 +2936,9 @@ let is_named = function
   | FieldDeclarations _
   | LocalVariableDeclaration _
   | InferredFormalParameter _
-  | Resource _
+  (*| Resource _*)
   | CatchParameter _
+  | ForHeader _
     -> true
 
   | ClassnamePatternName _
@@ -2858,8 +2974,9 @@ let is_named_orig = function
   | IDsingleStatic _
   | IDstaticOnDemand _
   | InferredFormalParameter _
-  | Resource _
+  (*| Resource _*)
   | CatchParameter _
+  | ForHeader _
   | HugeArray _
     -> true
 
@@ -2892,12 +3009,17 @@ let is_partition = function
 let is_boundary = function
   | Class _
   | Interface _
+  | FieldDeclaration _
   | Method _
   | Constructor _
+  | InstanceInitializer
+  | StaticInitializer
   | ImportDeclarations
+  | FieldDeclarations _
   | TypeDeclarations
-  | CompilationUnit -> true
-  | Aspect _ -> true
+  | CompilationUnit
+  | Aspect _
+    -> true
   | _ -> false
 
 let is_sequence = function
@@ -2989,6 +3111,10 @@ let is_field = function
 
 let is_fieldaccess = function
   | Primary (Primary.FieldAccess _) -> true
+  | _ -> false
+
+let is_import_single = function
+  | IDsingle _ -> true
   | _ -> false
 
 let is_type = function
@@ -3437,9 +3563,9 @@ let is_resource_spec = function
   | ResourceSpec -> true
   | _ -> false
 
-let is_resource = function
+(*let is_resource = function
   | Resource _ -> true
-  | _ -> false
+  | _ -> false*)
 
 let is_catch_parameter = function
   | CatchParameter _ -> true
@@ -3506,6 +3632,7 @@ let get_category lab =
 let get_dims = function
   | Parameter(_, dims, _)
   | CatchParameter(_, dims)
+  | ForHeader(_, dims)
       -> dims
   | _ -> failwith "Java_label.get_dims: no dimensions"
 
@@ -3549,8 +3676,9 @@ let get_name lab =
     | IDstaticOnDemand name
     | FieldDeclarations name
     | InferredFormalParameter name
-    | Resource(name, _)
+    (*| Resource(name, _)*)
     | CatchParameter(name, _)
+    | ForHeader(name, _)
       -> name
 
     | LocalVariableDeclaration(_, name_dim_list) ->
@@ -3587,6 +3715,8 @@ let get_value = function
   | Primary (Primary.Literal lit)
   | Expression (Expression.Primary (Primary.Literal lit)) ->
       Literal.to_value lit
+  | Primary (Primary.ArrayCreationDims dims)
+  | Expression (Expression.Primary (Primary.ArrayCreationDims dims)) -> Type.dims_to_string dims
   | _ -> raise Not_found
 
 let has_value = function
@@ -3600,6 +3730,10 @@ let has_non_trivial_value lab =
     v <> "0" && v <> "1" && v <> "-1" && v <> "" && v <> "true" && v <> "false" && v <> "null"
   with
     Not_found -> false
+
+let get_signature = function
+  | Method(_, s) | Constructor(_, s) -> s
+  | _ -> raise Not_found
 
 let getlab nd = (Obj.obj nd#data#_label : t)
 
@@ -3643,6 +3777,12 @@ let is_error = function
 open Astml.Attr
 
 let find_name x = Scanf.unescaped (find_name x)
+let find_code x =
+  let s = (find_attr x "code") in
+  try
+    Scanf.unescaped s
+  with
+    e -> print_string s; raise e
 
 let find_kind a =
   try
@@ -3676,14 +3816,14 @@ let of_elem_data =
   let mks s = Statement s in
   let mke a e =
     try
-      let tid = find_stmttid a in
+      let tid = _find_stmttid a in
       mks (Statement.Expression(e, tid))
     with
       Not_found -> Expression e
   in
   let mkp a p =
     try
-      let tid = find_stmttid a in
+      let tid = _find_stmttid a in
       mks (Statement.Expression(Expression.Primary p, tid))
     with
       Not_found -> Primary p
@@ -3785,7 +3925,7 @@ let of_elem_data =
     "QualifiedThis",                 (fun a -> mkp a (Primary.QualifiedThis(find_name a)));
     "StandardInstanceCreation",      (fun a -> mkp a (Primary.InstanceCreation(find_name a)));
     "QualifiedInstanceCreation",     (fun a -> mkp a (Primary.QualifiedInstanceCreation(find_name a)));
-    "NameQualifiedInstanceCreation", (fun a -> mkp a (Primary.NameQualifiedInstanceCreation(find_attr a "qualifier", find_name a)));
+    "NameQualifiedInstanceCreation", (fun a -> mkp a (Primary.NameQualifiedInstanceCreation(find_name a, find_ident a)));
     "FieldAccess",                   (fun a -> mkp a (Primary.FieldAccess(find_name a)));
     "SuperFieldAccess",              (fun a -> mkp a (Primary.SuperFieldAccess(find_name a)));
     "ClassSuperFieldAccess",         (fun a -> mkp a (Primary.ClassSuperFieldAccess(find_name a)));
@@ -3831,7 +3971,7 @@ let of_elem_data =
 
     "StandardInstanceCreationStatement",      (fun a -> mkps (Primary.InstanceCreation(find_name a)));
     "QualifiedInstanceCreationStatement",     (fun a -> mkps (Primary.QualifiedInstanceCreation(find_name a)));
-    "NameQualifiedInstanceCreationStatement", (fun a -> mkps (Primary.NameQualifiedInstanceCreation(find_attr a "qualifier", find_name a)));
+    "NameQualifiedInstanceCreationStatement", (fun a -> mkps (Primary.NameQualifiedInstanceCreation(find_name a, find_ident a)));
 
     "PrimaryMethodInvocationStatement",    (fun a -> mkps (Primary.PrimaryMethodInvocation(find_name a)));
     "SimpleMethodInvocationStatement",     (fun a -> mkps (Primary.SimpleMethodInvocation(find_name a)));
@@ -3936,17 +4076,19 @@ let of_elem_data =
     "InferredFormalParameter",                  (fun a -> InferredFormalParameter(find_name a));
     "CompilationUnit",                          (fun a -> CompilationUnit);
     "ResourceSpec",                             (fun a -> ResourceSpec);
-    "Resource",                                 (fun a -> Resource(find_name a, find_dims a));
+    (*"Resource",                                 (fun a -> Resource(find_name a, find_dims a));*)
     "CatchParameter",                           (fun a -> CatchParameter(find_name a, find_dims a));
     "AnnotDim",                                 (fun a -> AnnotDim);
 
     "AmbiguousName",                            (fun a -> mkp a Primary.(AmbiguousName(find_name a)));
     "AmbiguousMethodInvocation",                (fun a -> mkp a Primary.(AmbiguousMethodInvocation(find_name a)));
 
-    "Error",                                    (fun a -> Error(xmldec(find_attr a "contents")));
+    "Error",                                    (fun a -> Error(find_attr a "contents"));
     "HugeArray",
-    (fun a -> HugeArray (int_of_string (find_attr a "size"), xmldec(find_attr a "code")));
+    (fun a -> HugeArray (int_of_string (find_attr a "size"), (find_code a)));
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
+
+    "ForHeader", (fun a -> ForHeader(find_name a, find_dims a));
 
     "Aspect",                   (fun a -> Aspect(find_name a));
     "Pointcut",                 (fun a -> Pointcut(find_name a));
@@ -3975,7 +4117,7 @@ let of_elem_data =
     try
       (Hashtbl.find tbl name) attrs
     with
-    | Not_found -> failwith ("Java_label.of_tag: tag not found: "^name)
-    | e -> failwith ("Java_label.of_tag: "^(Printexc.to_string e))
+    | Not_found -> failwith ("Java_label.of_elem_data: tag not found: "^name)
+    | e -> failwith ("Java_label.of_elem_data: "^(Printexc.to_string e))
   in
   of_elem

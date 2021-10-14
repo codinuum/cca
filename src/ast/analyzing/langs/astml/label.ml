@@ -617,13 +617,13 @@ let to_xml_string { elem_name=elem; elem_attrs=attrs; elem_parser=_; } =
   in
   sprintf "%s%s" elem attrs_s
 
-let to_tag lab =
+let to_tag ?(strip=false) lab =
   lab.elem_name, lab.elem_attrs
 
-let to_elem_data ?(strip=false) loc lab = (* elem name * (string * string) list * content *)
+let to_elem_data ?(strip=false) ?(afilt=fun _ -> true) loc lab = (* elem name * (string * string) list * content *)
   let __attrs =
-    List.map
-      (fun (k, v) -> k, XML.encode_string v)
+    List.filter_map
+      (fun (k, v) -> if afilt k then Some (k, XML.encode_string v) else None)
       lab.elem_attrs
   in
   let _attrs =

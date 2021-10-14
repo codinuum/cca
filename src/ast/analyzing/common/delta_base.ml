@@ -84,6 +84,7 @@ let ov_attr        = mktag "old_value"
 let nv_attr        = mktag "new_value"
 let v_attr         = mktag "value"
 let rvs_attr       = mktag "reversible"
+let normd_attr     = mktag "normalized"
 let lang_attr      = mktag "lang"
 let stid_attr      = mktag "stid"
 let adj_attr       = mktag "adj"
@@ -172,6 +173,7 @@ let path_opt_to_string = function
 
 
 let ups_sym = "^"
+let stay_sym = "$"
 let key_sep_sym = ":"
 let sub_path_sep_sym = "@"
 
@@ -183,10 +185,11 @@ let ups_to_str upstream =
       sprintf "%s%d" ups_sym upstream
   else ""
 
-class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
+class path_c ?(upstream=0) ?(key_opt=None) ?(stay=false) path = object (self)
 
   val mutable upstream = upstream
   val mutable key_opt = (key_opt : subtree_key option)
+  val mutable stay = stay
 
   initializer
     if upstream > 0 then
@@ -198,8 +201,11 @@ class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
   method set_key_opt k_opt = key_opt <- k_opt
   method key_opt = key_opt
 
-  method path = path
+  method stay = stay
+  method set_stay b = stay <- b
 
+  method path = path
+  method parent_path = Path.get_parent path
   method position = Path.get_position path
   method offset = Path.get_offset path
 
@@ -207,6 +213,7 @@ class path_c ?(upstream=0) ?(key_opt=None) path = object (self)
 
   method to_string =
     (Path.to_string path)^
+    (if stay then stay_sym else "")^
     (ups_to_str upstream)^
     (match key_opt with
     | Some key -> key_sep_sym^(key_to_raw key)
@@ -248,11 +255,14 @@ let _path_of_string create s =
     | [p] -> begin
         if Xstring.endswith s ups_sym then
           let s' = String.sub s 0 ((String.length s) - 1) in
-          create 1 s'
+          create 1 s' false
+        else if Xstring.endswith s stay_sym then
+          let s' = String.sub s 0 ((String.length s) - 1) in
+          create 0 s' true
         else
-          create 0 s
+          create 0 s false
     end
-    | [p;u] -> create (int_of_string u) p
+    | [p;u] -> create (int_of_string u) p false
     | _ -> raise (Path.Invalid_path s)
   with
     _ -> raise (Path.Invalid_path s)
@@ -260,8 +270,7 @@ let _path_of_string create s =
 let path_of_string s =
   let get ?(key_opt=None) s =
     _path_of_string
-      (fun u s ->
-        new path_c ~upstream:u ~key_opt (Path.of_string s))
+      (fun u s b -> new path_c ~upstream:u ~key_opt ~stay:b (Path.of_string s))
       s
   in
   let path =
@@ -282,7 +291,7 @@ let path_of_string s =
 let boundary_path_of_string s =
   let get ?(key_opt=None) ?(sub_path_opt=None) s =
     _path_of_string
-      (fun u s ->
+      (fun u s _ ->
         new boundary_path ~upstream:u ~key_opt ~sub_path_opt (Path.of_string s))
       s
   in
@@ -408,7 +417,14 @@ let parse_file options ns_mgr file =
 	          (sprintf "invalid value of \"%s\" attribute" rvs_attr)
 *)
           in
-          root, reversible
+          let normalized_delta =
+            try
+	      bool_of_string (get_attr root normd_attr)
+            with
+              _ -> false
+          in
+          DEBUG_MSG "reversible=%B normalized_delta=%B" reversible normalized_delta;
+          root, reversible, normalized_delta
         end
         else
           invalid_delta root "not a delta element"
@@ -588,6 +604,7 @@ let ns_decls_to_string ns_decls =
 let make_st_elem_root
     ?(extra_ns_decls=[])
     ?(irreversible_flag=false)
+    ?(normalized_delta_flag=false)
     lang
     digest1 digest2
     =
@@ -595,6 +612,7 @@ let make_st_elem_root
     root_tag
     (ns_decl_to_string (delta_prefix, delta_ns))
     (attrs_to_string [(rvs_attr, string_of_bool (not irreversible_flag));
+                      (normd_attr, string_of_bool normalized_delta_flag);
                       (lang_attr,lang);
                       (digest1_attr,digest1);
                       (digest2_attr,digest2)])
@@ -603,12 +621,13 @@ let make_st_elem_root
 let output_st_elem_root
     ?(extra_ns_decls=[])
     ?(irreversible_flag=false)
+    ?(normalized_delta_flag=false)
     lang
     digest1 digest2
     ch
     =
   let s =
-    make_st_elem_root ~extra_ns_decls ~irreversible_flag lang digest1 digest2
+    make_st_elem_root ~extra_ns_decls ~irreversible_flag ~normalized_delta_flag lang digest1 digest2
   in
   fprintf ch "%s" s
 

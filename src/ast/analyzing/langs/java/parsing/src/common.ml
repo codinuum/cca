@@ -118,6 +118,11 @@ let dot_pat = Str.regexp_string "."
 let replace_dot_with_dollar s =
   Str.global_replace dot_pat "$" s
 
+let dollar_pat = Str.regexp_string "$"
+
+let replace_dollar_with_dot s =
+  Str.global_replace dollar_pat "." s
+
 let token_queue_to_string token_to_string tq =
   let is_alpha_numeric c =
     match c with
