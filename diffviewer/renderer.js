@@ -5,9 +5,7 @@
 // selectively enable features needed in the rendering
 // process.
 
-const {ipcRenderer} = window.native;
-const {apath0, apath1, apathd} = ipcRenderer.sendSync('sync-mesg', 'req')
-//const {apath0, apath1, original, modified, diff} = ipcRenderer.sendSync('sync-mesg', 'req')
+const {apath0, apath1, apathd} = window.dvapi.sendSync('sync-mesg', 'req')
 
 var dv = new DiffViewer();
 
