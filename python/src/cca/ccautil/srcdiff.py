@@ -854,6 +854,14 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
            'nnodes2'      : nnodes2, 
            'nnodes'       : nnodes, 
            'nrelabels'    : nrelabels,
+
+           'modified'     : modified,
+           'renamed'      : renamed,
+           'moved'        : moved,
+           'added'        : added,
+           'removed'      : removed,
+           'copied'       : copied,
+           'glued'        : glued,
            }
 
     if line_sim and line_sim_count > 0:

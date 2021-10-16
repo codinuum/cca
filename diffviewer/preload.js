@@ -1,10 +1,14 @@
 // All of the Node.js APIs are available in the preload process.
 // It has the same sandbox as a Chrome extension.
 
-const {ipcRenderer} = require('electron')
+const {remote,contextBridge} = require('electron');
+const {ipcRenderer} = require('electron');
 
-process.once('loaded', () => {
-  global.native = {
-    ipcRenderer: ipcRenderer,
+const sendSync = (mesg, req) => {
+  return ipcRenderer.sendSync(mesg, req);
+}
+
+contextBridge.exposeInMainWorld('dvapi', {
+    sendSync: sendSync,
   }
-})
+)

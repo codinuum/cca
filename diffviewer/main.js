@@ -17,13 +17,14 @@ function createWindow () {
     width: 1280,
     height: 800,
     webPreferences: {
+      nodeIntegration: false,
+      enableRemoteModule: true,
+      contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
-  })
-
+  });
   // and load the index.html of the app.
   mainWindow.loadFile('index.html');
-
   // Open the DevTools.
   //mainWindow.webContents.openDevTools({mode: 'bottom'})
 }
