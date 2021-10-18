@@ -1248,14 +1248,6 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Class -->
-
-    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Class">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
-    </owl:Class>
-    
-
-
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassBody -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassBody">
@@ -1342,14 +1334,6 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassOrInterface -->
-
-    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassOrInterface">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
-    </owl:Class>
-    
-
-
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassSpecifier -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassSpecifier">
@@ -1408,7 +1392,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Class"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassType"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -1444,7 +1428,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Class"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassType"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -1469,6 +1453,14 @@
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodInvocationStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
     </owl:Class>
     
 
@@ -1945,7 +1937,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Class"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassType"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#SuperType"/>
@@ -2362,14 +2354,6 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Interface -->
-
-    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Interface">
-        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
-    </owl:Class>
-    
-
-
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#InterfaceBody -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceBody">
@@ -2429,6 +2413,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#InterfaceType -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceType">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ReferenceType"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#InterfaceTypeList -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceTypeList">
@@ -2436,7 +2428,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child0"/>
                 <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Interface"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceType"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#ListNode"/>
@@ -2709,6 +2701,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#MethodReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#MethodReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Primary"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#Minus -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Minus">
@@ -2852,6 +2852,14 @@
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ConstructorInvocation"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#NameMethodReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#NameMethodReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodReference"/>
     </owl:Class>
     
 
@@ -3317,6 +3325,14 @@
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#StandardMethodInvocationStatement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#PrimaryMethodReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PrimaryMethodReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodReference"/>
     </owl:Class>
     
 
@@ -4055,6 +4071,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#SuperMethodReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#SuperMethodReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodReference"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#SuperType -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#SuperType">
@@ -4339,7 +4363,7 @@
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#child1"/>
                 <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:minQualifiedCardinality>
-                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Interface"/>
+                <owl:onClass rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#InterfaceType"/>
             </owl:Restriction>
         </owl:equivalentClass>
         <owl:equivalentClass>
@@ -4439,6 +4463,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#TypeNewMethodReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#TypeNewMethodReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodReference"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#TypeParameter">
@@ -4508,6 +4540,14 @@
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity#TupleNode"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#TypeSuperMethodReference -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#TypeSuperMethodReference">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#MethodReference"/>
     </owl:Class>
     
 
