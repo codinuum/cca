@@ -2208,9 +2208,9 @@
     
 
 
-    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ForHead -->
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ForHeader -->
 
-    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ForHead">
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ForHeader">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
     </owl:Class>
     
