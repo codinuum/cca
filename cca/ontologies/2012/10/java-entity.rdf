@@ -895,6 +895,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Aspect -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Aspect">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#AssertStatement -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#AssertStatement">
@@ -1465,6 +1473,62 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternAnd -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternAnd">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternName -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternName">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternNamePlus -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternNamePlus">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternNot -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternNot">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternOr -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternOr">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternParen -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePatternParen">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#ClassnamePattern"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#CompilationUnit -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#CompilationUnit">
@@ -1667,6 +1731,54 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ContinueStatement">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#BranchingStatement"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">continue</rdfs:label>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Declare -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Declare">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#DeclareMessage -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#DeclareMessage">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Declare"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#DeclareParents -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#DeclareParents">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Declare"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#DeclarePrecedence -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#DeclarePrecedence">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Declare"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#DeclareSoft -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#DeclareSoft">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Declare"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Default -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Default">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Modifier"/>
     </owl:Class>
     
 
@@ -2096,6 +2208,14 @@
     
 
 
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#ForHead -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ForHead">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
     <!-- http://codinuum.com/ontologies/2012/10/java-entity#ForInit -->
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#ForInit">
@@ -2463,6 +2583,14 @@
             </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Statement"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Lambda -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Lambda">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Expression"/>
     </owl:Class>
     
 
@@ -3130,6 +3258,54 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Plus">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#UnaryOp"/>
         <rdfs:label rdf:datatype="http://www.w3.org/2000/01/rdf-schema#Literal">+</rdfs:label>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#Pointcut -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#Pointcut">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Entity"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#PointcutAnd -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PointcutAnd">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Pointcut"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#PointcutNot -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PointcutNot">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Pointcut"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#PointcutOr -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PointcutOr">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Pointcut"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#PointcutParen -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PointcutParen">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Pointcut"/>
+    </owl:Class>
+    
+
+
+    <!-- http://codinuum.com/ontologies/2012/10/java-entity#PointcutWithin -->
+
+    <owl:Class rdf:about="http://codinuum.com/ontologies/2012/10/java-entity#PointcutWithin">
+        <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2012/10/java-entity#Pointcut"/>
     </owl:Class>
     
 
