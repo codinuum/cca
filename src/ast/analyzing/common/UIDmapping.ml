@@ -1111,6 +1111,10 @@ class ['node_t] c cenv = object (self : 'self)
   method iter_crossing_mapping nd1 nd2 f =
     self#iter_p_mapping is_crossing nd1 nd2 f
 
+  method iter_incompatible_mapping nd1 nd2 f =
+    let tree1, tree2 = cenv#tree1, cenv#tree2 in
+    self#iter_p_mapping (is_incompatible tree1 tree2) nd1 nd2 f
+
   method iter_crossing_or_incompatible_mapping nd1 nd2 f =
     let tree1, tree2 = cenv#tree1, cenv#tree2 in
     self#iter_p_mapping

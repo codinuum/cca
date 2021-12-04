@@ -3998,10 +3998,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     (* end of method shrink_moves *)
 
-  method is_crossing_with_untouched ?(mask=[]) (uidmapping : 'node_t UIDmapping.c) nd1 nd2 =
+  method is_crossing_with_untouched ?(mask=[]) ?(incompatible_only=false) (uidmapping : 'node_t UIDmapping.c) nd1 nd2 =
     DEBUG_MSG "%a-%a" UID.ps nd1#uid UID.ps nd2#uid;
+    let iter =
+      if incompatible_only then
+        uidmapping#iter_incompatible_mapping
+      else
+        uidmapping#iter_crossing_or_incompatible_mapping
+    in
     try
-      uidmapping#iter_crossing_or_incompatible_mapping nd1 nd2
+      iter nd1 nd2
         (fun u1 u2 ->
 (*
           DEBUG_MSG "checking %a-%a" UID.ps u1 UID.ps u2;

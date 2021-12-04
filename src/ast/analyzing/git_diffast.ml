@@ -331,7 +331,7 @@ let extract = {
       Lang.setup_options options;
 
       S.v root >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
         | Ok t -> begin
 
         let module GS = Git_storage.F(S) in
@@ -411,7 +411,7 @@ let diffast = {
       Lang.setup_options options;
 
       S.v root >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
         | Ok t -> begin
 
         (match sha1s with
@@ -602,7 +602,7 @@ let cat_file = {
     let cat_file ty_flag sz_flag id =
       run begin
       S.v Fpath.(v (Sys.getcwd ())) >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
         | Ok t ->
 
         catch_ (fun () ->
@@ -640,12 +640,12 @@ let cat_file = {
       let module Sync = Sync (S) in
       run begin
       S.v Fpath.(v (Sys.getcwd ())) >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
         | Ok t ->
 
         Sync.ls t remote >>= function
           | Error err ->
-              eprintf "[ERROR] %s\n" (Fmt.strf "%a" Sync.pp_error err); Lwt.return_unit
+              eprintf "[ERROR] %s\n" (Fmt.str "%a" Sync.pp_error err); Lwt.return_unit
           | Ok references ->
         Printf.printf "From %s\n" (Uri.to_string remote.uri);
         let print (h, r, b) =
@@ -712,7 +712,7 @@ let ls_tree = {
       in
       run begin
         S.v Fpath.(v (Sys.getcwd ())) >>= function
-          | Error err -> eprintf "[ERROR] %s\n" (Fmt.strf "%a" S.pp_error err); Lwt.return_unit
+          | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
           | Ok t ->
 
         let h = Hash.of_hex oid in
