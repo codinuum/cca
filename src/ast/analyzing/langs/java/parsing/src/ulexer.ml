@@ -143,8 +143,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let regexp not_star_not_slash = [^'*' '/'] | unicode_escape | "\013\010"
   let regexp not_star = [^'*'] | unicode_escape | "\013\010"
 
- (* 880-1023:Greek 4352-4607,43360-43391,44032-55215,55216-55295:Hangul *)
-  let regexp java_letter = ['A'-'Z' 'a'-'z' '_' '$' 880-1023 1024-1279 4352-4607 43360-43391 44032-55215 55216-55295]
+ (* 880-1023:Greek 2304-2431:Devanagari 4352-4607,43360-43391,44032-55215,55216-55295:Hangul *)
+  let regexp java_letter = ['A'-'Z' 'a'-'z' '_' '$' 880-1023 1024-1279 2304-2431 4352-4607 43360-43391 44032-55215 55216-55295]
   let regexp java_letter_or_digit = java_letter | ['0'-'9']
   let regexp identifier_chars = java_letter java_letter_or_digit*
   let regexp identifier_or_keyword = identifier_chars
