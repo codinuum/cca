@@ -18,11 +18,11 @@ Factbases are intended to be queried for various software engineering tasks such
 [code homology analysis](https://link.springer.com/chapter/10.1007/978-3-642-12029-9_7).
 
 Diff/AST is an experimental implementation of the AST differencing algorithm
-reported in the following paper.
+reported in the following paper:
 
-> Masatomo Hashimoto and Akira Mori, "Diff/TS: A Tool for Fine-Grained
-> Structural Change Analysis", In Proc. 15th Working Conference on Reverse
-> Engineering, 2008, pp. 279-288, DOI: 10.1109/WCRE.2008.44.
+Masatomo Hashimoto and Akira Mori, "Diff/TS: A Tool for Fine-Grained Structural Change Analysis,"
+In *Proc. 15th Working Conference on Reverse Engineering*, 2008, pp. 279-288,
+DOI: [10.1109/WCRE.2008.44](https://doi.org/10.1109/WCRE.2008.44).
 
 It compares ASTs node by node, while popular `diff` tool compares any (text) files line by line.
 The algorithm is based on [an algorithm](https://doi.org/10.1137/0218082) for computing *tree edit distance (TED)* between two ordered labeled trees.  The tree edit distance between two trees is considered as the minimum (weighted) number of edit operations to transform one tree to another.

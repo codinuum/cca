@@ -4930,7 +4930,7 @@ end;
                     DEBUG_MSG "use2=[%s]" (nl_to_s use2);
                   END_DEBUG;
 
-                  let is_mov1 = edits#is_crossing_with_untouched ?mask:None uidmapping in
+                  let is_mov1 = edits#is_crossing_with_untouched ?mask:None ?incompatible_only:None uidmapping in
                   let is_mov2 n1 n2 = is_mov1 n2 n1 in
 
                   let find is_mov nd use =
@@ -6672,7 +6672,7 @@ end;
       (Xlist.to_string MID.to_string ";"
          (List.fast_sort Stdlib.compare true_moves));
 
-    let is_crossing_with_untouched = edits#is_crossing_with_untouched ?mask:None uidmapping in
+    let is_crossing_with_untouched = edits#is_crossing_with_untouched ?mask:None ?incompatible_only:None uidmapping in
 
     edits#iter_moves
       (function
@@ -6835,8 +6835,8 @@ end;
     (* check moves *)
     DEBUG_MSG "checking moves...";
 
-    let is_crossing_with_untouched ?(mask=[]) =
-      edits#is_crossing_with_untouched ?mask:(Some mask) uidmapping
+    let is_crossing_with_untouched ?(mask=[]) ?(incompatible_only=false) =
+      edits#is_crossing_with_untouched ?mask:(Some mask) ?incompatible_only:(Some incompatible_only) uidmapping
     in
 
     edits#iter_moves_topdown
@@ -7251,6 +7251,17 @@ end;
         DEBUG_MSG "%a -> %B" nps n b;
         b
       in
+      let is_stable2 n =
+        let b =
+          try
+            let _ = edits#find_mov2 n#uid in
+            false
+          with
+            Not_found -> true
+        in
+        DEBUG_MSG "%a -> %B" nps n b;
+        b
+      in
       let dels0, inss0, movs0 =
         let is_bad_pair n1 n2 =
           let b =
@@ -7377,11 +7388,11 @@ end;
           let is_uncertain_pair n1 n2 =
             let b =
               try
+                let pn1 = n1#initial_parent in
+                let pn2 = n2#initial_parent in
+                let pu1 = pn1#uid in
+                let pu2 = pn2#uid in
                 (
-                 let pn1 = n1#initial_parent in
-                 let pn2 = n2#initial_parent in
-                 let pu1 = pn1#uid in
-                 let pu2 = pn2#uid in
                  pn1#data#is_sequence && pn2#data#is_sequence ||
                  edits#mem_mov12 pu1 pu2 ||
                  (edits#mem_del pu1 || edits#mem_mov1 pu1) && (edits#mem_ins pu2 || edits#mem_mov2 pu2)
@@ -7392,7 +7403,27 @@ end;
                     let freq1 = List.length l1 in
                     let freq2 = List.length l2 in
                     DEBUG_MSG "freq1=%d freq2=%d" freq1 freq2;
-                    true(*freq1 > 1 && freq2 > 1*)
+                    (*true(*freq1 > 1 && freq2 > 1*)*)
+                    if
+                      is_cross_boundary uidmapping n1 n2 || is_crossing_with_untouched ~incompatible_only:true n1 n2
+                    then
+                      true
+                    else
+                      try
+                        match edits#find_mov12 pu1 pu2 with
+                        | Edit.Move(pm, pk, _, _) when !pk = Edit.Mpermutation -> begin
+                            match edits#find_mov12 n1#uid n2#uid with
+                            | Edit.Move(m, k, _, _) when !k = Edit.Mpermutation && !m = !pm -> begin
+                                let freq1' = List.length (List.filter (fun x -> not (is_stable1 x)) l1) in
+                                let freq2' = List.length (List.filter (fun x -> not (is_stable2 x)) l2) in
+                                DEBUG_MSG "freq1'=%d freq2'=%d" freq1' freq2';
+                                freq1' > 1 || freq2' > 1
+                            end
+                            | _ -> true
+                        end
+                        | _ -> true
+                      with
+                        _ -> true
               with
                 _ -> begin
                   let freq1 = List.length (try cenv#get_use1 (Edit.get_bid n1) with _ -> []) in
