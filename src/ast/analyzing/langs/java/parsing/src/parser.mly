@@ -216,8 +216,12 @@ unann_class_or_interface_type_spec:
        | _ -> env#resolve n
      in
      set_attribute_PT_T rr n;
-     if env#in_method then
-       register_qname_as_typename_at_class ~outer:1 n
+     if env#in_method then begin
+       try
+         register_qname_as_typename_at_class ~outer:1 n
+       with
+         Not_found -> ()
+     end
      else
        register_qname_as_typename n;
      [], [], n 
@@ -1945,7 +1949,12 @@ primary_no_new_array:
 method_reference:
 | n=name           COLON_COLON tas_opt=type_arguments_opt i=identifier
     { 
-      env#reclassify_identifier(leftmost_of_name n);
+      begin
+        try
+          env#reclassify_identifier(leftmost_of_name n);
+        with
+          Not_found -> ()
+      end;
       let _, id = i in
       mkmr $startofs $endofs (MRname(n, tas_opt, id))
     }
@@ -2174,7 +2183,12 @@ method_invocation:
       then begin
         set_name_attribute NAexpression q;
         register_qname_as_expression q;
-        env#reclassify_identifier(leftmost_of_name q);
+        begin
+          try
+            env#reclassify_identifier(leftmost_of_name q);
+          with
+            Not_found -> ()
+        end;
 	mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
       end
       else begin
@@ -2191,7 +2205,12 @@ method_invocation:
               mkmi $startofs $endofs (MItypeName(q, Some t, id, a))
         end
         else begin
-          env#reclassify_identifier(leftmost_of_name q);
+          begin
+            try
+              env#reclassify_identifier(leftmost_of_name q);
+            with
+              Not_found -> ()
+          end;
           mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
         end
       end
@@ -2256,7 +2275,12 @@ postfix_expression:
         env#set_attribute_A ~force_defer:true q
       end;
       register_qname_as_expression n;
-      env#reclassify_identifier(leftmost_of_name n);
+      begin
+        try
+          env#reclassify_identifier(leftmost_of_name n)
+        with
+          Not_found -> ()
+      end;
       name_to_expr $startofs $endofs n
     }
 | p=post_increment_expression { p }
