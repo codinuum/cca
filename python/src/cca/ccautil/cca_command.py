@@ -21,13 +21,13 @@
 
 import sys
 import os
-import multiprocessing
 from daemon import DaemonContext
 import tempfile
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, Action
 import logging
 
 from . import proc
+from .core_count import core_count
 from .siteconf import CCA_HOME
 from .common import setup_logger
 
@@ -153,7 +153,7 @@ def main():
     PHASE     = args.phase
     PROJ      = args.proj
     WDIR_BASE = args.basedir
-    NPROCS    = multiprocessing.cpu_count() / 2 # assuming HT
+    NPROCS    = core_count()
     if args.nprocs != 0:
         NPROCS = args.nprocs
 
