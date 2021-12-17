@@ -1472,6 +1472,17 @@ module F (Label : Spec.LABEL_T) = struct
                         end
                         else
                           let nd1' = tree2#search_node_by_uid u1' in
+
+                          let alab1 = nd1#data#_anonymized3_label in
+                          DEBUG_MSG "alab1=%s alab1'=%s alab2=%s"
+                            nd1#data#anonymized3_label nd1'#data#anonymized3_label nd2#data#anonymized3_label;
+                          if nd1'#data#_anonymized3_label = alab1 && nd2#data#_anonymized3_label <> alab1 then begin
+                            DEBUG_MSG "relabel: %a-%a: anonymized3 label match (%s)"
+                              UID.ps u1 UID.ps u1' nd1#data#anonymized3_label;
+                            false, None, (fun () -> ())
+                          end
+                          else
+
                           let b = ref false in
                           let dnc = ref None in
                           cenv#compare_mappings uidmapping

@@ -2093,6 +2093,17 @@ let anonymize3 = function
   (*| Type _                      -> Type (Type.Void)*)
   (*| Primary (Primary.Literal _) -> Primary (Primary.Literal Literal.Null)*)
   (*| Statement Statement.ForEnhanced -> Statement Statement.For*)
+
+  | Statement Statement.Expression(Expression.Primary p, _) when begin
+      match p with
+      | PrimaryMethodInvocation _
+      | SimpleMethodInvocation _
+      | SuperMethodInvocation _
+      | ClassSuperMethodInvocation _
+      | TypeMethodInvocation _ -> true
+      | _ -> false
+  end -> Statement (Statement.Expression(Expression.Primary(Primary.SimpleMethodInvocation ""), null_tid))
+
   | lab -> anonymize ~more:true lab
 
 

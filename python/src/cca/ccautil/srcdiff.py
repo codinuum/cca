@@ -184,7 +184,6 @@ def count_nodes(files, cache_dir_base=None,
                     except:
                         logger.warning('not an integer: "{}"'.format(g[0]))
 
-
     return c
 
 get_cache_dir1_by_diffts = diffts.diffast_get_cache_dir1
@@ -520,6 +519,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
 
 def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
               include=[],
+              exclude=[],
               ignore1=[], ignore2=[],
               load_fact=False,
               fact_dir=None,
@@ -556,6 +556,12 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     if include:
         filt = lambda x: any(x.startswith(p) for p in include)
 
+    if exclude:
+        if include:
+            filt = lambda x: any(x.startswith(p) for p in include) and all(not x.startswith(p) for p in exclude)
+        else:
+            filt = lambda x: all(not x.startswith(p) for p in exclude)
+
     logger.info('"{}" - "{}" cache_dir_base="{}"'.format(dir1, dir2, cache_dir_base))
 
     cost      = 0
@@ -564,6 +570,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     nnodes1   = 0
     nnodes2   = 0
     nrelabels = 0
+    nmovrels  = 0
 
     line_sim_sum   = 0.0
     line_sim_count = 0
@@ -833,7 +840,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             cost += c
             nmappings += m
             nrelabels += r['nrelabels']
-
+            nmovrels  += r['nmovrels']
                 
     except Exception as e:
         logger.warning('{}'.format(str(e)))
@@ -854,6 +861,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
            'nnodes2'      : nnodes2, 
            'nnodes'       : nnodes, 
            'nrelabels'    : nrelabels,
+           'nmovrels'     : nrelabels,
 
            'modified'     : modified,
            'renamed'      : renamed,

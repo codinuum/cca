@@ -75,7 +75,9 @@ class PopenContext(object):
                          stdout=self.stdout,
                          stderr=self.stderr,
                          close_fds=True,
-                         text=True)
+                         text=True,
+                         encoding='utf-8',
+                         errors='replace')
         return self._po
 
     def __exit__(self, *exc_info):
