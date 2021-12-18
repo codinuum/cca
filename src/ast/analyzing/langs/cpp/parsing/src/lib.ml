@@ -2020,10 +2020,12 @@ class parser_c = object (self)
                 scanner#ctx_stmt();
                 raise Exit
             end
-            | I.X (I.N N_nonempty_list_odd_else_stmt_), _, I.X (I.T T_LBRACE) -> begin
-                let sn = I.current_state_number menv_ in
-                ctx_start_of_stmt sn;
-                scanner#ctx_stmt();
+            | I.X (I.N N_odd_else_stmt), _, I.X (I.T T_RBRACE) -> begin
+                if scanner#peek_rawtoken() == ELSE then begin
+                  match scanner#peek_nth_rawtoken 2 with
+                  | IF | WHILE -> env#stack#exit_block();
+                  | _ -> ()
+                end;
                 raise Exit
             end
             | I.X (I.N N_nonempty_list_odd_else_stmt_), _, I.X (I.T T_RBRACE) -> begin
@@ -4000,7 +4002,17 @@ class parser_c = object (self)
                     raise Exit
                 end
                 | _ -> begin
-                    iter_items_w ~from_ith:7 ~to_ith:7 menv_
+                    begin
+                      iter_items_w ~from_ith:5 ~to_ith:5 menv_
+                        (function
+                          | sn, I.X (I.N N_odd_else_stmt), _, I.X (I.T T_ELSE), _ -> begin
+                              scanner#enter_block();
+                              raise Exit
+                          end
+                          | _ -> ()
+                        )
+                    end;
+                    iter_items_w ~from_ith:7 ~to_ith:8 menv_
                       (function
                         | sn, I.X (I.N N_pp_stmt_if_group), _, _, _ -> begin
                             ctx_start_of_stmt sn;

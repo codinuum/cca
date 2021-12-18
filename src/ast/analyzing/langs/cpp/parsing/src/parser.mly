@@ -1144,7 +1144,7 @@ pp_stmt_elif_group:
 | p=pp_elif sl=stmt_seq0
     { mknode ~pvec:[1; List.length sl] $startpos $endpos (_pp_elif_group p) (p::sl) }
 | p=pp_elif sl=stmt_seq0 ol=odd_else_stmt+
-    { mknode ~pvec:[1; List.length ol] $startpos $endpos (pp_if_group()) (p::sl@ol) }
+    { mknode ~pvec:[1; List.length ol] $startpos $endpos (_pp_elif_group p) (p::sl@ol) }
 | p=pp_elif o=odd_stmt { mknode ~pvec:[1; 1] $startpos $endpos (_pp_elif_group p) [p; o] }
 | p=pp_elif sl=statement_seq o=odd_stmt
     { mknode ~pvec:[1; List.length sl + 1] $startpos $endpos (_pp_elif_group p) (p::sl@[o]) }
@@ -1153,7 +1153,7 @@ pp_stmt_else_group:
 | p=pp_else sl=stmt_seq0
     { mknode ~pvec:[1; List.length sl] $startpos $endpos (_pp_else_group p) (p::sl) }
 | p=pp_else sl=stmt_seq0 ol=odd_else_stmt+
-    { mknode ~pvec:[1; List.length ol] $startpos $endpos (pp_if_group()) (p::sl@ol) }
+    { mknode ~pvec:[1; List.length ol] $startpos $endpos (_pp_else_group p) (p::sl@ol) }
 | p=pp_else o=odd_stmt { mknode ~pvec:[1; 1] $startpos $endpos (_pp_else_group p) [p; o] }
 | p=pp_else sl=statement_seq o=odd_stmt
     { mknode ~pvec:[1; List.length sl + 1] $startpos $endpos (_pp_else_group p) (p::sl@[o]) }
@@ -4993,6 +4993,14 @@ decl_specifier_seq:
       _reloc_end $endpos last_d;
       add_to_last_pvec_elem last_d 1;
       last_d#add_children_r [a];
+      dl
+    }
+| dl=decl_specifier_seq p=pp_attr_if_section
+    { 
+      let last_d = Xlist.last dl in
+      _reloc_end $endpos last_d;
+      add_to_last_pvec_elem last_d 1;
+      last_d#add_children_r [p];
       dl
     }
 ;

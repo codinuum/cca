@@ -2421,7 +2421,11 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | RBRACKET -> true
             | LPAREN -> begin
                 match prev_rawtoken2 with
-                | IF | WHILE -> not (is_literal (self#peek_nth_rawtoken 2))
+                | IF | WHILE ->
+                    not
+                      (is_literal (self#peek_nth_rawtoken 2) ||
+                      self#is_macro_obj (Token.rawtoken_to_repr (self#peek_rawtoken())))
+
                 | IDENT_V _ -> begin
                     match prev_rawtoken3 with
                     | MINUS_GT | EQ -> true
@@ -19533,6 +19537,15 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     DEBUG_MSG "@";
                     geta()
                 end
+                | COMMA when begin
+                    match prev_rawtoken with
+                    | IDENT_V _ -> false
+                    | _ -> true
+                end -> begin
+                    self#prepend_token (_gete());
+                    DEBUG_MSG "putting marker";
+                    mk T.MARKER;
+                end
                 | _ -> begin
                     DEBUG_MSG "@";
                     _gete()
@@ -19581,6 +19594,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | PLUS | MINUS -> true
                 | _ -> false
             end -> DEBUG_MSG "@"; _gete()
+
+            | RPAREN when begin
+                DEBUG_MSG "l'=%s" (String.concat ";" (List.map Token.rawtoken_to_string l'));
+                match l' with
+                | RPAREN::RPAREN::_::TY_LPAREN::TY_LPAREN::GNU_ATTR _::[] -> true
+                | _ -> false
+            end -> begin
+              DEBUG_MSG "@";
+              getattr()
+            end
 
             | _ -> DEBUG_MSG "@"; getd()
         end
@@ -20080,6 +20103,19 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   | _ -> assert false
                 end
                 | COLON::_::_ when env#expr_flag -> DEBUG_MSG "@"; gete()
+
+                | COMMA::_ when begin
+                    prev_rawtoken == NEWLINE &&
+                    is_pp_endif prev_rawtoken2 &&
+                    env#at_type_paren && env#stack#in_params
+                end -> begin
+                  DEBUG_MSG "@";
+                  self#prepend_token (gete());
+                  env#exit_pp_if_section();
+                  DEBUG_MSG "putting marker";
+                  mk T.MARKER
+                end
+
                 | _ ->
                     DEBUG_MSG "@";
                     if env#at_arg_paren && (context == EXPR || context == TOP && env#paren_level > 1) &&
@@ -20317,17 +20353,81 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | _ -> false
         end -> DEBUG_MSG "@"; _gete()
 
-        | IDENT_V _ when context == TOP || context == MEM && begin
+        | IDENT_V _ when (context == TOP || context == MEM) && begin
+            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            match self#peek_nth_rawtoken (nth+1) with
+            | TY_LPAREN -> begin
+                let ini_plv = env#paren_level in
+                let plv = ref ini_plv in
+                let min_plv = ref ini_plv in
+                let filt (x : T.token) =
+                  begin
+                    match x with
+                    | TY_LPAREN | LPAREN -> begin
+                        DEBUG_MSG "%s" (Token.rawtoken_to_string x);
+                        incr plv
+                    end
+                    | RPAREN -> begin
+                        DEBUG_MSG "%s" (Token.rawtoken_to_string x);
+                        decr plv;
+                        min_plv := min !plv !min_plv
+                    end
+                    | _ -> ()
+                  end;
+                  false
+                in
+                let nth_, l_ =
+                  self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt ()
+                in
+                DEBUG_MSG "l_=%s" (String.concat ";" (List.map Token.rawtoken_to_string l_));
+
+                let common_prefix_rev, nth_list, sect_end_nth, __mk =
+                  get_common_prefix ~lparen_max:!plv nth_ l_
+                in
+                DEBUG_MSG "common_prefix_rev=%s"
+                  (String.concat ";" (List.map Token.rawtoken_to_string common_prefix_rev));
+
+                match common_prefix_rev with
+                | [TY_LPAREN] -> begin
+                    let len = List.length common_prefix_rev in
+                    let to_be_discarded = ref [] in
+                    List.iter
+                      (fun nth ->
+                        to_be_discarded := nth :: !to_be_discarded;
+                        for i = 1 to len - 1 do
+                          to_be_discarded := (nth + i) :: !to_be_discarded
+                        done
+                      ) ((nth+1)::nth_list);
+                    let to_be_discarded = !to_be_discarded in
+                    DEBUG_MSG "to_be_discarded=[%s]"
+                      (String.concat ";" (List.map string_of_int to_be_discarded));
+                    discard_tokens to_be_discarded;
+                    self#prepend_token token;
+                    List.iter
+                      (fun x ->
+                        self#prepend_token (__mk x)
+                      ) common_prefix_rev;
+                    raise To_be_recovered
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> DEBUG_MSG "@"; token
+
+        | IDENT_V _ when context == TOP -> DEBUG_MSG "@"; gete()
+
+        (*| IDENT_V _ when context == TOP || context == MEM && begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
             | TY_LPAREN -> begin
                 let _, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
+                DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
                 match l with
                 | RBRACE::_ -> true
                 | _ -> false
             end
             | _ -> false
-        end -> DEBUG_MSG "@"; gete()
+        end -> DEBUG_MSG "@"; gete()*)
 
         | LT_LT | GT_GT -> DEBUG_MSG "@"; gete()
 
