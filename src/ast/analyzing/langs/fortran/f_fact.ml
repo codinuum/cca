@@ -95,6 +95,7 @@ module F (L : Label.T) = struct
 
   let p_name      = mkfres "name"
   let p_label     = mkfres "label"
+  let p_slabel    = mkfres "slabel"
   let p_regexp    = mkfres "regexp"
   let p_value     = mkfres "value"
   let p_variable  = mkfres "variableName"
@@ -285,6 +286,13 @@ module F (L : Label.T) = struct
         begin
           try
             self#add (entity, p_label, mklit (L.get_label lab))
+          with
+            Not_found -> ()
+        end;
+
+        begin
+          try
+            self#add (entity, p_slabel, mklit (L.get_stmt_label lab))
           with
             Not_found -> ()
         end;
