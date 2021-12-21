@@ -143,6 +143,7 @@ module type T = sig
 
   val get_var                   : t -> string
   val get_pp_include_path       : t -> string
+  val get_label                 : t -> string
 
 end
 

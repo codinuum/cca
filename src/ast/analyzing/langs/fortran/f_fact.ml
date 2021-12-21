@@ -94,6 +94,7 @@ module F (L : Label.T) = struct
   let p_in_pu_or_sp       = mkfres "inProgramUnitOrSubprogram"
 
   let p_name      = mkfres "name"
+  let p_label     = mkfres "label"
   let p_regexp    = mkfres "regexp"
   let p_value     = mkfres "value"
   let p_variable  = mkfres "variableName"
@@ -277,6 +278,13 @@ module F (L : Label.T) = struct
               (fun n ->
                 self#add (entity, p_name, mklit n)
               ) (Str.split name_sep_pat (L.get_name lab))
+          with
+            Not_found -> ()
+        end;
+
+        begin
+          try
+            self#add (entity, p_label, mklit (L.get_label lab))
           with
             Not_found -> ()
         end;
