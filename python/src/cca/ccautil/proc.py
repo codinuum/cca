@@ -19,12 +19,11 @@
   limitations under the License.
 '''
 
-import os
 from subprocess import Popen, PIPE, CalledProcessError
 import subprocess
 import logging
 
-from .common import setup_logger
+# from .common import setup_logger
 
 logger = logging.getLogger()
 
@@ -33,7 +32,8 @@ def system(cmd, cwd=None, quiet=False, rc_check=True):
     try:
         out = open('/dev/null', 'w') if quiet else None
 
-        p = subprocess.run(cmd, stdout=out, stderr=out, shell=True, close_fds=True, cwd=cwd)
+        p = subprocess.run(cmd, stdout=out, stderr=out, shell=True,
+                           close_fds=True, cwd=cwd)
         rc = p.returncode
 
         if out:
@@ -43,24 +43,28 @@ def system(cmd, cwd=None, quiet=False, rc_check=True):
             return 0
         else:
             if rc_check:
-                logger.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, rc))
+                logger.warning(f'"{cmd}": terminated abnormally (exitcode={rc})')
             return 1
 
     except OSError as e:
-        logger.error('execution failed: %s' % e)
+        logger.error(f'execution failed: {e}')
+
 
 def check_output(cmd, cwd=None, rc_check=True):
     out = None
     try:
-        p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, universal_newlines=True)
+        p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True,
+                           universal_newlines=True)
         out = p.stdout
 
     except CalledProcessError as e:
         if rc_check:
-            logger.warning('"%s": terminated abnormally (exitcode=%d)' % (cmd, e.returncode))
+            logger.warning('"{}": terminated abnormally (exitcode={})'
+                           .format(cmd, e.returncode))
         out = e.output
 
     return out
+
 
 class PopenContext(object):
     def __init__(self, cmd, rc_check=True, stdout=PIPE, stderr=PIPE):
@@ -87,11 +91,12 @@ class PopenContext(object):
             logger.error('execution failed: %s' % v)
             return True
 
-        elif exc == None:
+        elif exc is None:
             rc = self._po.returncode
             if rc and self.rc_check:
                 if rc != 0:
-                    logger.warning('"%s": terminated abnormally (exitcode=%d)' % (self.cmd, rc))
+                    logger.warning('"{}": terminated abnormally (exitcode={})'
+                                   .format(self.cmd, rc))
             return True
 
         else:
@@ -103,9 +108,10 @@ def test():
     c = PopenContext(cmd)
     with c as p:
         (o, e) = p.communicate()
-        for l in o.split('\n'):
-            print(l)
+        for li in o.split('\n'):
+            print(li)
+
 
 if __name__ == '__main__':
-    #test()
+    # test()
     system('lss')

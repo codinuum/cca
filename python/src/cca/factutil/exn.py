@@ -18,8 +18,10 @@
   limitations under the License.
 '''
 
+
 class Invalid_argument(Exception):
     pass
+
 
 class NotImplimented(Exception):
     pass

@@ -25,7 +25,6 @@ import re
 import logging
 
 from .cca_config import ast_ext, compress_cmd
-from . import cca_options, tp, project
 
 logger = logging.getLogger()
 
@@ -33,8 +32,9 @@ ast_working_dir_base = 'work.AST'
 
 generated_srcs_info_dir_name = 'generated_sources'
 
-bison_pat = re.compile('#define\s+YYBISON\s+1')
+bison_pat = re.compile(r'#define\s+YYBISON\s+1')
 nlines_for_bison_pat_search = 32
+
 
 def is_bison_generated(fpath):
     b = False
@@ -54,8 +54,10 @@ def is_bison_generated(fpath):
         pass
     return b
 
-flex_pat = re.compile('#define\s+FLEX_SCANNER')
+
+flex_pat = re.compile(r'#define\s+FLEX_SCANNER')
 nlines_for_flex_pat_search = 32
+
 
 def is_flex_generated(fpath):
     b = False
@@ -74,6 +76,7 @@ def is_flex_generated(fpath):
     except IOError:
         pass
     return b
+
 
 def do_cmds(dir_path, cmds):
     cwd = os.getcwd()
@@ -119,7 +122,7 @@ def compress_file(path):
     return success
 
 
-def compress_asts(dir_path): # bzip2 ASTs
+def compress_asts(dir_path):  # bzip2 ASTs
     success = True
     try:
         names = os.listdir(dir_path)
@@ -145,6 +148,6 @@ def compress_asts(dir_path): # bzip2 ASTs
 #         compress_asts(rev_path)
 
 def mkgensrcsinfofile(basedir, proj_id, n):
-    p = os.path.join(basedir, ast_working_dir_base, proj_id, generated_srcs_info_dir_name, n)
+    p = os.path.join(basedir, ast_working_dir_base, proj_id,
+                     generated_srcs_info_dir_name, n)
     return p
-

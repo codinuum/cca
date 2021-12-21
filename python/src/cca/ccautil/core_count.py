@@ -3,6 +3,7 @@
 import sys
 from subprocess import check_output
 
+
 def core_count():
     out = None
 
@@ -11,7 +12,7 @@ def core_count():
         try:
             _out = check_output(cmd, shell=True, encoding='utf-8')
             out = int(_out.strip())
-        except:
+        except Exception:
             pass
 
     elif sys.platform.startswith('linux'):
@@ -23,7 +24,7 @@ def core_count():
             _out1 = check_output(cmd1, shell=True, encoding='utf-8')
             cores = int(_out1.strip().strip('cpucores:\t '))
             out = cpus * cores
-        except:
+        except Exception:
             pass
 
     return out

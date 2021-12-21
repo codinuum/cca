@@ -26,6 +26,7 @@ from .const import SUB_SEP
 
 logger = logging.getLogger()
 
+
 def compo_to_int(s):
     i = -1
     try:
@@ -56,12 +57,11 @@ class Range(object):
         return None
 
     def overlaps(self, other):
-        return self.meet(other) != None
+        return self.meet(other) is not None
 
     def contains(self, other):
         logger.warning('not implemented')
         return None
-
 
 
 class LCRange(Range):
@@ -98,12 +98,12 @@ class LCRange(Range):
     def __eq__(self, other):
         res = False
         if isinstance(other, LCRange):
-            res = reduce(lambda x,y: x and y, [self._start_line == other._start_line,
-                                               self._start_col == other._start_col,
-                                               self._end_line == other._end_line,
-                                               self._end_col == other._end_col])
+            res = reduce(lambda x, y: x and y,
+                         [self._start_line == other._start_line,
+                          self._start_col == other._start_col,
+                          self._end_line == other._end_line,
+                          self._end_col == other._end_col])
         return res
-
 
     @classmethod
     def _meet(cls, s0, s1):
@@ -160,15 +160,21 @@ class LCRange(Range):
     def contains(self, other):
         b = False
         if isinstance(other, LCRange):
-            b = self._start_line <= other._start_line and other._end_line <= self._end_line and self._start_col <= other._start_col and other._end_col <= self._end_col
+            b = self._start_line <= other._start_line \
+                and other._end_line <= self._end_line \
+                and self._start_col <= other._start_col \
+                and other._end_col <= self._end_col
         return b
 
     def get_start_line(self):
         return self._start_line
+
     def get_start_col(self):
         return self._start_col
+
     def get_end_line(self):
         return self._end_line
+
     def get_end_col(self):
         return self._end_col
 
@@ -198,8 +204,9 @@ class ORange(Range):
     def __eq__(self, other):
         res = False
         if isinstance(other, ORange):
-            res = reduce(lambda x,y: x and y, [self._start_offset == other._start_offset,
-                                               self._end_offset == other._end_offset])
+            res = reduce(lambda x, y: x and y,
+                         [self._start_offset == other._start_offset,
+                          self._end_offset == other._end_offset])
         return res
 
     def __str__(self):
@@ -221,12 +228,13 @@ class ORange(Range):
     def contains(self, other):
         b = False
         if isinstance(other, ORange) or isinstance(other, LCORange):
-            b = self._start_offset <= other._start_offset and other._end_offset <= self._end_offset
+            b = self._start_offset <= other._start_offset \
+                and other._end_offset <= self._end_offset
         return b
-
 
     def get_start_offset(self):
         return self._start_offset
+
     def get_end_offset(self):
         return self._end_offset
 
@@ -259,14 +267,15 @@ class LORange(ORange):
                                                        self._end_line,
                                                        self._end_offset]])
 
-
     def __eq__(self, other):
         res = False
         if isinstance(other, LORange):
-            res = reduce(lambda x,y: x and y, [self._start_line == other._start_line,
-                                               self._start_offset == other._start_offset,
-                                               self._end_line == other._end_line,
-                                               self._end_offset == other._end_offset])
+            res = reduce(lambda x, y: x and y,
+                         [self._start_line == other._start_line,
+                          self._start_offset == other._start_offset,
+                          self._end_line == other._end_line,
+                          self._end_offset == other._end_offset])
+        return res
 
     def __str__(self):
         s = '%dL(%d)-%dL(%d)' % (self._start_line,
@@ -274,7 +283,6 @@ class LORange(ORange):
                                  self._end_line,
                                  self._end_offset)
         return s
-
 
     def meet(self, other):
         m = None
@@ -293,7 +301,8 @@ class LORange(ORange):
     def contains(self, other):
         b = False
         if isinstance(other, ORange) or isinstance(other, LORange):
-            b = self._start_offset <= other._start_offset and other._end_offset <= self._end_offset
+            b = self._start_offset <= other._start_offset \
+                and other._end_offset <= self._end_offset
         return b
 
 
@@ -327,16 +336,17 @@ class LCORange(LCRange, ORange):
                                                        self._end_col,
                                                        self._end_offset]])
 
-
     def __eq__(self, other):
         res = False
         if isinstance(other, LCORange):
-            res = reduce(lambda x,y: x and y, [self._start_line == other._start_line,
-                                               self._start_col == other._start_col,
-                                               self._start_offset == other._start_offset,
-                                               self._end_line == other._end_line,
-                                               self._end_col == other._end_col,
-                                               self._end_offset == other._end_offset])
+            res = reduce(lambda x, y: x and y,
+                         [self._start_line == other._start_line,
+                          self._start_col == other._start_col,
+                          self._start_offset == other._start_offset,
+                          self._end_line == other._end_line,
+                          self._end_col == other._end_col,
+                          self._end_offset == other._end_offset])
+        return res
 
     def __str__(self):
         s = '%dL,%dC(%d)-%dL,%dC(%d)' % (self._start_line,
@@ -346,7 +356,6 @@ class LCORange(LCRange, ORange):
                                          self._end_col,
                                          self._end_offset)
         return s
-
 
     def meet(self, other):
         m = None
@@ -374,7 +383,8 @@ class LCORange(LCRange, ORange):
     def contains(self, other):
         b = False
         if isinstance(other, ORange) or isinstance(other, LCORange):
-            b = self._start_offset <= other._start_offset and other._end_offset <= self._end_offset
+            b = self._start_offset <= other._start_offset \
+                and other._end_offset <= self._end_offset
         return b
 
 
@@ -396,18 +406,25 @@ class MaxRange(Range):
 
     def get_start_line(self):
         return 1
+
     def get_start_col(self):
         return 0
+
     def get_end_line(self):
         return -1
+
     def get_end_col(self):
         return 0
+
     def get_start_offset(self):
         return 0
+
     def get_end_offset(self):
         return -1
 
+
 MAX_RANGE = MaxRange()
+
 
 def from_encoded(encoded):
     range = None
@@ -424,19 +441,20 @@ def from_encoded(encoded):
 
     return range
 
+
 class Key(object):
     def __init__(self, obj, *args):
         self.obj = obj
         (self.L, self.O) = self.chk(obj)
 
     def chk(self, obj):
-        L = None
+        Ln = None
         if isinstance(obj, LCRange) or isinstance(obj, LCORange):
-            L = obj.get_start_line()
-        O = None
+            Ln = obj.get_start_line()
+        Ofs = None
         if isinstance(obj, ORange) or isinstance(obj, LCORange):
-            O = obj.get_start_offset()
-        return (L, O)
+            Ofs = obj.get_start_offset()
+        return (Ln, Ofs)
 
     def __lt__(self, other):
         (L, O) = self.chk(other.obj)
@@ -462,7 +480,7 @@ class Key(object):
         if self.L and L:
             b = self.L == L
         elif self.O and O:
-            b = self.O == O
+            b = (self.O) == O
         return b
 
     def __le__(self, other):
@@ -471,7 +489,7 @@ class Key(object):
         if self.L and L:
             b = self.L <= L
         elif self.O and O:
-            b = self.O <= O
+            b = (self.O) <= O
         return b
 
     def __ge__(self, other):
@@ -480,7 +498,7 @@ class Key(object):
         if self.L and L:
             b = self.L >= L
         elif self.O and O:
-            b = self.O >= O
+            b = (self.O) >= O
         return b
 
     def __ne__(self, other):
@@ -489,8 +507,7 @@ class Key(object):
         if self.L and L:
             b = self.L != L
         elif self.O and O:
-            b = self.O != O
+            b = (self.O) != O
         else:
             b = True
         return b
-

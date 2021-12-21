@@ -34,10 +34,11 @@ logger = logging.getLogger()
 #####
 
 TIMEOUT = 5
-BUFSIZE = 0 # unbuffered
+BUFSIZE = 0  # unbuffered
 LOG_BUFSIZE = 256
 
 #####
+
 
 def spawn(cmd):
     sproc = subprocess.Popen(cmd,
@@ -47,6 +48,7 @@ def spawn(cmd):
                              stderr=subprocess.PIPE,
                              close_fds=True)
     return sproc
+
 
 def mklogname(cmd_name, wid):
     (base, ext) = os.path.splitext(cmd_name)
@@ -126,8 +128,10 @@ def dump_log(cmd_name, wid, sout_serr, wdir='.', timeout=TIMEOUT):
 
     f.close()
 
+
 def store_carg(option, opt_str, value, parser):
-    setattr(parser.values, option.dest, getattr(parser.values, option.dest)+' '+value)
+    setattr(parser.values,
+            option.dest, getattr(parser.values, option.dest)+' '+value)
 
 
 def main():
@@ -140,12 +144,13 @@ def main():
     optparser.add_option('-c', '--cmd', dest='cmd',
                          help='set command to CMD', metavar='CMD')
 
-    optparser.add_option('-a', '--arg', action='callback', callback=store_carg, nargs=1,
-                         dest='cargs', type='string', default='',
+    optparser.add_option('-a', '--arg', action='callback', callback=store_carg,
+                         nargs=1, dest='cargs', type='string', default='',
                          help='set ARGS for sub command', metavar='ARGS')
 
-    optparser.add_option('-n', '--nprocs', dest='nprocs', action='store', type='int',
-                         help='set nprocs to N', metavar='N', default=2)
+    optparser.add_option('-n', '--nprocs', dest='nprocs', action='store',
+                         type='int', metavar='N', default=2,
+                         help='set nprocs to N')
 
     optparser.add_option('-d', '--debug', action='store_true', dest='debug',
                          help='enable debug output')
@@ -165,7 +170,6 @@ def main():
 
     dist_dir = os.path.dirname(sys.argv[0])
 
-
     logger.info('command: "%s"' % opt.cmd)
 
     w_cmd = ''
@@ -174,7 +178,6 @@ def main():
         w_cmd = os.path.join(dist_dir, opt.cmd)
     else:
         logger.error('no command specified')
-
 
     out_tbl = {}
 
@@ -191,7 +194,8 @@ def main():
 #            if opt.engine:
 #                engine_opt = '-e %s' % opt.engine
 
-            cmd = '%s %s -c work -w %s %s %s' % (w_cmd, arg, wid, engine_opt, target_dir)
+            cmd = '%s %s -c work -w %s %s %s' % (w_cmd, arg, wid, engine_opt,
+                                                 target_dir)
 
             logger.info('cmd: "%s"' % cmd)
 
@@ -200,9 +204,9 @@ def main():
 
             out_tbl[wid] = (p.stdout, p.stderr)
 
-
     for wid in out_tbl.keys():
-        th = threading.Thread(target=dump_log, args=(opt.cmd, wid, out_tbl[wid], target_dir))
+        th = threading.Thread(target=dump_log,
+                              args=(opt.cmd, wid, out_tbl[wid], target_dir))
         th.start()
 
 

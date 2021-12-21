@@ -20,7 +20,6 @@
 
 __author__ = 'Masatomo Hashimoto <m.hashimoto@stair.center>'
 
-import sys
 import os
 import logging
 
@@ -30,8 +29,10 @@ from javalang import tokenizer
 
 logger = logging.getLogger()
 
+
 def is_src(f):
     return f.endswith('.java')
+
 
 def get_tokens(path):
     toks = []
@@ -39,7 +40,7 @@ def get_tokens(path):
         with open(path, 'r') as f:
             for tok in tokenizer.tokenize(f.read()):
                 toks.append(tok.value)
-    except Exception as e:
+    except Exception:
         pass
 
     seq = []
@@ -53,7 +54,7 @@ def get_tokens(path):
                     nxt = toks.pop(0)
                     r = '.' + nxt
                     if seq:
-                        if seq[-1] not in (',','('):
+                        if seq[-1] not in (',', '('):
                             seq[-1] += r
                         else:
                             seq.append(r)
@@ -83,18 +84,21 @@ def get_tokens(path):
 
     return seq
 
+
 def count_tokens(path):
     c = len(get_tokens(path))
     return c
 
+
 def get_files(x):
-    l = []
+    li = []
     for (d, dns, ns) in os.walk(x):
         for n in ns:
             p = os.path.join(d, n)
             if is_src(p):
-                l.append(p)
-    return l
+                li.append(p)
+    return li
+
 
 def get_pre_context(toks, i):
     if i > 2:
@@ -107,17 +111,20 @@ def get_pre_context(toks, i):
         pre = ' '.join(toks[0:i])
     return pre
 
+
 def get_post_context(toks, i):
     post = ' '.join(toks[i:i+5])
     return post
 
+
 def get_context(toks, i):
     return (get_pre_context(toks, i), get_post_context(toks, i))
 
+
 def diff_to_str(d, toks1, toks2):
-    dels  = d['delete']
+    dels = d['delete']
     repls = d['replace']
-    inss  = d['insert']
+    inss = d['insert']
 
     lines = []
 
@@ -133,8 +140,12 @@ def diff_to_str(d, toks1, toks2):
     if repls:
         for ((a, b), (a2, b2)) in repls:
             pre, post = get_pre_context(toks1, a), get_post_context(toks1, b)
-            lines.append('[REPLACE] {}-{} -> {}-{} ({}->{}):\n'.format(a, b-1, a2, b2-1,
-                                                                       b-a, b2-a2))
+            lines.append('[REPLACE] {}-{} -> {}-{} ({}->{}):\n'.format(a,
+                                                                       b-1,
+                                                                       a2,
+                                                                       b2-1,
+                                                                       b-a,
+                                                                       b2-a2))
             lines.append('  {}\n'.format(pre))
             lines.append('- ')
             lines.append(' '.join(toks1[a:b]))
@@ -157,8 +168,10 @@ def diff_to_str(d, toks1, toks2):
 
     return s
 
+
 def print_diff(d, toks1, toks2):
     print(diff_to_str(d, toks1, toks2))
+
 
 def size_of_diff(d):
     sz = 0
@@ -173,9 +186,10 @@ def size_of_diff(d):
 
     return sz
 
+
 def diff_tokens(toks1, toks2):
     m = SequenceMatcher(isjunk=None, a=toks1, b=toks2)
-    d = {'replace':[],'delete':[],'insert':[]}
+    d = {'replace': [], 'delete': [], 'insert': []}
     for (tag, i1, i2, j1, j2) in m.get_opcodes():
         if tag != 'equal':
             d[tag].append(((i1, i2), (j1, j2)))
@@ -185,6 +199,7 @@ def diff_tokens(toks1, toks2):
         nm += nt.size
     d['nmatches'] = nm
     return d
+
 
 def is_equivalent_file(path1, path2):
     if filecmp.cmp(path1, path2, shallow=False):
@@ -198,6 +213,7 @@ def is_equivalent_file(path1, path2):
     b = toks1 == toks2
     return b
 
+
 def all_different(paths):
     n = len(paths)
     for i in range(n-1):
@@ -210,20 +226,22 @@ def all_different(paths):
 
     for i in range(n-1):
         for j in range(i+1, n):
-            if toks_list[i] == None:
+            if toks_list[i] is None:
                 toks_list[i] = get_tokens(paths[i])
-            if toks_list[j] == None:
+            if toks_list[j] is None:
                 toks_list[j] = get_tokens(paths[j])
-            if toks_list[i] == toks_list[j]:
-                logger.info('equivalent files: {} {}'.format(paths[i], paths[j]))
+            if toks_list[i] is toks_list[j]:
+                logger.info('equivalent files: {} {}'
+                            .format(paths[i], paths[j]))
                 return False
 
     return True
 
+
 def compare_files(path1, path2, simple=False):
     if filecmp.cmp(path1, path2, shallow=False):
         logger.info('same files')
-        return {'count':0,'diff':'','sim':1.0}
+        return {'count': 0, 'diff': '', 'sim': 1.0}
     elif simple:
         logger.info('different files')
         return {}
@@ -238,11 +256,12 @@ def compare_files(path1, path2, simple=False):
     sim = d['sim']
     nm = d['nmatches']
     dist = float(c) / (float(nm) if nm > 0 else 1.0)
-    ret = {'count':c,'diff':s,'sim':sim,'dist':dist}
+    ret = {'count': c, 'diff': s, 'sim': sim, 'dist': dist}
     return ret
 
+
 def compare_dirs(d1, d2, simple=False):
-    #print('comparing {} with {}'.format(d1, d2))
+    # print('comparing {} with {}'.format(d1, d2))
 
     dcmp = filecmp.dircmp(d1, d2)
     removed_files = []
@@ -329,7 +348,8 @@ def main():
         log_level = logging.INFO
     if args.debug:
         log_level = logging.DEBUG
-    logging.basicConfig(format='[%(levelname)s][%(funcName)s] %(message)s', level=log_level)
+    logging.basicConfig(format='[%(levelname)s][%(funcName)s] %(message)s',
+                        level=log_level)
 
     c = None
 

@@ -24,40 +24,42 @@
 import logging
 
 from .siteconf import SPARQL_ENDPOINT
-from .virtuoso import ODBCDriver, VIRTUOSO_PW, VIRTUOSO_PORT, get_odbc_connect_string
+from .virtuoso import (ODBCDriver, VIRTUOSO_PW, VIRTUOSO_PORT,
+                       get_odbc_connect_string)
 from . import ns
-from cca.factutil.const import ENTITY_NS, VARIANT_NS, SVNREV_NS, GITREV_NS, RELEASE_NS
+from cca.factutil.const import (ENTITY_NS, VARIANT_NS, SVNREV_NS, GITREV_NS,
+                                RELEASE_NS)
 from .common import setup_logger
 
 logger = logging.getLogger()
 
 
-NAMESPACES = { 'xsd'  : ns.XSD_NS,
-               'owl'  : ns.OWL_NS,
-               'rdf'  : ns.RDF_NS,
-               'fb'   : ns.FB_NS,
-               'src'  : ns.SRC_NS,
-               'ver'  : ns.VER_NS,
-               'chg'  : ns.CHG_NS,
-               'git'  : ns.GIT_NS,
+NAMESPACES = {
+    'xsd': ns.XSD_NS,
+    'owl': ns.OWL_NS,
+    'rdf': ns.RDF_NS,
+    'fb':  ns.FB_NS,
+    'src': ns.SRC_NS,
+    'ver': ns.VER_NS,
+    'chg': ns.CHG_NS,
+    'git': ns.GIT_NS,
 
-               'ent'      : ENTITY_NS,
-               'variant'  : VARIANT_NS,
-               'svnrev'   : SVNREV_NS,
-               'gitrev'   : GITREV_NS,
-               'rel'      : RELEASE_NS,
+    'ent':     ENTITY_NS,
+    'variant': VARIANT_NS,
+    'svnrev':  SVNREV_NS,
+    'gitrev':  GITREV_NS,
+    'rel':     RELEASE_NS,
 
-               'f'    : ns.F_NS,
-               'pa'   : ns.PA_NS,
-               'fjpa' : ns.FJPA_NS,
-               'fpt'  : ns.FPT_NS,
+    'f':    ns.F_NS,
+    'pa':   ns.PA_NS,
+    'fjpa': ns.FJPA_NS,
+    'fpt':  ns.FPT_NS,
 
-               'fjpadata' : ns.PREFIX_TBL['fjpadata'],
-               'entpair'  : ns.PREFIX_TBL['entpair'],
-               'chgpat'   : ns.PREFIX_TBL['chgpat'],
-               'chginst'  : ns.PREFIX_TBL['chginst'],
-           }
-
+    'fjpadata': ns.PREFIX_TBL['fjpadata'],
+    'entpair':  ns.PREFIX_TBL['entpair'],
+    'chgpat':   ns.PREFIX_TBL['chgpat'],
+    'chginst':  ns.PREFIX_TBL['chginst'],
+}
 
 
 def get_localname(s):
@@ -70,7 +72,6 @@ def get_localname(s):
             logger.warning(str(e))
 
     return res
-
 
 
 class Driver(object):
@@ -91,7 +92,6 @@ class Driver(object):
                 logger.warning('"%s": %s' % (v, e))
 
         return r
-
 
     def execute(self, q):
         pass
@@ -117,7 +117,7 @@ class VirtuosoODBCDriver(ODBCDriver, Driver):
         return row
 
     def query(self, q, abbrev=False):
-        #logger.debug('query:\n{}'.format(q))
+        # logger.debug('query:\n{}'.format(q))
         for qvs, row in ODBCDriver.query(self, 'SPARQL\n'+q):
             yield qvs, self.conv_row(row, abbrev)
 
@@ -129,7 +129,6 @@ class VirtuosoODBCDriver(ODBCDriver, Driver):
         if r:
             r = self.conv_row(r, abbrev)
         return r
-
 
 
 class VirtuosoHTTPDriver(Driver):
@@ -170,9 +169,9 @@ class VirtuosoHTTPDriver(Driver):
             maxrows = str(limit)
 
         params = {
-            'query'  : q,
-            'format' : format,
-            'maxrows' : maxrows,
+            'query':   q,
+            'format':  format,
+            'maxrows': maxrows,
         }
 
         qpart = urlencode(params)
@@ -194,7 +193,7 @@ class VirtuosoHTTPDriver(Driver):
             r = self._exec(q, limit=1)
             b = r['results']['bindings'][0]
             row = self.conv_binding(b, abbrev)
-        except:
+        except Exception:
             pass
 
         return row
@@ -204,8 +203,6 @@ class VirtuosoHTTPDriver(Driver):
         for b in result['results']['bindings']:
             qvs = [str(v) for v in result['head']['vars']]
             yield qvs, self.conv_binding(b, abbrev)
-
-
 
 
 def get_driver(method='http', pw=VIRTUOSO_PW, port=VIRTUOSO_PORT):
@@ -227,17 +224,19 @@ def main():
 
     parser.add_argument('query_file', type=str, help='query file')
 
-    parser.add_argument('-d', '--debug', dest='debug', action='store_true', help='enable debug printing')
+    parser.add_argument('-d', '--debug', dest='debug', action='store_true',
+                        help='enable debug printing')
 
     parser.add_argument('--port', dest='port', default=VIRTUOSO_PORT,
                         metavar='PORT', type=int, help='set port number')
 
-    parser.add_argument('--pw', dest='pw', metavar='PASSWORD', default=VIRTUOSO_PW,
+    parser.add_argument('--pw', dest='pw', metavar='PASSWORD',
+                        default=VIRTUOSO_PW,
                         help='set password to access DB')
 
     parser.add_argument('-m', '--method', dest='method', default='odbc',
-                        metavar='METHOD', type=str, help='execute query via METHOD (http|odbc)')
-
+                        metavar='METHOD', type=str,
+                        help='execute query via METHOD (http|odbc)')
 
     args = parser.parse_args()
 
@@ -250,7 +249,6 @@ def main():
 
     logger.info('method: "%s"' % args.method)
     logger.info('query:  "%s"' % qfile)
-
 
     driver = get_driver(args.method, pw=args.pw, port=args.port)
 
@@ -269,15 +267,15 @@ def main():
             print('\n'.join(row))
             count += 1
 
-    except Exception as e:
-        #logger.error(str(e))
+    except Exception:  # as e:
+        # logger.error(str(e))
         raise
 
     print('%d rows' % count)
 
 
 def test():
-    #sparql = VirtuosoODBCDriver()
+    # sparql = VirtuosoODBCDriver()
     sparql = VirtuosoHTTPDriver()
 
     q = 'DEFINE input:inference "ont.cpi" SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10'

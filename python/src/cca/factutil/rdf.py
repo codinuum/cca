@@ -59,22 +59,23 @@ class RDFNode(object):
 class Resource(RDFNode):
     def __init__(self, uri=None, **args):
         nd = args.get('node', None)
-        if nd != None:
+        if nd is not None:
             RDFNode.__init__(self, nd)
         else:
-            if uri != None:
+            if uri is not None:
                 try:
                     RDFNode.__init__(self, rdflib.term.URIRef(uri))
-                except:
+                except Exception:
                     logger.warning('uri="%s"(%s)' % (uri, str(type(uri))))
                     raise
             else:
-                RDFNode.__init__(self, rdflib.term.BNode()) # blank node
+                RDFNode.__init__(self, rdflib.term.BNode())  # blank node
 
     def __eq__(self, other):
         res = False
         if isinstance(other, Resource):
-            if isinstance(self._node, rdflib.term.URIRef) and isinstance(other._node, rdflib.term.URIRef):
+            if isinstance(self._node, rdflib.term.URIRef) \
+               and isinstance(other._node, rdflib.term.URIRef):
                 res = self.get_uri() == other.get_uri()
             else:
                 res = self._node == other._node
@@ -96,7 +97,6 @@ class Resource(RDFNode):
     def __hash__(self):
         return str(self.get_uri()).__hash__()
 
-
     def __str__(self):
         return '<%s>' % self.get_uri()
 
@@ -115,7 +115,7 @@ class Resource(RDFNode):
 class Literal(RDFNode):
     def __init__(self, literal="", **args):
         nd = args.get('node', None)
-        if nd != None:
+        if nd is not None:
             RDFNode.__init__(self, nd)
         else:
             RDFNode.__init__(self, rdflib.Literal(literal, **args))
@@ -152,7 +152,6 @@ def make_literal(x):
     return lit
 
 
-
 class Predicate(Resource):
     def __init__(self, ns=None, lname=None, **args):
         self._lname = None
@@ -161,14 +160,14 @@ class Predicate(Resource):
         uri = None
         node = args.get('node', None)
 
-        if ns == None or lname==None:
+        if ns is None or lname is None:
             uri = args.get('uri', None)
 
-            if uri == None:
-                if node != None:
+            if uri is None:
+                if node is not None:
                     if isinstance(node, rdflib.term.URIRef):
                         uri = str(str(node))
-            if uri != None:
+            if uri is not None:
                 self._ns, self._lname = uri_split(uri)
 
         else:
@@ -213,15 +212,14 @@ class Statement(object):
 
             self._stmt = (s, p, o)
 
-
     def __eq__(self, other):
         res = False
         if isinstance(other, Statement):
-            res = reduce(lambda x,y: x and y, [self.subject == other.subject,
-                                               self.predicate == other.predicate,
-                                               self.object == other.object])
+            res = reduce(lambda x, y: x and y,
+                         [self.subject == other.subject,
+                          self.predicate == other.predicate,
+                          self.object == other.object])
         return res
-
 
 
 class Graph(object):
@@ -239,7 +237,6 @@ class Graph(object):
         self.l_false = Literal('false')
 
         self.namespace_tbl = ns_tbl
-
 
     def set_namespace(self, prefix, uri):
         self.namespace_tbl[prefix] = uri
@@ -352,7 +349,6 @@ class Graph(object):
 
         if gzipped:
             os.unlink(tmp)
-
 
     def query(self, qstr, base_uri=None):
         results = self._model.query(qstr, initNs=self.namespace_tbl)

@@ -28,6 +28,7 @@ RULE_NAME = 'ont.cpi'
 
 FACT_DIR = os.path.join(virtuoso.VTMP_DIR, 'ontologies')
 
+
 def load(db_dir, fact_dir,
          graph_uri=GRAPH_URI,
          rule_name=RULE_NAME,
@@ -43,8 +44,10 @@ def load(db_dir, fact_dir,
             rc = loader.checkpoint()
     return rc
 
+
 def main():
     load(virtuoso.DB_DIR, FACT_DIR)
+
 
 if __name__ == '__main__':
     main()

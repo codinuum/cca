@@ -29,25 +29,29 @@ from .const import SUB_SEP, SUB_SUB_SEP
 
 logger = logging.getLogger()
 
+
 class FidEnc:
-    FD  = 'FD'
+    FD = 'FD'
     PVF = 'PVF'
 
+
 class LocEnc:
-    O   = 'O'
-    L   = 'L'
-    LC  = 'LC'
+    (O) = ('O')
+    L = 'L'
+    LC = 'LC'
     LCO = 'LCO'
 
+
 class Enc:
-    FDO    = FidEnc.FD + LocEnc.O
-    FDL    = FidEnc.FD + LocEnc.L
-    FDLC   = FidEnc.FD + LocEnc.LC
-    FDLCO  = FidEnc.FD + LocEnc.LCO
-    PVFO   = FidEnc.PVF + LocEnc.O
-    PVFL   = FidEnc.PVF + LocEnc.L
-    PVFLC  = FidEnc.PVF + LocEnc.LC
+    FDO = FidEnc.FD + LocEnc.O
+    FDL = FidEnc.FD + LocEnc.L
+    FDLC = FidEnc.FD + LocEnc.LC
+    FDLCO = FidEnc.FD + LocEnc.LCO
+    PVFO = FidEnc.PVF + LocEnc.O
+    PVFL = FidEnc.PVF + LocEnc.L
+    PVFLC = FidEnc.PVF + LocEnc.LC
     PVFLCO = FidEnc.PVF + LocEnc.LCO
+
 
 class VerKind:
     REL = 'REL'
@@ -55,37 +59,39 @@ class VerKind:
     GIT = 'GITREV'
     VAR = 'VARIANT'
 
+
 enum_vkind = [VerKind.REL, VerKind.SVN, VerKind.GIT, VerKind.VAR]
 
+
 class HashAlgo:
-    MD5       = 'MD5'
-    SHA1      = 'SHA1'
-    SHA224    = 'SHA224'
-    SHA256    = 'SHA256'
-    SHA384    = 'SHA384'
-    SHA512    = 'SHA512'
+    MD5 = 'MD5'
+    SHA1 = 'SHA1'
+    SHA224 = 'SHA224'
+    SHA256 = 'SHA256'
+    SHA384 = 'SHA384'
+    SHA512 = 'SHA512'
     RIPEMD160 = 'RIPEMD160'
-    GIT       = 'GIT'
-    PATH      = 'PATH'
+    GIT = 'GIT'
+    PATH = 'PATH'
+
 
 hash_algo_tbl = {
-    HashAlgo.MD5       : hashlib.md5,
-    HashAlgo.SHA1      : hashlib.sha1,
-    HashAlgo.SHA224    : hashlib.sha224,
-    HashAlgo.SHA256    : hashlib.sha256,
-    HashAlgo.SHA384    : hashlib.sha384,
-    HashAlgo.SHA512    : hashlib.sha512,
-    HashAlgo.RIPEMD160 : hashlib.new('ripemd160'),
-    HashAlgo.GIT       : hashlib.sha1,
-    HashAlgo.PATH      : hashlib.sha1,
+    HashAlgo.MD5:       hashlib.md5,
+    HashAlgo.SHA1:      hashlib.sha1,
+    HashAlgo.SHA224:    hashlib.sha224,
+    HashAlgo.SHA256:    hashlib.sha256,
+    HashAlgo.SHA384:    hashlib.sha384,
+    HashAlgo.SHA512:    hashlib.sha512,
+    HashAlgo.RIPEMD160: hashlib.new('ripemd160'),
+    HashAlgo.GIT:       hashlib.sha1,
+    HashAlgo.PATH:      hashlib.sha1,
 }
-
 
 
 def _compute_hash(algo, f, path=None):
     digest = None
     h = hash_algo_tbl.get(algo, None)
-    if h == None:
+    if h is None:
         raise Invalid_argument(algo)
 
     content = f.read()
@@ -105,6 +111,7 @@ def _compute_hash(algo, f, path=None):
 
     return digest
 
+
 def compute_hash(algo, fname):
     digest = None
     f = None
@@ -112,8 +119,8 @@ def compute_hash(algo, fname):
         f = open(fname, 'rb')
         digest = _compute_hash(algo, f, path=fname)
 
-    except Exception as e:
-#        logger.warning(str(e))
+    except Exception:  # as e:
+        # logger.warning(str(e))
         raise
 
     finally:
@@ -123,12 +130,12 @@ def compute_hash(algo, fname):
     return digest
 
 
-
 def encode_string(s):
     encoded = ''
     for c in s:
         encoded += '%02x' % ord(c)
     return encoded
+
 
 def decode_string(encoded):
     s = ''
@@ -139,7 +146,7 @@ def decode_string(encoded):
         try:
             h = encoded[n:n+2]
             s += chr(int(h, 16))
-        except:
+        except Exception:
             raise Invalid_argument
 
     return s
@@ -267,7 +274,7 @@ class Version(object):
 
 class ProjRelPath(object):
     @classmethod
-    def from_encoded(cls, encoded): # should be fixed
+    def from_encoded(cls, encoded):  # should be fixed
         proj_rel_path = decode_string(encoded)
         obj = ProjRelPath('', proj_rel_path, proj_rel_path=proj_rel_path)
         return obj
@@ -279,7 +286,8 @@ class ProjRelPath(object):
             self._proj_rel_path = proj_rel_path
         else:
             if self._path and self._proj_root:
-                self._proj_rel_path = os.path.relpath(self._path, self._proj_root)
+                self._proj_rel_path = os.path.relpath(self._path,
+                                                      self._proj_root)
             else:
                 self._proj_rel_path = ''
         self._encoded = None
@@ -306,7 +314,7 @@ class ProjRelPath(object):
         return self._proj_rel_path
 
     def encode(self):
-        if self._encoded == None:
+        if self._encoded is None:
             self._encoded = encode_string(self._proj_rel_path)
         return self._encoded
 
@@ -326,9 +334,11 @@ class FileDesc(FileId):
 
     def __init__(self, proj, ver, rel_path):
         FileId.__init__(self)
-        self._valid = reduce(lambda x,y: x and y, [isinstance(ver, Version),
-                                                   ver.is_valid(),
-                                                   isinstance(rel_path, ProjRelPath) or rel_path == None])
+        self._valid = reduce(lambda x, y: x and y,
+                             [isinstance(ver, Version),
+                              ver.is_valid(),
+                              isinstance(rel_path, ProjRelPath)
+                              or rel_path is None])
         self._proj = proj
         self._ver = ver
         self._proj_rel_path = rel_path
@@ -344,14 +354,13 @@ class FileDesc(FileId):
                 self._encoded = SUB_SEP.join([encode_string(self._proj),
                                               self._ver.encode()])
 
-
-
     def __eq__(self, other):
         res = False
         if isinstance(other, FileDesc):
-            res = reduce(lambda x,y: x and y, [self._proj == other._proj,
-                                               self._ver == other._ver,
-                                               self._proj_rel_path == other._proj_rel_path])
+            res = reduce(lambda x, y: x and y,
+                         [self._proj == other._proj,
+                          self._ver == other._ver,
+                          self._proj_rel_path == other._proj_rel_path])
         return res
 
     def __ne__(self, other):
@@ -377,7 +386,6 @@ class FileDesc(FileId):
 
     def get_value(self):
         return self.encode()
-
 
 
 def from_encoded(encoded):

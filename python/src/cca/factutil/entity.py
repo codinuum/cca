@@ -19,22 +19,20 @@
 '''
 
 from .const import ENTITY_NS, EXTERNAL_NS, SEP
-from .exn import Invalid_argument
 from .rdf import Resource
 from .range import LCRange, ORange, LORange, LCORange, MAX_RANGE
-from .fileid import FileDigest, FileDesc
+from .fileid import FileDesc
 from . import fileid
 from . import range
-
 
 
 class External(Resource):
     def __init__(self, sym=None, **args):
         nd = args.get('node', None)
-        if nd != None:
+        if nd is not None:
             Resource.__init__(self, node=nd)
         else:
-            if sym != None:
+            if sym is not None:
                 Resource.__init__(self, EXTERNAL_NS + sym)
             else:
                 Resource.__init__(self, EXTERNAL_NS + '???')
@@ -42,6 +40,7 @@ class External(Resource):
 
     def __str__(self):
         return '<%s>' % self.get_uri()
+
 
 class SourceCodeEntity(Resource):
     def __init__(self, **args):
@@ -111,7 +110,6 @@ class SourceCodeEntity(Resource):
         except KeyError:
             pass
 
-
         if self._file_id and self._range:
             self._enc = self._file_id.get_enc()
 
@@ -121,7 +119,8 @@ class SourceCodeEntity(Resource):
                 compos = [self._enc, self._file_id.encode()]
             else:
                 self._enc += self._range.get_enc()
-                compos = [self._enc, self._file_id.encode(), self._range.encode()]
+                compos = [self._enc, self._file_id.encode(),
+                          self._range.encode()]
 
             self._local_name = SEP.join(compos)
             uri = ENTITY_NS + self._local_name
@@ -141,10 +140,11 @@ class SourceCodeEntity(Resource):
                     except IndexError:
                         pass
 
-                    self._valid = self._file_id.is_valid() & self._range.is_valid()
+                    self._valid \
+                        = self._file_id.is_valid() & self._range.is_valid()
 
-                except Exception as e:
-                    #self.warning(str(e))
+                except Exception:  # as e:
+                    # self.warning(str(e))
                     self._valid = False
 
             else:
@@ -153,11 +153,8 @@ class SourceCodeEntity(Resource):
         else:
             self._valid = False
 
-
-
     def __str__(self):
         return '<%s>' % self.get_uri()
-
 
     def get_encoding(self):
         return self._enc
@@ -175,7 +172,9 @@ class SourceCodeEntity(Resource):
         b = False
         if self._file_id == other._file_id:
             b = self._range.contains(other._range)
-#            self.debug('%s vs %s --> %s' % (self.get_range(), other.get_range(), b))
+            # self.debug('%s vs %s --> %s' % (self.get_range(),
+            #                                 other.get_range(),
+            #                                 b))
 
         return b
 

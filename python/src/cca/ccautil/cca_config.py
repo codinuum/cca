@@ -28,19 +28,18 @@ from cca.factutil.fileid import HashAlgo, VerKind
 from . import ns
 from .Git2 import shorten_sha
 from .siteconf import PROJECTS_DIR, PROJECTS_DIR_NAME
-#from common import setup_logger
+# from common import setup_logger
 
 logger = logging.getLogger()
 
-REL_INST_NS     = ns.NS_TBL['rel_ns']
-SVNREV_INST_NS  = ns.NS_TBL['svnrev_ns']
-GITREV_INST_NS  = ns.NS_TBL['gitrev_ns']
+REL_INST_NS = ns.NS_TBL['rel_ns']
+SVNREV_INST_NS = ns.NS_TBL['svnrev_ns']
+GITREV_INST_NS = ns.NS_TBL['gitrev_ns']
 VARIANT_INST_NS = ns.NS_TBL['variant_ns']
 
-
-VKIND_REL     = VerKind.REL
-VKIND_SVNREV  = VerKind.SVN
-VKIND_GITREV  = VerKind.GIT
+VKIND_REL = VerKind.REL
+VKIND_SVNREV = VerKind.SVN
+VKIND_GITREV = VerKind.GIT
 VKIND_VARIANT = VerKind.VAR
 
 VKIND_DEFAULT = VKIND_REL
@@ -48,7 +47,7 @@ VKIND_DEFAULT = VKIND_REL
 
 DIR_MEM_LIMIT = 100
 
-ast_ext  = '.ast'
+ast_ext = '.ast'
 
 compress_cmd = 'bzip2'
 compress_ext = '.bz2'
@@ -62,53 +61,52 @@ PARSER_INTERNAL = 'INTERNAL'
 PARSER_EXTERNAL_C = 'EXTERNAL_C'
 
 
-
 def get_proj_dir(proj_id, proj_dir=PROJECTS_DIR):
     d = os.path.abspath(os.path.join(proj_dir, proj_id))
     return d
 
+
 def cmds_to_str(cmds):
     s = 'N/A'
     if cmds:
-        l = ['"%s"' % x for x in cmds]
-        s = ', '.join(l)
+        li = ['"%s"' % x for x in cmds]
+        s = ', '.join(li)
     return s
 
 
 def pair_list_to_list(pair_list):
-    l = []
+    li = []
     for pair in pair_list:
         for x in pair:
-            if x not in l:
-                l.append(x)
-    return l
+            if x not in li:
+                li.append(x)
+    return li
 
 
 class Config(object):
     def __init__(self):
-        self.proj_id     = UNKNOWN
-        self.proj_path   = None
-        self.repo_url    = None
-        self.repo_user   = None
+        self.proj_id = UNKNOWN
+        self.proj_path = None
+        self.repo_url = None
+        self.repo_user = None
         self.repo_passwd = None
-        self.vkind       = VKIND_DEFAULT
-        self.ranges      = []
-        self.vers        = []
-        self.versions    = []
+        self.vkind = VKIND_DEFAULT
+        self.ranges = []
+        self.vers = []
+        self.versions = []
         self.versionURIs = []
-        self.build_cmds  = []
-        self.nversions   = 0
+        self.build_cmds = []
+        self.nversions = 0
         self.archive_ext = ''
-        self.source      = SRC_SVN
+        self.source = SRC_SVN
 
         self.gitweb_proj_id = None
         self.hash_algo = HashAlgo.MD5
 
-        self.retrieve_all  = False
+        self.retrieve_all = False
         self.get_long_name = lambda x: x
 
-        self.__parser      = PARSER_INTERNAL
-
+        self.__parser = PARSER_INTERNAL
         self.ssl_server_trust_prompt = None
 
         self.lang = UNKNOWN
@@ -132,10 +130,9 @@ class Config(object):
         self.include = []
         self.exclude = []
 
-        self.ver_tbl = None # short ver -> orig ver name
+        self.ver_tbl = None  # short ver -> orig ver name
 
         self.optout_tbl = {}
-
 
     def is_vkind_gitrev(self):
         return self.vkind == VKIND_GITREV
@@ -165,7 +162,7 @@ class Config(object):
                     rev = int(version)
 
                 except ValueError:
-                    logger.error('illegal revision name: "%s"' % version)
+                    logger.error(f'illegal revision name: "{version}"')
 
                 if rev >= 0:
                     ds = []
@@ -191,7 +188,6 @@ class Config(object):
             logger.error('unsupported version kind: "%s"' % self.vkind)
 
         return dn
-
 
     def get_vkind(self, idx):
         return self.vkind
@@ -231,18 +227,17 @@ class Config(object):
         for (x, a) in self.abbrev_tbl.items():
             self.inv_abbrev_tbl[a.rstrip()] = x
 
-
         if self.vkind == VKIND_REL:
             self.versionNS = REL_INST_NS
             self.versions = [self.get_long_name(x) for x in self.vers]
             self.versionURIs = [REL_INST_NS + x for x in self.vers]
 
             if self.vpairs:
-                self.vURIpairs = [(REL_INST_NS+x, REL_INST_NS+y) for (x, y) in self.vpairs]
+                self.vURIpairs = [(REL_INST_NS+x, REL_INST_NS+y)
+                                  for (x, y) in self.vpairs]
                 if not self.versions:
                     self.versions = pair_list_to_list(self.vpairs)
                     self.versionURIs = pair_list_to_list(self.vURIpairs)
-
 
         elif self.vkind == VKIND_VARIANT:
             self.versionNS = VARIANT_INST_NS
@@ -250,11 +245,11 @@ class Config(object):
             self.versionURIs = [VARIANT_INST_NS+x for x in self.versions]
 
             if self.vpairs:
-                self.vURIpairs = [(VARIANT_INST_NS+x, VARIANT_INST_NS+y) for (x, y) in self.vpairs]
+                self.vURIpairs = [(VARIANT_INST_NS+x, VARIANT_INST_NS+y)
+                                  for (x, y) in self.vpairs]
                 if not self.versions:
                     self.versions = pair_list_to_list(self.vpairs)
                     self.versionURIs = pair_list_to_list(self.vURIpairs)
-
 
         elif self.vkind == VKIND_SVNREV:
             self.versionNS = SVNREV_INST_NS
@@ -280,7 +275,6 @@ class Config(object):
         if self.nversions == 0:
             self.nversions = len(self.versions)
 
-
     def finalize_gitrev(self):
         self.hash_algo = HashAlgo.GIT
 
@@ -288,8 +282,9 @@ class Config(object):
             if self.repo_url:
                 try:
                     self.gitweb_proj_id = self.repo_url.split('/')[-1]
-                except:
-                    self.gitweb_proj_id = re.sub(r'_git$', '.git', self.proj_id)
+                except Exception:
+                    self.gitweb_proj_id = re.sub(r'_git$', '.git',
+                                                 self.proj_id)
 
         self.versions = []
 
@@ -319,10 +314,11 @@ class Config(object):
                         parents = c.parents
 
                         if parents:
-                            for poid in [p.id for p in parents[0:1]]: # ignore merges
+                            for poid in [p.id for p in parents[0:1]]:  # ignore merges
                                 if poid in oids:
-                                    logger.debug('parent of {0}: {1}'.format(shorten_sha(poid.hex),
-                                                                             shorten_sha(h)))
+                                    logger.debug('parent of {0}: {1}'
+                                                 .format(shorten_sha(poid.hex),
+                                                         shorten_sha(h)))
                                     ph = poid.hex
                                     grev0 = GITREV_INST_NS + ph
 
@@ -338,7 +334,8 @@ class Config(object):
                 if len(self.vers) == 1:
                     orig_ver = self.vers[0]
                     self.commits = []
-                    self.commits = repo.list_info_from(orig_ver, self.nversions)
+                    self.commits = repo.list_info_from(orig_ver,
+                                                       self.nversions)
                     self.versions = []
                     self.versionURIs = []
                     for c in self.commits:
@@ -351,7 +348,7 @@ class Config(object):
                     self.nversions = len(self.vers)
 
                     if self.nversions == 1:
-                        self.ver_tbl = { self.vers[0] : orig_ver }
+                        self.ver_tbl = {self.vers[0]: orig_ver}
 
                 else:
                     self.commits = []
@@ -373,17 +370,15 @@ class Config(object):
                         except Exception as e:
                             logger.warning(str(e))
 
-
         except Exception as e:
             logger.warning(str(e))
-
 
     def check(self):
         if self.vkind != VKIND_GITREV:
             for v in self.versions:
                 p = self.get_ver_dir(v)
                 if not os.path.exists(p):
-                    logger.warning('does not exist: "%s"' % p)
+                    logger.warning(f'does not exist: "{p}"')
 
     def get_index(self, ver):
         for i in range(self.nversions):
@@ -392,7 +387,7 @@ class Config(object):
         return -1
 
     def __str__(self):
-        fmt =  'proj_id    : "%s"\n'
+        fmt = 'proj_id    : "%s"\n'
         fmt += 'proj_path  : "%s"\n'
         fmt += 'repo_url   : "%s"\n'
         fmt += 'vkind      : %s\n'
@@ -430,22 +425,22 @@ class Config(object):
             for vo in self.ver_tbl.items():
                 s += '  %s -> %s\n' % vo
 
-
         return s
 
-def select(env_var_name, l):
+
+def select(env_var_name, li):
     _n = os.getenv(env_var_name, '')
-    l_ = l
+    l_ = li
     if _n:
         try:
             n = int(_n)
-            if n in l:
+            if n in li:
                 l_ = [n]
             else:
-                logger.warning('invalid number: "%s"' % _n)
+                logger.warning(f'invalid number: "{_n}"')
                 l_ = []
         except Exception as e:
-            logger.warning('invalid number: "%s": %s' % (_n, e))
+            logger.warning(f'invalid number: "{_n}": {e}')
             l_ = []
 
     return l_
