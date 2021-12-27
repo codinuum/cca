@@ -1412,7 +1412,7 @@ and qn_type_list_of_mem_decl (nd : node) =
 and qn_type_of_func_def (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | FunctionDefinition | FunctionHead -> begin
+  | FunctionDefinition _ | FunctionHead _ -> begin
       let sty = simple_type_of_decl_spec_seq (nd#nth_children 1) in
       DEBUG_MSG "sty=%s" (Type.to_string sty);
       match nd#nth_children 2 with

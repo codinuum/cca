@@ -454,6 +454,11 @@ let relab_if_group nd pp_if_cond =
   end
   | _ -> ()
 
+let relab_func_body nd qn =
+  match nd#label with
+  | L.FunctionBody _ -> nd#relab (L.FunctionBody qn)
+  | _ -> ()
+
 let warning = Parserlib_base.parse_warning
 
 %}
@@ -734,7 +739,7 @@ odd_decl:
 | s=_static_assert_declaration { s }
 | f=func_head b=odd_func_body
     { 
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition f#get_name);
       f#add_children_r [b];
       f#set_pvec (f#pvec @ [1]);
       reloc $startpos $endpos f
@@ -749,7 +754,7 @@ odd_func_body:
 odd_mem_decl:
 | f=func_head b=odd_func_body
     { 
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition f#get_name);
       f#add_children_r [b];
       f#set_pvec (f#pvec @ [1]);
       reloc $startpos $endpos f
@@ -916,7 +921,7 @@ specs_sub:
 | vl=virt_specifier_seq b=function_body EOF
     { 
       let pvec = [0; 0; 0; List.length vl; 1] in
-      mknode ~pvec $startpos $endpos(b) L.FunctionDefinition (vl@[b])
+      mknode ~pvec $startpos $endpos(b) (L.FunctionDefinition "") (vl@[b])
     }
 
 | (*cl_opt=cv_qualifier_seq_opt*)
@@ -934,7 +939,7 @@ specs_sub:
       let pvec = [0; (*List.length cl*)0; List.length rl; List.length nl; List.length al] in
       let p_ = mknode ~pvec $startpos $endpos(n_opt) L.ParametersAndQualifiers ((*cl @ *)rl @ nl @ al) in
       let d_ = mknode ~pvec:[0; 1; 1] $startpos $endpos(t) L.DeclaratorFunc [p_; t] in
-      mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos $endpos(b) L.FunctionDefinition [d_; b]
+      mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos $endpos(b) (L.FunctionDefinition "") [d_; b]
     }
 
 | al=attribute_specifier_seq EOF { mknode $startpos $endpos(al) L.SPECS al }
@@ -3029,7 +3034,9 @@ pp_dtor_if_group:
     { 
       env#clear_in_body_brace_flag();
       let d = mknode ~pvec:[0; 1] $startpos(pq) $endpos(pq) L.NoptrDeclaratorFunc [pq] in
-      let h = mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos(pq) $endpos L.FunctionDefinition [d; b] in
+      let h =
+        mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos(pq) $endpos (L.FunctionDefinition "") [d; b]
+      in
       mknode ~pvec:[1; 1] $startpos $endpos (pp_if_group()) (p::[h])
     }
 | p=pp_ifx_e ps=PS_LPAREN il=identifier_list RPAREN ol_opt=ioption(old_param_decl_list)
@@ -3055,7 +3062,9 @@ pp_dtor_elif_group:
     { 
       env#clear_in_body_brace_flag();
       let d = mknode ~pvec:[0; 1] $startpos(pq) $endpos(pq) L.NoptrDeclaratorFunc [pq] in
-      let h = mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos(pq) $endpos L.FunctionDefinition [d; b] in
+      let h =
+        mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos(pq) $endpos (L.FunctionDefinition "") [d; b]
+      in
       mknode ~pvec:[1; 1] $startpos $endpos (_pp_elif_group p) (p::[h])
     }
 | p=pp_elif ps=PS_LPAREN il=identifier_list RPAREN ol_opt=ioption(old_param_decl_list)
@@ -3081,7 +3090,9 @@ pp_dtor_else_group:
     { 
       env#clear_in_body_brace_flag();
       let d = mknode ~pvec:[0; 1] $startpos(pq) $endpos(pq) L.NoptrDeclaratorFunc [pq] in
-      let h = mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos(pq) $endpos L.FunctionDefinition [d; b] in
+      let h =
+        mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos(pq) $endpos (L.FunctionDefinition "") [d; b]
+      in
       mknode ~pvec:[1; 1] $startpos $endpos (_pp_else_group p) (p::[h])
     }
 | p=pp_else ps=PS_LPAREN il=identifier_list RPAREN ol_opt=ioption(old_param_decl_list)
@@ -3772,8 +3783,11 @@ pp_decl_if_group_broken:
       let n_ =
         match c_opt with
         | Some c -> begin
-            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos L.FunctionBody [c] in
-            f#relab L.FunctionDefinition;
+            let qn = f#get_name in
+            let b_ =
+              mknode ~pvec:[1; 0] $startpos(c_opt) $endpos (L.FunctionBody qn) [c]
+            in
+            f#relab (L.FunctionDefinition qn);
             f#add_children_r [b_];
             f#set_pvec (f#pvec @ [1]);
             reloc $startpos(f) $endpos f
@@ -3815,8 +3829,11 @@ pp_decl_elif_group_broken:
       let n_ =
         match c_opt with
         | Some c -> begin
-            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos L.FunctionBody [c] in
-            f#relab L.FunctionDefinition;
+            let qn = f#get_name in
+            let b_ =
+              mknode ~pvec:[1; 0] $startpos(c_opt) $endpos (L.FunctionBody qn) [c]
+            in
+            f#relab (L.FunctionDefinition qn);
             f#add_children_r [b_];
             f#set_pvec (f#pvec @ [1]);
             reloc $startpos(f) $endpos f
@@ -3862,8 +3879,9 @@ pp_decl_else_group_broken:
       let n_ =
         match c_opt with
         | Some c -> begin
-            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos L.FunctionBody [c] in
-            f#relab L.FunctionDefinition;
+            let qn = f#get_name in
+            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos (L.FunctionBody qn) [c] in
+            f#relab (L.FunctionDefinition qn);
             f#add_children_r [b_];
             f#set_pvec (f#pvec @ [1]);
             reloc $startpos(f) $endpos f
@@ -5091,9 +5109,10 @@ func_head:
       let vl = list_opt_to_list vl_opt in
       let pvec = [List.length al; 0; 1; List.length vl; 0] in
       let nd =
-        mknode ~pvec $symbolstartpos $endpos L.FunctionHead (al @ [d] @ vl)
+        mknode ~pvec $symbolstartpos $endpos (L.FunctionHead "") (al @ [d] @ vl)
       in
-      env#register_function nd;
+      let qn = env#register_function nd in
+      nd#relab (L.FunctionHead qn);
       nd
     }
 | al_opt=attribute_specifier_seq_opt d=declarator r=requires_clause
@@ -5101,9 +5120,10 @@ func_head:
       let al = list_opt_to_list al_opt in
       let pvec = [List.length al; 0; 1; 0; 1] in
       let nd =
-        mknode ~pvec $symbolstartpos $endpos L.FunctionHead (al @ [d; r])
+        mknode ~pvec $symbolstartpos $endpos (L.FunctionHead "") (al @ [d; r])
       in
-      env#register_function nd;
+      let qn = env#register_function nd in
+      nd#relab (L.FunctionHead qn);
       nd
     }
 | al_opt=attribute_specifier_seq_opt dl=decl_specifier_seq d=declarator
@@ -5113,9 +5133,10 @@ func_head:
       let vl = list_opt_to_list vl_opt in
       let pvec = [List.length al; List.length dl; 1; List.length vl; 0] in
       let nd =
-        mknode ~pvec $symbolstartpos $endpos L.FunctionHead (al @ dl @ [d] @ vl)
+        mknode ~pvec $symbolstartpos $endpos (L.FunctionHead "") (al @ dl @ [d] @ vl)
       in
-      env#register_function nd;
+      let qn = env#register_function nd in
+      nd#relab (L.FunctionHead qn);
       nd
     }
 | al_opt=attribute_specifier_seq_opt dl=decl_specifier_seq d=declarator r=requires_clause
@@ -5123,9 +5144,10 @@ func_head:
       let al = list_opt_to_list al_opt in
       let pvec = [List.length al; List.length dl; 1; 0; 1] in
       let nd =
-        mknode ~pvec $symbolstartpos $endpos L.FunctionHead (al @ dl @ [d; r])
+        mknode ~pvec $symbolstartpos $endpos (L.FunctionHead "") (al @ dl @ [d; r])
       in
-      env#register_function nd;
+      let qn = env#register_function nd in
+      nd#relab (L.FunctionHead qn);
       nd
     }
 | al_opt=attribute_specifier_seq_opt dl=decl_specifier_seq
@@ -5137,16 +5159,17 @@ func_head:
       d#set_pvec (d#pvec @ [1]);
       _reloc $startpos(d) $endpos d;
       let nd =
-        mknode ~pvec $symbolstartpos $endpos L.FunctionHead (al @ dl @ [d])
+        mknode ~pvec $symbolstartpos $endpos (L.FunctionHead "") (al @ dl @ [d])
       in
-      env#register_function nd;
+      let qn = env#register_function nd in
+      nd#relab (L.FunctionHead qn);
       nd
     }
 | i=FUNC_HEAD_MACRO
     { 
       let h = mkleaf $startpos $endpos (L.FunctionHeadMacro i) in
       let pvec = [0; 0; 0; 0; 0; 1] in
-      mknode ~pvec $symbolstartpos $endpos L.FunctionHead [h]
+      mknode ~pvec $symbolstartpos $endpos (L.FunctionHead "") [h]
     }
 ;
 
@@ -5206,20 +5229,22 @@ pp_dtor_else_group_broken:
 function_definition:
 | f=func_head b=function_body
     { 
-      f#relab L.FunctionDefinition;
+      let qn = f#get_name in
+      f#relab (L.FunctionDefinition qn);
+      relab_func_body b qn;
       f#add_children_r [b];
       f#set_pvec (f#pvec @ [1]);
       reloc $startpos $endpos f
     }
 | f=func_head b=pp_func_body_if_section
     { 
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition f#get_name);
       f#add_children_r [b];
       f#set_pvec (f#pvec @ [1]);
       reloc $startpos $endpos f
     }
 | m=id_macro_call b=params_body_macro
-    { mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos $endpos L.FunctionDefinition [m; b] }
+    { mknode ~pvec:[0; 0; 1; 0; 0; 1] $startpos $endpos (L.FunctionDefinition "") [m; b] }
 ;
 
 params_body_macro:
@@ -5249,12 +5274,13 @@ pp_func_head_if_group_broken:
     { 
       ignore l;
       let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
       let b_ =
         match c_opt with
-        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos L.FunctionBody [c; c_]
-        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos L.FunctionBody [c_]
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
       in
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition qn);
       f#add_children_r [b_];
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
@@ -5264,12 +5290,13 @@ pp_func_head_if_group_broken:
     { 
       ignore l;
       let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
       let b_ =
         match c_opt with
-        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos L.FunctionBody [c; c_]
-        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos L.FunctionBody [c_]
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
       in
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition qn);
       f#add_children_r [b_];
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
@@ -5288,12 +5315,13 @@ pp_func_head_elif_group_broken:
       env#close_in_body_brace();
       ignore l;
       let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
       let b_ =
         match c_opt with
-        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos L.FunctionBody [c; c_]
-        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos L.FunctionBody [c_]
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
       in
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition qn);
       f#add_children_r [b_];
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
@@ -5305,12 +5333,13 @@ pp_func_head_elif_group_broken:
       env#close_in_body_brace();
       ignore l;
       let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
       let b_ =
         match c_opt with
-        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos L.FunctionBody [c; c_]
-        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos L.FunctionBody [c_]
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
       in
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition qn);
       f#add_children_r [b_];
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
@@ -5326,12 +5355,13 @@ pp_func_head_else_group_broken:
       env#close_in_body_brace();
       ignore l;
       let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
       let b_ =
         match c_opt with
-        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos L.FunctionBody [c; c_]
-        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos L.FunctionBody [c_]
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
       in
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition qn);
       f#add_children_r [b_];
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
@@ -5343,12 +5373,13 @@ pp_func_head_else_group_broken:
       env#close_in_body_brace();
       ignore l;
       let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
       let b_ =
         match c_opt with
-        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos L.FunctionBody [c; c_]
-        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos L.FunctionBody [c_]
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
       in
-      f#relab L.FunctionDefinition;
+      f#relab (L.FunctionDefinition qn);
       f#add_children_r [b_];
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
@@ -5429,11 +5460,11 @@ _pp_func_head_else_group:
 
 
 function_body:
-|                     c=compound_statement { mknode ~pvec:[0; 1] $symbolstartpos $endpos L.FunctionBody [c] }
-| ci=ctor_initializer c=compound_statement { mknode ~pvec:[1; 1] $symbolstartpos $endpos L.FunctionBody [ci; c] }
-| ci=ctor_initializer DUMMY_BODY { mknode ~pvec:[1; 0] $symbolstartpos $endpos L.FunctionBody [ci] }
+|                     c=compound_statement { mknode ~pvec:[0; 1] $symbolstartpos $endpos (L.FunctionBody "") [c] }
+| ci=ctor_initializer c=compound_statement { mknode ~pvec:[1; 1] $symbolstartpos $endpos (L.FunctionBody "") [ci; c] }
+| ci=ctor_initializer DUMMY_BODY { mknode ~pvec:[1; 0] $symbolstartpos $endpos (L.FunctionBody "") [ci] }
 | ci=ctor_initializer MARKER COMMA p=pp_func_body_if_section
-    { mknode ~pvec:[1; 1] $symbolstartpos $endpos L.FunctionBody [ci; p] }
+    { mknode ~pvec:[1; 1] $symbolstartpos $endpos (L.FunctionBody "") [ci; p] }
 | f=function_try_block { f }
 | EQ DEFAULT SEMICOLON { mkleaf $startpos $endpos L.FunctionBodyDefault }
 | EQ DELETE  SEMICOLON { mkleaf $startpos $endpos L.FunctionBodyDelete }
@@ -5443,7 +5474,7 @@ function_body:
 | LBRACE sl0=stmt_seq0 p=pp_stmt_if_section_close_open sl1=stmt_seq0 RBRACE
     { 
       let c = mknode $startpos $endpos L.CompoundStatement (sl0@[p]@sl1) in
-      mknode ~pvec:[0; 1] $symbolstartpos $endpos L.FunctionBody [c]
+      mknode ~pvec:[0; 1] $symbolstartpos $endpos (L.FunctionBody "") [c]
     }
 ;
 
@@ -5462,8 +5493,9 @@ pp_stmt_if_group_close_open:
 | p=pp_ifx_close_open sl=stmt_seq0 RBRACE fh=func_head lb=LBRACE sl1=stmt_seq0
     { 
       ignore lb;
-      let b = mknode $startpos(lb) $endpos L.FunctionBody sl1 in
-      fh#relab L.FunctionDefinition;
+      let qn = fh#get_name in
+      let b = mknode $startpos(lb) $endpos (L.FunctionBody qn) sl1 in
+      fh#relab (L.FunctionDefinition qn);
       fh#add_children_r [b];
       fh#set_pvec (fh#pvec@[1]);
       _reloc $startpos(fh) $endpos fh;
@@ -5480,8 +5512,9 @@ pp_stmt_elif_group_close_open:
 | p=pp_elif sl=stmt_seq0 RBRACE fh=func_head lb=LBRACE sl1=stmt_seq0
     { 
       ignore lb;
-      let b = mknode $startpos(lb) $endpos L.FunctionBody sl1 in
-      fh#relab L.FunctionDefinition;
+      let qn = fh#get_name in
+      let b = mknode $startpos(lb) $endpos (L.FunctionBody qn) sl1 in
+      fh#relab (L.FunctionDefinition qn);
       fh#add_children_r [b];
       fh#set_pvec (fh#pvec@[1]);
       _reloc $startpos(fh) $endpos fh;
@@ -5498,8 +5531,9 @@ pp_stmt_else_group_close_open:
 | p=pp_else sl=stmt_seq0 RBRACE fh=func_head lb=LBRACE sl1=stmt_seq0
     { 
       ignore lb;
-      let b = mknode $startpos(lb) $endpos L.FunctionBody sl1 in
-      fh#relab L.FunctionDefinition;
+      let qn = fh#get_name in
+      let b = mknode $startpos(lb) $endpos (L.FunctionBody qn) sl1 in
+      fh#relab (L.FunctionDefinition qn);
       fh#add_children_r [b];
       fh#set_pvec (fh#pvec@[1]);
       _reloc $startpos(fh) $endpos fh;
@@ -5573,7 +5607,7 @@ function_try_block:
     { 
       let cl = opt_to_list c_opt in
       let pvec = [List.length cl; 1; List.length hl] in
-      mknode ~pvec $startpos $endpos L.FunctionTryBlock (cl @ c :: hl)
+      mknode ~pvec $startpos $endpos (L.FunctionTryBlock "") (cl @ c :: hl)
     }
 ;
 
@@ -9427,7 +9461,9 @@ pp_mdecl_if_group_broken:
 | p=pp_ifx ml=mem_decl_seq0 t=template_head f=func_head
     { 
       env#stack#exit_template();
-      let d_ = mknode ~pvec:[1] $startpos(f) $endpos(f) L.FunctionDefinition [f] in
+      let d_ =
+        mknode ~pvec:[1] $startpos(f) $endpos(f) (L.FunctionDefinition f#get_name) [f]
+      in
       let t_ = mknode ~pvec:[1; 1] $startpos(t) $endpos(f) L.TemplateDeclaration [t; d_] in
       mknode ~pvec:[1; List.length ml] $startpos $endpos (pp_if_group()) (p::ml@[t_])
     }
@@ -9436,8 +9472,9 @@ pp_mdecl_if_group_broken:
       let n_ =
         match c_opt with
         | Some c -> begin
-            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos L.FunctionBody [c] in
-            f#relab L.FunctionDefinition;
+            let qn = f#get_name in
+            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos (L.FunctionBody qn) [c] in
+            f#relab (L.FunctionDefinition qn);
             f#add_children_r [b_];
             f#set_pvec (f#pvec @ [1]);
             reloc $startpos(f) $endpos f
@@ -9451,7 +9488,9 @@ pp_mdecl_elif_group_broken:
 | p=pp_elif ml=mem_decl_seq0 t=template_head f=func_head
     { 
       env#stack#exit_template();
-      let d_ = mknode ~pvec:[1] $startpos(f) $endpos(f) L.FunctionDefinition [f] in
+      let d_ =
+        mknode ~pvec:[1] $startpos(f) $endpos(f) (L.FunctionDefinition f#get_name) [f]
+      in
       let t_ = mknode ~pvec:[1; 1] $startpos(t) $endpos(f) L.TemplateDeclaration [t; d_] in
       mknode ~pvec:[1; List.length ml] $startpos $endpos (_pp_elif_group p) (p::ml@[t_])
     }
@@ -9460,8 +9499,9 @@ pp_mdecl_elif_group_broken:
       let n_ =
         match c_opt with
         | Some c -> begin
-            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos L.FunctionBody [c] in
-            f#relab L.FunctionDefinition;
+            let qn = f#get_name in
+            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos (L.FunctionBody qn) [c] in
+            f#relab (L.FunctionDefinition qn);
             f#add_children_r [b_];
             f#set_pvec (f#pvec @ [1]);
             reloc $startpos(f) $endpos f
@@ -9475,7 +9515,9 @@ pp_mdecl_else_group_broken:
 | p=pp_else ml=mem_decl_seq0 t=template_head f=func_head
     { 
       env#stack#exit_template();
-      let d_ = mknode ~pvec:[1] $startpos(f) $endpos(f) L.FunctionDefinition [f] in
+      let d_ =
+        mknode ~pvec:[1] $startpos(f) $endpos(f) (L.FunctionDefinition f#get_name) [f]
+      in
       let t_ = mknode ~pvec:[1; 1] $startpos(t) $endpos(f) L.TemplateDeclaration [t; d_] in
       mknode ~pvec:[1; List.length ml] $startpos $endpos (_pp_else_group p) (p::ml@[t_])
     }
@@ -9484,8 +9526,9 @@ pp_mdecl_else_group_broken:
       let n_ =
         match c_opt with
         | Some c -> begin
-            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos L.FunctionBody [c] in
-            f#relab L.FunctionDefinition;
+            let qn = f#get_name in
+            let b_ = mknode ~pvec:[1; 0] $startpos(c_opt) $endpos (L.FunctionBody qn) [c] in
+            f#relab (L.FunctionDefinition qn);
             f#add_children_r [b_];
             f#set_pvec (f#pvec @ [1]);
             reloc $startpos(f) $endpos f
@@ -9700,7 +9743,7 @@ macro_arg:
     { 
       let i_ = mkleaf $startpos $endpos(i) (L.Identifier i) in
       let d = mknode ~pvec:[1; 1] $startpos $endpos L.NoptrDeclaratorFunc [i_; p] in
-      mknode ~pvec:[0; 1; 0; 1] $startpos $endpos L.FunctionDefinition [d; b]
+      mknode ~pvec:[0; 1; 0; 1] $startpos $endpos (L.FunctionDefinition "") [d; b]
     }
 | o=operator { o }
 | EQ i=initializer_clause { mknode $startpos $endpos L.EqualInitializer [i] }

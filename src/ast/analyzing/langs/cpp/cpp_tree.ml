@@ -309,7 +309,7 @@ let of_ast options ast =
 
     let label_tbl_opt =
       match lab with
-      | L.FunctionBody | L.FunctionTryBlock -> Some (Hashtbl.create 0)
+      | L.FunctionBody _ | L.FunctionTryBlock _ -> Some (Hashtbl.create 0)
       | _ -> None
     in
     let children = conv_children ~label_tbl_opt ast_nd#children in
@@ -446,7 +446,7 @@ let of_ast options ast =
 
       begin
         match lab with
-        | L.FunctionBody | L.FunctionTryBlock -> begin
+        | L.FunctionBody _ | L.FunctionTryBlock _ -> begin
             try
               let c1 = (get_nth_children nd 1).(0) in
               let label_tbl =

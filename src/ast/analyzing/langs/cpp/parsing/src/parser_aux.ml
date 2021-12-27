@@ -1985,7 +1985,8 @@ class env = object (self)
     in
     let spec = new N.Spec.c ~bid_opt:(Some bid) ~prefix:p nd#loc qn kind in
     nd#set_info (I.from_spec spec);
-    frm#register qn spec
+    frm#register qn spec;
+    qn
 
   method register_param_decl_clause (nd : Ast.node) =
     DEBUG_MSG "%s" (L.to_string nd#label);
