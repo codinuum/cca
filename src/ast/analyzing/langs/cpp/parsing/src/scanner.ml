@@ -6199,7 +6199,17 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | _ -> false
             end -> DEBUG_MSG "@ HAT IDENT TY_LPAREN"; token
 
-            | _ when prev_rawtoken == TY_LPAREN && is_type ~weak:true s -> DEBUG_MSG "TY_LPAREN @ *"; token
+            | _ when begin
+                prev_rawtoken == TY_LPAREN && is_type ~weak:true s &&
+                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
+                match ll with
+                | [_] -> begin
+                    match self#peek_nth_rawtoken (nth+1) with
+                    | SEMICOLON _ -> false
+                    | _ -> true
+                end
+                | _ -> true
+            end -> DEBUG_MSG "TY_LPAREN @ *"; token
 
             | _ when prev_rawtoken == TY_LPAREN && env#objc_class_interface_flag -> DEBUG_MSG "TY_LPAREN @ *"; token
 
