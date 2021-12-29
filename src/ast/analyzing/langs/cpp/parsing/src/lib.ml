@@ -233,6 +233,7 @@ class parser_c = object (self)
       | T_IDENT_AM -> "IDENT_AM"
       | T_IDENT_B -> "IDENT_B"
       | T_IDENT_BEM -> "IDENT_BEM"
+      | T_IDENT_BFM -> "IDENT_BFM"
       | T_IDENT_BHM -> "IDENT_BHM"
       | T_IDENT_BM -> "IDENT_BM"
       | T_IDENT_BSM -> "IDENT_BSM"
@@ -593,6 +594,7 @@ class parser_c = object (self)
       | N_base_clause -> "base_clause"
       | N_base_specifier -> "base_specifier"
       | N_base_specifier_list -> "base_specifier_list"
+      | N_bit_field_macro_call -> "bit_field_macro_call"
       | N_block_declaration -> "block_declaration"
       | N_block_end_macro -> "block_end_macro"
       | N_block_head_macro -> "block_head_macro"
@@ -1434,6 +1436,10 @@ class parser_c = object (self)
                 scanner#ctx_in_simple_templ_id();
                 raise Exit
             end*)
+            | I.X (I.N N_attribute_token), _ , _ -> begin
+                env#set_attr_flag();
+                raise Exit
+            end
             | I.X (I.N N_unqualified_id), _ , I.X (I.T T_IDENT_V) -> begin
                 (*iter_items_w ~from_ith:2 ~to_ith:2 menv_
                   (function
@@ -2667,6 +2673,14 @@ class parser_c = object (self)
                 if scanner#context != MEM then
                   scanner#ctx_top();
                 scanner#ctx_ini();
+                raise Exit
+            end
+            | I.X (I.N N_linkage_specification), _, I.X (I.T T_LBRACE) -> begin
+                env#set_linkage_spec_flag();
+                raise Exit
+            end
+            | I.X (I.N N_linkage_specification), _, I.X (I.T T_RBRACE) -> begin
+                env#clear_linkage_spec_flag();
                 raise Exit
             end
             | I.X (I.N N_compound_statement), _, I.X (I.T T_LBRACE) -> begin
@@ -4260,6 +4274,8 @@ class parser_c = object (self)
             | I.X (I.N N_objc_keyword_dtor) -> env#clear_objc_sel_flag()
             | I.X (I.N N_objc_method_decl) ->
                 env#clear_objc_sel_flag(); env#clear_end_of_objc_meth_sel_flag()
+            | I.X (I.N N_attribute_argument_clause) -> env#clear_attr_flag()
+            | I.X (I.N N_gnu_attribute) -> env#clear_attr_flag()
             | _ -> ()
           end;
           let ckpt = I.resume ckpt in

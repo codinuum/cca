@@ -481,8 +481,9 @@ let warning = Parserlib_base.parse_warning
 %token PTR_STAR PTR_AMP PTR_AMP_AMP PTR_HAT TY_HAT TY_TILDE ELLIPSIS_
 %token HEAD_COLON_COLON PURE_ZERO BASE_COLON TY_TEMPL_GT TY_TEMPL_GT_
 %token <Common.ident> IDENT IDENT_ IDENT_V IDENT_B IDENT_C IDENT_E IDENT_LPAREN
-%token <Common.ident> IDENT_AGM IDENT_AM IDENT_BEM IDENT_BHM IDENT_BM IDENT_BSM IDENT_CHM IDENT_CM
-%token <Common.ident> IDENT_DM IDENT_DSM IDENT_EM IDENT_IM IDENT_LM IDENT_LOM IDENT_NSM IDENT_OM
+%token <Common.ident> IDENT_AGM IDENT_AM IDENT_BEM IDENT_BFM IDENT_BHM IDENT_BM IDENT_BSM
+%token <Common.ident> IDENT_CHM IDENT_CM IDENT_DM IDENT_DSM
+%token <Common.ident> IDENT_EM IDENT_IM IDENT_LM IDENT_LOM IDENT_NSM IDENT_OM
 %token <Common.ident> IDENT_PDM IDENT_PM IDENT_PBM IDENT_SM IDENT_SXM IDENT_TM IDENT_TPM IDENT_VM
 %token <Common.ident> IDENT_DSL
 %token PP_IF_A PP_IFDEF_A PP_IFNDEF_A PP_IF_ATTR PP_IFDEF_ATTR PP_IFNDEF_ATTR PP_IF_B PP_IFDEF_B PP_IFNDEF_B
@@ -526,7 +527,8 @@ IDENT: IDENT_V(value), IDENT_B(member_declarator:bit_field), IDENT_C(type_constr
        IDENT_EM(expr macro), IDENT_SM(stmt macro), IDENT_SXM(suffx macro), IDENT_TM(type macro), IDENT_IM(ident macro)
        IDENT_PM(params macro), IDENT_CM(cv qualifier macro), IDENT_LM(literal macro), IDENT_AM(attr/args macro)
        IDENT_TPM(templ param macro), IDENT_NSM(namespace macro), IDENT_DSM(decl or stmt macro)
-       IDENT_BHM(block head macro), IDENT_BEM(block end macro), IDENT_CHM(cast/class head macro) IDENT_OM(op macro)
+       IDENT_BHM(block head macro), IDENT_BEM(block end macro), IDENT_BFM(bit-field macro),
+       IDENT_CHM(cast/class head macro), IDENT_OM(op macro)
        IDENT_DM(decl spec macro), IDENT_AGM(arg macro), IDENT_LOM(lor macro), IDENT_VM(virt-spec macro)
 PP_IF     : PP_IF_E     PP_IF_SHIFT     PP_IF_CLOSING
 PP_IFDEF  : PP_IFDEF_E  PP_IFDEF_SHIFT  PP_IFDEF_CLOSING
@@ -1703,6 +1705,24 @@ pp_stmt_else_group_broken:
     }
 ;
 
+%inline
+nested_func_head:
+| dl=decl_specifier_seq il=init_declarator_list
+    { 
+      let pvec = [0; List.length dl; List.length il] in
+      let nd = mknode ~pvec $symbolstartpos $endpos L.SimpleDeclaration (dl @ il) in
+      env#register_variables nd;
+      nd
+     }
+| al=attribute_specifier_seq dl=decl_specifier_seq il=init_declarator_list
+    { 
+      let pvec = [List.length al; List.length dl; List.length il] in
+      let nd = mknode ~pvec $symbolstartpos $endpos L.SimpleDeclaration (al @ dl @ il) in
+      env#register_variables nd;
+      nd
+    }
+;
+
 statement:
 | l=labeled_statement { l }
 | u=unlabeled_statement { u }
@@ -1712,6 +1732,16 @@ statement:
 unlabeled_statement:
 | d=decl_OR_expr sc=SEMICOLON { if sc then d#add_suffix ";"; reloc $startpos $endpos d }
 | d=decl_OR_expr s=DELIM_MACRO { d#add_suffix (" "^s); reloc $startpos $endpos d }
+
+| h=nested_func_head c=compound_statement (* nested function *)
+    { 
+      h#relab (L.FunctionHead "");
+      let qn = env#register_function h in
+      h#add_children_r [c];
+      h#set_pvec (h#pvec @ [1]);
+      h#relab (L.NestedFunctionDefinition qn);
+      reloc $startpos $endpos h
+    }
 
 | b=braced_init_list sc=SEMICOLON { if sc then b#add_suffix ";"; reloc $startpos $endpos b }
 
@@ -3539,6 +3569,8 @@ designated_initializer_clause:
 designator:
 | DOT i=IDENT_V { mkleaf $startpos $endpos (L.DesignatorField i) }
 | LBRACKET c=constant_expression RBRACKET { mknode $startpos $endpos L.DesignatorIndex [c] }
+| LBRACKET c0=constant_expression ELLIPSIS c1=constant_expression RBRACKET
+    { mknode $startpos $endpos L.DesignatorRange [c0; c1] }
 ;
 
 trailing_return_type:
@@ -10219,7 +10251,7 @@ member_declarator:
     c=constant_expression b_opt=ioption(brace_or_equal_initializer)
     { 
       let bl = opt_to_list b_opt in
-      let pvec = [0; 1; List.length bl] in
+      let pvec = [0; 0; 1; List.length bl] in
       mknode ~pvec $startpos $endpos (L.MemberDeclaratorBitField "") (c::bl)
     }
 | i=IDENT_B al_opt=attribute_specifier_seq_opt COLON
@@ -10227,9 +10259,22 @@ member_declarator:
     { 
       let al = list_opt_to_list al_opt in
       let bl = opt_to_list b_opt in
-      let pvec = [List.length al; 1; List.length bl] in
+      let pvec = [0; List.length al; 1; List.length bl] in
       mknode ~pvec $startpos $endpos (L.MemberDeclaratorBitField i) (al @ c :: bl)
     }
+| im=bit_field_macro_call al_opt=attribute_specifier_seq_opt COLON
+    c=constant_expression b_opt=ioption(brace_or_equal_initializer)
+    { 
+      let al = list_opt_to_list al_opt in
+      let bl = opt_to_list b_opt in
+      let pvec = [1; List.length al; 1; List.length bl] in
+      let i = Ast.mk_macro_call_id im#get_name in
+      mknode ~pvec $startpos $endpos (L.MemberDeclaratorBitField i) (im :: al @ c :: bl)
+    }
+;
+
+bit_field_macro_call:
+| i=IDENT_BFM ml=macro_args { mknode $startpos $endpos (L.IdentifierMacroInvocation i) ml }
 ;
 
 pure_specifier:

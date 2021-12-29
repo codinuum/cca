@@ -107,6 +107,7 @@ let rawtoken_to_string = function
   | IDENT_DSM s           -> sprintf "IDENT_DSM:%s" s
   | IDENT_BHM s           -> sprintf "IDENT_BHM:%s" s
   | IDENT_BEM s           -> sprintf "IDENT_BEM:%s" s
+  | IDENT_BFM s           -> sprintf "IDENT_BFM:%s" s
   | IDENT_BSM s           -> sprintf "IDENT_BSM:%s" s
   | IDENT_CHM s           -> sprintf "IDENT_CHM:%s" s
   | IDENT_AGM s           -> sprintf "IDENT_AGM:%s" s
@@ -559,6 +560,7 @@ let rawtoken_to_repr = function
   | IDENT_DSM s           -> s
   | IDENT_BHM s           -> s
   | IDENT_BEM s           -> s
+  | IDENT_BFM s           -> s
   | IDENT_BSM s           -> s
   | IDENT_CHM s           -> s
   | IDENT_AGM s           -> s

@@ -1423,13 +1423,15 @@ and qn_type_of_func_def (nd : node) =
           let rec proc_ty = function
             | Type.FunctionTy x -> begin
                 let v = x.Type.ft_virt_specs in
-                List.iter
-                  (fun (nd : node) ->
-                    match nd#label with
-                    | VirtSpecifierFinal -> v#set_final()
-                    | VirtSpecifierOverride -> v#set_override()
-                    | _ -> ()
-                  ) (nd#nth_children 3)
+                try
+                  List.iter
+                    (fun (nd : node) ->
+                      match nd#label with
+                      | VirtSpecifierFinal -> v#set_final()
+                      | VirtSpecifierOverride -> v#set_override()
+                      | _ -> ()
+                    ) (nd#nth_children 3)
+                with _ -> ()
             end
             | Type.PointerTy x -> proc_ty x.Type.pt_type
             | Type.AltTy ts -> ()
@@ -1709,6 +1711,8 @@ and qn_wrap_of_declarator (nd : node) =
       "", fun x -> Type.make_array_type (w x) 1
   end
   | AbstractPack -> "", fun x -> x
+
+  | InitDeclarator -> qn_wrap_of_declarator (nd#nth_child 0)
 
   | _ -> invalid_arg "Cpp.Ast.qn_wrap_of_declarator"
 

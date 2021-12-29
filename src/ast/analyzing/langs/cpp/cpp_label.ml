@@ -570,6 +570,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | DesignatorField i              -> combo2 405 [i]
   | DesignatorFieldOld i           -> combo2 495 [i]
   | DesignatorIndex                -> mkstr2 480
+  | DesignatorRange                -> mkstr2 654
   | TrailingReturnType             -> mkstr2 406
   | BracedInitList                 -> mkstr2 407
   | ForRangeDeclaration            -> mkstr2 408
@@ -798,6 +799,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | ParametersAndQualifiersList -> mkstr2 651
   | LambdaIntroducerMacro i -> combo2 652 [i]
   | BaseSpecMacroInvocation i -> combo2 653 [i]
+  | NestedFunctionDefinition n -> combo2 655 [n]
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -1137,6 +1139,8 @@ let _anonymize ?(more=false) ?(most=false) = function
   | GnuAsmBlockFragmented _             when more -> AsmDefinition ""
   | IdentifierMacroInvocation _         when more -> Identifier ""
 
+  | NestedFunctionDefinition _          when more -> FunctionDefinition ""
+
   | Char                                -> BasicType
   | Char8_t                             -> BasicType
   | Char16_t                            -> BasicType
@@ -1327,6 +1331,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | FunctionDefinition _ -> FunctionDefinition ""
   | FunctionBody _ -> FunctionBody ""
   | FunctionTryBlock _ -> FunctionTryBlock ""
+  | NestedFunctionDefinition _ -> NestedFunctionDefinition ""
 
   | lab -> lab
 
@@ -1417,6 +1422,7 @@ let is_collapse_target options lab =
     | OpaqueEnumDeclarationStruct
     | NodeclspecFunctionDeclaration
     | FunctionDefinition _
+    | NestedFunctionDefinition _
     | TemplateDeclaration
     | ClassSpecifier
     | EnumSpecifier
@@ -1543,6 +1549,7 @@ let is_to_be_notified = function
   | ClassSpecifier
   | EnumSpecifier
   | FunctionDefinition _
+  | NestedFunctionDefinition _
     -> true
   | _ -> false
 
@@ -1566,6 +1573,7 @@ let is_boundary = function
   | TemplateDeclaration
   | SimpleDeclaration
   | FunctionDefinition _
+  | NestedFunctionDefinition _
     -> true
   | _ -> false
 
@@ -1918,6 +1926,7 @@ let is_decl = function
   | OpaqueEnumDeclarationStruct
   | NodeclspecFunctionDeclaration
   | FunctionDefinition _
+  | NestedFunctionDefinition _
   | TemplateDeclaration
   | DeductionGuide _
   | ExplicitInstantiation
@@ -1940,6 +1949,7 @@ let is_simple_decl = function
 
 let is_func = function
   | FunctionDefinition _ -> true
+  | NestedFunctionDefinition _ -> true
   | _ -> false
 
 let is_jump_stmt = function
@@ -2120,6 +2130,7 @@ let is_desig = function
   | DesignatorField _
   | DesignatorFieldOld _
   | DesignatorIndex
+  | DesignatorRange
       -> true
   | _ -> false
 
@@ -2358,6 +2369,7 @@ let of_elem_data =
     "OpaqueEnumDeclarationMacro",           (fun a -> OpaqueEnumDeclarationMacro(find_ident a));
     "NodeclspecFunctionDeclaration",        (fun a -> NodeclspecFunctionDeclaration);
     "FunctionDefinition",                   (fun a -> FunctionDefinition(find_name a));
+    "NestedFunctionDefinition",             (fun a -> NestedFunctionDefinition(find_name a));
     "TemplateDeclaration",                  (fun a -> TemplateDeclaration);
     "DeductionGuide",                       (fun a -> DeductionGuide(find_name a));
     "ExplicitInstantiation",                (fun a -> ExplicitInstantiation);
@@ -2883,6 +2895,7 @@ let of_elem_data =
     "DesignatedInitializerClause",  (fun a -> DesignatedInitializerClause);
     "DesignatorField",              (fun a -> DesignatorField(find_ident a));
     "DesignatorIndex",              (fun a -> DesignatorIndex);
+    "DesignatorRange",              (fun a -> DesignatorRange);
     "TrailingReturnType",           (fun a -> TrailingReturnType);
     "BracedInitList",               (fun a -> BracedInitList);
     "ForRangeDeclaration",          (fun a -> ForRangeDeclaration);

@@ -651,6 +651,7 @@ type t =
   | DesignatedInitializerClause
   | DesignatorField of ident
   | DesignatorIndex
+  | DesignatorRange
   | TrailingReturnType
   | BracedInitList
   | ForRangeDeclaration
@@ -796,6 +797,7 @@ type t =
   | HugeArray of int * string
   | DslMacroArgument
   | ParametersAndQualifiersList
+  | NestedFunctionDefinition of name
 
 let to_string = function
   | DUMMY -> "DUMMY"
@@ -1384,6 +1386,7 @@ let to_string = function
   | DesignatedInitializerClause    -> "DesignatedInitializerClause"
   | DesignatorField i              -> "DesignatorField:"^i
   | DesignatorIndex                -> "DesignatorIndex"
+  | DesignatorRange                -> "DesignatorRange"
   | TrailingReturnType             -> "TrailingReturnType"
   | BracedInitList                 -> "BracedInitList"
   | ForRangeDeclaration            -> "ForRangeDeclaration"
@@ -1536,6 +1539,7 @@ let to_string = function
   | HugeArray(sz, c) -> sprintf "HugeArray(%d):%s\n" sz c
   | DslMacroArgument -> "DslMacroArgument"
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList"
+  | NestedFunctionDefinition n -> "NestedFunctionDefinition:"^n
 
 
 let to_simple_string = function
@@ -2133,6 +2137,7 @@ let to_simple_string = function
   | DesignatedInitializerClause    -> "<designated-initializer-clause>"
   | DesignatorField i              -> "."^i
   | DesignatorIndex                -> "[]"
+  | DesignatorRange                -> "[...]"
   | TrailingReturnType             -> "<trailing-return-type>"
   | BracedInitList                 -> "<braced-init-list>"
   | ForRangeDeclaration            -> "<for-range-declaration>"
@@ -2284,6 +2289,7 @@ let to_simple_string = function
   | HugeArray(_, c) -> c
   | DslMacroArgument -> "<dsl-macro-argument>"
   | ParametersAndQualifiersList -> "<parameters-and-qualifiers-list>"
+  | NestedFunctionDefinition n -> sprintf "<nested-function-definition:%s>" n
 
 
 let to_tag ?(strip=false) : t -> string * (string * string) list = function
@@ -2895,6 +2901,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DesignatedInitializerClause    -> "DesignatedInitializerClause", []
   | DesignatorField i              -> "DesignatorField", ["ident",i]
   | DesignatorIndex                -> "DesignatorIndex", []
+  | DesignatorRange                -> "DesignatorRange", []
   | TrailingReturnType             -> "TrailingReturnType", []
   | BracedInitList                 -> "BracedInitList", []
   | ForRangeDeclaration            -> "ForRangeDeclaration", []
@@ -3047,6 +3054,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code", c]
   | DslMacroArgument -> "DslMacroArgument", []
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList", []
+  | NestedFunctionDefinition n -> "NestedFunctionDefinition", ["name",n]
 
 
 let get_name : t -> string = function
@@ -3170,6 +3178,7 @@ let get_name : t -> string = function
   | FunctionDefinition n
   | FunctionBody n
   | FunctionTryBlock n
+  | NestedFunctionDefinition n
     -> n
 
   | PpInclude x -> x

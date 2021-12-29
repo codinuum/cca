@@ -231,6 +231,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
 
   | NodeclspecFunctionDeclaration        -> pr_seq()
   | FunctionDefinition _                 -> pr_seq()
+  | NestedFunctionDefinition _           -> pr_seq()
   | TemplateDeclaration                  -> pr_nth_child 0; pr_space(); pr_nth_child 1
   | DeductionGuide n -> begin
       pr_id n; pr_lparen(); pr_nth_children 1; pr_rparen(); pr_string " -> "; pr_nth_children 2; _pr_semicolon()
@@ -1108,6 +1109,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   end
   | DesignatorField i                 -> pr_string ("."^i)
   | DesignatorIndex                   -> pr_lbracket(); pr_seq(); pr_rbracket()
+  | DesignatorRange                   -> pr_lbracket(); pr_seq ~sep:pr_ellipsis (); pr_rbracket()
   | TrailingReturnType                -> pr_string " -> "; pr_nth_child 0
   | BracedInitList                    -> pr_lbrace(); pr_seq(); pr_rbrace()
   | ForRangeDeclaration -> begin
