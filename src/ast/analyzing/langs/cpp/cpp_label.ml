@@ -180,7 +180,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | OpaqueEnumDeclarationClass    -> mkstr2 35
   | OpaqueEnumDeclarationStruct   -> mkstr2 36
   | NodeclspecFunctionDeclaration -> mkstr2 37
-  | FunctionDefinition            -> mkstr2 38
+  | FunctionDefinition n          -> combo2 38 [n]
   | TemplateDeclaration           -> mkstr2 39
   | DeductionGuide n              -> combo2 40 [n]
   | ExplicitInstantiation         -> mkstr2 41
@@ -464,10 +464,10 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | TypeParameterKey         -> mkstr2 304
   | TypeParameterKeyClass    -> mkstr2 305
   | TypeParameterKeyTypename -> mkstr2 306
-  | FunctionBody        -> mkstr2 307
+  | FunctionBody n      -> combo2 307 [n]
   | FunctionBodyDefault -> mkstr2 308
   | FunctionBodyDelete  -> mkstr2 309
-  | FunctionTryBlock    -> mkstr2 310
+  | FunctionTryBlock n  -> combo2 310 [n]
   | DeclSpecifier          -> mkstr2 311
   | DeclSpecifierInline    -> mkstr2 312
   | DeclSpecifierConstexpr -> mkstr2 313
@@ -570,6 +570,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | DesignatorField i              -> combo2 405 [i]
   | DesignatorFieldOld i           -> combo2 495 [i]
   | DesignatorIndex                -> mkstr2 480
+  | DesignatorRange                -> mkstr2 654
   | TrailingReturnType             -> mkstr2 406
   | BracedInitList                 -> mkstr2 407
   | ForRangeDeclaration            -> mkstr2 408
@@ -615,7 +616,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | DeclSpecifierSeq               -> mkstr2 444
   | TypeSpecifierSeq               -> mkstr2 445
   | Co_await                       -> mkstr2 461
-  | FunctionHead                   -> mkstr2 462
+  | FunctionHead n                 -> combo2 462 [n]
   | AccessSpecAnnot i              -> combo2 464 [i]
   | ParametersMacroInvocation i    -> combo2 474 [i]
   | EnumeratorMacroInvocation i    -> combo2 475 [i]
@@ -798,6 +799,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | ParametersAndQualifiersList -> mkstr2 651
   | LambdaIntroducerMacro i -> combo2 652 [i]
   | BaseSpecMacroInvocation i -> combo2 653 [i]
+  | NestedFunctionDefinition n -> combo2 655 [n]
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -876,9 +878,9 @@ let _anonymize ?(more=false) ?(most=false) = function
   | DeclSpecifierTypedef                when more -> DeclSpecifier
   | DeclSpecifierFriend                 when more -> DeclSpecifier
   | DeclSpecifierMacro _                when more -> DeclSpecifier
-  | FunctionBodyDefault                 when more -> FunctionBody
-  | FunctionBodyDelete                  when more -> FunctionBody
-  | FunctionTryBlock                    when more -> FunctionBody
+  | FunctionBodyDefault                 when more -> FunctionBody ""
+  | FunctionBodyDelete                  when more -> FunctionBody ""
+  | FunctionTryBlock _                  when more -> FunctionBody ""
   | TypeParameterKeyClass               when more -> TypeParameterKey
   | TypeParameterKeyTypename            when more -> TypeParameterKey
   | EnumHeadEnum                        when more -> EnumHead
@@ -1137,6 +1139,8 @@ let _anonymize ?(more=false) ?(most=false) = function
   | GnuAsmBlockFragmented _             when more -> AsmDefinition ""
   | IdentifierMacroInvocation _         when more -> Identifier ""
 
+  | NestedFunctionDefinition _          when more -> FunctionDefinition ""
+
   | Char                                -> BasicType
   | Char8_t                             -> BasicType
   | Char16_t                            -> BasicType
@@ -1323,6 +1327,12 @@ let _anonymize ?(more=false) ?(most=false) = function
 
   | HugeArray _ -> HugeArray(0, "")
 
+  | FunctionHead _ -> FunctionHead ""
+  | FunctionDefinition _ -> FunctionDefinition ""
+  | FunctionBody _ -> FunctionBody ""
+  | FunctionTryBlock _ -> FunctionTryBlock ""
+  | NestedFunctionDefinition _ -> NestedFunctionDefinition ""
+
   | lab -> lab
 
 let anonymize = _anonymize ~most:false
@@ -1411,7 +1421,8 @@ let is_collapse_target options lab =
     | OpaqueEnumDeclarationClass
     | OpaqueEnumDeclarationStruct
     | NodeclspecFunctionDeclaration
-    | FunctionDefinition
+    | FunctionDefinition _
+    | NestedFunctionDefinition _
     | TemplateDeclaration
     | ClassSpecifier
     | EnumSpecifier
@@ -1537,7 +1548,8 @@ let is_to_be_notified = function
   | TemplateDeclaration
   | ClassSpecifier
   | EnumSpecifier
-  | FunctionDefinition
+  | FunctionDefinition _
+  | NestedFunctionDefinition _
     -> true
   | _ -> false
 
@@ -1560,7 +1572,8 @@ let is_boundary = function
   | TranslationUnit
   | TemplateDeclaration
   | SimpleDeclaration
-  | FunctionDefinition
+  | FunctionDefinition _
+  | NestedFunctionDefinition _
     -> true
   | _ -> false
 
@@ -1762,7 +1775,7 @@ let cannot_be_keyroot nd =
   match getlab nd with
   | TranslationUnit
   | TemplateDeclaration
-  | FunctionDefinition
+  | FunctionDefinition _
     -> true
   | _ -> false
 
@@ -1912,7 +1925,8 @@ let is_decl = function
   | OpaqueEnumDeclarationClass
   | OpaqueEnumDeclarationStruct
   | NodeclspecFunctionDeclaration
-  | FunctionDefinition
+  | FunctionDefinition _
+  | NestedFunctionDefinition _
   | TemplateDeclaration
   | DeductionGuide _
   | ExplicitInstantiation
@@ -1934,7 +1948,8 @@ let is_simple_decl = function
   | _ -> false
 
 let is_func = function
-  | FunctionDefinition -> true
+  | FunctionDefinition _ -> true
+  | NestedFunctionDefinition _ -> true
   | _ -> false
 
 let is_jump_stmt = function
@@ -2115,6 +2130,7 @@ let is_desig = function
   | DesignatorField _
   | DesignatorFieldOld _
   | DesignatorIndex
+  | DesignatorRange
       -> true
   | _ -> false
 
@@ -2145,10 +2161,10 @@ let is_initializer = function
 
 let is_body = function
   | DummyBody
-  | FunctionBody
+  | FunctionBody _
   | FunctionBodyDefault
   | FunctionBodyDelete
-  | FunctionTryBlock
+  | FunctionTryBlock _
     -> true
   | _ -> false
 
@@ -2352,7 +2368,8 @@ let of_elem_data =
     "OpaqueEnumDeclarationStruct",          (fun a -> OpaqueEnumDeclarationStruct);
     "OpaqueEnumDeclarationMacro",           (fun a -> OpaqueEnumDeclarationMacro(find_ident a));
     "NodeclspecFunctionDeclaration",        (fun a -> NodeclspecFunctionDeclaration);
-    "FunctionDefinition",                   (fun a -> FunctionDefinition);
+    "FunctionDefinition",                   (fun a -> FunctionDefinition(find_name a));
+    "NestedFunctionDefinition",             (fun a -> NestedFunctionDefinition(find_name a));
     "TemplateDeclaration",                  (fun a -> TemplateDeclaration);
     "DeductionGuide",                       (fun a -> DeductionGuide(find_name a));
     "ExplicitInstantiation",                (fun a -> ExplicitInstantiation);
@@ -2721,10 +2738,10 @@ let of_elem_data =
     "TypeParameterKeyTypename", (fun a -> TypeParameterKeyTypename);
 
 (* FunctionBody *)
-    "FunctionBody",                (fun a -> FunctionBody);
+    "FunctionBody",                (fun a -> FunctionBody(find_name a));
     "FunctionBodyDefault",         (fun a -> FunctionBodyDefault);
     "FunctionBodyDelete",          (fun a -> FunctionBodyDelete);
-    "FunctionTryBlock",            (fun a -> FunctionTryBlock);
+    "FunctionTryBlock",            (fun a -> FunctionTryBlock(find_name a));
     "FunctionBodyMacro",           (fun a -> FunctionBodyMacro(find_ident a));
     "FunctionBodyMacroInvocation", (fun a-> FunctionBodyMacroInvocation(find_ident a));
 
@@ -2878,6 +2895,7 @@ let of_elem_data =
     "DesignatedInitializerClause",  (fun a -> DesignatedInitializerClause);
     "DesignatorField",              (fun a -> DesignatorField(find_ident a));
     "DesignatorIndex",              (fun a -> DesignatorIndex);
+    "DesignatorRange",              (fun a -> DesignatorRange);
     "TrailingReturnType",           (fun a -> TrailingReturnType);
     "BracedInitList",               (fun a -> BracedInitList);
     "ForRangeDeclaration",          (fun a -> ForRangeDeclaration);
@@ -2925,7 +2943,7 @@ let of_elem_data =
     "DefiningTypeSpecifierSeq",     (fun a -> DefiningTypeSpecifierSeq);
     "DeclSpecifierSeq",             (fun a -> DeclSpecifierSeq);
     "TypeSpecifierSeq",             (fun a -> TypeSpecifierSeq);
-    "FunctionHead",                 (fun a -> FunctionHead);
+    "FunctionHead",                 (fun a -> FunctionHead(find_name a));
     "FunctionHeadMacro",            (fun a -> FunctionHeadMacro(find_ident a));
     "AccessSpecAnnot",              (fun a -> AccessSpecAnnot(find_ident a));
     "EnumeratorMacroInvocation",    (fun a -> EnumeratorMacroInvocation(find_ident a));

@@ -33,7 +33,7 @@ from .common import setup_logger
 
 logger = logging.getLogger()
 
-EXTS = ['.java','.jj','.jjt','.properties']
+EXTS = ['.java', '.jj', '.jjt', '.properties']
 
 HEAD_PAT0 = re.compile(r'^--- (?P<path>[A-Za-z0-9._/-]+).*$')
 HEAD_PAT1 = re.compile(r'^\+\+\+ (?P<path>[A-Za-z0-9._/-]+).*$')
@@ -48,6 +48,7 @@ def get_head0(s):
         h = (s, path)
     return h
 
+
 def get_head1(s):
     h = None
     m = HEAD_PAT1.match(s)
@@ -55,6 +56,7 @@ def get_head1(s):
         path = m.group('path')
         h = (s, path)
     return h
+
 
 def get_hunk_head(s):
     rs = None
@@ -67,8 +69,10 @@ def get_hunk_head(s):
         rs = (s, (sl0, c0, sl1, c1))
     return rs
 
+
 def is_src(f):
     return any([f.endswith(ext) for ext in EXTS])
+
 
 class IdGenerator(object):
     def __init__(self):
@@ -78,6 +82,7 @@ class IdGenerator(object):
         i = self._count
         self._count += 1
         return i
+
 
 class Hunk(object):
     def __init__(self, head_ranges):
@@ -89,13 +94,14 @@ class Hunk(object):
     def __str__(self):
         return '<HUNK:%s(%s)->%s(%s)>' % self.ranges
 
-    def add_line(self, l):
-        self._lines.append(l)
+    def add_line(self, li):
+        self._lines.append(li)
 
     def dump(self, out):
         out.write(self.head)
-        for l in self._lines:
-            out.write(l)
+        for ln in self._lines:
+            out.write(ln)
+
 
 class Header(object):
     def __init__(self, head1_path1, head2_path2):
@@ -117,8 +123,8 @@ class Header(object):
 class Patch(object):
     def __init__(self, dpath1, dpath2, filt=None, shuffle=0):
         self._idgen = IdGenerator()
-        self._hunk_tbl = {} # hid -> hunk
-        self._header_tbl = {} # hunk -> header
+        self._hunk_tbl = {}  # hid -> hunk
+        self._header_tbl = {}  # hunk -> header
         self._dpath1 = dpath1
         self._dpath2 = dpath2
 
@@ -148,20 +154,20 @@ class Patch(object):
         return self._hunk_tbl.keys()
 
     def dump(self, hids=None, out=sys.stdout):
-        tbl = {} # header -> hunk list
+        tbl = {}  # header -> hunk list
 
-        if hids == None:
+        if hids is None:
             hids = self._hunk_tbl.keys()
 
         for hid in hids:
             hunk = self._hunk_tbl[hid]
             header = self._header_tbl[hunk]
             try:
-                l = tbl[header]
+                li = tbl[header]
             except KeyError:
-                l = []
-                tbl[header] = l
-            l.append(hunk)
+                li = []
+                tbl[header] = li
+            li.append(hunk)
 
         for (header, hunks) in tbl.items():
             header.dump(out)
@@ -251,7 +257,7 @@ class Patch(object):
                     f(p)
 
     def reg_file_del_patch(self, path):
-        date = time.ctime()#time.ctime(os.stat(path).st_mtime)
+        date = time.ctime()  # time.ctime(os.stat(path).st_mtime)
         with open(path, 'U') as f:
             lines = f.readlines()
             count = len(lines)
@@ -272,7 +278,7 @@ class Patch(object):
             self._header_tbl[hunk] = header
 
     def reg_file_ins_patch(self, path):
-        date = time.ctime()#time.ctime(os.stat(path).st_mtime)
+        date = time.ctime()  # time.ctime(os.stat(path).st_mtime)
         with open(path, 'U') as f:
             lines = f.readlines()
             count = len(lines)
@@ -295,15 +301,15 @@ class Patch(object):
     def compare_files(self, file1, file2):
         logger.info('comparing %s with %s' % (file1, file2))
 
-        if file1 and file2 == None:
+        if file1 and file2 is None:
             self.reg_file_del_patch(file1)
 
-        elif file1 == None and file2:
+        elif file1 is None and file2:
             self.reg_file_ins_patch(file2)
 
         elif file1 and file2:
-            date1 = time.ctime()#time.ctime(os.stat(file1).st_mtime)
-            date2 = time.ctime()#time.ctime(os.stat(file2).st_mtime)
+            date1 = time.ctime()  # time.ctime(os.stat(file1).st_mtime)
+            date2 = time.ctime()  # time.ctime(os.stat(file2).st_mtime)
 
             with open(file1, 'U') as f1:
                 lines1 = f1.readlines()
@@ -324,10 +330,10 @@ class Patch(object):
             hunk = None
 
             for dl in dls:
-                if head0 == None:
+                if head0 is None:
                     head0 = get_head0(dl)
 
-                if head1 == None:
+                if head1 is None:
                     head1 = get_head1(dl)
 
                 hunk_head = get_hunk_head(dl)
@@ -357,7 +363,6 @@ class Patch(object):
                 logger.debug(dl)
 
             logger.debug(header)
-
 
 
 def main():
@@ -391,6 +396,7 @@ def main():
     for hid in hids:
         print('*** Hunk ID: %s' % hid)
         patch.dump([hid])
+
 
 if __name__ == '__main__':
     main()

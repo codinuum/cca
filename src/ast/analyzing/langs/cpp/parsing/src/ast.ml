@@ -1412,7 +1412,7 @@ and qn_type_list_of_mem_decl (nd : node) =
 and qn_type_of_func_def (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | FunctionDefinition | FunctionHead -> begin
+  | FunctionDefinition _ | FunctionHead _ -> begin
       let sty = simple_type_of_decl_spec_seq (nd#nth_children 1) in
       DEBUG_MSG "sty=%s" (Type.to_string sty);
       match nd#nth_children 2 with
@@ -1423,13 +1423,15 @@ and qn_type_of_func_def (nd : node) =
           let rec proc_ty = function
             | Type.FunctionTy x -> begin
                 let v = x.Type.ft_virt_specs in
-                List.iter
-                  (fun (nd : node) ->
-                    match nd#label with
-                    | VirtSpecifierFinal -> v#set_final()
-                    | VirtSpecifierOverride -> v#set_override()
-                    | _ -> ()
-                  ) (nd#nth_children 3)
+                try
+                  List.iter
+                    (fun (nd : node) ->
+                      match nd#label with
+                      | VirtSpecifierFinal -> v#set_final()
+                      | VirtSpecifierOverride -> v#set_override()
+                      | _ -> ()
+                    ) (nd#nth_children 3)
+                with _ -> ()
             end
             | Type.PointerTy x -> proc_ty x.Type.pt_type
             | Type.AltTy ts -> ()
@@ -1709,6 +1711,8 @@ and qn_wrap_of_declarator (nd : node) =
       "", fun x -> Type.make_array_type (w x) 1
   end
   | AbstractPack -> "", fun x -> x
+
+  | InitDeclarator -> qn_wrap_of_declarator (nd#nth_child 0)
 
   | _ -> invalid_arg "Cpp.Ast.qn_wrap_of_declarator"
 

@@ -108,6 +108,8 @@ class pstat = object (self)
   val mutable cast_head_flag = false
   val mutable end_of_broken_decl_section_flag = false
   val mutable end_of_label_flag = false
+  val mutable attr_flag = false
+  val mutable linkage_spec_flag = false
 
   val paren_stack = Stack.create()
   val brace_stack = Stack.create()
@@ -191,6 +193,8 @@ class pstat = object (self)
     cast_head_flag <- false;
     end_of_broken_decl_section_flag <- false;
     end_of_label_flag <- false;
+    attr_flag <- false;
+    linkage_spec_flag <- false;
     Stack.clear paren_stack;
     Stack.clear brace_stack;
     Stack.clear templ_param_arg_stack;
@@ -781,6 +785,30 @@ class pstat = object (self)
     end
 
   method end_of_label_flag = end_of_label_flag
+
+  method set_attr_flag () =
+    DEBUG_MSG "attr_flag set";
+    attr_flag <- true
+
+  method clear_attr_flag () =
+    if attr_flag then begin
+      DEBUG_MSG "attr_flag cleared";
+      attr_flag <- false
+    end
+
+  method attr_flag = attr_flag
+
+  method set_linkage_spec_flag () =
+    DEBUG_MSG "linkage_spec_flag set";
+    linkage_spec_flag <- true
+
+  method clear_linkage_spec_flag () =
+    if linkage_spec_flag then begin
+      DEBUG_MSG "linkage_spec_flag cleared";
+      linkage_spec_flag <- false
+    end
+
+  method linkage_spec_flag = linkage_spec_flag
 
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
@@ -1985,7 +2013,8 @@ class env = object (self)
     in
     let spec = new N.Spec.c ~bid_opt:(Some bid) ~prefix:p nd#loc qn kind in
     nd#set_info (I.from_spec spec);
-    frm#register qn spec
+    frm#register qn spec;
+    qn
 
   method register_param_decl_clause (nd : Ast.node) =
     DEBUG_MSG "%s" (L.to_string nd#label);
@@ -2474,6 +2503,14 @@ class env = object (self)
   method set_end_of_label_flag = pstat#set_end_of_label_flag
   method clear_end_of_label_flag = pstat#clear_end_of_label_flag
   method end_of_label_flag = pstat#end_of_label_flag
+
+  method set_attr_flag = pstat#set_attr_flag
+  method clear_attr_flag = pstat#clear_attr_flag
+  method attr_flag = pstat#attr_flag
+
+  method set_linkage_spec_flag = pstat#set_linkage_spec_flag
+  method clear_linkage_spec_flag = pstat#clear_linkage_spec_flag
+  method linkage_spec_flag = pstat#linkage_spec_flag
 
   method set_trailing_retty_flag = pstat#set_trailing_retty_flag
   method clear_trailing_retty_flag = pstat#clear_trailing_retty_flag

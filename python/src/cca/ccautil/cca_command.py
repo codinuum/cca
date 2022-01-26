@@ -22,7 +22,6 @@
 import sys
 import os
 from daemon import DaemonContext
-import tempfile
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, Action
 import logging
 
@@ -36,6 +35,7 @@ logger = logging.getLogger()
 time_cmd = '/usr/bin/time'
 if sys.platform.startswith('darwin'):
     time_cmd = '/opt/local/bin/gtime'
+
 
 class store_subarg(Action):
     def __call__(self, parser, namespace, values, option_string):
@@ -63,14 +63,15 @@ def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
 
     cmd_fmt = time_cmd + ' -o %(log)s %(subcmd)s'
 
-    log_base = os.path.join(WDIR,'time.{}-{}'.format(PHASE, PROJ_))
+    log_base = os.path.join(WDIR, 'time.{}-{}'.format(PHASE, PROJ_))
 
-    gencmd = cmd_fmt % { 'log'    : log_base + '.generate',
-                         'subcmd' : '{} {} -c generate {} {}'.format(SUB_CMD_PATH,
-                                                                     args.sargs,
-                                                                     PROJ,
-                                                                     WDIR),
-                         }
+    gencmd = cmd_fmt % {
+        'log': log_base + '.generate',
+        'subcmd': '{} {} -c generate {} {}'.format(SUB_CMD_PATH,
+                                                   args.sargs,
+                                                   PROJ,
+                                                   WDIR),
+    }
 
     sub_args = '{} -b {}'.format(PROJ, WDIR_BASE)
     if args.sargs != '':
@@ -80,21 +81,23 @@ def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
 
     run_workers_cmd_path = os.path.join(DIST_DIR, 'run_workers.py')
 
-    workcmd = cmd_fmt % { 'log'   : log_base + '.work',
-                          'subcmd' : '{} -n {} -c {} {} {}'.format(run_workers_cmd_path, 
-                                                                   NPROCS, 
-                                                                   SUB_CMD_NAME, 
-                                                                   sub_args, 
-                                                                   WDIR),
-                          }
+    workcmd = cmd_fmt % {
+        'log': log_base + '.work',
+        'subcmd': '{} -n {} -c {} {} {}'.format(run_workers_cmd_path,
+                                                NPROCS,
+                                                SUB_CMD_NAME,
+                                                sub_args,
+                                                WDIR),
+    }
 
-    collcmd = cmd_fmt % { 'log'   : log_base + '.collect',
-                          'subcmd' : '{} {} -c collect -b {} {} {}'.format(SUB_CMD_PATH, 
-                                                                           PROJ, 
-                                                                           WDIR_BASE,
-                                                                           args.sargs,
-                                                                           WDIR),
-                          }
+    collcmd = cmd_fmt % {
+        'log': log_base + '.collect',
+        'subcmd': '{} {} -c collect -b {} {} {}'.format(SUB_CMD_PATH,
+                                                        PROJ,
+                                                        WDIR_BASE,
+                                                        args.sargs,
+                                                        WDIR),
+    }
 
     cmds = [gencmd, workcmd]
 
@@ -129,31 +132,34 @@ def main():
     argparser.add_argument('--daemon', action='store_true', dest='daemon',
                            default=False, help='run as daemon')
 
-    argparser.add_argument('--collect-only', action='store_true', dest='collect_only',
+    argparser.add_argument('--collect-only', action='store_true',
+                           dest='collect_only',
                            default=False, help='only collect results')
 
-    argparser.add_argument('--no-collect', action='store_true', dest='no_collect',
+    argparser.add_argument('--no-collect', action='store_true',
+                           dest='no_collect',
                            default=False, help='disable result collection')
 
     argparser.add_argument('-p', '--nprocs', type=int, dest='nprocs',
                            default=0, metavar='N',
                            help='set number of processors')
 
-    argparser.add_argument('-a', '--arg', action=store_subarg, nargs=1, type=str,
-                           dest='sargs', default='', metavar='ARG',
+    argparser.add_argument('-a', '--arg', action=store_subarg, nargs=1,
+                           type=str, dest='sargs', default='', metavar='ARG',
                            help='set arg for sub command')
 
     argparser.add_argument('-b', '--basedir', type=str, dest='basedir',
-                           default='.', metavar='DIR', help='set base dir to DIR')
+                           default='.', metavar='DIR',
+                           help='set base dir to DIR')
 
     args = argparser.parse_args()
 
     setup_logger(logger, logging.INFO)
 
-    PHASE     = args.phase
-    PROJ      = args.proj
+    PHASE = args.phase
+    PROJ = args.proj
     WDIR_BASE = args.basedir
-    NPROCS    = core_count()
+    NPROCS = core_count()
     if args.nprocs != 0:
         NPROCS = args.nprocs
 

@@ -20,9 +20,7 @@
 
 import logging
 
-from functools import reduce
-
-from .const import SPEC_NS, PREDICATE_NS, RELEASE_NS, SVNREV_NS, GITREV_NS, GUARD_NS
+from .const import RELEASE_NS, SVNREV_NS, GITREV_NS, GUARD_NS
 from .rdf import Graph, Resource, Predicate
 
 
@@ -79,11 +77,10 @@ class Fact(Graph):
             else:
                 blk = guards[0]
 
-            if blk == None:
+            if blk is None:
                 blk = Resource()
 
             self._add(blk, attr, value)
 
     def addStatement(self, stmt, attr=None, value=None):
         self.add(stmt.subject, stmt.predicate, stmt.object, attr, value)
-

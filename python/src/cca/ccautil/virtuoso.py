@@ -19,11 +19,9 @@
 '''
 
 import os
-import subprocess
 import time
 import threading
 import re
-import sys
 import logging
 
 from . import proc
@@ -33,12 +31,11 @@ from .siteconf import (VIRTUOSO_HOST,
                        VIRTUOSO_USER,
                        VIRTUOSO_PW,
                        VIRTUOSO_DRIVER,
-                       VIRTUOSO_DSN,
                        VIRTUOSO_DIR,
                        LOG_DIR)
 from . import ns
 from .run_workers import spawn, dump_log
-from .common import setup_logger
+# from .common import setup_logger
 
 logger = logging.getLogger()
 
@@ -61,19 +58,22 @@ ISQL_CMD = os.path.join(VIRTUOSO_BIN_DIR, 'isql-v')
 
 ODBC_CONNECT_STRING_FMT = 'Driver=%(driver)s;HOST=%(host)s:%(port)d;UID=%(uid)s;PWD=%(pwd)s'
 
+
 def get_odbc_connect_string(driver=VIRTUOSO_DRIVER,
                             host=VIRTUOSO_HOST,
                             port=VIRTUOSO_PORT,
                             pwd=VIRTUOSO_PW,
                             uid=VIRTUOSO_USER):
 
-    s = ODBC_CONNECT_STRING_FMT % {'driver':driver,
-                                   'host':host,
-                                   'port':port,
-                                   'pwd':pwd,
-                                   'uid':uid}
+    s = ODBC_CONNECT_STRING_FMT % {'driver': driver,
+                                   'host': host,
+                                   'port': port,
+                                   'pwd': pwd,
+                                   'uid': uid
+                                   }
 
     return s
+
 
 ODBC_CONNECT_STRING = get_odbc_connect_string(pwd=VIRTUOSO_PW)
 
@@ -92,7 +92,8 @@ class ODBCDriver(object):
             logger.warning('using pypyodbc')
             from . import pypyodbc as pyodbc
             pyodbc.lowercase = False
-            self._db = pyodbc.connect(connect_string.encode('utf-8'), ansi=True, autocommit=True)
+            self._db = pyodbc.connect(connect_string.encode('utf-8'),
+                                      ansi=True, autocommit=True)
 
     def conv_row(self, row):
         d = {}
@@ -163,6 +164,7 @@ def exec_cmd_n(cmd, n, logdir=os.curdir):
 
 PID_PAT = re.compile('VIRT_PID=(?P<pid>[0-9]+)')
 
+
 class base(object):
     def __init__(self,
                  dbdir=DB_DIR,
@@ -170,8 +172,8 @@ class base(object):
                  daemonize=False,
                  pw=VIRTUOSO_PW):
 
-        prog_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        logger_name = prog_name+'.'+__name__
+        # prog_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+        # logger_name = prog_name+'.'+__name__
 
         self.log_dir = os.curdir
         if daemonize:
@@ -193,7 +195,6 @@ class base(object):
         self._pw = pw
         self._port = port
 
-
     def get_pid(self):
         pid = None
         f = None
@@ -204,14 +205,13 @@ class base(object):
                 if m:
                     pid = m.group('pid')
                     break
-        except:
+        except Exception:
             pass
 
         if f:
             f.close()
 
         return pid
-
 
     def detect_stall(self, thresh):
         mt = os.path.getmtime(self._db_file)
@@ -220,10 +220,10 @@ class base(object):
         logger.debug('%s' % b)
         return b
 
-
     def get_driver(self, reuse=True):
         if not self._driver or not reuse:
-            connect_string = get_odbc_connect_string(pwd=self._pw, port=self._port)
+            connect_string = get_odbc_connect_string(pwd=self._pw,
+                                                     port=self._port)
             self._driver = ODBCDriver(connect_string=connect_string)
         return self._driver
 
@@ -290,8 +290,6 @@ class base(object):
         self.exec_cmd(cmd)
 
 
-
-
 class Loader(base):
 
     def prepare_load(self, graph_uri, d, exts, resume=False):
@@ -317,7 +315,6 @@ class Loader(base):
         nfiles = row['count']
         return nfiles
 
-
     def load(self, graph_uri, d, exts, nprocs=1, maxfiles=DEFAULT_MAX_FILES,
              resume=False):
 
@@ -334,11 +331,11 @@ class Loader(base):
         cmd = 'rdf_loader_run(max_files=>%d)' % maxfiles
 
         if nprocs > 1:
-            proc = lambda cmd: self.exec_cmd_n(cmd, nprocs)
+            proc = (lambda cmd: self.exec_cmd_n(cmd, nprocs))
         elif nprocs == 1:
-            proc = lambda cmd: self.exec_cmd(cmd)
+            proc = (lambda cmd: self.exec_cmd(cmd))
         else:
-            proc = lambda cmd: -1
+            proc = (lambda cmd: -1)
 
         for i in range(n):
             logger.info('*** PART %d/%d ***' % (i+1, n))
@@ -356,7 +353,6 @@ class Loader(base):
             time.sleep(1)
 
         return rc
-
 
 
 class Dumper(base):

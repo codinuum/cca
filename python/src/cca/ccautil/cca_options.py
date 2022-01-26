@@ -29,6 +29,7 @@ from .common import setup_logger
 
 logger = logging.getLogger()
 
+
 class Parser(object):
     def __init__(self):
         self.argparser = ArgumentParser(description='CCA',
@@ -37,29 +38,34 @@ class Parser(object):
         self.argparser.add_argument('proj_id', type=str)
         self.argparser.add_argument('work_dir', type=str)
 
-        self.argparser.add_argument('-b', '--basedir', dest='basedir', default='.', metavar='DIR',
+        self.argparser.add_argument('-b', '--basedir', dest='basedir',
+                                    default='.', metavar='DIR',
                                     help='set base dir to DIR (default=%default)')
 
-        self.argparser.add_argument('-f', '--factbase', dest='fbase', default=None,
+        self.argparser.add_argument('-f', '--factbase', dest='fbase',
+                                    default=None,
                                     help='set factbase to DIR', metavar='DIR')
 
-        self.argparser.add_argument('-w', '--workerid', dest='wid', default=str(time.time()),
+        self.argparser.add_argument('-w', '--workerid', dest='wid',
+                                    default=str(time.time()),
                                     help='set worker id to ID', metavar='ID')
 
         self.argparser.add_argument('-c', '--command', dest='command',
-                                    choices=['generate', 'work', 'collect'], default='generate',
+                                    choices=['generate', 'work', 'collect'],
+                                    default='generate',
                                     help='execute (default=%default)')
 
-        self.argparser.add_argument('-l', '--limit', dest='max_ntasks', default=1024,
+        self.argparser.add_argument('-l', '--limit', dest='max_ntasks',
+                                    default=1024,
                                     action='store', type=int, metavar='LIM',
                                     help='set limit of ntasks to LIM (default=%default)')
 
-        self.argparser.add_argument('-d', '--debug', action='store_true', dest='debug',
+        self.argparser.add_argument('-d', '--debug', action='store_true',
+                                    dest='debug',
                                     help='enable debug output')
 
-        self.argparser.add_argument('-k', '--keepcache', action='store_true', 
+        self.argparser.add_argument('-k', '--keepcache', action='store_true',
                                     dest='keep_cache', help='keep caches')
-
 
     def _get_parser(self):
         return self.argparser
@@ -83,7 +89,7 @@ class Parser(object):
         proj_id = args.proj_id
         try:
             working_dir = args.work_dir
-        except:
+        except Exception:
             if not os.path.exists(args.basedir):
                 os.makedirs(args.basedir)
 
@@ -92,4 +98,3 @@ class Parser(object):
             logger.warning('working dir set to "{}"'.format(working_dir))
 
         return (args, proj_id, working_dir, self.argparser)
-

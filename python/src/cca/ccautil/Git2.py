@@ -35,12 +35,15 @@ logger = logging.getLogger()
 EXTS = ['.c', '.h', '.py', '.java', '.v',
         '.f', '.for', '.ftn', '.f90', '.f95', '.f03', '.f08']
 
+
 def shorten_sha(sha):
     return sha[0:7]
+
 
 def get_fid(blob):
     fid = FileDigest(HashAlgo.GIT, stream=blob.data_stream.stream)
     return fid
+
 
 def issrc(name):
     b = False
@@ -56,26 +59,35 @@ def issrc(name):
                     break
     return b
 
+
 class InvalidReference(Exception):
     pass
 
+
 TD_ZERO = timedelta(0)
+
 
 class JST(tzinfo):
     def utcoffset(self, dt):
         return timedelta(hours=9)
+
     def dst(self, dt):
         return TD_ZERO
+
     def tzname(self, dt):
         return 'JST'
+
 
 class TZ(tzinfo):
     def __init__(self, ofs):
         self.__utcoffset = timedelta(minutes=ofs)
+
     def utcoffset(self, dt):
         return self.__utcoffset
+
     def dst(self, dt):
         return TD_ZERO
+
 
 def get_date(commit):
     ts = commit.commit_time
@@ -83,18 +95,22 @@ def get_date(commit):
     dt = datetime.fromtimestamp(ts, TZ(ofs))
     return dt
 
+
 def get_date_jst(commit):
     dt = get_date(commit)
     jst_dt = dt.astimezone(JST())
     return jst_dt
+
 
 def get_date_jst_str(commit):
     jst_dt = get_date_jst(commit)
     s = jst_dt.isoformat(' ')
     return s
 
+
 def get_oid(h):
     return pygit2.Oid(hex=h)
+
 
 def objty_to_str(ty):
     s = 'UNKNOWN'
@@ -115,6 +131,7 @@ class User(object):
         self.time = u.time
         self.offset = u.offset
         self.email = u.email
+
 
 class Commit(object):
     def __init__(self, c):
@@ -148,7 +165,9 @@ class Repository(object):
             if remote.name == remote_name:
                 stats = remote.fetch()
                 logger.info('total objects: %s' % stats.total_objects)
-                remote_master_id = self._repo.lookup_reference('refs/remotes/origin/master').target
+                remote_master_id = \
+                    self._repo.lookup_reference('refs/remotes/origin/master')\
+                              .target
                 merge_result, _ = self._repo.merge_analysis(remote_master_id)
                 # Up to date, do nothing
                 if merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
@@ -156,14 +175,16 @@ class Repository(object):
                 # We can just fastforward
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
                     self._repo.checkout_tree(self._repo.get(remote_master_id))
-                    master_ref = self._repo.lookup_reference('refs/heads/master')
+                    master_ref = \
+                        self._repo.lookup_reference('refs/heads/master')
                     master_ref.set_target(remote_master_id)
                     self._repo.head.set_target(remote_master_id)
                 elif merge_result & pygit2.GIT_MERGE_ANALYSIS_NORMAL:
                     self._repo.merge(remote_master_id)
 
                     if self._repo.index.conflicts is not None:
-                        logger.warning('conflicts: %s' % self._repo.index.conflicts)
+                        logger.warning('conflicts: {}'
+                                       .format(self._repo.index.conflicts))
 
                     user = self._repo.default_signature
                     tree = self._repo.index.write_tree()
@@ -172,7 +193,9 @@ class Repository(object):
                                                       user,
                                                       'Merge!',
                                                       tree,
-                                                      [self._repo.head.target, remote_master_id])
+                                                      [self._repo.head.target,
+                                                       remote_master_id])
+                    logger.debug(f'created: {commit}')
                     self._repo.state_cleanup()
                 else:
                     logger.warning('Unknown merge analysis result')
@@ -180,16 +203,17 @@ class Repository(object):
     def blame(self, path, h_, h, line_min, line_max):
         oid = self.get_commit(h).id
         oid_ = self.get_commit(h_).id
-        b = self._repo.blame(path, newest_commit=oid_, oldest_commit=oid, min_line=line_min, max_line=line_max)
+        b = self._repo.blame(path, newest_commit=oid_, oldest_commit=oid,
+                             min_line=line_min, max_line=line_max)
         return b
 
     def list_branches(self):
-        l = []
+        li = []
         for bn in self._repo.listall_branches():
             br = self._repo.lookup_branch(bn)
             hc = br.get_object()
-            l.append(hc)
-        return l
+            li.append(hc)
+        return li
 
     def _get_obj(self, k):
         obj = None
@@ -210,7 +234,7 @@ class Repository(object):
         obj = self._get_obj(k)
         if obj:
             if obj.type != ty:
-                #logger.debug('%s != %s' % (objty_to_str(obj.type), objty_to_str(ty)))
+                # logger.debug('%s != %s' % (objty_to_str(obj.type), objty_to_str(ty)))
                 raise (InvalidReference(k))
         else:
             raise (InvalidReference(k))
@@ -239,7 +263,6 @@ class Repository(object):
             self.has_type(x, pygit2.GIT_OBJ_BLOB)
         else:
             return isinstance(x, pygit2.Blob)
-
 
     def get_commit(self, k):
         c = None
@@ -309,17 +332,17 @@ class Repository(object):
 
     def list_from(self, k, n):
         c = self.get_commit(k)
-        l = [c]
+        li = [c]
         count = 1
         while n < 1 or count < n:
             ps = c.parents
             if ps:
                 c = ps[0]
-                l.insert(0, c)
+                li.insert(0, c)
                 count += 1
             else:
                 break
-        return l
+        return li
 
     def list_info_from(self, k, n):
         return [Commit(c) for c in self.list_from(k, n)]
@@ -327,18 +350,18 @@ class Repository(object):
     def simple_range(self, frm, to):
         ini = self.get_commit(frm)
         cur = self.get_commit(to)
-        l = [cur]
+        li = [cur]
         while True:
             ps = cur.parents
             if ps:
                 cur = ps[0]
-                l.insert(0, cur)
+                li.insert(0, cur)
                 if cur == ini:
                     break
             else:
                 break
 
-        return l
+        return li
 
     def simple_info_range(self, frm, to):
         return [Commit(c) for c in self.simple_range(frm, to)]
@@ -361,9 +384,9 @@ class Repository(object):
     def diff(self, a, b):
         return self._repo.diff(a, b)
 
-
     def create_blob_hex_list(self, tree, filt):
-        l = []
+        li = []
+
         def traverse(t):
             for x in t:
                 o = self._get_obj(x.hex)
@@ -372,14 +395,15 @@ class Repository(object):
 
                 elif self.is_blob(o):
                     if filt(x.name):
-                        l.append(x.hex)
+                        li.append(x.hex)
 
         traverse(tree)
-        return l
+        return li
 
-    def find_files(self, rev, filt): # {path,hex} list
-        l = []
+    def find_files(self, rev, filt):  # {path,hex} list
+        li = []
         tree = self.get_tree(rev)
+
         def traverse(path, t):
             for x in t:
                 path_ = os.path.join(path, x.name)
@@ -390,20 +414,20 @@ class Repository(object):
 
                     elif self.is_blob(o):
                         if filt(x.name):
-                            l.append({'path':path_,'id':x.hex})
+                            li.append({'path': path_, 'id': x.hex})
 
                 except Exception as e:
                     logger.warning(str(e))
                     continue
 
         traverse('', tree)
-        return l
+        return li
 
 
 def clone_repository(url, path, bare=False, checkout_branch=None):
-    repo = pygit2.clone_repository(url, path, bare=bare, checkout_branch=checkout_branch)
+    repo = pygit2.clone_repository(url, path, bare=bare,
+                                   checkout_branch=checkout_branch)
     return Repository('', repo=repo)
-
 
 
 def test(repo_path):
@@ -414,27 +438,32 @@ def test(repo_path):
         for p in c.parents:
             print('  PARENT:%s by %s' % (p.id, p.author.name))
 
+
 def test2(repo_path, r0, r1):
     print('repository path: %s' % repo_path)
     r = Repository(repo_path)
     c = r.get_changed(r0, r1)
-    print('%d changed source files found between "%s" and "%s"' % (len(c), r0, r1))
+    print('%d changed source files found between "%s" and "%s"' % (len(c), r0,
+                                                                   r1))
     for (p0, p1) in c:
         print('  %s -> %s' % (p0, p1))
+
 
 def test3(repo_path, c0, c1):
     print('repository path: %s' % repo_path)
     r = Repository(repo_path)
-    l = r.simple_range(c0, c1)
-    for c in l:
+    li = r.simple_range(c0, c1)
+    for c in li:
         print('%s' % type(c))
-    print('%d commits' % len(l))
+    print('%d commits' % len(li))
+
 
 def test4(repo_path, rev, path):
     print('repository path: %s' % repo_path)
     r = Repository(repo_path)
     o = r.acc(rev, path)
     print('%s' % o)
+
 
 def test5(repo_path):
     print('repository path: %s' % repo_path)
@@ -462,6 +491,9 @@ def test5(repo_path):
                 old_lines = old.data.splitlines()
                 new_lines = new.data.splitlines()
 
+                print(old_lines)
+                print(new_lines)
+
                 for hunk in patch.hunks:
                     for (op, line) in hunk.lines:
                         if op == '-' and line.find('mutex_lock') > -1:
@@ -481,10 +513,11 @@ def test6(repo_path):
             b = True
         return b
 
-    l = r.find_files('HEAD', filt)
+    li = r.find_files('HEAD', filt)
 
-    for d in l:
+    for d in li:
         print('%s: %s' % (d['id'], d['path']))
 
+
 if __name__ == '__main__':
-    print
+    pass

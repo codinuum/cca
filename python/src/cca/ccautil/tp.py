@@ -2,7 +2,7 @@
 
 
 '''
-  A naive implementation of task pool 
+  A naive implementation of task pool
 
   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
 
@@ -22,7 +22,6 @@
 import os
 import fcntl
 import random
-import time
 import errno
 import shutil
 import tempfile
@@ -35,25 +34,27 @@ logger = logging.getLogger()
 
 max_ntasks = 1024
 
-task_dir_name   = 'task'
+task_dir_name = 'task'
 result_dir_name = 'result'
-lock_dir_name   = 'lock'
+lock_dir_name = 'lock'
 
-#polling_interval = 3 # sec
+# polling_interval = 3 # sec
 lock_failure_count_threshold = 10
 
 #####
 
+
 class LockFailedException(Exception):
     pass
 
+
 class base(object):
 
-    def task(self, args): # should be overridden
-        return ('NOT', 'IMPLEMENTED') # args:TUPLE -> result:TUPLE
+    def task(self, args):  # should be overridden
+        return ('NOT', 'IMPLEMENTED')  # args:TUPLE -> result:TUPLE
 
-    def gen_tasks(self): # should be overridden
-        return [] # list of tuples
+    def gen_tasks(self):  # should be overridden
+        return []  # list of tuples
 
     #####
 
@@ -93,8 +94,6 @@ class base(object):
 
         self.__LOCK_OK = False
 
-
-
     def tuple_to_string(self, t):
         s = ''
         if t:
@@ -105,7 +104,6 @@ class base(object):
     def string_to_tuple(self, s):
         t = s.rstrip().split(',')
         return t
-
 
     def get_result(self):
         return self.__result_tbl
@@ -151,8 +149,8 @@ class base(object):
             try:
                 f = open(task_f, 'w')
                 for t in task_gr_tbl[i]:
-                        f.write(self.tuple_to_string(t))
-                        f.write('\n')
+                    f.write(self.tuple_to_string(t))
+                    f.write('\n')
                 f.close()
 
             except Exception as e:
@@ -170,7 +168,6 @@ class base(object):
 
         logger.info('%d task sets are generated' % self.ntasks)
 
-
     def lock_task(self, taskid):
         logger.debug('locking "%s"...' % taskid)
 
@@ -179,7 +176,7 @@ class base(object):
             f = open(lock_path, 'w')
             try:
                 fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                self.__task_tbl[taskid] = f 
+                self.__task_tbl[taskid] = f
                 logger.debug('task set "%s" is locked' % taskid)
             except IOError as e:
                 if e.errno == errno.EACCES or e.errno == errno.EAGAIN:
@@ -190,7 +187,7 @@ class base(object):
                     logger.warning('IO error: %s' % (str(e)))
                     raise LockFailedException
 
-        except Exception as e:
+        except Exception:
             logger.warning('open failed: "%s"' % lock_path)
             raise LockFailedException
 
@@ -207,12 +204,11 @@ class base(object):
             except IOError as e:
                 f.close()
                 logger.warning(str(e))
-                
+
         except KeyError:
             logger.warning('task set "%s" is not locked' % taskid)
         except Exception as e:
             logger.warning(str(e))
-
 
     def do_task(self, taskid):
         try:
@@ -225,7 +221,7 @@ class base(object):
             else:
                 self.__LOCK_OK = False
             return
-        
+
         self.__LOCK_OK = True
         self.__consecutive_lock_failure_count = 0
 
@@ -272,19 +268,17 @@ class base(object):
             logger.warning(str(e))
             self.unlock_task(taskid)
             return
-            
 
     def pick_up_task(self, wid=''):
-        l = os.listdir(self.__task_dir)
-        if len(l) > 0:
-            t = random.choice(l)
+        li = os.listdir(self.__task_dir)
+        if len(li) > 0:
+            t = random.choice(li)
             w = ''
             if wid:
                 w = '<wid:%s> ' % wid
-            
+
             logger.info('%spicking up "%s"' % (w, t))
             self.do_task(t)
-
 
     def pick_up_results(self):
         for tid in os.listdir(self.__result_dir):
@@ -308,7 +302,6 @@ class base(object):
             except EnvironmentError:
                 logger.warning('cannot pick up "%s"' % tid)
 
-
     def watch_tasks(self, wid=''):
         w = ''
         if wid:
@@ -316,38 +309,41 @@ class base(object):
         try:
             while(True):
 
-                l = os.listdir(self.__task_dir)
+                li = os.listdir(self.__task_dir)
 
-                ntasks = len(l)
+                ntasks = len(li)
 
                 if ntasks == 0:
                     break
 
-                if self.__consecutive_lock_failure_count > lock_failure_count_threshold:
+                if self.__consecutive_lock_failure_count \
+                   > lock_failure_count_threshold:
                     logger.info('%sABORTED!' % w)
                     break
                 else:
                     logger.info('%s%d task sets remain' % (w, ntasks))
                     self.pick_up_task()
-                    logger.info('%s%d task sets finished' % (w, self.__nfinishedtasks))
+                    logger.info('{}{} task sets finished'
+                                .format(w, self.__nfinishedtasks))
 
         except KeyboardInterrupt:
             pass
 
-
     def watch_results(self):
         if not self.clear_cache:
-            self.__result_dir_bak = tempfile.mkdtemp('', 'result.', self.working_dir)
-            logger.info('created backup directory for result: "%s"' % self.__result_dir_bak)
+            self.__result_dir_bak = tempfile.mkdtemp('', 'result.',
+                                                     self.working_dir)
+            logger.info('created backup directory for result: "{}"'
+                        .format(self.__result_dir_bak))
 
         logger.debug('reading "%s"' % self.__result_dir)
-        l = os.listdir(self.__result_dir)
-        nresults = len(l)
+        li = os.listdir(self.__result_dir)
+        nresults = len(li)
         logger.info('%d results found' % nresults)
         self.pick_up_results()
         logger.info('finished.')
 
-        
+
 #####
 
 def test():
@@ -371,7 +367,7 @@ def test():
         def gen_tasks(self):
             tbl = {}
             for i in range(100):
-                a = random.randint(6,30)
+                a = random.randint(6, 30)
                 tbl[str(i)] = a
             return tbl
 

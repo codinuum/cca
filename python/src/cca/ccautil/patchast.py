@@ -28,6 +28,7 @@ from .common import setup_logger
 
 logger = logging.getLogger()
 
+
 def patchast(src_path, delta_path, quiet=True):
     cmd = patchast_cmd
     cmd += ' %s %s' % (src_path, delta_path)
@@ -44,8 +45,11 @@ def main():
     parser.add_argument('src_path', type=str, help='source directory')
     parser.add_argument('delta_path', type=str, help='delta bundle')
 
-    parser.add_argument('-d', '--debug', dest='debug', action='store_true', help='enable debug printing')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='enable verbose printing')
+    parser.add_argument('-d', '--debug', dest='debug', action='store_true',
+                        help='enable debug printing')
+
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        help='enable verbose printing')
 
     args = parser.parse_args()
 
@@ -59,6 +63,7 @@ def main():
     proc.logger = logger
 
     patchast(args.src_path, args.delta_path, quiet=(not args.debug))
+
 
 if __name__ == '__main__':
     main()

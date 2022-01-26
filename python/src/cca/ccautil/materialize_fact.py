@@ -46,6 +46,7 @@ INSERT {
 
 INSERT_PAT = re.compile(r'insert', re.I)
 
+
 class Materializer(object):
     def __init__(self, qdir, queries, proj_id,
                  method='odbc', pw=VIRTUOSO_PW, port=VIRTUOSO_PORT, conf=None):
@@ -56,11 +57,10 @@ class Materializer(object):
         self._sparql = sparql.get_driver(method, pw=pw, port=port)
         self._port = port
         self._pw = pw
-        if conf == None:
+        if conf is None:
             self._conf = project.get_conf(proj_id)
         else:
             self._conf = conf
-
 
     def make_ver_next_triples(self):
         triples = []
@@ -90,9 +90,9 @@ class Materializer(object):
     def insert_ver_next_triples(self):
         for triples in self.make_ver_next_triples():
 
-            params = { 'ver_ns' : VER_NS,
-                       'graph' : self._graph_uri,
-                       'ver_next_triples' : '\n'.join(triples) }
+            params = {'ver_ns': VER_NS,
+                      'graph': self._graph_uri,
+                      'ver_next_triples': '\n'.join(triples)}
 
             q = VER_ORDER_QUERY % params
             logger.debug('query:\n%s' % q)
@@ -104,12 +104,13 @@ class Materializer(object):
         try:
             f = open(path, 'r')
             q = f.read()
-            query = INSERT_PAT.sub('WITH <%s>\nINSERT' % self._graph_uri, q, count=1).rstrip('\n ;')
+            query = INSERT_PAT.sub('WITH <%s>\nINSERT'
+                                   % self._graph_uri, q, count=1)\
+                              .rstrip('\n ;')
             f.close()
         except Exception as e:
             logger.error(str(e))
         return query
-
 
     def materialize(self):
         logger.info('materializing for "%s"...' % self._proj_id)
@@ -134,7 +135,6 @@ class Materializer(object):
         return rc
 
 
-
 def main(qdir, queries, desc):
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -149,9 +149,9 @@ def main(qdir, queries, desc):
     parser.add_argument('--port', dest='port', default=VIRTUOSO_PORT,
                         metavar='PORT', type=int, help='port number')
 
-    parser.add_argument('--pw', dest='pw', metavar='PASSWORD', default=VIRTUOSO_PW,
+    parser.add_argument('--pw', dest='pw', metavar='PASSWORD',
+                        default=VIRTUOSO_PW,
                         help='set password to access FB')
-
 
     args = parser.parse_args()
 
@@ -160,12 +160,11 @@ def main(qdir, queries, desc):
         log_level = logging.DEBUG
     setup_logger(logger, log_level)
 
-
     m = Materializer(qdir, queries, args.proj_id, pw=args.pw, port=args.port)
 
     m.materialize()
 
 
 if __name__ == '__main__':
-    main(None, {}, 'materialize version fact')
-
+    # main(None, {}, 'materialize version fact')
+    pass

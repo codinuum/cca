@@ -36,6 +36,7 @@ from .virtuoso import (VTMP_DIR,
 
 logger = logging.getLogger()
 
+
 def load(proj_id, db_dir, fact_dir, exts, port=VIRTUOSO_PORT, pw=VIRTUOSO_PW):
     graph_uri = GRAPH_URI_BASE+proj_id
 
@@ -60,40 +61,45 @@ def main():
     parser = ArgumentParser(description='load fact into virtuoso',
                             formatter_class=ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('proj_id', metavar='PROJ_ID', type=str, help='project id')
+    parser.add_argument('proj_id', metavar='PROJ_ID', type=str,
+                        help='project id')
+
     parser.add_argument('exts', metavar='EXT', type=str, nargs='+',
                         help='fact extensions (ex. .ttl)')
 
     parser.add_argument('--dbdir', dest='dbdir', default=DB_DIR,
                         metavar='DIR', type=str, help='database directory')
 
-    parser.add_argument('--factdir', dest='fdir', metavar='DIR', default=default_fdir, type=str,
+    parser.add_argument('--factdir', dest='fdir', metavar='DIR',
+                        default=default_fdir, type=str,
                         help='fact directory')
 
-    parser.add_argument('--daemon', dest='daemon', action='store_true', help='run as an daemon')
+    parser.add_argument('--daemon', dest='daemon', action='store_true',
+                        help='run as an daemon')
 
-    parser.add_argument('--resume', dest='resume', action='store_true', help='resume loading')
+    parser.add_argument('--resume', dest='resume', action='store_true',
+                        help='resume loading')
 
-    parser.add_argument('-l', '--log', dest='logdir', metavar='DIR', default=LOG_DIR, type=str,
+    parser.add_argument('-l', '--log', dest='logdir', metavar='DIR',
+                        default=LOG_DIR, type=str,
                         help='log directory')
 
     parser.add_argument('-d', '--debug', dest='debug', action='store_true',
                         help='enable debug printing')
 
-    parser.add_argument('-p', '--nprocs', dest='nprocs', type=int, default=1, metavar='N',
-                        help='run N processes')
+    parser.add_argument('-p', '--nprocs', dest='nprocs', type=int, default=1,
+                        metavar='N', help='run N processes')
 
-    parser.add_argument('-n', '--nfiles', dest='nfiles', type=int, default=DEFAULT_MAX_FILES,
+    parser.add_argument('-n', '--nfiles', dest='nfiles', type=int,
+                        default=DEFAULT_MAX_FILES,
                         metavar='N', help='N files are loaded per load')
 
     args = parser.parse_args()
-
 
     graph_uri = GRAPH_URI_BASE+args.proj_id
     fdir = os.path.join(VTMP_DIR, args.proj_id)
     if args.fdir != default_fdir:
         fdir = args.fdir
-
 
     def doit():
         loader = virtuoso.Loader(args.dbdir, daemonize=args.daemon)
@@ -129,6 +135,7 @@ def main():
 
     else:
         doit()
+
 
 if __name__ == '__main__':
     main()

@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <rdf:RDF xmlns="http://codinuum.com/ontologies/2013/05/fortran-entity#"
      xml:base="http://codinuum.com/ontologies/2013/05/fortran-entity"
-     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
      xmlns:owl="http://www.w3.org/2002/07/owl#"
-     xmlns:fortran="http://codinuum.com/ontologies/2013/05/fortran-entity#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
      xmlns:xml="http://www.w3.org/XML/1998/namespace"
      xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
      xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
-     xmlns:dc="http://purl.org/dc/elements/1.1/">
+     xmlns:fortran="http://codinuum.com/ontologies/2013/05/fortran-entity#">
     <owl:Ontology rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity">
         <owl:imports rdf:resource="http://codinuum.com/ontologies/2012/10/source-code-entity"/>
         <dc:creator xml:lang="en">Codinuum Software Lab</dc:creator>
@@ -1548,6 +1548,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#AcceptStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">accept-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -1875,6 +1876,7 @@
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">associate-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -2078,6 +2080,7 @@
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">block-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -2175,6 +2178,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#CaseStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">case-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -2538,6 +2542,7 @@
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">critical-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3319,6 +3324,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#DecodeStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">decode-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3410,6 +3416,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#DeleteStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">delete-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3652,6 +3659,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EncodeStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">encode-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3678,6 +3686,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EndAssociateStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">end-associate-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3696,6 +3705,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EndBlockStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">end-block-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3705,6 +3715,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EndCriticalStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">end-critical-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3805,6 +3816,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EndSelectTypeStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">end-select-type-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3823,6 +3835,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EndSubmoduleStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">end-submodule-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3923,6 +3936,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EnumDefStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">enum-def-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -3941,6 +3955,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#EnumeratorDefStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">enumerator-def-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -4184,6 +4199,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#FinalProcedureStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">final-procedure-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -4192,6 +4208,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#FindStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">find-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -4218,6 +4235,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#FlushStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">flush-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -4244,6 +4262,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#ForallConstructStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">forall-construct-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -4947,6 +4966,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#LockStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">lock-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -7867,6 +7887,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#ProcComponentDefStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">proc-component-def-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8147,6 +8168,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#RewriteStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">rewrite-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8237,6 +8259,7 @@
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">select-type-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8450,6 +8473,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#SubmoduleStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">submodule-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8565,6 +8589,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#SyncAllStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">sync-all-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8574,6 +8599,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#SyncImagesStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">sync-images-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8583,6 +8609,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#SyncMemoryStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2008</rdfs:comment>
+        <rdfs:label xml:lang="en">sync-memory-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8663,6 +8690,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#TypeBoundGenericStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
+        <rdfs:label xml:lang="en">type-bound-generic-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8719,6 +8747,7 @@
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ExecutableStmt"/>
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#Stmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">type-guard-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8822,6 +8851,7 @@
 
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#UnlockStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
+        <rdfs:label xml:lang="en">unlock-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -8921,6 +8951,7 @@
     <owl:Class rdf:about="http://codinuum.com/ontologies/2013/05/fortran-entity#WaitStmt">
         <rdfs:subClassOf rdf:resource="http://codinuum.com/ontologies/2013/05/fortran-entity#ActionStmt"/>
         <rdfs:comment xml:lang="en">Introduced in Fortran2003</rdfs:comment>
+        <rdfs:label xml:lang="en">wait-stmt</rdfs:label>
     </owl:Class>
     
 
@@ -9249,5 +9280,5 @@
 
 
 
-<!-- Generated by the OWL API (version 4.2.8.20170104-2310) https://github.com/owlcs/owlapi -->
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
 

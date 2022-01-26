@@ -26,11 +26,11 @@ import logging
 logger = logging.getLogger()
 
 
-class Fragment(object): # sorted set of GNIDs
+class Fragment(object):  # sorted set of GNIDs
     elem_pat = re.compile('(?P<num0>[0-9]+)(-(?P<num1>[0-9]+))?;?')
 
     def __init__(self, rep=''):
-        self.__rep = rep # eg. '3;5-9;12;34-45;78;90-123'
+        self.__rep = rep  # eg. '3;5-9;12;34-45;78;90-123'
         self.__ptr = 0
         self.__cur = -1
         self.__limit = -1
@@ -66,13 +66,13 @@ class Fragment(object): # sorted set of GNIDs
                 n0 = int(n0s)
             if n1s:
                 n1 = int(n1s)
-            
+
             result = (n0, n1)
 
             self.__ptr = m.end()
         else:
             raise StopIteration
-        
+
         logger.debug(result)
 
         return result
@@ -95,7 +95,6 @@ class Fragment(object): # sorted set of GNIDs
                 self.__cur += 1
 
         return result
-            
 
     def __iter__(self):
         self.reset()
@@ -107,7 +106,7 @@ class Fragment(object): # sorted set of GNIDs
             prev = None
             c = 0
             for elem in elems:
-                if prev != None:
+                if prev is not None:
                     if elem - prev == 1:
                         c += 1
                     else:
@@ -123,11 +122,10 @@ class Fragment(object): # sorted set of GNIDs
 
             if c > 0:
                 result += '-' + str(elems[-1])
-        
+
         return Fragment(result)
 
     from_list = staticmethod(from_list)
-
 
 
 def test():

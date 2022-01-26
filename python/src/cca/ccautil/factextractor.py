@@ -20,50 +20,47 @@
 
 import logging
 
-from . import project
 from .ns import XSD_NS, RDF_NS
 
 from cca.factutil.const import SEP, SUB_SEP
 from cca.factutil.fileid import HashAlgo, FidEnc, Enc, FileDigest, FileDesc
 from cca.factutil.fileid import compute_hash, Version, ProjRelPath, VerKind
-from cca.factutil.rdf import Resource, Predicate, Literal, make_literal
+from cca.factutil.rdf import Predicate
 
 logger = logging.getLogger()
 
 DT_BOOLEAN = XSD_NS + 'boolean'
-DT_DOUBLE  = XSD_NS + 'double'
-DT_NN_INT  = XSD_NS + 'nonNegativeInteger'
-DT_INT     = XSD_NS + 'integer'
+DT_DOUBLE = XSD_NS + 'double'
+DT_NN_INT = XSD_NS + 'nonNegativeInteger'
+DT_INT = XSD_NS + 'integer'
 
 P_TYPE = Predicate(ns=RDF_NS, lname='type')
 
 
-def make_literal(x):
-    lit = None
-    if isinstance(x, bool):
-        lit = Literal(literal=str(x).lower(), datatype=DT_BOOLEAN)
-    elif isinstance(x, int):
-        if x >= 0:
-            lit = Literal(literal=str(x), datatype=DT_NN_INT)
-        else:
-            lit = Literal(literal=str(x), datatype=DT_INT)
-    elif isinstance(x, float):
-        lit = Literal(literal=str(x), datatype=DT_DOUBLE)
-    # elif isinstance(x, str):
-    #     lit = Literal(literal=x.encode('utf-8'))
-    else:
-        lit = Literal(literal=str(x))
+# def make_literal(x):
+#     lit = None
+#     if isinstance(x, bool):
+#         lit = Literal(literal=str(x).lower(), datatype=DT_BOOLEAN)
+#     elif isinstance(x, int):
+#         if x >= 0:
+#             lit = Literal(literal=str(x), datatype=DT_NN_INT)
+#         else:
+#             lit = Literal(literal=str(x), datatype=DT_INT)
+#     elif isinstance(x, float):
+#         lit = Literal(literal=str(x), datatype=DT_DOUBLE)
+#     # elif isinstance(x, str):
+#     #     lit = Literal(literal=x.encode('utf-8'))
+#     else:
+#         lit = Literal(literal=str(x))
 
-    return lit
-
-
-
+#     return lit
 
 
 def make_file_hash_repr(fname, algo=HashAlgo.MD5):
     hv = compute_hash(algo, fname)
     lname = algo + SUB_SEP + hv
     return lname
+
 
 def compo_join(*compos):
     return SEP.join(compos)
@@ -92,8 +89,7 @@ class base(object):
         return fd
 
     def get_file_desc(self, root_path, ver, path):
-        v = Version(VerKind.REL, ver) #
+        v = Version(VerKind.REL, ver)
         prp = ProjRelPath(root_path, path)
         fd = FileDesc(self._proj_id, v, prp)
         return fd
-

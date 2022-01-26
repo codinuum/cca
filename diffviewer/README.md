@@ -4,10 +4,10 @@
 
 * [Node.js](https://nodejs.org/en/download/)
 
-## Build (macOS)
+## Build (macOS:Intel)
 
     $ npm install
-    $ ./mkpkg.sh
+    $ ./mkpkg.sh --arch=x64
 
 ## Usage (macOS)
 

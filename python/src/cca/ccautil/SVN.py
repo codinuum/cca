@@ -19,13 +19,10 @@
 '''
 
 import os
-import sys
 import shutil
 import pysvn
 from urllib.request import url2pathname
 from urllib.parse import urlparse
-import datetime 
-import re
 import logging
 
 logger = logging.getLogger()
@@ -36,7 +33,8 @@ class Item(object):
         self._item = item
 
     def __str__(self):
-        return '{} {} {}'.format(self.get_path(), self._item.summarize_kind, self._item.node_kind)
+        return '{} {} {}'.format(self.get_path(), self._item.summarize_kind,
+                                 self._item.node_kind)
 
     def is_added(self):
         return self._item.summarize_kind == pysvn.diff_summarize_kind.added
@@ -56,18 +54,20 @@ class Item(object):
     def get_path(self):
         return self._item.path
 
+
 def wrap_item(i):
     w = None
     if i:
         w = Item(i)
     return w
 
+
 class Repository(object):
 
     def __init__(self, url, username='', password=''):
         os.umask(0o0002)
         self._svn_url = url
-        #logger.info('URL="{}"'.format(self._svn_url))
+        # logger.info('URL="{}"'.format(self._svn_url))
 
         self._svn_username = username
         self._svn_password = password
@@ -99,12 +99,14 @@ class Repository(object):
         self.svn_cli.callback_notify = self._cb_notify
 
         if self._ssl_server_trust_prompt:
-            self.svn_cli.callback_ssl_server_trust_prompt = self._ssl_server_trust_prompt
-
+            self.svn_cli.callback_ssl_server_trust_prompt = \
+                self._ssl_server_trust_prompt
 
     def get_head_rev(self):
-        entries = self.svn_cli.info2(self._svn_url, 
-                                     revision=pysvn.Revision(pysvn.opt_revision_kind.head),
+        entries = self.svn_cli.info2(self._svn_url,
+                                     revision=pysvn.Revision(pysvn
+                                                             .opt_revision_kind
+                                                             .head),
                                      recurse=False)
         for (p, info) in entries:
             rev = info.rev
@@ -118,19 +120,20 @@ class Repository(object):
         else:
             rev = pysvn.Revision(pysvn.opt_revision_kind.head)
 
-        entries = self.svn_cli.info2(self._svn_url, revision=rev, recurse=False)
+        entries = self.svn_cli.info2(self._svn_url, revision=rev,
+                                     recurse=False)
 
         for (p, info) in entries:
             root = info.repos_root_URL
             return root
 
         return None
-        
 
     def get_kind(self, item, revnum):
         rev = pysvn.Revision(pysvn.opt_revision_kind.number, revnum)
         try:
-            entries = self.svn_cli.info2(self._svn_url+'/'+item, revision=rev, recurse=False)
+            entries = self.svn_cli.info2(self._svn_url+'/'+item, revision=rev,
+                                         recurse=False)
             for (p, info) in entries:
                 kind = info.kind
                 return kind
@@ -156,10 +159,10 @@ class Repository(object):
                                   self._svn_url, rev1,
                                   self._svn_url, rev2,
                                   diff_options=options,
-                                  #use_git_diff_format=git,
-    )
-        
-        if delta != '' and outfile != None:
+                                  # use_git_diff_format=git,
+                                  )
+
+        if delta != '' and outfile is not None:
             f = None
             try:
                 f = open(outfile, 'w')
@@ -169,13 +172,14 @@ class Repository(object):
             finally:
                 if f:
                     f.close()
-        
+
         return delta
 
     def get_changed_items(self, revnum1, revnum2):
         rev1 = pysvn.Revision(pysvn.opt_revision_kind.number, revnum1)
         rev2 = pysvn.Revision(pysvn.opt_revision_kind.number, revnum2)
-        _items = self.svn_cli.diff_summarize(self._svn_url, rev1, self._svn_url, rev2)
+        _items = self.svn_cli.diff_summarize(self._svn_url, rev1,
+                                             self._svn_url, rev2)
         items = [wrap_item(i) for i in _items]
         return items
 
@@ -192,7 +196,8 @@ class Repository(object):
         root_url = self.get_root_url(revnum)
         prefix = '/' + (self._svn_url.replace(root_url, '', 1).lstrip('/'))
 
-        items = [e[0].repos_path.replace(prefix, '', 1).lstrip('/') for e in entries]
+        items = [e[0].repos_path.replace(prefix, '', 1).lstrip('/')
+                 for e in entries]
 
 #         print 'root_url: {}'.format(root_url)
 #         print 'prefix: {}'.format(prefix)
@@ -202,10 +207,9 @@ class Repository(object):
 
         return items
 
-
     def checkout_file(self, item, dest, revnum=None, verbose=False):
         revnum_s = str(revnum)
-        if revnum == None:
+        if revnum is None:
             revnum_s = 'head'
 
         url = self._svn_url
@@ -231,7 +235,9 @@ class Repository(object):
                 rev = pysvn.Revision(pysvn.opt_revision_kind.head)
 
             if verbose:
-                logger.info('checking out "{}@{}" to "{}"'.format(fullurl, revnum_s, path))
+                logger.info('checking out "{}@{}" to "{}"'.format(fullurl,
+                                                                  revnum_s,
+                                                                  path))
 
             if os.path.exists(path):
                 if os.path.isdir(path):
@@ -241,14 +247,16 @@ class Repository(object):
                     os.unlink(path)
 
             if not os.path.exists(os.path.join(dest, '.svn')):
-                self.svn_cli.checkout(url, dest, revision=rev, ignore_externals=True, depth=pysvn.depth.empty)
+                self.svn_cli.checkout(url, dest, revision=rev,
+                                      ignore_externals=True,
+                                      depth=pysvn.depth.empty)
 
-            self.svn_cli.update(path, revision=rev, ignore_externals=True, depth=pysvn.depth.files)
-
+            self.svn_cli.update(path, revision=rev, ignore_externals=True,
+                                depth=pysvn.depth.files)
 
     def checkout(self, dest, revnum=None, directory=None, verbose=False):
         revnum_s = str(revnum)
-        if revnum == None:
+        if revnum is None:
             revnum_s = 'head'
 
         url = self._svn_url
@@ -257,7 +265,8 @@ class Repository(object):
             dest = os.path.join(dest, url2pathname(directory))
 
         if verbose:
-            logger.info('checking out "{}@{}" to "{}"'.format(url, revnum_s, dest))
+            logger.info('checking out "{}@{}" to "{}"'.format(url, revnum_s,
+                                                              dest))
 
         if os.path.exists(dest):
             logger.warning('already exist: "{}", removing..'.format(dest))
@@ -270,10 +279,10 @@ class Repository(object):
         else:
             rev = pysvn.Revision(pysvn.opt_revision_kind.head)
 
-        self.svn_cli.checkout(url, 
-                              dest, 
+        self.svn_cli.checkout(url,
+                              dest,
                               recurse=True,
-                              revision=rev, 
+                              revision=rev,
                               ignore_externals=False)
 
     def mkdir(self, d, verbose=False):
@@ -287,11 +296,10 @@ class Repository(object):
                 p = os.path.dirname(d)
                 self.mkdir(p)
                 os.mkdir(d)
- 
 
     def checkout_source(self, path, revnum=None, verbose=False):
         revnum_s = str(revnum)
-        if revnum == None:
+        if revnum is None:
             revnum_s = 'head'
 
         url = self._svn_url
@@ -332,7 +340,7 @@ def get_log(path):
             author = log.get('author', '<unknown>')
             _message = log.get('message', None)
             _rev = log.get('revision', None)
-            if _rev != None and _message != None:
+            if _rev is not None and _message is not None:
                 rev = _rev.number
                 message = _message.lstrip().rstrip()
                 try:
@@ -343,8 +351,8 @@ def get_log(path):
                     except KeyError:
                         rmap[rev] = {message}
                 except KeyError:
-                    lmap[author] = {rev:{message}}
-                    
+                    lmap[author] = {rev: {message}}
+
     except pysvn.ClientError as e:
         logger.warning(str(e))
 
@@ -352,7 +360,7 @@ def get_log(path):
 
 
 def blame(path):
-    amap = {} # author -> rev -> range list
+    amap = {}  # author -> rev -> range list
 
     cli = pysvn.Client()
 
@@ -365,13 +373,13 @@ def blame(path):
                 author = '<unknown>'
             _rev = d.get('revision', None)
 
-            if _rev == None:
+            if _rev is None:
                 continue
 
             rev = _rev.number
 
 #            print('rev={} author={}'.format(rev, author))
-            
+
             num = d['number'] + 1
             last_col = max(len(d['line']) - 1, 0)
 
@@ -403,4 +411,3 @@ def blame(path):
         logger.warning(str(e))
 
     return amap
-

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import os
 
 CCA_HOME = os.getenv('CCA_HOME', '/opt/cca')

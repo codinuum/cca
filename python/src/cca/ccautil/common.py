@@ -7,6 +7,7 @@ LOGGING_FORMAT = '[%(asctime)s][%(levelname)s][%(module)s][%(funcName)s] %(messa
 
 DEFAULT_LOGGING_LEVEL = 25
 
+
 def setup_logger(logger, log_level=DEFAULT_LOGGING_LEVEL, log_file=None):
     if log_file:
         fh = logging.FileHandler(log_file, mode='w', encoding='utf-8')

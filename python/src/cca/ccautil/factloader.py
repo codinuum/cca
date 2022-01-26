@@ -22,7 +22,6 @@
 import os
 import gzip
 import tempfile
-import types
 import shutil
 import logging
 
@@ -61,7 +60,9 @@ def _scan_dir(lvl, dpath, pat, f):
 
             if lvl == 0:
                 per = float(count) / float(nmems) * 100
-                logger.info('{:.2f}% ({}/{}) completed'.format(per, count, nmems))
+                logger.info('{:.2f}% ({}/{}) completed'
+                            .format(per, count, nmems))
+
 
 def scan_dir(dpath, pat, f):
     _scan_dir(0, dpath, pat, f)
@@ -95,7 +96,7 @@ class FactMerger(object):
 
     def load(self):
         current = self._current_temp_file
-        if current != None:
+        if current is not None:
             n = self._loader.load(current)
 
             if n < 0:
@@ -105,14 +106,15 @@ class FactMerger(object):
                 logger.info('"{}" removed'.format(current))
 
             self._current_temp_file = None
-        
+
     def rotate(self):
         self._rotate_count += 1
         self.load()
         (h, temp) = tempfile.mkstemp()
         os.close(h)
         self._current_temp_file = temp
-        logger.info('[{}] new temp file "{}" created'.format(self._rotate_count, temp))
+        logger.info('[{}] new temp file "{}" created'
+                    .format(self._rotate_count, temp))
 
     def get_current_temp_file(self):
         return self._current_temp_file
@@ -157,6 +159,7 @@ def load(loader, cache_dir_base, temp_file_size=DEFAULT_TEMP_FILE_SIZE):
     scan_dir(cache_dir_base, diffts.cfgfact_file_name, merger3.merge)
     merger3.load()
 
+
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -165,7 +168,7 @@ def main():
 
     parser.add_argument('cache_dir_base', type=str, help='cache dir base')
     parser.add_argument('out_dir', type=str, help='output dir')
-    parser.add_argument('--temp-file-size', dest='temp_file_size', 
+    parser.add_argument('--temp-file-size', dest='temp_file_size',
                         default=DEFAULT_TEMP_FILE_SIZE, metavar='N', type=int,
                         help='maximum temp file size (in bytes) for RDF loader')
 
@@ -174,7 +177,6 @@ def main():
     loader = DefaultFactLoader(args.out_dir)
 
     load(loader, args.cache_dir_base, args.temp_file_size)
-
 
 
 if __name__ == '__main__':

@@ -230,7 +230,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | OpaqueEnumDeclarationMacro i         -> pr_id i; pad1(); pr_seq()
 
   | NodeclspecFunctionDeclaration        -> pr_seq()
-  | FunctionDefinition                   -> pr_seq()
+  | FunctionDefinition _                 -> pr_seq()
+  | NestedFunctionDefinition _           -> pr_seq()
   | TemplateDeclaration                  -> pr_nth_child 0; pr_space(); pr_nth_child 1
   | DeductionGuide n -> begin
       pr_id n; pr_lparen(); pr_nth_children 1; pr_rparen(); pr_string " -> "; pr_nth_children 2; _pr_semicolon()
@@ -878,10 +879,10 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | TypeParameterKeyTypename -> pr_string "typename"
 
 (* FunctionBody *)
-  | FunctionBody                  -> pb#pr_a pad1 pr_node_ children
+  | FunctionBody _                -> pb#pr_a pad1 pr_node_ children
   | FunctionBodyDefault           -> pr_string "= default;"
   | FunctionBodyDelete            -> pr_string "= delete;"
-  | FunctionTryBlock              -> pr_string "try "; pr_nth_children ~tail:pad1 0; pr_nth_children 1; pr_nth_children 2
+  | FunctionTryBlock _            -> pr_string "try "; pr_nth_children ~tail:pad1 0; pr_nth_children 1; pr_nth_children 2
   | FunctionBodyMacro i           -> pr_id i
   | FunctionBodyMacroInvocation i -> pr_macro_invocation i
 
@@ -1108,6 +1109,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   end
   | DesignatorField i                 -> pr_string ("."^i)
   | DesignatorIndex                   -> pr_lbracket(); pr_seq(); pr_rbracket()
+  | DesignatorRange                   -> pr_lbracket(); pr_seq ~sep:pr_ellipsis (); pr_rbracket()
   | TrailingReturnType                -> pr_string " -> "; pr_nth_child 0
   | BracedInitList                    -> pr_lbrace(); pr_seq(); pr_rbrace()
   | ForRangeDeclaration -> begin
@@ -1174,7 +1176,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | DefiningTypeSpecifierSeq          -> pr_string "<defining-type-specifier-seq>"
   | DeclSpecifierSeq                  -> pr_string "<decl-specifier-seq>"
   | TypeSpecifierSeq                  -> pr_seq()
-  | FunctionHead -> begin
+  | FunctionHead _ -> begin
       let has_rparen =
         try
           L.is_pp_if_section_broken (getlab (nth_children 2).(0))

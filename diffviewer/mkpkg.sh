@@ -1,2 +1,2 @@
 #!/bin/sh
-./node_modules/.bin/electron-packager . DiffViewer --platform=darwin --arch=x64 --icon=icon.icns $*
+./node_modules/.bin/electron-packager . DiffViewer --platform=darwin --icon=icon.icns $*

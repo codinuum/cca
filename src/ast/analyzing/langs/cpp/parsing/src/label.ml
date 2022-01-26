@@ -110,7 +110,7 @@ type t =
   | OpaqueEnumDeclarationStruct       (* BlockDeclaration *)
   | OpaqueEnumDeclarationMacro of ident (* BlockDeclaration *)
   | NodeclspecFunctionDeclaration
-  | FunctionDefinition
+  | FunctionDefinition of name
   | TemplateDeclaration
   | DeductionGuide of name
   | ExplicitInstantiation
@@ -493,10 +493,10 @@ type t =
   | TypeParameterKeyTypename
 
 (* FunctionBody *)
-  | FunctionBody
+  | FunctionBody of name
   | FunctionBodyDefault
   | FunctionBodyDelete
-  | FunctionTryBlock
+  | FunctionTryBlock of name
   | FunctionBodyMacro of ident
   | FunctionBodyMacroInvocation of ident
 
@@ -651,6 +651,7 @@ type t =
   | DesignatedInitializerClause
   | DesignatorField of ident
   | DesignatorIndex
+  | DesignatorRange
   | TrailingReturnType
   | BracedInitList
   | ForRangeDeclaration
@@ -691,7 +692,7 @@ type t =
   | DefiningTypeSpecifierSeq
   | DeclSpecifierSeq
   | TypeSpecifierSeq
-  | FunctionHead
+  | FunctionHead of name
   | FunctionHeadMacro of ident
   | AccessSpecAnnot of ident
   | EnumeratorMacroInvocation of ident
@@ -796,6 +797,7 @@ type t =
   | HugeArray of int * string
   | DslMacroArgument
   | ParametersAndQualifiersList
+  | NestedFunctionDefinition of name
 
 let to_string = function
   | DUMMY -> "DUMMY"
@@ -866,7 +868,7 @@ let to_string = function
   | OpaqueEnumDeclarationStruct   -> "OpaqueEnumDeclarationStruct"
   | OpaqueEnumDeclarationMacro i  -> "OpaqueEnumDeclarationMacro:"^i
   | NodeclspecFunctionDeclaration -> "NodeclspecFunctionDeclaration"
-  | FunctionDefinition            -> "FunctionDefinition"
+  | FunctionDefinition n          -> "FunctionDefinition:"^n
   | TemplateDeclaration           -> "TemplateDeclaration"
   | DeductionGuide n              -> "DeductionGuide:"^n
   | ExplicitInstantiation         -> "ExplicitInstantiation"
@@ -1235,10 +1237,10 @@ let to_string = function
   | TypeParameterKeyTypename -> "TypeParameterKeyTypename"
 
 (* FunctionBody *)
-  | FunctionBody        -> "FunctionBody"
+  | FunctionBody n      -> "FunctionBody:"^n
   | FunctionBodyDefault -> "FunctionBodyDefault"
   | FunctionBodyDelete  -> "FunctionBodyDelete"
-  | FunctionTryBlock    -> "FunctionTryBlock"
+  | FunctionTryBlock n  -> "FunctionTryBlock:"^n
   | FunctionBodyMacro i -> "FunctionBodyMacro:"^i
   | FunctionBodyMacroInvocation i -> "FunctionBodyMacroInvocation:"^i
 
@@ -1384,6 +1386,7 @@ let to_string = function
   | DesignatedInitializerClause    -> "DesignatedInitializerClause"
   | DesignatorField i              -> "DesignatorField:"^i
   | DesignatorIndex                -> "DesignatorIndex"
+  | DesignatorRange                -> "DesignatorRange"
   | TrailingReturnType             -> "TrailingReturnType"
   | BracedInitList                 -> "BracedInitList"
   | ForRangeDeclaration            -> "ForRangeDeclaration"
@@ -1431,7 +1434,7 @@ let to_string = function
   | DefiningTypeSpecifierSeq       -> "DefiningTypeSpecifierSeq"
   | DeclSpecifierSeq               -> "DeclSpecifierSeq"
   | TypeSpecifierSeq               -> "TypeSpecifierSeq"
-  | FunctionHead                   -> "FunctionHead"
+  | FunctionHead n                 -> "FunctionHead:"^n
   | FunctionHeadMacro i            -> "FunctionHeadMacro:"^i
   | AccessSpecAnnot i              -> "AccessSpecAnnot:"^i
   | EnumeratorMacroInvocation i    -> "EnumeratorMacroInvocation:"^i
@@ -1536,6 +1539,7 @@ let to_string = function
   | HugeArray(sz, c) -> sprintf "HugeArray(%d):%s\n" sz c
   | DslMacroArgument -> "DslMacroArgument"
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList"
+  | NestedFunctionDefinition n -> "NestedFunctionDefinition:"^n
 
 
 let to_simple_string = function
@@ -1608,7 +1612,7 @@ let to_simple_string = function
   | OpaqueEnumDeclarationStruct   -> "struct"
   | OpaqueEnumDeclarationMacro i  -> i
   | NodeclspecFunctionDeclaration -> "<nodeclspec-function-declaration>"
-  | FunctionDefinition            -> "<function-definition>"
+  | FunctionDefinition n          -> sprintf "<function-definition:%s>" n
   | TemplateDeclaration           -> "<template-declaration>"
   | DeductionGuide n              -> sprintf "<deduction-guide:%s>" n
   | ExplicitInstantiation         -> "template"
@@ -1981,10 +1985,10 @@ let to_simple_string = function
   | TypeParameterKeyTypename -> "typename"
 
 (* FunctionBody *)
-  | FunctionBody        -> "<function-body>"
+  | FunctionBody n      -> sprintf "<function-body:%s>" n
   | FunctionBodyDefault -> "= default;"
   | FunctionBodyDelete  -> "= delete;"
-  | FunctionTryBlock    -> "<function-try-block>"
+  | FunctionTryBlock n  -> sprintf "<function-try-block:%s>" n
   | FunctionBodyMacro i -> i
   | FunctionBodyMacroInvocation i -> i
 
@@ -2133,6 +2137,7 @@ let to_simple_string = function
   | DesignatedInitializerClause    -> "<designated-initializer-clause>"
   | DesignatorField i              -> "."^i
   | DesignatorIndex                -> "[]"
+  | DesignatorRange                -> "[...]"
   | TrailingReturnType             -> "<trailing-return-type>"
   | BracedInitList                 -> "<braced-init-list>"
   | ForRangeDeclaration            -> "<for-range-declaration>"
@@ -2179,7 +2184,7 @@ let to_simple_string = function
   | DefiningTypeSpecifierSeq       -> "<defining-type-specifier-seq>"
   | DeclSpecifierSeq               -> "<decl-specifier-seq>"
   | TypeSpecifierSeq               -> "<type-specifier-seq>"
-  | FunctionHead                   -> "<function-head>"
+  | FunctionHead n                 -> sprintf "<function-head:%s>" n
   | FunctionHeadMacro i            -> i
   | AccessSpecAnnot i              -> i
   | EnumeratorMacroInvocation i    -> i
@@ -2284,6 +2289,7 @@ let to_simple_string = function
   | HugeArray(_, c) -> c
   | DslMacroArgument -> "<dsl-macro-argument>"
   | ParametersAndQualifiersList -> "<parameters-and-qualifiers-list>"
+  | NestedFunctionDefinition n -> sprintf "<nested-function-definition:%s>" n
 
 
 let to_tag ?(strip=false) : t -> string * (string * string) list = function
@@ -2358,7 +2364,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | OpaqueEnumDeclarationStruct   -> "OpaqueEnumDeclarationStruct", []
   | OpaqueEnumDeclarationMacro i  -> "OpaqueEnumDeclarationMacro", ["ident",i]
   | NodeclspecFunctionDeclaration -> "NodeclspecFunctionDeclaration", []
-  | FunctionDefinition            -> "FunctionDefinition", []
+  | FunctionDefinition n          -> "FunctionDefinition", ["name", n]
   | TemplateDeclaration           -> "TemplateDeclaration", []
   | DeductionGuide n              -> "DeductionGuide", ["name",n]
   | ExplicitInstantiation         -> "ExplicitInstantiation", []
@@ -2743,10 +2749,10 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | TypeParameterKeyTypename -> "TypeParameterKeyTypename", []
 
 (* FunctionBody *)
-  | FunctionBody        -> "FunctionBody", []
+  | FunctionBody n      -> "FunctionBody", ["name",n]
   | FunctionBodyDefault -> "FunctionBodyDefault", []
   | FunctionBodyDelete  -> "FunctionBodyDelete", []
-  | FunctionTryBlock    -> "FunctionTryBlock", []
+  | FunctionTryBlock n  -> "FunctionTryBlock", ["name",n]
   | FunctionBodyMacro i -> "FunctionBodyMacro", ["ident",i]
   | FunctionBodyMacroInvocation i -> "FunctionBodyMacroInvocation", ["ident",i]
 
@@ -2895,6 +2901,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DesignatedInitializerClause    -> "DesignatedInitializerClause", []
   | DesignatorField i              -> "DesignatorField", ["ident",i]
   | DesignatorIndex                -> "DesignatorIndex", []
+  | DesignatorRange                -> "DesignatorRange", []
   | TrailingReturnType             -> "TrailingReturnType", []
   | BracedInitList                 -> "BracedInitList", []
   | ForRangeDeclaration            -> "ForRangeDeclaration", []
@@ -2942,7 +2949,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DefiningTypeSpecifierSeq       -> "DefiningTypeSpecifierSeq", []
   | DeclSpecifierSeq               -> "DeclSpecifierSeq", []
   | TypeSpecifierSeq               -> "TypeSpecifierSeq", []
-  | FunctionHead                   -> "FunctionHead", []
+  | FunctionHead n                 -> "FunctionHead", ["name", n]
   | FunctionHeadMacro i            -> "FunctionHeadMacro", ["ident",i]
   | AccessSpecAnnot i              -> "AccessSpecAnnot", ["ident",i]
   | EnumeratorMacroInvocation i    -> "EnumeratorMacroInvocation", ["ident",i]
@@ -3047,6 +3054,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code", c]
   | DslMacroArgument -> "DslMacroArgument", []
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList", []
+  | NestedFunctionDefinition n -> "NestedFunctionDefinition", ["name",n]
 
 
 let get_name : t -> string = function
@@ -3166,6 +3174,11 @@ let get_name : t -> string = function
   | FunctionBodyMacroInvocation n
   | LambdaCaptureMacroInvocation n
   | LambdaIntroducerMacro n
+  | FunctionHead n
+  | FunctionDefinition n
+  | FunctionBody n
+  | FunctionTryBlock n
+  | NestedFunctionDefinition n
     -> n
 
   | PpInclude x -> x
