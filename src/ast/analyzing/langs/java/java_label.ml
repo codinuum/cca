@@ -3272,6 +3272,10 @@ let is_forupdate = function
   | ForUpdate _ -> true
   | _ -> false
 
+let is_forheader = function
+  | ForHeader _ -> true
+  | _ -> false
+
 let is_switchblock = function
   | SwitchBlock -> true
   | _ -> false
@@ -3424,6 +3428,13 @@ let is_invocation = function
   | SuperInvocation
   | PrimaryInvocation
   | NameInvocation _
+    -> true
+
+  | _ -> false
+
+let is_simple_invocation = function
+  | Primary (Primary.SimpleMethodInvocation _)
+  | Statement (Statement.Expression (Expression.Primary (Primary.SimpleMethodInvocation _), _))
     -> true
 
   | _ -> false

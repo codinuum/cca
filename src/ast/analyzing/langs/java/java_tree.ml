@@ -330,6 +330,14 @@ class visitor bid_gen tree = object (self)
       stack#register name nd
     end;
 
+    if L.is_forheader lab then begin
+      let name = L.get_name lab in
+      let bid = bid_gen#gen in
+      DEBUG_MSG "DEF(for_header): %s (bid=%a) %s" name BID.ps bid nd#to_string;
+      nd#data#set_binding (Binding.make_unknown_def bid true);
+      stack#register name nd
+    end;
+
     if L.is_variabledeclarator lab then begin
       if L.is_local_variabledeclarator lab then begin
         let name = L.get_name lab in
@@ -391,6 +399,10 @@ class translator options =
     let fieldtbl = Hashtbl.create 0 (* FQN -> node *) in
     let facctbl = Hashtbl.create 0 (* FQN -> node *) in
 
+    (* for methods *)
+    (*let methodtbl = Hashtbl.create 0 (* FQN -> node *) in
+    let ivktbl = Hashtbl.create 0 (* FQN -> node *) in*)
+
     let add tbl nm nd =
       try
         let nds = Hashtbl.find tbl nm in
@@ -402,6 +414,8 @@ class translator options =
     let add_refty = add reftytbl in
     let add_field = add fieldtbl in
     let add_facc = add facctbl in
+    (*let add_method = add methodtbl in
+    let add_ivk = add ivktbl in*)
 
     let is_self_facc nd =
       match nd#initial_children with
@@ -409,6 +423,28 @@ class translator options =
       | [|n|] -> L.is_primarythis (getlab n)
       | _ -> false
     in
+
+    (*let count_params msig =
+      let count = ref 0 in
+      let skip = ref true in
+      begin
+        try
+          String.iter
+            (fun c ->
+              match c with
+              | '(' -> skip := false
+              | ')' -> raise Exit
+              | 'L' -> skip := true
+              | ';' -> incr count; skip := false
+              | _ when !skip -> ()
+              | _ -> incr count
+            ) msig
+        with
+          Exit -> ()
+      end;
+      DEBUG_MSG "%s -> %d" msig !count;
+      !count
+    in*)
 
     tree#fast_scan_whole_initial
       (fun nd ->
@@ -420,6 +456,15 @@ class translator options =
         else if L.is_field lab then begin
           add_field (vdid_to_id (get_fqn "" nd lab)) nd
         end
+        (*else if L.is_method lab then begin
+          let fqn =
+            sprintf "%s#%d" (get_fqn "" nd lab) (count_params (L.get_signature lab))
+          in
+          add_method fqn nd
+        end
+        else if L.is_simple_invocation lab then begin
+          add_ivk (get_fqn "" nd lab) nd
+        end*)
         else if L.is_variabledeclarator lab then begin
           if L.is_local_variabledeclarator lab then
             ()
@@ -496,6 +541,37 @@ class translator options =
             n#data#set_binding def_bid
           ) nds;
       ) fieldtbl;
+
+    (*Hashtbl.iter
+      (fun nm nds ->
+        match nds with
+        | [_] -> begin
+            let bid = bid_gen#gen in
+            let ref_bid = Binding.make_use bid in
+            DEBUG_MSG "FQN: %s (bid=%a)" nm BID.ps bid;
+            let referred = ref 0 in
+            begin
+              try
+                let nds' = Hashtbl.find ivktbl nm in
+                List.iter
+                  (fun n ->
+                    DEBUG_MSG "    ivk: %s" n#to_string;
+                    n#data#set_binding ref_bid;
+                    incr referred
+                  ) nds'
+              with
+                Not_found ->
+                  DEBUG_MSG "    ivk: not found"
+            end;
+            let def_bid = Binding.make_used_def bid !referred false in
+            List.iter
+              (fun n ->
+                DEBUG_MSG "    method: %s" n#to_string;
+                n#data#set_binding def_bid
+              ) nds;
+        end
+        | _ -> ()
+      ) methodtbl;*)
 
     (* for local variables *)
     let visitor = new visitor bid_gen tree in

@@ -1460,11 +1460,32 @@ class ['node_t, 'tree_t] c
           let ancsim_old = self#get_ancestors_similarity nd1old nd2old in
           let ancsim_new = self#get_ancestors_similarity nd1new nd2new in
 
+          let ancsim_old, ancsim_new, prefer_sim =
+            if nd1old == nd1new then
+              if nd2old#initial_parent == nd2new && nd2new#initial_nchildren = 1 then
+                ancsim_new, ancsim_new, true
+              else if nd2old == nd2new#initial_parent && nd2old#initial_nchildren = 1 then
+                ancsim_old, ancsim_old, true
+              else
+                ancsim_old, ancsim_new, false
+            else if nd2old == nd2new then
+              if nd1old#initial_parent == nd1new && nd1new#initial_nchildren = 1 then
+                ancsim_new, ancsim_new, true
+              else if nd1old == nd1new#initial_parent && nd1old#initial_nchildren = 1 then
+                ancsim_old, ancsim_old, true
+              else
+                ancsim_old, ancsim_new, false
+            else
+              ancsim_old, ancsim_new, false
+          in
+
           DEBUG_MSG "ancestors similarity: %f --> %f" ancsim_old ancsim_new;
 
           let anc_sim_ratio = (Xlist.min [ancsim_old; ancsim_new]) /. (Xlist.max [ancsim_old; ancsim_new]) in
 
           DEBUG_MSG "ancestors similarity ratio: %f" anc_sim_ratio;
+
+          DEBUG_MSG "prefer_sim: %B" prefer_sim;
 
 
           let subtree_sim_old = self#get_similarity_score nd1old nd2old in
@@ -1566,7 +1587,8 @@ class ['node_t, 'tree_t] c
           if
             (ancsim_old = 1.0 && subtree_sim_old = 1.0 && ancsim_new < 1.0 && subtree_sim_new < 1.0) ||
             (anc_sim_almost_same && subtree_sim_old = 1.0 && subtree_sim_new < 1.0 && chk_for_old() ||
-            is_plausible nd1old nd2old && not (is_plausible nd1new nd2new))
+            is_plausible nd1old nd2old && not (is_plausible nd1new nd2new)) ||
+            prefer_sim && subtree_sim_old > subtree_sim_new
             (* || (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_lower_thresh) *)
           then begin
             let b, ncd, ncsim =
@@ -1578,7 +1600,8 @@ class ['node_t, 'tree_t] c
           else if
             (ancsim_new = 1.0 && subtree_sim_new = 1.0 && ancsim_old < 1.0 && subtree_sim_old < 1.0) ||
             (anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new() ||
-            is_plausible nd1new nd2new && not (is_plausible nd1old nd2old))
+            is_plausible nd1new nd2new && not (is_plausible nd1old nd2old)) ||
+            prefer_sim && subtree_sim_new > subtree_sim_old
             (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_lower_thresh) *)
           then begin
             let b, ncd, ncsim =
