@@ -112,7 +112,7 @@ let sfind tree1 tree2 = _find semantic_cost tree1 tree2
 
 
 let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
-
+  DEBUG_MSG "simple=%B" simple;
   DEBUG_MSG "\ndeleted:[%s]\ninserted:[%s]"
     (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" nodes1)
     (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" nodes2);

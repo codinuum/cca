@@ -2018,14 +2018,14 @@ let anonymize ?(more=false) = function
   | ConstructorBody(name, msig)    -> ConstructorBody(name, "")
   | Method(name, msig)             -> Method(name, "")
   | MethodBody(name, msig)         -> MethodBody(name, "")*)
-  (*| Constructor(name, msig)        -> Constructor("", msig)*)
   | ConstructorBody(name, msig)    -> ConstructorBody("", msig)
-  (*| Method(name, msig)             -> Method("", msig)*)
-  | MethodBody(name, msig)         -> MethodBody("", msig)
-  | Constructor(name, msig)        -> Constructor("", "")
   (*| ConstructorBody(name, msig)    -> ConstructorBody("", "")*)
-  | Method(name, msig)             -> Method("", "")
+  | MethodBody(name, msig)         -> MethodBody("", msig)
   (*| MethodBody(name, msig)         -> MethodBody("", "")*)
+  | Constructor(name, msig)        -> Constructor("", "")
+  (*| Constructor(name, msig)        -> Constructor("", msig)*)
+  | Method(name, msig)             -> Method("", "")
+  (*| Method(name, msig)             -> Method("", msig)*)
 
   | LocalVariableDeclaration(b, vdids)      -> LocalVariableDeclaration(b, [])
   | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, true)
@@ -2083,12 +2083,14 @@ let anonymize2 = function
   | Interface _ | Enum _                                       -> Class ""
   | InterfaceBody _ | EnumBody _                               -> ClassBody ""
   | Constructor _ | ConstructorBody _ | Method _ | MethodBody _ as lab -> anonymize ~more:false lab
+  (*| Constructor _ | Method _ as lab -> anonymize ~more:false lab
+  | ConstructorBody _ | MethodBody _ as lab -> anonymize ~more:true lab*)
   | Modifier m -> Modifier (Modifier.anonymize m)
   | Statement Statement.ForEnhanced -> Statement Statement.For
   | lab -> anonymize ~more:true lab
 
 let anonymize3 = function
-  | Method _ as lab             -> anonymize ~more:true lab
+  | Constructor _ | Method _ as lab  -> anonymize ~more:true lab
   | MethodBody _ | ConstructorBody _ -> Block null_tid
   (*| Type _                      -> Type (Type.Void)*)
   (*| Primary (Primary.Literal _) -> Primary (Primary.Literal Literal.Null)*)

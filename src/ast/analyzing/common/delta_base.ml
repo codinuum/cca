@@ -101,6 +101,19 @@ let shift1_attr    = mktag "shift"
 let shift2_attr    = mktag "shift_"
 
 (* for partial application of move *)
+type move_control = Mfull | MdeleteOnly | MinsertOnly
+
+let move_control_to_string = function
+  | Mfull -> "F"
+  | MdeleteOnly -> "D"
+  | MinsertOnly -> "I"
+
+let move_control_of_string = function
+  | "F" -> Mfull
+  | "D" -> MdeleteOnly
+  | "I" -> MinsertOnly
+  | _ -> Mfull
+
 let move_control_attr = mktag "mctl"
 
 let is_file_edit_tag n =
@@ -711,14 +724,25 @@ let make_change_file_elem path ch =
 
 
 (* for move *)
-let output_elem_mov ch mid
+let output_elem_mov ch mid mctl_opt
     path_from paths_from path_to paths_to key_opt adj_opt depth_opt shift_opt
     =
+  let _al =
+    match mctl_opt with
+    | Some mctl ->
+        [ mid_attr,      MID.to_raw mid;
+          move_control_attr, move_control_to_string mctl;
+          path_from_attr,path_from#to_string;
+          path_to_attr,  path_to#to_string;
+        ]
+    | None ->
+        [ mid_attr,      MID.to_raw mid;
+          path_from_attr,path_from#to_string;
+          path_to_attr,  path_to#to_string;
+        ]
+  in
   let al =
-    [ mid_attr,      MID.to_raw mid;
-      path_from_attr,path_from#to_string;
-      path_to_attr,  path_to#to_string;
-    ] @
+    _al @
     (key_opt_to_attr parent_attr key_opt) @
     (int_opt_to_attr adj_attr adj_opt) @
     (int_opt_to_attr depth_attr depth_opt) @
@@ -727,17 +751,30 @@ let output_elem_mov ch mid
   fprintf ch "<%s %s%s%s/>" mov_tag
     (attrs_to_string al) (mkbdry_from paths_from) (mkbdry_to paths_to)
 
-let output_elem_bi_mov ch mid
+let output_elem_bi_mov ch mid mctl_opt
     path1from paths1from path1to paths1to key_opt1 adj_opt1 depth_opt1 shift_opt1
     path2from paths2from path2to paths2to key_opt2 adj_opt2 depth_opt2 shift_opt2
     =
+  let _al =
+    match mctl_opt with
+    | Some mctl ->
+        [ mid_attr,      MID.to_raw mid;
+          move_control_attr, move_control_to_string mctl;
+          path1from_attr,path1from#to_string;
+          path1to_attr,  path1to#to_string;
+          path2from_attr,path2from#to_string;
+          path2to_attr,  path2to#to_string;
+        ]
+    | None ->
+        [ mid_attr,      MID.to_raw mid;
+          path1from_attr,path1from#to_string;
+          path1to_attr,  path1to#to_string;
+          path2from_attr,path2from#to_string;
+          path2to_attr,  path2to#to_string;
+        ]
+  in
   let al =
-    [ mid_attr,      MID.to_raw mid;
-      path1from_attr,path1from#to_string;
-      path1to_attr,  path1to#to_string;
-      path2from_attr,path2from#to_string;
-      path2to_attr,  path2to#to_string;
-    ] @
+    _al @
     (key_opt_to_attr parent1_attr key_opt1) @
     (int_opt_to_attr adj1_attr adj_opt1) @
     (int_opt_to_attr depth1_attr depth_opt1) @
@@ -1000,6 +1037,7 @@ module Fmt = struct
             * content_dumper
 
       | Mov of MID.t
+            * move_control option
             * path_c * boundary * path_c * boundary
             * subtree_key option * int option * int option * int option
 
@@ -1015,9 +1053,9 @@ module Fmt = struct
     let mkins stid path paths key_opt adj_opt depth_opt shift_opt dumper =
       Ins(stid, path, paths, key_opt, adj_opt, depth_opt, shift_opt, dumper)
 
-    let mkmov mid path_from paths_from path_to paths_to
+    let mkmov mid mctl_opt path_from paths_from path_to paths_to
         key_opt adj_opt depth_opt shift_opt =
-      Mov(mid, path_from, paths_from, path_to, paths_to,
+      Mov(mid, mctl_opt, path_from, paths_from, path_to, paths_to,
           key_opt, adj_opt, depth_opt, shift_opt)
 
     let mkchg path paths dumper =
@@ -1043,9 +1081,9 @@ module Fmt = struct
           dumper ch;
           output_ed_elem_ins ch
 
-      | Mov(mid, path_from, paths_from, path_to, paths_to,
+      | Mov(mid, mctl_opt, path_from, paths_from, path_to, paths_to,
             key_opt, adj_opt, depth_opt, shift_opt) ->
-              output_elem_mov ch mid
+              output_elem_mov ch mid mctl_opt
                 path_from paths_from path_to paths_to
                 key_opt adj_opt depth_opt shift_opt
 
@@ -1080,6 +1118,7 @@ module Fmt = struct
             * path_c * boundary
 
       | Mov of MID.t
+            * move_control option
             * path_c * boundary * path_c * boundary
             * subtree_key option * int option * int option * int option
             * path_c * boundary * path_c * boundary
@@ -1104,11 +1143,12 @@ module Fmt = struct
           path', paths')
 
     let mkmov mid
+        mctl_opt
         path_from paths_from path_to paths_to
         key_opt adj_opt depth_opt shift_opt
         path_from' paths_from' path_to' paths_to'
         key_opt' adj_opt' depth_opt' shift_opt' =
-      Mov(mid, path_from, paths_from, path_to, paths_to,
+      Mov(mid, mctl_opt, path_from, paths_from, path_to, paths_to,
           key_opt, adj_opt, depth_opt, shift_opt,
           path_from', paths_from', path_to', paths_to',
           key_opt', adj_opt', depth_opt', shift_opt')
@@ -1142,12 +1182,12 @@ module Fmt = struct
           dumper ch;
           output_ed_elem_ins ch
 
-      | Mov(mid, path_from, paths_from, path_to, paths_to,
+      | Mov(mid, mctl_opt, path_from, paths_from, path_to, paths_to,
             key_opt, adj_opt, depth_opt, shift_opt,
             path_from', paths_from', path_to', paths_to',
             key_opt', adj_opt', depth_opt', shift_opt')
         ->
-          output_elem_bi_mov ch mid
+          output_elem_bi_mov ch mid mctl_opt
             path_from paths_from path_to paths_to
             key_opt adj_opt depth_opt shift_opt
             path_from' paths_from' path_to' paths_to'
@@ -1180,12 +1220,12 @@ module Fmt = struct
           Del(stid, path', paths',
               path, paths, key_opt, adj_opt, depth_opt, shift_opt, dumper)
 
-      | Mov(mid, path_from, paths_from, path_to, paths_to,
+      | Mov(mid, mctl_opt, path_from, paths_from, path_to, paths_to,
             key_opt, adj_opt, depth_opt, shift_opt,
             path_from', paths_from', path_to', paths_to',
             key_opt', adj_opt', depth_opt', shift_opt')
         ->
-          Mov(mid, path_from', paths_from', path_to', paths_to',
+          Mov(mid, mctl_opt, path_from', paths_from', path_to', paths_to',
               key_opt', adj_opt', depth_opt', shift_opt',
               path_from, paths_from, path_to, paths_to,
               key_opt, adj_opt, depth_opt, shift_opt)

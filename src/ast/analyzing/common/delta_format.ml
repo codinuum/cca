@@ -327,15 +327,17 @@ module IrreversibleFormat = struct
                         DEBUG_MSG "_ppath=%s elem=%s nd=%a %s %s" (Path.to_string _ppath) (Path.Elem.to_string elem)
                           nps nd nd#data#label (Loc.to_string nd#data#src_loc);
                         DEBUG_MSG "mid=%a" MID.ps mid;
+                        let _rp' = ref Path.root in
                         match Hashtbl.find mov_tbl mid with
                         | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
                             DEBUG_MSG "checking %s" (edit_to_string mov);
                             path_to#parent_path <> path_from#path &&
-                            List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from
+                            let _ = _rp' := Path.remove_head path_from#path _ppath in
+                            List.for_all (fun p -> p#upstream = 0 && p#key_opt = None && !_rp' <> p#parent_path) paths_from
                         end -> begin
                           DEBUG_MSG "found: %s" (edit_to_string mov);
                           let _path', depth' =
-                            let rp' = Path.append (Path.remove_head path_from#path _ppath) elem in
+                            let rp' = Path.append !_rp' elem in
                             Path.concat path_to#path rp', Path.length rp'
                           in
                           let path' = new path_c _path' in
@@ -364,14 +366,16 @@ module IrreversibleFormat = struct
                         DEBUG_MSG "_ppath=%s elem=%s nd=%a %s %s" (Path.to_string _ppath) (Path.Elem.to_string elem)
                           nps nd nd#data#label (Loc.to_string nd#data#src_loc);
                         DEBUG_MSG "mid=%a" MID.ps mid;
+                        let _rp' = ref Path.root in
                         match Hashtbl.find mov_tbl mid with
                         | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
                             path_to#parent_path <> path_from#path &&
+                            let _ = _rp' := Path.remove_head path_from#path _ppath in
                             List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from
                         end -> begin
                           DEBUG_MSG "found: %s" (edit_to_string mov);
                           let _path', depth' =
-                            let rp' = Path.append (Path.remove_head path_from#path _ppath) elem in
+                            let rp' = Path.append !_rp' elem in
                             Path.concat path_to#path rp', Path.length rp'
                           in
                           let path' = new path_c _path' in

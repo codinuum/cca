@@ -350,6 +350,7 @@ module Edit = struct
       edit_seq
       (*(edit_seq : ('data node_t, 'tree tree_t) Edit_base.seq_base)*)
       =
+    let is_indivisible_move = edits_copy#is_indivisible_move in
     let edit_list =
       (*if options#minimize_delta_flag then
         Xlist.filter_map (op_of_editop_filt ~more uidmapping edit_seq tree1) edit_seq#content
@@ -11090,8 +11091,14 @@ module Edit = struct
               in
 
               if irreversible_flag then begin
+                let mctl_opt =
+                  if is_indivisible_move mid then
+                    Some Mfull
+                  else
+                    None
+                in
                 let fmt =
-                  irrf (Fmt.Irr.mkmov mid
+                  irrf (Fmt.Irr.mkmov mid mctl_opt
                           path1from excepted_paths1from path1to excepted_paths1to
                           key_opt1 adj_opt1 depth_opt1 shift_opt1)
                 in
@@ -11328,8 +11335,15 @@ module Edit = struct
 
                 self#reg_parent_key2 excepted_paths2to mid_key;
 
+                let mctl_opt =
+                  if is_indivisible_move mid then
+                    Some Mfull
+                  else
+                    None
+                in
+
                 let fmt =
-                  revf (Fmt.Rev.mkmov mid
+                  revf (Fmt.Rev.mkmov mid mctl_opt
                           path1from excepted_paths1from path1to excepted_paths1to
                           key_opt1 adj_opt1 depth_opt1 shift_opt1
                           path2from excepted_paths2from path2to excepted_paths2to
@@ -11707,17 +11721,17 @@ module Edit = struct
                   with
                     Not_found -> fmt
                 end
-              | Irr (Irr.Mov(mid, path1, paths1, path2, paths2, x0, x1, x2, x3)) -> begin
+              | Irr (Irr.Mov(mid, mctl_opt, path1, paths1, path2, paths2, x0, x1, x2, x3)) -> begin
                   modify lift_tbl1 edit_parent_tbl1 path1 paths1;
                   try
                     let c = get_conv conv_tbl1 (K_mid mid) in
-                    Irr (Irr.Mov(mid, path1, paths1,
+                    Irr (Irr.Mov(mid, mctl_opt, path1, paths1,
                                  conv_path path2 c, conv_paths paths2 c,
                                  x0, x1, x2, x3))
                   with
                     Not_found -> fmt
               end
-              | Rev (Rev.Mov(mid, path1, paths1, path2, paths2, x0, x1, x2, x3,
+              | Rev (Rev.Mov(mid, mctl_opt, path1, paths1, path2, paths2, x0, x1, x2, x3,
                              path1', paths1', path2', paths2', x4, x5, x6, x7))
                 -> begin
                   modify lift_tbl1 edit_parent_tbl1 path1 paths1;
@@ -11725,7 +11739,7 @@ module Edit = struct
                   try
                     let c = get_conv conv_tbl1 (K_mid mid) in
                     let c' = get_conv conv_tbl2 (K_mid mid) in
-                    Rev (Rev.Mov(mid, path1, paths1,
+                    Rev (Rev.Mov(mid, mctl_opt, path1, paths1,
                                  conv_path path2 c, conv_paths paths2 c,
                                  x0, x1, x2, x3, path1', paths1',
                                  conv_path path2' c', conv_paths paths2' c',

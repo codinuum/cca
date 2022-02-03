@@ -314,11 +314,29 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   val mutable list = ([] : ('node_t t) list)
 
+  val mutable indivisible_moves = (Xset.create 0 : MID.t Xset.t)
+
   method _init =
       tables <- [del_tbl; ins_tbl; rel1_tbl; rel2_tbl; mov1_tbl; mov2_tbl]
 
   initializer
     self#_init
+
+  method _indivisible_moves = indivisible_moves
+  method _set_indivisible_moves s = indivisible_moves <- s
+
+  method add_indivisible_move mid =
+    DEBUG_MSG "%a" MID.ps mid;
+    Xset.add indivisible_moves mid
+
+  method remove_indivisible_move mid =
+    DEBUG_MSG "%a" MID.ps mid;
+    Xset.remove indivisible_moves mid
+
+  method is_indivisible_move mid =
+    let b = Xset.mem indivisible_moves mid in
+    DEBUG_MSG "%a -> %B" MID.ps mid b;
+    b
 
   method find_mov_gr = Hashtbl.find mov_gr_tbl
   method find_mov_gr_mems = Hashtbl.find mov_gr_mem_tbl
@@ -347,6 +365,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     eds#_set_rel2_tbl (Hashtbl.copy self#_rel2_tbl);
     eds#_set_mov1_tbl (Hashtbl.copy self#_mov1_tbl);
     eds#_set_mov2_tbl (Hashtbl.copy self#_mov2_tbl);
+    eds#_set_indivisible_moves (Xset.copy self#_indivisible_moves);
     eds#_init;
     eds
 
@@ -945,6 +964,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               | Move(m, _, (u1, _, _), (u2, _ ,_)) ->
                   let m' = mid_gen#gen in
                   DEBUG_MSG "%a (%a-%a) -> %a" MID.ps !m UID.ps u1 UID.ps u2 MID.ps m';
+                  if self#is_indivisible_move !m then
+                    self#add_indivisible_move m';
                   m := m';
                   Hashtbl.add mov_gr_tbl m' mid
               | _ -> assert false
@@ -1532,7 +1553,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     END_DEBUG;
 
     if line_align <> [] then
-      self#dump_line_align_ch formatters line_align ch;
+      self#dump_line_align_ch ~formatters line_align ch;
 
     fprintf ch "%s" footer
 

@@ -2849,33 +2849,57 @@ module F (Label : Spec.LABEL_T) = struct
           DEBUG_MSG "  ---";
           occur_tbl_create occur_tbl2 cld2a;
 
-          let has_different_repetition_pattern =
-            let xs = ref [] in
-            Hashtbl.iter
-              (fun alab2 counts2 ->
-                try
-                  let counts1 = Hashtbl.find occur_tbl1 alab2 in
-                  if counts1 <> counts2 then
-                    xs := alab2 :: !xs
-                with
-                  Not_found -> ()
-              ) occur_tbl2;
-            List.exists
-              (fun alab ->
-                let filt n = not n#is_leaf && n#data#_anonymized_label = alab in
-                Array.exists filt cld1a || Array.exists filt cld2a
-              ) !xs
+          let has_different_repetition_pattern() =
+            let b =
+              let xs = ref [] in
+              Hashtbl.iter
+                (fun alab2 counts2 ->
+                  try
+                    let counts1 = Hashtbl.find occur_tbl1 alab2 in
+                    if counts1 <> counts2 then
+                      xs := alab2 :: !xs
+                  with
+                    Not_found -> ()
+                ) occur_tbl2;
+              List.exists
+                (fun alab ->
+                  let filt n = not n#is_leaf && n#data#_anonymized_label = alab in
+                  Array.exists filt cld1a || Array.exists filt cld2a
+                ) !xs
+            in
+            DEBUG_MSG "has_different_repetition_pattern: %B" b;
+            b
           in
 
-          DEBUG_MSG "has_different_repetition_pattern: %B" has_different_repetition_pattern;
-
-
+          let chk_anon3 clda =
+            let s = Xset.create 0 in
+            try
+              Array.iter
+                (fun n ->
+                  let alab = n#data#_anonymized3_label in
+                  if Xset.mem s alab then
+                    raise Exit
+                  else
+                    Xset.add s alab
+                ) clda;
+              true
+            with
+              Exit -> false
+          in
+          let anon3_all_once() =
+            let b =
+              len1 > 0 && len2 > 0 &&
+              chk_anon3 cld1a && chk_anon3 cld2a
+            in
+            DEBUG_MSG "anon3_all_once: %B" b;
+            b
+          in
 
           let _cands =
             match cld1a, cld2a with
             | [||], _ | _, [||] -> []
             | _ ->
-                let use_similarity = has_different_repetition_pattern && len1 <> len2 in
+                let use_similarity = len1 <> len2 && (has_different_repetition_pattern()) in
 
                 DEBUG_MSG "use_similarity: %B" use_similarity;
 
@@ -2971,15 +2995,18 @@ module F (Label : Spec.LABEL_T) = struct
 
                   let mat1', mat2' = List.split mat' in
                   let a3_flag = false(*not (is_move nd1 nd2) && no_moves*) in
+                  let a3_flag = nd1#data#is_boundary && nd2#data#is_boundary && anon3_all_once() in
+                  DEBUG_MSG "a3_flag=%B" a3_flag;
                   let f2 m m' cldd clda =
                     Array.iteri
                       (fun i (l, d) ->
                         if not (List.mem i m || List.mem i m') then
                           let a =
-                            if a3_flag then
-                              (clda.(i))#data#_anonymized3_label
+                            let ci = clda.(i) in
+                            if a3_flag && ci#data#is_sequence then
+                              ci#data#_anonymized3_label
                             else
-                              (clda.(i))#data#_anonymized2_label
+                              ci#data#_anonymized2_label
                           in
                           cldd.(i) <- (a, None)
                       ) cldd
@@ -3843,6 +3870,9 @@ module F (Label : Spec.LABEL_T) = struct
       b
     in
 
+    let failed_cands = ref [] in
+
+    let add_mappings =
     List.iter (* add mappings *)
       (fun (uid1, uid2) ->
 
@@ -4009,9 +4039,52 @@ module F (Label : Spec.LABEL_T) = struct
 
             DEBUG_MSG "added %a-%a (%a-%a)"
               UID.ps uid1 UID.ps uid2 GI.ps nd1#gindex GI.ps nd2#gindex;
+          end
+          else begin
+            failed_cands := (uid1, uid2) :: !failed_cands
           end;
 
-      ) final_cands;
+      )
+    in
+    add_mappings final_cands;
+
+    BEGIN_DEBUG
+      DEBUG_MSG "%d CANDIDATES FAILED:" (List.length !failed_cands);
+      List.iter
+        (fun (uid1, uid2) ->
+          DEBUG_MSG "%a-%a" UID.ps uid1 UID.ps uid2) !failed_cands;
+    END_DEBUG;
+
+    let extra_cands = ref [] in
+    let failed_uids1, failed_uids2 = List.split !failed_cands in
+    let uids1 = Xset.create 0 in
+    let uids2 = Xset.create 0 in
+    List.iter
+      (fun ((u1, u2), (s, adj, gip)) ->
+        if not (Xset.mem uids1 u1) && not (Xset.mem uids2 u2) then
+          let n1 = tree1#search_node_by_uid u1 in
+          let n2 = tree2#search_node_by_uid u2 in
+          if n1#data#is_sequence && n2#data#is_sequence then begin
+            let mem1 = List.memq u1 failed_uids1 in
+            let mem2 = List.memq u2 failed_uids2 in
+            if mem1 || mem2 then begin
+              if mem1 then
+                Xset.add uids1 u1;
+              if mem2 then
+                Xset.add uids1 u2;
+              extra_cands := (u1, u2) :: !extra_cands
+            end
+          end
+      ) unresolved_cands;
+
+    BEGIN_DEBUG
+      DEBUG_MSG "%d EXTRA CANDIDATES:" (List.length !extra_cands);
+      List.iter
+        (fun (uid1, uid2) ->
+          DEBUG_MSG "%a-%a" UID.ps uid1 UID.ps uid2) !extra_cands;
+    END_DEBUG;
+
+    add_mappings !extra_cands;
 
 (*    cenv#compare_mappings_cache_end; *)
 
@@ -5685,6 +5758,113 @@ end;
           DEBUG_MSG "unique move";
           Xset.add movs (mid, rt1, rt2)
         end
+
+        else if
+          not force &&
+          sz > 0 &&
+          not rt1#data#is_boundary && not rt2#data#is_boundary &&
+          not rt1#data#is_sequence && not rt2#data#is_sequence &&
+          (*rt1#data#is_named_orig && rt2#data#is_named_orig &&*)
+          rt1#initial_nchildren > 0 && rt2#initial_nchildren > 0 &&
+          let bn1 = get_bn rt1 in
+          let bn2 = get_bn rt2 in
+          DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
+          DEBUG_MSG "bn2: %a %s %s" nps bn2 bn2#data#label (Loc.to_string bn2#data#src_loc);
+          is_map bn1 bn2 &&
+          let moveon x = not x#data#is_sequence in
+          let get_mapped_descendants mem = get_p_descendants ~moveon (fun x -> mem x#uid) in
+          let get_dn = get_p_ancestor (fun x -> B.is_def x#data#binding) in
+          let name_tbl_to_str tbl =
+            Hashtbl.fold
+              (fun n bil s ->
+                (if s = "" then "" else s^";") ^
+                (sprintf "%s(%s)" n (Xlist.to_string (fun bi -> BID.to_string bi) ";" bil))
+              ) tbl ""
+          in
+          let add_bid tbl x =
+            let n = x#data#get_name in
+            let bi = Edit.get_bid x in
+            try
+              let bil = Hashtbl.find tbl n in
+              if not (List.mem bi bil) then
+                Hashtbl.replace tbl n (bi::bil)
+            with
+              Not_found ->
+                Hashtbl.add tbl n [bi]
+          in
+          let chk_bid tbl x =
+            let b =
+              try
+                let bidl = Hashtbl.find tbl x#data#get_name in
+                List.mem (Edit.get_bid x) bidl
+              with
+                Not_found -> false
+            in
+            DEBUG_MSG "%a -> %B" UID.ps x#uid b;
+            b
+          in
+          (
+           (let ds1 = get_mapped_descendants uidmapping#mem_dom rt1 in
+           let name_tbl1 = Hashtbl.create 0 in
+           List.iter
+             (fun d1 ->
+               DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
+               try
+                 let d2 = nmap1 d1 in
+                 DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
+                 let dn2 = get_dn d2 in
+                 DEBUG_MSG "dn2=%a %s %s" nps dn2 dn2#data#label (Loc.to_string dn2#data#src_loc);
+                 if
+                   dn2#data#is_named_orig && is_ins dn2 && not (tree2#is_initial_ancestor rt2 dn2)
+                 then
+                   add_bid name_tbl1 dn2
+               with _ -> ()
+             ) ds1;
+           DEBUG_MSG "defined names1: [%s]" (name_tbl_to_str name_tbl1);
+           (Hashtbl.length name_tbl1 > 0) &&
+           has_p_descendant
+             (fun x ->
+               let b =
+                 x#data#is_named_orig && chk_bid name_tbl1 x && is_ins x
+               in
+               if b then
+                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
+               b
+             ) bn2)
+         ||
+           (let ds2 = get_mapped_descendants uidmapping#mem_cod rt2 in
+           let name_tbl2 = Hashtbl.create 0 in
+           List.iter
+             (fun d2 ->
+               DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
+               try
+                 let d1 = nmap2 d2 in
+                 DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
+                 let dn1 = get_dn d1 in
+                 DEBUG_MSG "dn1=%a %s %s" nps dn1 dn1#data#label (Loc.to_string dn1#data#src_loc);
+                 if
+                   dn1#data#is_named_orig && is_del dn1 && not (tree1#is_initial_ancestor rt1 dn1)
+                 then
+                   add_bid name_tbl2 dn1
+               with _ -> ()
+             ) ds2;
+           DEBUG_MSG "defined names2: [%s]" (name_tbl_to_str name_tbl2);
+           (Hashtbl.length name_tbl2 > 0) &&
+           has_p_descendant
+             (fun x ->
+               let b =
+                 x#data#is_named_orig && chk_bid name_tbl2 x && is_del x
+               in
+               if b then
+                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
+               b
+             ) bn1)
+          )
+        then begin
+          DEBUG_MSG "local variable inlining or extraction";
+          edits#add_indivisible_move mid
+          (*Xset.add movs (mid, rt1, rt2)*)
+        end
         else if
           not force &&
           tsz > 1 &&
@@ -5727,78 +5907,6 @@ end;
           )
         then begin
           DEBUG_MSG "federated move"
-        end
-        else if
-          not force &&
-          sz > 0 &&
-          not rt1#data#is_boundary && not rt2#data#is_boundary &&
-          not rt1#data#is_sequence && not rt2#data#is_sequence &&
-          (*rt1#data#is_named_orig && rt2#data#is_named_orig &&*)
-          rt1#initial_nchildren > 0 && rt2#initial_nchildren > 0 &&
-          let bn1 = get_bn rt1 in
-          let bn2 = get_bn rt2 in
-          DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
-          DEBUG_MSG "bn2: %a %s %s" nps bn2 bn2#data#label (Loc.to_string bn2#data#src_loc);
-          is_map bn1 bn2 &&
-          let moveon x = not x#data#is_sequence in
-          let get_mapped_descendants mem = get_p_descendants ~moveon (fun x -> mem x#uid) in
-          let get_dn = get_p_ancestor (fun x -> B.is_def x#data#binding) in
-          (
-           (let ds1 = get_mapped_descendants uidmapping#mem_dom rt1 in
-           let names1 = Xset.create 0 in
-           List.iter
-             (fun d1 ->
-               DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
-               try
-                 let d2 = nmap1 d1 in
-                 DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
-                 let dn2 = get_dn d2 in
-                 DEBUG_MSG "dn2=%a %s %s" nps dn2 dn2#data#label (Loc.to_string dn2#data#src_loc);
-                 if dn2#data#is_named_orig && is_ins dn2 && not (tree2#is_initial_ancestor rt2 dn2) then
-                   Xset.add names1 dn2#data#get_name
-               with _ -> ()
-             ) ds1;
-           DEBUG_MSG "defined names1: [%s]" (Xlist.to_string (fun x -> x) "," (Xset.to_list names1));
-           (Xset.length names1 > 0) &&
-           has_p_descendant
-             (fun x ->
-               let b =
-                 x#data#is_named_orig && Xset.mem names1 x#data#get_name && is_ins x
-               in
-               if b then
-                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
-               b
-             ) rt2)
-         ||
-           (let ds2 = get_mapped_descendants uidmapping#mem_cod rt2 in
-           let names2 = Xset.create 0 in
-           List.iter
-             (fun d2 ->
-               DEBUG_MSG "d2=%a %s %s" nps d2 d2#data#label (Loc.to_string d2#data#src_loc);
-               try
-                 let d1 = nmap2 d2 in
-                 DEBUG_MSG "d1=%a %s %s" nps d1 d1#data#label (Loc.to_string d1#data#src_loc);
-                 let dn1 = get_dn d1 in
-                 DEBUG_MSG "dn1=%a %s %s" nps dn1 dn1#data#label (Loc.to_string dn1#data#src_loc);
-                 if dn1#data#is_named_orig && is_del dn1 && not (tree1#is_initial_ancestor rt1 dn1) then
-                   Xset.add names2 dn1#data#get_name
-               with _ -> ()
-             ) ds2;
-           DEBUG_MSG "defined names2: [%s]" (Xlist.to_string (fun x -> x) "," (Xset.to_list names2));
-           (Xset.length names2 > 0) &&
-           has_p_descendant
-             (fun x ->
-               let b =
-                 x#data#is_named_orig && Xset.mem names2 x#data#get_name && is_del x
-               in
-               if b then
-                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
-               b
-             ) rt1)
-          )
-        then begin
-          DEBUG_MSG "local variable inlining or extraction";
-          (*Xset.add movs (mid, rt1, rt2)*)
         end
         else if
           not force &&
