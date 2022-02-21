@@ -292,7 +292,8 @@ module F (Stat : Aux.STATE_T) = struct
                   let loc = loc_of_poss stp edp in
                   DEBUG_MSG "adding an opening brace";
                   Common.warning_loc loc "adding an opening brace";
-                  let t = Token.create Tokens_.LBRACE Lexing.dummy_pos Lexing.dummy_pos in
+                  let p = Astloc.incr_lexpos edp in
+                  let t = Token.create Tokens_.LBRACE p p in
                   self#prepend_token t;
                 end
                 | _ -> ()

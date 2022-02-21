@@ -1186,7 +1186,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         marginal_complete_free_cont_count > 0 ||
         (fixed_comment_count = 0) &&
         (
-         (exclam_comment_count > 0 &&
+         ((*exclam_comment_count > 0 &&*)
           amp_count > 0 &&
           (marginal_amp_count = amp_count || marginal_amp_count + free_cont_count = amp_count)
          ) ||

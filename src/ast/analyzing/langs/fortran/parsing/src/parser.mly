@@ -2107,6 +2107,15 @@ _program_stmt:
          register_main n_str;
          mkstmtleaf $startpos $endpos (Stmt.ProgramStmt n_str) 
        }
+   | program_stmt_head
+       { 
+         env#exit_pu_head_context;
+         context_stack#activate_top;
+         let n_str = "" in
+         let nd = mkstmtleaf $startpos $endpos (Stmt.ProgramStmt n_str) in
+         parse_warning_loc nd#loc "program name not specified";
+         nd
+       }
 ;
 
 program_stmt_head:
@@ -2444,7 +2453,7 @@ specification_part:
              List.iter
                (fun nd ->
                  if L.is_execution_part_construct nd#label && not (L.is_specification_part_construct nd#label) then
-                   parse_warning_loc nd#loc 
+                   parse_warning_loc nd#loc
                      "specification-part contains execution-part-construct: %s" (L.to_simple_string nd#label)
                ) ep_nd#children;
              sps @ ep_nd#children

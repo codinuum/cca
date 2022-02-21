@@ -435,19 +435,6 @@ let postorder_node_sort rt nds = (* when gindexes not set *)
   in
   List.fast_sort cmp nds
 
-type move_control = Mfull | MdeleteOnly | MinsertOnly
-
-let move_control_to_string = function
-  | Mfull -> "F"
-  | MdeleteOnly -> "D"
-  | MinsertOnly -> "I"
-
-let move_control_of_string = function
-  | "F" -> Mfull
-  | "D" -> MdeleteOnly
-  | "I" -> MinsertOnly
-  | _ -> Mfull
-
 let get_adjusted_path
     ?(get_group=fun _ -> raise Not_found)
     ?(group_heads=[])
