@@ -674,19 +674,37 @@ let adjust_renames
       UID.ps node1#uid UID.ps node2#uid BID.ps bi1 BID.ps bi2 parent_cond context_cond;
 
     if parent_cond then
-      let same_name =
-        try
-          node1#data#get_name = node2#data#get_name &&
-          node1#data#get_category <> node2#data#get_category
-        with
-          _ -> false
+      let same_name() =
+        let b =
+          try
+            node1#data#get_name = node2#data#get_name &&
+            node1#data#get_category <> node2#data#get_category
+          with
+            _ -> false
+        in
+        DEBUG_MSG "%B" b;
+        b
+      in
+      let parent_mapped_and_eq() =
+        let b =
+          try
+            let p1 = node1#initial_parent in
+            let p2 = node2#initial_parent in
+            p1#initial_nchildren == 1 && p2#initial_nchildren == 1 &&
+            uidmapping#find p1#uid == p2#uid &&
+            p1#data#eq p2#data
+          with
+            _ -> false
+        in
+        DEBUG_MSG "%B" b;
+        b
       in
       let b =
         let has_conflict =
           context_cond &&
           (non_rename non_rename_bid_tbl1 bi1 || non_rename non_rename_bid_tbl2 bi2)
         in
-        not has_conflict || same_name
+        not has_conflict || same_name() || parent_mapped_and_eq()
       in
       if not b then
         DEBUG_MSG "%a-%a: conflicts with exactly matched pair" BID.ps bi1 BID.ps bi2;

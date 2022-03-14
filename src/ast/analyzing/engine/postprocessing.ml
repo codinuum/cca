@@ -3225,7 +3225,7 @@ module F (Label : Spec.LABEL_T) = struct
                         else
                           let b = ref false in
                           let dnc = ref None in
-                          cenv#compare_mappings uidmapping ~override ~bonus_self:true
+                          cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
                             n1 n1' (fun d _ -> dnc := d)
                             n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
                             (fun d _ ->
@@ -3259,24 +3259,34 @@ module F (Label : Spec.LABEL_T) = struct
                           UID.ps u1 UID.ps u2 UID.ps u2' UID.ps u2;
 
                         let n2' = tree1#search_node_by_uid u2' in
-                        let b = ref false in
-                        let dnc = ref None in
-                        cenv#compare_mappings uidmapping ~override ~bonus_self:true
-                          n2' n2 (fun d _ -> dnc := d)
-                          n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
-                          (fun d _ ->
-                            b := true;
-                            dnc := d;
-                            defeated2 := true;
-                          );
-                        !b, !dnc(*,
-                        let p2 = n2#initial_parent in
-                        let b =
-                          cenv#get_adjacency_score n2'#initial_parent p2 <
-                          cenv#get_adjacency_score n1#initial_parent p2
-                        in
-                        DEBUG_MSG "padj2=%B" b;
-                        Some b*)
+
+                        if
+                          n2#data#is_named_orig &&
+                          n2'#data#is_named_orig &&
+                          n2#data#eq n2'#data &&
+                          not (n1#data#eq n2#data) &&
+                          not (is_cross_boundary uidmapping n2' n2)
+                        then
+                          false, None(*, None*)
+                        else
+                          let b = ref false in
+                          let dnc = ref None in
+                          cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
+                            n2' n2 (fun d _ -> dnc := d)
+                            n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
+                            (fun d _ ->
+                              b := true;
+                              dnc := d;
+                              defeated2 := true;
+                            );
+                          !b, !dnc(*,
+                          let p2 = n2#initial_parent in
+                          let b =
+                            cenv#get_adjacency_score n2'#initial_parent p2 <
+                            cenv#get_adjacency_score n1#initial_parent p2
+                          in
+                          DEBUG_MSG "padj2=%B" b;
+                          Some b*)
                       end
                       else begin
                         already_mapped2 := true;
@@ -4057,11 +4067,18 @@ module F (Label : Spec.LABEL_T) = struct
 
     let extra_cands = ref [] in
     let failed_uids1, failed_uids2 = List.split !failed_cands in
+    let added_uids1, added_uids2 = List.split !added_pairs in
+    let added_uids1 = Xset.from_list added_uids1 in
+    let added_uids2 = Xset.from_list added_uids2 in
     let uids1 = Xset.create 0 in
     let uids2 = Xset.create 0 in
     List.iter
-      (fun ((u1, u2), (s, adj, gip)) ->
-        if not (Xset.mem uids1 u1) && not (Xset.mem uids2 u2) then
+      (fun (((u1, u2) as u1_u2), (s, adj, gip)) ->
+        if
+          not (Xset.mem uids1 u1) && not (Xset.mem uids2 u2) &&
+          not (List.mem u1_u2 !removed_pairs) &&
+          not (Xset.mem added_uids1 u1) && not (Xset.mem added_uids2 u2)
+        then
           let n1 = tree1#search_node_by_uid u1 in
           let n2 = tree2#search_node_by_uid u2 in
           if n1#data#is_sequence && n2#data#is_sequence then begin
@@ -4071,7 +4088,7 @@ module F (Label : Spec.LABEL_T) = struct
               if mem1 then
                 Xset.add uids1 u1;
               if mem2 then
-                Xset.add uids1 u2;
+                Xset.add uids2 u2;
               extra_cands := (u1, u2) :: !extra_cands
             end
           end

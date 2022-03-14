@@ -1129,7 +1129,8 @@ class ['node_t, 'tree_t] c
         let score_siblings, score_parent =
           if
             nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
-            self#under_permutation_hub nd1 nd2
+            (self#under_permutation_hub nd1 nd2 ||
+            nd1#data#eq nd2#data && nd1#data#has_value && not nd1#data#has_non_trivial_value)
           then
             (try
               let nds1 = List.filter (fun x -> x != nd1) (Array.to_list nd1#initial_parent#initial_children) in
@@ -1327,6 +1328,7 @@ class ['node_t, 'tree_t] c
       (uidmapping : 'node_t UIDmapping.c)
       ?(override=false)
       ?(bonus_self=false)
+      ?(bonus_parent=false)
       ?(force_prefer_crossing_count=false)
       nd1old nd2old ?(ncrossing_old=ref (-1)) ?(adjacency_old=ref (-1.0))
       (action_old : int option (* difference of ncrossing *) -> float option -> unit)
@@ -1401,18 +1403,39 @@ class ['node_t, 'tree_t] c
             add_cache ncross_used b None None
           in
 
-          let check_adjacency ?(bonus_self=false) ~ncross_used () =
+          let check_adjacency ?(bonus_self=false) ?(bonus_parent=false) ~ncross_used () =
             let adj_old =
               if !adjacency_old < 0.0 then begin
                 let bonus =
-                  if nd1old#initial_nchildren = 0 && nd2old#initial_nchildren = 0 && bonus_self then
-                    float (self#eval_label_match ~bonus_named:true nd1old nd2old)
+                  if nd1old#initial_nchildren = 0 && nd2old#initial_nchildren = 0 then begin
+                    (if bonus_self then
+                      float (self#eval_label_match ~bonus_named:true nd1old nd2old)
+                    else
+                      0.0) +.
+                    (if bonus_parent && nd1old#data#is_named_orig && nd2old#data#is_named_orig then
+                      try
+                        let pnd1old = nd1old#initial_parent in
+                        let pnd2old = nd2old#initial_parent in
+                        if
+                          pnd1old#data#is_named_orig && pnd1old#data#eq pnd2old#data &&
+                          pnd1old#initial_nchildren = 1 && pnd2old#initial_nchildren = 1
+                        then
+                          let f = float (self#eval_label_match ~bonus_named:true pnd1old pnd2old) in
+                          DEBUG_MSG "bonus_parent: %f (%a-%a)" f UID.ps nd1old#uid UID.ps nd2old#uid;
+                          f
+                        else
+                          0.0
+                      with
+                        _ -> 0.0
+                    else
+                      0.0)
+                  end
                   else
                     0.0
                 in
                 adjacency_old := (self#get_adjacency_score nd1old nd2old) +. bonus;
 
-                if bonus_self then
+                if bonus_self || bonus_parent then
                   DEBUG_MSG "bonus=%f" bonus;
 
               end;
@@ -1421,14 +1444,35 @@ class ['node_t, 'tree_t] c
             let adj_new =
               if !adjacency_new < 0.0 then begin
                 let bonus =
-                  if nd1new#initial_nchildren = 0 && nd2new#initial_nchildren = 0 && bonus_self then
-                    float (self#eval_label_match ~bonus_named:true nd1new nd2new)
+                  if nd1new#initial_nchildren = 0 && nd2new#initial_nchildren = 0 then begin
+                    (if bonus_self then
+                      float (self#eval_label_match ~bonus_named:true nd1new nd2new)
+                    else
+                      0.0) +.
+                    (if bonus_parent && nd1new#data#is_named_orig && nd2new#data#is_named_orig then
+                      try
+                        let pnd1new = nd1new#initial_parent in
+                        let pnd2new = nd2new#initial_parent in
+                        if
+                          pnd1new#data#is_named_orig && pnd1new#data#eq pnd2new#data &&
+                          pnd1new#initial_nchildren = 1 && pnd2new#initial_nchildren = 1
+                        then
+                          let f = float (self#eval_label_match ~bonus_named:true pnd1new pnd2new) in
+                          DEBUG_MSG "bonus_parent: %f (%a-%a)" f UID.ps nd1new#uid UID.ps nd2new#uid;
+                          f
+                        else
+                          0.0
+                      with
+                        _ -> 0.0
+                    else
+                      0.0)
+                  end
                   else
                     0.0
                 in
                 adjacency_new := (self#get_adjacency_score nd1new nd2new) +. bonus;
 
-                if bonus_self then
+                if bonus_self || bonus_parent then
                   DEBUG_MSG "bonus=%f" bonus;
 
               end;
@@ -1843,7 +1887,7 @@ class ['node_t, 'tree_t] c
             end
             else begin (* adjacency is used *)
 
-              check_adjacency ~bonus_self ~ncross_used:false ()
+              check_adjacency ~bonus_self ~bonus_parent ~ncross_used:false ()
 
             end
 
