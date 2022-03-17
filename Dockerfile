@@ -1,4 +1,4 @@
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 
 MAINTAINER codinuum
 
@@ -20,7 +20,7 @@ RUN set -x && \
             vim \
             opam \
             net-tools \
-            m4 flex bison automake autoconf \
+            make m4 flex bison automake autoconf \
             libtool pkg-config swig \
             libgmp-dev libssl-dev libz-dev libreadline-dev librdf0-dev libpcre3-dev unixodbc-dev \
             gawk gperf \
@@ -36,7 +36,7 @@ RUN set -x && \
             git rsync && \
     wget https://bootstrap.pypa.io/get-pip.py && \
     python3 get-pip.py && \
-    pip3 install pyodbc setuptools build javalang && \
+    pip3 install pyodbc setuptools build[virtualenv] javalang && \
     rm get-pip.py
 
 RUN set -x && \
@@ -47,7 +47,7 @@ RUN set -x && \
     env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
     --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
     --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad \
-    --enable-isparql-vad --enable-rdfmappers-vad && \
+    --enable-isparql-vad --enable-rdfmappers-vad --disable-openssl && \
     make && make install && \
     cd /root && \
     rm -r virtuoso-opensource
