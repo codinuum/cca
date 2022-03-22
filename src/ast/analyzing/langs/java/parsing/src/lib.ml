@@ -830,6 +830,11 @@ class parser_c = object (self)
             Common.fail_to_parse
               ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
               "syntax error"
+        | _ ->
+	    let l, c = env#current_pos_mgr#get_current_position in
+            Common.fail_to_parse
+              ~head:(Printf.sprintf "[%s:%d:%d]" env#current_filename l c)
+              "failed to parse"
       )
 
 end (* of class Lib.parser_c *)
