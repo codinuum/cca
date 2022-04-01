@@ -2476,6 +2476,7 @@ conditional_or_expression:
 conditional_expression:
 | c=conditional_or_expression { c }
 | c=conditional_or_expression QUESTION e=expression COLON ce=conditional_expression { mkexpr $startofs $endofs (Econd(c, e, ce)) }
+| c=conditional_or_expression QUESTION e=expression COLON le=lambda_expression { mkexpr $startofs $endofs (Econd(c, e, le)) }
 ;
 
 assignment_expression:
@@ -2715,9 +2716,11 @@ conditional_or_expression_nn:
 ;
 
 conditional_expression_nn:
-|                                                            ce=conditional_or_expression_nn { ce }
-| c=conditional_or_expression_nn QUESTION e=expression COLON ce=conditional_expression       { mkexpr $startofs $endofs (Econd(c, e, ce)) }
-| n=name                         QUESTION e=expression COLON ce=conditional_expression       { mkexpr $startofs $endofs (Econd(_name_to_expr n.n_loc n, e, ce)) }
+| c=conditional_or_expression_nn { c }
+| c=conditional_or_expression_nn QUESTION e=expression COLON ce=conditional_expression { mkexpr $startofs $endofs (Econd(c, e, ce)) }
+| c=conditional_or_expression_nn QUESTION e=expression COLON le=lambda_expression      { mkexpr $startofs $endofs (Econd(c, e, le)) }
+| n=name                         QUESTION e=expression COLON ce=conditional_expression { mkexpr $startofs $endofs (Econd(_name_to_expr n.n_loc n, e, ce)) }
+| n=name                         QUESTION e=expression COLON le=lambda_expression      { mkexpr $startofs $endofs (Econd(_name_to_expr n.n_loc n, e, le)) }
 ;
 
 assignment_expression_nn:
