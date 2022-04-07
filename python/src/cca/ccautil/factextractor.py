@@ -25,7 +25,7 @@ from .ns import XSD_NS, RDF_NS
 from cca.factutil.const import SEP, SUB_SEP
 from cca.factutil.fileid import HashAlgo, FidEnc, Enc, FileDigest, FileDesc
 from cca.factutil.fileid import compute_hash, Version, ProjRelPath, VerKind
-from cca.factutil.rdf import Predicate
+from cca.factutil.rdf import Predicate, Literal
 
 logger = logging.getLogger()
 
@@ -37,23 +37,23 @@ DT_INT = XSD_NS + 'integer'
 P_TYPE = Predicate(ns=RDF_NS, lname='type')
 
 
-# def make_literal(x):
-#     lit = None
-#     if isinstance(x, bool):
-#         lit = Literal(literal=str(x).lower(), datatype=DT_BOOLEAN)
-#     elif isinstance(x, int):
-#         if x >= 0:
-#             lit = Literal(literal=str(x), datatype=DT_NN_INT)
-#         else:
-#             lit = Literal(literal=str(x), datatype=DT_INT)
-#     elif isinstance(x, float):
-#         lit = Literal(literal=str(x), datatype=DT_DOUBLE)
-#     # elif isinstance(x, str):
-#     #     lit = Literal(literal=x.encode('utf-8'))
-#     else:
-#         lit = Literal(literal=str(x))
+def make_literal(x):
+    lit = None
+    if isinstance(x, bool):
+        lit = Literal(literal=str(x).lower(), datatype=DT_BOOLEAN)
+    elif isinstance(x, int):
+        if x >= 0:
+            lit = Literal(literal=str(x), datatype=DT_NN_INT)
+        else:
+            lit = Literal(literal=str(x), datatype=DT_INT)
+    elif isinstance(x, float):
+        lit = Literal(literal=str(x), datatype=DT_DOUBLE)
+    # elif isinstance(x, str):
+    #     lit = Literal(literal=x.encode('utf-8'))
+    else:
+        lit = Literal(literal=str(x))
 
-#     return lit
+    return lit
 
 
 def make_file_hash_repr(fname, algo=HashAlgo.MD5):

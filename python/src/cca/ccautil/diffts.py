@@ -34,7 +34,7 @@ logger = logging.getLogger()
 diffts_working_dir_base = 'work.diffts'
 
 mapfact_file_name = 'map.nt.gz'
-# fact_file_name    = 'fact.nt.gz'
+# fact_file_name = 'fact.nt.gz'
 fact_file_name_pat = re.compile(r'^fact\.nt.*')
 changefact_file_name = 'changes.nt.gz'
 cfgfact_file_name = 'cfg.nt.gz'
@@ -87,9 +87,13 @@ patchast_cmd = 'patchast.opt'
 
 diffts_cost_pat = re.compile(r'total changes\s*: ([0-9]+)')
 diffts_nmap_pat = re.compile(r'mapping size\s*: ([0-9]+)')
-diffts_insert_pat = re.compile(r'inserts\s*: ([0-9]+)')
-diffts_delete_pat = re.compile(r'deletes\s*: ([0-9]+)')
-diffts_relabel_pat = re.compile(r'relabels\s*: ([0-9]+)')
+
+diffts_insert_pat = re.compile(r'inserts[^:]*: ([0-9]+)\([0-9]+\)')
+diffts_delete_pat = re.compile(r'deletes[^:]*: ([0-9]+)\([0-9]+\)')
+diffts_relabel_pat = re.compile(r'relabels\s*: ([0-9]+)\(orig:[0-9]+\)\([0-9]+\)')
+diffts_move_pat = re.compile(r'moves[^:]*: ([0-9]+)\([0-9]+\)')
+diffts_movrel_pat = re.compile(r'mov\+rels\s*: ([0-9]+)\(orig:[0-9]+\)')
+
 diffts_nnodes1_pat = re.compile(r'nnodes1\s*: ([0-9]+)')
 diffts_nnodes2_pat = re.compile(r'nnodes2\s*: ([0-9]+)')
 
@@ -334,6 +338,8 @@ def read_file_diff_stat_file(stat_paths, retry_count=RETRY_COUNT):
         'ninserts': 0,
         'ndeletes': 0,
         'nrelabels': 0,
+        'nmoves': 0,
+        'nmovrels': 0,
         'nnodes1': 0,
         'nnodes2': 0,
     }
@@ -342,6 +348,8 @@ def read_file_diff_stat_file(stat_paths, retry_count=RETRY_COUNT):
           ('ninserts',  diffts_insert_pat),
           ('ndeletes',  diffts_delete_pat),
           ('nrelabels', diffts_relabel_pat),
+          ('nmoves',    diffts_move_pat),
+          ('nmovrels',  diffts_movrel_pat),
           ('nnodes1',   diffts_nnodes1_pat),
           ('nnodes2',   diffts_nnodes2_pat),
           ]

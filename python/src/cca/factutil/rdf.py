@@ -226,9 +226,9 @@ class Graph(object):
     def __init__(self, ns_tbl, large=False):
 
         if large:
-            self._model = rdflib.graph.Graph('BerkeleyDB')
+            self._model = rdflib.graph.Graph('SleepyCat')
         else:
-            self._model = rdflib.graph.Graph('Memory')
+            self._model = rdflib.graph.Graph('IOMemory')
 
         self._g_pred_map = {}
         self._pred_tbl = {}
