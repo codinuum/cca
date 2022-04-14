@@ -2046,6 +2046,44 @@ module F (Label : Spec.LABEL_T) = struct
       u1', u2'
     in
 
+    let can_override n1 n2 n1' n2' = (* n1-n2 beats n1'-n2' *)
+      let b =
+      try
+        let pn1 = n1#initial_parent in
+        let pn2 = n2#initial_parent in
+        let pn1' = n1'#initial_parent in
+        let pn2' = n2'#initial_parent in
+        (*let ppn1 = pn1#initial_parent in
+        let ppn2 = pn2#initial_parent in
+        let ppn1' = pn1'#initial_parent in
+        let ppn2' = pn2'#initial_parent in*)
+        pn1#initial_nchildren = 1 && pn2#initial_nchildren = 1 &&
+        n1#data#is_named && n2#data#is_named &&
+        not n1#data#is_named_orig && not n2#data#is_named_orig &&
+        n1#data#eq n2#data &&
+        is_mapped_pair pn1#uid pn2#uid &&
+        pn1#data#is_named_orig && pn2#data#is_named_orig && pn1#data#eq pn2#data &&
+        (*ppn1#data#is_named && ppn2#data#is_named && ppn1#data#eq ppn2#data &&*)
+        not
+          (pn1'#initial_nchildren = 1 && pn2'#initial_nchildren = 1 &&
+           n1'#data#is_named && n2'#data#is_named &&
+           not n1'#data#is_named_orig && not n2'#data#is_named_orig &&
+           n1'#data#eq n2'#data &&
+           is_mapped_pair pn1'#uid pn2'#uid &&
+           pn1'#data#is_named_orig && pn2'#data#is_named_orig && pn1'#data#eq pn2'#data(* &&
+           ppn1'#data#is_named && ppn2'#data#is_named && ppn1'#data#eq pn2'#data*)
+          )
+      with
+        _ -> false
+      in
+      if b then begin
+        DEBUG_MSG "%a-%a (%s-%s)" UID.ps n1#uid UID.ps n2#uid
+          (Loc.to_string n1#data#src_loc) (Loc.to_string n2#data#src_loc);
+        (*Printf.printf "! can_override: %s\n" n1#to_string*)
+      end;
+      b
+    in
+
     let conflicted_pairs = Xset.create 0 in
 
     let calc_bonus nd1 nd2 =
@@ -3222,7 +3260,10 @@ module F (Label : Spec.LABEL_T) = struct
                           not (is_cross_boundary uidmapping n1 n1')
                         then
                           false, None(*, None*)
-                        else
+                        else if can_override n1 n2 n1 n1' then begin
+                          true, None(*, None*)
+                        end
+                          else
                           let b = ref false in
                           let dnc = ref None in
                           cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
@@ -3268,6 +3309,9 @@ module F (Label : Spec.LABEL_T) = struct
                           not (is_cross_boundary uidmapping n2' n2)
                         then
                           false, None(*, None*)
+                        else if can_override n1 n2 n2' n2 then begin
+                          true, None(*, None*)
+                        end
                         else
                           let b = ref false in
                           let dnc = ref None in
@@ -3906,13 +3950,18 @@ module F (Label : Spec.LABEL_T) = struct
 
                 DEBUG_MSG "conflict: %a->%a" UID.ps uid1 UID.ps u2;
 
+                let n2 = tree2#search_node_by_uid u2 in
+
                 if no_moves && uidmapping#is_stable_pair uid1 u2 then begin
                   DEBUG_MSG "         --> stable";
                   false, None, None
                 end
+                else if can_override nd1 nd2 nd1 n2 then begin
+                  to_be_removed := (uid1, u2) :: !to_be_removed;
+                  true, None, None
+                end
                 else begin
                   to_be_removed := (uid1, u2) :: !to_be_removed;
-                  let n2 = tree2#search_node_by_uid u2 in
                   let b = ref false in
                   let dnc = ref None in
                   cenv#compare_mappings uidmapping ~override
@@ -3958,13 +4007,18 @@ module F (Label : Spec.LABEL_T) = struct
 
                 DEBUG_MSG "conflict: %a<-%a" UID.ps u1 UID.ps uid2;
 
+                let n1 = tree1#search_node_by_uid u1 in
+
                 if no_moves && uidmapping#is_stable_pair u1 uid2 then begin
                   DEBUG_MSG "         --> stable";
                   false, None, None
                 end
+                else if can_override nd1 nd2 n1 nd2 then begin
+                  to_be_removed := (u1, uid2) :: !to_be_removed;
+                  true, None, None
+                end
                 else begin
                   to_be_removed := (u1, uid2) :: !to_be_removed;
-                  let n1 = tree1#search_node_by_uid u1 in
                   let b = ref false in
                   let dnc = ref None in
                   cenv#compare_mappings uidmapping ~override
@@ -7513,7 +7567,7 @@ end;
                | _ -> false*)
                ) &&
                 (n1#data#is_named_orig && n2#data#is_named_orig ||
-                n1#data#has_non_trivial_value && n2#data#has_non_trivial_value)
+                cenv#has_non_trivial_value n1 && cenv#has_non_trivial_value n2)
                )) ||
             n1#data#move_disallowed || n2#data#move_disallowed ||
             n1#data#is_common || n2#data#is_common

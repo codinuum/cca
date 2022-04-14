@@ -517,6 +517,45 @@ class ['node_t, 'tree_t] c
   method cache_path = cache_path
   method set_cache_path p = cache_path <- p
 
+  method has_non_trivial_value (nd : 'node_t) = nd#data#has_non_trivial_value
+  method has_trivial_value (nd : 'node_t) = nd#data#has_value && not nd#data#has_non_trivial_value
+
+  method has_weak_non_trivial_value =
+    match multiple_node_matches with
+    | Some mnm -> begin
+        fun (nd : 'node_t) ->
+          let b =
+            nd#data#has_non_trivial_value ||
+            nd#data#has_value &&
+            match mnm#find nd#data#_label with
+            | [_], [_] -> true
+            | _ -> false
+          in
+          DEBUG_MSG "%s -> %B" (mnm#label_to_string nd#data#_label) b;
+          (*if b then
+            Printf.printf "! has_non_trivial_value: %s\n"
+              (mnm#label_to_string nd#data#_label);*)
+          b
+    end
+    | None -> fun nd -> nd#data#has_non_trivial_value
+
+  method has_weak_trivial_value =
+    match multiple_node_matches with
+    | Some mnm -> begin
+        fun (nd : 'node_t) ->
+          let b =
+            nd#data#has_value && not nd#data#has_non_trivial_value ||
+            match mnm#find nd#data#_label with
+            | _::_::_, _::_::_ -> true
+            | _ -> false
+          in
+          DEBUG_MSG "%s -> %B" (mnm#label_to_string nd#data#_label) b;
+          (*if b then
+            Printf.printf "! has_trivial_value: %s\n"
+              (mnm#label_to_string nd#data#_label);*)
+          b
+    end
+    | None -> fun nd -> nd#data#has_value && not nd#data#has_non_trivial_value
 
   method eval_label_match ?(bonus_named=false) nd1 nd2 =
     let v =
@@ -627,7 +666,11 @@ class ['node_t, 'tree_t] c
   method estimate_cost_of_move (uidmapping : 'node_t UIDmapping.c) nd1 nd2 = (* cost = number of accompanying nodes *)
     estimate_cost_of_move tree1 tree2 uidmapping nd1 nd2
 
-  method find_ancestor_pairs_of_same_category nd1 nd2 =
+  method find_ancestor_pairs_of_same_category rev_flag nd1 nd2 =
+    let id x = x in
+    let list_rev0 = if rev_flag then id else List.rev in
+    let list_rev1 = if rev_flag then List.rev else id in
+
     let l1 = (tree1#initial_ancestor_nodeposs nd1) in
     let l2 = (tree2#initial_ancestor_nodeposs nd2) in
 
@@ -635,8 +678,8 @@ class ['node_t, 'tree_t] c
     let l1 = filt l1 in
     let l2 = filt l2 in
 
-    let a1 = Array.of_list (List.rev l1) in
-    let a2 = Array.of_list (List.rev l2) in
+    let a1 = Array.of_list (list_rev0 l1) in
+    let a2 = Array.of_list (list_rev0 l2) in
 
     let anon1 = Array.map (fun (n, p) -> n#data#_anonymized3_label) a1 in
     let anon2 = Array.map (fun (n, p) -> n#data#_anonymized3_label) a2 in
@@ -647,7 +690,8 @@ class ['node_t, 'tree_t] c
     let mat, _, _, _ = Adiff.adiff anon1 anon2 in
 
     let sorted =
-      List.fast_sort (fun (i0, _) (i1, _) -> Stdlib.compare i0 i1) mat
+      list_rev1
+        (List.fast_sort (fun (i0, _) (i1, _) -> Stdlib.compare i0 i1) mat)
     in
 (*
     let get_snd a i =
@@ -917,14 +961,44 @@ class ['node_t, 'tree_t] c
         in
 *)
         let find_anchor nd1 nd2 =
+          let rev_flag =
+            try
+              let pnd1 = nd1#initial_parent in
+              let pnd2 = nd2#initial_parent in
+              nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
+              not (nd1#data#eq nd2#data) &&
+              pnd1#data#is_named && pnd2#data#is_named &&
+              pnd1#initial_nchildren == 1 && pnd2#initial_nchildren == 1 &&
+              not pnd1#data#is_named_orig && not pnd2#data#is_named_orig &&
+              not
+                (
+                 let ppnd1 = pnd1#initial_parent in
+                 let ppnd2 = pnd2#initial_parent in
+                 pnd1#data#eq pnd2#data &&
+                 ppnd1#data#is_named_orig && ppnd2#data#is_named_orig &&
+                 ppnd1#initial_nchildren == 1 && ppnd2#initial_nchildren == 1 &&
+                 ppnd1#data#get_orig_name = ppnd2#data#get_orig_name
+                )
+            with
+              _ -> false
+          in
+          if rev_flag then begin
+            DEBUG_MSG "%a-%a (%s-%s)" UID.ps nd1#uid UID.ps nd2#uid
+              (Loc.to_string nd1#data#src_loc) (Loc.to_string nd2#data#src_loc);
+            (*Printf.printf "! rev_flag: %s\n" nd1#to_string*)
+          end;
+
           let rec doit = function
             | [] -> raise Not_found
             | (idx1, idx2, anc1, anc2, ipos1, ipos2)::rest ->
+                DEBUG_MSG "anc1=%a anc2=%a" UID.ps anc1#uid UID.ps anc2#uid;
                 if anc1 == rt1 || anc2 == rt2 || anc1#data#is_boundary || anc2#data#is_boundary then
                   raise Not_found
 
                 else begin
-                  if weq anc1 anc2 then begin
+                  if rev_flag && anc1#initial_nchildren = 1 && anc2#initial_nchildren = 1 then
+                    doit rest
+                  else if weq anc1 anc2 then begin
                     let d = idx1 + idx2
 (*                    (get_n_skipped tree1 snd1 nd1) + (get_n_skipped tree2 snd2 nd2) *)
                     in
@@ -956,7 +1030,7 @@ class ['node_t, 'tree_t] c
 
                 end (* if not (anc1 == rt1... *)
           in
-          doit (self#find_ancestor_pairs_of_same_category nd1 nd2)
+          doit (self#find_ancestor_pairs_of_same_category rev_flag nd1 nd2)
         in
 
 
@@ -1064,7 +1138,7 @@ class ['node_t, 'tree_t] c
 
         begin
           try
-            let (left, right, anc1, anc2, pos1, pos2, d) = find_anchor nd1 nd2 in
+            let left, right, anc1, anc2, pos1, pos2, d = find_anchor nd1 nd2 in
 
             DEBUG_MSG "anchor for %a-%a: %a-%a (left=%B, right=%B, d=%d)"
               UID.ps uid1 UID.ps uid2 UID.ps anc1#uid UID.ps anc2#uid left right d;
@@ -1130,7 +1204,7 @@ class ['node_t, 'tree_t] c
           if
             nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
             (self#under_permutation_hub nd1 nd2 ||
-            nd1#data#eq nd2#data && nd1#data#has_value && not nd1#data#has_non_trivial_value)
+            nd1#data#eq nd2#data && self#has_trivial_value nd1)
           then
             (try
               let nds1 = List.filter (fun x -> x != nd1) (Array.to_list nd1#initial_parent#initial_children) in
@@ -1577,7 +1651,7 @@ class ['node_t, 'tree_t] c
 
           let _is_plausible nd1 nd2 =
             let b =
-            (nd1#data#has_non_trivial_value && nd2#data#is_named_orig && not nd2#data#is_string_literal &&
+            (self#has_weak_non_trivial_value nd1 && nd2#data#is_named_orig && not nd2#data#is_string_literal &&
              let v = nd1#data#get_value in
              let nm = nd2#data#get_name in
              DEBUG_MSG "v=%s nm=%s" v nm;
@@ -1596,7 +1670,7 @@ class ['node_t, 'tree_t] c
                false
              with
                Exit -> true) ||
-            (nd1#data#is_named_orig && not nd1#data#is_string_literal && nd2#data#has_non_trivial_value &&
+            (nd1#data#is_named_orig && not nd1#data#is_string_literal && self#has_weak_non_trivial_value nd2 &&
              let nm = nd1#data#get_name in
              let v = nd2#data#get_value in
              DEBUG_MSG "nm=%s v=%s" nm v;
