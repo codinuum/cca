@@ -1,0 +1,45 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?subclass_iri java:subClassNameOf ?class_iri .
+}
+WHERE {
+
+  ?subclass a java:TypeDeclaration ;
+            java:fullyQualifiedName ?subclass_name .
+
+  BIND (IRI(STR(?subclass_name)) AS ?subclass_iri)
+
+  {
+    ?ei a java:Extends ;
+        java:inTypeDeclaration ?subclass .
+  }
+  UNION
+  {
+    ?ei a java:ExtendsInterfaces ;
+        java:inTypeDeclaration ?subclass .
+  }
+  UNION
+  {
+    ?ei a java:Implements ;
+        java:inTypeDeclaration ?subclass .
+  }
+
+  ?ty a java:ReferenceType ;
+      src:parent ?ei ;
+      java:name ?class_name .
+
+  BIND (IRI(STR(?class_name)) AS ?class_iri)
+
+}

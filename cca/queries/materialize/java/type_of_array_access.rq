@@ -1,0 +1,32 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?aacc java:typeName ?tyname .
+  ?aacc java:typeDims ?dims .
+}
+WHERE {
+
+  ?aacc a java:ArrayAccess ;
+        src:child0 ?a OPTION (TRANSITIVE, T_DISTINCT, T_SHORTEST_ONLY, T_MIN(1)) .
+
+  ?a java:typeName ?atyname .
+
+  OPTIONAL {
+    ?a java:typeDims ?adims .
+    BIND(?adims-1 AS ?dims)
+  }
+
+  BIND(SUBSTR(?atyname, 0, STRLEN(?atyname)-1) AS ?tyname)
+
+}

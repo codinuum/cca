@@ -1,0 +1,59 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+INSERT {
+  ?ty java:name ?fqn .
+}
+WHERE {
+
+  {
+    SELECT DISTINCT ?TD ?pkgname ?fqn ?src ?uqn ?file0 ?ty ?name ?file1
+    WHERE {
+
+      {
+        SELECT DISTINCT ?TD ?pkgname ?fqn ?src ?uqn ?file0
+        WHERE {
+
+          ?TD a java:TypeDeclaration ;
+              src:inFile ?file0 ;
+              src:inSourceTree ?src ;
+              java:name ?uqn ;
+              java:fullyQualifiedName ?fqn0 .
+
+          ?pkg0 a java:PackageDeclaration ;
+                src:parent/src:inFile ?file0 ;
+                java:name ?pkgname .
+
+          BIND (REPLACE(?fqn0, "[$$]", ".") AS ?fqn)
+
+        } GROUP BY ?TD ?pkgname ?fqn ?src ?uqn ?file0
+      }
+
+      ?ty a java:ReferenceType ;
+          java:inTypeDeclaration/src:inFile ?file1 ;
+          java:name ?name ;
+          java:unqualifiedName ?uqn .
+
+      ?file1 src:inSourceTree ?src .
+
+      FILTER (?name != ?fqn)
+
+      FILTER (?fqn = CONCAT(?pkgname, ".", ?name))
+
+    } GROUP BY ?TD ?pkgname ?fqn ?src ?uqn ?file0 ?ty ?name ?file1
+  }
+
+  ?pkg1 a java:PackageDeclaration ;
+        src:parent/src:inFile ?file1 ;
+        java:name ?pkgname .
+
+}

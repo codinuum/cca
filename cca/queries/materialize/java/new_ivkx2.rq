@@ -1,0 +1,177 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+INSERT {
+  ?ivk java:mayInvoke ?sig .
+  ?ivk java:mayInvokeMethod ?meth .
+}
+WHERE {
+
+  VALUES ?nparams { 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 }
+
+  FILTER NOT EXISTS {
+    ?ivk java:mayInvoke [] ;
+         java:mayInvokeMethod [] .
+  }
+
+  {
+    SELECT DISTINCT ?uqn ?mname ?tdecl ?ver ?meth ?sig ?nparams ?ivk ?args ?nargs
+    WHERE {
+
+      {
+        SELECT DISTINCT ?uqn ?mname ?tdecl ?ver ?meth ?sig ?nparams
+        WHERE {
+
+          ?meth a java:ConstructorDeclaration ;
+                java:nParameters ?nparams ;
+                java:name ?mname0 ;
+                java:inTypeDeclaration ?tdecl ;
+                java:fullyQualifiedName ?fqn ;
+                java:signature ?sig0 .
+
+          ?tdecl ver:version ?ver ;
+                 java:name ?tname ;
+                 java:fullyQualifiedName ?tfqn .
+
+          BIND (CONCAT(?fqn, ?sig0) AS ?sig)
+          BIND (CONCAT(?tfqn, ".", ?mname0) AS ?mname)
+          BIND (CONCAT(?tname, ".", ?mname0) AS ?uqn)
+
+        } GROUP BY ?uqn ?mname ?tdecl ?ver ?meth ?sig ?nparams
+      }
+
+      {
+        SELECT DISTINCT ?ivk ?uqn ?ver ?args ?mname ?nargs
+        WHERE {
+
+          {
+            SELECT DISTINCT ?ivk ?uqn ?args ?iname ?nargs ?tdecl0 ?ver ?file
+            WHERE {
+
+              ?ivk a java:InstanceCreation ;
+                   java:nArguments ?nargs ;
+                   java:inTypeDeclaration ?tdecl0 ;
+                   java:name ?iname ;
+                   java:name ?uqn ;
+                   src:child2 ?args .
+
+              ?tdecl0 ver:version ?ver ;
+                      src:inFile ?file .
+
+            } GROUP BY ?ivk ?uqn ?args ?iname ?nargs ?tdecl0 ?ver ?file
+          }
+
+          ?tdecl0 java:subClassOf+ ?tdecl1 .
+
+          ?tdecl1 ver:version ?ver .
+
+          {
+            SELECT DISTINCT ?cname ?tdecl1
+            WHERE {
+              ?class a java:TypeDeclaration ;
+                     java:inTypeDeclaration ?tdecl1 ;
+                     java:name ?cname .
+
+            } GROUP BY ?cname ?tdecl1
+          }
+
+          BIND (CONCAT(?cname, ".<init>") AS ?iname)
+
+          ?pkg a java:PackageDeclaration ;
+               src:parent/src:inFile ?file ;
+               java:name ?pname .
+
+          ?tdecl1 java:name ?tname1 .
+
+          BIND (CONCAT(?pname, ".", ?tname1, "$$", ?uqn) AS ?mname)
+
+        } GROUP BY ?ivk ?uqn ?ver ?args ?mname ?nargs
+      }
+
+    } GROUP BY ?uqn ?mname ?tdecl ?ver ?meth ?sig ?nparams ?ivk ?args ?nargs
+  }
+
+  FILTER NOT EXISTS {
+    GRAPH <http://codinuum.com/ont/cpi> {
+      ?p_childx rdfs:subPropertyOf src:child .
+    }
+    BIND (STRAFTER(STR(?p_childx), "child") AS ?x)
+    BIND (fn:number(?x) AS ?xn)
+    FILTER (?xn < ?nparams)
+
+    BIND (IRI(CONCAT(STR(java:parameterTypeName), ?x)) AS ?p_param_ty_namex)
+    BIND (IRI(CONCAT(STR(java:parameterTypeDims), ?x)) AS ?p_param_ty_dimsx)
+
+    ?args ?p_childx ?ax .
+    ?meth ?p_param_ty_namex ?ptynamex .
+    OPTIONAL {
+      ?meth ?p_param_ty_dimsx ?ptydimsx .
+    }
+    OPTIONAL {
+      ?ax java:typeDims ?atydimsx .
+    }
+
+    FILTER ((NOT EXISTS {
+      ?ax java:typeName ?atynamex .
+      FILTER (?atynamex = ?ptynamex)
+    } && NOT EXISTS {
+      ?ptyx a java:TypeDeclaration ;
+            ver:version ?ver ;
+            java:fullyQualifiedName ?ptynamex .
+      ?ax java:ofReferenceType ?atyx .
+      ?atyx java:subTypeOf ?ptyx OPTION (TRANSITIVE, T_DISTINCT, T_MIN(0)) ;
+            ver:version ?ver .
+    } && ?ptynamex != "java.lang.Object") ||
+    (BOUND(?atydimsx) && ?atydimsx != ?ptydimsx))
+  }
+
+  FILTER (?nparams = ?nargs || (?nargs = ?nparams - 1 && EXISTS {
+    ?meth java:isVariableArityMethod "true" .
+  }) || (?nparams < ?nargs && EXISTS {
+    ?meth java:isVariableArityMethod "true" .
+  } && NOT EXISTS {
+
+    BIND (STR(?nparams-1) AS ?lastp)
+    BIND (IRI(CONCAT(STR(java:parameterTypeName), ?lastp)) AS ?p_param_ty_namex)
+    BIND (IRI(CONCAT(STR(java:parameterTypeDims), ?lastp)) AS ?p_param_ty_dimsx)
+
+    GRAPH <http://codinuum.com/ont/cpi> {
+      ?p_childx rdfs:subPropertyOf src:child .
+    }
+    BIND (STRAFTER(STR(?p_childx), "child") AS ?x)
+    BIND (fn:number(?x) AS ?xn)
+    FILTER (?xn >= ?nparams && ?xn < ?nargs)
+
+    ?args ?p_childx ?ax .
+    ?meth ?p_param_ty_namex ?ptynamex .
+    OPTIONAL {
+      ?meth ?p_param_ty_dimsx ?ptydimsx .
+    }
+    OPTIONAL {
+      ?ax java:typeDims ?atydimsx .
+    }
+
+    FILTER ((NOT EXISTS {
+      ?ax java:typeName ?atynamex .
+      FILTER (?atynamex = ?ptynamex)
+    } && NOT EXISTS {
+      ?ptyx a java:TypeDeclaration ;
+            ver:version ?ver ;
+            java:fullyQualifiedName ?ptynamex .
+      ?ax java:ofReferenceType ?atyx .
+      ?atyx java:subTypeOf ?ptyx OPTION (TRANSITIVE, T_DISTINCT, T_MIN(0)) ;
+            ver:version ?ver .
+    } && ?ptynamex != "java.lang.Object") ||
+    (BOUND(?atydimsx) && ?atydimsx != ?ptydimsx))
+  }))
+
+}

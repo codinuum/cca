@@ -24,10 +24,9 @@ import re
 import time
 import sys
 import random
-import datetime
 import locale
 from urllib.request import pathname2url
-from datetime import timedelta, tzinfo
+from datetime import timedelta, tzinfo, datetime
 import json
 from xml.sax.saxutils import escape
 import logging
@@ -582,21 +581,20 @@ class Finder(object):
             path = os.path.join(ENUM_QUERY_DIR, name)
 
         try:
-            f = open(path, 'r')
-            q = f.read()
+            with open(path, 'r') as f:
+                q = f.read()
 
-            if force_per_ver:
-                logger.debug('forcing the query to be executed for each version pairs')
-                q = re.sub(r'\?ver', '?VER', q)
+                if force_per_ver:
+                    logger.debug('forcing the query to be executed for each version pairs')
+                    q = re.sub(r'\?ver', '?VER', q)
 
-            _query = re.sub(r'WHERE', ('WHERE {\nGRAPH <%s>' % self._graph_uri),
-                            q, count=1, flags=re.IGNORECASE).rstrip('\n ;')
-            query = '}}'.join(_query.rsplit('}', 1))
+                _query = re.sub(r'WHERE', ('WHERE {\nGRAPH <%s>' % self._graph_uri),
+                                q, count=1, flags=re.IGNORECASE).rstrip('\n ;')
+                query = '}}'.join(_query.rsplit('}', 1))
 
-            if q.find('?VER') > -1 and q.find('?VER_') > -1:
-                per_ver = True
+                if q.find('?VER') > -1 and q.find('?VER_') > -1:
+                    per_ver = True
 
-            f.close()
         except Exception:
             raise QueryNotFound(path)
             # logger.error(str(e))

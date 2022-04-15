@@ -1,0 +1,76 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+INSERT {
+  ?ivk java:mayInvoke ?sig .
+  ?ivk java:mayInvokeMethod ?meth .
+}
+WHERE {
+
+  FILTER NOT EXISTS {
+    ?ivk java:mayInvoke [] ;
+         java:mayInvokeMethod [] .
+  }
+
+  {
+    SELECT ?mname ?tdecl
+    (COUNT(DISTINCT ?meth1) AS ?n) (SAMPLE(?meth1) AS ?meth)
+    WHERE {
+
+      ?meth1 a java:MethodDeclaration ;
+             #src:child5 ?body ;
+             java:extendedName ?mname0 ;
+             java:inTypeDeclaration ?tdecl0 .
+
+      ?tdecl java:subClassOf* ?tdecl0 ;
+             java:fullyQualifiedName ?tfqn .
+
+      BIND (CONCAT(?tfqn, ".", ?mname0) AS ?mname)
+
+      FILTER NOT EXISTS {
+        ?tdecl0 a java:InterfaceDeclaration .
+      }
+
+      FILTER EXISTS {
+        ?tdecl0 ver:version ?v .
+        ?tdecl ver:version ?v .
+      }
+
+    } GROUP BY ?mname ?tdecl
+  }
+
+  FILTER (?n = 1)
+
+  ?tdecl ver:version ?ver .
+
+  {
+    SELECT DISTINCT ?ivk ?mname ?ver
+    WHERE {
+
+       ?ivk java:extendedName ?mname ;
+            java:inTypeDeclaration/ver:version ?ver .
+
+      FILTER (EXISTS {
+        ?ivk a java:TypeMethodInvocation .
+      } || EXISTS {
+        ?ivk a java:TypeMethodInvocationStatement .
+      })
+
+    } GROUP BY ?ivk ?mname ?ver
+  }
+
+  ?meth java:fullyQualifiedName ?mfqn ;
+        java:signature ?msig .
+
+  BIND (CONCAT(?mfqn, ?msig) AS ?sig)
+
+}

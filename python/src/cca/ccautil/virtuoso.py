@@ -80,9 +80,11 @@ ODBC_CONNECT_STRING = get_odbc_connect_string(pwd=VIRTUOSO_PW)
 
 class ODBCDriver(object):
     def __init__(self, connect_string=ODBC_CONNECT_STRING):
+        self._pypyodbc_flag = False
         try:
             import pyodbc
-            self._db = pyodbc.connect(connect_string, ansi=True, autocommit=True)
+            self._db = pyodbc.connect(connect_string,
+                                      ansi=True, autocommit=True)
             self._db.setdecoding(pyodbc.SQL_CHAR, encoding='utf-8')
             self._db.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
             self._db.setdecoding(pyodbc.SQL_WMETADATA, encoding='utf-32le')
@@ -91,9 +93,10 @@ class ODBCDriver(object):
             logger.warning(str(e))
             logger.warning('using pypyodbc')
             from . import pypyodbc as pyodbc
+            # import pypyodbc as pyodbc
             pyodbc.lowercase = False
-            self._db = pyodbc.connect(connect_string.encode('utf-8'),
-                                      ansi=True, autocommit=True)
+            self._db = pyodbc.connect((connect_string+';wideAsUTF16=1'),
+                                      ansi=False, autocommit=True)
 
     def conv_row(self, row):
         d = {}

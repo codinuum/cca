@@ -1,0 +1,94 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+INSERT {
+  ?x a java:Name ;
+     java:name ?fqn .
+}
+WHERE {
+
+  {
+    SELECT DISTINCT ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
+    WHERE {
+
+       {
+         SELECT DISTINCT ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
+         WHERE {
+
+          {
+            SELECT DISTINCT ?x ?ident ?xname ?qname ?file ?ver
+            WHERE {
+
+              ?x a java:AmbiguousName ;
+                 java:inTypeDeclaration/src:inFile ?file ;
+                 java:name ?xname ;
+                 java:identifier ?ident ;
+                 java:qualifier ?qname .
+
+              ?file a src:File ;
+                    ver:version ?ver .
+
+              FILTER NOT EXISTS {
+                ?x a java:Name OPTION (INFERENCE NONE) .
+              }
+              FILTER NOT EXISTS {
+                ?x a java:FieldAccess OPTION (INFERENCE NONE) .
+              }
+
+            } GROUP BY ?x ?ident ?xname ?qname ?file ?ver
+          }
+
+          ?tdecl a java:TypeDeclaration ;
+                 ver:version ?ver ;
+                 java:name ?qname ;
+                 java:fullyQualifiedName ?cfqn0 .
+
+           BIND (STR(REPLACE(?cfqn0, "[$$]", ".")) AS ?cfqn)
+
+         } GROUP BY ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
+       }
+
+      ?import a java:ImportDeclaration ;
+              src:parent/src:parent/src:inFile ?file ;
+              java:name ?iname .
+
+      FILTER (CONCAT(?iname, ".", ?qname) = ?cfqn)
+
+    } GROUP BY ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
+  }
+
+  FILTER (EXISTS {
+    ?vdtor a java:VariableDeclarator ;
+           java:inField ?field ;
+           java:name ?ident .
+
+    ?field a java:FieldDeclaration ;
+           java:inTypeDeclaration ?tdecl0 .
+
+    ?tdecl java:subTypeOf* ?tdecl0 .
+
+    ?tdecl ver:version ?v .
+    ?tdecl0 ver:version ?v .
+  } || EXISTS {
+    ?econst a java:EnumConstant ;
+            java:name ?ident ;
+            java:inEnum ?tdecl0 .
+
+    ?tdecl java:subTypeOf* ?tdecl0 .
+
+    ?tdecl ver:version ?v .
+    ?tdecl0 ver:version ?v .
+  })
+
+  BIND (CONCAT(?cfqn, ".", ?ident) AS ?fqn)
+
+}
