@@ -107,6 +107,7 @@ QUERIES = {
         'type_of_var_declared_by_param.rq',
         'type_of_local_field_access.rq',
         'param_ty.rq',
+        'param_ty_name.rq',
         'simple_ivk0.rq',
         'super_ivk0.rq',
         'this_ivk0.rq',

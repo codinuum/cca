@@ -12,30 +12,19 @@ PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
 
 
 INSERT {
-  ?var java:typeName ?tyname .
-  ?var java:typeDims ?dims .
+  ?param java:typeName ?tyname .
+  ?param java:typeDims ?dims .
 }
 USING <http://codinuum.com/ont/cpi>
 WHERE {
 
   {
-    SELECT DISTINCT ?var ?param
+    SELECT DISTINCT ?param ?pname ?ty
     WHERE {
-
-      ?var a java:Name ;
-           java:inMethodOrConstructor ?meth ;
-           java:name ?vname ;
-           java:declaredBy ?param .
-
-      ?meth a java:MethodOrConstructor ;
-            java:inTypeDeclaration ?tdecl .
-
-      ?tdecl a java:TypeDeclaration .
-
       ?param a java:Parameter ;
-             java:name ?pname .
-
-    } GROUP BY ?var ?param
+             java:name ?pname ;
+             src:child1 ?ty .
+    } GROUP BY ?param ?pname ?ty
   }
 
   ?ty a java:Type ;

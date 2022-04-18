@@ -22,6 +22,7 @@
 import os.path
 import sys
 import re
+import time
 import logging
 
 from . import project
@@ -121,13 +122,16 @@ class Materializer(object):
         for lang in self._queries.keys():
 
             for qname in self._queries[lang]:
+                start = time.time()
+
                 logger.info('processing \"%s\" for %s...' % (qname, lang)),
                 sys.stdout.flush()
 
                 query = self.get_query(lang, qname)
                 self._sparql.execute(query)
 
-                logger.info('done.')
+                t = time.time() - start
+                logger.info(f'done. ({t}s)')
 
         virt = virtuoso.base(pw=self._pw, port=self._port)
         rc = virt.checkpoint()

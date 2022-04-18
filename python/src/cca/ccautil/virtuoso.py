@@ -132,7 +132,6 @@ class ODBCDriver(object):
 
 def exec_cmd(cmd):
     logger.debug('cmd: "%s"' % cmd)
-
     return proc.system(cmd, quiet=True)
 
 
@@ -188,12 +187,9 @@ class base(object):
         self._lock_file = os.path.join(dbdir, 'virtuoso.lck')
         self._db_file = os.path.join(dbdir, 'virtuoso.db')
 
-        self._isql_cmd_ini = '%s %s:%d dba dba' % (ISQL_CMD, VIRTUOSO_HOST, port)
+        self._isql_cmd_ini = f'{ISQL_CMD} {VIRTUOSO_HOST}:{port} dba dba'
 
-        self._isql_cmd = '%s %s:%d %s' % (ISQL_CMD,
-                                          VIRTUOSO_HOST,
-                                          port,
-                                          VIRTUOSO_USER)
+        self._isql_cmd = f'{ISQL_CMD} {VIRTUOSO_HOST}:{port} {VIRTUOSO_USER} {pw}'
 
         self._pw = pw
         self._port = port
@@ -237,13 +233,13 @@ class base(object):
         return rc
 
     def exec_cmd(self, _cmd):
-        cmd = '%s %s EXEC="%s"' % (self._isql_cmd, self._pw, _cmd)
+        cmd = '%s EXEC="%s"' % (self._isql_cmd, _cmd)
         rc = exec_cmd(cmd)
         time.sleep(1)
         return rc
 
     def exec_cmd_n(self, _cmd, n):
-        cmd = '%s %s EXEC="%s"' % (self._isql_cmd, self._pw, _cmd)
+        cmd = '%s EXEC="%s"' % (self._isql_cmd, _cmd)
         rc = exec_cmd_n(cmd, n, logdir=self.log_dir)
         time.sleep(1)
         return rc
