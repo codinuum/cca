@@ -15630,7 +15630,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
             | RPAREN when env#decltype_flag && env#paren_level = 1 -> DEBUG_MSG "* @ RPAREN"; mk T.TEMPL_GT
 
-            | COMMA | RPAREN when not env#expr_flag && begin
+            | COMMA | RPAREN when not env#expr_flag && not env#at_arg_paren && begin
                 env#at_type_paren || env#ty_param_key_flag || env#const_flag ||
                 (env#templ_arg_flag && env#ty_templ_id_flag)
             end -> DEBUG_MSG "* @ (COMMA|RPAREN)"; token
