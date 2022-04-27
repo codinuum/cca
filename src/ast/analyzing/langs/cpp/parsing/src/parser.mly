@@ -841,10 +841,24 @@ _odd_stmt:
 | j=_jump_statement ODD_RBRACE { j }
 | FOR { mkleaf ~pvec:[0; 0; 0; 0] $startpos $endpos L.ForStatement }
 | FOR LPAREN
-    i=init_statement c_opt=ioption(condition) SEMICOLON e_opt=ioption(expression)
+    i=init_statement sc=SEMICOLON e_opt=ioption(expression)
     RPAREN s_opt=ioption(odd_stmt)
     { 
-      let cl = opt_to_list c_opt in
+      ignore sc;
+      let c =
+        mknode ~pvec:[0; 0; 0; 0] $startpos(sc) $endpos(sc) L.Condition []
+      in
+      let cl = [c] in
+      let el = opt_to_list e_opt in
+      let sl = opt_to_list s_opt in
+      let pvec = [1; List.length cl; List.length el; List.length sl] in
+      mknode ~pvec $startpos $endpos L.ForStatement (i :: cl @ el @ sl)
+    }
+| FOR LPAREN
+    i=init_statement c=condition SEMICOLON e_opt=ioption(expression)
+    RPAREN s_opt=ioption(odd_stmt)
+    { 
+      let cl = [c] in
       let el = opt_to_list e_opt in
       let sl = opt_to_list s_opt in
       let pvec = [1; List.length cl; List.length el; List.length sl] in
@@ -2160,17 +2174,40 @@ iteration_statement:
 | DO s=statement WHILE LPAREN e=expression RPAREN SEMICOLON
     { mknode ~pvec:[1; 1] $startpos $endpos L.DoStatement [s; e] }
 
-| ODD_FOR LPAREN i=init_statement c_opt=ioption(condition) SEMICOLON e_opt=ioption(expression) RPAREN
+| ODD_FOR LPAREN i=init_statement sc=SEMICOLON e_opt=ioption(expression) RPAREN
     { 
-      let cl = opt_to_list c_opt in
+      ignore sc;
+      let c =
+        mknode ~pvec:[0; 0; 0; 0] $startpos(sc) $endpos(sc) L.Condition []
+      in
+      let cl = [c] in
       let el = opt_to_list e_opt in
       let pvec = [1; List.length cl; List.length el; 0] in
       mknode ~pvec $startpos $endpos L.ForStatement (i :: cl @ el)
     }
-| FOR LPAREN i=init_statement c_opt=ioption(condition) SEMICOLON e_opt=ioption(expression) RPAREN
+| ODD_FOR LPAREN i=init_statement c=condition SEMICOLON e_opt=ioption(expression) RPAREN
+    { 
+      let cl = [c] in
+      let el = opt_to_list e_opt in
+      let pvec = [1; List.length cl; List.length el; 0] in
+      mknode ~pvec $startpos $endpos L.ForStatement (i :: cl @ el)
+    }
+| FOR LPAREN i=init_statement sc=SEMICOLON e_opt=ioption(expression) RPAREN
     s=statement
     { 
-      let cl = opt_to_list c_opt in
+      ignore sc;
+      let c =
+        mknode ~pvec:[0; 0; 0; 0] $startpos(sc) $endpos(sc) L.Condition []
+      in
+      let cl = [c] in
+      let el = opt_to_list e_opt in
+      let pvec = [1; List.length cl; List.length el; 1] in
+      mknode ~pvec $startpos $endpos L.ForStatement (i :: cl @ el @ [s])
+    }
+| FOR LPAREN i=init_statement c=condition SEMICOLON e_opt=ioption(expression) RPAREN
+    s=statement
+    { 
+      let cl = [c] in
       let el = opt_to_list e_opt in
       let pvec = [1; List.length cl; List.length el; 1] in
       mknode ~pvec $startpos $endpos L.ForStatement (i :: cl @ el @ [s])
