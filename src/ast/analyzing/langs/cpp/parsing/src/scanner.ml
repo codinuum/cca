@@ -6470,7 +6470,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
                 | SEMICOLON _ -> begin
                     match self#peek_nth_rawtoken (nth+2) with
-                    | RBRACE -> true
+                    | RBRACE when ll = [] -> true
                     | _ -> false
                 end
                 | _ -> false
@@ -7619,7 +7619,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
             | TY_LPAREN when begin
                 match prev_rawtoken with
-                | COLON_COLON | HEAD_COLON_COLON -> false
+                | COLON_COLON | HEAD_COLON_COLON | OP_MACRO _ -> false
                 | _ -> begin
                     let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
                     DEBUG_MSG "\n%s"
