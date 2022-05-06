@@ -70,7 +70,6 @@ class HashAlgo:
     SHA256 = 'SHA256'
     SHA384 = 'SHA384'
     SHA512 = 'SHA512'
-    RIPEMD160 = 'RIPEMD160'
     GIT = 'GIT'
     PATH = 'PATH'
 
@@ -82,7 +81,6 @@ hash_algo_tbl = {
     HashAlgo.SHA256:    hashlib.sha256,
     HashAlgo.SHA384:    hashlib.sha384,
     HashAlgo.SHA512:    hashlib.sha512,
-    HashAlgo.RIPEMD160: hashlib.new('ripemd160'),
     HashAlgo.GIT:       hashlib.sha1,
     HashAlgo.PATH:      hashlib.sha1,
 }
