@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 from subprocess import check_output
 
 
@@ -25,6 +26,6 @@ def core_count():
             cores = int(_out1.strip().strip('cpucores:\t '))
             out = cpus * cores
         except Exception:
-            pass
+            out = len(os.sched_getaffinity(0))
 
     return out

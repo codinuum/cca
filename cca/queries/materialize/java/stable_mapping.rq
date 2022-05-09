@@ -16,9 +16,23 @@ INSERT {
 }
 WHERE {
 
-  ?x chg:mappedTo ?x_ .
+  {
+    SELECT DISTINCT ?x ?x_
+    WHERE {
+      ?x a java:Entity ;
+         chg:mappedTo ?x_ .
+
+      ?x_ a java:Entity .
+
+      FILTER NOT EXISTS {
+        ?x chg:movedTo ?x_ .
+      }
+
+    } GROUP BY ?x ?x_
+  }
+
   FILTER NOT EXISTS {
-    ?x chg:movedTo ?x_ .
+    ?x chg:mappedStablyTo ?x_ .
   }
 
 }
