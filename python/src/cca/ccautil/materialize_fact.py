@@ -131,7 +131,7 @@ class Materializer(object):
                 self._sparql.execute(query)
 
                 t = time.time() - start
-                logger.info(f'done. ({t}s)')
+                logger.info(f'done. ({t:.2f}s)')
 
         virt = virtuoso.base(pw=self._pw, port=self._port)
         rc = virt.checkpoint()

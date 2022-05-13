@@ -3,7 +3,7 @@
 '''
   A Diff/TS Driver
 
-  Copyright 2012-2021 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -145,8 +145,7 @@ def set_value(result, key, pat, line):
         try:
             result[key] = int(m.group(1))
         except Exception:
-            logger.warning('cannot get value: key="{}" line="{}"'
-                           .format(key, line))
+            logger.warning(f'cannot get value: key="{key}" line="{line}"')
 
 
 def do_cmd(cmd):
@@ -156,7 +155,7 @@ def do_cmd(cmd):
             break
 
         time.sleep(1)
-        logger.info('retrying...({}) cmd="{}"'.format(i, cmd))
+        logger.info(f'retrying...({i}) cmd="{cmd}"')
 
 
 #####
@@ -188,7 +187,7 @@ def _get_cache_dir(a1, a2,
     h2 = compute_hash(algo, a2)
     d = h1[0:2]
 
-    c = '{}-{}'.format(h1, h2)
+    c = f'{h1}-{h2}'
 
     if cache_dir_base:
         cache_dir = os.path.join(cache_dir_base, d, c)
@@ -210,18 +209,18 @@ def get_cache_dir1_(diff_cmd, a,
 
     cache_opt = ''
     if cache_dir_base:
-        cache_opt = ' -cache {}'.format(cache_dir_base)
+        cache_opt = f' -cache {cache_dir_base}'
     if local_cache_name:
-        cache_opt += ' -localcachename {}'.format(local_cache_name)
+        cache_opt += f' -localcachename {local_cache_name}'
 
     hash_opt = ' -fact:hash:' + algo
 
     opts = cache_opt + hash_opt
 
-    cmd = '{} -parseonly{} -getcache {}'.format(diff_cmd, opts, a)
+    cmd = f'{diff_cmd} -parseonly{opts} -getcache {a}'
 
     if not quiet:
-        logger.info('cmd: "{}"'.format(cmd))
+        logger.info(f'cmd: "{cmd}"')
 
     cache_dir = None
 
@@ -242,18 +241,18 @@ def get_cache_dir(diff_cmd, a1, a2,
 
     cache_opt = ''
     if cache_dir_base:
-        cache_opt = ' -cache {}'.format(cache_dir_base)
+        cache_opt = f' -cache {cache_dir_base}'
     if local_cache_name:
-        cache_opt += ' -localcachename {}'.format(local_cache_name)
+        cache_opt += f' -localcachename {local_cache_name}'
 
     hash_opt = ' -fact:hash:' + algo
 
     opts = cache_opt + hash_opt
 
-    cmd = '{}{} -getcache {} {}'.format(diff_cmd, opts, a1, a2)
+    cmd = f'{diff_cmd}{opts} -getcache {a1} {a2}'
 
     if not quiet:
-        logger.info('cmd: "{}"'.format(cmd))
+        logger.info(f'cmd: "{cmd}"')
 
     cache_dir = None
 
@@ -268,7 +267,7 @@ def get_cache_dir(diff_cmd, a1, a2,
 def get_fact_versions_opt(fact_versions):
     li = []
     for v in fact_versions:
-        li.append('-fact:version {}'.format(v))
+        li.append(f'-fact:version {v}')
 
     return ' '.join(li)
 
@@ -276,7 +275,7 @@ def get_fact_versions_opt(fact_versions):
 def get_fact_proj_roots_opt(fact_proj_roots):
     li = []
     for r in fact_proj_roots:
-        li.append('-fact:project-root {}'.format(r))
+        li.append(f'-fact:project-root {r}')
 
     return ' '.join(li)
 
@@ -295,7 +294,7 @@ def read_file(r, name_pat_list, stat_paths, retry_count=RETRY_COUNT):
 
         except IOError as e:
             logger.warning(str(e))
-            logger.info('retrying...({})'.format(count))
+            logger.info(f'retrying...({count})')
             time.sleep(1)
             count += 1
             continue
@@ -398,6 +397,7 @@ def diffts(diff_cmd, file1, file2,
            fact_size_thresh=DEFAULT_FACT_SIZE_THRESH,
            fact_encoding=Enc.FDLCO,
            fact_hash_algo=HashAlgo.MD5,
+           fact_no_compress=False,
            dumpccs=False,
            dironly=False,
            check=False,
@@ -409,7 +409,7 @@ def diffts(diff_cmd, file1, file2,
            keep_going=False,
            quiet=False):
 
-    logger.info('comparing "{}" with "{}"'.format(file1, file2))
+    logger.info(f'comparing "{file1}" with "{file2}"')
 
     cache_dir = get_cache_dir(diff_cmd, file1, file2, cache_dir_base,
                               local_cache_name, quiet=quiet, algo=fact_hash_algo)
@@ -418,7 +418,7 @@ def diffts(diff_cmd, file1, file2,
 
     if load_fact or stat_paths == [] or not usecache:
 
-        logger.info('diff_cmd: {}'.format(diff_cmd))
+        logger.info(f'diff_cmd: {diff_cmd}')
 
         prep_opt = ''
         if preprune:
@@ -460,8 +460,11 @@ def diffts(diff_cmd, file1, file2,
                 if fact_for_ast:
                     fact_opt += ' -fact:ast'
 
+                if fact_no_compress:
+                    fact_opt += ' -fact:nocompress'
+
                 if fact_proj:
-                    fact_opt += ' -fact:project {}'.format(fact_proj)
+                    fact_opt += f' -fact:project {fact_proj}'
 
                 if fact_proj_roots:
                     fact_opt += \
@@ -469,16 +472,16 @@ def diffts(diff_cmd, file1, file2,
 
                 if fact_into_virtuoso:
                     fact_opt += \
-                        ' -fact:into-virtuoso {}'.format(fact_into_virtuoso)
+                        f' -fact:into-virtuoso {fact_into_virtuoso}'
 
                 if fact_into_directory:
                     fact_opt += \
-                        ' -fact:into-directory {}'.format(fact_into_directory)
+                        f' -fact:into-directory {fact_into_directory}'
 
                 if fact_for_delta:
                     fact_opt += ' -fact:delta'
 
-                fact_opt += ' -fact:size-thresh {}'.format(fact_size_thresh)
+                fact_opt += f' -fact:size-thresh {fact_size_thresh}'
 
             else:
                 logger.error('specify fact_versions')
@@ -488,8 +491,8 @@ def diffts(diff_cmd, file1, file2,
 
         cachedir_opt = ''
         if cache_dir_base:
-            logger.info('cache dir base: "{}"'.format(cache_dir_base))
-            cachedir_opt = ' -cache {}'.format(cache_dir_base)
+            logger.info(f'cache dir base: "{cache_dir_base}"')
+            cachedir_opt = f' -cache {cache_dir_base}'
 
         dumpccs_opt = ''
         if dumpccs:
@@ -511,8 +514,8 @@ def diffts(diff_cmd, file1, file2,
             other_opts += ' -k'
 
         if local_cache_name:
-            logger.info('local cache name: "{}"'.format(local_cache_name))
-            other_opts += ' -localcachename {}'.format(local_cache_name)
+            logger.info(f'local cache name: "{local_cache_name}"')
+            other_opts += f' -localcachename {local_cache_name}'
 
         if dump_delta:
             other_opts += ' -dump:delta'
@@ -520,9 +523,9 @@ def diffts(diff_cmd, file1, file2,
         cmd = ''.join((diff_cmd,
                        cache_opt, cachedir_opt, prep_opt, prem_opt, fact_opt,
                        dumpccs_opt, check_opt, other_opts))
-        cmd += ' {} {}'.format(file1, file2)
+        cmd += f' {file1} {file2}'
 
-        logger.info('cmd="{}"'.format(cmd))
+        logger.info(f'cmd="{cmd}"')
 
         proc.system(cmd, quiet=quiet)
 
@@ -558,8 +561,7 @@ def diffast_get_cache_dir(file1, file2, **options):
 
 
 def dump_unparsed(path, to_path, quiet=False):
-    cmd = '{} -clearcache -parseonly -dump:src:out {} {}'.format(diffast_cmd,
-                                                                 to_path, path)
+    cmd = f'{diffast_cmd} -clearcache -parseonly -dump:src:out {to_path} {path}'
     if not quiet:
         logger.info('cmd="{}"'.format(cmd))
 
@@ -567,9 +569,9 @@ def dump_unparsed(path, to_path, quiet=False):
 
 
 def patchast(path, delta_path, out_path, quiet=False):
-    cmd = '{} -o {} {} {}'.format(patchast_cmd, out_path, path, delta_path)
+    cmd = f'{patchast_cmd} -o {out_path} {path} {delta_path}'
     if not quiet:
-        logger.info('cmd="{}"'.format(cmd))
+        logger.info(f'cmd="{cmd}"')
 
     return proc.system(cmd, quiet=quiet)
 
@@ -612,7 +614,7 @@ def main():
 
     r = None
 
-    logger.info('mode: "{}"'.format(mode))
+    logger.info(f'mode: "{mode}"')
 
     if mode == 'ast':
         r = diffast(f1, f2, preprune=args.preprune, prematch=args.prematch,
@@ -625,7 +627,7 @@ def main():
         nmappings = r['nmappings']
         cmr = float(cost) / float(nmappings)
 
-        print('cost: {} nmappings: {} CMR:{}'.format(cost, nmappings, cmr))
+        print(f'cost: {cost} nmappings: {nmappings} CMR:{cmr}')
 
     else:
         logger.error('failed')

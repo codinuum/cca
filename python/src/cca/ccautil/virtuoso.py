@@ -59,6 +59,11 @@ ISQL_CMD = os.path.join(VIRTUOSO_BIN_DIR, 'isql-v')
 ODBC_CONNECT_STRING_FMT = 'Driver=%(driver)s;HOST=%(host)s:%(port)d;UID=%(uid)s;PWD=%(pwd)s'
 
 
+def sleep():
+    # time.sleep(1)
+    pass
+
+
 def get_odbc_connect_string(driver=VIRTUOSO_DRIVER,
                             host=VIRTUOSO_HOST,
                             port=VIRTUOSO_PORT,
@@ -229,19 +234,19 @@ class base(object):
     def exec_cmd_ini(self, _cmd):
         cmd = '%s EXEC="%s"' % (self._isql_cmd_ini, _cmd)
         rc = exec_cmd(cmd)
-        time.sleep(1)
+        sleep()
         return rc
 
     def exec_cmd(self, _cmd):
         cmd = '%s EXEC="%s"' % (self._isql_cmd, _cmd)
         rc = exec_cmd(cmd)
-        time.sleep(1)
+        sleep()
         return rc
 
     def exec_cmd_n(self, _cmd, n):
         cmd = '%s EXEC="%s"' % (self._isql_cmd, _cmd)
         rc = exec_cmd_n(cmd, n, logdir=self.log_dir)
-        time.sleep(1)
+        sleep()
         return rc
 
     def kill_server(self):
@@ -250,7 +255,7 @@ class base(object):
             cmd = 'kill %s' % pid
             logger.info('killing virtuoso (PID=%s)...' % pid)
             exec_cmd(cmd)
-            time.sleep(3)
+            sleep()
         else:
             logger.warning('cannot obtain PID (virtuoso not running?)')
 
@@ -268,7 +273,7 @@ class base(object):
 
     def restart_server(self):
         self.shutdown_server()
-        time.sleep(1)
+        sleep()
         self.start_server()
 
     def checkpoint(self):
@@ -305,7 +310,7 @@ class Loader(base):
                 rc = self.exec_cmd(cmd)
                 if rc != 0:
                     return -1
-                time.sleep(1)
+                sleep()
 
             self.checkpoint()
 
@@ -336,6 +341,8 @@ class Loader(base):
         else:
             proc = (lambda cmd: -1)
 
+        st = time.time()
+
         for i in range(n):
             logger.info('*** PART %d/%d ***' % (i+1, n))
 
@@ -347,9 +354,11 @@ class Loader(base):
             if rc != 0:
                 logger.warning('Failure')
                 return -1
-            time.sleep(1)
+            sleep()
             self.checkpoint()
-            time.sleep(1)
+            sleep()
+
+        logger.info('loaded in {:.2f}s'.format(time.time() - st))
 
         return rc
 

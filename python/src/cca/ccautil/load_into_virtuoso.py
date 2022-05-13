@@ -37,7 +37,9 @@ from .virtuoso import (VTMP_DIR,
 logger = logging.getLogger()
 
 
-def load(proj_id, db_dir, fact_dir, exts, port=VIRTUOSO_PORT, pw=VIRTUOSO_PW):
+def load(proj_id, db_dir, fact_dir, exts, port=VIRTUOSO_PORT, pw=VIRTUOSO_PW,
+         nprocs=1, maxfiles=DEFAULT_MAX_FILES):
+
     graph_uri = GRAPH_URI_BASE+proj_id
 
     loader = virtuoso.Loader(db_dir, daemonize=False, pw=pw, port=port)
@@ -48,7 +50,8 @@ def load(proj_id, db_dir, fact_dir, exts, port=VIRTUOSO_PORT, pw=VIRTUOSO_PW):
         loader.start_server()
         loader.disable_checkpoint()
 
-    rc = loader.load(graph_uri, fact_dir, exts, nprocs=1)
+    rc = loader.load(graph_uri, fact_dir, exts,
+                     nprocs=nprocs, maxfiles=maxfiles)
 
     return rc
 
