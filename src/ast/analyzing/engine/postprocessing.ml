@@ -4374,8 +4374,25 @@ module F (Label : Spec.LABEL_T) = struct
           DEBUG_MSG "%a <- %a" UID.ps (uidmapping#inv_find uid) UID.ps uid
       );
 
-    DEBUG_MSG "[0] edits: del:%d ins:%d rel:%d"
-      edits#get_ndeletes edits#get_ninserts edits#get_nrelabels;
+    let ndeletes = edits#get_ndeletes in
+    let ninserts = edits#get_ninserts in
+
+    DEBUG_MSG "[0] edits: del:%d ins:%d rel:%d" ndeletes ninserts edits#get_nrelabels;
+
+    if not options#no_glue_flag && ndeletes = 0 || ninserts = 0 then begin
+      if options#verbose_flag then begin
+        let s =
+          if ndeletes = 0 then
+            "deletes"
+          else if ninserts = 0 then
+            "inserts"
+          else
+            assert false
+        in
+        Xprint.verbose true "no %s found. glueing disabled." s;
+      end;
+      options#set_no_glue_flag
+    end;
 
     let sync_edits = sync_edits options tree1 tree2 edits in
 
