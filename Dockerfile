@@ -43,6 +43,7 @@ RUN set -x && \
     cd /root && \
     git clone https://github.com/openlink/virtuoso-opensource && \
     cd virtuoso-opensource && \
+    git checkout v7.2.7 && \
     ./autogen.sh && \
     env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
     --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
