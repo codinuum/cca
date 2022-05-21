@@ -25,7 +25,6 @@ RUN set -x && \
             libgmp-dev libssl-dev libz-dev libreadline-dev librdf0-dev libpcre3-dev unixodbc-dev \
             gawk gperf \
             sloccount \
-            openssl \
             unixodbc \
             openjdk-8-jdk \
             python3 python3-dev \
@@ -42,14 +41,13 @@ RUN set -x && \
 
 RUN set -x && \
     cd /root && \
-    git clone https://github.com/openlink/virtuoso-opensource && \
+    git clone https://github.com/mstmhsmt/virtuoso-opensource && \
     cd virtuoso-opensource && \
-    git checkout v7.2.7 && \
     ./autogen.sh && \
     env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
     --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
     --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad \
-    --enable-isparql-vad --enable-rdfmappers-vad && \
+    --enable-isparql-vad --enable-rdfmappers-vad --enable-openssl=/usr && \
     make && make install && \
     cd /root && \
     rm -r virtuoso-opensource
