@@ -25,6 +25,7 @@ RUN set -x && \
             libgmp-dev libssl-dev libz-dev libreadline-dev librdf0-dev libpcre3-dev unixodbc-dev \
             gawk gperf \
             sloccount \
+            openssl \
             unixodbc \
             openjdk-8-jdk \
             python3 python3-dev \
@@ -48,7 +49,7 @@ RUN set -x && \
     env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
     --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
     --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad \
-    --enable-isparql-vad --enable-rdfmappers-vad --disable-openssl && \
+    --enable-isparql-vad --enable-rdfmappers-vad && \
     make && make install && \
     cd /root && \
     rm -r virtuoso-opensource
