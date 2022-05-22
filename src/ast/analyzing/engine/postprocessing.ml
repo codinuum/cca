@@ -4378,8 +4378,8 @@ module F (Label : Spec.LABEL_T) = struct
     let ninserts = edits#get_ninserts in
 
     DEBUG_MSG "[0] edits: del:%d ins:%d rel:%d" ndeletes ninserts edits#get_nrelabels;
-
-    if not options#no_glue_flag && ndeletes = 0 || ninserts = 0 then begin
+(*
+    if not options#no_glue_flag && (ndeletes = 0 || ninserts = 0) then begin
       if options#verbose_flag then begin
         let s =
           if ndeletes = 0 then
@@ -4393,7 +4393,7 @@ module F (Label : Spec.LABEL_T) = struct
       end;
       options#set_no_glue_flag
     end;
-
+*)
     let sync_edits = sync_edits options tree1 tree2 edits in
 
     if not simple then begin
