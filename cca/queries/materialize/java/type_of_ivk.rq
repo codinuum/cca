@@ -1,0 +1,41 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+INSERT {
+  ?ivk java:typeName ?tyname .
+  ?ivk java:typeDims ?dims .
+}
+WHERE {
+
+  # {
+  #   SELECT DISTINCT ?meth ?sig ?tyname ?dims
+  #   WHERE {
+
+      ?meth a java:MethodDeclaration ;
+            java:fullyQualifiedName ?fqn ;
+            java:signature ?sig0 ;
+            java:returnTypeName ?tyname .
+
+      OPTIONAL {
+        ?meth java:returnTypeDims ?dims .
+      }
+
+      BIND (CONCAT(?fqn, ?sig0) AS ?sig)
+
+  #   } GROUP BY ?meth ?sig ?tyname ?dims
+  # }
+
+  ?ivk a java:Invocation ;
+       java:mayInvokeMethod ?meth .
+#       java:mayInvoke ?sig .
+
+}

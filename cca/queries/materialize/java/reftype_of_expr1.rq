@@ -1,0 +1,26 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?expr java:ofReferenceType ?tdecl .
+}
+WHERE {
+
+  ?expr a java:ParenthesizedExpression ;
+        src:child0/java:ofReferenceType ?tdecl .
+
+  FILTER NOT EXISTS {
+    ?expr java:ofReferenceType [] .
+  }
+
+}

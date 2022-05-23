@@ -28,7 +28,7 @@ import logging
 logger = logging.getLogger()
 
 
-def system(cmd, cwd=None, quiet=False, rc_check=True):
+def system(cmd, cwd=None, quiet=True, rc_check=True):
     try:
         out = open('/dev/null', 'w') if quiet else None
 

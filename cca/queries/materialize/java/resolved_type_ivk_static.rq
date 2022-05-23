@@ -1,0 +1,61 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?ivk a ?cat ;
+       java:name ?fqn .
+}
+WHERE {
+
+  {
+    SELECT DISTINCT ?pkgname ?fqn ?src ?nparams ?mname ?uqn ?cfqn
+    WHERE {
+
+      ?meth a java:MethodDeclaration ;
+            java:inTypeDeclaration ?tdecl0 ;
+            java:name ?uqn ;
+            java:fullyQualifiedName ?fqn0 ;
+            java:nParameters ?nparams .
+
+      ?tdecl0 src:inSourceTree ?src ;
+              java:fullyQualifiedName ?cfqn ;
+              java:name ?tname ;
+              src:inFile ?file0 .
+
+      ?pkg0 a java:PackageDeclaration ;
+            src:parent/src:inFile ?file0 ;
+            java:name ?pkgname .
+
+      BIND (CONCAT(?tname, ".", ?uqn) AS ?mname)
+
+      BIND (REPLACE(?fqn0, "[$$]", ".") AS ?fqn)
+
+    } GROUP BY ?pkgname ?fqn ?src ?nparams ?mname ?uqn ?cfqn
+  }
+
+  ?ivk a java:Invocation ;
+       java:inTypeDeclaration ?tdecl ;
+       java:name ?uqn ;
+       java:nArguments ?nparams .
+
+  ?tdecl src:inSourceTree ?src ;
+         src:inFile ?file .
+
+  ?import a java:StaticImportOnDemandDeclaration ;
+          src:parent/src:parent/src:inFile ?file ;
+          java:name ?cfqn .
+
+  BIND (IF (EXISTS {?ivk a java:Statement},
+            java:TypeMethodInvocationStatement, java:TypeMethodInvocation) AS ?cat)
+
+}

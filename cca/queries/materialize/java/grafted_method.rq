@@ -1,0 +1,36 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?meth_ chg:graftedOnto ?src .
+}
+WHERE {
+
+  ?src_ a src:SourceTree ;
+        ver:version ?ver_ .
+
+  ?file_ a src:File ;
+         src:inSourceTree ?src_ ;
+         chg:graftedOnto ?src .
+
+  ?class_ a java:TypeDeclaration ;
+          src:inFile ?file_ .
+
+  ?meth_ a java:MethodOrConstructor ;
+         java:inTypeDeclaration ?class_ .
+
+  FILTER NOT EXISTS {
+    ?class_ ^chg:mappedTo [] .
+  }
+
+}

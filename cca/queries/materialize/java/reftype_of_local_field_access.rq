@@ -1,0 +1,68 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?x java:ofReferenceType ?TD ;
+     java:typeName ?tyname ;
+     java:typeDims ?dims .
+}
+WHERE {
+
+  FILTER NOT EXISTS {
+    ?x java:ofReferenceType [] .
+  }
+
+  {
+    SELECT DISTINCT ?x ?tdecl ?fname ?vdtor
+    WHERE {
+
+      ?x a java:FieldAccess ;
+         java:inTypeDeclaration ?tdecl ;
+         java:declaredBy ?vdtor ;
+         java:name ?fname .
+
+      FILTER (EXISTS {
+        ?x src:child0 [ a java:This ] .
+      } || NOT EXISTS {
+        ?x src:child0 [] .
+      })
+
+    } GROUP BY ?x ?tdecl ?fname ?vdtor
+  }
+
+  {
+    SELECT DISTINCT ?vdtor ?TD ?tyname ?fname ?dims
+    WHERE {
+      
+      ?field a java:FieldDeclaration ;
+             src:child1 ?ty ;
+             src:child2 ?vdtor ;
+             java:inTypeDeclaration ?tdecl0 .
+
+      ?ty a java:ReferenceType ;
+          java:refersToDeclaration ?TD ;
+          src:parent ?field ;
+          java:name ?tyname .
+
+      ?vdtor a java:VariableDeclarator ;
+             src:parent ?field ;
+             java:name ?fname .
+
+      OPTIONAL {
+        ?ty java:dimensions ?dims .
+      }
+
+    } GROUP BY ?vdtor ?TD ?tyname ?fname ?dims
+  }
+
+}

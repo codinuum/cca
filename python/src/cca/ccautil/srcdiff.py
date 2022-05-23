@@ -79,7 +79,7 @@ class DiffTSError(Exception):
 
 def get_from_cache(cache_dir, xxx, local_cache_name):
     fs = diffts.search_cache(cache_dir, xxx, local_cache_name)
-    # logger.info('{} for {} (local_cache_name={}) --> {}'.format(cache_dir, xxx, local_cache_name, fs))
+    # logger.info(f'{cache_dir} for {xxx} (local_cache_name={local_cache_name}) --> {fs}')
     return fs
 
 
@@ -109,16 +109,15 @@ def count_nodes(files, cache_dir_base=None,
     for f in files:
 
         if is_auxfile(f):
-            logger.info('pre-source "{}" is ignored'.format(f))
+            logger.info(f'pre-source "{f}" is ignored')
             continue
 
         file_count += 1
-        logger.info('*** counting nodes in files ({}/{})'
-                    .format(file_count, nfiles))
+        logger.info(f'*** counting nodes in files ({file_count}/{nfiles})')
 
-        logger.debug('"{}"'.format(f))
+        logger.debug(f'"{f}"')
 
-        logger.info('cache_dir_base: "{}"'.format(cache_dir_base))
+        logger.info(f'cache_dir_base: "{cache_dir_base}"')
 
         cache_path = diffts.get_cache_dir1(f, cache_dir_base, local_cache_name)
         info_paths = get_from_cache(cache_path, diffts.info_file_name,
@@ -126,15 +125,15 @@ def count_nodes(files, cache_dir_base=None,
 
         if (not load_fact) and info_paths:
             n = read_info(info_paths)
-            logger.info('number of nodes: {} --> {} (cached)'.format(f, n))
+            logger.info(f'number of nodes: {f} --> {n} (cached)')
             c += n
             continue
 
         cache_opt = ''
         if cache_dir_base:
-            cache_opt = ' -cache {}'.format(cache_dir_base)
+            cache_opt = f' -cache {cache_dir_base}'
         if local_cache_name:
-            cache_opt += ' -localcachename {}'.format(local_cache_name)
+            cache_opt += f' -localcachename {local_cache_name}'
 
         fact_opt = ''
         if load_fact:
@@ -150,6 +149,7 @@ def count_nodes(files, cache_dir_base=None,
 
                 if restrict_fact:
                     fact_opt += ' -fact:restricted'
+
                 if fact_for_ast:
                     fact_opt += ' -fact:ast'
 
@@ -162,13 +162,13 @@ def count_nodes(files, cache_dir_base=None,
 
                 if fact_into_virtuoso:
                     fact_opt += \
-                        ' -fact:into-virtuoso {}'.format(fact_into_virtuoso)
+                        f' -fact:into-virtuoso {fact_into_virtuoso}'
 
                 if fact_into_directory:
                     fact_opt += \
-                        ' -fact:into-directory {}'.format(fact_into_directory)
+                        f' -fact:into-directory {fact_into_directory}'
 
-                fact_opt += ' -fact:size-thresh {}'.format(fact_size_thresh)
+                fact_opt += f' -fact:size-thresh {fact_size_thresh}'
             else:
                 logger.error('specify fact_versions')
 
@@ -176,10 +176,9 @@ def count_nodes(files, cache_dir_base=None,
         if not load_fact:
             incomplete_opt = ' -incompleteinfo'
 
-        cmd = '{}{} -parseonly{}{} {}'\
-            .format(diffts.diffast_cmd, incomplete_opt, cache_opt, fact_opt, f)
+        cmd = f'{diffts.diffast_cmd}{incomplete_opt} -parseonly{cache_opt}{fact_opt} {f}'
 
-        logger.info('cmd="{}"'.format(cmd))
+        logger.info(f'cmd="{cmd}"')
 
         pc = proc.PopenContext(cmd)
         with pc as p:
@@ -190,7 +189,7 @@ def count_nodes(files, cache_dir_base=None,
                     g = m.groups()
                     try:
                         n = int(g[0])
-                        logger.info('number of nodes: {} --> {}'.format(f, n))
+                        logger.info(f'number of nodes: {f} --> {n}')
                         c += n
                         break
                     except Exception:
@@ -217,14 +216,14 @@ def get_cache_dir(a1, a2, cache_dir_base=None, local_cache_name=None,
 
 
 def read_stat2(fname, roots=[]):
-    logger.debug('reading "{}"...'.format(fname))
+    logger.debug(f'reading "{fname}"...')
     result = []
     try:
         f = open(fname)
         reader = csv.reader(f)
 
         for row in reader:
-            logger.debug('row={}'.format(row))
+            logger.debug(f'row={row}')
             if len(roots) > 1:
                 p1 = os.path.join(roots[0], row[0])
                 p2 = os.path.join(roots[1], row[1])
@@ -265,14 +264,14 @@ def read_stat1(fname, root=None):
 
 
 def read_stat_except_first(fname, root=None):
-    logger.debug('reading "{}"...'.format(fname))
+    logger.debug(f'reading "{fname}"...')
     result = []
     try:
         f = open(fname)
         reader = csv.reader(f)
 
         for row in reader:
-            logger.debug('row={}'.format(row))
+            logger.debug(f'row={row}')
 
             for x in row[1:]:
                 if root:
@@ -292,14 +291,14 @@ def read_stat_except_first(fname, root=None):
 
 
 def read_stat_except_last(fname, root=None):
-    logger.debug('reading "{}"...'.format(fname))
+    logger.debug(f'reading "{fname}"...')
     result = []
     try:
         f = open(fname)
         reader = csv.reader(f)
 
         for row in reader:
-            logger.debug('row={}'.format(row))
+            logger.debug(f'row={row}')
 
             for x in row[0:-1]:
                 if root:
@@ -362,11 +361,12 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
              fact_hash_algo=HashAlgo.MD5,
              local_cache_name=None,
              fact_for_delta=False,
-             keep_going=False):
+             keep_going=False,
+             quiet=True):
 
     cache_dir = get_cache_dir(dir1, dir2, cache_dir_base, local_cache_name)
 
-    logger.info('cache_dir: "{}"'.format(cache_dir))
+    logger.info(f'cache_dir: "{cache_dir}"')
 
     logger.info('checking cache...')
 
@@ -389,7 +389,7 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
         if li:
             required[key] = li[0]['path']
         else:
-            logger.info('not found: "{}"'.format(name))
+            logger.info(f'not found: "{name}"')
             cache_found = False
             break
 
@@ -413,7 +413,7 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
                 local_cache_name=local_cache_name,
                 fact_for_delta=fact_for_delta,
                 keep_going=keep_going,
-                quiet=False)
+                quiet=quiet)
 
         for (key, name) in req:
             required[key] = os.path.join(cache_dir, name)
@@ -560,6 +560,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
               fact_for_cfg=False,
               fact_encoding=Enc.FDLCO,
               fact_hash_algo=HashAlgo.MD5,
+              fact_no_compress=False,
               line_sim=False,
               dumpccs=False,
               check=False,
@@ -572,6 +573,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
               use_sim=False,
               sim_thresh=0.7,
               quiet=False,
+              no_node_count=False,
               ):
 
     filt = (lambda x: True)
@@ -587,8 +589,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
         else:
             filt = (lambda x: all(not x.startswith(p) for p in exclude))
 
-    logger.info('"{}" - "{}" cache_dir_base="{}"'
-                .format(dir1, dir2, cache_dir_base))
+    logger.info(f'"{dir1}" - "{dir2}" cache_dir_base="{cache_dir_base}"')
 
     cost = 0
     nmappings = 0
@@ -618,9 +619,10 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
                     fact_hash_algo=fact_hash_algo,
                     local_cache_name=local_cache_name,
                     fact_for_delta=fact_for_delta,
-                    keep_going=keep_going)
+                    keep_going=keep_going,
+                    quiet=quiet)
 
-    logger.info('"{}" - "{}" get_info finished'.format(dir1, dir2))
+    logger.info(f'"{dir1}" - "{dir2}" get_info finished')
 
     get_rel1 = (lambda x: x)
     get_rel2 = (lambda x: x)
@@ -650,12 +652,12 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
         logger.debug('matching removed and added files...')
         li = []
         for x in removed:
-            logger.debug('{}'.format(x))
+            logger.debug(f'{x}')
             cs_ = []
             for x_ in added:
                 s = sim.sim(x, x_)
                 if s > sim_thresh:
-                    logger.debug('  {} ({})'.format(x_, s))
+                    logger.debug(f'  {x_} ({s})')
                     cs_.append((x_, s))
             if cs_:
                 li.append((x, cs_))
@@ -669,12 +671,12 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
 
         l_ = []
         for x_ in added:
-            logger.debug('{}'.format(x_))
+            logger.debug(f'{x_}')
             cands = []
             for x in removed:
                 s = sim.sim(x, x_)
                 if s > sim_thresh:
-                    logger.debug('  {} ({})'.format(x, s))
+                    logger.debug(f'  {x} ({s})')
                     cands.append((x, s))
             if cands:
                 l_.append((cands, x_))
@@ -688,7 +690,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
 
         extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_))
 
-        logger.info('extra pairs (sim_thresh={}):'.format(sim_thresh))
+        logger.info(f'extra pairs (sim_thresh={sim_thresh}):')
         for p in extra_pairs:
             logger.info('  {} - {}'.format(*p))
 
@@ -737,6 +739,10 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
         nunmodified0 = 0
         nmoved0 = len(moved0set - modified0set)
         nrenamed0 = len(renamed0set - modified0set)
+    elif no_node_count:
+        nunmodified0 = 0
+        nmoved0 = 0
+        nrenamed0 = 0
     else:
         nunmodified0 = count_nodes(unmodified0, **count_opts)
         nmoved0 = count_nodes(moved0set - modified0set, **count_opts)
@@ -757,14 +763,22 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     count_opts['fact_versions'] = fvs1
     count_opts['fact_proj_roots'] = fpr1
 
-    nadded = count_nodes(added, **count_opts)
-    ncopied = count_nodes(copied, **count_opts)
+    if no_node_count:
+        nadded = 0
+        ncopied = 0
+    else:
+        nadded = count_nodes(added, **count_opts)
+        ncopied = count_nodes(copied, **count_opts)
 
     count_opts['fact_versions'] = fvs0
     count_opts['fact_proj_roots'] = fpr0
 
-    nremoved = count_nodes(removed, **count_opts)
-    nglued = count_nodes(glued, **count_opts)
+    if no_node_count:
+        nremoved = 0
+        nglued = 0
+    else:
+        nremoved = count_nodes(removed, **count_opts)
+        nglued = count_nodes(glued, **count_opts)
 
     d_nnodes1 = nunmodified0 + nmoved0 + nrenamed0 + nremoved + nglued
     d_nnodes2 = nunmodified0 + nmoved0 + nrenamed0 + nadded + ncopied
@@ -776,8 +790,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     nmappings += nunmodified0 + nmoved0 + nrenamed0
     cost += nadded + ncopied + nremoved + nglued
 
-    logger.info('nnodes={}, nmappings={}, cost={}'
-                .format(nnodes, nmappings, cost))
+    logger.info(f'nnodes={nnodes}, nmappings={nmappings}, cost={cost}')
 
     st_time = time.time()
 
@@ -795,21 +808,22 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
         for (file1, file2) in modified_all:
 
             if is_auxfile(file1):
-                logger.info('pre-source "{}" is ignored'.format(file1))
+                logger.info(f'pre-source "{file1}" is ignored')
                 continue
 
             if is_auxfile(file2):
-                logger.info('pre-source "{}" is ignored'.format(file2))
+                logger.info(f'pre-source "{file2}" is ignored')
                 continue
 
             count += 1
 
-            logger.info('*** processing modified files ({}/{})'
-                        .format(count, n_modified_all))
+            logger.info(f'*** processing modified files ({count}/{n_modified_all})')
 
             if line_sim:
                 line_sim_sum += sim.line_sim(file1, file2)
                 line_sim_count += 1
+
+            st0 = time.time()
 
             r = diff(file1, file2,
                      cache_dir_base=cache_dir_base,
@@ -826,6 +840,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
                      fact_size_thresh=fact_size_thresh,
                      fact_encoding=fact_encoding,
                      fact_hash_algo=fact_hash_algo,
+                     fact_no_compress=fact_no_compress,
                      dumpccs=dumpccs,
                      check=check,
                      aggressive=aggressive,
@@ -837,10 +852,12 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
                      quiet=quiet,
                      )
 
+            t0 = time.time() - st0
+
             c = r['cost']
             m = r['nmappings']
 
-            logger.info('"{}" - "{}": CMR=({}/{})'.format(file1, file2, c, m))
+            logger.info(f'"{file1}" - "{file2}": CMR={c}/{m} ({t0:.2f}s)')
 
             fvs0 = []
             fvs1 = []
@@ -857,12 +874,18 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             count_opts['fact_versions'] = fvs0
             count_opts['fact_proj_roots'] = fpr0
 
-            d_nnodes1 = count_nodes([file1], **count_opts)
+            if no_node_count:
+                d_nnodes1 = 0
+            else:
+                d_nnodes1 = count_nodes([file1], **count_opts)
 
             count_opts['fact_versions'] = fvs1
             count_opts['fact_proj_roots'] = fpr1
 
-            d_nnodes2 = count_nodes([file2], **count_opts)
+            if no_node_count:
+                d_nnodes2 = 0
+            else:
+                d_nnodes2 = count_nodes([file2], **count_opts)
 
             nnodes1 += d_nnodes1
             nnodes2 += d_nnodes2
@@ -874,7 +897,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             nmovrels += r['nmovrels']
 
     except Exception as e:
-        logger.warning('{}'.format(str(e)))
+        logger.warning(f'{e}')
 
     t = time.time() - st_time
 
@@ -882,8 +905,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
 
     ncomp = len(modified)
 
-    logger.info('"{}" - "{}" --> {} comparisons ({} min.)'
-                .format(dir1, dir2, ncomp, m))
+    logger.info(f'"{dir1}" - "{dir2}" --> {ncomp} comparisons in {t:.2f} sec. ({m:.2f} min.)')
 
     res = {'cost': cost,
            'ncomparisons': ncomp,
@@ -943,14 +965,14 @@ def test_diff_dirs():
 
     mode = args.mode
 
-    logger.info('mode: "{}"'.format(mode))
+    logger.info(f'mode: "{mode}"')
 
     diff = None
 
     if mode == 'diffast':
         diff = diffast
     else:
-        logger.error('illegal mode: "{}"'.format(mode))
+        logger.error(f'illegal mode: "{mode}"')
 
     res = diff_dirs(diff, args.dir1, args.dir2,
                     use_sim=args.use_sim,
@@ -960,9 +982,9 @@ def test_diff_dirs():
     ncomps = res['ncomparisons']
     nmappings = res['nmappings']
 
-    logger.info('TOTAL COST        : {}'.format(cost))
-    logger.info('TOTAL MAPPING SIZE: {}'.format(nmappings))
-    logger.info('# of comparisons  : {}'.format(ncomps))
+    logger.info(f'TOTAL COST        : {cost}')
+    logger.info(f'TOTAL MAPPING SIZE: {nmappings}')
+    logger.info(f'# of comparisons  : {ncomps}')
 
 
 def test_count_nodes():

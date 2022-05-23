@@ -1,0 +1,42 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?rty java:refersToDeclaration ?TD .
+}
+WHERE {
+
+  {
+    SELECT DISTINCT ?ver ?TD ?fqn ?uqn
+    WHERE {
+
+      ?TD a java:TypeDeclaration ;
+          java:name ?uqn ;
+          java:fullyQualifiedName ?fqn0 ;
+          ver:version ?ver .
+
+      BIND (REPLACE(?fqn0, "[$$]", ".") AS ?fqn)
+
+    } GROUP BY ?ver ?TD ?fqn ?uqn
+  }
+
+  ?rty a java:ReferenceType ;
+       java:unqualifiedName ?uqn ;
+       java:inTypeDeclaration/ver:version ?ver ;
+       java:name ?tyname0 .
+
+  BIND (REPLACE(?tyname0, "[$$]", ".") AS ?tyname1)
+
+  FILTER (?fqn = ?tyname1 || ?fqn = STRBEFORE(?tyname1, "<"))
+
+}

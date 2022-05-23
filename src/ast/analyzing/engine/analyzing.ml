@@ -1348,13 +1348,18 @@ end;
       if options#dump_delta_flag then begin
         let delta = Filename.concat cache_path Delta_base.delta_file_name^".xml" in
         let dchange = Filename.concat cache_path Stat.changes_file_name in
-
         let edits_copy = edits#copy in
         edits_copy#ungroup tree1 tree2;
         edits_copy#cleanup_ghost tree1 tree2;
-
         Edit.dump_changes options lang tree1 tree2 uidmapping edits_copy edits dchange;
         edits#dump_delta tree1 tree2 uidmapping edits_copy delta
+      end
+      else begin
+        let dchange = Filename.concat cache_path Stat.changes_file_name in
+        let edits_copy = edits#copy in
+        edits_copy#ungroup tree1 tree2;
+        edits_copy#cleanup_ghost tree1 tree2;
+        Edit.dump_changes options lang tree1 tree2 uidmapping edits_copy edits dchange;
       end;
 
       let orig_edits =

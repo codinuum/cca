@@ -1,0 +1,74 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+PREFIX soot: <http://codinuum.com/ontologies/2016/05/soot#>
+
+INSERT {
+  ?ivk java:mayInvoke ?sig .
+  ?ivk java:mayInvokeMethod ?meth .
+}
+WHERE {
+
+  FILTER NOT EXISTS {
+    ?ivk java:mayInvoke [] ;
+         java:mayInvokeMethod [] .
+  }
+
+  {
+    SELECT DISTINCT ?ename ?class0 ?meth ?sig
+    WHERE {
+
+      ?meth a java:MethodDeclaration ;
+            java:inTypeDeclaration ?class0 ;
+            java:fullyQualifiedName ?fqn ;
+            java:signature ?sig0 ;
+            java:extendedName ?ename ;
+            #src:child5 ?body ;
+            java:nParameters 0 .
+
+      BIND (CONCAT(?fqn, ?sig0) AS ?sig)
+
+    } GROUP BY ?ename ?class0 ?meth ?sig
+  }
+
+  {
+    SELECT DISTINCT ?ivk ?class ?ename ?nargs ?args
+    WHERE {
+
+      ?ivk a java:Invocation ;
+           a ?cat OPTION (INFERENCE NONE) ;
+           java:inTypeDeclaration ?class ;
+           java:extendedName ?ename ;
+           src:child1 ?args .
+
+      FILTER (?cat IN (java:SimpleMethodInvocation,java:SimpleMethodInvocationStatement))
+
+    } GROUP BY ?ivk ?class ?ename ?nargs ?args
+  }
+
+  ?class ver:version ?ver .
+  ?class0 ver:version ?ver .
+
+  FILTER (EXISTS {
+    ?class java:inTypeDeclaration ?class1 OPTION (TRANSITIVE,
+                                                  T_DISTINCT,
+                                                  T_SHORTEST_ONLY,
+                                                  T_NO_CYCLES,
+                                                  T_MIN(0)) .
+
+    ?class1 java:subTypeOf ?class0 OPTION (TRANSITIVE,
+                                           T_DISTINCT,
+                                           T_SHORTEST_ONLY,
+                                           T_NO_CYCLES,
+                                           T_MIN(0)) .
+  } || ?class = ?class0)
+
+}

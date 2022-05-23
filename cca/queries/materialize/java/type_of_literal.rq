@@ -1,0 +1,54 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?x java:typeName ?tyname .
+}
+WHERE {
+
+  {
+    ?x a java:IntegerLiteral .
+    BIND("int" AS ?tyname)
+  }
+  UNION
+  {
+    ?x a java:CharacterLiteral .
+    BIND("char" AS ?tyname)
+  }
+  UNION
+  {
+    ?x a java:StringLiteral .
+    BIND("java.lang.String" AS ?tyname)
+  }
+  UNION
+  {
+    ?x a java:True .
+    BIND("boolean" AS ?tyname)
+  }
+  UNION
+  {
+    ?x a java:False .
+    BIND("boolean" AS ?tyname)
+  }
+  UNION
+  {
+    ?x a java:ClassLiteral .
+    BIND("java.lang.Class" AS ?tyname)
+  }
+  UNION
+  {
+    ?x a java:ClassLiteralVoid .
+    BIND("java.lang.Class" AS ?tyname)
+  }
+
+}

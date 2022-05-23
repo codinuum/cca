@@ -1,0 +1,82 @@
+
+DEFINE input:inference "ont.cpi"
+
+PREFIX ent:  <http://codinuum.com/fact/entity/>
+PREFIX rel:  <http://codinuum.com/fact/version/release/>
+PREFIX ext:  <http://codinuum.com/fact/external/>
+PREFIX src:  <http://codinuum.com/ontologies/2012/10/source-code-entity#>
+PREFIX ver:  <http://codinuum.com/ontologies/2012/10/versioning#>
+PREFIX chg:  <http://codinuum.com/ontologies/2012/10/primitive-change#>
+PREFIX java: <http://codinuum.com/ontologies/2012/10/java-entity#>
+PREFIX c:    <http://codinuum.com/ontologies/2012/10/c-entity#>
+
+
+INSERT {
+  ?expr java:ofReferenceType ?tdecl .
+}
+WHERE {
+
+  {
+    SELECT DISTINCT ?td ?fname ?tyname ?tdecl ?src
+    WHERE {
+
+      {
+        SELECT DISTINCT ?td0 ?fname ?tyname ?src ?td
+        WHERE {
+
+          {
+            SELECT DISTINCT ?td0 ?fname ?tyname ?src
+            WHERE {
+
+              ?field a java:FieldDeclaration ;
+                     src:child1 ?ty ;
+                     src:child2 ?vdtor ;
+                     java:inTypeDeclaration ?td0 .
+
+              ?ty a java:ReferenceType ;
+                  src:parent ?field ;
+                  java:name ?tyname .
+
+              ?vdtor a java:VariableDeclarator ;
+                     src:parent ?field ;
+                     java:name ?fname .
+
+              ?td0 src:inSourceTree ?src .
+
+            } GROUP BY ?td0 ?fname ?tyname ?src
+          }
+
+          ?td a java:TypeDeclaration ;
+              java:subTypeOf* ?td0 ;
+              src:inSourceTree ?src .
+
+        } GROUP BY ?td0 ?fname ?tyname ?src ?td
+      }
+
+      ?tdecl a java:TypeDeclaration ;
+             src:inSourceTree ?src ;
+             java:fullyQualifiedName ?tyname .
+
+    } GROUP BY ?td ?fname ?tyname ?tdecl ?src
+  }
+
+  {
+    SELECT DISTINCT ?expr ?src ?fname ?td
+    WHERE {
+
+      ?expr a java:FieldAccess ;
+            java:inTypeDeclaration/src:inSourceTree ?src ;
+            java:name ?fname ;
+            src:child0 ?e .
+
+      ?e a java:Expression ;
+         java:ofReferenceType ?td .
+
+    } GROUP BY ?expr ?src ?fname ?td
+  }
+
+  FILTER NOT EXISTS {
+    ?expr java:ofReferenceType [] .
+  }
+
+}
