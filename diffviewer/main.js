@@ -120,7 +120,22 @@ ipcMain.on('sync-mesg', (event, arg) => {
         }
         const hash0 = getMD5(apath0);
         const hash1 = getMD5(apath1);
-        apathd = path.join(apathd, hash0.substring(0, 2), hash0+'-'+hash1, 'diff.json')
+        _apathd = path.join(apathd, hash0.substring(0, 2), hash0+'-'+hash1)
+        apathd = path.join(_apathd, 'diff.json')
+
+        if (!fs.existsSync(apathd)) {
+          const dents = fs.readdirSync(_apathd, {withFileTypes: true});
+          for (var i = 0; i < dents.length; i++) {
+            const dent = dents[i];
+            if (dent.isDirectory()) {
+              const dp = path.join(_apathd, dent.name, 'diff.json');
+              if (fs.existsSync(dp)) {
+                apathd = dp;
+                break;
+              }
+            }
+          }
+        }
 
         if (fs.existsSync(apathd)) {
 
