@@ -2105,6 +2105,9 @@ let is_expr = function
   | Expr _ -> true
   | _ -> false
 
+let is_op = function (* not yet *)
+  | _ -> false
+
 let is_stmt = function
   | Stmt _ -> true
   | _ -> false

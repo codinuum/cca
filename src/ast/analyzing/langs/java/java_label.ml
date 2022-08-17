@@ -435,15 +435,59 @@ module Literal = struct
     | String of string
     | Null
 
+  let utf8_escape_pat = Str.regexp "\\\\u\\([0-9a-fA-F]+\\)"
+  let unescape_utf8 s =
+    let enc1 i =
+      let l =
+        if i < 0x80 then
+          [i land 0x7f]
+        else if i < 0x0800 then
+          [i lsr 6 land 0x1f lor 0xc0;
+           i land 0x3f lor 0x80]
+        else if i < 0x010000 then
+          [i lsr 12 land 0x0f lor 0xe0;
+           i lsr 6 land 0x3f lor 0x80;
+           i land 0x3f lor 0x80]
+        else if i < 0x110000 then
+          [i lsr 18 land 0x07 lor 0xf0;
+           i lsr 12 land 0x3f lor 0x80;
+           i lsr 6 land 0x3f lor 0x80;
+           i land 0x3f lor 0x80]
+        else
+          invalid_arg "enc1"
+      in
+      "\\" ^ (String.concat "\\" (List.map string_of_int l))
+    in
+    let conv = function
+      | Str.Delim u -> begin
+          let i = int_of_string (Str.replace_first utf8_escape_pat "0x\\1" u) in
+          if i < 8 then
+            "\\" ^ (string_of_int i)
+          else if i = 0xb then
+            "\\u000b"
+          else
+            try
+              Scanf.unescaped (enc1 i)
+            with _ -> u
+      end
+      | Str.Text t -> t
+    in
+    String.concat "" (List.map conv (Str.full_split utf8_escape_pat s))
+
   let escaped_double_quote_pat = Str.regexp_string "\\\""
+
   let reduce_char s = (* remove slash followed by double quote *)
-    Str.global_replace escaped_double_quote_pat "\"" s
+    let s0 = unescape_utf8 s in
+    Str.global_replace escaped_double_quote_pat "\"" s0
 
   let escaped_single_quote_pat = Str.regexp_string "\\'"
   let tab_pat = Str.regexp_string "\t"
-  let reduce_string s = (* remove slash followed by single quote *)
-    let s_ = Str.global_replace escaped_single_quote_pat "'" s in
-    Str.global_replace tab_pat "\\t" s_
+
+  let reduce_string s = (* remove slash followed by single quote and unescape UTF8 *)
+    let s0 = unescape_utf8 s in
+    let s1 = Str.global_replace escaped_single_quote_pat "'" s0 in
+    Str.global_replace tab_pat "\\t" s1
+
 
   let of_literal
       ?(anonymize_int=false)
@@ -2675,6 +2719,7 @@ let is_collapse_target options lab =
     | ForInit _
     | ForCond _
     | ForUpdate _
+(*    | ForHeader _*)
     | Block _
     | Parameters _
     | MethodBody _
@@ -2688,6 +2733,8 @@ let is_collapse_target options lab =
     | FieldDeclarations _
     | InferredFormalParameters
     | ArrayInitializer
+(*    | CatchParameter _*)
+(*    | CatchClause _*)
 
     | Aspect _
     | Pointcut _
@@ -2871,12 +2918,12 @@ let relabel_allowed (lab1, lab2) =
     | _ -> false
   in
   let b = allowed && not disallowed in
-  BEGIN_DEBUG
+  (*BEGIN_DEBUG
     DEBUG_MSG "%s vs %s -> %B" (to_string lab1) (to_string lab2) b;
     let tag1, _ = to_tag lab1 in
     let tag2, _ = to_tag lab2 in
     DEBUG_MSG "%s vs %s -> %B" tag1 tag2 b;
-  END_DEBUG;
+  END_DEBUG;*)
   b
 
 let move_disallowed = function
@@ -3047,6 +3094,7 @@ let is_sequence = function
   | TypeDeclarations
   | CompilationUnit
   | FieldDeclarations _
+(*  | ArrayInitializer*)
 (*  | InferredFormalParameters*)
     -> true
 
@@ -3367,6 +3415,15 @@ let is_expression = function
   | Primary _
   | Expression _
     -> true
+  | _ -> false
+
+let is_op = function
+  | Expression (
+    Expression.UnaryOperator _ |
+    Expression.BinaryOperator _ |
+    Expression.Instanceof |
+    Expression.AssignmentOperator _)
+      -> true
   | _ -> false
 
 let is_methodinvocation = function

@@ -309,14 +309,33 @@ let find_file_name_with_exts fname exts =
     with
       File_found f -> Some f
 
-let node_to_uid_string nd =
+let node_to_ugid_string nd =
   Printf.sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
+
+let node_to_uid_string nd =
+  Printf.sprintf "%a" UID.ps nd#uid
 
 let nodes_to_uids_string nds =
   String.concat ";" (List.map node_to_uid_string nds)
 
-let nps () = node_to_uid_string
+let node_to_loc_string nd = Loc.to_string nd#data#src_loc
+
+let node_to_lab_string nd =
+  let v = try nd#data#get_name with _ -> try nd#data#get_value with _ -> "" in
+  if v = "" then
+    nd#data#get_category
+  else
+    Printf.sprintf "%s(%s)" nd#data#get_category v
+
+let node_to_data_string nd = Printf.sprintf "[%s] %s" (node_to_loc_string nd) (node_to_lab_string nd)
+
+let nps () = node_to_ugid_string
+let nups () = node_to_uid_string
 let nsps () = nodes_to_uids_string
+let locps () = node_to_loc_string
+let labps () = node_to_lab_string
+let ndps  () = node_to_data_string
+let ups = UID.ps
 
 let next_to_each_other n1 n2 =
   try

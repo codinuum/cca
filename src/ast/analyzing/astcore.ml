@@ -29,7 +29,7 @@ module Pxp_ev_parser   = Pxp_ev_parser
 module Pxp_event       = Pxp_event
 
 (* required by Mfortran.cmxs *)
-module Stream = Stdlib.Stream
+module Stream = Stream
 let _ = Stream.from
 
 
@@ -89,6 +89,7 @@ class virtual base_c options = object (self)
   method search_cache_for_info cache_path =
     let paths =
       Cache.search_cache
+        ~fuzzy:options#fuzzy_cache_flag
         ~local_cache_name:options#local_cache_name
         cache_path
         S.info_file_name
@@ -97,6 +98,7 @@ class virtual base_c options = object (self)
 
   method search_cache_for_stat cache_path =
     Cache.search_cache
+      ~fuzzy:options#fuzzy_cache_flag
       ~completion:true
       ~local_cache_name:options#local_cache_name
       cache_path

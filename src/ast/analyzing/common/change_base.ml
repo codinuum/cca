@@ -983,6 +983,7 @@ module F (L : Spec.LABEL_T) = struct
 	let changes_list = self#make_changes_list() in
 
 	let n_change_classes = List.length changes_list in
+        let _ = n_change_classes in
 
 	let res, _info, _ =
 	  List.fold_left

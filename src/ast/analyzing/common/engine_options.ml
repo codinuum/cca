@@ -123,21 +123,21 @@ class c = object (self)
   method set_prematch_early_resolve_flag = prematch_early_resolve_flag <- true
   method clear_prematch_early_resolve_flag = prematch_early_resolve_flag <- false
 
-  method preprune_flag   = preprune_flag
-  method set_preprune_flag   = preprune_flag <- true
-  method clear_preprune_flag   = preprune_flag <- false
+  method preprune_flag = preprune_flag
+  method set_preprune_flag = preprune_flag <- true
+  method clear_preprune_flag = preprune_flag <- false
 
-  method multi_node_match_flag= multi_node_match_flag
-  method set_multi_node_match_flag= multi_node_match_flag <- true
-  method clear_multi_node_match_flag= multi_node_match_flag <- false
+  method multi_node_match_flag = multi_node_match_flag
+  method set_multi_node_match_flag = multi_node_match_flag <- true
+  method clear_multi_node_match_flag = multi_node_match_flag <- false
 
-  method lower_ee_flag= lower_ee_flag
-  method set_lower_ee_flag= lower_ee_flag <- true
-  method clear_lower_ee_flag= lower_ee_flag <- false
+  method lower_ee_flag = lower_ee_flag
+  method set_lower_ee_flag = lower_ee_flag <- true
+  method clear_lower_ee_flag = lower_ee_flag <- false
 
-  method trust_tree_matcher_flag  = trust_tree_matcher_flag
-  method set_trust_tree_matcher_flag  = trust_tree_matcher_flag <- true
-  method clear_trust_tree_matcher_flag  = trust_tree_matcher_flag <- false
+  method trust_tree_matcher_flag = trust_tree_matcher_flag
+  method set_trust_tree_matcher_flag = trust_tree_matcher_flag <- true
+  method clear_trust_tree_matcher_flag = trust_tree_matcher_flag <- false
 
   method multiple_classification_flag = multiple_classification_flag
   method set_multiple_classification_flag = multiple_classification_flag <- true

@@ -188,6 +188,7 @@ let speclist =
    "-parser:cpp", Arg.Unit (fun () -> options#designate_parser "cpp"), "\t\t\tforce to use C++ parser";
    "-parser:disable", Arg.String options#disable_parser, "PARSER_ID\tdisable parser";
    "-parser:reduce-ast", Arg.Unit (fun () -> options#set_ast_reduction_flag), "\t\treduce AST";
+   "-parser:normalize-ast", Arg.Unit (fun () -> options#set_normalize_ast_flag), "\t\tnormalize AST";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\tdump AST";
@@ -217,6 +218,7 @@ let speclist =
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
    "-clearcache", Arg.Unit (fun () -> options#set_clear_cache_flag), "\tclear cache dir";
    "-usecache", Arg.Unit (fun () -> options#clear_clear_cache_flag), "\tuse cache";
+   "-fuzzycache", Arg.Unit (fun () -> options#set_fuzzy_cache_flag), "\tsearch cache dir fuzzily";
    "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
    "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
    "-localcachename", Arg.String options#set_local_cache_name,
@@ -232,11 +234,10 @@ let speclist =
 
    "-hardlimit", Arg.Int options#set_hard_tree_size_limit,
    sprintf "N\thard tree size limit (default: %d)" options#hard_tree_size_limit;
-
-   "-multinodematch", Arg.Unit (fun () -> options#set_multi_node_match_flag), "\tmaintain multiple node matches";
 (*
-   "-nomultinodematch", Arg.Unit (fun () -> options#clear_multi_node_match_flag), "\tdo not maintain multiple node matches";
+   "-multinodematch", Arg.Unit (fun () -> options#set_multi_node_match_flag), "\tmaintain multiple node matches";
 *)
+   "-nomultinodematch", Arg.Unit (fun () -> options#clear_multi_node_match_flag), "\tdo not maintain multiple node matches";
 
    "-preprune", Arg.Int options#set_preprune_threshold,
    sprintf "N\tpre-prune size threshold (default: %d)" options#preprune_threshold;
@@ -348,11 +349,11 @@ let speclist =
    "-fortran:ignore-include",  Arg.Unit (fun () -> options#set_fortran_ignore_include_flag), "\tignore include lines";
 
 (* Yacfe *)
-   "-yacfe:macros", Arg.String options#set_yacfe_defs_builtins, "FILE\tread yacfe macro FILE";
+(*   "-yacfe:macros", Arg.String options#set_yacfe_defs_builtins, "FILE\tread yacfe macro FILE";*)
 (*
    "-yacfe:env",    Arg.String options#set_yacfe_env, "FILE\tread yacfe env FILE";
 *)
-   "-yacfe:if0",    Arg.Unit (fun () -> options#clear_ignore_if0_flag), "\t\tparse code in '#if 0' block";
+(*   "-yacfe:if0",    Arg.Unit (fun () -> options#clear_ignore_if0_flag), "\t\tparse code in '#if 0' block";*)
 
 (* origin *)
    "-origin:nctms", Arg.String options#set_nctms_file, "NCTMS_FILE\tdump origin file using NCTMS_FILE";

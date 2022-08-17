@@ -392,30 +392,28 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           begin
             match eds with
               [] -> true
-            | [Delete(w', u', _, _) as ed'] ->
+            | [Delete(w', u', _, _) as ed'] -> begin
+                let _ = ed' in
                 let b = w = w' && u = u' in
-
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
                   else
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
-
                 b
-
-            | [ed';ed''] ->
-                DEBUG_MSG "%s conflicts %s and %s"
-                  (to_string ed) (to_string ed') (to_string ed'');
-
+            end
+            | [ed';ed''] -> begin
+                DEBUG_MSG "%s conflicts %s and %s" (to_string ed) (to_string ed') (to_string ed'');
                 false
-
-            | _ ->
+            end
+            | _ -> begin
                 List.iter
                   (fun ed' ->
                     DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
                   ) eds;
                 assert false
+            end
           end
 
       | Insert(w, v, _, _)  ->
@@ -423,30 +421,28 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           begin
             match eds with
             | [] -> true
-            | [Insert(w', v', _, _) as ed'] ->
+            | [Insert(w', v', _, _) as ed'] -> begin
+                let _ = ed' in
                 let b = w = w' && v = v' in
-
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
                   else
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
-
                 b
-
-            | [ed';ed''] ->
-                DEBUG_MSG "%s conflicts %s and %s"
-                  (to_string ed) (to_string ed') (to_string ed'');
-
+            end
+            | [ed';ed''] -> begin
+                DEBUG_MSG "%s conflicts %s and %s" (to_string ed) (to_string ed') (to_string ed'');
                 false
-
-            | _ ->
+            end
+            | _ -> begin
                 List.iter
                   (fun ed' ->
                     DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
                   ) eds;
                 assert false
+            end
           end
 
       | Relabel(_, (u, _, _), (v, _, _)) ->
@@ -454,40 +450,36 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           begin
             match eds with
             | [] -> true
-            | [Move(_, _, (u', _, _), (v', _, _)) as ed'] ->
+            | [Move(_, _, (u', _, _), (v', _, _)) as ed'] -> begin
+                let _ = ed' in
                 let b = u = u' && v = v' in
-
                 BEGIN_DEBUG
                   if not b then
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
-
                 b
-
-            | [ed'] ->
+            end
+            | [ed'] -> begin
                 let b = ed = ed' in
-
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
                   else
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
-
                 b
-
-            | [ed';ed''] ->
-                DEBUG_MSG "%s conflicts %s and %s"
-                  (to_string ed) (to_string ed') (to_string ed'');
-
+            end
+            | [ed';ed''] -> begin
+                DEBUG_MSG "%s conflicts %s and %s" (to_string ed) (to_string ed') (to_string ed'');
                 false
-
-            | _ ->
+            end
+            | _ -> begin
                 List.iter
                   (fun ed' ->
                     DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
                   ) eds;
                 assert false
+            end
           end
 
       | Move(m, k, (u, _, x), (v, _, y)) ->
@@ -495,40 +487,37 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           begin
             match eds with
             | [] -> true
-            | [Relabel(_, (u', _, _), (v', _, _)) as ed'] ->
+            | [Relabel(_, (u', _, _), (v', _, _)) as ed'] -> begin
+                let _ = ed' in
                 let b = u = u' && v = v' in
-
                 BEGIN_DEBUG
                   if not b then
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
-
                 b
-
-            | [Move(m', k', (u', _, x'), (v', _, y')) as ed'] ->
+            end
+            | [Move(m', k', (u', _, x'), (v', _, y')) as ed'] -> begin
+                let _ = ed' in
                 let b = u = u' && !m = !m' && !k = !k' && (!x = !x' || !x' = []) && (!y = !y' || !y' = []) in
-
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
                   else
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
-
                 b
-
-            | [ed';ed''] ->
-                DEBUG_MSG "%s conflicts %s and %s"
-                  (to_string ed) (to_string ed') (to_string ed'');
-
+            end
+            | [ed';ed''] -> begin
+                DEBUG_MSG "%s conflicts %s and %s" (to_string ed) (to_string ed') (to_string ed'');
                 false
-
-            | _ ->
+            end
+            | _ -> begin
                 List.iter
                   (fun ed' ->
                     DEBUG_MSG "%s conflicts with %s" (to_string ed) (to_string ed')
                   ) eds;
                 assert false
+            end
           end
     in
     result
@@ -2200,32 +2189,32 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     in
     let tree_eq t1 t2 =
       let rec scan nds1 nds2 =
-	match nds1, nds2 with
-	| [], [] -> true
-	| nd1::rest1, nd2::rest2 ->
+        match nds1, nds2 with
+        | [], [] -> true
+        | nd1::rest1, nd2::rest2 ->
 
-	    DEBUG_MSG "%a - %a" UID.ps nd1#uid UID.ps nd2#uid;
+            DEBUG_MSG "%a - %a" UID.ps nd1#uid UID.ps nd2#uid;
 
-	    (if node_eq nd1 nd2 then
-	      let cl1 = Array.to_list nd1#children in
-	      let cl2 = Array.to_list nd2#children in
-	      let sub = scan cl1 cl2 in
-	      sub
-	    else begin
-	      WARN_MSG "%s != %s" (nd1#to_string) (nd2#to_string);
-	      false
-	    end)
-	      &&
-	    (scan rest1 rest2)
-	| nd::_, [] ->
-	    WARN_MSG "number of children mismatch: (>) %s [%s,...]"
-	      (nd#parent#to_string) (nd#to_string);
-	    false
+            (if node_eq nd1 nd2 then
+              let cl1 = Array.to_list nd1#children in
+              let cl2 = Array.to_list nd2#children in
+              let sub = scan cl1 cl2 in
+              sub
+            else begin
+              WARN_MSG "%s != %s" (nd1#to_string) (nd2#to_string);
+              false
+            end)
+              &&
+            (scan rest1 rest2)
+        | nd::_, [] ->
+            WARN_MSG "number of children mismatch: (>) %s [%s,...]"
+              (nd#parent#to_string) (nd#to_string);
+            false
 
-	| [], nd::_ ->
-	    WARN_MSG "number of children mismatch: (<) %s [%s,...]"
-	      (nd#parent#to_string) (nd#to_string);
-	    false
+        | [], nd::_ ->
+            WARN_MSG "number of children mismatch: (<) %s [%s,...]"
+              (nd#parent#to_string) (nd#to_string);
+            false
       in
       scan [t1#root] [t2#root]
     in
@@ -4019,7 +4008,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     (* end of method shrink_moves *)
 
-  method is_crossing_with_untouched ?(mask=[]) ?(incompatible_only=false) (uidmapping : 'node_t UIDmapping.c) nd1 nd2 =
+  method is_crossing_with_untouched
+      ?(mask=[])
+      ?(incompatible_only=false)
+      ?(statement_only=false)
+      (uidmapping : 'node_t UIDmapping.c)
+      nd1 nd2
+      =
     DEBUG_MSG "%a-%a" UID.ps nd1#uid UID.ps nd2#uid;
     let iter =
       if incompatible_only then
@@ -4036,7 +4031,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           if not (List.mem (u1, u2) mask) && not (self#mem_mov12 u1 u2) then
             let n1 = uidmapping#search_node_by_uid1 u1 in
             let n2 = uidmapping#search_node_by_uid2 u2 in
-            if (not (is_ghost_node n1)) && (not (is_ghost_node n2)) then begin
+            if
+              (not (is_ghost_node n1)) && (not (is_ghost_node n2)) &&
+              (not statement_only || n1#data#is_statement && n2#data#is_statement)
+            then begin
               DEBUG_MSG "%a-%a is crossing with %a-%a" UID.ps nd1#uid UID.ps nd2#uid UID.ps u1 UID.ps u2;
               raise Exit
             end

@@ -2146,6 +2146,11 @@ let is_expr = function
     -> true
   | lab -> is_primary lab
 
+let is_op = function
+  | DefinedOperator _
+  | IntrinsicOperator _
+    -> true
+  | _ -> false
 
 let is_compatible ?(weak=false) _ _ = false
 

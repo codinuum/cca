@@ -71,7 +71,7 @@ let _ =
         END_INFO
       end;
 
-      exit 0
+      ignore (exit 0)
     done
   with
   | Sys_error msg

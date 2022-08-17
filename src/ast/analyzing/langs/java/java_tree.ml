@@ -875,11 +875,19 @@ class translator options =
     set_loc nd ms.Ast.ms_loc;
     nd
 
-  method of_modifiers_opt kind (*name*) = function
+  method of_modifiers_opt ?(remove_final=false) kind (*name*) = function
     | None -> []
         (*let namek = name^(L.kind_to_suffix kind) in
         let nd = self#mklnode (L.Modifiers namek) [] in
         [nd]*)
+    | Some ms when remove_final -> begin
+        let l = List.filter (fun m -> m.Ast.m_desc <> Ast.Mfinal) ms.Ast.ms_modifiers in
+        match l with
+        | [] -> []
+        | _ ->
+            let ms_ = {Ast.ms_modifiers=l; Ast.ms_loc=ms.Ast.ms_loc} in
+            [self#of_modifiers kind ms_]
+    end
     | Some ms -> [self#of_modifiers kind (*name*) ms]
 
   method of_throws mname th =
@@ -1012,14 +1020,14 @@ class translator options =
 
   method vdids_to_str vdids = String.concat ";" (List.map (fun (id, _) -> id) vdids)
 
-  method of_local_variable_declaration ~is_stmt lvd =
+  method of_local_variable_declaration ?(remove_final=false) ~is_stmt lvd =
     let mods = lvd.Ast.lvd_modifiers in
     let vdtors = lvd.Ast.lvd_variable_declarators in
     let vdids =
       List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors
     in
     let vdids_str = self#vdids_to_str vdids in
-    let mod_nodes = self#of_modifiers_opt (L.Klocal vdids_str) mods in
+    let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdids_str) mods in
 
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors])
@@ -1663,7 +1671,10 @@ class translator options =
 
   method of_resource r =
     match r.Ast.r_desc with
-    | Ast.RlocalVarDecl lvd -> self#of_local_variable_declaration ~is_stmt:false lvd
+    | Ast.RlocalVarDecl lvd -> begin
+        let remove_final = options#ast_reduction_flag in
+        self#of_local_variable_declaration ~remove_final ~is_stmt:false lvd
+    end
     | Ast.RfieldAccess fa -> self#of_field_access fa
     | Ast.Rname name -> begin
         let loc0 = Ast.Loc.collapse_forward r.Ast.r_loc in
@@ -1739,6 +1750,18 @@ class translator options =
     set_loc nd sb.Ast.sb_loc;
     nd
 
+  method private gen_block s_ =
+    let tid = self#__mktid "block" in
+    let nd = self#mklnode (L.Block tid) [s_] in
+    nd#data#set_loc s_#data#src_loc;
+    nd
+
+  method private normalize_block_stmt s_ =
+    if options#normalize_ast_flag && not (L.is_block (getlab s_)) then
+      self#gen_block s_
+    else
+      s_
+
   method of_statement ?(block_context="block") s =
     let nd =
       match s.Ast.s_desc with
@@ -1751,10 +1774,12 @@ class translator options =
             [self#of_expression e; self#of_switch_block switch_block]
 
       | Ast.Sdo(s, e) ->
-          (self#mknode (L.Statement L.Statement.Do)
-             [self#of_statement ~block_context:"do" s; self#of_expression e])
+          let s_ = self#of_statement ~block_context:"do" s in
+          let s_ = self#normalize_block_stmt s_ in
+          (self#mknode (L.Statement L.Statement.Do) [s_; self#of_expression e])
 
       | Ast.Sbreak ident_opt    -> self#mkleaf (L.Statement (L.Statement.Break ident_opt))
+
       | Ast.Scontinue ident_opt ->
           self#mkleaf (L.Statement (L.Statement.Continue ident_opt))
 
@@ -1793,23 +1818,25 @@ class translator options =
           let tid = self#mktid e_ in
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
-          self#mknode lab
-            [e_;
-             self#of_statement ~block_context:"if" s] (* order sensitive s -> e *)
+          let s_ = self#of_statement ~block_context:"if" s in
+          let s_ = self#normalize_block_stmt s_ in
+          self#mknode lab [e_; s_] (* order sensitive s -> e *)
 
       | Ast.SifThenElse(e, s1, s2) ->
           let e_ = self#of_expression e in
           let tid = self#mktid e_ in
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
-          self#mknode lab
-            [e_;
-             self#of_statement ~block_context:"if" s1;
-             self#of_statement ~block_context:"if" s2] (* order sensitive s2 -> s1 -> e *)
+          let s1_ = self#of_statement ~block_context:"if" s1 in
+          let s2_ = self#of_statement ~block_context:"if" s2 in
+          let s1_ = self#normalize_block_stmt s1_ in
+          let s2_ = self#normalize_block_stmt s2_ in
+          self#mknode lab [e_; s1_; s2_] (* order sensitive s2 -> s1 -> e *)
 
       | Ast.Swhile(e, s) ->
-          self#mknode (L.Statement L.Statement.While)
-            [self#of_expression e; self#of_statement ~block_context:"while" s]
+          let s_ = self#of_statement ~block_context:"while" s in
+          let s_ = self#normalize_block_stmt s_ in
+          self#mknode (L.Statement L.Statement.While) [self#of_expression e; s_]
 
       | Ast.Sfor(init_opt, e_opt, se_list, s) ->
           let ordinal_tbl_opt =
@@ -1819,6 +1846,8 @@ class translator options =
                                    1;
                                  ])
           in
+          let s_ = self#of_statement ~block_context:"for" s in
+          let s_ = self#normalize_block_stmt s_ in
           let children =
             (match init_opt with None -> [] | Some init -> [self#of_for_init init]) @
             (match e_opt with
@@ -1842,16 +1871,17 @@ class translator options =
               set_nodes_loc n se_nodes;
               [n]
             end
-            else []) @
-            [self#of_statement ~block_context:"for" s]
+            else []) @ [s_]
           in
           self#mknode ~ordinal_tbl_opt (L.Statement L.Statement.For) children
 
       | Ast.SforEnhanced(param, e, s) ->
+          let s_ = self#of_statement ~block_context:"for" s in
+          let s_ = self#normalize_block_stmt s_ in
           self#mknode (L.Statement L.Statement.ForEnhanced)
             [self#of_for_header param;
              self#of_expression e;
-             self#of_statement ~block_context:"for" s]
+             s_]
 
       | Ast.Sassert1 e ->
           self#mknode (L.Statement L.Statement.Assert) [self#of_expression e]
@@ -1866,17 +1896,20 @@ class translator options =
     nd
 
   method _of_block ?(orig_lab_opt=None) lab b =
-    if options#ast_reduction_flag && List.length b.Ast.b_block_statements = 1 then
+    if
+      options#ast_reduction_flag && not options#normalize_ast_flag &&
+      List.length b.Ast.b_block_statements = 1
+    then
       match b.Ast.b_block_statements with
       | [stmt] -> self#of_block_statement stmt
       | _ -> assert false
     else
-    let nd =
-      self#mklnode ~orig_lab_opt lab
-        (List.map self#of_block_statement b.Ast.b_block_statements)
-    in
-    set_loc nd b.Ast.b_loc;
-    nd
+      let nd =
+        self#mklnode ~orig_lab_opt lab
+          (List.map self#of_block_statement b.Ast.b_block_statements)
+      in
+      set_loc nd b.Ast.b_loc;
+      nd
 
   method of_block ?(tid=L.null_tid) b = self#_of_block (L.Block tid) b
 
@@ -2294,6 +2327,15 @@ class translator options =
   method of_annotation a =
     let nd =
       match a.Ast.a_desc with
+      | Ast.Anormal(name, [{ Ast.evp_desc=("value", ev); Ast.evp_loc=loc }])
+        when options#ast_reduction_flag ->
+          let orig_lab_opt =
+            Some (L.Annotation (L.Annotation.SingleElement (L.conv_name ~resolve:false name)))
+          in
+          self#mknode ~orig_lab_opt
+            (L.Annotation (L.Annotation.SingleElement (L.conv_name name)))
+            [self#of_element_value ev]
+
       | Ast.Anormal(name, evps) ->
           let orig_lab_opt =
             Some (L.Annotation (L.Annotation.Normal (L.conv_name ~resolve:false name)))
@@ -2329,6 +2371,7 @@ class translator options =
       match ev.Ast.ev_desc with
       | Ast.EVconditional e -> self#mknode L.EVconditional [self#of_expression e]
       | Ast.EVannotation a -> self#mknode L.EVannotation [self#of_annotation a]
+      | Ast.EVarrayInit [ev] when options#ast_reduction_flag -> self#of_element_value ev
       | Ast.EVarrayInit evs ->
           self#mknode L.EVarrayInit (List.map self#of_element_value evs)
     in

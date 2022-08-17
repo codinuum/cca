@@ -330,6 +330,7 @@ module IrreversibleFormat = struct
                         let _rp' = ref Path.root in
                         match Hashtbl.find mov_tbl mid with
                         | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
+                            let _ = mov in
                             DEBUG_MSG "checking %s" (edit_to_string mov);
                             path_to#parent_path <> path_from#path &&
                             let _ = _rp' := Path.remove_head path_from#path _ppath in
@@ -369,6 +370,7 @@ module IrreversibleFormat = struct
                         let _rp' = ref Path.root in
                         match Hashtbl.find mov_tbl mid with
                         | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
+                            let _ = mov in
                             path_to#parent_path <> path_from#path &&
                             let _ = _rp' := Path.remove_head path_from#path _ppath in
                             List.for_all (fun p -> p#upstream = 0 && p#key_opt = None) paths_from

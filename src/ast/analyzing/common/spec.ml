@@ -68,6 +68,7 @@ class type node_data_t = object ('self)
   method is_int_literal    : bool
   method is_real_literal   : bool
   method is_statement      : bool
+  method is_op             : bool
 
   method move_disallowed : bool
   method is_common       : bool
@@ -394,8 +395,17 @@ module type LABEL_T = sig
   val is_real_literal    : t -> bool
 
   val is_statement       : t -> bool
+  val is_op              : t -> bool
 
   val to_tag             : ?strip:bool -> t -> string * (string * string) list
 
 end (* of module type LABEL_T *)
 
+
+class type upairs_t = object ('self)
+
+  method mem : UID.t -> UID.t -> bool
+  method add : UID.t -> UID.t -> unit
+  method iter : (UID.t -> UID.t -> unit) -> unit
+
+end

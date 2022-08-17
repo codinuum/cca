@@ -478,6 +478,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method is_int_literal = L.is_int_literal lab
       method is_real_literal = L.is_real_literal lab
       method is_statement = L.is_statement lab
+      method is_op = L.is_op lab
 
       val mutable move_id = MID.unknown
       method set_mid mid = move_id <- mid

@@ -1697,6 +1697,75 @@ let is_expr = function
     -> true
   | lab -> is_primary lab
 
+let is_op = function
+  | LogicalOrExpression _
+  | LogicalAndExpression _
+  | InclusiveOrExpression _
+  | ExclusiveOrExpression _
+  | AndExpression _
+  | EqualityExpressionEq
+  | EqualityExpressionNeq _
+  | RelationalExpressionLt
+  | RelationalExpressionGt
+  | RelationalExpressionLe
+  | RelationalExpressionGe
+  | CompareExpression
+  | ShiftExpression
+  | ShiftExpressionLeft
+  | ShiftExpressionRight
+  | AdditiveExpression
+  | AdditiveExpressionAdd
+  | AdditiveExpressionSubt
+  | MultiplicativeExpressionMult
+  | MultiplicativeExpressionDiv
+  | MultiplicativeExpressionMod
+  | PmExpressionClass
+  | PmExpressionPtr
+  | UnaryExpressionIncr
+  | UnaryExpressionDecr
+  | UnaryExpressionInd
+  | UnaryExpressionAddr
+  | UnaryExpressionLabelAddr
+  | UnaryExpressionPlus
+  | UnaryExpressionMinus
+  | UnaryExpressionNeg _
+  | UnaryExpressionCompl _
+  | UnaryExpressionSizeof
+  | UnaryExpressionSizeofPack _
+  | UnaryExpressionAlignof
+  | PostfixExpressionSubscr
+  | PostfixExpressionFunCall
+  | PostfixExpressionExplicitTypeConv
+  | PostfixExpressionDot
+  | PostfixExpressionArrow
+  | PostfixExpressionIncr
+  | PostfixExpressionDecr
+  | PostfixExpressionTypeid
+  | PostfixExpressionDynamic_cast
+  | PostfixExpressionStatic_cast
+  | PostfixExpressionReinterpret_cast
+  | PostfixExpressionConst_cast
+  | AssignmentExpression
+  | AssignmentExpressionOverloaded _
+  | AssignmentExpressionEq
+  | AssignmentExpressionPlus
+  | AssignmentExpressionMinus
+  | AssignmentExpressionMult
+  | AssignmentExpressionDiv
+  | AssignmentExpressionMod
+  | AssignmentExpressionShiftLeft
+  | AssignmentExpressionShiftRight
+  | AssignmentExpressionAnd _
+  | AssignmentExpressionXor _
+  | AssignmentExpressionOr _
+  | ExpressionPair
+  | ConditionalExpression
+  | ExpressionMacroInvocation _
+  | CudaKernelCall
+  | SwiftFunCall
+      -> true
+  | _ -> false
+
 let is_pp_branch = function
   | PpIf _
   | PpIfdef _

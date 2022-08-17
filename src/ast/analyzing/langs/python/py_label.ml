@@ -1367,6 +1367,11 @@ let is_statement = function
     -> true
   | _ -> false
 
+let is_op = function
+  | UnaryOperator _
+  | BinaryOperator _
+      -> true
+  | _ -> false
 
 (* for fact extraction *)
 

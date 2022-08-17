@@ -167,6 +167,8 @@ class diffast_args = object (self)
 
   method clearcache = mk_flag ["clearcache"] "Clear diff cache."
 
+  method fuzzycache = mk_flag ["fuzzycache"] "Search diff cache fuzzily."
+
   method external_parser = mk_flag ["parser:external"] "Rely on external parsers."
 
   method dump_delta = mk_flag ["dump:delta"] "Output delta."
@@ -213,6 +215,7 @@ let get_opts
     ~external_parser
     ~disable_parser
     ~clearcache
+    ~fuzzycache
     ~cache_dir_base
     ~dump_delta
     ~dump_fact
@@ -233,6 +236,9 @@ let get_opts
 
   if clearcache then
     options#set_clear_cache_flag;
+
+  if fuzzycache then
+    options#set_fuzzy_cache_flag;
 
   if dump_delta then
     options#set_dump_delta_flag;
@@ -315,7 +321,7 @@ let extract = {
     Arg.(non_empty & pos_right 0 string [] & doc)
   in
   let extract
-      external_parser disable_parser clearcache cache_dir_base dump_delta
+      external_parser disable_parser clearcache fuzzycache cache_dir_base dump_delta
       fact_proj fact_into_virtuoso fact_into_directory fact_enc
       fact_size_thresh local_cache_name
       root sha1s =
@@ -323,7 +329,7 @@ let extract = {
 
       let options =
         get_opts ~verbose:(verbose())
-          ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
+          ~external_parser ~disable_parser ~clearcache ~fuzzycache ~cache_dir_base ~dump_delta
           ~dump_fact:true ~fact_proj ~fact_size_thresh ~fact_enc
           ~fact_into_virtuoso ~fact_into_directory
           ~local_cache_name
@@ -366,7 +372,7 @@ let extract = {
   in
   Term.(mk extract $
         args#external_parser $ args#disable_parser $
-        args#clearcache $ args#cache_dir_base $ args#dump_delta $
+        args#clearcache $ args#fuzzycache $ args#cache_dir_base $ args#dump_delta $
         args#fact_proj $ args#fact_into_virtuoso $
         args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $
         args#local_cache_name $
@@ -386,7 +392,7 @@ let diffast = {
     Arg.(non_empty & pos_right 0 string [] & doc)
   in
   let diffast recurse ignore_unmodified
-      external_parser disable_parser clearcache cache_dir_base dump_delta
+      external_parser disable_parser clearcache fuzzycache cache_dir_base dump_delta
       dump_fact fact_proj fact_into_virtuoso fact_into_directory fact_enc
       fact_size_thresh local_cache_name
       root sha1s =
@@ -394,7 +400,7 @@ let diffast = {
 
       let options =
         get_opts ~verbose:(verbose())
-          ~external_parser ~disable_parser ~clearcache ~cache_dir_base ~dump_delta
+          ~external_parser ~disable_parser ~clearcache ~fuzzycache ~cache_dir_base ~dump_delta
           ~dump_fact ~fact_proj ~fact_size_thresh ~fact_enc
           ~fact_into_virtuoso ~fact_into_directory
           ~local_cache_name
@@ -572,7 +578,7 @@ let diffast = {
   in
   Term.(mk diffast $ recurse $ ignore_unmodified $
         args#external_parser $ args#disable_parser $
-        args#clearcache $ args#cache_dir_base $ args#dump_delta $
+        args#clearcache $ args#fuzzycache $ args#cache_dir_base $ args#dump_delta $
         args#dump_fact $ args#fact_proj $ args#fact_into_virtuoso $
         args#fact_into_directory $ args#fact_enc $ args#fact_size_thresh $
         args#local_cache_name $

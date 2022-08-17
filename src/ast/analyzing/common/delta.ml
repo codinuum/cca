@@ -8813,6 +8813,7 @@ module Edit = struct
                             let instgts =
                               List.map (fun c' -> Hashtbl.find insttbl c') conflicts'
                             in
+                            let _ = instgts in
                             DEBUG_MSG "instgts=[%a]" nsps instgts;
                             let res = ref false in
                             let cur' = ref n'#initial_parent in

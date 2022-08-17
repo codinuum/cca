@@ -607,7 +607,7 @@ class env = object (self)
   method end_scope() =
     DEBUG_MSG "POP(%d)" (Stack.length stack);
     try
-      let frm = Stack.pop stack in
+      let _(*frm*) = Stack.pop stack in
       (*if is_class_frame frm#kind && self#in_class then begin
       end*)()
     with
@@ -916,10 +916,12 @@ class env = object (self)
     DEBUG_MSG "nattr=%s" (P.name_attribute_to_string !nattr_ref);
     let rec check_attr ?(continue=true) find_all id = function
       | IAclass s | IAinterface s | IAtypename s as ia -> begin
+          let _ = ia in
           DEBUG_MSG "found: %s" (iattr_to_str ia);
           raise (Type_found (if s = "" then id else s))
       end
       | IAfield | IAarray | IAexpression as ia -> begin
+          let _ = ia in
           DEBUG_MSG "found: %s" (iattr_to_str ia);
           raise Expr_found
       end

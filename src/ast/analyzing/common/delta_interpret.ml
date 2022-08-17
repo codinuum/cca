@@ -898,6 +898,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             Hashtbl.iter
               (fun ofs c ->
                 let spc = if (fst (modf ofs)) > 0. then "" else "  " in
+                let _ = spc in
                 try
                   let c' = Hashtbl.find tbl2' ofs in
                   if is_ancestor c' c then
@@ -1634,7 +1635,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     let _has_quasi_upstream_descendant key_opt nd =
       DEBUG_MSG "key_opt(deleted)=%s nd=%a" (key_opt_to_string key_opt) nps nd;
-      let key_opts = ref [key_opt] in
+      (*let key_opts = ref [key_opt] in*)
       (*let ik_opt = self#find_key_opt nd in
       DEBUG_MSG "ik_opt=%s" (key_opt_to_string ik_opt);*)
 
@@ -1714,7 +1715,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         DEBUG_MSG "n=%a k_opt(deleted)=%s" nps n (key_opt_to_string (self#find_key_opt_of_deleted n));
         (*let ik0_opt = self#find_key_opt n in
         DEBUG_MSG "ik0_opt=%s" (key_opt_to_string ik0_opt);*)
-        DEBUG_MSG "key_opts=[%s]" (String.concat ";" (List.map key_opt_to_string !key_opts));
+        (*DEBUG_MSG "key_opts=[%s]" (String.concat ";" (List.map key_opt_to_string !key_opts));*)
         let moveon =
           not n_is_deleted || not (self#is_stable n)
           (*not n_is_deleted ||
@@ -1866,9 +1867,6 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       !count
     in (* get_upstream_count *)
 
-    let skey_to_string (il, nl) =
-      sprintf "%s,[%a]" (String.concat ":" (List.map string_of_int il)) nsps nl
-    in
     let get_skey cache rt n =
       try
         Hashtbl.find cache n
@@ -1893,7 +1891,12 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           done;
           let key = !posl, (get_p_descendants self#is_stable n) in
           Hashtbl.add cache n key;
-          DEBUG_MSG "%a -> %s" nps n (skey_to_string key);
+          BEGIN_DEBUG
+            let skey_to_string (il, nl) =
+              sprintf "%s,[%a]" (String.concat ":" (List.map string_of_int il)) nsps nl
+            in
+            DEBUG_MSG "%a -> %s" nps n (skey_to_string key);
+          END_DEBUG;
           key
     in
     let cmp_skey_sub sns0 sns1 =
@@ -2007,6 +2010,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       | None, Some ed -> sprintf "-%f" ed
       | _ -> "?"
     in
+    let _ = idx_to_str in
     let idx_cache = Hashtbl.create 0 in
     let get_idx ?(strict=false) n =
       DEBUG_MSG "n=%a" nps n;
@@ -3241,6 +3245,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     let rec find_excluded_nodes ?(lv=0) rt nd =
       let indent = String.make lv ' ' in
+      let _ = indent in
       DEBUG_MSG "%s[%d] rt=%a nd=%a" indent lv nps rt nps nd;
 
       if lv > 0 && Hashtbl.mem prune_tbl nd then begin
@@ -3888,7 +3893,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                     DEBUG_MSG "cur=%a" nps !cur;
                                     let pos = (!cur)#initial_pos in
                                     DEBUG_MSG "pos=%d" pos;
+
                                     let k_opt = self#find_key_opt !cur in
+                                    let _ = k_opt in
                                     DEBUG_MSG "k_opt=%s" (key_opt_to_string k_opt);
                                     (*begin
                                       match k_opt with
