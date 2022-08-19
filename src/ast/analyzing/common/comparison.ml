@@ -1559,7 +1559,18 @@ class ['node_t, 'tree_t] c
             DEBUG_MSG "  label match: %d --> %d" lmatch_old lmatch_new;
 
             let b =
-              if override then
+
+              let not_override_cond() =
+                let b =
+                  nd1old#data#is_op && nd2old#data#is_op && nd1new#data#is_op && nd2new#data#is_op &&
+                  not (is_cross_boundary uidmapping nd1new nd2new) &&
+                  is_cross_boundary uidmapping nd1old nd2old
+                in
+                if b then
+                  DEBUG_MSG "!!!!!!!";
+                b
+              in
+              if override && (lmatch_new = lmatch_old || not (not_override_cond())) then
                 if lmatch_new >= lmatch_old then begin
                   action_new None None;
                   true

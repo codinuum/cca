@@ -20,6 +20,7 @@ open Stat.File
 
 module GI  = Otreediff.GIndex
 module Otree = Otreediff.Otree
+module Json = UIDmapping.Json
 
 let sprintf = Printf.sprintf
 let fprintf = Printf.fprintf
@@ -155,7 +156,7 @@ let merge_segments segs_list =
 include Editop
 
 let node_to_uid_string nd =
-  Printf.sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
+  sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
 
 let nodes_to_uids_string nds =
   String.concat ";" (List.map node_to_uid_string nds)
@@ -1549,7 +1550,110 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   (* end of method dump_diff_ch *)
 
 
+  method dump_gdiff_json ?(comp=Compression.none) (tree1 : 'tree_t) (tree2 : 'tree_t) fname =
 
+    let _del_list = ref [] in
+    let _ins_list = ref [] in
+    let _rel_list = ref [] in
+    let _movrel_list = ref [] in
+    let _mov_list = ref [] in
+
+    let mapped_node_tbl = Hashtbl.create 0 in
+
+    self#iter
+      (function
+        | Delete(_, _, info, excludes) -> begin
+            let nd = Info.get_node info in
+            let nds = List.map Info.get_node !excludes in
+            tree1#scan_initial_cluster (nd, nds) (fun n -> _del_list := n :: !_del_list)
+        end
+        | Insert(_, _, info, excludes) -> begin
+            let nd = Info.get_node info in
+            let nds = List.map Info.get_node !excludes in
+            tree2#scan_initial_cluster (nd, nds) (fun n -> _ins_list := n :: !_ins_list);
+        end
+        | Relabel(movrel, (_, info1, excludes1), (_, info2, excludes2)) -> begin
+            let nd1 = Info.get_node info1 in
+            let nd2 = Info.get_node info2 in
+            Hashtbl.add mapped_node_tbl nd2 nd1;
+            if !movrel then
+              _movrel_list := (nd1, nd2) :: !_movrel_list
+            else
+              _rel_list := (nd1, nd2) :: !_rel_list
+        end
+      | Move(_, _, (_, info1, excludes1), (_, info2, excludes2)) -> begin
+          let nd1 = Info.get_node info1 in
+          let nd2 = Info.get_node info2 in
+          Hashtbl.add mapped_node_tbl nd2 nd1;
+          let nds1 = List.map Info.get_node !excludes1 in
+          let nds2 = List.map Info.get_node !excludes2 in
+          let el1 = ref [] in
+          let el2 = ref [] in
+          tree1#scan_initial_cluster (nd1, nds1) (fun n -> el1 := n :: !el1);
+          tree2#scan_initial_cluster (nd2, nds2) (fun n -> el2 := n :: !el2);
+          assert (List.length !el1 = List.length !el2);
+          List.iter2
+            (fun n1 n2 ->
+              Hashtbl.add mapped_node_tbl n2 n1;
+              _mov_list := (n1, n2) :: !_mov_list
+            ) !el1 !el2
+      end);
+
+    let cmp1 n0 n1 = compare n0#gindex n1#gindex in
+    let cmp2 (n0, _) (n1, _) = compare n0#gindex n1#gindex in
+    let del_list = List.fast_sort cmp1 !_del_list in
+    let ins_list = List.fast_sort cmp1 !_ins_list in
+    let rel_list = List.fast_sort cmp2 !_rel_list in
+    let movrel_list = List.fast_sort cmp2 !_movrel_list in
+    let mov_list = List.fast_sort cmp2 !_mov_list in
+
+    let get_gid = Json.get_gid in
+    let get_info1 = Json.get_info1 in
+    let get_info = Json.get_info mapped_node_tbl in
+    let _fprintf = Json._fprintf in
+
+    try
+      let d = Filename.dirname fname in
+      if not (Xfile.dir_exists d) then
+        Xfile.mkdir d;
+      let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
+      let dump1 ch l =
+        let comma_flag = ref false in
+        List.iter
+          (fun nd ->
+            if !comma_flag then
+              _fprintf ch ",";
+            let info = get_info1 nd in
+            _fprintf ch "[%a,%s]" GI.rs (get_gid nd) info;
+            comma_flag := true
+          ) l
+      in
+      let dump2 ch l =
+        let comma_flag = ref false in
+        List.iter
+          (fun (nd1, nd2) ->
+            if !comma_flag then
+              _fprintf ch ",";
+            let info = get_info nd1 nd2 in
+            _fprintf ch "[%a,%a,%s]" GI.rs (get_gid nd1) GI.rs (get_gid nd2) info;
+            comma_flag := true
+          ) l
+      in
+      _fprintf ch "{\"delete\":[";
+      dump1 ch del_list;
+      _fprintf ch "],\"insert\":[";
+      dump1 ch ins_list;
+      _fprintf ch "],\"relabel\":[";
+      dump2 ch rel_list;
+      _fprintf ch "],\"move+relabel\":[";
+      dump2 ch movrel_list;
+      _fprintf ch "],\"move\":[";
+      dump2 ch mov_list;
+      _fprintf ch "]}";
+      ch#close
+    with
+    | Xchannel.Error s -> WARN_MSG s
+  (* end of method dump_gdiff_json *)
 
 
   method dump_diff_info fname tree1 tree2 =

@@ -957,10 +957,12 @@ module F (Label : Spec.LABEL_T) = struct
       =
     let cache_path = cenv#cache_path in
     let diff      = Filename.concat cache_path Stat.diff_file_name in
-    let diff_json = Filename.concat cache_path (Stat.diff_file_name^".json") in
+    let diff_json = Filename.concat cache_path Stat.diff_file_name^".json" in
+    let gdiff_json = Filename.concat cache_path "g"^Stat.diff_file_name^".json" in
     let dinfo     = Filename.concat cache_path Stat.info_file_name in
     let dsummary  = Filename.concat cache_path Stat.summary_file_name in
     let dstat     = Filename.concat cache_path Stat.stat_file_name in
+    let dstat_json = Filename.concat cache_path Stat.stat_file_name^".json" in
     let dmap      = Filename.concat cache_path Stat.map_file_name in
     let dgmap     = Filename.concat cache_path "g"^Stat.map_file_name in
     let dmapfact  = Filename.concat cache_path Stat.map_file_name^".nt" in
@@ -1046,6 +1048,7 @@ module F (Label : Spec.LABEL_T) = struct
       let line_align = edits_copy#get_line_align tree1 tree2 uidmapping in
       edits_copy#dump_diff_simple ~line_align tree1 tree2 diff;
       edits_copy#dump_diff_json ~line_align tree1 tree2 diff_json;
+      edits_copy#dump_gdiff_json ~comp:Compression.gzip tree1 tree2 (gdiff_json^".gz");
 
       edits#dump_diff_info dinfo tree1 tree2;
       edits#dump_diff_summary dsummary tree1 tree2 uidmapping;
@@ -1055,6 +1058,7 @@ module F (Label : Spec.LABEL_T) = struct
   edits#dump_diff_stat dstat tree1 tree2 uidmapping;
  *)
       Stat.File.dump_diff_stat dstat diff_stat;
+      Stat.File.dump_diff_stat_json dstat_json diff_stat;
 
       uidmapping#dump_with_info ~comp:Compression.gzip (dmap^".gz");
       uidmapping#dump_json ~comp:Compression.gzip (dmap^".json.gz");
@@ -1175,6 +1179,7 @@ module F (Label : Spec.LABEL_T) = struct
 
       else begin
         Stat.File.dump_diff_stat dstat diff_stat;
+        Stat.File.dump_diff_stat_json dstat_json diff_stat;
 (*
   edits#dump_diff_stat dstat tree1 tree2 uidmapping;
  *)

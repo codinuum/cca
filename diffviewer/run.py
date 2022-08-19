@@ -23,6 +23,10 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--cache', dest='cache', default=None,
                         metavar='DIR', type=str, help='specify cache path')
 
+    parser.add_argument('-l', '--local-cache-name', dest='local_cache_name',
+                        default=None, metavar='NAME', type=str,
+                        help='specify local cache name')
+
     parser.add_argument('--foreground', dest='foreground', action='store_true',
                         help='do not fork')
 
@@ -33,7 +37,10 @@ if __name__ == '__main__':
     opt = ''
     if args.cache is not None:
         apathc = os.path.abspath(args.cache)
-        opt = ' --cache {}'.format(apathc)
+        opt = f' --cache {apathc}'
+
+    if args.local_cache_name is not None:
+        opt += f' --localcachename {args.local_cache_name}'
 
     here = os.path.dirname(sys.argv[0])
     viewer_app_path = None

@@ -259,6 +259,91 @@ let tbl_remove tbl k =
   (*done*)
 
 
+module Json = struct
+
+  let find_nearest_unordered_ancestor_node =
+    Sourcecode.find_nearest_p_ancestor_node (fun x -> x#data#is_order_insensitive)
+
+  let _fprintf ch fmt =
+    Printf.ksprintf (fun s -> ignore (ch#output_ s 0 (String.length s))) fmt
+
+  let get_gid (nd : node_t) =
+    let gid = nd#data#gid in
+    if gid > 0 then
+      gid
+    else
+      nd#gindex
+
+  let get_loc nd =
+    let loc = nd#data#src_loc in
+    let sl = loc.Loc.start_line in
+    let el = loc.Loc.end_line in
+    let sc = loc.Loc.start_char in
+    let ec = loc.Loc.end_char in
+    sprintf "{\"start_line\":%d,\"start_char\":%d,\"end_line\":%d,\"end_char\":%d}" sl sc el ec
+
+  let get_cat nd = "\""^nd#data#get_category^"\""
+
+  let get_name nd =
+    if nd#data#is_named && nd#data#is_named_orig && not nd#data#has_value then
+      nd#data#get_orig_name
+    else
+      ""
+
+  let get_info1 (nd : node_t) =
+    let named_nameless = nd#data#is_named && not nd#data#is_named_orig in
+    let name = get_name nd in
+    let phantom = nd#data#is_phantom in
+    let unordered = nd#data#is_order_insensitive in
+    let l = ref [] in
+    l := (sprintf "\"loc\":%s" (get_loc nd)) :: !l;
+    l := (sprintf "\"cat\":%s" (get_cat nd)) :: !l;
+    if name <> "" then
+      l := (sprintf "\"name\":\"%s\"" name) :: !l;
+    if named_nameless then
+      l := "\"named_nameless\":true" :: !l;
+    if phantom then
+      l := "\"phantom\":true" :: !l;
+    if unordered then
+      l := "\"unordered\":true" :: !l;
+    "{"^(String.concat "," !l)^"}"
+
+  let get_info mapped_node_tbl (nd1 : node_t) (nd2 : node_t) =
+    let named_nameless =
+      nd1#data#is_named && not nd1#data#is_named_orig &&
+      nd2#data#is_named && not nd2#data#is_named_orig
+    in
+    let name1 = get_name nd1 in
+    let name2 = get_name nd2 in
+    let phantom = nd1#data#is_phantom || nd2#data#is_phantom in
+    let unordered =
+      nd2#data#is_order_insensitive ||
+      try
+        let un2 = find_nearest_unordered_ancestor_node nd2 in
+        let un1 = Hashtbl.find mapped_node_tbl un2 in
+        let ug1, ug2 = un1#gindex, un2#gindex in
+        let gi1, gi2 = nd1#gindex, nd2#gindex in
+        (ug1 - gi1) * (ug2 - gi2) > 0
+      with _ -> false
+    in
+    let l = ref [] in
+    l := (sprintf "\"from_loc\":%s,\"to_loc\":%s" (get_loc nd1) (get_loc nd2)) :: !l;
+    l := (sprintf "\"from_cat\":%s,\"to_cat\":%s" (get_cat nd1) (get_cat nd2)) :: !l;
+    if name1 <> "" then
+      l := (sprintf "\"from_name\":\"%s\"" name1) :: !l;
+    if name2 <> "" then
+      l := (sprintf "\"to_name\":\"%s\"" name2) :: !l;
+    if named_nameless then
+      l := "\"named_nameless\":true" :: !l;
+    if phantom then
+      l := "\"phantom\":true" :: !l;
+    if unordered then
+      l := "\"unordered\":true" :: !l;
+    "{"^(String.concat "," !l)^"}"
+
+end
+
+
 class ['node_t] c cenv = object (self : 'self)
 
   val mutable use_crossing_or_incompatible_matches_count_cache = false
@@ -973,12 +1058,6 @@ class ['node_t] c cenv = object (self : 'self)
 
 
   method dump_gid_json ?(comp=Comp.none) is_mov fname =
-    let find_nearest_unordered_ancestor_node =
-      Sourcecode.find_nearest_p_ancestor_node (fun x -> x#data#is_order_insensitive)
-    in
-    let _fprintf ch fmt =
-      Printf.ksprintf (fun s -> ignore (ch#output_ s 0 (String.length s))) fmt
-    in
     let mapped_node_tbl = Hashtbl.create 0 in
     let _spl, _mvl =
       List.partition_map
@@ -992,52 +1071,13 @@ class ['node_t] c cenv = object (self : 'self)
             Left (nd1, nd2)
         ) self#to_list
     in
-    let get_loc nd =
-      let loc = nd#data#src_loc in
-      let sl = loc.Loc.start_line in
-      let el = loc.Loc.end_line in
-      let sc = loc.Loc.start_char in
-      let ec = loc.Loc.end_char in
-      sprintf "%d,%d-%d,%d" sl sc el ec
-    in
-    let get_cat nd = nd#data#get_category in
-    let get_info nd1 nd2 =
-      let named_nameless =
-        nd1#data#is_named && not nd1#data#is_named_orig &&
-        nd2#data#is_named && not nd2#data#is_named_orig
-      in
-      let phantom = nd1#data#is_phantom || nd2#data#is_phantom in
-      let unordered =
-        nd2#data#is_order_insensitive ||
-        try
-          let un2 = find_nearest_unordered_ancestor_node nd2 in
-          let un1 = Hashtbl.find mapped_node_tbl un2 in
-          let ug1, ug2 = un1#gindex, un2#gindex in
-          let gi1, gi2 = nd1#gindex, nd2#gindex in
-          (ug1 - gi1) * (ug2 - gi2) > 0
-        with _ -> false
-      in
-      let l = ref [] in
-      l := (sprintf "\"from_loc\":\"%s\",\"to_loc\":\"%s\"" (get_loc nd1) (get_loc nd2)) :: !l;
-      l := (sprintf "\"from_cat\":\"%s\",\"to_cat\":\"%s\"" (get_cat nd1) (get_cat nd2)) :: !l;
-      if named_nameless then
-        l := "\"named_nameless\":true" :: !l;
-      if phantom then
-        l := "\"phantom\":true" :: !l;
-      if unordered then
-        l := "\"unordered\":true" :: !l;
-      "{"^(String.concat "," !l)^"}"
-    in
-    let spl =
-      List.fast_sort (fun (n1, n2) (n3, n4) -> compare n1#gindex n3#gindex) _spl
-    in
-    let mvl =
-      List.fast_sort (fun (n1, n2) (n3, n4) -> compare n1#gindex n3#gindex) _mvl
-    in
-    let get_gid nd =
-      let gid = nd#data#gid in
-      if gid > 0 then gid else nd#gindex
-    in
+    let spl = List.fast_sort (fun (n1, n2) (n3, n4) -> compare n1#gindex n3#gindex) _spl in
+    let mvl = List.fast_sort (fun (n1, n2) (n3, n4) -> compare n1#gindex n3#gindex) _mvl in
+
+    let _fprintf = Json._fprintf in
+    let get_gid = Json.get_gid in
+    let get_info = Json.get_info mapped_node_tbl in
+
     try
       let d = Filename.dirname fname in
       if not (Xfile.dir_exists d) then
