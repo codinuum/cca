@@ -309,14 +309,27 @@ let find_file_name_with_exts fname exts =
     with
       File_found f -> Some f
 
-let node_to_ugid_string nd =
+let node_to_ug_string nd =
   Printf.sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
 
-let node_to_uid_string nd =
+let node_to_u_string nd =
   Printf.sprintf "%a" UID.ps nd#uid
 
-let nodes_to_uids_string nds =
-  String.concat ";" (List.map node_to_uid_string nds)
+let node_to_g_string nd =
+  Printf.sprintf "%a" GI.ps nd#gindex
+
+let nodes_to_us_string nds =
+  String.concat ";" (List.map node_to_u_string nds)
+
+let nodes_to_gs_string nds =
+  String.concat ";" (List.map node_to_g_string nds)
+
+let us_to_string = Xlist.to_string UID.to_string ";"
+
+let gs_to_string = Xlist.to_string GI.to_string ";"
+
+let nodes_to_ugs_string nds =
+  String.concat ";" (List.map node_to_ug_string nds)
 
 let node_to_loc_string nd = Loc.to_string nd#data#src_loc
 
@@ -327,15 +340,23 @@ let node_to_lab_string nd =
   else
     Printf.sprintf "%s(%s)" nd#data#get_category v
 
-let node_to_data_string nd = Printf.sprintf "[%s] %s" (node_to_loc_string nd) (node_to_lab_string nd)
+let node_to_data_string nd = Printf.sprintf "[%s]%s" (node_to_loc_string nd) (node_to_lab_string nd)
 
-let nps () = node_to_ugid_string
-let nups () = node_to_uid_string
-let nsps () = nodes_to_uids_string
+let node_to_string nd = Printf.sprintf "%a[%s]%s" UID.ps nd#uid (node_to_loc_string nd) (node_to_lab_string nd)
+
+let nups () = node_to_u_string
+let ngps () = node_to_g_string
+let nugps () = node_to_ug_string
+let nsps () = nodes_to_us_string
+let ngsps () = nodes_to_gs_string
+let usps () = us_to_string
+let gsps () = gs_to_string
 let locps () = node_to_loc_string
 let labps () = node_to_lab_string
 let ndps  () = node_to_data_string
+let nps () = node_to_string
 let ups = UID.ps
+let gps = GI.ps
 
 let next_to_each_other n1 n2 =
   try

@@ -161,8 +161,11 @@ let node_to_uid_string nd =
 let nodes_to_uids_string nds =
   String.concat ";" (List.map node_to_uid_string nds)
 
-let nps () = node_to_uid_string
-let nsps () = nodes_to_uids_string
+let ups = Misc.ups
+let nps = Misc.nps
+let nups = Misc.nups
+let usps = Misc.usps
+let nsps = Misc.nsps
 
 let get_mid = function
   | Move(mid, _, _, _) -> !mid
@@ -2728,7 +2731,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
           List.iter2
             (fun n1 n2 ->
-              DEBUG_MSG "n1=%a n2=%a" nps n1 nps n2;
+              DEBUG_MSG "n1=%a n2=%a" nups n1 nups n2;
               if
                 not (List.exists (fun p -> tree1#initial_subtree_mem p n1) !processed) &&
                 not (is_ghost_node n1)
@@ -2943,14 +2946,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let gen_cands tree tree' map mem_mov mem_mov1 mem_del_or_ins is_mov nd nd0 =
       let uid0 = nd0#uid in
 
-      DEBUG_MSG "nd#uid:%a uid0:%a" UID.ps nd#uid UID.ps uid0;
+      DEBUG_MSG "nd:%a nd0:%a" nps nd nps nd0;
 
       let cands = ref [] in
+
       Array.iter
         (fun cnd ->
           let cuid = cnd#uid in
 
-          DEBUG_MSG "cuid:%a" UID.ps cuid;
+          DEBUG_MSG "cuid:%a" ups cuid;
 
           try
             let cuid' = map cuid in
@@ -2959,7 +2963,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               let nd' = cnd'#initial_parent in
               let uid' = nd'#uid in
 
-              DEBUG_MSG "uid':%a"UID.ps uid';
+              DEBUG_MSG "uid':%a" ups uid';
 
               let cond0 =
                 not (List.mem uid' !cands) &&
@@ -2981,7 +2985,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               DEBUG_MSG "mem_del_or_ins uid' || (mem_mov1 uid' && uid0 <> uid') --> %B"
                 (mem_del_or_ins uid' || (mem_mov1 uid' && uid0 <> uid'));
               DEBUG_MSG "not (is_mov nd nd') --> %B" (not (is_mov nd nd'));
-              DEBUG_MSG "cuid:%a --> cond0:%B" UID.ps cuid cond0;
+              DEBUG_MSG "cuid:%a --> cond0:%B" ups cuid cond0;
 
               if cond0 then
                 let cond1 =
@@ -3003,7 +3007,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   with
                     Exit -> false
                 in
-                DEBUG_MSG "cuid:%a --> cond1:%B" UID.ps cuid cond1;
+                DEBUG_MSG "cuid:%a --> cond1:%B" ups cuid cond1;
+
                 if cond1 then
                   cands := uid' :: !cands
           with
@@ -3033,8 +3038,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         let l1 = gi1 - lgi1 in
         let l2 = gi2 - lgi2 in
 
-        DEBUG_MSG "checking root pairs of move%a (%a-%a) [%a:%a(%d)]-[%a:%a(%d)]..."
-          MID.ps mid UID.ps nd1#uid UID.ps nd2#uid
+        DEBUG_MSG "checking root pairs of %a (%a-%a) [%a:%a(%d)]-[%a:%a(%d)]..."
+          MID.ps mid nps nd1 nps nd2
           GI.ps lgi1 GI.ps gi1 (l1+1) GI.ps lgi2 GI.ps gi2 (l2+1);
 
         let moveon =
@@ -3073,11 +3078,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           begin
             try
               while true do
-                cands01 := gen_cands tree2 tree1 uidmapping#inv_find self#mem_mov21 self#mem_mov1 self#mem_del is_mov2 !nd2x !nd1x;
-                cands02 := gen_cands tree1 tree2 uidmapping#find self#mem_mov12 self#mem_mov2 self#mem_ins is_mov1 !nd1x !nd2x;
+                cands01 :=
+                  gen_cands tree2 tree1
+                    uidmapping#inv_find self#mem_mov21 self#mem_mov1 self#mem_del is_mov2 !nd2x !nd1x;
+                cands02 :=
+                  gen_cands tree1 tree2
+                    uidmapping#find self#mem_mov12 self#mem_mov2 self#mem_ins is_mov1 !nd1x !nd2x;
 
-                DEBUG_MSG "[%d] cands01(%a): [%s]" !lv UID.ps !nd2x#uid (Xlist.to_string UID.to_string ";" !cands01);
-                DEBUG_MSG "[%d] cands02(%a): [%s]" !lv UID.ps !nd1x#uid (Xlist.to_string UID.to_string ";" !cands02);
+                DEBUG_MSG "[%d] cands01(%a): [%a]" !lv nups !nd2x usps !cands01;
+                DEBUG_MSG "[%d] cands02(%a): [%a]" !lv nups !nd1x usps !cands02;
 
                 if !cands01 <> [] || !cands02 <> [] then begin
                   ndps := (!nd1x, !nd2x) :: !ndps;

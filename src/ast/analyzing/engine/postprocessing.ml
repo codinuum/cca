@@ -1491,7 +1491,7 @@ module F (Label : Spec.LABEL_T) = struct
                 if uid1' <> uid2 then
                   let nd1' = tree2#search_node_by_uid uid1' in
 
-                  if Comparison.next_to_each_other nd2 nd1' then begin
+                  if next_to_each_other nd2 nd1' then begin
                     to_be_removed := (nd1, nd1') :: !to_be_removed;
                     true
                   end
@@ -1520,7 +1520,7 @@ module F (Label : Spec.LABEL_T) = struct
                 if uid2' <> uid1 then
                   let nd2' = tree1#search_node_by_uid uid2' in
 
-                  if Comparison.next_to_each_other nd1 nd2' then begin
+                  if next_to_each_other nd1 nd2' then begin
                     to_be_removed := (nd2', nd2) :: !to_be_removed;
                     true
                   end
@@ -2618,9 +2618,9 @@ module F (Label : Spec.LABEL_T) = struct
             | Some (n11, n12), Some (n21, n22) ->
                 if n11 == n21 && n12 == n22 then
                   continue n11 n12
-                else if n11 == n21 && Comparison.next_to_each_other n12 n22 then
+                else if n11 == n21 && next_to_each_other n12 n22 then
                   continue n11 n12
-                else if n12 == n22 && Comparison.next_to_each_other n11 n21 then
+                else if n12 == n22 && next_to_each_other n11 n21 then
                   continue n11 n12
                 else
                   let score1 = cenv#get_adjacency_score n11 n12 in
@@ -6222,6 +6222,50 @@ end;
            DEBUG_MSG "almost_equals=%B" b;
            b)
           ) &&
+          not (
+          rt1#data#is_op && rt2#data#is_op &&
+          let has_matched_subtree1 r1 r2 =
+            has_p_descendant (cenv#is_matched_subtree uidmapping r1 r2)
+          in
+          let has_matched_subtree2 r2 r1 =
+            has_p_descendant (cenv#is_matched_subtree uidmapping r1 r2)
+          in
+          let has_stable_twin tree tree' nmap is_stable' is_ins_or_del has_matched_subtree rt rt' =
+            try
+              let prt = rt#initial_parent in
+              let prt' = rt'#initial_parent in
+              let prt_ = nmap prt in
+              prt_ != prt' && is_stable' prt_ &&
+              has_p_descendant
+                (fun x ->
+                  let x' = nmap x in
+                  is_stable' x' && tree'#is_initial_ancestor prt_ x'
+                ) rt &&
+              Array.exists
+                (fun n' ->
+                  is_ins_or_del n' && rt#data#eq n'#data &&
+                  n'#initial_nchildren = rt#initial_nchildren &&
+                  let a = rt#initial_children in
+                  let b =
+                    try
+                      Array.iteri
+                        (fun i c' ->
+                          if not (is_ins_or_del c' && c'#data#eq a.(i)#data) then
+                            raise Exit
+                        ) n'#initial_children;
+                      has_matched_subtree rt n' n'
+                    with
+                      Exit -> false
+                  in
+                  DEBUG_MSG "!!!!!!! found: %a" nps n';
+                  b
+                ) prt_#initial_children
+            with
+              _ -> false
+          in
+          has_stable_twin tree1 tree2 nmap1 is_stable2 is_ins has_matched_subtree1 rt1 rt2 ||
+          has_stable_twin tree2 tree1 nmap2 is_stable1 is_del has_matched_subtree2 rt2 rt1
+          ) &&
           (
            (try
              let prt1 = rt1#initial_parent in
@@ -6261,14 +6305,14 @@ end;
              try
                let b = x#data#get_name = n in
                if b then
-                 DEBUG_MSG "found: %a %s %s" nps x x#data#label (Loc.to_string x#data#src_loc);
+                 DEBUG_MSG "found: %a" nps x;
                b
              with _ -> false
            in
            let bn1 = get_bn rt1 in
            let bn2 = get_bn rt2 in
-           DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
-           DEBUG_MSG "bn2: %a %s %s" nps bn2 bn2#data#label (Loc.to_string bn2#data#src_loc);
+           DEBUG_MSG "bn1: %a" nps bn1;
+           DEBUG_MSG "bn2: %a" nps bn2;
            (has_p_ancestor ~moveon:(fun x -> x != bn1) (fun x -> x#data#is_sequence) rt1) &&
            (has_p_ancestor ~moveon:(fun x -> x != bn2) (fun x -> x#data#is_sequence) rt2) &&
            (
@@ -6277,7 +6321,7 @@ end;
              tree2#is_initial_ancestor bn2 an2 &&
              let an2' = nmap2 an2 in
              not (tree1#is_initial_ancestor bn1 an2') && not an2'#data#is_sequence &&
-             let _ = DEBUG_MSG "an2': %a %s %s" nps an2' an2'#data#label (Loc.to_string an2'#data#src_loc) in
+             let _ = DEBUG_MSG "an2': %a" nps an2' in
              (try an2'#data#get_name = bn1#data#get_name with _ -> false) ||
              has_p_descendant (has_same_name bn1#data#get_name) an2')
           ||
@@ -6286,7 +6330,7 @@ end;
              tree1#is_initial_ancestor bn1 an1 &&
              let an1' = nmap1 an1 in
              not (tree2#is_initial_ancestor bn2 an1') && not an1'#data#is_sequence &&
-             let _ = DEBUG_MSG "an1': %a %s %s" nps an1' an1'#data#label (Loc.to_string an1'#data#src_loc) in
+             let _ = DEBUG_MSG "an1': %a" nps an1' in
              (try an1'#data#get_name = bn2#data#get_name with _ -> false) ||
              has_p_descendant (has_same_name bn2#data#get_name) an1')
            )
@@ -6449,7 +6493,7 @@ end;
 
                         DEBUG_MSG "!!!!!! %a-%a %a [%a]-[%a]" ups uid1 ups uid2 labps nd1 locps nd1 locps nd2;
                         DEBUG_MSG " stmt: %a-%a %a [%a]-[%a]: %B"
-                          ups stmt1#uid ups stmt2#uid labps stmt1 locps stmt1 locps stmt2 b;
+                          nups stmt1 nups stmt2 labps stmt1 locps stmt1 locps stmt2 b;
 
                         begin
                           try
@@ -6655,7 +6699,7 @@ end;
         Exit -> true
     in
     let eliminate_edits rt1 rt2 =
-      DEBUG_MSG "rt1=%a rt2=%a" ups rt1#uid ups rt2#uid;
+      DEBUG_MSG "rt1=%a rt2=%a" nups rt1 nups rt2;
       let bname_opt =
         if rt1#data#is_named_orig && rt2#data#is_named_orig && rt1#data#get_name = rt2#data#get_name then begin
           DEBUG_MSG "boundary name: %s" rt1#data#get_name;
@@ -6829,7 +6873,7 @@ end;
               DEBUG_MSG "n2=%s" n2#initial_to_string;
               DEBUG_MSG "similarity=%f" sim;*)
               if sim < sim_thresh then begin
-                DEBUG_MSG "elaborating edits on %a-%a (similarity=%f)" ups n1#uid ups n2#uid sim;
+                DEBUG_MSG "elaborating edits on %a-%a (similarity=%f)" nups n1 nups n2 sim;
                 Xprint.verbose options#verbose_flag "elaborating edits on %s -- %s (similarity=%f)"
                   n1#initial_to_string n2#initial_to_string sim;
 
@@ -6975,12 +7019,11 @@ end;
       List.iter
         (fun (mid, nd1, nd2) ->
           DEBUG_MSG "%a  %a -> %a (size:%f)"
-            MID.ps mid ups nd1#uid ups nd2#uid (try Hashtbl.find move_size_tbl mid with Not_found -> 0.0);
+            MID.ps mid nups nd1 nups nd2 (try Hashtbl.find move_size_tbl mid with Not_found -> 0.0);
           let ndpairs = Hashtbl.find move_mem_tbl mid in
           let nds1, nds2 = List.split ndpairs in
-          let nl_to_s = Xlist.to_string (fun n -> UID.to_string n#uid) ";" in
-          DEBUG_MSG "      [%s]" (nl_to_s nds1);
-          DEBUG_MSG "   -> [%s]" (nl_to_s nds2)
+          DEBUG_MSG "      [%a]" nsps nds1;
+          DEBUG_MSG "   -> [%a]" nsps nds2;
         )
       (List.fast_sort
          (fun (mid0, nd0, _) (mid1, nd1, _) -> Stdlib.compare nd0#gindex nd1#gindex)
@@ -6989,21 +7032,19 @@ end;
       List.iter
         (fun (mid, nd1, nd2) ->
           DEBUG_MSG "%a  %a -> %a (size:%f)"
-            MID.ps mid GI.ps nd1#gindex GI.ps nd2#gindex (try Hashtbl.find move_size_tbl mid with Not_found -> 0.0);
+            MID.ps mid ngps nd1 ngps nd2 (try Hashtbl.find move_size_tbl mid with Not_found -> 0.0);
           let ndpairs = Hashtbl.find move_mem_tbl mid in
           let nds1, nds2 = List.split ndpairs in
-          DEBUG_MSG "      [%s]"
-            (Xlist.to_string (fun n -> GI.to_string n#gindex) ";" nds1);
-          DEBUG_MSG "   -> [%s]"
-            (Xlist.to_string (fun n -> GI.to_string n#gindex) ";" nds2)
+          DEBUG_MSG "      [%a]" ngsps nds1;
+          DEBUG_MSG "   -> [%s]" ngsps nds2;
         ) sorted_move_tops
     END_DEBUG;
 
     let extra_move_elements = Xset.create 0 in
     List.iter
       (fun (mid, nd1, nd2) ->
-        DEBUG_MSG "mid=%a nd1=%a nd2=%a" MID.ps mid ups nd1#uid ups nd2#uid;
-        DEBUG_MSG "%a-%a" GI.ps nd1#gindex GI.ps nd2#gindex;
+        DEBUG_MSG "mid=%a nd1=%a nd2=%a" MID.ps mid nups nd1 nups nd2;
+        DEBUG_MSG "%a-%a" ngps nd1 ngps nd2;
         nd1#iter_initial_ancestor_nodes
           (fun n1 ->
             try
@@ -7016,13 +7057,13 @@ end;
                 try
                   List.iter
                     (fun (mn1, mn2) ->
-                      DEBUG_MSG "    mn1=%a mn2=%a" ups mn1#uid ups mn2#uid;
-                      DEBUG_MSG "    %a-%a" GI.ps mn1#gindex GI.ps mn2#gindex;
+                      DEBUG_MSG "    mn1=%a mn2=%a" nups mn1 nups mn2;
+                      DEBUG_MSG "    %a-%a" ngps mn1 ngps mn2;
                       if
                         UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 mn1 mn2
                       then begin
                         DEBUG_MSG "crossing_or_incompatible: (%a-%a) (%a, %a-%a)"
-                          ups nd1#uid ups nd2#uid MID.ps m ups mn1#uid ups mn2#uid;
+                          nups nd1 nups nd2 MID.ps m nups mn1 nups mn2;
                         Xset.add extra_move_elements (m, mn1, mn2);
                         raise Break
                       end
@@ -7042,7 +7083,7 @@ end;
     BEGIN_DEBUG
       DEBUG_MSG "extra_move_elements: %s"
         (Xlist.to_string
-           (fun (m, n1, n2) -> sprintf "(%a,%a-%a)" MID.ps m ups n1#uid ups n2#uid)
+           (fun (m, n1, n2) -> sprintf "(%a,%a-%a)" MID.ps m nups n1 nups n2)
            ";"
            (List.fast_sort
               (fun (mid0, nd0, _) (mid1, nd1, _) -> Stdlib.compare nd0#gindex nd1#gindex)
@@ -7050,7 +7091,7 @@ end;
         );
       DEBUG_MSG "extra_move_elements (gindex): %s"
         (Xlist.to_string
-           (fun (m, n1, n2) -> sprintf "(%a,%a-%a)" MID.ps m GI.ps n1#gindex GI.ps n2#gindex)
+           (fun (m, n1, n2) -> sprintf "(%a,%a-%a)" MID.ps m ngps n1 ngps n2)
            ";"
            (List.fast_sort
               (fun (mid0, nd0, _) (mid1, nd1, _) -> Stdlib.compare nd0#gindex nd1#gindex)
@@ -7352,7 +7393,7 @@ end;
       List.iter
         (fun k ->
           let c, gi, n = Hashtbl.find tbl k in
-          DEBUG_MSG " %a root:%a(%a) size=%d" MID.ps k GI.ps gi ups n#uid c
+          DEBUG_MSG " %a root:%a(%a) size=%d" MID.ps k gps gi nups n c
         ) sorted_keys;
 
       DEBUG_MSG "edits:\n%s\n" edits#to_string;
@@ -7419,7 +7460,7 @@ end;
             let nd1 = Info.get_node info1 in
             let nd2 = Info.get_node info2 in
 
-            DEBUG_MSG "checking: %a %a-%a" MID.ps !mid ups nd1#uid ups nd2#uid;
+            DEBUG_MSG "checking: %a %a-%a" MID.ps !mid nups nd1 nups nd2;
 
             if not (is_crossing_with_untouched nd1 nd2) then begin
               DEBUG_MSG "not a move: %s" (Edit.to_string mov);
@@ -7445,11 +7486,10 @@ end;
       BEGIN_DEBUG
         List.iter
         (fun (n1, n2) ->
-          DEBUG_MSG "keyroot pair: %a(size=%d) - %a(size=%d)  %s[%s] - %s[%s]"
-            ups n1#uid (tree1#whole_initial_subtree_size n1)
-            ups n2#uid (tree2#whole_initial_subtree_size n2)
-            n1#data#label (Loc.to_string n1#data#src_loc)
-            n2#data#label (Loc.to_string n2#data#src_loc)
+          DEBUG_MSG "keyroot pair: %a(size=%d) - %a(size=%d)  %a[%a] - %a[%a]"
+            nups n1 (tree1#whole_initial_subtree_size n1)
+            nups n2 (tree2#whole_initial_subtree_size n2)
+            labps n1 locps n1 labps n2 locps n2
         ) keyroots;
       END_DEBUG;
 
@@ -7510,13 +7550,13 @@ end;
         END_DEBUG;
 
         let is_mov nd1 nd2 =
-          DEBUG_MSG "%a-%a" ups nd1#uid ups nd2#uid;
+          DEBUG_MSG "%a-%a" nups nd1 nups nd2;
           let mid_opt = ref None in
           try
             List.iter
               (fun (rn1, rn2) ->
                 if tree1#is_initial_ancestor rn1 nd1 && tree2#is_initial_ancestor rn2 nd2 then begin
-                  DEBUG_MSG "keyroot pair: %a-%a" ups rn1#uid ups rn2#uid;
+                  DEBUG_MSG "keyroot pair: %a-%a" nups rn1 nups rn2;
                   let movs = ref [] in
 
                   edits#iter_moves
@@ -8768,8 +8808,7 @@ end;
     let get_excludes exclude_map link_map uid =
       let uids = trace_link link_map uid in
 
-      DEBUG_MSG "(%a): members: [%s]" ups uid
-        (Xlist.to_string UID.to_string "," uids);
+      DEBUG_MSG "(%a): members: [%s]" ups uid usps uids;
 
       let excludes =
         List.fold_left
@@ -8782,16 +8821,14 @@ end;
             in
 
             DEBUG_MSG "(%a): excludes: [%s]" ups uid
-              (Xlist.to_string
-                 (fun i -> UID.to_string(Info.get_uid i)) ";" e);
+              (Xlist.to_string (fun i -> UID.to_string (Info.get_uid i)) ";" e);
 
             Xlist.union l e
           ) [] uids
       in
 
       DEBUG_MSG "(%a): [%s]" ups uid
-        (Xlist.to_string
-           (fun i -> UID.to_string(Info.get_uid i)) ";" excludes);
+        (Xlist.to_string (fun i -> UID.to_string (Info.get_uid i)) ";" excludes);
 
       excludes
     in (* end of func get_excludes *)
