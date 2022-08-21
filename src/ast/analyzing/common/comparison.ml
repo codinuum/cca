@@ -436,7 +436,7 @@ class ['node_t, 'tree_t] c
 (* *)
   val permutation_hub_tbl = Hashtbl.create 0
   method add_permutation_hub_cand (n1 : 'node_t) (n2 : 'node_t) (lab : string) =
-    DEBUG_MSG "%a-%a %s" ugps n1 ugps n2 lab;
+    DEBUG_MSG "%a-%a %s" nugps n1 nugps n2 lab;
     let key = n1, n2, lab in
     try
       let c, lgi1, gi1, lgi2, gi2 = Hashtbl.find permutation_hub_tbl key in
@@ -448,7 +448,7 @@ class ['node_t, 'tree_t] c
     let to_be_removed = ref [] in
     Hashtbl.iter
       (fun ((n1, n2, lab) as key) (c, _, _, _, _) ->
-        DEBUG_MSG "%a-%a (%s): %d" ugps n1 ugps n2 lab c;
+        DEBUG_MSG "%a-%a (%s): %d" nugps n1 nugps n2 lab c;
         if c < permutation_hub_count_thresh then begin
           to_be_removed := key :: !to_be_removed
         end
@@ -466,7 +466,7 @@ class ['node_t, 'tree_t] c
       Hashtbl.iter
         (fun (r1, r2, _) (_, lgi1, gi1, lgi2, gi2) ->
           if lgi1 <= g1 && g1 < gi1 && lgi2 <= g2 && g2 < gi2 then begin
-            DEBUG_MSG "found: %a-%a" ugps r1 ugps r2;
+            DEBUG_MSG "found: %a-%a" nugps r1 nugps r2;
             raise Exit
           end
         ) permutation_hub_tbl;
@@ -1774,7 +1774,7 @@ class ['node_t, 'tree_t] c
               nd#data#anonymized2_label <> anc#data#anonymized2_label &&
               nd#data#anonymized3_label <> anc#data#anonymized3_label
             in
-            DEBUG_MSG "%a %a %a -> %B" ugps pivot ugps anc ugps nd b;
+            DEBUG_MSG "%a %a %a -> %B" nugps pivot nugps anc nugps nd b;
             b
           in
 
@@ -1797,7 +1797,7 @@ class ['node_t, 'tree_t] c
                 tree2#is_initial_ancestor nd2new nd2old &&
                 not (has_matched_subtree nd1old nd2new nd2old nd2new)
               then begin
-                DEBUG_MSG "!!!!! nd1old=%a -> nd2old=%a < nd2new=%a" ugps nd1old ugps nd2old ugps nd2new;
+                DEBUG_MSG "!!!!! nd1old=%a -> nd2old=%a < nd2new=%a" nugps nd1old nugps nd2old nugps nd2new;
                 DEBUG_MSG "nd1: %a" ndps nd1old;
                 DEBUG_MSG "nd2: %a < %a" ndps nd1old ndps nd1new;
                 ancsim_new, ancsim_new, true
@@ -1808,7 +1808,7 @@ class ['node_t, 'tree_t] c
                 tree2#is_initial_ancestor nd2old nd2new &&
                 not (has_matched_subtree nd1old nd2old nd2new nd2old)
               then begin
-                DEBUG_MSG "!!!!! nd1old=%a -> nd2old=%a > nd2new=%a" ugps nd1old ugps nd2old ugps nd2new;
+                DEBUG_MSG "!!!!! nd1old=%a -> nd2old=%a > nd2new=%a" nugps nd1old nugps nd2old nugps nd2new;
                 DEBUG_MSG "nd1: %a" ndps nd1old;
                 DEBUG_MSG "nd2: %a > %a" ndps nd1old ndps nd1new;
                 ancsim_old, ancsim_old, true
@@ -1834,7 +1834,7 @@ class ['node_t, 'tree_t] c
                 tree1#is_initial_ancestor nd1new nd1old &&
                 not (has_matched_subtree nd1new nd2old nd1old nd1new)
               then begin
-                DEBUG_MSG "!!!!! nd1old=%a < nd1new=%a <- nd2old=%a" ugps nd1old ugps nd1new ugps nd2old;
+                DEBUG_MSG "!!!!! nd1old=%a < nd1new=%a <- nd2old=%a" nugps nd1old nugps nd1new nugps nd2old;
                 DEBUG_MSG "nd2: %a" ndps nd2old;
                 DEBUG_MSG "nd1: %a < %a" ndps nd1old ndps nd1new;
                 ancsim_new, ancsim_new, true
@@ -1845,7 +1845,7 @@ class ['node_t, 'tree_t] c
                 tree1#is_initial_ancestor nd1old nd1new &&
                 not (has_matched_subtree nd1old nd2old nd1new nd1old)
               then begin
-                DEBUG_MSG "!!!!! nd1old=%a > nd1new=%a <- nd2old=%a" ugps nd1old ugps nd1new ugps nd2old;
+                DEBUG_MSG "!!!!! nd1old=%a > nd1new=%a <- nd2old=%a" nugps nd1old nugps nd1new nugps nd2old;
                 DEBUG_MSG "nd2: %a" ndps nd2old;
                 DEBUG_MSG "nd1: %a > %a" ndps nd1old ndps nd1new;
                 ancsim_old, ancsim_old, true

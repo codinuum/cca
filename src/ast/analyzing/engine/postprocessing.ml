@@ -39,16 +39,14 @@ module F (Label : Spec.LABEL_T) = struct
   let can_be_keyroot tree nd =
     let initial_ancestors = tree#initial_ancestor_nodes nd in
 
-    DEBUG_MSG "initial ancestors of %a: [%s]" ups nd#uid
-      (Xlist.to_string (fun n -> UID.to_string n#uid) ";" initial_ancestors);
+    DEBUG_MSG "initial ancestors of %a: [%a]" nups nd nsps initial_ancestors;
 
     let d = List.length initial_ancestors in
     let dcond = d >= Label.keyroot_depth_min in
     let prohibited = Label.cannot_be_keyroot nd in
     let b = dcond && not prohibited in
 
-    DEBUG_MSG "%a -> %B (depth=%d,prohibited=%B)"
-      ups nd#uid b d prohibited;
+    DEBUG_MSG "%a -> %B (depth=%d,prohibited=%B)" nups nd b d prohibited;
     b
 
 
@@ -147,12 +145,10 @@ module F (Label : Spec.LABEL_T) = struct
             DEBUG_MSG "%a %s" ups uid
               (Xlist.to_string
                  (fun (nd1, nd2, nth, sz) ->
-                   sprintf "<%a,%a(%dth)(sz:%d)>" ups nd1#uid ups nd2#uid !nth sz)
+                   sprintf "<%a,%a(%dth)(sz:%d)>" nups nd1 nups nd2 !nth sz)
                  "" (List.rev vs));
-            DEBUG_MSG "a1 = [%s]"
-              (Xarray.to_string string_of_int " " a1);
-            DEBUG_MSG "a2 = [%s]"
-              (Xarray.to_string string_of_int " " a2);
+            DEBUG_MSG "a1 = [%s]" (Xarray.to_string string_of_int " " a1);
+            DEBUG_MSG "a2 = [%s]" (Xarray.to_string string_of_int " " a2);
           END_DEBUG;
 
 
@@ -348,11 +344,11 @@ module F (Label : Spec.LABEL_T) = struct
 
 (*
     DEBUG_MSG "[exact=%B] %a-%a: pseudo_match:%B parent_cond:%B children_cond:%B --> %B"
-      exact ups nd1#uid ups nd2#uid pseudo_match parent_cond children_cond result;
+      exact nups nd1 nups nd2 pseudo_match parent_cond children_cond result;
 *)
 
     DEBUG_MSG "[exact=%B] %a-%a: parent_cond:%B children_cond:%B --> %B"
-      exact ups nd1#uid ups nd2#uid parent_cond children_cond result;
+      exact nups nd1 nups nd2 parent_cond children_cond result;
 
     result
   (* end of func check_relabel *)
@@ -400,9 +396,7 @@ module F (Label : Spec.LABEL_T) = struct
 
         let c2' = ref [] in
 
-        DEBUG_MSG "checking %a{%s} - %a{%s}"
-          ups au1 (Xlist.to_string (fun n -> UID.to_string n#uid) ";" c1)
-          ups au2 (Xlist.to_string (fun n -> UID.to_string n#uid) ";" c2);
+        DEBUG_MSG "checking %a{%a} - %a{%a}" ups au1 nsps c1 ups au2 nsps c2;
 
         let total_cost = ref 0 in
 
@@ -413,7 +407,7 @@ module F (Label : Spec.LABEL_T) = struct
         in
         let is_odd_map n1 n2 asz =
 
-          DEBUG_MSG "%a-%a: maps: [%s]" ups n1#uid ups n2#uid
+          DEBUG_MSG "%a-%a: maps: [%s]" nups n1 nups n2
             (Xlist.to_string (fun (n1, n2) -> (UID.to_string n1#uid)^"-"^(UID.to_string n2#uid)) ";" maps);
 
           let incompat =
@@ -446,8 +440,7 @@ module F (Label : Spec.LABEL_T) = struct
             let b = asz <= cost in
 
             BEGIN_DEBUG
-              DEBUG_MSG "%a-%a --> %B (asz=%d, cost=%d)"
-                ups n1#uid ups n2#uid b asz cost;
+              DEBUG_MSG "%a-%a --> %B (asz=%d, cost=%d)" nups n1 nups n2 b asz cost;
             END_DEBUG;
 
             b
@@ -500,8 +493,7 @@ module F (Label : Spec.LABEL_T) = struct
 
               c2' := nd' :: !c2';
 
-              DEBUG_MSG "may be a permutation: (%a) %a-%a"
-                ups au1 ups u ups u';
+              DEBUG_MSG "may be a permutation: (%a) %a-%a" ups au1 ups u ups u';
 
               pmap_add pmap au1 (nd, nd', ref 0, asz);
               DEBUG_MSG "map added"
@@ -698,7 +690,7 @@ module F (Label : Spec.LABEL_T) = struct
             let lgi1 = (tree1#initial_leftmost nd1)#gindex in
             let lgi2 = (tree2#initial_leftmost nd2)#gindex in
             DEBUG_MSG "move region: %a: (%a,%a)-(%a,%a) (%a-%a)" MID.ps !mid
-              GI.ps lgi1 GI.ps gi1 GI.ps lgi2 GI.ps gi2 nps nd1 nps nd2;
+              gps lgi1 gps gi1 gps lgi2 gps gi2 nps nd1 nps nd2;
             try
               let lg1, g1, lg2, g2 = Hashtbl.find mtbl !mid in
               if lgi1 <= g1 && g1 < gi1 && lgi2 <= g2 && g2 < gi2 then
@@ -720,7 +712,7 @@ module F (Label : Spec.LABEL_T) = struct
            let n1 = tree1#search_node_by_gindex g1 in
            let n2 = tree2#search_node_by_gindex g2 in
            DEBUG_MSG "move region: %a -> (%a,%a)-(%a,%a) (%a-%a)"
-             MID.ps m GI.ps lmg1 GI.ps g1 GI.ps lmg2 GI.ps g2 nps n1 nps n2
+             MID.ps m gps lmg1 gps g1 gps lmg2 gps g2 nps n1 nps n2
         ) (List.fast_sort cmp l)
     END_DEBUG;
 
@@ -773,11 +765,11 @@ module F (Label : Spec.LABEL_T) = struct
             let nd2 = Info.get_node info2 in
             let gi1 = nd1#gindex in
             let gi2 = nd2#gindex in
-            DEBUG_MSG "mid=%a (%a, %a)" MID.ps !mid GI.ps gi1 GI.ps gi2;
+            DEBUG_MSG "mid=%a (%a, %a)" MID.ps !mid gps gi1 gps gi2;
             try
               List.iter
                 (fun (m, lmg1, g1, lmg2, g2) ->
-                  DEBUG_MSG "m=%a (%a-%a, %a-%a)" MID.ps m GI.ps lmg1 GI.ps g1 GI.ps lmg2 GI.ps g2;
+                  DEBUG_MSG "m=%a (%a-%a, %a-%a)" MID.ps m gps lmg1 gps g1 gps lmg2 gps g2;
                   if
                     lmg1 <= gi1 && gi1 < g1 &&
                     lmg2 <= gi2 && gi2 < g2 &&
@@ -830,7 +822,7 @@ module F (Label : Spec.LABEL_T) = struct
       DEBUG_MSG "final parent_move_tbl:";
       Hashtbl.iter
         (fun m (pm, pg1, pg2) ->
-          DEBUG_MSG "%a -> %a: %a-%a" MID.ps m MID.ps pm GI.ps pg1 GI.ps pg2
+          DEBUG_MSG "%a -> %a: %a-%a" MID.ps m MID.ps pm gps pg1 gps pg2
         ) parent_move_tbl
     END_DEBUG;
     parent_move_tbl
@@ -1381,8 +1373,7 @@ module F (Label : Spec.LABEL_T) = struct
     let find_enclaves nd1 nd2 =
       BEGIN_DEBUG
         let uid1, uid2 = nd1#uid, nd2#uid in
-        DEBUG_MSG "finding enclaves of %a-%a (%a-%a)"
-          ups uid1 ups uid2 GI.ps nd1#gindex GI.ps nd2#gindex;
+        DEBUG_MSG "finding enclaves of %a-%a (%a-%a)" ups uid1 ups uid2 ngps nd1 ngps nd2;
       END_DEBUG;
 
       let otree = tree1#make_subtree_from_node nd1 in
@@ -1428,13 +1419,11 @@ module F (Label : Spec.LABEL_T) = struct
           let cmp (n1, _) (n2, _) = Stdlib.compare n1#gindex n2#gindex in
           List.iter
             (fun (n1, n2) ->
-              DEBUG_MSG "match (filtered): %a-%a (%a-%a)"
-                ups n1#uid ups n2#uid GI.ps n1#gindex GI.ps n2#gindex
+              DEBUG_MSG "match (filtered): %a-%a (%a-%a)" nups n1 nups n2 ngps n1 ngps n2
             ) matches_;
           List.iter
             (fun (n1, n2) ->
-              DEBUG_MSG "match (filtered:gindex): %a-%a"
-                GI.ps n1#gindex GI.ps n2#gindex
+              DEBUG_MSG "match (filtered:gindex): %a-%a" ngps n1 ngps n2
             ) (List.fast_sort cmp matches_);
         END_DEBUG;
 
@@ -1465,12 +1454,11 @@ module F (Label : Spec.LABEL_T) = struct
           let cmp (n1, _) (n2, _) = Stdlib.compare n1#gindex n2#gindex in
           List.iter
             (fun (n1, n2) ->
-              DEBUG_MSG "extra_match (filtered): %a-%a (%a-%a)"
-                ups n1#uid ups n2#uid GI.ps n1#gindex GI.ps n2#gindex
+              DEBUG_MSG "extra_match (filtered): %a-%a (%a-%a)" nups n1 nups n2 ngps n1 ngps n2
             ) extra_matches_;
           List.iter
             (fun (n1, n2) ->
-              DEBUG_MSG "extra_match (filtered:gindex): %a-%a" GI.ps n1#gindex GI.ps n2#gindex
+              DEBUG_MSG "extra_match (filtered:gindex): %a-%a" ngps n1 ngps n2
             ) (List.fast_sort cmp extra_matches_);
         END_DEBUG;
 
@@ -1558,8 +1546,7 @@ module F (Label : Spec.LABEL_T) = struct
         BEGIN_DEBUG
           List.iter
             (fun (n1, n2) ->
-              DEBUG_MSG "matches_and_extra_matches_: %a-%a (%a-%a)"
-                ups n1#uid ups n2#uid GI.ps n1#gindex GI.ps n2#gindex
+              DEBUG_MSG "matches_and_extra_matches_: %a-%a (%a-%a)" nups n1 nups n2 ngps n1 ngps n2
             ) matches_and_extra_matches_;
         END_DEBUG;
 
@@ -2334,7 +2321,7 @@ module F (Label : Spec.LABEL_T) = struct
 
           BEGIN_DEBUG
             DEBUG_MSG "[%s]: adding %a -> %a (score=%d)" context ups u1 ups u2 score;
-            DEBUG_MSG "[%s]:        %a    %a" context GI.ps nd1#gindex GI.ps nd2#gindex;
+            DEBUG_MSG "[%s]:        %a    %a" context ngps nd1 ngps nd2;
           END_DEBUG;
 
           try
@@ -3798,7 +3785,7 @@ module F (Label : Spec.LABEL_T) = struct
         in
         List.iter
           (fun (n1, n2) ->
-            DEBUG_MSG "starting_uid_pair (gindex): %a-%a" GI.ps n1#gindex GI.ps n2#gindex
+            DEBUG_MSG "starting_uid_pair (gindex): %a-%a" ngps n1 ngps n2
           ) starting_node_pairs;
       END_DEBUG;
 
@@ -3953,7 +3940,7 @@ module F (Label : Spec.LABEL_T) = struct
         (List.length sorted_conflicting_cands);
       List.iter
       (fun ((uid1, uid2), (s, adj, (gi1, gi2))) ->
-        DEBUG_MSG "%a-%a (%d, %f, (%a-%a))" ups uid1 ups uid2 s adj GI.ps gi1 GI.ps gi2
+        DEBUG_MSG "%a-%a (%d, %f, (%a-%a))" ups uid1 ups uid2 s adj gps gi1 gps gi2
       ) sorted_conflicting_cands;
     END_DEBUG;
 
@@ -4029,12 +4016,12 @@ module F (Label : Spec.LABEL_T) = struct
       DEBUG_MSG "%d CANDIDATES (resolved):" (List.length resolved_cands);
       List.iter
       (fun ((uid1, uid2), (s, adj, (gi1, gi2))) ->
-          DEBUG_MSG "%a-%a (%d, %f, (%a-%a))" ups uid1 ups uid2 s adj GI.ps gi1 GI.ps gi2
+          DEBUG_MSG "%a-%a (%d, %f, (%a-%a))" ups uid1 ups uid2 s adj gps gi1 gps gi2
         ) resolved_cands;
       DEBUG_MSG "%d CANDIDATES (additionally resolved):" (List.length additionally_resolved_cands);
       List.iter
         (fun ((uid1, uid2), (s, adj, (gi1, gi2))) ->
-          DEBUG_MSG "%a-%a (%d, %f, (%a-%a))" ups uid1 ups uid2 s adj GI.ps gi1 GI.ps gi2
+          DEBUG_MSG "%a-%a (%d, %f, (%a-%a))" ups uid1 ups uid2 s adj gps gi1 gps gi2
         ) additionally_resolved_cands;
     END_DEBUG;
 
@@ -4251,8 +4238,7 @@ module F (Label : Spec.LABEL_T) = struct
             (*removed_pairs := !to_be_removed @ !removed_pairs;*)
             added_pairs := (uid1, uid2) :: !added_pairs;
 
-            DEBUG_MSG "added %a-%a (%a-%a)"
-              ups uid1 ups uid2 GI.ps nd1#gindex GI.ps nd2#gindex;
+            DEBUG_MSG "added %a-%a (%a-%a)" ups uid1 ups uid2 ngps nd1 ngps nd2;
           end
           else begin
             failed_cands := (uid1, uid2) :: !failed_cands
@@ -4317,7 +4303,7 @@ module F (Label : Spec.LABEL_T) = struct
             (fun (u1, u2) ->
               let n1 = tree1#search_node_by_uid u1 in
               let n2 = tree2#search_node_by_uid u2 in
-              DEBUG_MSG "%s: %a-%a (%a-%a)" name ups u1 ups u2 GI.ps n1#gindex GI.ps n2#gindex
+              DEBUG_MSG "%s: %a-%a (%a-%a)" name ups u1 ups u2 ngps n1 ngps n2
             ) pairs
         ) [("removed_pair", !removed_pairs); ("added_pair", !added_pairs)]
     END_DEBUG;
@@ -5123,8 +5109,7 @@ end;
           ) mtbl;
         List.iter
           (fun (mid, n1, n2) ->
-            DEBUG_MSG "%a: %a-%a (%a-%a)" MID.ps mid
-              GI.ps n1#gindex GI.ps n2#gindex ups n1#uid ups n2#uid
+            DEBUG_MSG "%a: %a-%a (%a-%a)" MID.ps mid ngps n1 ngps n2 nups n1 nups n2
           )
           (List.fast_sort
              (fun (_, n1, _) (_, n2, _) ->
@@ -6920,8 +6905,7 @@ end;
     let nd1 = Info.get_node info1 in
     let nd2 = Info.get_node info2 in
 
-    DEBUG_MSG "checking %a %a-%a (%a-%a) sz=%d"
-      MID.ps !mid ups uid1 ups uid2 GI.ps nd1#gindex GI.ps nd2#gindex sz1;
+    DEBUG_MSG "checking %a %a-%a (%a-%a) sz=%d" MID.ps !mid ups uid1 ups uid2 ngps nd1 ngps nd2 sz1;
 
     begin
      try
@@ -6948,7 +6932,7 @@ end;
             let n1 = tree1#search_node_by_uid u1 in
             let n2 = tree2#search_node_by_uid u2 in
 (*
-                    DEBUG_MSG "!!!  crossing: %a-%a (%a-%a)" ups u1 ups u2 GI.ps n1#gindex GI.ps n2#gindex;
+                    DEBUG_MSG "!!!  crossing: %a-%a (%a-%a)" ups u1 ups u2 ngps n1 ngps n2;
 *)
             match edits#find12 u1 u2 with
             | [] | [Edit.Relabel _] ->
@@ -7036,7 +7020,7 @@ end;
           let ndpairs = Hashtbl.find move_mem_tbl mid in
           let nds1, nds2 = List.split ndpairs in
           DEBUG_MSG "      [%a]" ngsps nds1;
-          DEBUG_MSG "   -> [%s]" ngsps nds2;
+          DEBUG_MSG "   -> [%a]" ngsps nds2;
         ) sorted_move_tops
     END_DEBUG;
 
@@ -7890,7 +7874,7 @@ end;
             b &&
             not (n1#initial_nchildren > 1 && n1#data#equals n2#data || not (is_cross_boundary uidmapping n1 n2))
           in
-          DEBUG_MSG "%s %s -> %B" n1#data#label n2#data#label b;
+          DEBUG_MSG "%a %a -> %B" labps n1 labps n2 b;
           b
         in
         decompose_moves cenv tree1 tree2 is_bad_pair options edits uidmapping 2
@@ -8034,7 +8018,7 @@ end;
             n1#data#move_disallowed || n2#data#move_disallowed ||
             n1#data#is_common || n2#data#is_common
             in
-            DEBUG_MSG "%s %s -> %B" n1#data#label n2#data#label b;
+            DEBUG_MSG "%a %a -> %B" labps n1 labps n2 b;
             b
           in
           let is_uncertain_pair n1 n2 =
@@ -8073,7 +8057,7 @@ end;
                         let sn1 = find_nearest_anc_stmt n1 in
                         let sn2 = find_nearest_anc_stmt n2 in
 
-                        DEBUG_MSG "stmt pair: %a-%a: [%a]-[%a] %a-%a" ups sn1#uid ups sn2#uid
+                        DEBUG_MSG "stmt pair: %a-%a: [%a]-[%a] %a-%a" nups sn1 nups sn2
                           locps sn1 locps sn2 labps sn1 labps sn2;
 
                         let same_move =
@@ -8173,12 +8157,12 @@ end;
               | _ -> begin
                   let freq1 = List.length (try cenv#get_use1 (Edit.get_bid n1) with _ -> []) in
                   let freq2 = List.length (try cenv#get_use2 (Edit.get_bid n2) with _ -> []) in
-                  DEBUG_MSG "freq1: %s -> %d" n1#data#label freq1;
-                  DEBUG_MSG "freq2: %s -> %d" n2#data#label freq2;
+                  DEBUG_MSG "freq1: %a -> %d" labps n1 freq1;
+                  DEBUG_MSG "freq2: %a -> %d" labps n2 freq2;
                   freq1 > 3 && freq2 > 3
                 end
             in
-            DEBUG_MSG "%s %s -> %B" n1#data#label n2#data#label b;
+            DEBUG_MSG "%a %a -> %B" labps n1 labps n2 b;
             b
           in
           let get_mid n =
@@ -8560,8 +8544,7 @@ end;
                           else
                             raise Not_found
                         end;
-                        DEBUG_MSG "del-ins pair found: %s-%s"
-                          (Edit.to_string del) (Edit.to_string ins);
+                        DEBUG_MSG "del-ins pair found: %s-%s" (Edit.to_string del) (Edit.to_string ins);
                         edits#remove_edit del;
                         edits#remove_edit ins;
                         ignore (uidmapping#add_settled uid uid');
@@ -8698,7 +8681,7 @@ end;
                                 match edits#find_mov1 c#uid with
                                 | Edit.Move(m, _, (_, info1, _), (_, info2, _)) -> begin
                                     let c' = Info.get_node info2 in
-                                    DEBUG_MSG "%a -> %a" ups c#uid ups c'#uid;
+                                    DEBUG_MSG "%a -> %a" nups c nups c';
                                     if nd'#initial_children.(i) == c' then
                                       ml := m :: !ml
                                     else
@@ -8808,7 +8791,7 @@ end;
     let get_excludes exclude_map link_map uid =
       let uids = trace_link link_map uid in
 
-      DEBUG_MSG "(%a): members: [%s]" ups uid usps uids;
+      DEBUG_MSG "(%a): members: [%a]" ups uid usps uids;
 
       let excludes =
         List.fold_left
@@ -8910,11 +8893,8 @@ end;
             in
 
             BEGIN_DEBUG
-              DEBUG_MSG "[grouping] Delete: children of\t <%a>: [%s]"
-                ups uid (Xlist.to_string UID.to_string ","
-                       (List.map (fun nd -> nd#uid) ichildren));
-              DEBUG_MSG "[grouping] Delete: excl: [%s]"
-              (Xlist.to_string Info.to_string ", " excl);
+              DEBUG_MSG "[grouping] Delete: children of\t <%a>: [%a]" ups uid nsps ichildren;
+              DEBUG_MSG "[grouping] Delete: excl: [%s]" (Xlist.to_string Info.to_string ", " excl);
             END_DEBUG;
 
             if nd#has_initial_parent then begin
@@ -8944,9 +8924,7 @@ end;
             let nd = Info.get_node info in
             let ichildren = Array.to_list nd#initial_children in
 
-            DEBUG_MSG "[grouping] Insert: whole=%B children of %a: [%s]"
-              whole ups uid (Xlist.to_string UID.to_string ","
-                                  (List.map (fun nd -> nd#uid) ichildren));
+            DEBUG_MSG "[grouping] Insert: whole=%B children of %a: [%a]" whole ups uid nsps ichildren;
 
             let excl =
               handle_excludes (*tree2*) whole excludes nd ichildren
@@ -8957,8 +8935,7 @@ end;
                 mkexcl (List.filter (fun n -> uidmapping#mem_cod n#uid) ichildren)*)
             in
 
-            DEBUG_MSG "[grouping] Insert: excl: [%s]"
-              (Xlist.to_string Info.to_string ", " excl);
+            DEBUG_MSG "[grouping] Insert: excl: [%s]" (Xlist.to_string Info.to_string ", " excl);
 
             if nd#has_initial_parent then begin
               let pnd = nd#initial_parent in
@@ -8988,10 +8965,8 @@ end;
               let nd1 = Info.get_node info1 in
               let nd2 = Info.get_node info2 in
 
-              DEBUG_MSG "[grouping] Relabel: %a collapsed=%B"
-                ups uid1 nd1#is_collapsed;
-              DEBUG_MSG "[grouping] Relabel: %a collapsed=%B"
-                ups uid2 nd2#is_collapsed;
+              DEBUG_MSG "[grouping] Relabel: %a collapsed=%B" ups uid1 nd1#is_collapsed;
+              DEBUG_MSG "[grouping] Relabel: %a collapsed=%B" ups uid2 nd2#is_collapsed;
 
               let filt1 nd =
                 let uid = nd#uid in
@@ -9044,17 +9019,15 @@ end;
               let excl1 = mkexcl (List.filter filt1 children1) in
               let excl2 = mkexcl (List.filter filt2 children2) in
 
-              DEBUG_MSG ("\n[grouping] Relabel: children1 of\t <%a>: [%s]\n" ^^
+              DEBUG_MSG ("\n[grouping] Relabel: children1 of\t <%a>: [%a]\n" ^^
                          "[grouping] Relabel: excl1: [%s]\n" ^^
-                         "[grouping] Relabel children2 of\t <%a>: [%s]\n" ^^
+                         "[grouping] Relabel children2 of\t <%a>: [%a]\n" ^^
                          "[grouping] Relabel: excl2: [%s]\n" ^^
                          "[grouping] relabel_exclude_map1: added: %a -> [%s]\n" ^^
                          "[grouping] relabel_exclude_map2: added: %a -> [%s]")
-                ups uid1 (Xlist.to_string UID.to_string ","
-                               (List.map (fun nd -> nd#uid) children1))
+                ups uid1 nsps children1
                 (Xlist.to_string Info.to_string ", " excl1)
-                ups uid2 (Xlist.to_string UID.to_string ","
-                               (List.map (fun nd -> nd#uid) children2))
+                ups uid2 nsps children2
                 (Xlist.to_string Info.to_string ", " excl2)
                 ups uid1 (Xlist.to_string Info.to_string ", " excl1)
                 ups uid2 (Xlist.to_string Info.to_string ", " excl2);
@@ -9108,8 +9081,7 @@ end;
               | [Edit.Relabel _;Edit.Move(id, k, (u1, _, _), (u2, i2, _))]
               | [Edit.Move(id, k, (u1, _, _), (u2, i2, _))] ->
 
-                  DEBUG_MSG "[grouping] filt1(%a:%a): mov: mid=%a"
-                    ups uid GI.ps nd#gindex MID.ps !id;
+                  DEBUG_MSG "[grouping] filt1(%a:%a): mov: mid=%a" ups uid ngps nd MID.ps !id;
 
                   if !mid = !id then
                     if is_mov uid then
@@ -9129,7 +9101,7 @@ end;
 
               | [Edit.Relabel(_, (u1, _, _), (u2, i2, _))] ->
 
-                  DEBUG_MSG "[grouping] filt1(%a:%a): rel" ups uid GI.ps nd#gindex;
+                  DEBUG_MSG "[grouping] filt1(%a:%a): rel" ups uid ngps nd;
 (*
                   let n2 = Info.get_node i2 in
                   if n2#has_initial_parent then
@@ -9140,8 +9112,7 @@ end;
 
               | [_] -> true
               | eds ->
-                  DEBUG_MSG "[grouping] incompatible edits found:\n%s"
-                    (Xlist.to_string Edit.to_string "\n" eds);
+                  DEBUG_MSG "[grouping] incompatible edits found:\n%s" (Xlist.to_string Edit.to_string "\n" eds);
                   assert false
             in
             let filt2 is_mov nd =
@@ -9152,7 +9123,7 @@ end;
               | [Edit.Relabel _;Edit.Move(id, k, (u1, i1, _), (u2, _, _))]
               | [Edit.Move(id, k, (u1, i1, _), (u2, _, _))] ->
 
-                  DEBUG_MSG "[grouping] filt2(%a:%a): mov: mid=%a" ups uid GI.ps nd#gindex MID.ps !id;
+                  DEBUG_MSG "[grouping] filt2(%a:%a): mov: mid=%a" ups uid ngps nd MID.ps !id;
 
                   if !mid = !id then
                     if is_mov uid then
@@ -9172,7 +9143,7 @@ end;
 
               | [Edit.Relabel(_, (u1, i1, _), (u2, _, _))] ->
 
-                  DEBUG_MSG "[grouping] filt2(%a:%a): rel" ups uid GI.ps nd#gindex;
+                  DEBUG_MSG "[grouping] filt2(%a:%a): rel" ups uid ngps nd;
 (*
                   let n1 = Info.get_node i1 in
                   if n1#has_initial_parent then
@@ -9183,8 +9154,7 @@ end;
 
               | [_] -> true
               | eds ->
-                  DEBUG_MSG "[grouping] edits found:\n%s"
-                    (Xlist.to_string Edit.to_string "\n" eds);
+                  DEBUG_MSG "[grouping] edits found:\n%s" (Xlist.to_string Edit.to_string "\n" eds);
                   assert false
             in
 
@@ -9222,15 +9192,13 @@ end;
             let excl1 = mkexcl (List.filter filt1' children1) in
             let excl2 = mkexcl (List.filter filt2' children2) in
 
-            DEBUG_MSG ("\n[grouping] Move: children1 of\t <%a>: [%s]\n" ^^
+            DEBUG_MSG ("\n[grouping] Move: children1 of\t <%a>: [%a]\n" ^^
                        "[grouping] Move: excl1: [%s]\n" ^^
-                       "[grouping] Move: children2 of\t <%a>: [%s]\n" ^^
+                       "[grouping] Move: children2 of\t <%a>: [%a]\n" ^^
                        "[grouping] Move: excl2: [%s]")
-              ups uid1 (Xlist.to_string UID.to_string ","
-                             (List.map (fun nd -> nd#uid) children1))
+              ups uid1 nsps children1
               (Xlist.to_string Info.to_string ", " excl1)
-              ups uid2 (Xlist.to_string UID.to_string ","
-                             (List.map (fun nd -> nd#uid) children2))
+              ups uid2 nsps children2
               (Xlist.to_string Info.to_string ", " excl2);
 
             begin
@@ -9291,8 +9259,7 @@ end;
 
     let add_to_be_filtered to_be_filtered edtag uid uids =
 
-      DEBUG_MSG "%a -> [%s]" ups uid
-        (Xlist.to_string UID.to_string ";" uids);
+      DEBUG_MSG "%a -> [%a]" ups uid usps uids;
 
       List.iter
         (fun u ->
@@ -9374,8 +9341,8 @@ end;
               BEGIN_DEBUG
                 let nd1 = Info.get_node info1 in
                 let gid1 = nd1#gindex in
-                DEBUG_MSG "filter: relabel: %a-%a" GI.ps gid1 GI.ps gid2;
-                DEBUG_MSG "prev_rel2_lm2=%a prev_rel2=%a" GI.ps !prev_rel2_lm2 GI.ps !prev_rel2;
+                DEBUG_MSG "filter: relabel: %a-%a" gps gid1 gps gid2;
+                DEBUG_MSG "prev_rel2_lm2=%a prev_rel2=%a" gps !prev_rel2_lm2 gps !prev_rel2;
                 DEBUG_MSG "filter: no_swap=%B" no_swap;
               END_DEBUG;
 
@@ -9419,8 +9386,8 @@ end;
             BEGIN_DEBUG
               let nd1 = Info.get_node info1 in
               let gid1 = nd1#gindex in
-              DEBUG_MSG "filter: move: %a-%a" GI.ps gid1 GI.ps gid2;
-              DEBUG_MSG "prev_mov2_lm2=%a prev_mov2=%a" GI.ps !prev_mov2_lm2 GI.ps !prev_mov2;
+              DEBUG_MSG "filter: move: %a-%a" gps gid1 gps gid2;
+              DEBUG_MSG "prev_mov2_lm2=%a prev_mov2=%a" gps !prev_mov2_lm2 gps !prev_mov2;
               DEBUG_MSG "filter: no_swap=%B" no_swap;
             END_DEBUG;
 
