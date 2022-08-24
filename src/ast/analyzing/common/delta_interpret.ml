@@ -3076,12 +3076,12 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     let extra_dels = ref [] in
     let nox = Xset.create 0 in
-    let sups = Xset.create 0 in
-    let add_extra_del ?(notrans=false) ?(stable_ups=false) n =
+    let supsds = Xset.create 0 in
+    let add_extra_del ?(notrans=false) ?(stable_upsds=false) n =
       if notrans then
         Xset.add nox n;
-      if stable_ups then
-        Xset.add sups n;
+      if stable_upsds then
+        Xset.add supsds n;
       if not (List.memq n !extra_dels) then
         extra_dels := n :: !extra_dels
     in
@@ -3293,7 +3293,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             else !!!!!*)if upc > 0 then begin
               DEBUG_MSG "upc=%d" upc;
 
-              let rec scan prev_ins rt nd (nups, ups, count, is_ins) =
+              let rec scan prev_ins rt nd (nupsds, upsds, count, is_ins) =
                 Xset.add visited nd;
                 DEBUG_MSG "%a -> visited" nps nd;
                 let ins = self#is_insert nd in
@@ -3303,7 +3303,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                 if not prev_ins && ins && List.memq nd nds then begin
                   Xset.remove visited nd;
                   DEBUG_MSG "%a -> not visited" nps nd;
-                  nups, ups, count, false
+                  nupsds, upsds, count, false
                 end
                 else if self#is_stable nd then begin
 
@@ -3317,16 +3317,16 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                         add_extra_del nd
                       end
                     end;
-                    nups, (nd :: ups), count', false
+                    nupsds, (nd :: upsds), count', false
                   end
                   else (* count' < 0 *)
-                    (nd :: nups), ups, count', false
+                    (nd :: nupsds), upsds, count', false
                 end
                 else begin
                   Array.fold_right
                     (fun c acc ->
                       scan ins rt c acc
-                    ) nd#initial_children (nups, ups, count, is_ins && ins)
+                    ) nd#initial_children (nupsds, upsds, count, is_ins && ins)
                 end
               in (* scan *)
 
@@ -3399,27 +3399,27 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                   else if not (Xset.mem visited n) then begin
                     DEBUG_MSG "%s[%d] scanning %a" indent lv nps n;
 
-                    let nups, ups, count', is_ins' =
+                    let nupsds, upsds, count', is_ins' =
                       let is_ins = self#is_insert n in
                       scan is_ins n n ([], [], count, is_ins)
                     in
 
                     if count' < 0 then begin
                       DEBUG_MSG "%s[%d] partial upstream node: %a" indent lv nps n;
-                      DEBUG_MSG "%s[%d] upstream descendants: [%a]" indent lv nsps ups;
-                      DEBUG_MSG "%s[%d] non-upstream descendants: [%a]" indent lv nsps nups;
+                      DEBUG_MSG "%s[%d] upstream descendants: [%a]" indent lv nsps upsds;
+                      DEBUG_MSG "%s[%d] non-upstream descendants: [%a]" indent lv nsps nupsds;
 
-                      DEBUG_MSG "prune_tbl: replace %a -> [%a]" nps rt nsps nups;
-                      Hashtbl.replace prune_tbl rt nups;
+                      DEBUG_MSG "prune_tbl: replace %a -> [%a]" nps rt nsps nupsds;
+                      Hashtbl.replace prune_tbl rt nupsds;
 
                       Xset.add not_upstream rt;
                       remove_upstream_root rt;
 
-                      List.iter (Xset.add unds) ups
+                      List.iter (Xset.add unds) upsds
 
                     end;
 
-                    List.iter add_upstream_root ups;
+                    List.iter add_upstream_root upsds;
 
                     (n :: l), count'
                   end
@@ -3432,7 +3432,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
               if Xset.mem dels_with_root_shifts rt then begin
                 DEBUG_MSG "rt=%a is a del with root shifts" nps rt;
-                let ups, nups =
+                let upsds, nupsds =
                   List.partition
                     (fun x ->
                       (has_quasi_upstream_descendant x(* && (
@@ -3447,9 +3447,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                       self#is_forced_upstream x
                     ) nds
                 in
-                DEBUG_MSG "ups=[%a]" nsps ups;
+                DEBUG_MSG "upsds=[%a]" nsps upsds;
 
-                let _extra_ups = ref [] in
+                let _extra_upsds = ref [] in
                 List.iter
                   (fun n ->
                     DEBUG_MSG "n=%a" nps n;
@@ -3463,18 +3463,18 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                           self#is_forced_upstream n0 ||
                           self#has_parent_key_stable n0 && self#get_quasi_upstream_count n0 = 0
                         then begin
-                          if not (List.memq n0 !_extra_ups) then
-                            _extra_ups := n0 :: !_extra_ups;
+                          if not (List.memq n0 !_extra_upsds) then
+                            _extra_upsds := n0 :: !_extra_upsds;
                         end
                       ) ns
                   ) (try Hashtbl.find extra_roots_tbl rt with Not_found -> []);
 
-                let extra_ups =
+                let extra_upsds =
                   List.filter
                     (fun n ->
                       DEBUG_MSG "n=%a" nps n;
                       let b =
-                        not (List.exists (fun x -> is_ancestor x n) !_extra_ups) ||
+                        not (List.exists (fun x -> is_ancestor x n) !_extra_upsds) ||
                         self#is_insert n &&
                         let k = self#find_key n in
                         DEBUG_MSG "k=%s" (key_to_string k);
@@ -3486,27 +3486,27 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                  DEBUG_MSG "x=%a xk=%s" nps x (key_to_string xk);
                                  k = xk && is_ancestor x n
                                with _ -> false
-                             ) !_extra_ups)
+                             ) !_extra_upsds)
                       in
                       DEBUG_MSG "b=%B" b;
                       if b then
                         Xset.add extra_upstream_nodes n;
                       b
-                    ) !_extra_ups
+                    ) !_extra_upsds
                 in
-                DEBUG_MSG "extra_ups=[%a]" nsps extra_ups;
+                DEBUG_MSG "extra_upsds=[%a]" nsps extra_upsds;
 
-                let ups = ups @ extra_ups in
+                let upsds = upsds @ extra_upsds in
 
                 DEBUG_MSG "nds=[%a]" nsps nds;
 
                 DEBUG_MSG "%s[%d] quasi(forced)-upstream nodes: [%a]" indent lv
-                  nsps ups;
+                  nsps upsds;
 
                 DEBUG_MSG "%s[%d] non-quasi(forced)-upstream nodes: [%a]" indent lv
-                  nsps nups;
+                  nsps nupsds;
 
-                if ups <> [] then begin
+                if upsds <> [] then begin
                   let l =
                     Xlist.filter_map
                       (fun n ->
@@ -3524,7 +3524,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                             (*(self#find_subtree (self#find_key a0))#root*)
                             let a1, p1, _ = skip_inserted_ (*[]*) 0 a0_p0 in
                             let n' = a1#initial_children.(p1) in
-                            if List.memq n' ups then
+                            if List.memq n' upsds then
                               None
                             else if Xset.mem processed_nodes n' then
                               None
@@ -3533,20 +3533,20 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                           with
                             _ -> Some n
                         end
-                      ) ups
+                      ) upsds
                   in
                   DEBUG_MSG "l=[%a]" nsps l;
-                  let ups_ = Xlist.uniqq (sort_nds rt l) in
+                  let upsds_ = Xlist.uniqq (sort_nds rt l) in
 
-                  DEBUG_MSG "%s[%d] ups_=[%s]" indent lv
-                    (nodes_to_uids_string ups_);
+                  DEBUG_MSG "%s[%d] upsds_=[%s]" indent lv
+                    (nodes_to_uids_string upsds_);
 
-                  if ups_ <> [] then begin
+                  if upsds_ <> [] then begin
 
                     let sn, pos = skip_touched rt in
                     DEBUG_MSG "rt=%a sn=%a pos=%d" nps rt nps sn pos;
 
-                    (*let u0 = List.hd ups_ in
+                    (*let u0 = List.hd upsds_ in
                     let dir = get_dir sn pos u0 in*)
                     List.iter
                       (fun n ->
@@ -3602,11 +3602,11 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                               tbl_add ins_tbl_ sn (pos, n, dir);
                               Xset.add nodes_added_to_ins_tbl_ n
                         end
-                      ) ups_
+                      ) upsds_
 
                   end;
 
-                  let nups_ =
+                  let nupsds_ =
                     List.filter
                       (fun n ->
                         DEBUG_MSG "n=%a" nps n;
@@ -3628,10 +3628,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                           let _a, _ = skip_deleted ~limit:rt n in
                           let a = (self#find_subtree (self#find_key _a))#root in
                           DEBUG_MSG "a=%a" nps a;
-                          let b = List.memq n nups && List.memq a ups_ in
+                          let b = List.memq n nupsds && List.memq a upsds_ in
                           if b then begin
                             DEBUG_MSG "extra_del: %a" nps n;
-                            add_extra_del ~stable_ups:(List.memq n ups) n
+                            add_extra_del ~stable_upsds:(List.memq n upsds) n
                           end;
                           not b
                         with
@@ -3657,15 +3657,15 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                         self#is_stable x &&
                         not (self#has_parent_key_stable x && self#get_quasi_upstream_count x = 0)
                       in
-                      let l = Xlist.union nups (List.filter filt ups) in
+                      let l = Xlist.union nupsds (List.filter filt upsds) in
                       DEBUG_MSG "l=[%a]" nsps l;
                       let l = sort_nds rt l in
                       DEBUG_MSG "l=[%a] (sorted)" nsps l;
                       l)
                   in
-                  DEBUG_MSG "%s[%d] nups_=[%s]" indent lv (nodes_to_uids_string nups_);
+                  DEBUG_MSG "%s[%d] nupsds_=[%s]" indent lv (nodes_to_uids_string nupsds_);
 
-                  let nups__ =
+                  let nupsds__ =
                     Xlist.uniqq
                       (Xlist.filter_map
                          (fun n ->
@@ -3680,7 +3680,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                              let ins = find_ins a in
                              DEBUG_MSG "ins=%a" nps ins;
 
-                             if List.memq n nups && self#is_insert ins#initial_parent then
+                             if List.memq n nupsds && self#is_insert ins#initial_parent then
                                Xset.add not_excluded ins;
 
                              if Xset.mem upstream_roots ins then begin
@@ -3692,7 +3692,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                DEBUG_MSG "extra_del: %a" nps n;
                                add_extra_del n;
 
-                               if List.memq ins nups_ then
+                               if List.memq ins nupsds_ then
                                  None
                                else
                                  Some ins
@@ -3700,11 +3700,11 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                              end
                            with
                              _ -> Some n
-                         ) nups_)
+                         ) nupsds_)
                   in
-                  DEBUG_MSG "%s[%d] nups__=[%s]" indent lv (nodes_to_uids_string nups__);
+                  DEBUG_MSG "%s[%d] nupsds__=[%s]" indent lv (nodes_to_uids_string nupsds__);
 
-                  nups__, 0
+                  nupsds__, 0
                 end
                 else
                   nds, 0
@@ -4653,7 +4653,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         let anc, pos =
           if self#has_parent_key_stable n then begin
             let (a0, p0 as a0_p0) = find_anc n in
-            if Xset.mem sups n then
+            if Xset.mem supsds n then
               a0_p0
             else if self#is_insert a0 then
               skip_ins_del 0 a0_p0

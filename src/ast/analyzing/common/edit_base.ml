@@ -155,12 +155,6 @@ let merge_segments segs_list =
 (* edit operations *)
 include Editop
 
-let node_to_uid_string nd =
-  sprintf "%a(%a)" UID.ps nd#uid GI.ps nd#gindex
-
-let nodes_to_uids_string nds =
-  String.concat ";" (List.map node_to_uid_string nds)
-
 let ups = Misc.ups
 let nps = Misc.nps
 let nups = Misc.nups
