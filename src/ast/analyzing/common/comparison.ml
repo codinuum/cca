@@ -1536,6 +1536,59 @@ class ['node_t, 'tree_t] c
     b
 
 
+  method has_matched_subtree uidmapping r1 r2 ?(excluded=[]) n =
+    let moveon x = not (List.memq x excluded) in
+    has_p_descendant ~moveon (self#is_matched_subtree uidmapping r1 r2) n
+
+
+  method check_op_mappings_m uidmapping _nd1 _nd2 nd1 nd2 =
+    _nd1 == nd1 &&
+    tree2#is_initial_ancestor _nd2 nd2 && (try nd2#initial_parent != _nd2 with _ -> false) &&
+    self#has_matched_subtree uidmapping _nd1 _nd2 ~excluded:[nd2] _nd2 &&
+    Array.exists
+      (fun x ->
+        x#data#has_non_trivial_value &&
+        Array.exists (fun y -> x#data#eq y#data) nd1#initial_children
+      ) nd2#initial_children
+  ||
+    _nd2 == nd2 &&
+    tree1#is_initial_ancestor _nd1 nd1 && (try nd1#initial_parent != _nd1 with _ -> false) &&
+    self#has_matched_subtree uidmapping _nd1 _nd2 ~excluded:[nd1] _nd1 &&
+    Array.exists
+      (fun x ->
+        x#data#has_non_trivial_value &&
+        Array.exists (fun y -> x#data#eq y#data) nd2#initial_children
+      ) nd1#initial_children
+
+
+  method check_op_mappings uidmapping size_nd1 size_nd2 _nd1 _nd2 nd1 nd2 =
+    nd1 == _nd1 &&
+    tree2#is_initial_ancestor _nd2 nd2 &&
+    (try
+      let n1 = tree1#search_node_by_uid (uidmapping#inv_find _nd2#uid) in
+      tree1#is_initial_ancestor nd1 n1 &&
+      let sz_n1 = tree1#whole_initial_subtree_size n1 in
+      DEBUG_MSG "sz_n1:%d size_nd2:%d" sz_n1 size_nd2;
+      sz_n1 < size_nd2
+    with
+      _ -> false
+    ) &&
+    self#has_matched_subtree uidmapping nd1 nd2 ~excluded:[_nd2] nd2
+  ||
+    nd2 == _nd2 &&
+    tree1#is_initial_ancestor _nd1 nd1 &&
+    (try
+      let n2 = tree2#search_node_by_uid (uidmapping#find _nd1#uid) in
+      tree2#is_initial_ancestor nd2 n2 &&
+      let sz_n2 = tree2#whole_initial_subtree_size n2 in
+      DEBUG_MSG "sz_n2:%d size_nd1:%d" sz_n2 size_nd1;
+      sz_n2 < size_nd1
+    with
+      _ -> false
+    ) &&
+    self#has_matched_subtree uidmapping nd1 nd2 ~excluded:[_nd1] nd1
+
+
   method compare_mappings
       (uidmapping : 'node_t UIDmapping.c)
       ?(override=false)
@@ -1717,11 +1770,7 @@ class ['node_t, 'tree_t] c
 
           DEBUG_MSG "ancestors similarity: %f --> %f" ancsim_old ancsim_new;
 
-          let is_matched_subtree = self#is_matched_subtree uidmapping in
-          let has_matched_subtree r1 r2 excluded n =
-            let moveon x = x != excluded in
-            has_p_descendant ~moveon (is_matched_subtree r1 r2) n
-          in
+          let has_matched_subtree = self#has_matched_subtree uidmapping in
 
           let get_names nd =
             let _nl =
@@ -1795,7 +1844,7 @@ class ['node_t, 'tree_t] c
                 nd2old#initial_parent != nd2new &&
                 anc_check nd1old nd2new nd2old &&
                 tree2#is_initial_ancestor nd2new nd2old &&
-                not (has_matched_subtree nd1old nd2new nd2old nd2new)
+                not (has_matched_subtree nd1new nd2new ~excluded:[nd2old] nd2new)
               then begin
                 DEBUG_MSG "!!!!! nd1old=%a -> nd2old=%a < nd2new=%a" nugps nd1old nugps nd2old nugps nd2new;
                 DEBUG_MSG "nd1: %a" ndps nd1old;
@@ -1806,7 +1855,7 @@ class ['node_t, 'tree_t] c
                 nd2old != nd2new#initial_parent &&
                 anc_check nd1old nd2old nd2new &&
                 tree2#is_initial_ancestor nd2old nd2new &&
-                not (has_matched_subtree nd1old nd2old nd2new nd2old)
+                not (has_matched_subtree nd1old nd2old ~excluded:[nd2new] nd2old)
               then begin
                 DEBUG_MSG "!!!!! nd1old=%a -> nd2old=%a > nd2new=%a" nugps nd1old nugps nd2old nugps nd2new;
                 DEBUG_MSG "nd1: %a" ndps nd1old;
@@ -1816,6 +1865,7 @@ class ['node_t, 'tree_t] c
 
               else
                 ancsim_old, ancsim_new, false
+
             else if nd2old == nd2new then
               if
                 nd1old#initial_parent == nd1new &&
@@ -1832,7 +1882,7 @@ class ['node_t, 'tree_t] c
                 nd1old#initial_parent != nd1new &&
                 anc_check nd2old nd1new nd1old &&
                 tree1#is_initial_ancestor nd1new nd1old &&
-                not (has_matched_subtree nd1new nd2old nd1old nd1new)
+                not (has_matched_subtree nd1new nd2new ~excluded:[nd1old] nd1new)
               then begin
                 DEBUG_MSG "!!!!! nd1old=%a < nd1new=%a <- nd2old=%a" nugps nd1old nugps nd1new nugps nd2old;
                 DEBUG_MSG "nd2: %a" ndps nd2old;
@@ -1843,7 +1893,7 @@ class ['node_t, 'tree_t] c
                 nd1old != nd1new#initial_parent &&
                 anc_check nd2old nd1old nd1new &&
                 tree1#is_initial_ancestor nd1old nd1new &&
-                not (has_matched_subtree nd1old nd2old nd1new nd1old)
+                not (has_matched_subtree nd1old nd2old ~excluded:[nd1new] nd1old)
               then begin
                 DEBUG_MSG "!!!!! nd1old=%a > nd1new=%a <- nd2old=%a" nugps nd1old nugps nd1new nugps nd2old;
                 DEBUG_MSG "nd2: %a" ndps nd2old;
@@ -1877,19 +1927,19 @@ class ['node_t, 'tree_t] c
 
           DEBUG_MSG "subtree similarity ratio: %f" subtree_sim_ratio;
 
-          let size_old0 = tree1#whole_initial_subtree_size nd1old in
-          let size_old1 = tree2#whole_initial_subtree_size nd2old in
-          let size_new0 = tree1#whole_initial_subtree_size nd1new in
-          let size_new1 = tree2#whole_initial_subtree_size nd2new in
+          let size_old1 = tree1#whole_initial_subtree_size nd1old in
+          let size_old2 = tree2#whole_initial_subtree_size nd2old in
+          let size_new1 = tree1#whole_initial_subtree_size nd1new in
+          let size_new2 = tree2#whole_initial_subtree_size nd2new in
 
-          let size_old = size_old0 + size_old1 in
-          let size_new = size_new0 + size_new1 in
+          let size_old = size_old1 + size_old2 in
+          let size_new = size_new1 + size_new2 in
 
           DEBUG_MSG "subtree size: %d --> %d" size_old size_new;
 
           let anc_sim_almost_same = anc_sim_ratio >= ancestors_similarity_ratio_thresh in
           let all_single = size_old = 2 && size_new = 2 in
-          let all_double = size_old0 = 2 && size_old1 = 2 && size_new0 = 2 && size_new1 = 2 in
+          let all_double = size_old1 = 2 && size_old2 = 2 && size_new1 = 2 && size_new2 = 2 in
           let all_single_or_double = all_single || all_double in
           let chk_for_old() =
             all_single_or_double ||
@@ -2095,7 +2145,8 @@ class ['node_t, 'tree_t] c
 
                       let get_sz = function
                         | [] -> 0
-                        | (pn1, pn2)::_ -> (tree1#whole_initial_subtree_size pn1) + (tree2#whole_initial_subtree_size pn2)
+                        | (pn1, pn2)::_ ->
+                            (tree1#whole_initial_subtree_size pn1) + (tree2#whole_initial_subtree_size pn2)
                       in
 
                       let sz_old = get_sz uniq_pairs_old in
@@ -2122,13 +2173,17 @@ class ['node_t, 'tree_t] c
                   if neighbour_cond then begin
 
                     let sim_cond =
-                      (subtree_sim_old >= subtree_similarity_thresh && subtree_sim_new >= subtree_similarity_thresh) ||
+                      (
+                       subtree_sim_old >= subtree_similarity_thresh &&
+                       subtree_sim_new >= subtree_similarity_thresh
+                      ) ||
                       (has_same_children nd1old nd2old && has_same_children nd1new nd2new)
                     in
+                    DEBUG_MSG "sim_cond: %B" sim_cond;
                     (
                      sim_cond ||
                      (anc_cond && subtree_sim_ratio > subtree_similarity_ratio_thresh
-                        (* subtree_sim_old <= subtree_similarity_lower_thresh && subtree_sim_new <= subtree_similarity_lower_thresh *))
+(* subtree_sim_old <= subtree_similarity_lower_thresh && subtree_sim_new <= subtree_similarity_lower_thresh *))
                     ) &&
                     ((ancsim_old < 1.0 && ancsim_new < 1.0) || (ancsim_old = 1.0 && ancsim_new = 1.0))
                   end
@@ -2142,12 +2197,12 @@ class ['node_t, 'tree_t] c
                 false
             in (* prefer_crossing_count *)
 
+            DEBUG_MSG "prefer_crossing_count: %B" prefer_crossing_count;
+
             (*let prefer_crossing_count =
               prefer_crossing_count ||
               is_cross_boundary uidmapping nd1old nd2old || is_cross_boundary uidmapping nd1new nd2new
             in!!!NG!!!*)
-
-            DEBUG_MSG "prefer_crossing_count: %B" prefer_crossing_count;
 
             if (* (nd1old#data#eq nd2old#data || nd1new#data#eq nd2new#data) && *) prefer_crossing_count
 
@@ -2223,6 +2278,44 @@ class ['node_t, 'tree_t] c
               check_label_match ~ncross_used:false
 
             end
+
+            else if
+              ancsim_old = 1.0 && ancsim_new < 1.0 &&
+              nd1old#data#is_op && nd2old#data#is_op && nd1new#data#is_op && nd2new#data#is_op &&
+              subtree_sim_ratio < subtree_similarity_ratio_thresh &&
+              self#check_op_mappings_m uidmapping nd1old nd2old nd1new nd2new
+            then begin
+              DEBUG_MSG "!!!!!!!! selecting %a - %a" nps nd1new nps nd2new;
+              action_new None None
+            end
+            else if
+              ancsim_old < 1.0 && ancsim_new = 1.0 &&
+              nd1old#data#is_op && nd2old#data#is_op && nd1new#data#is_op && nd2new#data#is_op &&
+              subtree_sim_ratio < subtree_similarity_ratio_thresh &&
+              self#check_op_mappings_m uidmapping nd1new nd2new nd1old nd2old
+            then begin
+              DEBUG_MSG "!!!!!!!! keeping %a - %a" nps nd1old nps nd2old;
+              action_old None None
+            end
+            else if
+              ancsim_old = 1.0 && ancsim_new < 1.0 &&
+              nd1old#data#is_op && nd2old#data#is_op && nd1new#data#is_op && nd2new#data#is_op &&
+              subtree_sim_ratio > subtree_similarity_ratio_thresh &&
+              self#check_op_mappings uidmapping size_new1 size_new2 nd1old nd2old nd1new nd2new
+            then begin
+              DEBUG_MSG "!!!!!!!! selecting %a - %a" nps nd1new nps nd2new;
+              action_new None None
+            end
+            else if
+              ancsim_old < 1.0 && ancsim_new = 1.0 &&
+              nd1old#data#is_op && nd2old#data#is_op && nd1new#data#is_op && nd2new#data#is_op &&
+              subtree_sim_ratio > subtree_similarity_ratio_thresh &&
+              self#check_op_mappings uidmapping size_old1 size_old2 nd1new nd2new nd1old nd2old
+            then begin
+              DEBUG_MSG "!!!!!!!! keeping %a - %a" nps nd1old nps nd2old;
+              action_old None None
+            end
+
             else begin (* adjacency is used *)
 
               check_adjacency ~bonus_self ~bonus_parent ~ncross_used:false ()

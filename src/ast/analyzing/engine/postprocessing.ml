@@ -2421,8 +2421,8 @@ module F (Label : Spec.LABEL_T) = struct
                   (estimate_subtree_similarity tree1 tree2 n1 n2);
                  *)
                 DEBUG_MSG "\tuidmapping: %a(%d/%d) -> %a(%d/%d)"
-                  ups n1#uid nmapped1 nnodes1
-                  ups n2#uid nmapped2 nnodes2;
+                  nups n1 nmapped1 nnodes1
+                  nups n2 nmapped2 nnodes2;
                 END_DEBUG;
 
 
@@ -2453,9 +2453,21 @@ module F (Label : Spec.LABEL_T) = struct
                           asim < anc_sim
                       in
                       let ccond = tree1#is_initial_ancestor pnd1 n1 || tree2#is_initial_ancestor pnd2 n2 in
-                      lcond || acond || ccond,
-                      lcond || ccond
+                      let cont, cand = (lcond || acond || ccond), (lcond || ccond) in
+                      if not cont && not cand then
+                        let b =
+                          lms = label_match_score && asim = 1.0 && anc_sim < 1.0 &&
+                          n1#data#is_op && n2#data#is_op && pnd1#data#is_op && pnd2#data#is_op &&
+                          cenv#check_op_mappings_m uidmapping n1 n2 pnd1 pnd2
+                        in
+                        if b then
+                          DEBUG_MSG "!!!!!!!!";
+                        b, b
+                      else
+                        cont, cand
                 in (* let continue, is_cand *)
+
+                DEBUG_MSG "continue=%B is_cand=%B" continue is_cand;
 
                 if continue then begin
 
