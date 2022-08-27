@@ -1542,9 +1542,13 @@ class ['node_t, 'tree_t] c
 
 
   method check_op_mappings_m uidmapping _nd1 _nd2 nd1 nd2 =
+    let b =
     _nd1 == nd1 &&
-    tree2#is_initial_ancestor _nd2 nd2 && (try nd2#initial_parent != _nd2 with _ -> false) &&
+    (try not nd1#initial_parent#data#is_op with _ -> true) &&
+    (try not _nd2#initial_parent#data#is_op with _ -> true) &&
+    tree2#is_initial_ancestor _nd2 nd2 &&
     self#has_matched_subtree uidmapping _nd1 _nd2 ~excluded:[nd2] _nd2 &&
+    (tree2#whole_initial_subtree_size nd2) * 2 < tree2#whole_initial_subtree_size _nd2 &&
     Array.exists
       (fun x ->
         x#data#has_non_trivial_value &&
@@ -1552,13 +1556,18 @@ class ['node_t, 'tree_t] c
       ) nd2#initial_children
   ||
     _nd2 == nd2 &&
-    tree1#is_initial_ancestor _nd1 nd1 && (try nd1#initial_parent != _nd1 with _ -> false) &&
+    (try not nd2#initial_parent#data#is_op with _ -> true) &&
+    (try not _nd1#initial_parent#data#is_op with _ -> true) &&
+    tree1#is_initial_ancestor _nd1 nd1 &&
     self#has_matched_subtree uidmapping _nd1 _nd2 ~excluded:[nd1] _nd1 &&
+    (tree1#whole_initial_subtree_size nd1) * 2 < tree1#whole_initial_subtree_size _nd1 &&
     Array.exists
       (fun x ->
         x#data#has_non_trivial_value &&
         Array.exists (fun y -> x#data#eq y#data) nd2#initial_children
       ) nd1#initial_children
+    in
+    b && self#get_similarity_score _nd1 _nd2 > subtree_similarity_thresh
 
 
   method check_op_mappings uidmapping size_nd1 size_nd2 _nd1 _nd2 nd1 nd2 =
@@ -1596,9 +1605,9 @@ class ['node_t, 'tree_t] c
       ?(bonus_parent=false)
       ?(force_prefer_crossing_count=false)
       nd1old nd2old ?(ncrossing_old=ref (-1)) ?(adjacency_old=ref (-1.0))
-      (action_old : int option (* difference of ncrossing *) -> float option -> unit)
+      (action_old : int option (* difference of ncrossing *) -> float option -> bool (*force*) -> unit)
       nd1new nd2new ?(ncrossing_new=ref (-1)) ?(adjacency_new=ref (-1.0))
-      (action_new : int option (* difference of ncrossing *) -> float option -> unit)
+      (action_new : int option (* difference of ncrossing *) -> float option -> bool (*force*) -> unit)
       =
 
     DEBUG_MSG "[override:%B] %a-%a vs %a-%a" override
@@ -1629,9 +1638,9 @@ class ['node_t, 'tree_t] c
           (match ncross_sim with Some x -> Printf.sprintf ", %f" x | None -> "");
 
         if b then
-          action_new ncross_diff ncross_sim
+          action_new ncross_diff ncross_sim false
         else
-          action_old ncross_diff ncross_sim;
+          action_old ncross_diff ncross_sim false;
 
         mapping_comparison_cache_hit_count <- mapping_comparison_cache_hit_count + 1;
 
@@ -1647,20 +1656,20 @@ class ['node_t, 'tree_t] c
             let b =
               if override then
                 if lmatch_new >= lmatch_old then begin
-                  action_new None None;
+                  action_new None None false;
                   true
                 end
                 else begin
-                  action_old None None;
+                  action_old None None false;
                   false
                 end
               else
                 if lmatch_new > lmatch_old then begin
-                  action_new None None;
+                  action_new None None false;
                   true
                 end
                 else begin
-                  action_old None None;
+                  action_old None None false;
                   false
                 end
             in
@@ -1753,11 +1762,11 @@ class ['node_t, 'tree_t] c
             else begin (* adj_old <> adj_new *)
               let b =
                 if adj_new > adj_old then begin
-                  action_new None None;
+                  action_new None None false;
                   true
                 end
                 else begin
-                  action_old None None;
+                  action_old None None false;
                   false
                 end
               in
@@ -2020,7 +2029,7 @@ class ['node_t, 'tree_t] c
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
-              action_old None None;
+              action_old None None false;
               false, None, None
             in
             add_cache false b ncd ncsim
@@ -2034,7 +2043,7 @@ class ['node_t, 'tree_t] c
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
-              action_new None None;
+              action_new None None false;
               true, None, None
             in
             add_cache false b ncd ncsim
@@ -2042,7 +2051,7 @@ class ['node_t, 'tree_t] c
           else if ancsim_new = 0.0 && ancsim_old > 0.5 then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
-              action_old None None;
+              action_old None None false;
               false, None, None
             in
             add_cache false b ncd ncsim
@@ -2050,7 +2059,7 @@ class ['node_t, 'tree_t] c
           else if ancsim_old = 0.0 && ancsim_new > 0.5 then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
-              action_new None None;
+              action_new None None false;
               true, None, None
             in
             add_cache false b ncd ncsim
@@ -2257,12 +2266,12 @@ class ['node_t, 'tree_t] c
                   if ncross_new < ncross_old then
                     let d = Some (ncross_old - ncross_new) in
                     let s = Some ncross_sim in
-                    action_new d s;
+                    action_new d s false;
                     true, d, s
                   else
                     let d = Some (ncross_new - ncross_old) in
                     let s = Some ncross_sim in
-                    action_old d s;
+                    action_old d s false;
                     false, d, s
                 in
                 add_cache true b ncd ncsim
@@ -2286,7 +2295,8 @@ class ['node_t, 'tree_t] c
               self#check_op_mappings_m uidmapping nd1old nd2old nd1new nd2new
             then begin
               DEBUG_MSG "!!!!!!!! selecting %a - %a" nps nd1new nps nd2new;
-              action_new None None
+              uidmapping#lock_mapping nd1new#uid nd2new#uid;
+              action_new None None true
             end
             else if
               ancsim_old < 1.0 && ancsim_new = 1.0 &&
@@ -2295,7 +2305,8 @@ class ['node_t, 'tree_t] c
               self#check_op_mappings_m uidmapping nd1new nd2new nd1old nd2old
             then begin
               DEBUG_MSG "!!!!!!!! keeping %a - %a" nps nd1old nps nd2old;
-              action_old None None
+              uidmapping#lock_mapping nd1old#uid nd2old#uid;
+              action_old None None true
             end
             else if
               ancsim_old = 1.0 && ancsim_new < 1.0 &&
@@ -2304,7 +2315,8 @@ class ['node_t, 'tree_t] c
               self#check_op_mappings uidmapping size_new1 size_new2 nd1old nd2old nd1new nd2new
             then begin
               DEBUG_MSG "!!!!!!!! selecting %a - %a" nps nd1new nps nd2new;
-              action_new None None
+              uidmapping#lock_mapping nd1new#uid nd2new#uid;
+              action_new None None true
             end
             else if
               ancsim_old < 1.0 && ancsim_new = 1.0 &&
@@ -2313,7 +2325,8 @@ class ['node_t, 'tree_t] c
               self#check_op_mappings uidmapping size_old1 size_old2 nd1new nd2new nd1old nd2old
             then begin
               DEBUG_MSG "!!!!!!!! keeping %a - %a" nps nd1old nps nd2old;
-              action_old None None
+              uidmapping#lock_mapping nd1old#uid nd2old#uid;
+              action_old None None true
             end
 
             else begin (* adjacency is used *)
@@ -2629,13 +2642,13 @@ class ['node_t, 'tree_t] c
                     self#compare_mappings uidmapping
                       ?override:None ?bonus_self:None
                       n1 n2 ?ncrossing_old:None ?adjacency_old:None
-                      (fun _ _ ->
+                      (fun _ _ _ ->
                         Xset.add to_be_removed (cn1#uid, cn2#uid);
                         List.iter (Xset.add to_be_removed) mem_pairs;
                         act()
                       )
                       cn1 cn2 ?ncrossing_new:(Some ncross) ?adjacency_new:(Some adj)
-                      (fun _ _ -> ())
+                      (fun _ _ _ -> ())
                   ) pairs
               with
                 Exit -> ()

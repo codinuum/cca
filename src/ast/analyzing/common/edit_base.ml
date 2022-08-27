@@ -3029,11 +3029,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         let nd1 = tree1#search_node_by_gindex gi1 in
         let nd2 = tree2#search_node_by_gindex gi2 in
 
+        (*if uidmapping#is_locked_mapping nd1#uid nd2#uid then begin
+          DEBUG_MSG "!!!!!!!! locked mapping: %a-%a" nups nd1 nups nd2;
+        end
+        else*)
+
         let l1 = gi1 - lgi1 in
         let l2 = gi2 - lgi2 in
 
         DEBUG_MSG "checking root pairs of %a (%a-%a) [%a:%a(%d)]-[%a:%a(%d)]..."
-          MID.ps mid nps nd1 nps nd2
+          MID.ps mid nups nd1 nups nd2
           GI.ps lgi1 GI.ps gi1 (l1+1) GI.ps lgi2 GI.ps gi2 (l2+1);
 
         let moveon =
@@ -3061,7 +3066,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           let is_mov1 n1 n2 = self#is_crossing_with_untouched uidmapping n1 n2 in
           let is_mov2 n2 n1 = self#is_crossing_with_untouched uidmapping n1 n2 in
 
-          let ndps = ref [] in
+          let node_pairs = ref [] in
 
           let nd1x, nd2x = ref nd1, ref nd2 in
 
@@ -3083,7 +3088,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 DEBUG_MSG "[%d] cands02(%a): [%a]" !lv nups !nd1x usps !cands02;
 
                 if !cands01 <> [] || !cands02 <> [] then begin
-                  ndps := (!nd1x, !nd2x) :: !ndps;
+                  node_pairs := (!nd1x, !nd2x) :: !node_pairs;
                   raise Exit
                 end;
 
@@ -3095,7 +3100,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   let nx2 = (!nd2x)#initial_children.(0) in
                   let ux1, ux2 = nx1#uid, nx2#uid in
                   if self#mem_mov12 ux1 ux2 then begin
-                    ndps := (!nd1x, !nd2x) :: !ndps;
+                    node_pairs := (!nd1x, !nd2x) :: !node_pairs;
                     nd1x := nx1;
                     nd2x := nx2;
                   end
@@ -3124,7 +3129,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 List.iter self#remove_edit es2;
 
                 ignore (uidmapping#remove u1 u2)
-              ) !ndps
+              ) !node_pairs
           in
 
           let check1 u1 =
@@ -3140,7 +3145,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                     pn1 := (tree1#search_node_by_uid !p1)#initial_parent;
                     p1 := (!pn1)#uid
-                  ) !ndps;
+                  ) !node_pairs;
                 true
               with
                 Exit -> false
@@ -3162,7 +3167,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                     pn2 := (tree2#search_node_by_uid !p2)#initial_parent;
                     p2 := (!pn2)#uid
-                  ) !ndps;
+                  ) !node_pairs;
                 true
               with
                 Exit -> false
@@ -3196,7 +3201,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 pn1 := (tree1#search_node_by_uid !p1)#initial_parent;
                 p1 := (!pn1)#uid
-              ) !ndps
+              ) !node_pairs
           in
 
           let handle2 u2 =
@@ -3223,7 +3228,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 pn2 := (tree2#search_node_by_uid !p2)#initial_parent;
                 p2 := (!pn2)#uid
-              ) !ndps
+              ) !node_pairs
           in
 
           cands01 := List.filter check1 !cands01;
@@ -3244,7 +3249,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                     DEBUG_MSG "making del: %a" UID.ps n1#uid;
                     self#add_edit (make_delete n1)
                   end
-                ) !ndps
+                ) !node_pairs
 
           | [], [uid2'] ->
               remove_orig();
@@ -3255,7 +3260,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                     DEBUG_MSG "making ins: %a" UID.ps n2#uid;
                     self#add_edit (make_insert n2)
                   end
-                ) !ndps
+                ) !node_pairs
 
           | _ -> ()
 

@@ -1604,9 +1604,9 @@ module F (Label : Spec.LABEL_T) = struct
                           let b = ref false in
                           let dnc = ref None in
                           cenv#compare_mappings uidmapping
-                            nd1 nd1' (fun d _ -> dnc := d)
+                            nd1 nd1' (fun d _ _ -> dnc := d)
                             nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
-                            (fun d _ -> b := true; dnc := d);
+                            (fun d _ _ -> b := true; dnc := d);
                           !b, !dnc, (fun () -> ignore (uidmapping#remove u1 u1'))
                       with
                         Not_found -> assert false
@@ -1629,9 +1629,9 @@ module F (Label : Spec.LABEL_T) = struct
                           let b = ref false in
                           let dnc = ref None in
                           cenv#compare_mappings uidmapping
-                            nd2' nd2 (fun d _ -> dnc := d)
+                            nd2' nd2 (fun d _ _ -> dnc := d)
                             nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
-                            (fun d _ -> b := true; dnc := d);
+                            (fun d _ _ -> b := true; dnc := d);
                           !b, !dnc, (fun () -> ignore (uidmapping#remove u2' u2))
                       with
                         Not_found -> assert false
@@ -2314,7 +2314,21 @@ module F (Label : Spec.LABEL_T) = struct
           u1_ok && u2_ok &&
           (match key1_opt, key2_opt with
           | Some key1, Some key2 -> key1 = key2
-          | _ -> true)
+          | _ -> true) &&
+          (try
+            let u1' = uidmapping#find u1 in
+            let b = u1' = u2 || not (uidmapping#is_locked_mapping u1 u1') in
+            if not b then
+              DEBUG_MSG "!!!!!!!! %a->%a" ups u1 ups u1';
+            b
+          with _ -> true) &&
+          (try
+            let u2' = uidmapping#inv_find u2 in
+            let b = u2' = u1 || not (uidmapping#is_locked_mapping u2' u2) in
+            if not b then
+              DEBUG_MSG "!!!!!!!! %a<-%a" ups u2' ups u2;
+            b
+          with _ -> true)
         in
 
         if can_add then begin
@@ -2461,7 +2475,7 @@ module F (Label : Spec.LABEL_T) = struct
                           cenv#check_op_mappings_m uidmapping n1 n2 pnd1 pnd2
                         in
                         if b then
-                          DEBUG_MSG "!!!!!!!!";
+                          DEBUG_MSG "!!!!!!!! %a - %a" nps pnd1 nps pnd2;
                         b, b
                       else
                         cont, cand
@@ -3402,9 +3416,9 @@ module F (Label : Spec.LABEL_T) = struct
                           let b = ref false in
                           let dnc = ref None in
                           cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
-                            n1 n1' (fun d _ -> dnc := d)
+                            n1 n1' (fun d _ _ -> dnc := d)
                             n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
-                            (fun d _ ->
+                            (fun d _ _ ->
                               b := true;
                               dnc := d;
                               defeated1 := true;
@@ -3451,9 +3465,9 @@ module F (Label : Spec.LABEL_T) = struct
                           let b = ref false in
                           let dnc = ref None in
                           cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
-                            n2' n2 (fun d _ -> dnc := d)
+                            n2' n2 (fun d _ _ -> dnc := d)
                             n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
-                            (fun d _ ->
+                            (fun d _ _ ->
                               b := true;
                               dnc := d;
                               defeated2 := true;
@@ -3898,8 +3912,8 @@ module F (Label : Spec.LABEL_T) = struct
               let ncrossing_new = ref (-1) in
               let b = ref 0 in
               cenv#compare_mappings uidmapping ~force_prefer_crossing_count:true
-                n11 n12 (fun _ _ -> b := 1)
-                n21 n22 (fun _ _ -> b := -1);
+                n11 n12 (fun _ _ _ -> b := 1)
+                n21 n22 (fun _ _ _ -> b := -1);
               !b???NG???*)
               raise Exit;
             end
@@ -4113,14 +4127,17 @@ module F (Label : Spec.LABEL_T) = struct
                   to_be_removed := (uid1, u2) :: !to_be_removed;
                   let b = ref false in
                   let dnc = ref None in
+                  let force = ref false in
                   cenv#compare_mappings uidmapping ~override
-                    nd1 n2 (fun d _ -> dnc := d)
+                    nd1 n2 (fun d _ frc -> dnc := d; force := frc)
                     nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
-                    (fun d _ ->
+                    (fun d _ frc ->
                       b := true;
-                      dnc := d
+                      dnc := d;
+                      force := frc
                     );
-                  !b, !dnc,
+                  DEBUG_MSG "force=%B" !force;
+                  !b, !dnc, if !force then None else
                   let p1 = nd1#initial_parent in
                   let b =
                     if
@@ -4170,14 +4187,17 @@ module F (Label : Spec.LABEL_T) = struct
                   to_be_removed := (u1, uid2) :: !to_be_removed;
                   let b = ref false in
                   let dnc = ref None in
+                  let force = ref false in
                   cenv#compare_mappings uidmapping ~override
-                    n1 nd2 (fun d _ -> dnc := d)
+                    n1 nd2 (fun d _ frc -> dnc := d; force := frc)
                     nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
-                    (fun d _ ->
+                    (fun d _ frc ->
                       b := true;
-                      dnc := d
+                      dnc := d;
+                      force := frc
                     );
-                  !b, !dnc,
+                  DEBUG_MSG "force=%B" !force;
+                  !b, !dnc, if !force then None else
                   let p2 = nd2#initial_parent in
                   let b =
                     if
@@ -4216,25 +4236,40 @@ module F (Label : Spec.LABEL_T) = struct
           END_DEBUG;
           if
             (can_add1 && can_add2) ||
-            ((nd1#data#_digest = nd2#data#_digest ||
-            (not nd1#data#is_named_orig && not nd2#data#is_named_orig &&
-             nd1#data#anonymized_label = nd2#data#anonymized_label)) &&
-             ((can_add1 && not can_add2 &&
+            (
+             (
+              nd1#data#_digest = nd2#data#_digest ||
+              (
+               not nd1#data#is_named_orig && not nd2#data#is_named_orig &&
+               (*not nd1#data#has_non_trivial_value && not nd2#data#has_non_trivial_value &&!!!NG!!!*)
+               nd1#data#anonymized_label = nd2#data#anonymized_label
+              )
+             ) &&
+             (
+              (can_add1 && not can_add2 &&
+               let _ = DEBUG_MSG "@" in
                match dnc1, dnc2 with
                | Some d1, Some d2 -> d1 > d2
                | None, Some _ -> padj2 = Some true
                | _ when not nd1#data#is_named_orig && not nd2#data#is_named_orig ->
                    padj2 = Some true
+               (*| _ when not nd1#data#has_non_trivial_value && not nd2#data#has_non_trivial_value ->
+                   padj2 = Some true!!!NG!!!*)
                | _ -> false
               ) ||
-             (not can_add1 && can_add2 &&
-              match dnc1, dnc2 with
-              | Some d1, Some d2 -> d1 < d2
-              | Some _, None -> padj1 = Some true
-              | _ when not nd1#data#is_named_orig && not nd2#data#is_named_orig ->
-                  padj1 = Some true
-              | _ -> false
-             )))
+              (not can_add1 && can_add2 &&
+               let _ = DEBUG_MSG "@" in
+               match dnc1, dnc2 with
+               | Some d1, Some d2 -> d1 < d2
+               | Some _, None -> padj1 = Some true
+               | _ when not nd1#data#is_named_orig && not nd2#data#is_named_orig ->
+                   padj1 = Some true
+               (*| _ when not nd1#data#has_non_trivial_value && not nd2#data#has_non_trivial_value ->
+                   padj1 = Some true!!!NG!!!*)
+               | _ -> false
+              )
+             )
+            )
           then begin
             List.iter
               (fun ((u1, u2) as u1_u2) ->
@@ -5974,9 +6009,13 @@ end;
 
     List.iter
       (fun (mid, (sz, esz, tsz, kind, rt1, rt2, movl)) ->
-        DEBUG_MSG "%a: %s %a-%a [%s]-[%s] sz=%d esz=%d tsz=%d %s" MID.ps mid (Edit.move_kind_to_string kind)
-          nps rt1 nps rt2 (Loc.to_string rt1#data#src_loc) (Loc.to_string rt2#data#src_loc)
-          sz esz tsz rt1#data#label;
+        DEBUG_MSG "%a: %s %a-%a [%a]-[%a] sz=%d esz=%d tsz=%d %a" MID.ps mid (Edit.move_kind_to_string kind)
+          nups rt1 nups rt2 locps rt1 locps rt2 sz esz tsz labps rt1;
+
+        (*if uidmapping#is_locked_mapping rt1#uid rt2#uid then begin
+          DEBUG_MSG "!!!!!!!! locked mapping: %a-%a" nups rt1 nups rt2;
+        end
+        else*)
 
         let is_staying =
           let is_staying_opt = ref None in
@@ -6458,7 +6497,16 @@ end;
             (*let nmapped = ref 0 in*)
             let unstable_context_flag =
               try
-                not (is_stable_map rt1#initial_parent rt2#initial_parent)
+                let prt1 = rt1#initial_parent in
+                let prt2 = rt2#initial_parent in
+                not (is_stable_map prt1 prt2) &&
+                let b =
+                  not (rt1#data#has_non_trivial_value && rt1#data#eq rt2#data) ||
+                  not ((is_stable1 prt1 || is_stable2 prt2)(* && prt1#data#is_op*) && prt1#data#eq prt2#data)
+                in
+                if not b then
+                  DEBUG_MSG "!!!!!!!! %a-%a [%a]-[%a] %a" nups rt1 nups rt2 locps rt1 locps rt2 labps rt1;
+                b
               with _ -> false
             in
             DEBUG_MSG "unstable_context_flag=%B" unstable_context_flag;
@@ -6562,6 +6610,7 @@ end;
 
                       if b then begin
                         Xset.add to_be_excluded mov;
+                        DEBUG_MSG "to be excluded: %s" (Edit.to_string mov);
                         is_root
                       end
                       else
@@ -8196,9 +8245,35 @@ end;
                         DEBUG_MSG "a'=%a is an ancestor of n2=%a" nps a' nps n2
                       else if
                         n1#initial_nchildren = 0 &&
-                        try
-                          get_mid n1 <> get_mid n1#initial_parent
-                        with _ -> true
+                        let mid_opt =
+                          try
+                            let m = get_mid n1 in
+                            DEBUG_MSG "m=%a" MID.ps m;
+                            Some m
+                          with _ -> None
+                        in
+                        let pmid_opt =
+                          try
+                            let pm = get_mid n1#initial_parent in
+                            DEBUG_MSG "pm=%a" MID.ps pm;
+                            Some pm
+                          with _ -> None
+                        in
+                        match mid_opt, pmid_opt with
+                        | Some m, Some pm -> m <> pm
+                        | Some m, None when begin
+                            n1#data#has_non_trivial_value && n1#data#eq n2#data &&
+                            try
+                              let p1 = n1#initial_parent in
+                              let p2 = n2#initial_parent in
+                              uidmapping#mem_dom p1#uid && uidmapping#mem_cod p2#uid
+                            with _ -> false
+                        end -> begin
+                          DEBUG_MSG "!!!!!!!! %a-%a [%a]-[%a] %a" nups n1 nups n2 locps n1 locps n2 labps n1;
+                          false
+                        end
+                        | _ when uidmapping#is_locked_mapping n1#uid n2#uid -> false
+                        | _ -> true
                       then begin
                         DEBUG_MSG "@";
                         raise Exit

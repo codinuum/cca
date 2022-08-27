@@ -407,6 +407,12 @@ class ['node_t] c cenv = object (self : 'self)
   method key_of_locked_uid u = Hashtbl.find locked_uids u
 
 
+  val mutable locked_mappings = (Xset.create 0 : (UID.t * UID.t) Xset.t)
+
+  method lock_mapping u1 u2 = Xset.add locked_mappings (u1, u2)
+  method is_locked_mapping u1 u2 = Xset.mem locked_mappings (u1, u2)
+
+
   val mutable stable_pairs = (Hashtbl.create 0: (UID.t, UID.t) Hashtbl.t)
   method stable_pairs = stable_pairs
   method set_stable_pairs ps = stable_pairs <- ps

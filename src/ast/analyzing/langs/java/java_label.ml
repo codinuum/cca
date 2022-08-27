@@ -3094,6 +3094,7 @@ let is_sequence = function
   | TypeDeclarations
   | CompilationUnit
   | FieldDeclarations _
+  | Statement Statement.Try
 (*  | ArrayInitializer*)
 (*  | InferredFormalParameters*)
     -> true

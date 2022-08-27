@@ -67,8 +67,10 @@ let stdtbl =
 "AppleProvider$1";
 "AppleProvider";
 "KeychainStore$1";
+"KeychainStore$2";
 "KeychainStore$CertKeychainItemPair";
 "KeychainStore$KeyEntry";
+"KeychainStore$LocalAttr";
 "KeychainStore$TrustedCertEntry";
 "KeychainStore";
 ];
@@ -613,17 +615,19 @@ let stdtbl =
 "aqua_zh_TW";
 "aqua";
 ];
+"com.azul.tooling.in", [
+"JarLoadEvent";
+"Model";
+"NetConnectionEvent";
+"Tooling$1";
+"Tooling$ToolingEvent";
+"Tooling$ToolingHandler";
+"Tooling";
+];
 "com.oracle.net", [
 "Sdp$1";
 "Sdp$SdpSocket";
 "Sdp";
-];
-"com.oracle.nio", [
-"BufferSecrets";
-"BufferSecretsPermission";
-];
-"com.oracle.util", [
-"Checksums";
 ];
 "com.oracle.webservices.internal.api", [
 "EnvelopeStyle$Style";
@@ -2006,17 +2010,6 @@ let stdtbl =
 "com.sun.demo.jvmti.hprof", [
 "Tracker";
 ];
-"com.sun.image.codec.jpeg", [
-"ImageFormatException";
-"JPEGCodec";
-"JPEGDecodeParam";
-"JPEGEncodeParam";
-"JPEGHuffmanTable";
-"JPEGImageDecoder";
-"JPEGImageEncoder";
-"JPEGQTable";
-"TruncatedFileException";
-];
 "com.sun.imageio.plugins.bmp", [
 "BMPCompressionTypes";
 "BMPConstants";
@@ -2911,219 +2904,6 @@ let stdtbl =
 "EnvHelp";
 "OrderClassLoaders";
 ];
-"com.sun.jmx.snmp", [
-"BerDecoder";
-"BerEncoder";
-"BerException";
-"EnumRowStatus";
-"Enumerated";
-"InetAddressAcl";
-"ServiceName";
-"SnmpAckPdu";
-"SnmpBadSecurityLevelException";
-"SnmpCounter";
-"SnmpCounter64";
-"SnmpDataTypeEnums";
-"SnmpDefinitions";
-"SnmpEngine";
-"SnmpEngineFactory";
-"SnmpEngineId";
-"SnmpEngineParameters";
-"SnmpGauge";
-"SnmpInt";
-"SnmpIpAddress";
-"SnmpMessage";
-"SnmpMsg";
-"SnmpNull";
-"SnmpOid";
-"SnmpOidDatabase";
-"SnmpOidDatabaseSupport";
-"SnmpOidRecord";
-"SnmpOidTable";
-"SnmpOidTableSupport";
-"SnmpOpaque";
-"SnmpParameters";
-"SnmpParams";
-"SnmpPdu";
-"SnmpPduBulk";
-"SnmpPduBulkType";
-"SnmpPduFactory";
-"SnmpPduFactoryBER";
-"SnmpPduPacket";
-"SnmpPduRequest";
-"SnmpPduRequestType";
-"SnmpPduTrap";
-"SnmpPeer";
-"SnmpPermission";
-"SnmpScopedPduBulk";
-"SnmpScopedPduPacket";
-"SnmpScopedPduRequest";
-"SnmpSecurityException";
-"SnmpSecurityParameters";
-"SnmpStatusException";
-"SnmpString";
-"SnmpStringFixed";
-"SnmpTimeticks";
-"SnmpTooBigException";
-"SnmpUnknownAccContrModelException";
-"SnmpUnknownModelException";
-"SnmpUnknownModelLcdException";
-"SnmpUnknownMsgProcModelException";
-"SnmpUnknownSecModelException";
-"SnmpUnknownSubSystemException";
-"SnmpUnsignedInt";
-"SnmpUsmKeyHandler";
-"SnmpV3Message";
-"SnmpValue";
-"SnmpVarBind";
-"SnmpVarBindList";
-"ThreadContext";
-"Timestamp";
-"UserAcl";
-];
-"com.sun.jmx.snmp.IPAcl", [
-"ASCII_CharStream";
-"AclEntryImpl";
-"AclImpl";
-"GroupImpl";
-"Host";
-"JDMAccess";
-"JDMAclBlock";
-"JDMAclItem";
-"JDMCommunities";
-"JDMCommunity";
-"JDMEnterprise";
-"JDMHost";
-"JDMHostInform";
-"JDMHostName";
-"JDMHostTrap";
-"JDMInformBlock";
-"JDMInformCommunity";
-"JDMInformInterestedHost";
-"JDMInformItem";
-"JDMIpAddress";
-"JDMIpMask";
-"JDMIpV6Address";
-"JDMManagers";
-"JDMNetMask";
-"JDMNetMaskV6";
-"JDMSecurityDefs";
-"JDMTrapBlock";
-"JDMTrapCommunity";
-"JDMTrapInterestedHost";
-"JDMTrapItem";
-"JDMTrapNum";
-"JJTParserState";
-"NetMaskImpl";
-"Node";
-"OwnerImpl";
-"ParseError";
-"ParseException";
-"Parser$JJCalls";
-"Parser";
-"ParserConstants";
-"ParserTokenManager";
-"ParserTreeConstants";
-"PermissionImpl";
-"PrincipalImpl";
-"SimpleNode";
-"SnmpAcl";
-"Token";
-"TokenMgrError";
-];
-"com.sun.jmx.snmp.agent", [
-"AcmChecker";
-"LongList";
-"SnmpEntryOid";
-"SnmpErrorHandlerAgent";
-"SnmpGenericMetaServer";
-"SnmpGenericObjectServer";
-"SnmpIndex";
-"SnmpMib";
-"SnmpMibAgent";
-"SnmpMibAgentMBean";
-"SnmpMibEntry";
-"SnmpMibGroup";
-"SnmpMibHandler";
-"SnmpMibNode";
-"SnmpMibOid$NonSyncVector";
-"SnmpMibOid";
-"SnmpMibRequest";
-"SnmpMibRequestImpl";
-"SnmpMibSubRequest";
-"SnmpMibTable";
-"SnmpRequestTree$Enum";
-"SnmpRequestTree$Handler";
-"SnmpRequestTree$SnmpMibSubRequestImpl";
-"SnmpRequestTree";
-"SnmpStandardMetaServer";
-"SnmpStandardObjectServer";
-"SnmpTableCallbackHandler";
-"SnmpTableEntryFactory";
-"SnmpTableEntryNotification";
-"SnmpTableSupport";
-"SnmpUserDataFactory";
-];
-"com.sun.jmx.snmp.daemon", [
-"ClientHandler";
-"CommunicationException";
-"CommunicatorServer";
-"CommunicatorServerMBean";
-"SendQ";
-"SnmpAdaptorServer";
-"SnmpAdaptorServerMBean";
-"SnmpInformHandler";
-"SnmpInformRequest";
-"SnmpMibTree$1";
-"SnmpMibTree$TreeNode";
-"SnmpMibTree";
-"SnmpQManager";
-"SnmpRequestCounter";
-"SnmpRequestHandler";
-"SnmpResponseHandler";
-"SnmpSendServer";
-"SnmpSession";
-"SnmpSocket";
-"SnmpSubBulkRequestHandler";
-"SnmpSubNextRequestHandler";
-"SnmpSubRequestHandler$NonSyncVector";
-"SnmpSubRequestHandler";
-"SnmpTimerServer";
-"WaitQ";
-];
-"com.sun.jmx.snmp.defaults", [
-"DefaultPaths";
-"SnmpProperties";
-];
-"com.sun.jmx.snmp.internal", [
-"SnmpAccessControlModel";
-"SnmpAccessControlSubSystem";
-"SnmpDecryptedPdu";
-"SnmpEngineImpl";
-"SnmpIncomingRequest";
-"SnmpIncomingResponse";
-"SnmpLcd$SubSysLcdManager";
-"SnmpLcd";
-"SnmpModel";
-"SnmpModelLcd";
-"SnmpMsgProcessingModel";
-"SnmpMsgProcessingSubSystem";
-"SnmpOutgoingRequest";
-"SnmpSecurityCache";
-"SnmpSecurityModel";
-"SnmpSecuritySubSystem";
-"SnmpSubSystem";
-"SnmpTools";
-];
-"com.sun.jmx.snmp.mpm", [
-"SnmpMsgTranslator";
-];
-"com.sun.jmx.snmp.tasks", [
-"Task";
-"TaskServer";
-"ThreadService$ExecutorThread";
-"ThreadService";
-];
 "com.sun.jndi.cosnaming", [
 "CNBindingEnumeration";
 "CNCtx";
@@ -3230,7 +3010,6 @@ let stdtbl =
 "VersionHelper";
 "VersionHelper12$1";
 "VersionHelper12$2";
-"VersionHelper12$3";
 "VersionHelper12";
 ];
 "com.sun.jndi.ldap.ext", [
@@ -3252,6 +3031,8 @@ let stdtbl =
 "LdapSasl";
 "SaslInputStream";
 "SaslOutputStream";
+"TlsChannelBinding$TlsChannelBindingType";
+"TlsChannelBinding";
 ];
 "com.sun.jndi.ldap.spi", [
 "LdapDnsProvider";
@@ -3308,6 +3089,8 @@ let stdtbl =
 "com.sun.jndi.toolkit.url", [
 "GenericURLContext";
 "GenericURLDirContext";
+"Uri$1";
+"Uri$ParseMode";
 "Uri";
 "UrlUtil";
 ];
@@ -3333,6 +3116,8 @@ let stdtbl =
 "ldapsURLContextFactory";
 ];
 "com.sun.jndi.url.rmi", [
+"rmiURLContext$1";
+"rmiURLContext$Parser";
 "rmiURLContext";
 "rmiURLContextFactory";
 ];
@@ -3342,27 +3127,12 @@ let stdtbl =
 "GarbageCollectorMXBean";
 "GcInfo";
 "HotSpotDiagnosticMXBean";
-"MissionControl$1";
-"MissionControl$2";
-"MissionControl$FlightRecorderHelper";
-"MissionControl";
-"MissionControlMXBean";
 "OperatingSystemMXBean";
 "ThreadMXBean";
 "UnixOperatingSystemMXBean";
 "VMOption$Origin";
 "VMOption";
 "package-info";
-];
-"com.sun.management.jmx", [
-"Introspector";
-"JMProperties";
-"MBeanServerImpl";
-"ServiceName";
-"Trace";
-"TraceFilter";
-"TraceListener";
-"TraceNotification";
 ];
 "com.sun.media.sound", [
 "AbstractDataLine";
@@ -3657,6 +3427,8 @@ let stdtbl =
 "com.sun.naming.internal", [
 "FactoryEnumeration";
 "NamedWeakReference";
+"ObjectFactoriesFilter$FactoryInfo";
+"ObjectFactoriesFilter";
 "ResourceManager$AppletParameter";
 "ResourceManager";
 "VersionHelper";
@@ -3760,96 +3532,59 @@ let stdtbl =
 "package-info";
 ];
 "com.sun.org.apache.bcel.internal", [
-"Const";
-"ExceptionConst$1";
-"ExceptionConst$EXCS";
-"ExceptionConst";
+"Constants";
+"ExceptionConstants";
 "Repository";
 ];
 "com.sun.org.apache.bcel.internal.classfile", [
 "AccessFlags";
-"AnnotationDefault";
-"AnnotationElementValue";
-"AnnotationEntry";
-"Annotations";
-"ArrayElementValue";
 "Attribute";
 "AttributeReader";
-"BootstrapMethod";
-"BootstrapMethods";
-"ClassElementValue";
 "ClassFormatException";
 "ClassParser";
 "Code";
 "CodeException";
-"Constant$1";
 "Constant";
 "ConstantCP";
 "ConstantClass";
 "ConstantDouble";
-"ConstantDynamic";
 "ConstantFieldref";
 "ConstantFloat";
 "ConstantInteger";
 "ConstantInterfaceMethodref";
-"ConstantInvokeDynamic";
 "ConstantLong";
-"ConstantMethodHandle";
-"ConstantMethodType";
 "ConstantMethodref";
-"ConstantModule";
 "ConstantNameAndType";
 "ConstantObject";
-"ConstantPackage";
 "ConstantPool";
 "ConstantString";
-"ConstantUtf8$CACHE_HOLDER$1";
-"ConstantUtf8$CACHE_HOLDER";
 "ConstantUtf8";
 "ConstantValue";
 "Deprecated";
 "DescendingVisitor";
-"ElementValue";
-"ElementValuePair";
 "EmptyVisitor";
-"EnclosingMethod";
-"EnumElementValue";
 "ExceptionTable";
-"Field$1";
 "Field";
 "FieldOrMethod";
 "InnerClass";
 "InnerClasses";
-"JavaClass$1";
 "JavaClass";
 "LineNumber";
 "LineNumberTable";
 "LocalVariable";
 "LocalVariableTable";
 "LocalVariableTypeTable";
-"Method$1";
 "Method";
-"MethodParameter";
-"MethodParameters";
 "Node";
 "PMGClass";
-"ParameterAnnotationEntry";
-"ParameterAnnotations";
-"RuntimeInvisibleAnnotations";
-"RuntimeInvisibleParameterAnnotations";
-"RuntimeVisibleAnnotations";
-"RuntimeVisibleParameterAnnotations";
 "Signature$MyByteArrayInputStream";
 "Signature";
-"SimpleElementValue";
 "SourceFile";
 "StackMap";
 "StackMapEntry";
 "StackMapType";
 "Synthetic";
 "Unknown";
-"UnknownAttributeReader";
-"Utility$1";
 "Utility$JavaReader";
 "Utility$JavaWriter";
 "Utility";
@@ -3866,10 +3601,7 @@ let stdtbl =
 "ASTORE";
 "ATHROW";
 "AllocationInstruction";
-"AnnotationElementValueGen";
-"AnnotationEntryGen";
 "ArithmeticInstruction";
-"ArrayElementValueGen";
 "ArrayInstruction";
 "ArrayType";
 "BALOAD";
@@ -3883,8 +3615,6 @@ let stdtbl =
 "CASTORE";
 "CHECKCAST";
 "CPInstruction";
-"ClassElementValueGen";
-"ClassGen$1";
 "ClassGen";
 "ClassGenException";
 "ClassObserver";
@@ -3917,10 +3647,7 @@ let stdtbl =
 "DUP2_X2";
 "DUP_X1";
 "DUP_X2";
-"ElementValueGen";
-"ElementValuePairGen";
 "EmptyVisitor";
-"EnumElementValueGen";
 "ExceptionThrower";
 "F2D";
 "F2I";
@@ -3939,7 +3666,6 @@ let stdtbl =
 "FRETURN";
 "FSTORE";
 "FSUB";
-"FieldGen$1";
 "FieldGen";
 "FieldGenOrMethodGen";
 "FieldInstruction";
@@ -3985,7 +3711,6 @@ let stdtbl =
 "IMUL";
 "INEG";
 "INSTANCEOF";
-"INVOKEDYNAMIC";
 "INVOKEINTERFACE";
 "INVOKESPECIAL";
 "INVOKESTATIC";
@@ -4004,7 +3729,8 @@ let stdtbl =
 "Instruction";
 "InstructionComparator$1";
 "InstructionComparator";
-"InstructionConst";
+"InstructionConstants$Clinit";
+"InstructionConstants";
 "InstructionFactory$MethodObject";
 "InstructionFactory";
 "InstructionHandle";
@@ -4050,8 +3776,6 @@ let stdtbl =
 "MONITORENTER";
 "MONITOREXIT";
 "MULTIANEWARRAY";
-"MethodGen$1";
-"MethodGen$2";
 "MethodGen$BranchStack";
 "MethodGen$BranchTarget";
 "MethodGen";
@@ -4059,7 +3783,6 @@ let stdtbl =
 "NEW";
 "NEWARRAY";
 "NOP";
-"NameSignatureInstruction";
 "NamedAndTyped";
 "ObjectType";
 "POP";
@@ -4080,7 +3803,6 @@ let stdtbl =
 "SWAP";
 "SWITCH";
 "Select";
-"SimpleElementValueGen";
 "StackConsumer";
 "StackInstruction";
 "StackProducer";
@@ -4089,7 +3811,6 @@ let stdtbl =
 "TargetLostException";
 "Type$1";
 "Type$2";
-"Type$3";
 "Type";
 "TypedInstruction";
 "UnconditionalBranch";
@@ -4098,32 +3819,34 @@ let stdtbl =
 ];
 "com.sun.org.apache.bcel.internal.util", [
 "AttributeHTML";
-"BCELComparator";
 "BCELFactory";
-"BCELifier$FLAGS";
 "BCELifier";
 "ByteSequence$ByteArrayStream";
 "ByteSequence";
 "Class2HTML";
-"ClassPath$1";
-"ClassPath$ClassFile";
-"ClassPath$Dir$1";
-"ClassPath$Dir";
-"ClassPath$PathEntry";
-"ClassPath$Zip$1";
-"ClassPath$Zip";
-"ClassPath";
+"ClassLoader";
+"ClassLoaderRepository";
 "ClassQueue";
 "ClassSet";
 "ClassStack";
+"ClassVector";
 "CodeHTML";
 "ConstantHTML";
 "InstructionFinder$CodeConstraint";
 "InstructionFinder";
 "JavaWrapper";
 "MethodHTML";
-"ModularRuntimeImage";
 "Repository";
+"SecuritySupport$1";
+"SecuritySupport$2";
+"SecuritySupport$3";
+"SecuritySupport$4";
+"SecuritySupport$5";
+"SecuritySupport$6";
+"SecuritySupport$7";
+"SecuritySupport$8";
+"SecuritySupport$9";
+"SecuritySupport";
 "SyntheticRepository";
 ];
 "com.sun.org.apache.xalan.internal", [
@@ -4178,10 +3901,6 @@ let stdtbl =
 "SecuritySupport$8";
 "SecuritySupport$9";
 "SecuritySupport";
-"XMLSecurityManager$Limit";
-"XMLSecurityManager$NameMap";
-"XMLSecurityManager$State";
-"XMLSecurityManager";
 "XMLSecurityPropertyManager$Property";
 "XMLSecurityPropertyManager";
 ];
@@ -4538,8 +4257,6 @@ let stdtbl =
 "CharacterDataImpl";
 "ChildNode";
 "CommentImpl";
-"CoreDOMImplementationImpl$RevalidationHandlerHolder";
-"CoreDOMImplementationImpl$XMLDTDLoaderHolder";
 "CoreDOMImplementationImpl";
 "CoreDocumentImpl";
 "DOMConfigurationImpl";
@@ -4635,7 +4352,8 @@ let stdtbl =
 "XMLDocumentScannerImpl";
 "XMLEntityDescription";
 "XMLEntityHandler";
-"XMLEntityManager$EncodingInfo";
+"XMLEntityManager$CharacterBuffer";
+"XMLEntityManager$CharacterBufferPool";
 "XMLEntityManager$RewindableInputStream";
 "XMLEntityManager";
 "XMLEntityScanner$1";
@@ -4778,10 +4496,8 @@ let stdtbl =
 ];
 "com.sun.org.apache.xerces.internal.impl.io", [
 "ASCIIReader";
-"Latin1Reader";
 "MalformedByteSequenceException";
 "UCSReader";
-"UTF16Reader";
 "UTF8Reader";
 ];
 "com.sun.org.apache.xerces.internal.impl.msg", [
@@ -4798,7 +4514,6 @@ let stdtbl =
 "XMLMessageFormatter_zh_TW";
 ];
 "com.sun.org.apache.xerces.internal.impl.validation", [
-"ConfigurableValidationState";
 "EntityState";
 "ValidationManager";
 "ValidationState";
@@ -4853,7 +4568,6 @@ let stdtbl =
 "com.sun.org.apache.xerces.internal.impl.xs", [
 "AttributePSVImpl";
 "ElementPSVImpl";
-"PSVIErrorList";
 "SchemaGrammar$BuiltinAttrDecl";
 "SchemaGrammar$BuiltinSchemaGrammar";
 "SchemaGrammar$Schema4Annotations";
@@ -4886,7 +4600,6 @@ let stdtbl =
 "XSDDescription";
 "XSDeclarationPool";
 "XSElementDecl";
-"XSElementDeclHelper";
 "XSGrammarBucket";
 "XSGroupDecl";
 "XSImplementationImpl";
@@ -4984,7 +4697,6 @@ let stdtbl =
 "StringListImpl";
 "XInt";
 "XIntPool";
-"XS10TypeHelper";
 "XSGrammarPool";
 "XSInputSource";
 "XSNamedMap4Types";
@@ -5163,7 +4875,6 @@ let stdtbl =
 "XMLGrammarPoolImpl$Entry";
 "XMLGrammarPoolImpl";
 "XMLInputSourceAdaptor";
-"XMLLocatorWrapper";
 "XMLResourceIdentifierImpl";
 "XMLStringBuffer";
 "XMLSymbols";
@@ -5179,7 +4890,6 @@ let stdtbl =
 "SecuritySupport$6";
 "SecuritySupport$7";
 "SecuritySupport$8";
-"SecuritySupport$9";
 "SecuritySupport";
 "XMLLimitAnalyzer$NameMap";
 "XMLLimitAnalyzer";
@@ -5200,7 +4910,6 @@ let stdtbl =
 "SecuritySupport$5";
 "SecuritySupport$6";
 "SecuritySupport$7";
-"SecuritySupport$8";
 "SecuritySupport";
 "XInclude11TextReader";
 "XIncludeHandler$Notation";
@@ -5209,6 +4918,9 @@ let stdtbl =
 "XIncludeMessageFormatter";
 "XIncludeNamespaceSupport";
 "XIncludeTextReader";
+"XPointerElementHandler";
+"XPointerFramework";
+"XPointerSchema";
 ];
 "com.sun.org.apache.xerces.internal.xni", [
 "Augmentations";
@@ -5301,7 +5013,6 @@ let stdtbl =
 "XSSimpleTypeDefinition";
 "XSTerm";
 "XSTypeDefinition";
-"XSValue";
 "XSWildcard";
 ];
 "com.sun.org.apache.xerces.internal.xs.datatypes", [
@@ -5553,6 +5264,10 @@ let stdtbl =
 "C14nHelper";
 ];
 "com.sun.org.apache.xml.internal.security.c14n.implementations", [
+"Canonicalizer11$1";
+"Canonicalizer11$XmlAttrStack$XmlsStackElement";
+"Canonicalizer11$XmlAttrStack";
+"Canonicalizer11";
 "Canonicalizer11_OmitComments";
 "Canonicalizer11_WithComments";
 "Canonicalizer20010315";
@@ -5757,6 +5472,7 @@ let stdtbl =
 "com.sun.org.apache.xml.internal.serialize", [
 "BaseMarkupSerializer";
 "DOMSerializer";
+"DOMSerializerImpl$DocumentMethods";
 "DOMSerializerImpl";
 "ElementState";
 "EncodingInfo$CharToByteConverterMethods";
@@ -5779,7 +5495,6 @@ let stdtbl =
 "SecuritySupport$5";
 "SecuritySupport$6";
 "SecuritySupport$7";
-"SecuritySupport$8";
 "SecuritySupport";
 "Serializer";
 "SerializerFactory";
@@ -5793,7 +5508,6 @@ let stdtbl =
 "AttributesImplSerializer";
 "CharInfo$CharKey";
 "CharInfo";
-"DOM3Serializer";
 "DOMSerializer";
 "ElemContext";
 "ElemDesc";
@@ -5840,19 +5554,6 @@ let stdtbl =
 "WriterToASCI";
 "WriterToUTF8Buffered";
 "XSLOutputAttributes";
-];
-"com.sun.org.apache.xml.internal.serializer.dom3", [
-"DOM3SerializerImpl";
-"DOM3TreeWalker";
-"DOMConstants";
-"DOMErrorHandlerImpl";
-"DOMErrorImpl";
-"DOMLocatorImpl";
-"DOMOutputImpl";
-"DOMStringListImpl";
-"LSSerializerImpl";
-"NamespaceSupport$Prefixes";
-"NamespaceSupport";
 ];
 "com.sun.org.apache.xml.internal.serializer.utils", [
 "BoolStack";
@@ -6031,6 +5732,7 @@ let stdtbl =
 "OpMap";
 "OpMapVector";
 "PsuedoNames";
+"Token";
 "XPathDumper";
 "XPathParser";
 ];
@@ -6058,6 +5760,7 @@ let stdtbl =
 "FuncFalse";
 "FuncFloor";
 "FuncGenerateId";
+"FuncHere";
 "FuncId";
 "FuncLang";
 "FuncLast";
@@ -10772,7 +10475,6 @@ let stdtbl =
 "InetAddress$CacheEntry";
 "InetAddressContainer";
 "InetSocketAddress$1";
-"MulticastSocket$1";
 "MulticastSocket";
 "NetPermission";
 "NetworkInterface$1checkedAddresses";
@@ -11920,9 +11622,11 @@ let stdtbl =
 "HashMap$EntrySpliterator";
 "HashMap$HashMapSpliterator";
 "HashMap$KeySpliterator";
+"HashMap$UnsafeHolder";
 "HashMap$ValueSpliterator";
 "Hashtable$1";
 "Hashtable$KeySet";
+"Hashtable$UnsafeHolder";
 "IdentityHashMap$1";
 "IdentityHashMap$EntryIterator$Entry";
 "IdentityHashMap$EntryIterator";
@@ -12354,7 +12058,7 @@ let stdtbl =
 "Executors$PrivilegedThreadFactory";
 "Executors$RunnableAdapter";
 "ForkJoinPool$1";
-"ForkJoinPool$CommonPoolForkJoinWorkerThreadFactory";
+"ForkJoinPool$DefaultCommonPoolForkJoinWorkerThreadFactory";
 "ForkJoinPool$DefaultForkJoinWorkerThreadFactory";
 "ForkJoinPool$EmptyTask";
 "ForkJoinPool$ForkJoinWorkerThreadFactory";
@@ -16660,7 +16364,6 @@ let stdtbl =
 "SecuritySupport$2";
 "SecuritySupport$3";
 "SecuritySupport$4";
-"SecuritySupport$5";
 "SecuritySupport";
 "XMLGregorianCalendar";
 ];
@@ -16682,7 +16385,6 @@ let stdtbl =
 "SecuritySupport$2";
 "SecuritySupport$3";
 "SecuritySupport$4";
-"SecuritySupport$5";
 "SecuritySupport";
 ];
 "javax.xml.soap", [
@@ -16726,7 +16428,6 @@ let stdtbl =
 "SecuritySupport$2";
 "SecuritySupport$3";
 "SecuritySupport$4";
-"SecuritySupport$5";
 "SecuritySupport";
 "StreamFilter";
 "XMLEventFactory";
@@ -16773,7 +16474,6 @@ let stdtbl =
 "SecuritySupport$2";
 "SecuritySupport$3";
 "SecuritySupport$4";
-"SecuritySupport$5";
 "SecuritySupport";
 "Source";
 "SourceLocator";
@@ -16821,7 +16521,6 @@ let stdtbl =
 "SecuritySupport$5";
 "SecuritySupport$6";
 "SecuritySupport$7";
-"SecuritySupport$8";
 "SecuritySupport";
 "TypeInfoProvider";
 "Validator";
@@ -16914,7 +16613,6 @@ let stdtbl =
 "SecuritySupport$5";
 "SecuritySupport$6";
 "SecuritySupport$7";
-"SecuritySupport$8";
 "SecuritySupport";
 "XPath";
 "XPathConstants";
@@ -16934,33 +16632,12 @@ let stdtbl =
 "jdk", [
 "Exported";
 ];
-"jdk.internal.cmm", [
-"SystemResourcePressureImpl";
-];
 "jdk.internal.event", [
 "EventHelper";
 ];
-"jdk.internal.instrumentation", [
-"ClassInstrumentation$1";
-"ClassInstrumentation$2";
-"ClassInstrumentation$3";
-"ClassInstrumentation";
-"Inliner";
-"InstrumentationMethod";
-"InstrumentationTarget";
-"Logger";
-"MaxLocalsTracker$MaxLocalsMethodVisitor";
-"MaxLocalsTracker";
-"MethodCallInliner$CatchBlock";
-"MethodCallInliner";
-"MethodInliningAdapter";
-"MethodMergeAdapter$1";
-"MethodMergeAdapter";
-"Tracer$1";
-"Tracer$InstrumentationData";
-"Tracer";
-"TypeMapping";
-"TypeMappings";
+"jdk.internal.misc", [
+"TerminatingThreadLocal$1";
+"TerminatingThreadLocal";
 ];
 "jdk.internal.org.objectweb.asm", [
 "AnnotationVisitor";
@@ -17101,15 +16778,8 @@ let stdtbl =
 "Container";
 "Metrics";
 ];
-"jdk.internal.platform.cgroupv1", [
-"Metrics";
-"SubSystem$MemorySubSystem";
-"SubSystem";
-];
 "jdk.internal.util", [
-"EnvUtils";
-"Preconditions$1";
-"Preconditions";
+"StaticProperty";
 ];
 "jdk.internal.util.xml", [
 "BasicXmlPropertiesProvider";
@@ -17131,93 +16801,35 @@ let stdtbl =
 "XMLStreamWriterImpl";
 "XMLWriter";
 ];
-"jdk.management.cmm", [
-"SystemResourcePressureMXBean";
+"jdk.internal.vm.annotation", [
+"ReservedStackAccess";
+];
+"jdk.jfr", [
+"Category";
+"ContentType";
+"Description";
+"Enabled";
+"Event";
+"Label";
+"MetadataDefinition";
+"Name";
+"Registered";
+"Relational";
+"StackTrace";
+"Timestamp";
 "package-info";
 ];
-"jdk.management.resource", [
-"BoundedMeter";
-"NotifyingMeter";
-"ResourceAccuracy";
-"ResourceApprover";
-"ResourceContext";
-"ResourceContextFactory";
-"ResourceId";
-"ResourceMeter";
-"ResourceRequest";
-"ResourceRequestDeniedException";
-"ResourceType";
-"SimpleMeter";
-"ThrottledMeter";
-"package-info";
-];
-"jdk.management.resource.internal", [
-"ApproverGroup";
-"CompletionHandlerWrapper";
-"FutureWrapper";
-"HeapMetrics";
-"ResourceIdImpl";
-"ResourceNatives$1";
-"ResourceNatives";
-"SimpleResourceContext";
-"ThreadMetrics$ThreadSampler";
-"ThreadMetrics";
-"TotalResourceContext$TotalMeter";
-"TotalResourceContext";
-"UnassignedContext";
-"WeakKeyConcurrentHashMap$WeakKey";
-"WeakKeyConcurrentHashMap";
-"WrapInstrumentation";
-];
-"jdk.management.resource.internal.inst", [
-"AbstractInterruptibleChannelRMHooks";
-"AbstractPlainDatagramSocketImplRMHooks";
-"AbstractPlainSocketImplRMHooks";
-"AsynchronousServerSocketChannelImplRMHooks";
-"AsynchronousSocketChannelImplRMHooks";
-"BaseSSLSocketImplRMHooks";
-"DatagramChannelImplRMHooks";
-"DatagramDispatcherRMHooks";
-"DatagramSocketRMHooks";
-"FileChannelImplRMHooks";
-"FileInputStreamRMHooks";
-"FileOutputStreamRMHooks";
-"InitInstrumentation$TestLogger";
-"InitInstrumentation";
-"NetRMHooks";
-"RandomAccessFileRMHooks";
-"SSLServerSocketImplRMHooks";
-"SSLSocketImplRMHooks";
-"ServerSocketChannelImplRMHooks$NativeDispatcher";
-"ServerSocketChannelImplRMHooks";
-"ServerSocketRMHooks";
-"SimpleAsynchronousFileChannelImplRMHooks";
-"SocketChannelImplRMHooks";
-"SocketDispatcherRMHooks";
-"SocketInputStreamRMHooks$AbstractPlainSocketImpl";
-"SocketInputStreamRMHooks";
-"SocketOutputStreamRMHooks$AbstractPlainSocketImpl";
-"SocketOutputStreamRMHooks";
-"SocketRMHooks$SocketImpl";
-"SocketRMHooks";
-"StaticInstrumentation$InstrumentationLogger";
-"StaticInstrumentation";
-"ThreadRMHooks";
-"UnixAsynchronousServerSocketChannelImplRMHooks$NativeDispatcher";
-"UnixAsynchronousServerSocketChannelImplRMHooks";
-"UnixAsynchronousSocketChannelImplRMHooks";
-"WindowsAsynchronousFileChannelImplRMHooks";
-"WindowsAsynchronousServerSocketChannelImplRMHooks";
-"WindowsAsynchronousSocketChannelImplRMHooks";
-"WrapInstrumentationRMHooks";
+"jdk.jfr.events", [
+"AbstractJDKEvent";
+"CertificateId";
+"SecurityPropertyModificationEvent";
+"TLSHandshakeEvent";
+"X509CertificateEvent";
+"X509ValidationEvent";
 ];
 "jdk.net", [
-"ExtendedSocketOptions$1";
 "ExtendedSocketOptions$ExtSocketOption";
-"ExtendedSocketOptions$PlatformSocketOptions$1";
-"ExtendedSocketOptions$PlatformSocketOptions";
 "ExtendedSocketOptions";
-"MacOSXSocketOptions";
 "NetworkPermission";
 "SocketFlow$Status";
 "SocketFlow";
@@ -17233,10 +16845,14 @@ let stdtbl =
 "SecuritySupport$1";
 "SecuritySupport$2";
 "SecuritySupport$3";
-"SecuritySupport$4";
-"SecuritySupport$5";
-"SecuritySupport$6";
 "SecuritySupport";
+"XMLLimitAnalyzer$NameMap";
+"XMLLimitAnalyzer";
+"XMLSecurityManager$Limit";
+"XMLSecurityManager$NameMap";
+"XMLSecurityManager$Processor";
+"XMLSecurityManager$State";
+"XMLSecurityManager";
 ];
 "org.ietf.jgss", [
 "ChannelBinding";
@@ -17302,9 +16918,6 @@ let stdtbl =
 "DOMReference$1";
 "DOMReference";
 "DOMRetrievalMethod";
-"DOMSignatureMethod$AbstractDSASignatureMethod";
-"DOMSignatureMethod$AbstractECDSASignatureMethod";
-"DOMSignatureMethod$AbstractP1363FormatSignatureMethod";
 "DOMSignatureMethod$AbstractRSAPSSSignatureMethod";
 "DOMSignatureMethod$AbstractRSASignatureMethod";
 "DOMSignatureMethod$RIPEMD160withECDSA";
@@ -18629,13 +18242,6 @@ let stdtbl =
 "BufImgSurfaceData$ICMColorData";
 "BufImgSurfaceData";
 ];
-"sun.awt.image.codec", [
-"JPEGImageDecoderImpl$1";
-"JPEGImageDecoderImpl";
-"JPEGImageEncoderImpl$1";
-"JPEGImageEncoderImpl";
-"JPEGParam";
-];
 "sun.awt.motif", [
 "MFontConfiguration";
 "X11CNS11643$Decoder";
@@ -18724,28 +18330,6 @@ let stdtbl =
 "OutputStreamFactory$8";
 "OutputStreamFactory";
 "SharedSecrets";
-];
-"sun.dc", [
-"DuctusRenderingEngine$FillAdapter";
-"DuctusRenderingEngine";
-];
-"sun.dc.path", [
-"FastPathProducer";
-"PathConsumer";
-"PathError";
-"PathException";
-];
-"sun.dc.pr", [
-"PRError";
-"PRException";
-"PathDasher$1";
-"PathDasher";
-"PathFiller$1";
-"PathFiller";
-"PathStroker$1";
-"PathStroker";
-"Rasterizer$ConsumerDisposer";
-"Rasterizer";
 ];
 "sun.font", [
 "AttributeMap";
@@ -18840,9 +18424,6 @@ let stdtbl =
 "SunFontManager$FamilyDescription";
 "SunFontManager$TTorT1Filter";
 "SunLayoutEngine";
-"T2KFontScaler$1";
-"T2KFontScaler$2";
-"T2KFontScaler";
 "TextLabel";
 "TextLabelFactory";
 "TextLineComponent";
@@ -18959,6 +18540,12 @@ let stdtbl =
 "OSXOffScreenSurfaceData";
 "OSXSurfaceData$CGContextDrawable";
 "OSXSurfaceData";
+"ReentrantContext";
+"ReentrantContextProvider$HardReference";
+"ReentrantContextProvider";
+"ReentrantContextProviderCLQ";
+"ReentrantContextProviderTL$1";
+"ReentrantContextProviderTL";
 "Spans$Span";
 "Spans$SpanIntersection";
 "Spans";
@@ -19141,6 +18728,111 @@ let stdtbl =
 "BlitBg";
 "Blit";
 ];
+"sun.java2d.marlin", [
+"ArrayCacheConst$BucketStats";
+"ArrayCacheConst$CacheStats";
+"ArrayCacheConst";
+"ByteArrayCache$Bucket";
+"ByteArrayCache$Reference";
+"ByteArrayCache";
+"CollinearSimplifier$1";
+"CollinearSimplifier$SimplifierState";
+"CollinearSimplifier";
+"Curve";
+"DCollinearSimplifier$1";
+"DCollinearSimplifier$SimplifierState";
+"DCollinearSimplifier";
+"DCurve";
+"DDasher$LengthIterator";
+"DDasher";
+"DHelpers$IndexStack";
+"DHelpers$PolyStack";
+"DHelpers";
+"DMarlinRenderingEngine$1";
+"DMarlinRenderingEngine$2";
+"DMarlinRenderingEngine$NormMode$1";
+"DMarlinRenderingEngine$NormMode$2";
+"DMarlinRenderingEngine$NormMode$3";
+"DMarlinRenderingEngine$NormMode";
+"DMarlinRenderingEngine$NormalizingPathIterator$NearestPixelCenter";
+"DMarlinRenderingEngine$NormalizingPathIterator$NearestPixelQuarter";
+"DMarlinRenderingEngine$NormalizingPathIterator";
+"DMarlinRenderingEngine";
+"DPathConsumer2D";
+"DPathSimplifier";
+"DRenderer";
+"DRendererContext$PathConsumer2DAdapter";
+"DRendererContext";
+"DStroker";
+"DTransformingPathConsumer2D$ClosedPathDetector";
+"DTransformingPathConsumer2D$CurveBasicMonotonizer";
+"DTransformingPathConsumer2D$CurveClipSplitter";
+"DTransformingPathConsumer2D$DeltaScaleFilter";
+"DTransformingPathConsumer2D$DeltaTransformFilter";
+"DTransformingPathConsumer2D$Path2DWrapper";
+"DTransformingPathConsumer2D$PathClipFilter";
+"DTransformingPathConsumer2D$PathTracer";
+"DTransformingPathConsumer2D";
+"Dasher$LengthIterator";
+"Dasher";
+"DoubleArrayCache$Bucket";
+"DoubleArrayCache$Reference";
+"DoubleArrayCache";
+"FloatArrayCache$Bucket";
+"FloatArrayCache$Reference";
+"FloatArrayCache";
+"FloatMath";
+"Helpers$IndexStack";
+"Helpers$PolyStack";
+"Helpers";
+"IRendererContext";
+"IntArrayCache$Bucket";
+"IntArrayCache$Reference";
+"IntArrayCache";
+"MarlinCache";
+"MarlinConst";
+"MarlinProperties";
+"MarlinRenderer";
+"MarlinRenderingEngine$1";
+"MarlinRenderingEngine$2";
+"MarlinRenderingEngine$NormMode$1";
+"MarlinRenderingEngine$NormMode$2";
+"MarlinRenderingEngine$NormMode$3";
+"MarlinRenderingEngine$NormMode";
+"MarlinRenderingEngine$NormalizingPathIterator$NearestPixelCenter";
+"MarlinRenderingEngine$NormalizingPathIterator$NearestPixelQuarter";
+"MarlinRenderingEngine$NormalizingPathIterator";
+"MarlinRenderingEngine";
+"MarlinTileGenerator";
+"MarlinUtils";
+"MergeSort";
+"OffHeapArray$OffHeapDisposer";
+"OffHeapArray$OffHeapReference";
+"OffHeapArray";
+"PathSimplifier";
+"Renderer";
+"RendererContext";
+"RendererStats$RendererStatsHolder$RendererStatsDisposer";
+"RendererStats$RendererStatsHolder$RendererStatsReference";
+"RendererStats$RendererStatsHolder";
+"RendererStats";
+"Stroker";
+"TransformingPathConsumer2D$ClosedPathDetector";
+"TransformingPathConsumer2D$CurveBasicMonotonizer";
+"TransformingPathConsumer2D$CurveClipSplitter";
+"TransformingPathConsumer2D$DeltaScaleFilter";
+"TransformingPathConsumer2D$DeltaTransformFilter";
+"TransformingPathConsumer2D$Path2DWrapper";
+"TransformingPathConsumer2D$PathClipFilter";
+"TransformingPathConsumer2D$PathTracer";
+"TransformingPathConsumer2D";
+"Version";
+];
+"sun.java2d.marlin.stats", [
+"Histogram";
+"Monitor";
+"StatLong";
+];
 "sun.java2d.opengl", [
 "CGLGraphicsConfig$CGLBufferCaps";
 "CGLSurfaceData$CGLVSyncOffScreenSurfaceData";
@@ -19210,6 +18902,8 @@ let stdtbl =
 "CGLGraphicsConfig";
 ];
 "sun.java2d.pipe", [
+"AAShapePipe$1";
+"AAShapePipe$TileState";
 "AATileGenerator";
 "AlphaPaintPipe$TileContext";
 "BufferedBufImgOps";
@@ -19682,6 +19376,10 @@ let stdtbl =
 "MonitorInfoCompositeData";
 "NotificationEmitterSupport$ListenerInfo";
 "NotificationEmitterSupport";
+"OperatingSystemImpl$1";
+"OperatingSystemImpl$ContainerCpuTicks";
+"OperatingSystemImpl$ProcessCpuTicks";
+"OperatingSystemImpl$SystemCpuTicks";
 "OperatingSystemImpl";
 "RuntimeImpl";
 "Sensor";
@@ -19763,124 +19461,6 @@ let stdtbl =
 "agent_zh_HK";
 "agent_zh_TW";
 ];
-"sun.management.snmp", [
-"AdaptorBootstrap$DefaultValues";
-"AdaptorBootstrap$PropertyNames";
-"AdaptorBootstrap";
-];
-"sun.management.snmp.jvminstr", [
-"JVM_MANAGEMENT_MIB_IMPL$1";
-"JVM_MANAGEMENT_MIB_IMPL$NotificationHandler";
-"JVM_MANAGEMENT_MIB_IMPL";
-"JvmClassLoadingImpl";
-"JvmCompilationImpl";
-"JvmMemGCEntryImpl";
-"JvmMemGCTableMetaImpl$GCTableFilter";
-"JvmMemGCTableMetaImpl";
-"JvmMemManagerEntryImpl";
-"JvmMemManagerTableMetaImpl$JvmMemManagerTableCache";
-"JvmMemManagerTableMetaImpl";
-"JvmMemMgrPoolRelEntryImpl";
-"JvmMemMgrPoolRelTableMetaImpl$JvmMemMgrPoolRelTableCache";
-"JvmMemMgrPoolRelTableMetaImpl";
-"JvmMemPoolEntryImpl";
-"JvmMemPoolTableMetaImpl$JvmMemPoolTableCache";
-"JvmMemPoolTableMetaImpl";
-"JvmMemoryImpl";
-"JvmMemoryMetaImpl";
-"JvmOSImpl";
-"JvmRTBootClassPathEntryImpl";
-"JvmRTBootClassPathTableMetaImpl$JvmRTBootClassPathTableCache";
-"JvmRTBootClassPathTableMetaImpl";
-"JvmRTClassPathEntryImpl";
-"JvmRTClassPathTableMetaImpl$JvmRTClassPathTableCache";
-"JvmRTClassPathTableMetaImpl";
-"JvmRTInputArgsEntryImpl";
-"JvmRTInputArgsTableMetaImpl$JvmRTInputArgsTableCache";
-"JvmRTInputArgsTableMetaImpl";
-"JvmRTLibraryPathEntryImpl";
-"JvmRTLibraryPathTableMetaImpl$JvmRTLibraryPathTableCache";
-"JvmRTLibraryPathTableMetaImpl";
-"JvmRuntimeImpl";
-"JvmRuntimeMetaImpl";
-"JvmThreadInstanceEntryImpl$1";
-"JvmThreadInstanceEntryImpl$ThreadStateMap$Byte0";
-"JvmThreadInstanceEntryImpl$ThreadStateMap$Byte1";
-"JvmThreadInstanceEntryImpl$ThreadStateMap";
-"JvmThreadInstanceEntryImpl";
-"JvmThreadInstanceTableMetaImpl$JvmThreadInstanceTableCache";
-"JvmThreadInstanceTableMetaImpl";
-"JvmThreadingImpl";
-"JvmThreadingMetaImpl";
-"NotificationTarget";
-"NotificationTargetImpl";
-];
-"sun.management.snmp.jvmmib", [
-"EnumJvmClassesVerboseLevel";
-"EnumJvmJITCompilerTimeMonitoring";
-"EnumJvmMemManagerState";
-"EnumJvmMemPoolCollectThreshdSupport";
-"EnumJvmMemPoolState";
-"EnumJvmMemPoolThreshdSupport";
-"EnumJvmMemPoolType";
-"EnumJvmMemoryGCCall";
-"EnumJvmMemoryGCVerboseLevel";
-"EnumJvmRTBootClassPathSupport";
-"EnumJvmThreadContentionMonitoring";
-"EnumJvmThreadCpuTimeMonitoring";
-"JVM_MANAGEMENT_MIB";
-"JVM_MANAGEMENT_MIBOidTable";
-"JvmClassLoadingMBean";
-"JvmClassLoadingMeta";
-"JvmCompilationMBean";
-"JvmCompilationMeta";
-"JvmMemGCEntryMBean";
-"JvmMemGCEntryMeta";
-"JvmMemGCTableMeta";
-"JvmMemManagerEntryMBean";
-"JvmMemManagerEntryMeta";
-"JvmMemManagerTableMeta";
-"JvmMemMgrPoolRelEntryMBean";
-"JvmMemMgrPoolRelEntryMeta";
-"JvmMemMgrPoolRelTableMeta";
-"JvmMemPoolEntryMBean";
-"JvmMemPoolEntryMeta";
-"JvmMemPoolTableMeta";
-"JvmMemoryMBean";
-"JvmMemoryMeta";
-"JvmOSMBean";
-"JvmOSMeta";
-"JvmRTBootClassPathEntryMBean";
-"JvmRTBootClassPathEntryMeta";
-"JvmRTBootClassPathTableMeta";
-"JvmRTClassPathEntryMBean";
-"JvmRTClassPathEntryMeta";
-"JvmRTClassPathTableMeta";
-"JvmRTInputArgsEntryMBean";
-"JvmRTInputArgsEntryMeta";
-"JvmRTInputArgsTableMeta";
-"JvmRTLibraryPathEntryMBean";
-"JvmRTLibraryPathEntryMeta";
-"JvmRTLibraryPathTableMeta";
-"JvmRuntimeMBean";
-"JvmRuntimeMeta";
-"JvmThreadInstanceEntryMBean";
-"JvmThreadInstanceEntryMeta";
-"JvmThreadInstanceTableMeta";
-"JvmThreadingMBean";
-"JvmThreadingMeta";
-];
-"sun.management.snmp.util", [
-"JvmContextFactory";
-"MibLogger";
-"SnmpCachedData$1";
-"SnmpCachedData";
-"SnmpListTableCache";
-"SnmpLoadedClassData";
-"SnmpNamedListTableCache";
-"SnmpTableCache";
-"SnmpTableHandler";
-];
 "sun.misc", [
 "BASE64Decoder";
 "BASE64Encoder";
@@ -19924,6 +19504,7 @@ let stdtbl =
 "GThreadHelper";
 "HexDumpEncoder";
 "InnocuousThread$1";
+"InnocuousThread$2";
 "InnocuousThread";
 "InvalidJarIndexException";
 "JarFilter";
@@ -19953,8 +19534,6 @@ let stdtbl =
 "Perf$1";
 "PerfCounter$WindowsClientCounters";
 "PerformanceLogger$1";
-"PostVMInitHook$1";
-"PostVMInitHook$2";
 "ProxyGenerator$1";
 "ProxyGenerator$ConstantPool$Entry";
 "ProxyGenerator$ConstantPool$IndirectEntry";
@@ -20017,7 +19596,6 @@ let stdtbl =
 "Signal";
 "SharedSecrets";
 "Resource";
-"PostVMInitHook";
 "PerformanceLogger$TimeData";
 "PerformanceLogger";
 "PerfCounter$CoreCounters";
@@ -20076,8 +19654,8 @@ let stdtbl =
 "sun.net", [
 "ApplicationProxy";
 "ConnectionResetException";
-"ExtendedSocketOptions$NoExtendedSocketOptions";
-"ExtendedSocketOptions";
+"ExtendedOptionsHelper";
+"ExtendedOptionsImpl";
 "InetAddressCachePolicy$1";
 "InetAddressCachePolicy$2";
 "InetAddressCachePolicy";
@@ -20092,6 +19670,7 @@ let stdtbl =
 "ProgressListener";
 "ProgressSource$State";
 "ProgressSource";
+"RegisteredDomain$1";
 "RegisteredDomain";
 "ResourceManager";
 "SocksProxy";
@@ -20657,6 +20236,7 @@ let stdtbl =
 "MimeTypesFileTypeDetector";
 "NativeBuffer$Deallocator";
 "NativeBuffer";
+"NativeBuffers$1";
 "NativeBuffers";
 "PollingWatchService$1";
 "PollingWatchService$2";
@@ -20758,6 +20338,9 @@ let stdtbl =
 "PrintJob2D";
 "PrintJobAttributeException";
 "PrintJobFlavorException";
+"PrintServiceLookupProvider$1";
+"PrintServiceLookupProvider$PrinterChangeListener";
+"PrintServiceLookupProvider";
 "PrinterGraphicsDevice";
 "PrinterJobWrapper";
 "ProxyGraphics";
@@ -20801,9 +20384,6 @@ let stdtbl =
 "UnixPrintJob$PrinterSpooler";
 "UnixPrintJob";
 "UnixPrintService";
-"UnixPrintServiceLookup$1";
-"UnixPrintServiceLookup$PrinterChangeListener";
-"UnixPrintServiceLookup";
 "PrinterGraphicsConfig";
 ];
 "sun.print.resources", [
@@ -21276,6 +20856,7 @@ let stdtbl =
 "MicToken_v2";
 "ServiceCreds";
 "SubjectComber";
+"TlsChannelBindingImpl";
 "WrapToken";
 "WrapToken_v2";
 ];
@@ -21336,6 +20917,7 @@ let stdtbl =
 "KrbCryptoException";
 "KrbException";
 "KrbKdcRep";
+"KrbKdcReq";
 "KrbPriv";
 "KrbSafe";
 "KrbServiceLocator$SrvRecord";
@@ -21358,6 +20940,7 @@ let stdtbl =
 "Authenticator";
 "AuthorizationData";
 "AuthorizationDataEntry";
+"CredentialsUtil$S4U2Type";
 "CredentialsUtil";
 "ETypeInfo";
 "ETypeInfo2";
@@ -21395,6 +20978,7 @@ let stdtbl =
 "PAData";
 "PAEncTSEnc";
 "PAForUserEnc";
+"PaPacOptions";
 "ReferralsCache$ReferralCacheEntry";
 "ReferralsCache$ReferralCacheKey";
 "ReferralsCache";
@@ -21505,6 +21089,7 @@ let stdtbl =
 "PKCS12KeyStore$Entry";
 "PKCS12KeyStore$KeyEntry";
 "PKCS12KeyStore$PrivateKeyEntry";
+"PKCS12KeyStore$RetryWithZero";
 "PKCS12KeyStore$SecretKeyEntry";
 "PKCS12KeyStore";
 ];
@@ -21588,6 +21173,11 @@ let stdtbl =
 "SHA2$SHA224";
 "SHA2$SHA256";
 "SHA2";
+"SHA3$SHA224";
+"SHA3$SHA256";
+"SHA3$SHA384";
+"SHA3$SHA512";
+"SHA3";
 "SHA5$SHA384";
 "SHA5$SHA512";
 "SHA5$SHA512_224";
@@ -21622,6 +21212,7 @@ let stdtbl =
 "BuildStep";
 "Builder";
 "CertId";
+"CertPathConstraintsParameters";
 "CertPathHelper";
 "CertStoreHelper$1";
 "CertStoreHelper";
@@ -21875,6 +21466,7 @@ let stdtbl =
 "BitArray";
 "ByteArrayLexOrder";
 "ByteArrayTagOrder";
+"ByteArrays";
 "Cache$CacheVisitor";
 "Cache$EqualByteArray";
 "Cache";
@@ -21888,12 +21480,14 @@ let stdtbl =
 "DerOutputStream";
 "DerValue";
 "DisabledAlgorithmConstraints$1";
+"DisabledAlgorithmConstraints$CertPathHolder";
 "DisabledAlgorithmConstraints$Constraint$Operator";
 "DisabledAlgorithmConstraints$Constraint";
 "DisabledAlgorithmConstraints$Constraints$Holder";
 "DisabledAlgorithmConstraints$Constraints";
 "DisabledAlgorithmConstraints$DenyAfterConstraint";
 "DisabledAlgorithmConstraints$DisabledConstraint";
+"DisabledAlgorithmConstraints$JarHolder";
 "DisabledAlgorithmConstraints$KeySizeConstraint";
 "DisabledAlgorithmConstraints$UsageConstraint";
 "DisabledAlgorithmConstraints$jdkCAConstraint";
@@ -21903,7 +21497,19 @@ let stdtbl =
 "ECUtil";
 "GCMParameters";
 "HostnameChecker";
+"JarConstraintsParameters";
 "KeyUtil";
+"KnownOIDs$1";
+"KnownOIDs$10";
+"KnownOIDs$2";
+"KnownOIDs$3";
+"KnownOIDs$4";
+"KnownOIDs$5";
+"KnownOIDs$6";
+"KnownOIDs$7";
+"KnownOIDs$8";
+"KnownOIDs$9";
+"KnownOIDs";
 "LegacyAlgorithmConstraints";
 "Length";
 "ManifestDigester$Entry";
@@ -21927,6 +21533,8 @@ let stdtbl =
 "PolicyUtil";
 "PropertyExpander$ExpandException";
 "PropertyExpander";
+"RegisteredDomain$Type";
+"RegisteredDomain";
 "Resources";
 "ResourcesMgr$1";
 "ResourcesMgr$2";
@@ -21968,6 +21576,8 @@ let stdtbl =
 "IntegerPolynomial$MutableElement";
 "IntegerPolynomial";
 "IntegerPolynomial1305";
+"IntegerPolynomial25519";
+"IntegerPolynomial448";
 "IntegerPolynomialP256";
 "IntegerPolynomialP384";
 "IntegerPolynomialP521";
@@ -22372,15 +21982,6 @@ let stdtbl =
 "JVM";
 "SystemResource";
 ];
-"sun.usagetracker", [
-"UsageTrackerClient$1";
-"UsageTrackerClient$2";
-"UsageTrackerClient$3";
-"UsageTrackerClient$4";
-"UsageTrackerClient$UsageTrackerRunnable$1";
-"UsageTrackerClient$UsageTrackerRunnable";
-"UsageTrackerClient";
-];
 "sun.util", [
 "BuddhistCalendar";
 "PreHashedMap$1$1";
@@ -22621,6 +22222,88 @@ let stdtbl =
 "InputMethodDescriptor";
 "InputMethodContext";
 "InputMethod";
+];
+"sun.security.internal.spec", [
+"TlsMasterSecretParameterSpec";
+"TlsPrfParameterSpec";
+"TlsKeyMaterialParameterSpec";
+"TlsRsaPremasterSecretParameterSpec";
+"TlsRsaPremasterSecretParameterSpec$1";
+"TlsKeyMaterialSpec";
+];
+"sun.security.internal.interfaces", [
+"TlsMasterSecret";
+];
+"javax.crypto", [
+"JceSecurity$IdentityWrapper";
+"CryptoAllPermissionCollection";
+"JarVerifier";
+"JceSecurity$2";
+"Cipher";
+"CryptoPermissions";
+"CryptoAllPermission";
+"Mac";
+"CryptoPermission";
+"SecretKeyFactorySpi";
+"CryptoPolicyParser$GrantEntry";
+"CipherInputStream";
+"CryptoPolicyParser$ParsingException";
+"JceSecurity$1";
+"JarVerifier$1";
+"KeyAgreement";
+"SecretKeyFactory";
+"extObjectInputStream";
+"CipherSpi";
+"MacSpi";
+"CryptoPermissionCollection";
+"SealedObject";
+"NullCipherSpi";
+"IllegalBlockSizeException";
+"PermissionsEnumerator";
+"Cipher$Transform";
+"CryptoPolicyParser$CryptoPermissionEntry";
+"KeyGenerator";
+"EncryptedPrivateKeyInfo";
+"BadPaddingException";
+"JceSecurityManager";
+"ExemptionMechanismException";
+"ExemptionMechanism";
+"KeyGeneratorSpi";
+"CryptoPolicyParser";
+"ShortBufferException";
+"NullCipher";
+"NoSuchPaddingException";
+"KeyAgreementSpi";
+"ExemptionMechanismSpi";
+"JceSecurity";
+"AEADBadTagException";
+"SecretKey";
+"CipherOutputStream";
+"JceSecurityManager$1";
+];
+"javax.crypto.spec", [
+"DHPublicKeySpec";
+"RC2ParameterSpec";
+"PBEKeySpec";
+"GCMParameterSpec";
+"DESKeySpec";
+"IvParameterSpec";
+"DESedeKeySpec";
+"DHParameterSpec";
+"SecretKeySpec";
+"DHPrivateKeySpec";
+"RC5ParameterSpec";
+"PBEParameterSpec";
+"PSource";
+"OAEPParameterSpec";
+"PSource$PSpecified";
+"DHGenParameterSpec";
+];
+"javax.crypto.interfaces", [
+"DHPrivateKey";
+"DHPublicKey";
+"DHKey";
+"PBEKey";
 ];
 
       ]

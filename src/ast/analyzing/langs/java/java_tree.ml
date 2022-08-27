@@ -1408,6 +1408,9 @@ class translator options =
         self#mknode ~ordinal_tbl_opt (L.Primary (L.Primary.ArrayCreationDims dims))
           ((self#of_javatype 0 ty) :: (List.map self#of_dim_expr exprs))
 
+    | Ast.ACEtypeInit(_, _, [array_initializer]) when options#ast_reduction_flag ->
+        self#of_variable_initializer array_initializer
+
     | Ast.ACEtypeInit(ty, dims, array_initializer) ->
         let ordinal_tbl_opt = Some (new ordinal_tbl [1; List.length array_initializer]) in
         self#mknode ~ordinal_tbl_opt (L.Primary L.Primary.ArrayCreationInit)
