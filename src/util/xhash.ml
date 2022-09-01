@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,20 +23,32 @@ type t = Digest.t
 type algo =
   | MD5
   | SHA1
+  | SHA2 of int
+  | SHA3 of int
   | SHA256
+  | SHA384
+  | SHA512
   | RIPEMD160
 
 let algo_to_string = function
   | MD5       -> "MD5"
   | SHA1      -> "SHA1"
+  | SHA2 i    -> "SHA2:"^(string_of_int i)
+  | SHA3 i    -> "SHA3:"^(string_of_int i)
   | SHA256    -> "SHA256"
+  | SHA384    -> "SHA384"
+  | SHA512    -> "SHA512"
   | RIPEMD160 -> "RIPEMD160"
 
 let _algo_to_hash algo =
   match algo with
   | MD5       -> C.Hash.md5()
   | SHA1      -> C.Hash.sha1()
+  | SHA2 i    -> C.Hash.sha2 i
+  | SHA3 i    -> C.Hash.sha3 i
   | SHA256    -> C.Hash.sha256()
+  | SHA384    -> C.Hash.sha384()
+  | SHA512    -> C.Hash.sha512()
   | RIPEMD160 -> C.Hash.ripemd160()
 
 let digest_of_string algo str =

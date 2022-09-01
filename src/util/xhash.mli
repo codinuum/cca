@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 module C = Cryptokit
 module NC = Netchannels
 type t = Digest.t
-type algo = MD5 | SHA1 | SHA256 | RIPEMD160
+type algo = MD5 | SHA1 | SHA2 of int | SHA3 of int | SHA256 | SHA384 | SHA512 | RIPEMD160
 val algo_to_string : algo -> string
 val _algo_to_hash : algo -> Cryptokit.hash
 val digest_of_string : algo -> string -> t
