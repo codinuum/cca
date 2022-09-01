@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -389,6 +389,8 @@ class ['node_t] c cenv = object (self : 'self)
   method add_starting_uid_pairs_for_glueing l =
     starting_uid_pairs_for_glueing <- l @ starting_uid_pairs_for_glueing
 
+  method add_starting_uid_pair_for_glueing p =
+    starting_uid_pairs_for_glueing <- p :: starting_uid_pairs_for_glueing
 
   method starting_uid_pairs_for_glueing = starting_uid_pairs_for_glueing
 
