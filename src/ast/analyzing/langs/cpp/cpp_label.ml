@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
    Copyright 2020 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");

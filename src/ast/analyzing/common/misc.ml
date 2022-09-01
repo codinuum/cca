@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -436,7 +436,7 @@ let is_cross_boundary uidmapping n1 n2 =
     with
       _ -> false
   in
-  DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
+  DEBUG_MSG "%a - %a -> %B" nps n1 nps n2 b;
   b
 
 let inv_assq k l =
