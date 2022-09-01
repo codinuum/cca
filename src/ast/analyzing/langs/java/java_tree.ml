@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 (*
  * AST for the Java Language (for otreediff)
  *
- * java/tree.ml
+ * java/java_tree.ml
  *
  *)
 
@@ -875,13 +875,53 @@ class translator options =
     set_loc nd ms.Ast.ms_loc;
     nd
 
-  method of_modifiers_opt ?(remove_final=false) kind (*name*) = function
+  method of_modifiers_opt
+      ?(remove_final=false)
+      ?(interface=false)
+      ?(interface_field=false)
+      ?(interface_method=false)
+      ?(enum=false)
+      ?(nested_enum=false)
+      kind (*name*)
+      = function
     | None -> []
         (*let namek = name^(L.kind_to_suffix kind) in
         let nd = self#mklnode (L.Modifiers namek) [] in
         [nd]*)
     | Some ms when remove_final -> begin
         let l = List.filter (fun m -> m.Ast.m_desc <> Ast.Mfinal) ms.Ast.ms_modifiers in
+        match l with
+        | [] -> []
+        | _ ->
+            let ms_ = {Ast.ms_modifiers=l; Ast.ms_loc=ms.Ast.ms_loc} in
+            [self#of_modifiers kind ms_]
+    end
+    | Some ms when options#ast_reduction_flag -> begin
+        let filter m =
+          (not interface ||
+          m.Ast.m_desc <> Ast.Mpublic &&
+          m.Ast.m_desc <> Ast.Mabstract)
+            &&
+          (not interface_field ||
+          m.Ast.m_desc <> Ast.Mpublic &&
+          m.Ast.m_desc <> Ast.Mstatic &&
+          m.Ast.m_desc <> Ast.Mfinal)
+            &&
+          (not interface_method ||
+          let mods = List.map (fun m -> m.Ast.m_desc) ms.Ast.ms_modifiers in
+          m.Ast.m_desc <> Ast.Mpublic &&
+          not (m.Ast.m_desc = Ast.Mabstract &&
+               List.for_all
+                 (fun m ->
+                   not (List.mem m mods)
+                 ) [Ast.Mprivate; Ast.Mstatic; Ast.Mdefault]
+              ))
+            &&
+          (not enum || m.Ast.m_desc <> Ast.Mfinal)
+            &&
+          (not nested_enum || m.Ast.m_desc <> Ast.Mstatic)
+        in
+        let l = List.filter filter ms.Ast.ms_modifiers in
         match l with
         | [] -> []
         | _ ->
@@ -907,14 +947,14 @@ class translator options =
      (self#signature_of_method_header ~resolve:false header),
      (self#signature_of_method_header header))
 
-  method of_method_header ?(loc_opt=None) header =
+  method of_method_header ?(interface_method=false) ?(loc_opt=None) header =
     let ident = header.Ast.mh_name in
     let mods = header.Ast.mh_modifiers in
     let tparams = header.Ast.mh_type_parameters in
     let params = header.Ast.mh_parameters in
     let throws = header.Ast.mh_throws in
 
-    let mod_nodes = self#of_modifiers_opt (L.Kmethod ident) mods in
+    let mod_nodes = self#of_modifiers_opt ~interface_method (L.Kmethod ident) mods in
     let tp_nodes = self#of_type_parameters_opt ident tparams in
     let rty = self#of_javatype 0 header.Ast.mh_return_type in
     let p_nodes = self#of_parameters ident header.Ast.mh_parameters_loc params in
@@ -1023,26 +1063,52 @@ class translator options =
   method of_local_variable_declaration ?(remove_final=false) ~is_stmt lvd =
     let mods = lvd.Ast.lvd_modifiers in
     let vdtors = lvd.Ast.lvd_variable_declarators in
-    let vdids =
-      List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors
-    in
-    let vdids_str = self#vdids_to_str vdids in
-    let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdids_str) mods in
 
-    let ordinal_tbl_opt =
-      Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors])
-    in
-
-    let ty_leaf = self#of_javatype 0 lvd.Ast.lvd_type in
-    let nd =
-      self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, vdids))
-        (mod_nodes @
-         [ty_leaf] @
-         (List.map self#of_variable_declarator vdtors))
-    in
-    set_loc nd lvd.Ast.lvd_loc;
-    nd
-
+    if options#normalize_ast_flag then begin
+      let _mklvdecl ghost vd vdnd =
+        let ty_leaf = self#of_javatype 0 lvd.Ast.lvd_type in
+        let vdid = vd.Ast.vd_variable_declarator_id in
+        let vdid_str = fst vdid in
+        let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdid_str) mods in
+        let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; 1]) in
+        let children = mod_nodes @ [ty_leaf; vdnd] in
+        let nd = self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, [vdid])) children in
+        if ghost then begin
+          nd#data#set_loc Loc.ghost;
+          List.iter set_ghost_rec mod_nodes;
+          set_ghost_rec ty_leaf
+        end
+        else
+          set_loc nd lvd.Ast.lvd_loc;
+        nd
+      in
+      let mklvdecl ghost vd =
+        _mklvdecl ghost vd (self#of_variable_declarator vd)
+      in
+      match vdtors with
+      | []       -> []
+      | [vd]     -> [mklvdecl false vd]
+      | vd::rest ->
+          let lvdecl_nd = mklvdecl false vd in
+          let rest_vdnds = List.map self#of_variable_declarator rest in
+          List.iter (fun vn -> self#add_true_parent vn#uid lvdecl_nd) rest_vdnds;
+          lvdecl_nd :: (List.map2 (fun v vn -> _mklvdecl true v vn) rest rest_vdnds)
+    end
+    else begin
+      let vdids = List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors in
+      let vdids_str = self#vdids_to_str vdids in
+      let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdids_str) mods in
+      let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors]) in
+      let ty_leaf = self#of_javatype 0 lvd.Ast.lvd_type in
+      let nd =
+        self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, vdids))
+          (mod_nodes @
+           [ty_leaf] @
+           (List.map self#of_variable_declarator vdtors))
+      in
+      set_loc nd lvd.Ast.lvd_loc;
+      [nd]
+    end
 
   method of_literal lit =
     let anonymize_int = options#anonymize_int_flag in
@@ -1666,7 +1732,7 @@ class translator options =
     in
     let children =
       (List.map self#of_switch_label sls) @
-      (List.map self#of_block_statement bss)
+      (List.flatten (List.map self#of_block_statement bss))
     in
     let nd = self#mknode ~ordinal_tbl_opt L.SwitchBlockStatementGroup children in
     set_nodes_loc nd children;
@@ -1676,7 +1742,9 @@ class translator options =
     match r.Ast.r_desc with
     | Ast.RlocalVarDecl lvd -> begin
         let remove_final = options#ast_reduction_flag in
-        self#of_local_variable_declaration ~remove_final ~is_stmt:false lvd
+        match self#of_local_variable_declaration ~remove_final ~is_stmt:false lvd with
+        | [nd] -> nd
+        | _ -> assert false
     end
     | Ast.RfieldAccess fa -> self#of_field_access fa
     | Ast.Rname name -> begin
@@ -1736,9 +1804,13 @@ class translator options =
           self#mklnode (L.ForInit tid) children
 
       | Ast.FIlocal lvd ->
-          let lvd_nd = self#of_local_variable_declaration ~is_stmt:false lvd in
-          let tid = self#mktid lvd_nd in
-          self#mknode (L.ForInit tid) [lvd_nd]
+          let lvd_ndl = self#of_local_variable_declaration ~is_stmt:false lvd in
+          let tid =
+            match lvd_ndl with
+            | lvd_nd::_ -> self#mktid lvd_nd
+            | _ -> assert false
+          in
+          self#mknode (L.ForInit tid) lvd_ndl
     in
     set_loc nd fi.Ast.fi_loc;
     nd
@@ -1899,18 +1971,16 @@ class translator options =
     nd
 
   method _of_block ?(orig_lab_opt=None) lab b =
+    let stmt_ndl = List.flatten (List.map self#of_block_statement b.Ast.b_block_statements) in
     if
       options#ast_reduction_flag && not options#normalize_ast_flag &&
-      List.length b.Ast.b_block_statements = 1
+      List.length stmt_ndl = 1
     then
-      match b.Ast.b_block_statements with
-      | [stmt] -> self#of_block_statement stmt
+      match stmt_ndl with
+      | [stmt_nd] -> stmt_nd
       | _ -> assert false
     else
-      let nd =
-        self#mklnode ~orig_lab_opt lab
-          (List.map self#of_block_statement b.Ast.b_block_statements)
-      in
+      let nd = self#mklnode ~orig_lab_opt lab stmt_ndl in
       set_loc nd b.Ast.b_loc;
       nd
 
@@ -1927,72 +1997,77 @@ class translator options =
     self#_of_block ~orig_lab_opt (L.MethodBody(mname, msig)) body
 
   method of_block_statement bs =
-    let nd =
-      match bs.Ast.bs_desc with
-      | Ast.BSlocal lvd -> self#of_local_variable_declaration ~is_stmt:true lvd
-      | Ast.BSclass cd -> self#of_class_declaration false cd
-      | Ast.BSstatement s -> self#of_statement s
-      | Ast.BSerror s -> self#mkleaf (L.Error s)
-    in
-    set_loc nd bs.Ast.bs_loc;
-    nd
+    match bs.Ast.bs_desc with
+    | Ast.BSlocal lvd -> begin
+        let ndl = self#of_local_variable_declaration ~is_stmt:true lvd in
+        List.iter (fun nd -> set_loc nd bs.Ast.bs_loc) ndl;
+        ndl
+    end
+    | Ast.BSclass cd -> begin
+        let nd = self#of_class_declaration false cd in
+        set_loc nd bs.Ast.bs_loc;
+        [nd]
+    end
+    | Ast.BSstatement s -> begin
+        let nd = self#of_statement s in
+        set_loc nd bs.Ast.bs_loc;
+        [nd]
+    end
+    | Ast.BSerror s -> begin
+        let nd = self#mkleaf (L.Error s) in
+        set_loc nd bs.Ast.bs_loc;
+        [nd]
+    end
 
-  (*method of_field_declaration fd =
-    let _mkfdecl ghost vd vdnd =
-      let ty_leaf = self#of_javatype 0 fd.Ast.fd_type in
-      let vdid = vd.Ast.vd_variable_declarator_id in
-      let vdid_str = fst vdid in
-      let mods = fd.Ast.fd_modifiers in
-      let mod_nodes = self#of_modifiers_opt L.Kfield vdid_str mods in
-      let ordinal_tbl_opt =
-        Some (new ordinal_tbl [List.length mod_nodes; 1; 1])
-      in
-      let children = mod_nodes @ [ty_leaf; vdnd] in
-      let nd = self#mknode ~ordinal_tbl_opt (L.FieldDeclaration [vdid]) children in
-      if ghost then begin
-        nd#data#set_loc Loc.ghost;
-        List.iter set_ghost_rec mod_nodes;
-        set_ghost_rec ty_leaf
-      end
-      else
-        set_loc nd fd.Ast.fd_loc;
-      nd
-    in
-    let mkfdecl ghost vd =
-      _mkfdecl ghost vd (self#of_variable_declarator vd)
-    in
-    match fd.Ast.fd_variable_declarators with
-    | []       -> []
-    | [vd]     -> [mkfdecl false vd]
-    | vd::rest ->
-        let fdecl_nd = mkfdecl false vd in
-        let rest_vdnds = List.map self#of_variable_declarator rest in
-        List.iter (fun vn -> self#add_true_parent vn#uid fdecl_nd) rest_vdnds;
-        fdecl_nd :: (List.map2 (fun v vn -> _mkfdecl true v vn) rest rest_vdnds)*)
-
-  method of_field_declaration fd =
+  method of_field_declaration ?(interface_field=false) fd =
     let mods = fd.Ast.fd_modifiers in
     let vdtors = fd.Ast.fd_variable_declarators in
-    let vdids =
-      List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors
-    in
-    let vdid_str = self#vdids_to_str vdids in
-    let mod_nodes = self#of_modifiers_opt (L.Kfield vdid_str) mods in
 
-    let ordinal_tbl_opt =
-      Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors])
-    in
-
-    let ty_leaf = self#of_javatype 0 fd.Ast.fd_type in
-
-    let nd =
-      self#mknode ~ordinal_tbl_opt (L.FieldDeclaration vdids)
-        (mod_nodes @
-         [ty_leaf] @
-         (List.map self#of_variable_declarator vdtors))
-    in
-    set_loc nd fd.Ast.fd_loc;
-    [nd]
+    if options#normalize_ast_flag then begin
+      let _mkfdecl ghost vd vdnd =
+        let ty_leaf = self#of_javatype 0 fd.Ast.fd_type in
+        let vdid = vd.Ast.vd_variable_declarator_id in
+        let vdid_str = fst vdid in
+        let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_str) mods in
+        let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; 1]) in
+        let children = mod_nodes @ [ty_leaf; vdnd] in
+        let nd = self#mknode ~ordinal_tbl_opt (L.FieldDeclaration [vdid]) children in
+        if ghost then begin
+          nd#data#set_loc Loc.ghost;
+          List.iter set_ghost_rec mod_nodes;
+          set_ghost_rec ty_leaf
+        end
+        else
+          set_loc nd fd.Ast.fd_loc;
+        nd
+      in
+      let mkfdecl ghost vd =
+        _mkfdecl ghost vd (self#of_variable_declarator vd)
+      in
+      match vdtors with
+      | []       -> []
+      | [vd]     -> [mkfdecl false vd]
+      | vd::rest ->
+          let fdecl_nd = mkfdecl false vd in
+          let rest_vdnds = List.map self#of_variable_declarator rest in
+          List.iter (fun vn -> self#add_true_parent vn#uid fdecl_nd) rest_vdnds;
+          fdecl_nd :: (List.map2 (fun v vn -> _mkfdecl true v vn) rest rest_vdnds)
+    end
+    else begin
+      let vdids = List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors in
+      let vdid_str = self#vdids_to_str vdids in
+      let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_str) mods in
+      let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors]) in
+      let ty_leaf = self#of_javatype 0 fd.Ast.fd_type in
+      let nd =
+        self#mknode ~ordinal_tbl_opt (L.FieldDeclaration vdids)
+          (mod_nodes @
+           [ty_leaf] @
+           (List.map self#of_variable_declarator vdtors))
+      in
+      set_loc nd fd.Ast.fd_loc;
+      [nd]
+    end
 
   method of_explicit_constructor_invocation eci =
     let nd =
@@ -2182,7 +2257,7 @@ class translator options =
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length ctor_nodes; List.length bss])
     in
-    let stmts = List.map self#of_block_statement bss in
+    let stmts = List.flatten (List.map self#of_block_statement bss) in
     let children = ctor_nodes @ stmts in
     let msig = sprintf "(%s)V" signature in
     let orig_lab_opt = Some (L.ConstructorBody(name, "")) in
@@ -2283,6 +2358,17 @@ class translator options =
     let econsts = eb.Ast.eb_enum_constants in
     let cbdecls = eb.Ast.eb_class_body_declarations in
     let dnds = List.flatten (List.map self#of_class_body_declaration cbdecls) in
+    let dnds =
+      if
+        options#ast_reduction_flag &&
+        match dnds with
+        | [dnd] when getlab dnd = L.EmptyDeclaration -> true
+        | _ -> false
+      then
+        []
+      else
+        dnds
+    in
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length econsts; List.length dnds])
     in
@@ -2416,16 +2502,16 @@ class translator options =
       set_loc nd loc;
       [nd]
 
-  method of_class_declaration_head kind otbl h =
+  method of_class_declaration_head ?(interface=false) ?(enum=false) ?(nested_enum=false) kind otbl h =
     let ident = h.Ast.ch_identifier in
-    let mod_nodes = self#of_modifiers_opt kind (*ident*) h.Ast.ch_modifiers in
+    let mod_nodes = self#of_modifiers_opt ~interface ~enum ~nested_enum kind (*ident*) h.Ast.ch_modifiers in
     let ta_nodes = self#of_type_parameters_opt ident h.Ast.ch_type_parameters in
     let ex_nodes = self#of_extends_class_opt h.Ast.ch_extends_class in
     let im_nodes = self#of_implements_opt h.Ast.ch_implements in
     let children = mod_nodes @ ta_nodes @ ex_nodes @ im_nodes in
     self#make_specifier_node kind children otbl h.Ast.ch_loc
 
-  method of_class_declaration is_top cd =
+  method of_class_declaration ?(interface=false) is_top cd =
     let nd =
       match cd.Ast.cd_desc with
       | Ast.CDclass(h, body) ->
@@ -2437,19 +2523,39 @@ class translator options =
            ]
           in
           let ident = h.Ast.ch_identifier in
-          let specifier_node = self#of_class_declaration_head (L.Kclass ident) otbl h in
+          let specifier_node = self#of_class_declaration_head ~interface (L.Kclass ident) otbl h in
           let children = specifier_node @ [self#of_class_body ident body] in
           self#mknode (L.Class ident) children
 
       | Ast.CDenum(h, body) ->
           let otbl =
-            [if h.Ast.ch_modifiers <> None then 1 else 0;
+            [
+             if h.Ast.ch_modifiers <> None then 1 else 0;
              if h.Ast.ch_implements <> None then 1 else 0;
            ]
           in
           let ident = h.Ast.ch_identifier in
-          let specifier_node = self#of_class_declaration_head (L.Kenum ident) otbl h in
-          let children = specifier_node @ [self#of_enum_body ident body] in
+          let body_node = self#of_enum_body ident body in
+          let enum =
+            Array.for_all
+              (fun c ->
+                match getlab c with
+                | L.EnumConstant _ -> begin
+                    Array.for_all
+                      (fun cc ->
+                        match getlab cc with
+                        | L.ClassBody _ -> false
+                        | _ -> true
+                      ) c#children
+                end
+                | _ -> true
+              ) body_node#children
+          in
+          let nested_enum = not is_top in
+          let specifier_node =
+            self#of_class_declaration_head ~interface ~enum ~nested_enum (L.Kenum ident) otbl h
+          in
+          let children = specifier_node @ [body_node] in
           self#mknode (L.Enum ident) children
 
       | Ast.CDaspect(h, body) ->
@@ -2460,7 +2566,7 @@ class translator options =
            ]
           in
           let ident = h.Ast.ch_identifier in
-          let specifier_node = self#of_class_declaration_head (L.Kaspect ident) otbl h in
+          let specifier_node = self#of_class_declaration_head ~interface (L.Kaspect ident) otbl h in
           let children = specifier_node @ [self#of_aspect_body ident body] in
           self#mknode (L.Aspect ident) children
     in
@@ -2472,13 +2578,13 @@ class translator options =
     self#_of_class_body aname body abd.Ast.abd_loc
 
   method of_abstract_method_declaration amd =
-    self#of_method_header ~loc_opt:(Some amd.Ast.amd_loc) amd.Ast.amd_method_header
+    self#of_method_header ~interface_method:true ~loc_opt:(Some amd.Ast.amd_loc) amd.Ast.amd_method_header
 
   method of_interface_member_declaration imd =
     match imd.Ast.imd_desc with
-    | Ast.IMDconstant field_decl      -> self#of_field_declaration field_decl
+    | Ast.IMDconstant field_decl      -> self#of_field_declaration ~interface_field:true field_decl
     | Ast.IMDinterfaceMethod abs_meth -> [self#of_abstract_method_declaration abs_meth]
-    | Ast.IMDclass class_decl         -> [self#of_class_declaration false class_decl]
+    | Ast.IMDclass class_decl         -> [self#of_class_declaration ~interface:true false class_decl]
     | Ast.IMDinterface iface_decl     -> [self#of_interface_declaration false iface_decl]
     | Ast.IMDempty -> [let nd = self#mkleaf L.EmptyDeclaration in set_loc nd imd.imd_loc; nd]
 
@@ -2585,7 +2691,7 @@ class translator options =
   method of_interface_declaration_head kind otbl h =
     let ident = h.Ast.ifh_identifier in
     let children =
-      (self#of_modifiers_opt kind (*ident*) h.Ast.ifh_modifiers) @
+      (self#of_modifiers_opt ~interface:true kind (*ident*) h.Ast.ifh_modifiers) @
       (self#of_type_parameters_opt ident h.Ast.ifh_type_parameters) @
       (self#of_extends_interfaces_opt h.Ast.ifh_extends_interfaces)
     in
