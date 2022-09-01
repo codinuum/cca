@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ open Misc
 
 let subtree_similarity_thresh = 0.7
 let subtree_similarity_ratio_thresh = 0.8
+let subtree_similarity_ratio_cutoff = 0.15
+let adjacency_ratio_cutoff = 0.15
 (* let subtree_similarity_ratio_lower_thresh = 0.5 *)
 (* let subtree_similarity_lower_thresh = 0.15 *)
 let ancestors_similarity_thresh = 0.7
@@ -88,12 +90,69 @@ let estimate_cost_of_move tree1 tree2 uidmapping nd1 nd2 = (* cost = number of a
   !count
 
 let get_bn = get_p_ancestor (fun x -> x#data#is_boundary)
+
 let _is_map uidmapping n1 n2 =
   try
     uidmapping#find n1#uid = n2#uid
   with
     Not_found -> false
 
+let _get_digest tree n =
+  match n#data#_digest with
+  | Some d -> d
+  | None -> tree#get_digest n
+
+let __same_digest tree1 tree2 n1 n2 =
+  try
+    let d1 = _get_digest tree1 n1 in
+    let d2 = _get_digest tree2 n2 in
+    d1 = d2
+  with _ -> false
+
+let _same_digest tree1 tree2
+    ?(leaf_comparison=true)
+    ?(digest_for_leaf=false)
+    ?(digest_for_all=false)
+    n1 n2
+    =
+  DEBUG_MSG "[leaf_comparison:%B,digest_for_leaf=%B,digest_for_all=%B] %a %a"
+    leaf_comparison digest_for_leaf digest_for_all nps n1 nps n2;
+
+  let nc1 = n1#initial_nchildren in
+  let nc2 = n2#initial_nchildren in
+
+  (leaf_comparison || nc1 > 0 && nc2 > 0) &&
+  if (digest_for_leaf || digest_for_all) && nc1 = 0 && nc2 = 0 then
+    __same_digest tree1 tree2 n1 n2
+  else if nc1 = 0 && nc2 = 0 then
+    n1#data#eq n2#data
+  else if digest_for_all then
+    __same_digest tree1 tree2 n1 n2
+  else
+    nc1 = nc2 &&
+    __same_digest tree1 tree2 n1 n2
+
+let boundary_mapped umap nd nd' =
+  try
+    let bn = get_bn nd in
+    let bn' = get_bn nd' in
+    let bu = bn#uid in
+    let bu' = bn'#uid in
+    let b = umap bu = bu' in
+    DEBUG_MSG "%a-%a: %B" ups bu ups bu' b;
+    b
+  with _ -> false
+
+let boundary_stable umap mem_mov nd nd' =
+  try
+    let bn = get_bn nd in
+    let bn' = get_bn nd' in
+    let bu = bn#uid in
+    let bu' = bn'#uid in
+    let b = umap bu = bu' && mem_mov bu bu' in
+    DEBUG_MSG "%a-%a: %B" ups bu ups bu' b;
+    b
+  with _ -> false
 
 
 class ['node_t] multiple_node_matches (label_to_string : Obj.t -> string) = object
@@ -1918,7 +1977,7 @@ class ['node_t, 'tree_t] c
 
           DEBUG_MSG "ancestors similarity: %f --> %f" ancsim_old ancsim_new;
 
-          let anc_sim_ratio = (Xlist.min [ancsim_old; ancsim_new]) /. (Xlist.max [ancsim_old; ancsim_new]) in
+          let anc_sim_ratio = min ancsim_old ancsim_new /. max ancsim_old ancsim_new in
 
           DEBUG_MSG "ancestors similarity ratio: %f" anc_sim_ratio;
 
@@ -1930,9 +1989,7 @@ class ['node_t, 'tree_t] c
 
           DEBUG_MSG "subtree similarity: %f --> %f" subtree_sim_old subtree_sim_new;
 
-          let subtree_sim_ratio =
-            (Xlist.min [subtree_sim_old; subtree_sim_new]) /. (Xlist.max [subtree_sim_old; subtree_sim_new])
-          in
+          let subtree_sim_ratio = min subtree_sim_old subtree_sim_new /. max subtree_sim_old subtree_sim_new in
 
           DEBUG_MSG "subtree similarity ratio: %f" subtree_sim_ratio;
 
@@ -2025,7 +2082,7 @@ class ['node_t, 'tree_t] c
              is_plausible nd1old nd2old && not (is_plausible nd1new nd2new)
             ) ||
             prefer_sim && subtree_sim_old > subtree_sim_new
-            (* || (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_lower_thresh) *)
+            (* || (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
@@ -2039,7 +2096,7 @@ class ['node_t, 'tree_t] c
             (anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new() ||
             is_plausible nd1new nd2new && not (is_plausible nd1old nd2old)) ||
             prefer_sim && subtree_sim_new > subtree_sim_old
-            (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_lower_thresh) *)
+            (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
@@ -2192,9 +2249,12 @@ class ['node_t, 'tree_t] c
                     (
                      sim_cond ||
                      (anc_cond && subtree_sim_ratio > subtree_similarity_ratio_thresh
-(* subtree_sim_old <= subtree_similarity_lower_thresh && subtree_sim_new <= subtree_similarity_lower_thresh *))
+(* subtree_sim_old <= subtree_similarity_cutoff && subtree_sim_new <= subtree_similarity_cutoff *))
                     ) &&
-                    ((ancsim_old < 1.0 && ancsim_new < 1.0) || (ancsim_old = 1.0 && ancsim_new = 1.0))
+                    (
+                     (ancsim_old < 1.0 && ancsim_new < 1.0) ||
+                     (ancsim_old = 1.0 && ancsim_new = 1.0)
+                    )
                   end
                   else
                     false
@@ -2232,7 +2292,7 @@ class ['node_t, 'tree_t] c
 (*
   let similar_ncross =
   let sim =
-  ((float (Xlist.min [ncross_old; ncross_new])) /. (float (Xlist.max [ncross_old; ncross_new])))
+  ((float (min ncross_old ncross_new)) /. (float (max ncross_old ncross_new)))
   in
   DEBUG_MSG "similarity of ncross: %f" sim;
 
@@ -2258,7 +2318,7 @@ class ['node_t, 'tree_t] c
               end
               else begin (* ncross_old <> ncross_new *)
                 let ncross_sim =
-                  ((float (Xlist.min [ncross_old; ncross_new])) /. (float (Xlist.max [ncross_old; ncross_new])))
+                  ((float (min ncross_old ncross_new)) /. (float (max ncross_old ncross_new)))
                 in
                 DEBUG_MSG "similarity of ncross: %f" ncross_sim;
 
@@ -2503,7 +2563,8 @@ class ['node_t, 'tree_t] c
                 let uids2 = List.map (fun n -> n#uid) nds2 in
 
                 let is_settled =
-                  uidmapping#is_settled_root_pair uid1 uid2 || uidmapping#has_settled_mapping uid1 uid2 (* uidmapping#mem_settled uid1 *)
+                  uidmapping#is_settled_root_pair uid1 uid2 ||
+                  uidmapping#has_settled_mapping uid1 uid2 (* uidmapping#mem_settled uid1 *)
                 in
 
                 DEBUG_MSG " %a-%a --> settled:%B" ups uid1 ups uid2 is_settled;
@@ -2621,7 +2682,9 @@ class ['node_t, 'tree_t] c
         Hashtbl.iter
           (fun (cn1, cn2) (ns1, ns2, mem_pairs, act) ->
 
-            DEBUG_MSG "conflicting pair: %a-%a" nups cn1 nups cn2;
+            DEBUG_MSG "conflicting pair: %a-%a [%a]-[%a] %a" nups cn1 nups cn2 locps cn1 locps cn2 labps cn1;
+            DEBUG_MSG "mem_pairs: [%s]"
+              (Xlist.to_string (fun (u1, u2) -> Printf.sprintf "%a-%a" ups u1 ups u2) ";" mem_pairs);
 
             let pairs = combi ns1 ns2 in
 
@@ -2629,10 +2692,10 @@ class ['node_t, 'tree_t] c
 
               BEGIN_DEBUG
                 List.iter
-                (fun (n1, n2) ->
-                  DEBUG_MSG "  vs %a-%a" nups n1 nups n2
-                ) pairs
-                END_DEBUG;
+                  (fun (n1, n2) ->
+                    DEBUG_MSG "  vs %a-%a" nups n1 nups n2
+                  ) pairs
+              END_DEBUG;
 
               let ncross = ref (-1) in
               let adj = ref (-1.0) in

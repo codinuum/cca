@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1615,7 +1615,30 @@ end;
           )
       end;
       if options#ignore_move_of_unordered_flag(* && not options#recover_orig_ast_flag*) then begin
+
         DEBUG_MSG "filtering moves...";
+
+        let rec check_mov = function
+          | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
+              let b =
+                let nd1 = Info.get_node info1 in
+                let nd2 = Info.get_node info2 in
+                nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
+                let pnd1 = nd1#initial_parent in
+                let pnd2 = nd2#initial_parent in
+                (try (uidmapping#find pnd1#uid) = pnd2#uid with _ -> false) &&
+                match edits#find12 pnd1#uid pnd2#uid with
+                | [] -> true
+                | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
+                | _ -> false
+              in
+              let _ = mov in
+              DEBUG_MSG "%s -> %B" (Edit.to_string mov) b;
+              b
+          end
+          | _ -> assert false
+        in
+
         edits#filter_moves
           (function
             | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
@@ -1623,7 +1646,8 @@ end;
                 let nd1 = Info.get_node info1 in
                 let nd2 = Info.get_node info2 in
                 if
-                  nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
+                  check_mov mov
+                  (*nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
                   !exc1 = [] && !exc2 = [] &&
                   let pnd1 = nd1#initial_parent in
                   let pnd2 = nd2#initial_parent in
@@ -1631,7 +1655,7 @@ end;
                   (try
                     edits#iter_moves
                       (function
-	                | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
+                       | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
                             List.iter
                               (fun inf ->
                                 if Info.get_node inf == nd1 then
@@ -1646,7 +1670,7 @@ end;
                   match edits#find12 pnd1#uid pnd2#uid with
                   | [] -> true
                   | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
-                  | _ -> false
+                  | _ -> false*)
                 then begin
                   DEBUG_MSG "filtered: %s" (Edit.to_string mov);
                   begin

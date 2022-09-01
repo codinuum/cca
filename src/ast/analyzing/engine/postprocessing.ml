@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ module F (Label : Spec.LABEL_T) = struct
 
   let getlab nd = (Obj.obj nd#data#_label : Label.t)
 
+  let get_bn = get_p_ancestor (fun x -> x#data#is_boundary)
+
   let can_be_keyroot tree nd =
     let initial_ancestors = tree#initial_ancestor_nodes nd in
 
@@ -55,6 +57,12 @@ module F (Label : Spec.LABEL_T) = struct
 
   let mkinfo = Info.make
 
+  let _is_map tree1 tree2 uidmapping n1 n2 =
+    let b =
+      try (tree2#search_node_by_uid (uidmapping#find n1#uid)) == n2 with _ -> false
+    in
+    DEBUG_MSG "%a - %a -> %B" nps n1 nps n2 b;
+    b
 
   let pmap_add pmap u v =
     try
@@ -520,7 +528,6 @@ module F (Label : Spec.LABEL_T) = struct
 
         if an1#data#is_statement && an2#data#is_statement then begin
           try
-            let get_bn = get_p_ancestor (fun x -> x#data#is_boundary) in
             let bn1, bn2 = get_bn an1, get_bn an2 in
 
             let bgi1, bgi2 = bn1#gindex, bn2#gindex in
@@ -1594,7 +1601,9 @@ module F (Label : Spec.LABEL_T) = struct
                           let alab1 = nd1#data#_anonymized3_label in
                           DEBUG_MSG "alab1=%s alab1'=%s alab2=%s"
                             nd1#data#anonymized3_label nd1'#data#anonymized3_label nd2#data#anonymized3_label;
-                          if nd1'#data#_anonymized3_label = alab1 && nd2#data#_anonymized3_label <> alab1 then begin
+                          if
+                            nd1'#data#_anonymized3_label = alab1 && nd2#data#_anonymized3_label <> alab1
+                          then begin
                             DEBUG_MSG "relabel: %a-%a: anonymized3 label match (%s)"
                               ups u1 ups u1' nd1#data#anonymized3_label;
                             false, None, (fun () -> ())
@@ -2126,7 +2135,9 @@ module F (Label : Spec.LABEL_T) = struct
       end;
       Hashtbl.iter
         (fun u1 u2 ->
-          DEBUG_MSG "stable_pair: %a-%a" ups u1 ups u2
+          let n1 = tree1#search_node_by_uid u1 in
+          let n2 = tree2#search_node_by_uid u2 in
+          DEBUG_MSG "stable_pair: %a-%a [%a]-[%a] %a" ups u1 ups u2 locps n1 locps n2 labps n1
         ) uidmapping#stable_pairs;
       DEBUG_MSG "uidmapping:\n%s\n" uidmapping#to_string;
       (*DEBUG_MSG "uidmapping (gindex):\n%s\n" uidmapping#to_string_gid;*)
@@ -3097,6 +3108,14 @@ module F (Label : Spec.LABEL_T) = struct
 
                   let mat, _, _, _ = Adiff.adiff cldd1 cldd2 in
 
+                  BEGIN_DEBUG
+                    DEBUG_MSG "mat:";
+                    List.iter
+                      (fun (i, j) ->
+                        DEBUG_MSG "%a - %a" nps cld1a.(i) nps cld2a.(j)
+                      ) mat
+                  END_DEBUG;
+
                   let mat1, mat2 = List.split mat in
                   let f1 m cldd =
                     Array.iteri (fun i (l, d) -> if not (List.mem i m) then cldd.(i) <- (l, None)) cldd
@@ -3110,6 +3129,14 @@ module F (Label : Spec.LABEL_T) = struct
 
                   let mat' = HIS.Float.compute get_weight cldd1 cldd2 in
 
+                  BEGIN_DEBUG
+                    DEBUG_MSG "mat':";
+                    List.iter
+                      (fun (i, j) ->
+                        DEBUG_MSG "%a - %a" nps cld1a.(i) nps cld2a.(j)
+                      ) mat'
+                  END_DEBUG;
+
                   let mat1', mat2' = List.split mat' in
                   let f2 m m' clda cldd =
                     Array.iteri
@@ -3120,6 +3147,12 @@ module F (Label : Spec.LABEL_T) = struct
                   in
                   f2 mat1 mat1' cld1a cldd1;
                   f2 mat2 mat2' cld2a cldd2;
+
+                  BEGIN_DEBUG
+                    let a2s = Xarray.to_string (fun (lab, _) -> Label.to_string (Obj.obj lab : Label.t)) ";" in
+                    DEBUG_MSG "cldd1: [%s]" (a2s cldd1);
+                    DEBUG_MSG "cldd2: [%s]" (a2s cldd2)
+                  END_DEBUG;
 
                   let mat'' = HIS.Float.compute get_weight cldd1 cldd2 in
 
@@ -3225,8 +3258,7 @@ module F (Label : Spec.LABEL_T) = struct
             DEBUG_MSG "_cands:";
           List.iter
             (fun (n1, n2) ->
-              DEBUG_MSG "%a[%s] - %a[%s]"
-                ups n1#uid n1#data#label ups n2#uid n2#data#label
+              DEBUG_MSG "%a - %a" nps n1 nps n2
             ) _cands;
           END_DEBUG;
 
@@ -3359,25 +3391,95 @@ module F (Label : Spec.LABEL_T) = struct
                 else if
                   n1#data#is_order_insensitive && n2#data#is_order_insensitive &&
                   n1#initial_nchildren = 0 && n2#initial_nchildren = 0 &&
-                  let get_left n =
-                    try n#initial_parent#initial_children.(n#initial_pos - 1) with _ -> raise Not_found
+                  let get d sorted ca n =
+                    try
+                      if sorted then
+                        let pos, found =
+                          Array.fold_left
+                            (fun ((i, found) as a) c ->
+                              if found then
+                                a
+                              else if c == n then
+                                i + d, true
+                              else
+                                i + 1, found
+                            ) (0, false) ca
+                        in
+                        if found then begin
+                          let sib = ca.(pos) in
+                          DEBUG_MSG "%a: (%d) -> %a" nups n d nups sib;
+                          Some sib
+                        end
+                        else
+                          None
+                      else
+                        Some ca.(n#initial_pos + d)
+                    with
+                      _ -> None
                   in
-                  let get_right n =
-                    try n#initial_parent#initial_children.(n#initial_pos + 1) with _ -> raise Not_found
+                  let get_left = get (-1) in
+                  let get_right = get 1 in
+                  let is_mapped ?(weak=false) n1_opt n2_opt =
+                    let b =
+                      match n1_opt, n2_opt with
+                      | None, None -> weak
+                      | Some n1, Some n2 -> uidmapping#find n1#uid = n2#uid
+                      | _ -> false
+                    in
+                    BEGIN_DEBUG
+                      let n_opt_to_str = function
+                        | Some n -> UID.to_string n#uid
+                        | None -> "None"
+                      in
+                      if b then
+                        DEBUG_MSG "mapped: %s -> %s" (n_opt_to_str n1_opt) (n_opt_to_str n2_opt);
+                    END_DEBUG;
+                    b
                   in
                   let is_stable n1 n2 =
-                    let b =
+                    let cond0 =
                       try
-                        uidmapping#find (get_left n1)#uid = (get_left n2)#uid &&
-                        uidmapping#find (get_right n1)#uid = (get_right n2)#uid
+                        let ca1 = n1#initial_parent#initial_children in
+                        let ca2 = n2#initial_parent#initial_children in
+                        is_mapped (get_left false ca1 n1) (get_left false ca2 n2) &&
+                        is_mapped (get_right false ca1 n1) (get_right false ca2 n2)
                       with _ -> false
                     in
+                    DEBUG_MSG "cond0=%B" cond0;
+                    let cond1 () =
+                      let b =
+                        n1#data#eq n2#data &&
+                        try
+                          let p1 = n1#initial_parent in
+                          let p2 = n2#initial_parent in
+                          p1#data#eq p2#data &&
+                          p1#initial_nchildren > 1 && p2#initial_nchildren > 1 &&
+                          is_mapped (Some p1) (Some p2) &&
+                          let ca1 = Array.copy p1#initial_children in
+                          let ca2 = Array.copy p2#initial_children in
+                          let a2s ca = Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca) in
+                          DEBUG_MSG "ca1: [%s]" (a2s ca1);
+                          DEBUG_MSG "ca2: [%s]" (a2s ca2);
+                          List.iter
+                            (Array.fast_sort (fun x1 x2 -> compare x1#data#label x2#data#label))
+                            [ca1; ca2];
+                          DEBUG_MSG "ca1: -> [%s]" (a2s ca1);
+                          DEBUG_MSG "ca2: -> [%s]" (a2s ca2);
+                          is_mapped ~weak:true (get_left true ca1 n1) (get_left true ca2 n2) &&
+                          is_mapped ~weak:true (get_right true ca1 n1) (get_right true ca2 n2)
+                        with _ -> false
+                      in
+                      if b then
+                        DEBUG_MSG "!!!!!!!! %B" b;
+                      b
+                    in
+                    let b = cond0 || cond1() in
                     DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
                     b
                   in
                   not (is_stable n1 n2)
                 then begin
-                  DEBUG_MSG "not so good relabel: %a-%a" ups u1 ups u2;
+                  DEBUG_MSG "not so good mapping: %a-%a" ups u1 ups u2;
                   None
                 end
                 else begin
@@ -3542,7 +3644,7 @@ module F (Label : Spec.LABEL_T) = struct
                       | Some d -> string_of_int d
                       | None -> "-"
                     in
-                    DEBUG_MSG "%a-%a -> cond_p:%B cond1:%B cond2:%B c0:%B c1:%B c2:%B c3:%B dnc1:%s dnc2:%s --> cond:%b"
+                    DEBUG_MSG "%a-%a->cond_p:%B cond1:%B cond2:%B c0:%B c1:%B c2:%B c3:%B dnc1:%s dnc2:%s --> %B"
                       ups u1 ups u2 cond_p cond1 cond2 c0 c1 c2 c3 (dnc_to_str dnc1) (dnc_to_str dnc2) cond;
                   END_DEBUG;
 
@@ -4076,14 +4178,16 @@ module F (Label : Spec.LABEL_T) = struct
             (fun (u1', u2') ->
               let n1' = tree1#search_node_by_uid u1' in
               let n2' = tree2#search_node_by_uid u2' in
-              if UIDmapping.is_crossing_or_incompatible tree1 tree2 n1 n2 n1' n2' then
+              if UIDmapping.is_crossing_or_incompatible tree1 tree2 n1 n2 n1' n2' then begin
+                DEBUG_MSG "found: %a-%a [%a]-[%a] %a" nups n1' nups n2' locps n1' locps n2' labps n1';
                 raise Exit
+              end
             ) !added_pairs;
           false
         with
           Exit -> true
       in
-      DEBUG_MSG "%a %a -> %B" nps n1 nps n2 b;
+      DEBUG_MSG "%a %a -> %B" nups n1 nups n2 b;
       b
     in
 
@@ -5586,13 +5690,6 @@ end;
 
   let find_nearest_anc_stmt = Sourcecode.find_nearest_p_ancestor_node (fun n -> n#data#is_statement)
 
-  let _is_map tree1 tree2 uidmapping n1 n2 =
-    let b =
-      try (tree2#search_node_by_uid (uidmapping#find n1#uid)) == n2 with _ -> false
-    in
-    DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
-    b
-
   type upairs_kind =
     | LocalVariableInliningOrExtraction
     | StableContext
@@ -6027,7 +6124,6 @@ end;
                 is_staying_opt := Some b;
                 b
         in
-        let get_bn = get_p_ancestor (fun x -> x#data#is_boundary) in
         if
           (*rt1#data#is_boundary && rt2#data#is_boundary &&
           has_p_descendant
@@ -6476,15 +6572,17 @@ end;
         else if
           not force &&
           let geta = get_p_ancestor (fun x -> x#data#is_sequence) in
-          (rt1#data#is_sequence && rt2#data#is_sequence &&
+          (
+           rt1#data#is_sequence && rt2#data#is_sequence &&
            rt1#initial_parent#data#is_boundary && rt2#initial_parent#data#is_boundary ||
            try
-            let a1 = geta rt1 in
-            let a2 = geta rt2 in
-            DEBUG_MSG "a1=%a a2=%a" nps a1 nps a2;
-            is_stable1 a1 && is_stable2 a2 &&
-            not (is_map a1 a2)
-          with _ -> true) &&
+             let a1 = geta rt1 in
+             let a2 = geta rt2 in
+             DEBUG_MSG "a1=%a a2=%a" nps a1 nps a2;
+             is_stable1 a1 && is_stable2 a2 &&
+             not (is_map a1 a2)
+           with _ -> true
+          ) &&
           is_region_changing_move mid rt1 rt2
         then begin
           DEBUG_MSG "region changing move"
@@ -7467,9 +7565,9 @@ end;
     (* shrink moves in order to increase SPSM *)
     if options#shrink_moves_flag then begin
       let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-      edits#shrink_moves_rp tree1 tree2 uidmapping move_region_tbl;
+      let removed_move_tbl = edits#shrink_moves_rp cenv tree1 tree2 uidmapping move_region_tbl in
       let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-      edits#shrink_moves tree1 tree2 uidmapping move_region_tbl
+      edits#shrink_moves tree1 tree2 uidmapping move_region_tbl removed_move_tbl
     end;
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
@@ -7481,6 +7579,7 @@ end;
     in
 
     Xset.add_set suggested_pairs suggested_pairs0;
+
     BEGIN_DEBUG
       if Xset.length suggested_pairs > 0 then begin
         DEBUG_MSG "suggested_pairs:";
@@ -8112,7 +8211,6 @@ end;
                         | Edit.Move(id, _, _, _) -> !id
                         | _ -> raise Not_found
                       in
-                      let get_bn = get_p_ancestor (fun x -> x#data#is_boundary) in
                       let is_map = _is_map tree1 tree2 uidmapping in
                       try
                         let sn1 = find_nearest_anc_stmt n1 in
@@ -8267,6 +8365,12 @@ end;
                               let p1 = n1#initial_parent in
                               let p2 = n2#initial_parent in
                               uidmapping#mem_dom p1#uid && uidmapping#mem_cod p2#uid
+                              (*not
+                                (
+                                 _is_map tree1 tree2 uidmapping p1 p2 ||
+                                 uidmapping#mem_dom p1#uid ||
+                                 uidmapping#mem_cod p2#uid
+                                )*)
                             with _ -> false
                         end -> begin
                           DEBUG_MSG "!!!!!!!! %a-%a [%a]-[%a] %a" nups n1 nups n2 locps n1 locps n2 labps n1;
