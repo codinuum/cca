@@ -90,6 +90,7 @@ let estimate_cost_of_move tree1 tree2 uidmapping nd1 nd2 = (* cost = number of a
   !count
 
 let get_bn = get_p_ancestor (fun x -> x#data#is_boundary)
+let get_stmt = get_p_ancestor (fun x -> x#data#is_statement)
 
 let _is_map uidmapping n1 n2 =
   try
@@ -2148,7 +2149,7 @@ class ['node_t, 'tree_t] c
                 false
             in
 
-            let prefer_crossing_count = force_prefer_crossing_count ||
+            let _prefer_crossing_count () = force_prefer_crossing_count ||
 
               let size_cond =
                 (size_old > 2 && size_new > 2) ||
@@ -2264,16 +2265,106 @@ class ['node_t, 'tree_t] c
               end
               else
                 false
-            in (* prefer_crossing_count *)
-
-            DEBUG_MSG "prefer_crossing_count: %B" prefer_crossing_count;
+            in (* _prefer_crossing_count *)
+            let prefer_crossing_count () =
+              let b = _prefer_crossing_count() in
+              DEBUG_MSG "%B" b;
+              b
+            in
 
             (*let prefer_crossing_count =
               prefer_crossing_count ||
               is_cross_boundary uidmapping nd1old nd2old || is_cross_boundary uidmapping nd1new nd2new
             in!!!NG!!!*)
 
-            if (* (nd1old#data#eq nd2old#data || nd1new#data#eq nd2new#data) && *) prefer_crossing_count
+            let is_map = _is_map uidmapping in
+
+            let has_op_sibling pn n =
+              Array.exists (fun c -> c != n && c#data#is_op) pn#initial_children
+            in
+            let parent_is_op n =
+              try
+                n#initial_parent#data#is_op
+              with _ -> false
+            in
+
+            if
+              subtree_sim_old = 1.0 && subtree_sim_new = 1.0 &&
+              (nd1new#data#has_non_trivial_value || nd1new#data#is_named_orig) &&
+              try
+                let pnd1new = nd1new#initial_parent in
+                let pnd2new = nd2new#initial_parent in
+                DEBUG_MSG "pnd1new: %a" nps pnd1new;
+                DEBUG_MSG "pnd2new: %a" nps pnd2new;
+                (
+                 (
+                  pnd2new#data#is_op && not pnd1new#data#is_op &&
+                  (has_op_sibling pnd2new nd2new || parent_is_op pnd2new) &&
+                  let pnd1new' = tree2#search_node_by_uid (uidmapping#find pnd1new#uid) in
+                  DEBUG_MSG "pnd1new': %a" nps pnd1new';
+                  pnd1new#data#anonymized_label = pnd1new'#data#anonymized_label &&
+                  tree2#is_initial_ancestor pnd1new' pnd2new
+                 ) ||
+                 (
+                  pnd1new#data#is_op && not pnd2new#data#is_op &&
+                  (has_op_sibling pnd1new nd2new || parent_is_op pnd1new) &&
+                  let pnd2new' = tree1#search_node_by_uid (uidmapping#inv_find pnd2new#uid) in
+                  DEBUG_MSG "pnd2new': %a" nps pnd2new';
+                  pnd2new'#data#anonymized_label = pnd2new#data#anonymized_label &&
+                  tree1#is_initial_ancestor pnd2new' pnd1new
+                 )
+                ) &&
+                let stmt1 = get_stmt nd1new in
+                let stmt2 = get_stmt nd2new in
+                stmt1#data#eq stmt2#data && is_map stmt1 stmt2
+              with
+                _ -> false
+            then begin
+              DEBUG_MSG "!!!!!!!!! selecting %a - %a" nps nd1new nps nd2new;
+              (*uidmapping#lock_mapping nd1new#uid nd2new#uid;*)
+              action_new None None true
+            end
+            else if
+              subtree_sim_old = 1.0 && subtree_sim_new = 1.0 &&
+              (nd1old#data#has_non_trivial_value || nd1old#data#is_named_orig) &&
+              try
+                let pnd1old = nd1old#initial_parent in
+                let pnd2old = nd2old#initial_parent in
+                DEBUG_MSG "pnd1old: %a" nps pnd1old;
+                DEBUG_MSG "pnd2old: %a" nps pnd2old;
+                (
+                 (
+                  pnd2old#data#is_op && not pnd1old#data#is_op &&
+                  (has_op_sibling pnd2old nd2old || parent_is_op pnd2old) &&
+                  let pnd1old' = tree2#search_node_by_uid (uidmapping#find pnd1old#uid) in
+                  DEBUG_MSG "pnd1old': %a" nps pnd1old';
+                  pnd1old#data#anonymized_label = pnd1old'#data#anonymized_label &&
+                  tree2#is_initial_ancestor pnd1old' pnd2old
+                 ) ||
+                 (
+                  pnd1old#data#is_op && not pnd2old#data#is_op &&
+                  (has_op_sibling pnd1old nd1old || parent_is_op pnd1old) &&
+                  let pnd2old' = tree1#search_node_by_uid (uidmapping#inv_find pnd2old#uid) in
+                  DEBUG_MSG "pnd2old': %a" nps pnd2old';
+                  pnd2old'#data#anonymized_label = pnd2old#data#anonymized_label &&
+                  tree1#is_initial_ancestor pnd2old' pnd1old
+                 )
+                ) &&
+                let stmt1 = get_stmt nd1old in
+                let stmt2 = get_stmt nd2old in
+                stmt1#data#eq stmt2#data && is_map stmt1 stmt2
+              with
+                _ -> false
+            then begin
+              DEBUG_MSG "!!!!!!!!! keeping %a - %a" nps nd1old nps nd2old;
+              (*uidmapping#lock_mapping nd1old#uid nd2old#uid;*)
+              action_old None None true
+            end
+            else
+
+            if
+              (* (nd1old#data#eq nd2old#data || nd1new#data#eq nd2new#data) && *)
+              prefer_crossing_count()
 
             then begin (* crossing count preferred *)
               let ncross_old =
