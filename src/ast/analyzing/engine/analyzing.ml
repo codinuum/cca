@@ -1618,11 +1618,9 @@ end;
 
         DEBUG_MSG "filtering moves...";
 
-        let rec check_mov = function
+        let check_mov_weak nd1 nd2 = function
           | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
               let b =
-                let nd1 = Info.get_node info1 in
-                let nd2 = Info.get_node info2 in
                 nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
                 let pnd1 = nd1#initial_parent in
                 let pnd2 = nd2#initial_parent in
@@ -1638,6 +1636,46 @@ end;
           end
           | _ -> assert false
         in
+        let check_mov_for_delta nd1 nd2 = function
+          | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
+              let b =
+                nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
+                !exc1 = [] && !exc2 = [] &&
+                let pnd1 = nd1#initial_parent in
+                let pnd2 = nd2#initial_parent in
+                (try (uidmapping#find pnd1#uid) = pnd2#uid with _ -> false) &&
+                (try
+                  edits#iter_moves
+                    (function
+                      | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
+                          List.iter
+                            (fun inf ->
+                              if Info.get_node inf == nd1 then
+                                raise Exit
+                            ) !e1
+                      end
+                      | _ -> assert false
+                    );
+                  true
+                with
+                  Exit -> false) &&
+                match edits#find12 pnd1#uid pnd2#uid with
+                | [] -> true
+                | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
+                | _ -> false
+              in
+              let _ = mov in
+              DEBUG_MSG "%s -> %B" (Edit.to_string mov) b;
+              b
+          end
+          | _ -> assert false
+        in
+        let check_mov =
+          if options#dump_delta_flag then
+            check_mov_for_delta
+          else
+            check_mov_weak
+        in
 
         edits#filter_moves
           (function
@@ -1646,31 +1684,7 @@ end;
                 let nd1 = Info.get_node info1 in
                 let nd2 = Info.get_node info2 in
                 if
-                  check_mov mov
-                  (*nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
-                  !exc1 = [] && !exc2 = [] &&
-                  let pnd1 = nd1#initial_parent in
-                  let pnd2 = nd2#initial_parent in
-                  (try (uidmapping#find pnd1#uid) = pnd2#uid with _ -> false) &&
-                  (try
-                    edits#iter_moves
-                      (function
-                       | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
-                            List.iter
-                              (fun inf ->
-                                if Info.get_node inf == nd1 then
-                                  raise Exit
-                              ) !e1
-                        end
-                        | _ -> assert false
-                      );
-                    true
-                  with
-                    Exit -> false) &&
-                  match edits#find12 pnd1#uid pnd2#uid with
-                  | [] -> true
-                  | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
-                  | _ -> false*)
+                  check_mov nd1 nd2 mov
                 then begin
                   DEBUG_MSG "filtered: %s" (Edit.to_string mov);
                   begin
