@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-MAINTAINER codinuum
+LABEL maintainer="codinuum"
 
 RUN set -x && \
     mkdir -p /opt/cca/modules && \
