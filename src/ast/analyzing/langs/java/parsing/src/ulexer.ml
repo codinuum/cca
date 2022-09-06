@@ -130,6 +130,18 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
     Common.fail_to_parse ~head:(Loc.to_string ~prefix:"[" ~suffix:"]" loc) msg
 
+  let bom_tbl = Hashtbl.create 0
+  let _ = List.iter (fun (bom, name) -> Hashtbl.add bom_tbl bom name)
+    [ "\xef\xbb\xbf", "UTF-8";
+      "\xfe\xff", "UTF-16 (BE)";
+      "\xff\xfe", "UTF-16 (LE)";
+      "\x00\x00\xfe\xff", "UTF-32 (BE)";
+      "\xff\xfe\x00\x00", "UTF-32 (LE)";
+      "\x2b\x2f\x76\x38", "UTF-7";
+      "\x2b\x2f\x76\x39", "UTF-7";
+      "\x2b\x2f\x76\x2b", "UTF-7";
+      "\x2b\x2f\x76\x2f", "UTF-7";
+    ]
 
   let regexp hex_digit = ['0'-'9' 'a'-'f' 'A'-'F']
   let regexp unicode_escape = '\\' 'u'+ hex_digit hex_digit hex_digit hex_digit
@@ -322,14 +334,26 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   |   _ ->
       let s = Ulexing.utf8_lexeme lexbuf in
-      let mes = Printf.sprintf "invalid symbol(%s)" s in
-      if env#keep_going_flag then begin
+      if Hashtbl.mem bom_tbl s then begin
         let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
-        Common.warning_loc loc "%s" mes;
-        mktok (ERROR mes) lexbuf
+        Common.warning_loc loc "BOM (0x%s:%s) found" (Xhash.to_hex s) (Hashtbl.find bom_tbl s);
+        token lexbuf
       end
       else
-        lexing_error lexbuf mes
+        let mes = Printf.sprintf "invalid symbol: %s(%s)" s
+            (Seq.fold_left
+               (fun h c ->
+                 h^(Printf.sprintf "%02x" (Char.code c))
+               ) "0x" (String.to_seq s)
+            )
+        in
+        if env#keep_going_flag then begin
+          let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
+          Common.warning_loc loc "%s" mes;
+          mktok (ERROR mes) lexbuf
+        end
+        else
+          lexing_error lexbuf mes
 
 	
 
