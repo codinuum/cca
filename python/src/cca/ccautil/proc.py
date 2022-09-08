@@ -4,7 +4,7 @@
 '''
   A subprocess wrapper
 
-  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -59,8 +59,7 @@ def check_output(cmd, cwd=None, rc_check=True):
 
     except CalledProcessError as e:
         if rc_check:
-            logger.warning('"{}": terminated abnormally (exitcode={})'
-                           .format(cmd, e.returncode))
+            logger.warning(f'"{cmd}": terminated abnormally (exitcode={e.returncode})')
         out = e.output
 
     return out
@@ -95,8 +94,8 @@ class PopenContext(object):
             rc = self._po.returncode
             if rc and self.rc_check:
                 if rc != 0:
-                    logger.warning('"{}": terminated abnormally (exitcode={})'
-                                   .format(self.cmd, rc))
+                    logger.warning(f'"{self.cmd}": terminated abnormally (exitcode={rc})')
+
             return True
 
         else:
