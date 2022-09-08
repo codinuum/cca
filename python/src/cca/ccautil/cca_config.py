@@ -21,13 +21,14 @@
 
 import os
 import re
+import json
 import logging
 
 from . import Git2
 from cca.factutil.fileid import HashAlgo, VerKind
 from . import ns
 from .Git2 import shorten_sha
-from .siteconf import PROJECTS_DIR, PROJECTS_DIR_NAME
+from .siteconf import PROJECTS_DIR  # , PROJECTS_DIR_NAME
 # from common import setup_logger
 
 logger = logging.getLogger()
@@ -104,7 +105,7 @@ class Config(object):
         self.hash_algo = HashAlgo.MD5
 
         self.retrieve_all = False
-        self.get_long_name = lambda x: x
+        # self.get_long_name = lambda x: x
 
         self.__parser = PARSER_INTERNAL
         self.ssl_server_trust_prompt = None
@@ -133,6 +134,14 @@ class Config(object):
         self.ver_tbl = None  # short ver -> orig ver name
 
         self.optout_tbl = {}
+
+        self.long_name_tbl = {}
+
+    def get_long_name(self, x):
+        x_ = x
+        if x in self.long_name_tbl:
+            self.long_name_tbl[x]
+        return x_
 
     def is_vkind_gitrev(self):
         return self.vkind == VKIND_GITREV
@@ -444,3 +453,18 @@ def select(env_var_name, li):
             l_ = []
 
     return l_
+
+
+def config_from_json(conf_json):
+    conf = None
+    try:
+        with open(conf_json) as f:
+            d = json.load(f)
+            conf = Config()
+            for k, v in d.items():
+                setattr(conf, k, v)
+            conf.finalize()
+    except Exception as e:
+        logger.warning(f'failed to load "{conf_json}": {e}')
+
+    return conf
