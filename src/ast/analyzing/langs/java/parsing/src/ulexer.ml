@@ -20,9 +20,9 @@
  *
  *)
 
+module PB = Parserlib_base
 
 open Tokens_
-
 open Compat
 
 exception EOF_reached
@@ -129,19 +129,6 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let lexing_error lexbuf msg =
     let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
     Common.fail_to_parse ~head:(Loc.to_string ~prefix:"[" ~suffix:"]" loc) msg
-
-  let bom_tbl = Hashtbl.create 0
-  let _ = List.iter (fun (bom, name) -> Hashtbl.add bom_tbl bom name)
-    [ "\xef\xbb\xbf", "UTF-8";
-      "\xfe\xff", "UTF-16 (BE)";
-      "\xff\xfe", "UTF-16 (LE)";
-      "\x00\x00\xfe\xff", "UTF-32 (BE)";
-      "\xff\xfe\x00\x00", "UTF-32 (LE)";
-      "\x2b\x2f\x76\x38", "UTF-7";
-      "\x2b\x2f\x76\x39", "UTF-7";
-      "\x2b\x2f\x76\x2b", "UTF-7";
-      "\x2b\x2f\x76\x2f", "UTF-7";
-    ]
 
   let regexp hex_digit = ['0'-'9' 'a'-'f' 'A'-'F']
   let regexp unicode_escape = '\\' 'u'+ hex_digit hex_digit hex_digit hex_digit
@@ -334,9 +321,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   |   _ ->
       let s = Ulexing.utf8_lexeme lexbuf in
-      if Hashtbl.mem bom_tbl s then begin
+      if PB.is_bom s then begin
         let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
-        Common.warning_loc loc "BOM (0x%s:%s) found" (Xhash.to_hex s) (Hashtbl.find bom_tbl s);
+        Common.warning_loc loc "BOM (0x%s:%s) found" (Xhash.to_hex s) (PB.get_bom_name s);
         token lexbuf
       end
       else
@@ -384,7 +371,6 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | Common.JLS2 -> ()
 
 
-  module PB = Parserlib_base
   module P = Parser.Make (Stat)
 
   let assert_stmt_parser = PB.mkparser P.partial_assert_statement

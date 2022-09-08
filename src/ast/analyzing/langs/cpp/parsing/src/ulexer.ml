@@ -18,17 +18,10 @@
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
 module C = Context
+module PB = Parserlib_base
 open Tokens_
 open Compat
 
-
-let regexp bom =
-  "\xef\xbb\xbf"     (* utf-8 *)
-| "\xfe\xff"         (* utf-16 (be) *)
-| "\xff\xfe"         (* utf-16 (le) *)
-| "\x00\x00\xfe\xff" (* utf-32 (be) *)
-| "\xff\xfe\x00\x00" (* utf-32 (le) *)
-| "\x2b\x2f\x76" ['\x38' '\x39' '\x2b' '\x2f'] (* utf-7 *)
 
 let regexp white_space = [' ' '\009' '\012']
 let regexp line_terminator = ['\013' '\010'] | "\013\010"
@@ -481,7 +474,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           let pos = Ulexing.lexeme_start lexbuf in
           let l, c = env#current_pos_mgr#get_position pos in
           let mes = Printf.sprintf "failed to handle block comment (%dL,%dC)" l c in
-          raise (Parserlib_base.Parse_error("", mes))
+          raise (PB.Parse_error("", mes))
         end
     end
 
@@ -659,8 +652,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     mktok EOF lexbuf
 
 |  _ ->
-    let l, c = env#current_pos_mgr#get_position (Ulexing.lexeme_start lexbuf) in
-    Xprint.warning "unknown token \"%s\" found at (%dL,%dC)" (Ulexing.utf8_lexeme lexbuf) l c;
+    let s = Ulexing.utf8_lexeme lexbuf in
+    if PB.is_bom s then
+      Xprint.warning "BOM (0x%s:%s) found" (Xhash.to_hex s) (PB.get_bom_name s)
+    else begin
+      let l, c = env#current_pos_mgr#get_position (Ulexing.lexeme_start lexbuf) in
+      Xprint.warning "unknown token \"%s\" found at (%dL,%dC)" s l c
+    end;
     _token lexbuf
     (*raise Ulexing.Error*)
 

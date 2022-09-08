@@ -19,6 +19,8 @@ exception Parse_error of string * string
 type 'rawtoken token = 'rawtoken * Lexing.position * Lexing.position
 type 'rawtoken qtoken = 'rawtoken * Astloc.t
 
+val is_bom : string -> bool
+val get_bom_name : string -> string
 val is_extended_pos : Lexing.position -> bool
 val extend_pos : ?cache:Fname.ext_cache_t -> string -> Lexing.position -> Lexing.position
 val extend_poss : ?cache:Fname.ext_cache_t -> string -> Lexing.position -> Lexing.position ->

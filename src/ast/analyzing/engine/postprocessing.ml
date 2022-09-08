@@ -3457,14 +3457,23 @@ module F (Label : Spec.LABEL_T) = struct
                           is_mapped (Some p1) (Some p2) &&
                           let ca1 = Array.copy p1#initial_children in
                           let ca2 = Array.copy p2#initial_children in
-                          let a2s ca = Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca) in
-                          DEBUG_MSG "ca1: [%s]" (a2s ca1);
-                          DEBUG_MSG "ca2: [%s]" (a2s ca2);
+
+                          BEGIN_DEBUG
+                            let a2s ca = Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca) in
+                            DEBUG_MSG "ca1: [%s]" (a2s ca1);
+                            DEBUG_MSG "ca2: [%s]" (a2s ca2)
+                          END_DEBUG;
+
                           List.iter
                             (Array.fast_sort (fun x1 x2 -> compare x1#data#label x2#data#label))
                             [ca1; ca2];
-                          DEBUG_MSG "ca1: -> [%s]" (a2s ca1);
-                          DEBUG_MSG "ca2: -> [%s]" (a2s ca2);
+
+                          BEGIN_DEBUG
+                            let a2s ca = Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca) in
+                            DEBUG_MSG "ca1: -> [%s]" (a2s ca1);
+                            DEBUG_MSG "ca2: -> [%s]" (a2s ca2)
+                          END_DEBUG;
+
                           is_mapped ~weak:true (get_left true ca1 n1) (get_left true ca2 n2) &&
                           is_mapped ~weak:true (get_right true ca1 n1) (get_right true ca2 n2)
                         with _ -> false
