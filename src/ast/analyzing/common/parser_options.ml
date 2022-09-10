@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -74,6 +74,7 @@ class c = object (self)
   (* cache *)
   val mutable layered_cache_flag = true
   val mutable clear_cache_flag   = false
+  val mutable fuzzy_cache_flag   = false
 
   val mutable cache_dir_base = "" (* set in the initializer *)
   method cache_dir_base = cache_dir_base
@@ -94,6 +95,10 @@ class c = object (self)
   method clear_cache_flag = clear_cache_flag
   method set_clear_cache_flag = clear_cache_flag <- true
   method clear_clear_cache_flag = clear_cache_flag <- false
+
+  method fuzzy_cache_flag = fuzzy_cache_flag
+  method set_fuzzy_cache_flag = fuzzy_cache_flag <- true
+  method clear_fuzzy_cache_flag = fuzzy_cache_flag <- false
 
   val mutable get_cache_name_for_file1 =
     fun (file : Storage.file) -> ""
@@ -148,6 +153,11 @@ class c = object (self)
   method ast_reduction_flag = ast_reduction_flag
   method set_ast_reduction_flag = ast_reduction_flag <- true
   method clear_ast_reduction_flag = ast_reduction_flag <- false
+
+  val mutable normalize_ast_flag = false
+  method normalize_ast_flag = normalize_ast_flag
+  method set_normalize_ast_flag = normalize_ast_flag <- true
+  method clear_normalize_ast_flag = normalize_ast_flag <- false
 
   (* *)
   val mutable latest_target = ""

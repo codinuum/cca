@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -259,6 +259,91 @@ let tbl_remove tbl k =
   (*done*)
 
 
+module Json = struct
+
+  let find_nearest_unordered_ancestor_node =
+    Sourcecode.find_nearest_p_ancestor_node (fun x -> x#data#is_order_insensitive)
+
+  let _fprintf ch fmt =
+    Printf.ksprintf (fun s -> ignore (ch#output_ s 0 (String.length s))) fmt
+
+  let get_gid (nd : node_t) =
+    let gid = nd#data#gid in
+    if gid > 0 then
+      gid
+    else
+      nd#gindex
+
+  let get_loc nd =
+    let loc = nd#data#src_loc in
+    let sl = loc.Loc.start_line in
+    let el = loc.Loc.end_line in
+    let sc = loc.Loc.start_char in
+    let ec = loc.Loc.end_char in
+    sprintf "{\"start_line\":%d,\"start_char\":%d,\"end_line\":%d,\"end_char\":%d}" sl sc el ec
+
+  let get_cat nd = "\""^nd#data#get_category^"\""
+
+  let get_name nd =
+    if nd#data#is_named && nd#data#is_named_orig && not nd#data#has_value then
+      nd#data#get_orig_name
+    else
+      ""
+
+  let get_info1 (nd : node_t) =
+    let named_nameless = nd#data#is_named && not nd#data#is_named_orig in
+    let name = get_name nd in
+    let phantom = nd#data#is_phantom in
+    let unordered = nd#data#is_order_insensitive in
+    let l = ref [] in
+    l := (sprintf "\"loc\":%s" (get_loc nd)) :: !l;
+    l := (sprintf "\"cat\":%s" (get_cat nd)) :: !l;
+    if name <> "" then
+      l := (sprintf "\"name\":\"%s\"" name) :: !l;
+    if named_nameless then
+      l := "\"named_nameless\":true" :: !l;
+    if phantom then
+      l := "\"phantom\":true" :: !l;
+    if unordered then
+      l := "\"unordered\":true" :: !l;
+    "{"^(String.concat "," !l)^"}"
+
+  let get_info mapped_node_tbl (nd1 : node_t) (nd2 : node_t) =
+    let named_nameless =
+      nd1#data#is_named && not nd1#data#is_named_orig &&
+      nd2#data#is_named && not nd2#data#is_named_orig
+    in
+    let name1 = get_name nd1 in
+    let name2 = get_name nd2 in
+    let phantom = nd1#data#is_phantom || nd2#data#is_phantom in
+    let unordered =
+      nd2#data#is_order_insensitive ||
+      try
+        let un2 = find_nearest_unordered_ancestor_node nd2 in
+        let un1 = Hashtbl.find mapped_node_tbl un2 in
+        let ug1, ug2 = un1#gindex, un2#gindex in
+        let gi1, gi2 = nd1#gindex, nd2#gindex in
+        (ug1 - gi1) * (ug2 - gi2) > 0
+      with _ -> false
+    in
+    let l = ref [] in
+    l := (sprintf "\"from_loc\":%s,\"to_loc\":%s" (get_loc nd1) (get_loc nd2)) :: !l;
+    l := (sprintf "\"from_cat\":%s,\"to_cat\":%s" (get_cat nd1) (get_cat nd2)) :: !l;
+    if name1 <> "" then
+      l := (sprintf "\"from_name\":\"%s\"" name1) :: !l;
+    if name2 <> "" then
+      l := (sprintf "\"to_name\":\"%s\"" name2) :: !l;
+    if named_nameless then
+      l := "\"named_nameless\":true" :: !l;
+    if phantom then
+      l := "\"phantom\":true" :: !l;
+    if unordered then
+      l := "\"unordered\":true" :: !l;
+    "{"^(String.concat "," !l)^"}"
+
+end
+
+
 class ['node_t] c cenv = object (self : 'self)
 
   val mutable use_crossing_or_incompatible_matches_count_cache = false
@@ -304,6 +389,8 @@ class ['node_t] c cenv = object (self : 'self)
   method add_starting_uid_pairs_for_glueing l =
     starting_uid_pairs_for_glueing <- l @ starting_uid_pairs_for_glueing
 
+  method add_starting_uid_pair_for_glueing p =
+    starting_uid_pairs_for_glueing <- p :: starting_uid_pairs_for_glueing
 
   method starting_uid_pairs_for_glueing = starting_uid_pairs_for_glueing
 
@@ -320,6 +407,12 @@ class ['node_t] c cenv = object (self : 'self)
     Hashtbl.remove locked_uids u
 
   method key_of_locked_uid u = Hashtbl.find locked_uids u
+
+
+  val mutable locked_mappings = (Xset.create 0 : (UID.t * UID.t) Xset.t)
+
+  method lock_mapping u1 u2 = Xset.add locked_mappings (u1, u2)
+  method is_locked_mapping u1 u2 = Xset.mem locked_mappings (u1, u2)
 
 
   val mutable stable_pairs = (Hashtbl.create 0: (UID.t, UID.t) Hashtbl.t)
@@ -505,7 +598,20 @@ class ['node_t] c cenv = object (self : 'self)
     m#iter_settled_roots self#add_settled_roots;
     !conflicts
 
-  method merge_checked (m : 'self) =
+  method check_for_ref (ref_upairs : Spec.upairs_t) (m : 'self) =
+    let check u1 u2 =
+      (*DEBUG_MSG "checking %a-%a" UID.ps u1 UID.ps u2;*)
+
+      if not (ref_upairs#mem u1 u2) then begin
+        DEBUG_MSG "adding %a-%a" UID.ps u1 UID.ps u2;
+        ref_upairs#add u1 u2
+      end
+
+    in
+    m#iter_unsettled check;
+    m#iter_settled check
+
+  method merge_checked (m : 'self) = (* only applicable to pre_uidmapping *)
     let invalidated_settled_root_tbl = Hashtbl.create 0 in
 
     let check adder u1 u2 =
@@ -515,8 +621,8 @@ class ['node_t] c cenv = object (self : 'self)
       let mem1 = self#mem_dom u1 in
       let mem2 = self#mem_cod u2 in
       if mem1 || mem2 then begin
-	let u1' = self#find u1 in
-	let u2' = self#inv_find u2 in
+	let u1' = try self#find u1 with _ -> u2 in
+	let u2' = try self#inv_find u2 with _ -> u1 in
 
 	if u1' <> u2 || u2' <> u1 then begin (* conflict *)
 	  let n1 = self#search_node_by_uid1 u1 in
@@ -958,6 +1064,52 @@ class ['node_t] c cenv = object (self : 'self)
     with
     | Xchannel.Error s -> WARN_MSG s
 
+
+  method dump_gid_json ?(comp=Comp.none) is_mov fname =
+    let mapped_node_tbl = Hashtbl.create 0 in
+    let _spl, _mvl =
+      List.partition_map
+        (fun (uid1, uid2) ->
+          let nd1 = self#search_node_by_uid1 uid1 in
+          let nd2 = self#search_node_by_uid2 uid2 in
+          Hashtbl.add mapped_node_tbl nd2 nd1;
+          if is_mov uid1 uid2 then
+            Right (nd1, nd2)
+          else
+            Left (nd1, nd2)
+        ) self#to_list
+    in
+    let spl = List.fast_sort (fun (n1, n2) (n3, n4) -> compare n1#gindex n3#gindex) _spl in
+    let mvl = List.fast_sort (fun (n1, n2) (n3, n4) -> compare n1#gindex n3#gindex) _mvl in
+
+    let _fprintf = Json._fprintf in
+    let get_gid = Json.get_gid in
+    let get_info = Json.get_info mapped_node_tbl in
+
+    try
+      let d = Filename.dirname fname in
+      if not (Xfile.dir_exists d) then
+        Xfile.mkdir d;
+      let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
+      let dump ch l =
+        let comma_flag = ref false in
+        List.iter
+          (fun (nd1, nd2) ->
+            if !comma_flag then
+              _fprintf ch ",";
+            let info = get_info nd1 nd2 in
+            _fprintf ch "[%a,%a,%s]" GI.rs (get_gid nd1) GI.rs (get_gid nd2) info;
+            comma_flag := true
+          ) l
+      in
+      _fprintf ch "{\"SPM\":[";
+      dump ch spl;
+      _fprintf ch "],\"MM\":[";
+      dump ch mvl;
+      _fprintf ch "]}";
+      ch#close
+    with
+    | Xchannel.Error s -> WARN_MSG s
 
 
   method print_status =

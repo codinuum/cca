@@ -133,6 +133,7 @@ class parser_c = object (self)
       | T_BS -> "BS"
       | T_BS_IDENT -> "BS_IDENT"
       | T_CASE -> "CASE"
+      | T_CAST_HEAD_MACRO -> "CAST_HEAD_MACRO"
       | T_CATCH -> "CATCH"
       | T_CC_MACRO -> "CC_MACRO"
       | T_CHAR -> "CHAR"

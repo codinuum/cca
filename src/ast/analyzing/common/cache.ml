@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -105,7 +105,7 @@ let mkres cache_path name =
     sr_path=Filename.concat cache_path name
   }
 
-let search_cache ?(completion=false) ?(local_cache_name="") cache_path name =
+let search_cache ?(fuzzy=true) ?(completion=false) ?(local_cache_name="") cache_path name =
 
   if Xfile.file_exists cache_path then begin
 
@@ -113,7 +113,7 @@ let search_cache ?(completion=false) ?(local_cache_name="") cache_path name =
       let fpath = Filename.concat cache_path fn in
       if Xfile.file_exists fpath then
         [ {sr_cache_path=cache_path; sr_path=fpath} ]
-      else if local_cache_name = "" then
+      else if not fuzzy && local_cache_name = "" then
         []
       else begin
 
@@ -129,6 +129,20 @@ let search_cache ?(completion=false) ?(local_cache_name="") cache_path name =
               (List.map
                  (fun cn ->
                    mkres (Filename.concat dpath cn) fn
+                 ) other_cache_names)
+          with
+            _ -> []
+        end
+        else if fuzzy && local_cache_name = "" then begin
+          try
+            let other_cache_names =
+              Array.to_list (Sys.readdir cache_path)
+            in
+            List.filter
+              (fun r -> Xfile.file_exists r.sr_path)
+              (List.map
+                 (fun cn ->
+                   mkres (Filename.concat cache_path cn) fn
                  ) other_cache_names)
           with
             _ -> []

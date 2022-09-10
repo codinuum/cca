@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ module CCX (L : Label.T) = struct
     method make_changes_list () =
       let mkt_del = self#mkt_deleted ~category:Triple.ghost in
       let mkt_ins = self#mkt_inserted ~category:Triple.ghost in
-      let mkt_mod = self#mkt_modified ~category:Triple.ghost in
+      (*let mkt_mod = self#mkt_modified ~category:Triple.ghost in*)
       let mkt_chgto = self#mkt_changed_to ~category:Triple.ghost in
       let mkt_ren = self#mkt_renamed ~category:Triple.ghost in
       let mkt_mov = self#mkt_moved_to ~category:Triple.ghost in

@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -2146,6 +2146,11 @@ let is_expr = function
     -> true
   | lab -> is_primary lab
 
+let is_op = function
+  | DefinedOperator _
+  | IntrinsicOperator _
+    -> true
+  | _ -> false
 
 let is_compatible ?(weak=false) _ _ = false
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -154,6 +154,7 @@ let is_string_literal { elem_name=name; elem_attrs=attrs; } =
 let is_int_literal lab = false (* not yet *)
 let is_real_literal lab = false (* not yet *)
 let is_statement lab = false (* not yet *)
+let is_op lab = false (* not yet *)
 
 let to_string { elem_name=elem; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns; } =
   let attrs_s =

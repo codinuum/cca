@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -75,10 +75,10 @@ let speclist =
    "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing in spite of errors";
 
 (* output *)
-   "-dump:ast", Arg.Unit set_dump_ast_flags, "\tdump AST";
+   "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";
    "-dump:ast:compress", Arg.Unit set_dump_compressed_ast_flags, "\tdump compressed AST";
-   "-dump:dot", Arg.Unit (fun () -> options#set_dump_dot_flag), "\tdump diff in DOT file";
-   "-dump:src", Arg.Unit set_dump_src_flag, "\tdump unparsed AST";
+   "-dump:dot", Arg.Unit (fun () -> options#set_dump_dot_flag), "\t\tdump diff in DOT file";
+   "-dump:src", Arg.Unit set_dump_src_flag, "\t\tdump unparsed AST";
    "-dump:src:out", Arg.String set_dump_src_out, "FILE\tdump unparsed AST into file";
 
 (* cache *)
@@ -87,10 +87,11 @@ let speclist =
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
    "-clearcache", Arg.Unit (fun () -> options#set_clear_cache_flag), "\tclear cache dir";
    "-usecache", Arg.Unit (fun () -> options#clear_clear_cache_flag), "\tuse cache";
+   "-fuzzycache", Arg.Unit (fun () -> options#set_fuzzy_cache_flag), "\tsearch cache dir fuzzily";
    "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
    "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
    "-localcachename", Arg.String options#set_local_cache_name,
-   sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;
+                        sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;
 
 (* algorithm *)
 (*
@@ -121,6 +122,7 @@ let speclist =
 *)
    "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
+   "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
    "-nocollapse", Arg.Unit (fun () -> options#set_no_collapse_flag), "\tdisable collapsing";
 (*
    "-ignore-huge-arrays", Arg.Unit (fun () -> options#set_ignore_huge_arrays_flag),
@@ -128,28 +130,29 @@ let speclist =
      (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 *)
    "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag),
-   sprintf "\tdo not ignore huge arrays (default:%s)"
-     (if options#ignore_huge_arrays_flag then "ignore" else "scan");
+                          sprintf "\tdo not ignore huge arrays (default:%s)"
+                            (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 
    "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
-   sprintf "N\thuge array size threshold (default: %d)" options#huge_array_threshold;
-(*
-   "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
-   sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
-*)
-   "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
-(*
-   "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
-   sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;
+                           sprintf "N\thuge array size threshold (default: %d)" options#huge_array_threshold;
 
-   "-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold,
-   sprintf "R\tmovrel ratio threshold (default: %f)" options#movrel_ratio_threshold;
+   "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
+                               "\tsuppress moves of unnamed nodes";
 
-   "-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold,
-   sprintf "R\tmapped neighbours difference threshold (default: %f)" options#mapped_neighbours_difference_threshold;
+(*
+"-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
+sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
 *)
-   "-nounm", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
-   "\tsuppress moves of unnamed nodes";
+(*
+"-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
+sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;
+
+"-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold,
+sprintf "R\tmovrel ratio threshold (default: %f)" options#movrel_ratio_threshold;
+
+"-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold,
+sprintf "R\tmapped neighbours difference threshold (default: %f)" options#mapped_neighbours_difference_threshold;
+*)
 
 (* mode *)
    "-parseonly",  Arg.Set parseonly_flag, "\tparse only";

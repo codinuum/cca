@@ -68,9 +68,10 @@ function error(err) {
 ipcMain.on('sync-mesg', (event, arg) => {
   const args = parseArgs(process.argv);
 
-  const cache = args.cache
-  var file0 = args.file0
-  var file1 = args.file1
+  const cache = args.cache;
+  const local_cache_name = args.localcachename;
+  var file0 = args.file0;
+  var file1 = args.file1;
 
   if (file0) {
   } else {
@@ -120,7 +121,25 @@ ipcMain.on('sync-mesg', (event, arg) => {
         }
         const hash0 = getMD5(apath0);
         const hash1 = getMD5(apath1);
-        apathd = path.join(apathd, hash0.substring(0, 2), hash0+'-'+hash1, 'diff.json')
+        _apathd = path.join(apathd, hash0.substring(0, 2), hash0+'-'+hash1);
+        if (local_cache_name) {
+          _apathd = path.join(_apathd, local_cache_name);
+        }
+        apathd = path.join(_apathd, 'diff.json');
+
+        if (!fs.existsSync(apathd) && !local_cache_name) {
+          const dents = fs.readdirSync(_apathd, {withFileTypes: true});
+          for (var i = 0; i < dents.length; i++) {
+            const dent = dents[i];
+            if (dent.isDirectory()) {
+              const dp = path.join(_apathd, dent.name, 'diff.json');
+              if (fs.existsSync(dp)) {
+                apathd = dp;
+                break;
+              }
+            }
+          }
+        }
 
         if (fs.existsSync(apathd)) {
 

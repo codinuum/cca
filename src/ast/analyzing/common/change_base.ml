@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -983,6 +983,7 @@ module F (L : Spec.LABEL_T) = struct
 	let changes_list = self#make_changes_list() in
 
 	let n_change_classes = List.length changes_list in
+        let _ = n_change_classes in
 
 	let res, _info, _ =
 	  List.fold_left

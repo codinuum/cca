@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -217,6 +217,31 @@ module File = struct
     "mapping size  : %d\n" ^^
     "similarity    : %s\n"
 
+  let diff_stat_json_fmt () =
+    "{" ^^
+    "\"nnodes1\":%d,\"nnodes2\":%d," ^^
+    "\"deletes\":%d,\"delete_groups\":%d," ^^
+    "\"inserts\":%d,\"insert_groups\":%d," ^^
+    "\"relabels\":%d,\"orig_relabels\":%d," ^^
+    "\"move+relabels\":%d,\"orig_move+relabels\":%d," ^^
+    "\"moves\":%d,\"move_groups\":%d," ^^
+    "\"edit_cost\":%d," ^^
+    "\"nmappings\":%d," ^^
+    "\"similarity\":%s" ^^
+    "}"
+
+  let dump_diff_stat_json_ch s ch =
+    fprintf ch (diff_stat_json_fmt())
+      s.s_nnodes1 s.s_nnodes2
+      s.s_deletes s.s_deletes_gr
+      s.s_inserts s.s_inserts_gr
+      s.s_relabels s.s_relabels_orig
+      s.s_movrels s.s_movrels_orig
+      s.s_moves s.s_moves_gr
+      s.s_total_changes
+      s.s_mapping
+      s.s_similarity
+
   let dump_diff_stat_ch ?(short=false) s ch =
     if short then
       fprintf ch (diff_stat_short_fmt())
@@ -249,6 +274,9 @@ module File = struct
         s.s_MGSM
         s.s_MGM
         s.s_AHS
+
+  let dump_diff_stat_json fname s =
+    Xfile.dump fname (dump_diff_stat_json_ch s)
 
   let dump_diff_stat fname s =
     Xfile.dump fname (dump_diff_stat_ch s)

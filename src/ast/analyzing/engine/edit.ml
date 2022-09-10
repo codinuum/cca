@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -540,7 +540,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) uidmapping edits is_possible_ren
   edits#iter_relabels
     (function
       | Relabel(_, (u1, info1, ex1), (u2, info2, ex2)) as rel -> begin
-
+          let _ = rel in
           DEBUG_MSG "checking %s" (Editop.to_string rel);
 
           let nd1 = Info.get_node info1 in
@@ -620,6 +620,7 @@ let adjust_renames
         if n1#data#eq n2#data then begin
 
           let name = try n1#data#get_name with _ -> "" in
+          let _ = name in
 
           if (*is_non_local_def*)is_def n1 && (*is_non_local_def*)is_def n2 then begin
             set_tbl_def non_rename_bid_tbl1 bi1;
@@ -921,8 +922,9 @@ let adjust_renames
     let pnd2 = nd2#initial_parent in
     let context_cond = try uidmapping#find pnd1#uid = pnd2#uid with _ -> false in
     DEBUG_MSG "%a-%a context_cond=%B" UID.ps nd1#uid UID.ps nd2#uid context_cond;
-    let is_stable = not (edits#mem_mov12 nd1#uid nd2#uid) in
-    DEBUG_MSG "%a-%a is_stable=%B" UID.ps nd1#uid UID.ps nd2#uid is_stable;
+    (*let is_stable = not (edits#mem_mov12 nd1#uid nd2#uid) in
+    DEBUG_MSG "%a-%a is_stable=%B" UID.ps nd1#uid UID.ps nd2#uid is_stable;*)
+
     let same_name =
       try
         nd1#data#get_name = nd2#data#get_name && nd1#data#get_category <> nd2#data#get_category
@@ -1024,6 +1026,7 @@ let adjust_renames
   edits#iter_relabels (* find incompatible relabels *)
     (function
       | Relabel(_, (uid1, info1, _), (uid2, info2, _)) as rel -> begin
+          let _ = rel in
           DEBUG_MSG "finding incompatible relabels: checking %a-%a" UID.ps uid1 UID.ps uid2;
           let nd1 = Info.get_node info1 in
           let nd2 = Info.get_node info2 in

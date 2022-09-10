@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -190,6 +190,7 @@ end (* of functor HIS.F *)
 module Int = F(Weight.Int)
 module Float = F(Weight.Float)
 module IntInt = F(Weight.IntInt)
+module IntFloat = F(Weight.IntFloat)
 module FloatInt = F(Weight.FloatInt)
 module FloatFloat = F(Weight.FloatFloat)
 module FloatIntInt = F(Weight.FloatIntInt)

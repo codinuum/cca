@@ -20,9 +20,9 @@
  *
  *)
 
+module PB = Parserlib_base
 
 open Tokens_
-
 open Compat
 
 exception EOF_reached
@@ -129,7 +129,6 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let lexing_error lexbuf msg =
     let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
     Common.fail_to_parse ~head:(Loc.to_string ~prefix:"[" ~suffix:"]" loc) msg
-
 
   let regexp hex_digit = ['0'-'9' 'a'-'f' 'A'-'F']
   let regexp unicode_escape = '\\' 'u'+ hex_digit hex_digit hex_digit hex_digit
@@ -322,14 +321,26 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   |   _ ->
       let s = Ulexing.utf8_lexeme lexbuf in
-      let mes = Printf.sprintf "invalid symbol(%s)" s in
-      if env#keep_going_flag then begin
+      if PB.is_bom s then begin
         let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
-        Common.warning_loc loc "%s" mes;
-        mktok (ERROR mes) lexbuf
+        Common.warning_loc loc "BOM (0x%s:%s) found" (Xhash.to_hex s) (PB.get_bom_name s);
+        token lexbuf
       end
       else
-        lexing_error lexbuf mes
+        let mes = Printf.sprintf "invalid symbol: %s(%s)" s
+            (Seq.fold_left
+               (fun h c ->
+                 h^(Printf.sprintf "%02x" (Char.code c))
+               ) "0x" (String.to_seq s)
+            )
+        in
+        if env#keep_going_flag then begin
+          let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
+          Common.warning_loc loc "%s" mes;
+          mktok (ERROR mes) lexbuf
+        end
+        else
+          lexing_error lexbuf mes
 
 	
 
@@ -360,7 +371,6 @@ module F (Stat : Parser_aux.STATE_T) = struct
     | Common.JLS2 -> ()
 
 
-  module PB = Parserlib_base
   module P = Parser.Make (Stat)
 
   let assert_stmt_parser = PB.mkparser P.partial_assert_statement

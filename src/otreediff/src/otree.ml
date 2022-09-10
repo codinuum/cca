@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -2764,12 +2764,8 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
 *)
 
     method scan_whole_initial_subtree nd (f : 'node -> unit) =
-      try
-        let rec do_scan nd = Array.iter do_scan nd#initial_children; f nd in
-        do_scan nd
-      with
-        e ->
-          WARN_MSG "%s" (Printexc.to_string e)
+      let rec do_scan nd = Array.iter do_scan nd#initial_children; f nd in
+      do_scan nd
 
     method rev_scan_whole_initial_subtree nd (f : 'node -> unit) =
       let rec do_scan nd =

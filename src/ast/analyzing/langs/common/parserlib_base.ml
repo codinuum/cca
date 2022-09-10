@@ -27,6 +27,21 @@ type 'rawtoken qtoken = 'rawtoken * Astloc.t (* quasi-token *)
 
 (* *)
 
+let is_bom, get_bom_name =
+  let bom_tbl = Hashtbl.create 0 in
+  let _ = List.iter (fun (bom, name) -> Hashtbl.add bom_tbl bom name)
+    [ "\xef\xbb\xbf", "UTF-8";
+      "\xfe\xff", "UTF-16 (BE)";
+      "\xff\xfe", "UTF-16 (LE)";
+      "\x00\x00\xfe\xff", "UTF-32 (BE)";
+      "\xff\xfe\x00\x00", "UTF-32 (LE)";
+      "\x2b\x2f\x76\x38", "UTF-7";
+      "\x2b\x2f\x76\x39", "UTF-7";
+      "\x2b\x2f\x76\x2b", "UTF-7";
+      "\x2b\x2f\x76\x2f", "UTF-7";
+    ]
+  in
+  (Hashtbl.mem bom_tbl), (Hashtbl.find bom_tbl)
 
 let is_extended_pos pos = Fname.is_extended pos.Lexing.pos_fname
 

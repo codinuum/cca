@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -8813,6 +8813,7 @@ module Edit = struct
                             let instgts =
                               List.map (fun c' -> Hashtbl.find insttbl c') conflicts'
                             in
+                            let _ = instgts in
                             DEBUG_MSG "instgts=[%a]" nsps instgts;
                             let res = ref false in
                             let cur' = ref n'#initial_parent in

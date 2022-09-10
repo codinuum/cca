@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -109,33 +109,33 @@ let pp0 tree1 tree2 dtbl1 dtbl2 tbl1 tbl2 =
   Hashtbl.iter
     (fun d nds1 ->
       try
-	let nds2 = Hashtbl.find dtbl2 d in
+        let nds2 = Hashtbl.find dtbl2 d in
 
         match nds1, nds2 with
         | [nd1], [nd2] -> begin
 
-	    if nd1#data#label = nd2#data#label then begin
-	      if nd1#data#path = nd2#data#path then begin
+            if nd1#data#label = nd2#data#label then begin
+              if nd1#data#path = nd2#data#path then begin
 
-	        DEBUG_MSG "[ISO] %s -> %s"
-		  nd1#data#to_string nd2#data#to_string;
+                DEBUG_MSG "[ISO] %s -> %s"
+                  nd1#data#to_string nd2#data#to_string;
 
                 iter_mem_pairs unmodified nd1 nd2
-	      end
-	      else begin
+              end
+              else begin
 
-	        DEBUG_MSG "[MOVE] %s -> %s"
-		  nd1#data#to_string nd2#data#to_string;
+                DEBUG_MSG "[MOVE] %s -> %s"
+                  nd1#data#to_string nd2#data#to_string;
 
                 iter_mem_pairs moved nd1 nd2
-	      end
+              end
             end
-	    else begin
-	      DEBUG_MSG "[RENAME] %s -> %s"
-	        nd1#data#to_string nd2#data#to_string;
+            else begin
+              DEBUG_MSG "[RENAME] %s -> %s"
+                nd1#data#to_string nd2#data#to_string;
 
               iter_mem_pairs renamed nd1 nd2
-	    end;
+            end;
 
             nd1#prune;
             nd2#prune
@@ -165,11 +165,11 @@ let pp1 tbl1 tbl2 =
     BEGIN_DEBUG
       List.iter
       (fun n ->
-	DEBUG_MSG "nodes1: %s" n#data#to_string
+        DEBUG_MSG "nodes1: %s" n#data#to_string
       ) nodes1;
       List.iter
       (fun n ->
-	DEBUG_MSG "nodes2: %s" n#data#to_string
+        DEBUG_MSG "nodes2: %s" n#data#to_string
       ) nodes2
     END_DEBUG;
 
@@ -251,7 +251,7 @@ let pp1 tbl1 tbl2 =
                       match nds1 with
                       | nd1::_ ->
 
-	                  DEBUG_MSG "[COPY] %s -> [%s]"
+                          DEBUG_MSG "[COPY] %s -> [%s]"
                             nd1#data#to_string
                             (Xlist.to_string (fun n -> n#data#to_string) ";" nds);
 
@@ -335,17 +335,17 @@ let pp1 tbl1 tbl2 =
   Hashtbl.iter
     (fun d nds1 ->
       try
-	let nds2 = Hashtbl.find tbl2 d in
+        let nds2 = Hashtbl.find tbl2 d in
 
-	let not_resolved1, not_resolved2,
-	  u, r, m, c, g
-	    = classify nds1 nds2
-	in
+        let not_resolved1, not_resolved2,
+          u, r, m, c, g
+            = classify nds1 nds2
+        in
         unmodified#add_list u;
         renamed#add_list r;
         moved#add_list m;
-	copied     := c @ !copied;
-	glued      := g @ !glued;
+        copied     := c @ !copied;
+        glued      := g @ !glued;
 
         List.iter
           (fun p ->
@@ -358,15 +358,15 @@ let pp1 tbl1 tbl2 =
         List.iter (fun (_, ns) -> List.iter (fun n -> n#prune) ns) c;
         List.iter (fun (ns, _) -> List.iter (fun n -> n#prune) ns) g;
 
-	if not_resolved1 = [] then
-	  Hashtbl.remove tbl1 d
-	else
-	  Hashtbl.replace tbl1 d not_resolved1;
+        if not_resolved1 = [] then
+          Hashtbl.remove tbl1 d
+        else
+          Hashtbl.replace tbl1 d not_resolved1;
 
-	if not_resolved2 = [] then
-	  Hashtbl.remove tbl2 d
-	else
-	  Hashtbl.replace tbl2 d not_resolved2
+        if not_resolved2 = [] then
+          Hashtbl.remove tbl2 d
+        else
+          Hashtbl.replace tbl2 d not_resolved2
       with
       | Not_found -> ()
 (*      | _ -> assert false *)
@@ -446,10 +446,10 @@ let pp2 tbl1 tbl2 =
     let new_tbl = Hashtbl.create 0 in
     Hashtbl.iter
       (fun d nds ->
-	List.iter
-	  (fun nd ->
-	    Hashtbl.add new_tbl (repl_hyphen (String.lowercase_ascii nd#data#path)) nd
-	  ) nds
+        List.iter
+          (fun nd ->
+            Hashtbl.add new_tbl (repl_hyphen (String.lowercase_ascii nd#data#path)) nd
+          ) nds
       ) tbl;
     new_tbl
   in
@@ -461,18 +461,18 @@ let pp2 tbl1 tbl2 =
     (fun rpath nd1 ->
       let d1 = nd1#data#content_digest in
       try
-	let nd2 = Hashtbl.find tbl2 rpath in
-	let d2 = nd2#data#content_digest in
-	if d1 <> d2 then begin
+        let nd2 = Hashtbl.find tbl2 rpath in
+        let d2 = nd2#data#content_digest in
+        if d1 <> d2 then begin
 
-	  modified := (nd1, nd2) :: !modified;
+          modified := (nd1, nd2) :: !modified;
 
-	  nd1#prune;
-	  nd2#prune;
+          nd1#prune;
+          nd2#prune;
 
-	  Hashtbl.remove tbl1 rpath;
-	  Hashtbl.remove tbl2 rpath
-	end
+          Hashtbl.remove tbl1 rpath;
+          Hashtbl.remove tbl2 rpath
+        end
       with
         Not_found -> ()
     ) tbl1;
@@ -481,11 +481,11 @@ let pp2 tbl1 tbl2 =
     let new_tbl = Hashtbl.create 0 in
     Hashtbl.iter
       (fun rpath n ->
-	let name = String.lowercase_ascii n#data#label in
-	try
-	  let ns = Hashtbl.find new_tbl name in
-	  Hashtbl.replace new_tbl name (n::ns)
-	with
+        let name = String.lowercase_ascii n#data#label in
+        try
+          let ns = Hashtbl.find new_tbl name in
+          Hashtbl.replace new_tbl name (n::ns)
+        with
           Not_found -> Hashtbl.add new_tbl name [n]
       ) tbl;
     new_tbl
@@ -497,103 +497,103 @@ let pp2 tbl1 tbl2 =
   Hashtbl.iter
     (fun name nds1 ->
       try
-	let nds2 = Hashtbl.find tbl2 name in
+        let nds2 = Hashtbl.find tbl2 name in
 
-	match nds1, nds2 with
-	  [], _ | _, [] -> ()
-	| [nd1], [nd2] -> begin
-	    let d1 = nd1#data#content_digest in
-	    let d2 = nd2#data#content_digest in
-	    if d1 <> d2 then begin
-	      modified := (nd1, nd2) :: !modified;
+        match nds1, nds2 with
+          [], _ | _, [] -> ()
+        | [nd1], [nd2] -> begin
+            let d1 = nd1#data#content_digest in
+            let d2 = nd2#data#content_digest in
+            if d1 <> d2 then begin
+              modified := (nd1, nd2) :: !modified;
 
-	      nd1#prune;
-	      nd2#prune
-	    end
-	  end
-	| _ ->
-	    let len1 = List.length nds1 in
-	    let len2 = List.length nds2 in
+              nd1#prune;
+              nd2#prune
+            end
+          end
+        | _ ->
+            let len1 = List.length nds1 in
+            let len2 = List.length nds2 in
 
-	    DEBUG_MSG "matching for \"%s\": len1=%d len2=%d" name len1 len2;
+            DEBUG_MSG "matching for \"%s\": len1=%d len2=%d" name len1 len2;
 
-	    let mat = Array.make_matrix len1 len2 0.0 in
+            let mat = Array.make_matrix len1 len2 0.0 in
 
-	    let min_tbl1 = Array.make len1 0 in
+            let min_tbl1 = Array.make len1 0 in
 
-	    for i = 0 to len1 - 1 do
-	      let min = ref infinity in
-	      let rpath1 = (List.nth nds1 i)#data#path in
-	      for j = 0 to len2 - 1 do
-		let rpath2 = (List.nth nds2 j)#data#path in
-		let dissim = compute_dissimilarity rpath1 rpath2 in
-		mat.(i).(j) <- dissim;
+            for i = 0 to len1 - 1 do
+              let min = ref infinity in
+              let rpath1 = (List.nth nds1 i)#data#path in
+              for j = 0 to len2 - 1 do
+                let rpath2 = (List.nth nds2 j)#data#path in
+                let dissim = compute_dissimilarity rpath1 rpath2 in
+                mat.(i).(j) <- dissim;
 
-		if dissim < !min then begin
-		  min := dissim;
-		  min_tbl1.(i) <- j
-		end
+                if dissim < !min then begin
+                  min := dissim;
+                  min_tbl1.(i) <- j
+                end
 
-	      done
-	    done;
+              done
+            done;
 
-	    let min_tbl2 = Array.make len2 0 in
+            let min_tbl2 = Array.make len2 0 in
 
-	    let pruned1, pruned2 = ref [], ref [] in
+            let pruned1, pruned2 = ref [], ref [] in
 
-	    for j = 0 to len2 - 1 do
-	      let min = ref infinity in
-	      for i = 0 to len1 - 1 do
-		let dissim = mat.(i).(j) in
+            for j = 0 to len2 - 1 do
+              let min = ref infinity in
+              for i = 0 to len1 - 1 do
+                let dissim = mat.(i).(j) in
 
-		if dissim < !min then begin
-		  min := dissim;
-		  min_tbl2.(j) <- i
-		end
+                if dissim < !min then begin
+                  min := dissim;
+                  min_tbl2.(j) <- i
+                end
 
-	      done;
+              done;
 
-	      let i' = min_tbl2.(j) in
+              let i' = min_tbl2.(j) in
 
-	      if min_tbl1.(i') = j then begin
+              if min_tbl1.(i') = j then begin
 
-		let nd1 = List.nth nds1 i' in
-		let nd2 = List.nth nds2 j in
+                let nd1 = List.nth nds1 i' in
+                let nd2 = List.nth nds2 j in
 
-		let d1 = nd1#data#content_digest in
-		let d2 = nd2#data#content_digest in
-		if d1 <> d2 then begin
-		  modified := (nd1, nd2) :: !modified;
+                let d1 = nd1#data#content_digest in
+                let d2 = nd2#data#content_digest in
+                if d1 <> d2 then begin
+                  modified := (nd1, nd2) :: !modified;
 
-		  DEBUG_MSG "%s ->\n\t%s\n" nd1#data#to_string nd2#data#to_string;
+                  DEBUG_MSG "%s ->\n\t%s\n" nd1#data#to_string nd2#data#to_string;
 
-		  nd1#prune;
-		  nd2#prune;
+                  nd1#prune;
+                  nd2#prune;
 
-		  pruned1 := nd1 :: !pruned1;
-		  pruned2 := nd2 :: !pruned2;
-		end
-	      end
-	    done;
+                  pruned1 := nd1 :: !pruned1;
+                  pruned2 := nd2 :: !pruned2;
+                end
+              end
+            done;
 
-	    let nds1' = List.filter (fun n -> not (List.mem n !pruned1)) nds1 in
-	    let nds2' = List.filter (fun n -> not (List.mem n !pruned2)) nds2 in
+            let nds1' = List.filter (fun n -> not (List.mem n !pruned1)) nds1 in
+            let nds2' = List.filter (fun n -> not (List.mem n !pruned2)) nds2 in
 
-	    begin
-	      match nds1', nds2' with
-		[nd1], [nd2] ->
-		  let d1 = nd1#data#content_digest in
-		  let d2 = nd2#data#content_digest in
-		  if d1 <> d2 then begin
-		    modified := (nd1, nd2) :: !modified;
+            begin
+              match nds1', nds2' with
+                [nd1], [nd2] ->
+                  let d1 = nd1#data#content_digest in
+                  let d2 = nd2#data#content_digest in
+                  if d1 <> d2 then begin
+                    modified := (nd1, nd2) :: !modified;
 
-		    DEBUG_MSG "%s ->\n\t%s\n" nd1#data#to_string nd2#data#to_string;
+                    DEBUG_MSG "%s ->\n\t%s\n" nd1#data#to_string nd2#data#to_string;
 
-		    nd1#prune;
-		    nd2#prune;
-		  end
-	      | _ -> ()
-	    end
+                    nd1#prune;
+                    nd2#prune;
+                  end
+              | _ -> ()
+            end
 
       with
         Not_found -> ()
@@ -635,10 +635,10 @@ let analyze tree1 tree2 eds mapping iso =
       let res = List.combine !l1 !l2 in
 
       BEGIN_DEBUG
-	List.iter
-	  (fun (n1, n2) ->
-	    DEBUG_MSG "[UNMODIFIED(SUB)] %s - %s" n1#data#path n2#data#path
-	  ) res
+        List.iter
+          (fun (n1, n2) ->
+            DEBUG_MSG "[UNMODIFIED(SUB)] %s - %s" n1#data#path n2#data#path
+          ) res
       END_DEBUG;
 
       res
@@ -646,97 +646,97 @@ let analyze tree1 tree2 eds mapping iso =
 
   let proc_one = function
     | Otreediff.Edit.Relabel(i1, i2) ->
-	relabels := (i1, i2)::!relabels;
-	let nd1, nd2 = tree1#get i1, tree2#get i2 in
-	let lab1, lab2 = nd1#data#label, nd2#data#label in
-	let dig1, dig2 = nd1#data#digest, nd2#data#digest in
-(*	let path1, path2 = (tree1#path i1), (tree2#path i2) in *)
+        relabels := (i1, i2)::!relabels;
+        let nd1, nd2 = tree1#get i1, tree2#get i2 in
+        let lab1, lab2 = nd1#data#label, nd2#data#label in
+        let dig1, dig2 = nd1#data#digest, nd2#data#digest in
+(*      let path1, path2 = (tree1#path i1), (tree2#path i2) in *)
 
-	if lab1 = lab2 then
-	  if dig1 = dig2 then begin (* impossible: relabel concerns label + digest *)
-	    FATAL_MSG "impossible: %s<%s> %s<%s>"
-	      lab1 nd1#data#digest_string lab2 nd2#data#digest_string;
-	    exit 1
-	  end
-	  else (* modified? *)
+        if lab1 = lab2 then
+          if dig1 = dig2 then begin (* impossible: relabel concerns label + digest *)
+            FATAL_MSG "impossible: %s<%s> %s<%s>"
+              lab1 nd1#data#digest_string lab2 nd2#data#digest_string;
+            exit 1
+          end
+          else (* modified? *)
 
-	    if
-	      nd1#data#is_dir && nd2#data#is_dir then begin
-		if nd1 != tree1#root && nd2 != tree2#root then begin
+            if
+              nd1#data#is_dir && nd2#data#is_dir then begin
+                if nd1 != tree1#root && nd2 != tree2#root then begin
 
-		  DEBUG_MSG "[SUB] \"%s(%s)\" --> \"%s(%s)\""
-		    (tree1#path i1) (UID.to_string nd1#uid)
-		    (tree2#path i2) (UID.to_string nd2#uid);
+                  DEBUG_MSG "[SUB] \"%s(%s)\" --> \"%s(%s)\""
+                    (tree1#path i1) (UID.to_string nd1#uid)
+                    (tree2#path i2) (UID.to_string nd2#uid);
 
-		  subs := (nd1, nd2)::!subs
-		end
-	    end
-	    else
-	      if nd1#is_collapsed then
-		expand1 := nd1::!expand1
-	      else
-		if nd2#is_collapsed then
-		  expand2 := nd2::!expand2
-		else begin (* impossible: digest of expanded node is cleared *)
-		  FATAL_MSG "impossible %s<%s> %s<%s>"
-		    lab1 nd1#data#digest_string lab2 nd2#data#digest_string;
-		  exit 1
-		end
+                  subs := (nd1, nd2)::!subs
+                end
+            end
+            else
+              if nd1#is_collapsed then
+                expand1 := nd1::!expand1
+              else
+                if nd2#is_collapsed then
+                  expand2 := nd2::!expand2
+                else begin (* impossible: digest of expanded node is cleared *)
+                  FATAL_MSG "impossible %s<%s> %s<%s>"
+                    lab1 nd1#data#digest_string lab2 nd2#data#digest_string;
+                  exit 1
+                end
 
-	else (* label has changed *)
-	  if dig1 = dig2 then (* renamed *)
-	    if dig1 = None then
-	      if nd1#data#is_file && nd2#data#is_file then
-		if nd1#data#content_digest = nd2#data#content_digest then begin
+        else (* label has changed *)
+          if dig1 = dig2 then (* renamed *)
+            if dig1 = None then
+              if nd1#data#is_file && nd2#data#is_file then
+                if nd1#data#content_digest = nd2#data#content_digest then begin
 
-		  DEBUG_MSG "[RENAMED] \"%s\" --> \"%s\""
-		    (tree1#path i1) (tree2#path i2);
+                  DEBUG_MSG "[RENAMED] \"%s\" --> \"%s\""
+                    (tree1#path i1) (tree2#path i2);
 
-		  renamed_pairs := (nd1, nd2)::!renamed_pairs
-		end
-		else
-		  () (* different files *)
+                  renamed_pairs := (nd1, nd2)::!renamed_pairs
+                end
+                else
+                  () (* different files *)
 
-	      else begin
-		if nd1#is_collapsed then expand1 := nd1::!expand1;
-		if nd2#is_collapsed then expand2 := nd2::!expand2
-	      end
+              else begin
+                if nd1#is_collapsed then expand1 := nd1::!expand1;
+                if nd2#is_collapsed then expand2 := nd2::!expand2
+              end
 
-	    else begin (* both are collapsed directories *)
-	      expand1 := nd1::!expand1;
-	      expand2 := nd2::!expand2
-	    end
+            else begin (* both are collapsed directories *)
+              expand1 := nd1::!expand1;
+              expand2 := nd2::!expand2
+            end
 
-	  else
-	    if nd1#is_collapsed && nd2#is_collapsed then begin
-	      if nd1 != tree1#root && nd2 != tree2#root then begin
+          else
+            if nd1#is_collapsed && nd2#is_collapsed then begin
+              if nd1 != tree1#root && nd2 != tree2#root then begin
 
-		(* this trial may result in a waste of time... *)
-		DEBUG_MSG "[SUB] \"%s(%a)\" --> \"%s(%a)\""
-		  (tree1#path i1) UID.ps nd1#uid
-		  (tree2#path i2) UID.ps nd2#uid;
+                (* this trial may result in a waste of time... *)
+                DEBUG_MSG "[SUB] \"%s(%a)\" --> \"%s(%a)\""
+                  (tree1#path i1) UID.ps nd1#uid
+                  (tree2#path i2) UID.ps nd2#uid;
 
-		subs := (nd1, nd2)::!subs
-	      end
-	    end
-	    else begin
-	      if nd1#is_collapsed then expand1 := nd1::!expand1;
-	      if nd2#is_collapsed then expand2 := nd2::!expand2
-	    end
+                subs := (nd1, nd2)::!subs
+              end
+            end
+            else begin
+              if nd1#is_collapsed then expand1 := nd1::!expand1;
+              if nd2#is_collapsed then expand2 := nd2::!expand2
+            end
 
     | Otreediff.Edit.Delete i ->
-	let nd = tree1#get i in
+        let nd = tree1#get i in
 
-	DEBUG_MSG "[REMOVED] \"%s\"" (tree1#path i);
+        DEBUG_MSG "[REMOVED] \"%s\"" (tree1#path i);
 
-	if nd#is_collapsed then expand1 := nd::!expand1
+        if nd#is_collapsed then expand1 := nd::!expand1
 
     | Otreediff.Edit.Insert(i, _) ->
-	let nd = tree2#get i in
+        let nd = tree2#get i in
 
-	DEBUG_MSG "[ADDED] \"%s\"" (tree2#path i);
+        DEBUG_MSG "[ADDED] \"%s\"" (tree2#path i);
 
-	if nd#is_collapsed then expand2 := nd::!expand2
+        if nd#is_collapsed then expand2 := nd::!expand2
   in
   Otreediff.Edit.seq_iter proc_one eds;
 
@@ -748,31 +748,31 @@ let analyze tree1 tree2 eds mapping iso =
       let c1, c2 = nd1#data#content_digest, nd2#data#content_digest in
 
       if nd1#data#is_file && nd2#data#is_file then
-	if List.mem (i, j) !relabels then () (* already processed above *)
-	else
-	  if c1 = c2 then begin
+        if List.mem (i, j) !relabels then () (* already processed above *)
+        else
+          if c1 = c2 then begin
 
-	    DEBUG_MSG "[UNMODIFIED] %s - %s"
-	      (tree1#path i) (tree2#path j);
+            DEBUG_MSG "[UNMODIFIED] %s - %s"
+              (tree1#path i) (tree2#path j);
 
-	    unmodified_pairs := (nd1, nd2)::!unmodified_pairs
-	  end
-	  else begin
+            unmodified_pairs := (nd1, nd2)::!unmodified_pairs
+          end
+          else begin
 
-	    DEBUG_MSG "[MODIFIED] %s - %s"
-	      (tree1#path i) (tree2#path j);
+            DEBUG_MSG "[MODIFIED] %s - %s"
+              (tree1#path i) (tree2#path j);
 
-	    modified_pairs := (nd1, nd2)::!modified_pairs
-	  end
+            modified_pairs := (nd1, nd2)::!modified_pairs
+          end
       else
-	if nd1#data#is_dir && nd2#data#is_dir then
-	  if nd1#is_collapsed && nd2#is_collapsed then
-	    if nd1#data#equals nd2#data then begin
-	      (* all children are unmodified *)
-	      dir_pairs_to_be_pruned := (nd1, nd2)::!dir_pairs_to_be_pruned;
-	      unmodified_pairs_sub
-	      := (mk_subtree_pairs nd1 nd2) @ !unmodified_pairs_sub
-	    end
+        if nd1#data#is_dir && nd2#data#is_dir then
+          if nd1#is_collapsed && nd2#is_collapsed then
+            if nd1#data#equals nd2#data then begin
+              (* all children are unmodified *)
+              dir_pairs_to_be_pruned := (nd1, nd2)::!dir_pairs_to_be_pruned;
+              unmodified_pairs_sub
+              := (mk_subtree_pairs nd1 nd2) @ !unmodified_pairs_sub
+            end
     ) mapping;
 
 (* isomorphic nodes(leaves) are already processed above *)
@@ -795,17 +795,17 @@ let analyze tree1 tree2 eds mapping iso =
   BEGIN_DEBUG
     DEBUG_MSG "MODIFIED:";
     List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
-	nd1#data#to_string nd2#data#to_string) !modified_pairs;
+        nd1#data#to_string nd2#data#to_string) !modified_pairs;
     DEBUG_MSG "UNMODIFIED:";
     List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
-	nd1#to_string nd2#to_string) !unmodified_pairs;
+        nd1#to_string nd2#to_string) !unmodified_pairs;
 
     DEBUG_MSG "UNMODIFIED(SUB):";
     List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
-	nd1#to_string nd2#to_string) !unmodified_pairs_sub;
+        nd1#to_string nd2#to_string) !unmodified_pairs_sub;
     DEBUG_MSG "RENAMED:";
     List.iter (fun (nd1, nd2) -> printf "%s -- %s\n"
-	nd1#to_string nd2#to_string) !renamed_pairs;
+        nd1#to_string nd2#to_string) !renamed_pairs;
   END_DEBUG;
 
   let to_be_pruned =
@@ -856,69 +856,69 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
     end;
     List.iter2
       (fun lf1 lf2 ->
-	if lf1#data#content_digest = lf2#data#content_digest then
-	  unmodified_pairs_iso := (lf1, lf2)::!unmodified_pairs_iso
-	else modified_pairs_iso := (lf1, lf2)::!modified_pairs_iso
+        if lf1#data#content_digest = lf2#data#content_digest then
+          unmodified_pairs_iso := (lf1, lf2)::!unmodified_pairs_iso
+        else modified_pairs_iso := (lf1, lf2)::!modified_pairs_iso
       ) leaves1 leaves2
   in
 
   List.iter
     (fun nd1 ->
       try
-	List.iter
-	  (fun nd2 ->
-	    let dat1, dat2 = nd1#data, nd2#data in
-	    let lab1, lab2 = dat1#label, dat2#label in
-	    let ctt1, ctt2 = dat1#content_digest, dat2#content_digest in
+        List.iter
+          (fun nd2 ->
+            let dat1, dat2 = nd1#data, nd2#data in
+            let lab1, lab2 = dat1#label, dat2#label in
+            let ctt1, ctt2 = dat1#content_digest, dat2#content_digest in
 
-	    if dat1#is_file && dat2#is_file then
-	      if ctt1 = ctt2 then
-		if lab1 = lab2 then begin
+            if dat1#is_file && dat2#is_file then
+              if ctt1 = ctt2 then
+                if lab1 = lab2 then begin
 
-		  DEBUG_MSG "[UNMODIFIED] \"%s\"--\"%s\"" nd1#data#path nd2#data#path;
+                  DEBUG_MSG "[UNMODIFIED] \"%s\"--\"%s\"" nd1#data#path nd2#data#path;
 
-		  unmodified_pairs := (nd1, nd2)::!unmodified_pairs;
-		  raise Found
-		end
-		else begin
+                  unmodified_pairs := (nd1, nd2)::!unmodified_pairs;
+                  raise Found
+                end
+                else begin
 
-		  DEBUG_MSG "[RENAMED] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
+                  DEBUG_MSG "[RENAMED] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
 
-		  renamed_pairs := (nd1, nd2)::!renamed_pairs;
-		  raise Found
-		  end
-	      else
-		if lab1 = lab2 then begin
+                  renamed_pairs := (nd1, nd2)::!renamed_pairs;
+                  raise Found
+                  end
+              else
+                if lab1 = lab2 then begin
 
-		  DEBUG_MSG "[MODIFIED] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
+                  DEBUG_MSG "[MODIFIED] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
 
-		  modified_pairs := (nd1, nd2)::!modified_pairs;
-		  raise Found
-		end
-		else
-		  () (* different files *)
-	    else
-	      if dat1#is_dir && dat2#is_dir then
-		if nd1#is_collapsed && nd2#is_collapsed then
-		  if dat1#digest = dat2#digest then begin
+                  modified_pairs := (nd1, nd2)::!modified_pairs;
+                  raise Found
+                end
+                else
+                  () (* different files *)
+            else
+              if dat1#is_dir && dat2#is_dir then
+                if nd1#is_collapsed && nd2#is_collapsed then
+                  if dat1#digest = dat2#digest then begin
 
-		    DEBUG_MSG "[ISO] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
+                    DEBUG_MSG "[ISO] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
 
-		    isos := (nd1, nd2)::!isos;
-		    raise Found
-		  end
-		  else
-		    if lab1 = lab2 then begin
+                    isos := (nd1, nd2)::!isos;
+                    raise Found
+                  end
+                  else
+                    if lab1 = lab2 then begin
 
-		      DEBUG_MSG "[SUB] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
+                      DEBUG_MSG "[SUB] \"%s\" --> \"%s\"" nd1#data#path nd2#data#path;
 
-		      subs := (nd1, nd2)::!subs;
-		      raise Found
-		    end
-		    else ()
-		else ()
+                      subs := (nd1, nd2)::!subs;
+                      raise Found
+                    end
+                    else ()
+                else ()
 
-	  ) nl2
+          ) nl2
       with Found -> ()
     ) nl1;
 
@@ -943,10 +943,10 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
   let extend pairs pairs0 =
     List.fold_left
       (fun ps p ->
-	let _, nd = p in
-	let _, nds = List.split ps in
-	if List.memq nd nds then ps
-	else p::ps
+        let _, nd = p in
+        let _, nds = List.split ps in
+        if List.memq nd nds then ps
+        else p::ps
       ) pairs pairs0
   in
 
@@ -957,7 +957,7 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
   DEBUG_MSG "to_be_pruned: [%s]"
     (Xlist.to_string
        (fun (n1, n2) ->
-	 sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) "; " to_be_pruned);
+         sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) "; " to_be_pruned);
 
   let prn1, prn2 = List.split to_be_pruned in
   tree1#prune_nodes prn1;
@@ -972,13 +972,13 @@ let compare_node_lists options tree1 tree2 nl1 nl2 =
   let expnd1 =
     List.filter
       (fun nd ->
-	nd#is_collapsed && not (List.memq nd subs1) && not (List.memq nd isos1)
+        nd#is_collapsed && not (List.memq nd subs1) && not (List.memq nd isos1)
       ) nl1
   in
   let expnd2 =
     List.filter
       (fun nd ->
-	nd#is_collapsed && not (List.memq nd subs2) && not (List.memq nd isos2)
+        nd#is_collapsed && not (List.memq nd subs2) && not (List.memq nd isos2)
       ) nl2
   in
   !subs, !modified_pairs, expnd1, expnd2, !unmodified_pairs, !renamed_pairs
@@ -1026,16 +1026,16 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
     else begin
       DEBUG_MSG "doing tree comparison...";
       let edits, mapping, iso =
-	if tree1#is_flat && tree2#is_flat
-	then
-	  Flattreediff.find ~rely_on_rel:false tree1 tree2
-	else
-	  Treediff.find tree1 tree2
+        if tree1#is_flat && tree2#is_flat
+        then
+          Flattreediff.find ~rely_on_rel:false tree1 tree2
+        else
+          Treediff.find tree1 tree2
       in
       if options#dots_flag then
-	Otreediff.Lib.to_dot
-	  (Filename.concat dot_dir (sprintf "%d.%s.dir.dot" counter#value cid))
-	  tree1 tree2 edits mapping [];
+        Otreediff.Lib.to_dot
+          (Filename.concat dot_dir (sprintf "%d.%s.dir.dot" counter#value cid))
+          tree1 tree2 edits mapping [];
 
       analyze tree1 tree2 edits mapping iso
     end
@@ -1044,10 +1044,10 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
   let subtrees =
     List.map
       (fun (nd1, nd2) ->
-	let t1, t2 = new c options nd1 false, new c options nd2 false in
-	t1#expand_root; t1#root#hide_parent; t1#init;
-	t2#expand_root; t2#root#hide_parent; t2#init;
-	t1, t2
+        let t1, t2 = new c options nd1 false, new c options nd2 false in
+        t1#expand_root; t1#root#hide_parent; t1#init;
+        t2#expand_root; t2#root#hide_parent; t2#init;
+        t1, t2
       ) subs
   in
   let sub_modified_pairs_l, sub_unmodified_pairs_l, sub_renamed_pairs_l =
@@ -1101,29 +1101,29 @@ let rec compare_subtree options dot_dir (tree1, tree2) =
 
     let subs, modified_pairs, expnd1, expnd2, unmodified_pairs, renamed_pairs =
       if
-	nchldrn1 > !tree_width_limit || nchldrn2 > !tree_width_limit ||
-	tree1#size > !tree_size_limit || tree2#size > !tree_size_limit
+        nchldrn1 > !tree_width_limit || nchldrn2 > !tree_width_limit ||
+        tree1#size > !tree_size_limit || tree2#size > !tree_size_limit
       then begin
-	DEBUG_MSG "doing list comparison...";
-	compare_node_lists options tree1 tree2 chldrn1 chldrn2
+        DEBUG_MSG "doing list comparison...";
+        compare_node_lists options tree1 tree2 chldrn1 chldrn2
       end
       else begin
-	DEBUG_MSG "doing tree comparison...";
-	let edits, mapping, iso =
-	  if tree1#is_flat && tree2#is_flat
-	  then
-	    Flattreediff.find ~rely_on_rel:false tree1 tree2
-	  else
-	    Treediff.find tree1 tree2
-	in
-	let _ =
-	  if options#dots_flag then
-	    Otreediff.Lib.to_dot
-	      (Filename.concat dot_dir
-		 (sprintf "%d.%s.dir.dot" counter#value cid))
-	      tree1 tree2 edits mapping []
-	in
-	analyze tree1 tree2 edits mapping iso
+        DEBUG_MSG "doing tree comparison...";
+        let edits, mapping, iso =
+          if tree1#is_flat && tree2#is_flat
+          then
+            Flattreediff.find ~rely_on_rel:false tree1 tree2
+          else
+            Treediff.find tree1 tree2
+        in
+        let _ =
+          if options#dots_flag then
+            Otreediff.Lib.to_dot
+              (Filename.concat dot_dir
+                 (sprintf "%d.%s.dir.dot" counter#value cid))
+              tree1 tree2 edits mapping []
+        in
+        analyze tree1 tree2 edits mapping iso
       end
     in
     modified   := !modified @ modified_pairs;
@@ -1159,7 +1159,7 @@ let save_modified_list fname list =
   ] ::
     (List.map
        (fun (o, n, od, nd, cr, ur, d, dg, i, ig, r, rg, m, mg, tc, ms, sim, u, uu, spsm, ahs) ->
-	 [o; n; od; nd; cr; ur;
+         [o; n; od; nd; cr; ur;
           sprintf "%d(%d)" d dg;
           sprintf "%d(%d)" i ig;
           sprintf "%d(%d)" r rg;
@@ -1224,15 +1224,15 @@ let save_result dir modified_files =
 type info = { i_cache_path         : string;
               i_dtree1             : c;
               i_dtree2             : c;
-	      mutable i_modified   : (Storage.file * Storage.file) list;
-	      mutable i_unmodified : (Storage.file * Storage.file) list;
-	      i_renamed            : (Storage.file * Storage.file) list;
-	      i_moved              : (Storage.file * Storage.file) list;
-	      i_removed            : Storage.file list;
-	      i_added              : Storage.file list;
-	      i_copied             : (Storage.file * Storage.file list) list;
-	      i_glued              : (Storage.file list * Storage.file) list;
-	    }
+              mutable i_modified   : (Storage.file * Storage.file) list;
+              mutable i_unmodified : (Storage.file * Storage.file) list;
+              i_renamed            : (Storage.file * Storage.file) list;
+              i_moved              : (Storage.file * Storage.file) list;
+              i_removed            : Storage.file list;
+              i_added              : Storage.file list;
+              i_copied             : (Storage.file * Storage.file list) list;
+              i_glued              : (Storage.file list * Storage.file) list;
+            }
 
 let save_extra_result options ?get_cache_name
     { i_cache_path = dir;
@@ -1262,8 +1262,8 @@ let save_extra_result options ?get_cache_name
   let modified', extra_unmodified =
     List.fold_left
       (fun (m, u) (o, n) ->
-	try
-	  let cache_path =
+        try
+          let cache_path =
             match get_cache_name with
             | Some f -> Cache.create_cache_path options (f o n)
             | None -> options#get_cache_path_for_file2 o n
@@ -1273,18 +1273,21 @@ let save_extra_result options ?get_cache_name
 
           let stat_paths =
             (Cache.search_cache :
+               ?fuzzy:bool ->
                ?completion:bool ->
                  ?local_cache_name:string ->
                    string -> string -> Cache.search_result list)
+
+              ~fuzzy:options#fuzzy_cache_flag
               ~local_cache_name:options#local_cache_name
               cache_path
               S.stat_file_name
           in
 
-	  let s =
+          let s =
             SF.scan_diff_stat ~max_retry_count:options#max_retry_count stat_paths
           in
-	  if s.SF.s_total_changes > 0 then
+          if s.SF.s_total_changes > 0 then
             let od = Xhash.to_hex o#digest in
             let nd = Xhash.to_hex n#digest in
             (o#path, n#path, od, nd,
@@ -1360,18 +1363,18 @@ let load_result dir =
     let f = fun s1 s2 -> res := (s1, s2)::!res in
     let _ =
       try
-	length := int_of_string(input_line ich)
+        length := int_of_string(input_line ich)
       with
-	Failure "int_of_string" ->
-	  begin close_in ich; raise Cache_not_found end
+        Failure "int_of_string" ->
+          begin close_in ich; raise Cache_not_found end
       | End_of_file -> begin close_in ich; raise Cache_not_found end
     in
     let result =
       try
-	while true do
-	  Scanf.sscanf (input_line ich) "%s - %s" f;
-	  incr count;
-	done; []
+        while true do
+          Scanf.sscanf (input_line ich) "%s - %s" f;
+          incr count;
+        done; []
       with End_of_file -> !res
     in
     close_in ich;
@@ -1438,54 +1441,54 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
       let result = load_result cache_path in
       if !viewer_flag then
-	printf "%c%c%c%!"
-	  Options.viewer_mode_status_OK (char_of_int 0) (char_of_int 0);
+        printf "%c%c%c%!"
+          Options.viewer_mode_status_OK (char_of_int 0) (char_of_int 0);
       result
     with
       Cache_not_found ->
 *)
-	if not options#viewer_flag then
-	  printf "comparing directory structures...\n";
+        if not options#viewer_flag then
+          printf "comparing directory structures...\n";
 
-	let _ = Cache.prepare_cache_dir options cache_path in
+        let _ = Cache.prepare_cache_dir options cache_path in
 
-	let _ = dtree1#expand_all in
-	let _ = dtree2#expand_all in
+        let _ = (dtree1#expand_all : UID.t -> bool) in
+        let _ = (dtree2#expand_all : UID.t -> bool) in
 
         let _unmodified0, _renamed0, _moved0 =
           pp0 dtree1 dtree2 dtbl1 dtbl2 tbl1 tbl2
         in
 
-	let unmodified0, renamed0, moved0, copied, glued =
-	  pp1 tbl1 tbl2
-	in
+        let unmodified0, renamed0, moved0, copied, glued =
+          pp1 tbl1 tbl2
+        in
 
-	let modified0 = pp2 tbl1 tbl2 in
+        let modified0 = pp2 tbl1 tbl2 in
 
-	dtree1#init;
-	dtree2#init;
+        dtree1#init;
+        dtree2#init;
 
-	DEBUG_MSG "T1:\n%s\n" dtree1#to_string;
-	DEBUG_MSG "T2:\n%s\n" dtree2#to_string;
+        DEBUG_MSG "T1:\n%s\n" dtree1#to_string;
+        DEBUG_MSG "T2:\n%s\n" dtree2#to_string;
 
-	let _ = collapse_tree dtree1 in
-	let _ = collapse_tree dtree2 in
+        let _ = collapse_tree dtree1 in
+        let _ = collapse_tree dtree2 in
 
-	let _modified, unmodified, renamed =
-	  compare_subtree options cache_path (dtree1, dtree2)
-	in
+        let _modified, unmodified, renamed =
+          compare_subtree options cache_path (dtree1, dtree2)
+        in
 
-	let _modified = union [_modified; modified0] in
+        let _modified = union [_modified; modified0] in
         let modified = new node_map in
         modified#add_list _modified;
 
         unmodified0#add_map _unmodified0;
         unmodified0#add_list unmodified;
-	let unmodified = unmodified0  in
+        let unmodified = unmodified0  in
 
         renamed0#add_map _renamed0;
         renamed0#add_list renamed;
-	let renamed = renamed0 in
+        let renamed = renamed0 in
 
         moved0#add_map _moved0;
         let moved = moved0 in
@@ -1510,8 +1513,8 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
             end
           ) _modified;
 
-	let all_leaves1 = dtree1#get_whole_initial_leaves in
-	let all_leaves2 = dtree2#get_whole_initial_leaves in
+        let all_leaves1 = dtree1#get_whole_initial_leaves in
+        let all_leaves2 = dtree2#get_whole_initial_leaves in
 
         let subtract l l0 =
           let s = Xset.from_list l in
@@ -1519,27 +1522,27 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
           Xset.to_list s
         in
 
-	let glued1 =
-	  let glu1, _ = List.split glued in
-	  List.flatten glu1
-	in
-	let copied2 =
-	  let _, cop2 = List.split copied in
-	  List.flatten cop2
-	in
+        let glued1 =
+          let glu1, _ = List.split glued in
+          List.flatten glu1
+        in
+        let copied2 =
+          let _, cop2 = List.split copied in
+          List.flatten cop2
+        in
 
         let get_removed_and_added () =
-	  let mapped1, mapped2 =
-	    let mod1, mod2 = modified#split in
-	    let sta1, sta2 = unmodified#split in
-	    let ren1, ren2 = renamed#split in
-	    let mov1, mov2 = moved#split in
+          let mapped1, mapped2 =
+            let mod1, mod2 = modified#split in
+            let sta1, sta2 = unmodified#split in
+            let ren1, ren2 = renamed#split in
+            let mov1, mov2 = moved#split in
 
-	    mod1 @ sta1 @ ren1 @ mov1 @ glued1,
-	    mod2 @ sta2 @ ren2 @ mov2 @ copied2
-	  in
-	  let removed = subtract all_leaves1 mapped1 in
-	  let added   = subtract all_leaves2 mapped2 in
+            mod1 @ sta1 @ ren1 @ mov1 @ glued1,
+            mod2 @ sta2 @ ren2 @ mov2 @ copied2
+          in
+          let removed = subtract all_leaves1 mapped1 in
+          let added   = subtract all_leaves2 mapped2 in
           removed, added
         in
         let removed, added = get_removed_and_added() in
@@ -1630,48 +1633,48 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
         let len = modified#size in
 
-	if options#viewer_flag then begin
-	  let mm = (len land 0xff00) lsr 8 in
-	  let ll = (len land 0x00ff) in
-	  printf "%c%!" Const.viewer_mode_status_OK;
-	  printf "%c%c%!" (char_of_int mm) (char_of_int ll)
-	end
-	else
-	  printf "done.\n";
+        if options#viewer_flag then begin
+          let mm = (len land 0xff00) lsr 8 in
+          let ll = (len land 0x00ff) in
+          printf "%c%!" Const.viewer_mode_status_OK;
+          printf "%c%c%!" (char_of_int mm) (char_of_int ll)
+        end
+        else
+          printf "done.\n";
 
-	(*let mkfiles2 = List.map (fun (nd1, nd2) -> mkfile tree1 nd1, mkfile tree2 nd2) in*)
-	let mkfiles1N =
-	  List.map (fun (nd1, nds) -> mkfile tree1 nd1, List.map (mkfile tree2) nds)
-	in
-	let mkfilesN1 =
-	  List.map (fun (nds, nd2) -> List.map (mkfile tree1) nds, mkfile tree2 nd2)
-	in
+        (*let mkfiles2 = List.map (fun (nd1, nd2) -> mkfile tree1 nd1, mkfile tree2 nd2) in*)
+        let mkfiles1N =
+          List.map (fun (nd1, nds) -> mkfile tree1 nd1, List.map (mkfile tree2) nds)
+        in
+        let mkfilesN1 =
+          List.map (fun (nds, nd2) -> List.map (mkfile tree1) nds, mkfile tree2 nd2)
+        in
         let mkfilepair n1 n2 = mkfile tree1 n1, mkfile tree2 n2 in
 
-	let modified_files   = modified#map mkfilepair in
+        let modified_files   = modified#map mkfilepair in
 
-	let unmodified_files = unmodified#map mkfilepair in
-	let renamed_files    = renamed#map mkfilepair in
-	let moved_files      = moved#map mkfilepair in
-	let copied_files     = mkfiles1N copied in
-	let glued_files      = mkfilesN1 glued in
+        let unmodified_files = unmodified#map mkfilepair in
+        let renamed_files    = renamed#map mkfilepair in
+        let moved_files      = moved#map mkfilepair in
+        let copied_files     = mkfiles1N copied in
+        let glued_files      = mkfilesN1 glued in
 
 
         let all_files1 = mkfiles tree1 all_leaves1 in
         let all_files2 = mkfiles tree2 all_leaves2 in
 
-	BEGIN_DEBUG
-	  printf "All files in \"%s\"\n" dtree1#id;
+        BEGIN_DEBUG
+          printf "All files in \"%s\"\n" dtree1#id;
           let paths = List.map (fun f -> f#path) all_files1 in
-	  let paths = List.fast_sort Stdlib.compare paths in
-	  List.iter (fun p -> printf " %s\n" p) paths
-	END_DEBUG;
+          let paths = List.fast_sort Stdlib.compare paths in
+          List.iter (fun p -> printf " %s\n" p) paths
+        END_DEBUG;
 
-	let removed_files = mkfiles tree1 removed in
-	let added_files   = mkfiles tree2 added in
+        let removed_files = mkfiles tree1 removed in
+        let added_files   = mkfiles tree2 added in
 
 
-	save_result cache_path modified_files;
+        save_result cache_path modified_files;
 
         let diff_result =
           new diff_result ~cache_path
@@ -1682,93 +1685,93 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
         fact_extractor options diff_result;
 
 
-	if not options#viewer_flag then begin
-	  let nfiles1 = List.length all_files1 in
-	  let nfiles2 = List.length all_files2 in
+        if not options#viewer_flag then begin
+          let nfiles1 = List.length all_files1 in
+          let nfiles2 = List.length all_files2 in
 
-	  Xprint.message "%d/%d modified files:" modified#size nfiles1;
+          Xprint.message "%d/%d modified files:" modified#size nfiles1;
           BEGIN_DEBUG
-	  modified#iter
-	    (fun n1 n2 ->
-	      DEBUG_MSG "[MOD] %s -> %s" n1#data#to_string n2#data#to_string
-	    )
+          modified#iter
+            (fun n1 n2 ->
+              DEBUG_MSG "[MOD] %s -> %s" n1#data#to_string n2#data#to_string
+            )
           END_DEBUG;
 
-	  Xprint.message "%d/(%d) added files:" (List.length added) nfiles2;
+          Xprint.message "%d/(%d) added files:" (List.length added) nfiles2;
           BEGIN_DEBUG
-	  List.iter
-	    (fun n ->
-	      DEBUG_MSG "[ADD] %s" n#data#to_string
-	    ) added
+          List.iter
+            (fun n ->
+              DEBUG_MSG "[ADD] %s" n#data#to_string
+            ) added
           END_DEBUG;
 
-	  Xprint.message "%d/%d removed files:" (List.length removed) nfiles1;
+          Xprint.message "%d/%d removed files:" (List.length removed) nfiles1;
           BEGIN_DEBUG
-	  List.iter
-	    (fun n ->
-	      DEBUG_MSG "[REM] %s" n#data#to_string
-	    ) removed
+          List.iter
+            (fun n ->
+              DEBUG_MSG "[REM] %s" n#data#to_string
+            ) removed
           END_DEBUG;
 
-	  Xprint.message "%d/%d renamed files:" renamed#size nfiles1;
+          Xprint.message "%d/%d renamed files:" renamed#size nfiles1;
           BEGIN_DEBUG
-	  renamed#iter
-	    (fun n1 n2 ->
-	      DEBUG_MSG "[REN] %s -> %s" n1#data#to_string n2#data#to_string
-	    )
+          renamed#iter
+            (fun n1 n2 ->
+              DEBUG_MSG "[REN] %s -> %s" n1#data#to_string n2#data#to_string
+            )
           END_DEBUG;
 
-	  Xprint.message "%d/%d moved files:" moved#size nfiles1;
+          Xprint.message "%d/%d moved files:" moved#size nfiles1;
           BEGIN_DEBUG
-	  moved#iter
-	    (fun n1 n2 ->
-	      DEBUG_MSG "[MOV] %s -> %s" n1#data#to_string n2#data#to_string
-	    )
+          moved#iter
+            (fun n1 n2 ->
+              DEBUG_MSG "[MOV] %s -> %s" n1#data#to_string n2#data#to_string
+            )
           END_DEBUG;
 
-	  Xprint.message "%d/(%d) copied files:" (List.length copied2) nfiles2;
+          Xprint.message "%d/(%d) copied files:" (List.length copied2) nfiles2;
           BEGIN_DEBUG
-	  List.iter
-	    (fun (n1, ns2) ->
-	      DEBUG_MSG "[CPY] %s ->" n1#data#to_string;
-	      List.iter (fun n -> DEBUG_MSG "[CPY]   %s" n#data#to_string) ns2
-	    ) copied
+          List.iter
+            (fun (n1, ns2) ->
+              DEBUG_MSG "[CPY] %s ->" n1#data#to_string;
+              List.iter (fun n -> DEBUG_MSG "[CPY]   %s" n#data#to_string) ns2
+            ) copied
           END_DEBUG;
 
-	  Xprint.message "%d/%d glued files:" (List.length glued1) nfiles1;
+          Xprint.message "%d/%d glued files:" (List.length glued1) nfiles1;
           BEGIN_DEBUG
-	  List.iter
-	    (fun (ns1, n2) ->
-	      List.iter (fun n -> DEBUG_MSG "[GLU] %s" n#data#to_string) ns1;
-	      DEBUG_MSG "[GLU]   -> %s" n2#data#to_string
-	    ) glued
+          List.iter
+            (fun (ns1, n2) ->
+              List.iter (fun n -> DEBUG_MSG "[GLU] %s" n#data#to_string) ns1;
+              DEBUG_MSG "[GLU]   -> %s" n2#data#to_string
+            ) glued
           END_DEBUG;
 
-	  Xprint.message "%d/%d unmodified files:" unmodified#size nfiles1;
+          Xprint.message "%d/%d unmodified files:" unmodified#size nfiles1;
           BEGIN_DEBUG
-	  unmodified#iter
-	    (fun n1 n2 ->
-	      DEBUG_MSG "[UNM] %s - %s" n1#data#to_string n2#data#to_string
-	    )
+          unmodified#iter
+            (fun n1 n2 ->
+              DEBUG_MSG "[UNM] %s - %s" n1#data#to_string n2#data#to_string
+            )
           END_DEBUG;
 
-	end;
+        end;
 
-	let info =
-	  { i_cache_path = cache_path;
+        let info =
+          { i_cache_path = cache_path;
             i_dtree1     = dtree1;
             i_dtree2     = dtree2;
-	    i_modified   = modified_files;
-	    i_unmodified = unmodified_files;
-	    i_renamed    = renamed_files;
-	    i_moved      = moved_files;
-	    i_removed    = removed_files;
-	    i_added      = added_files;
-	    i_copied     = copied_files;
-	    i_glued      = glued_files;
-	  }
-	in
-	info
+            i_modified   = modified_files;
+            i_unmodified = unmodified_files;
+            i_renamed    = renamed_files;
+            i_moved      = moved_files;
+            i_removed    = removed_files;
+            i_added      = added_files;
+            i_copied     = copied_files;
+            i_glued      = glued_files;
+          }
+        in
+        info
   with
     To_be_skipped -> begin
       Xprint.message "no relevant source files found.";
@@ -1810,22 +1813,22 @@ let fact_extractor options info =
         end
         else begin
           let mkfbuf path_ref file_name =
-	    let path = Filename.concat info#cache_path (file_name^".nt") in
-	    let _ = path_ref := path in
-	    let fbuf =
-	      try
-	        new T.buffer ~overwrite:false options path
-	      with
-	      | T.File_exists s ->
-		  WARN_MSG "file exists: \"%s\"" s;
-		  T.dummy_buffer
+            let path = Filename.concat info#cache_path (file_name^".nt") in
+            let _ = path_ref := path in
+            let fbuf =
+              try
+                new T.buffer ~overwrite:false options path
+              with
+              | T.File_exists s ->
+                  WARN_MSG "file exists: \"%s\"" s;
+                  T.dummy_buffer
             in
             fbuf
           in
           let map_fbuf = mkfbuf map_path Stat.map_file_name in
           let changes_fbuf = mkfbuf changes_path Stat.changes_file_name in
           let delta_fbuf = mkfbuf delta_path Stat.delta_file_name in
-	  map_fbuf, changes_fbuf, delta_fbuf
+          map_fbuf, changes_fbuf, delta_fbuf
         end
       in
 
@@ -1840,36 +1843,36 @@ let fact_extractor options info =
 
 
       if options#fact_for_mapping_flag then begin
-	if into_virtuoso then
-	  Xprint.verbose options#verbose_flag "dumping map fact into virtuoso..."
-	else if into_directory then
-	  Xprint.verbose options#verbose_flag
+        if into_virtuoso then
+          Xprint.verbose options#verbose_flag "dumping map fact into virtuoso..."
+        else if into_directory then
+          Xprint.verbose options#verbose_flag
             "dumping map fact into directory \"%s\"..." options#fact_into_directory
-	else
-	  Xprint.verbose options#verbose_flag "dumping map fact to \"%s\"..." !map_path;
+        else
+          Xprint.verbose options#verbose_flag "dumping map fact to \"%s\"..." !map_path;
 
-	info#modified#iter
-	  (fun f1 f2 ->
+        info#modified#iter
+          (fun f1 f2 ->
             let fid1, fid2 = mkfid1 f1, mkfid2 f2 in
             let fent1, fent2 = T.mkent fid1, T.mkent fid2 in
-	    fact_buf_for_mapping#add (fent1, T.p_mapped_neq_to, fent2);
+            fact_buf_for_mapping#add (fent1, T.p_mapped_neq_to, fent2);
             let fpent = T.make_entity_pair fid1 fid2 in
             fact_buf_for_mapping#add (fpent, T.p_is_a, T.c_file_pair);
             fact_buf_for_mapping#add (fpent, T.p_srctree_pair, stree_pair_ent);
             fact_buf_for_mapping#add (stree_pair_ent, T.p_file_pair, fpent);
             fact_buf_for_mapping#add (fpent, T.p_orig_file, fent1);
             fact_buf_for_mapping#add (fpent, T.p_mod_file, fent2);
-	  )
+          )
       end;
 
       if options#fact_for_changes_flag then begin
-	if into_virtuoso then
-	  Xprint.verbose options#verbose_flag "dumping changes fact into virtuoso..."
-	else if into_directory then
-	  Xprint.verbose options#verbose_flag
+        if into_virtuoso then
+          Xprint.verbose options#verbose_flag "dumping changes fact into virtuoso..."
+        else if into_directory then
+          Xprint.verbose options#verbose_flag
             "dumping changes fact into directory \"%s\"..." options#fact_into_directory
-	else
-	  Xprint.verbose options#verbose_flag "dumping changes fact to \"%s\"..." !changes_path;
+        else
+          Xprint.verbose options#verbose_flag "dumping changes fact to \"%s\"..." !changes_path;
 
 
         let vent1 = T.make_version_entity kv1 in
@@ -1897,134 +1900,134 @@ let fact_extractor options info =
         let get_locent1 = get_locent locent_tbl1 mklocent1 vent1 vent1_ok in
         let get_locent2 = get_locent locent_tbl2 mklocent2 vent2 vent2_ok in
 
-	List.iter
-	  (fun n ->
-	    fact_buf_for_changes#add (mkfent1 n, T.p_pruned_from, stree_ent2);
+        List.iter
+          (fun n ->
+            fact_buf_for_changes#add (mkfent1 n, T.p_pruned_from, stree_ent2);
 
             if need_locent then begin
-	      fact_buf_for_changes#add (get_locent1 n, T.p_pruned_from, stree_ent2)
+              fact_buf_for_changes#add (get_locent1 n, T.p_pruned_from, stree_ent2)
             end
 
-	  ) info#removed;
+          ) info#removed;
 
-	List.iter
-	  (fun n ->
-	    fact_buf_for_changes#add (mkfent2 n, T.p_grafted_onto, stree_ent1);
+        List.iter
+          (fun n ->
+            fact_buf_for_changes#add (mkfent2 n, T.p_grafted_onto, stree_ent1);
 
             if need_locent then begin
-	      fact_buf_for_changes#add (get_locent2 n, T.p_grafted_onto, stree_ent1)
+              fact_buf_for_changes#add (get_locent2 n, T.p_grafted_onto, stree_ent1)
             end
 
-	  ) info#added;
+          ) info#added;
 
-	info#modified#iter
-	  (fun n1 n2 ->
-	    fact_buf_for_changes#add (mkfent1 n1, T.p_modified, mkfent2 n2);
+        info#modified#iter
+          (fun n1 n2 ->
+            fact_buf_for_changes#add (mkfent1 n1, T.p_modified, mkfent2 n2);
 
             if need_locent then begin
-	      fact_buf_for_changes#add (get_locent1 n1, T.p_modified, get_locent2 n2)
+              fact_buf_for_changes#add (get_locent1 n1, T.p_modified, get_locent2 n2)
             end
 
-	  );
+          );
 
-	info#renamed#iter
-	  (fun n1 n2 ->
-	    fact_buf_for_changes#add (mkfent1 n1, T.p_renamed, mkfent2 n2);
+        info#renamed#iter
+          (fun n1 n2 ->
+            fact_buf_for_changes#add (mkfent1 n1, T.p_renamed, mkfent2 n2);
 
             if need_locent then begin
-	      fact_buf_for_changes#add (get_locent1 n1, T.p_renamed, get_locent2 n2)
+              fact_buf_for_changes#add (get_locent1 n1, T.p_renamed, get_locent2 n2)
             end
 
-	  );
+          );
 
-	info#moved#iter
-	  (fun n1 n2 ->
-	    fact_buf_for_changes#add (mkfent1 n1, T.p_moved_to, mkfent2 n2);
+        info#moved#iter
+          (fun n1 n2 ->
+            fact_buf_for_changes#add (mkfent1 n1, T.p_moved_to, mkfent2 n2);
 
             if need_locent then begin
-	      fact_buf_for_changes#add (get_locent1 n1, T.p_moved_to, get_locent2 n2)
+              fact_buf_for_changes#add (get_locent1 n1, T.p_moved_to, get_locent2 n2)
             end
 
-	  );
+          );
 
-	List.iter
-	  (fun (f1, fs2) ->
-	    List.iter
-	      (fun f2 ->
-		fact_buf_for_changes#add (mkfent2 f2, T.p_copied_from, mkfent1 f1);
+        List.iter
+          (fun (f1, fs2) ->
+            List.iter
+              (fun f2 ->
+                fact_buf_for_changes#add (mkfent2 f2, T.p_copied_from, mkfent1 f1);
 
                 if need_locent then begin
-	          fact_buf_for_changes#add (get_locent1 f1, T.p_copied_from, get_locent2 f2)
+                  fact_buf_for_changes#add (get_locent1 f1, T.p_copied_from, get_locent2 f2)
                 end
 
-	      ) fs2
-	  ) info#copied;
+              ) fs2
+          ) info#copied;
 
-	List.iter
-	  (fun (fs1, f2) ->
-	    List.iter
-	      (fun f1 ->
-		fact_buf_for_changes#add (mkfent1 f1, T.p_glued_to, mkfent2 f2);
+        List.iter
+          (fun (fs1, f2) ->
+            List.iter
+              (fun f1 ->
+                fact_buf_for_changes#add (mkfent1 f1, T.p_glued_to, mkfent2 f2);
 
                 if need_locent then begin
-	          fact_buf_for_changes#add (get_locent1 f1, T.p_glued_to, get_locent2 f2)
+                  fact_buf_for_changes#add (get_locent1 f1, T.p_glued_to, get_locent2 f2)
                 end
 
-	      ) fs1
-	  ) info#glued
+              ) fs1
+          ) info#glued
       end;
 
       if options#fact_for_delta_flag then begin
-	if into_virtuoso then
-	  Xprint.verbose options#verbose_flag "dumping delta fact into virtuoso..."
-	else if into_directory then
-	  Xprint.verbose options#verbose_flag
+        if into_virtuoso then
+          Xprint.verbose options#verbose_flag "dumping delta fact into virtuoso..."
+        else if into_directory then
+          Xprint.verbose options#verbose_flag
             "dumping delta fact into directory \"%s\"..." options#fact_into_directory
-	else
-	  Xprint.verbose options#verbose_flag "dumping delta fact to \"%s\"..." !delta_path;
+        else
+          Xprint.verbose options#verbose_flag "dumping delta fact to \"%s\"..." !delta_path;
 
         let make_chg_inst tag ln1 ln2 =
           let ln = String.concat Entity.sep [ln1; ln2; Editop.tag_to_string tag] in
           T.mkchginst ln
         in
         let triple_add chg xml cls ent1 ent2 =
-	  fact_buf_for_delta#add (chg, T.p_is_a, cls);
+          fact_buf_for_delta#add (chg, T.p_is_a, cls);
           fact_buf_for_delta#add (chg, T.p_xml, T.make_literal xml);
-	  fact_buf_for_delta#add (chg, T.p_entity1, ent1);
-	  fact_buf_for_delta#add (chg, T.p_entity2, ent2);
+          fact_buf_for_delta#add (chg, T.p_entity1, ent1);
+          fact_buf_for_delta#add (chg, T.p_entity2, ent2);
         in
-	List.iter
-	  (fun n ->
+        List.iter
+          (fun n ->
             let chg = make_chg_inst Editop.Tdel (mkfid1 n) stree_id2 in
             let xml = Delta_base.make_remove_file_elem n#data#path in
             triple_add chg xml T.c_del (mkfent1 n) stree_ent2
-	  ) info#removed;
+          ) info#removed;
 
-	List.iter
-	  (fun n ->
+        List.iter
+          (fun n ->
             let chg = make_chg_inst Editop.Tins stree_id1 (mkfid2 n) in
             let cch = n#data#get_content_channel_for_xml() in
             let xml = Delta_base.make_add_file_elem n#data#path cch in
             cch#close_in();
             triple_add chg xml T.c_ins stree_ent1 (mkfent2 n)
-	  ) info#added;
+          ) info#added;
 
-	info#renamed#iter
-	  (fun n1 n2 ->
+        info#renamed#iter
+          (fun n1 n2 ->
             let chg = make_chg_inst Editop.Trel (mkfid1 n1) (mkfid2 n2) in
             let xml = Delta_base.make_rename_file_elem n1#data#path n2#data#path in
             triple_add chg xml T.c_rel (mkfent1 n1) (mkfent2 n2)
-	  );
+          );
 
-	info#moved#iter
-	  (fun n1 n2 ->
+        info#moved#iter
+          (fun n1 n2 ->
             let chg = make_chg_inst Editop.Tmov (mkfid1 n1) (mkfid2 n2) in
             let xml = Delta_base.make_move_file_elem n1#data#path n2#data#path in
             triple_add chg xml T.c_mov (mkfent1 n1) (mkfent2 n2)
-	  );
+          );
 
-	info#modified#iter
-	  (fun n1 n2 ->
+        info#modified#iter
+          (fun n1 n2 ->
             if n1#data#is_auxfile && n2#data#is_auxfile then begin
               let chg = make_chg_inst Editop.Trel (mkfid1 n1) (mkfid2 n2) in
               let cch = n2#data#get_content_channel_for_xml() in
@@ -2032,7 +2035,7 @@ let fact_extractor options info =
               cch#close_in();
               triple_add chg xml T.c_rel (mkfent1 n1) (mkfent2 n2)
             end
-	  );
+          );
 
       end;
 

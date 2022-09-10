@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-MAINTAINER codinuum
+LABEL maintainer="codinuum"
 
 RUN set -x && \
     mkdir -p /opt/cca/modules && \
@@ -67,7 +67,7 @@ RUN set -x && \
     cd /root && \
     opam init -y --disable-sandboxing && \
     eval $(opam env) && \
-    opam install -y camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre volt && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix git-cohttp-unix menhir ocamlnet pxp ulex uuidm pcre volt && \
     cd src && \
     make && \
     cd ast/analyzing && \

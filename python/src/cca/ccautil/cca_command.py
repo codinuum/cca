@@ -4,7 +4,7 @@
 '''
   cca_command.py
 
-  Copyright 2012-2021 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -43,13 +43,13 @@ class store_subarg(Action):
 
 
 def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
-    logger.info('PHASE:"{}"'.format(PHASE))
-    logger.info('PROJ:"{}"'.format(PROJ))
-    logger.info('WDIR_BASE:"{}"'.format(WDIR_BASE))
-    logger.info('NPROCS:"{}"'.format(NPROCS))
-    logger.info('sub args:"{}"'.format(args.sargs))
+    logger.info(f'PHASE:"{PHASE}"')
+    logger.info(f'PROJ:"{PROJ}"')
+    logger.info(f'WDIR_BASE:"{WDIR_BASE}"')
+    logger.info(f'NPROCS:"{NPROCS}"')
+    logger.info(f'sub args:"{args.sargs}"')
 
-    SUB_CMD_NAME = 'cca_{}.py'.format(PHASE)
+    SUB_CMD_NAME = f'cca_{PHASE}.py'
 
     DIST_DIR = os.path.dirname(sys.argv[0])
 
@@ -63,40 +63,29 @@ def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
 
     cmd_fmt = time_cmd + ' -o %(log)s %(subcmd)s'
 
-    log_base = os.path.join(WDIR, 'time.{}-{}'.format(PHASE, PROJ_))
+    log_base = os.path.join(WDIR, f'time.{PHASE}-{PROJ_}')
 
     gencmd = cmd_fmt % {
         'log': log_base + '.generate',
-        'subcmd': '{} {} -c generate {} {}'.format(SUB_CMD_PATH,
-                                                   args.sargs,
-                                                   PROJ,
-                                                   WDIR),
+        'subcmd': f'{SUB_CMD_PATH} {args.sargs} -c generate {PROJ} {WDIR}',
     }
 
-    sub_args = '{} -b {}'.format(PROJ, WDIR_BASE)
+    sub_args = f'{PROJ} -b {WDIR_BASE}'
     if args.sargs != '':
         sub_args += ' '+args.sargs
 
-    sub_args = '-a "{}"'.format(sub_args)
+    sub_args = f'-a "{sub_args}"'
 
     run_workers_cmd_path = os.path.join(DIST_DIR, 'run_workers.py')
 
     workcmd = cmd_fmt % {
         'log': log_base + '.work',
-        'subcmd': '{} -n {} -c {} {} {}'.format(run_workers_cmd_path,
-                                                NPROCS,
-                                                SUB_CMD_NAME,
-                                                sub_args,
-                                                WDIR),
+        'subcmd': f'{run_workers_cmd_path} -n {NPROCS} -c {SUB_CMD_NAME} {sub_args} {WDIR}',
     }
 
     collcmd = cmd_fmt % {
         'log': log_base + '.collect',
-        'subcmd': '{} {} -c collect -b {} {} {}'.format(SUB_CMD_PATH,
-                                                        PROJ,
-                                                        WDIR_BASE,
-                                                        args.sargs,
-                                                        WDIR),
+        'subcmd': f'{SUB_CMD_PATH} {PROJ} -c collect -b {WDIR_BASE} {args.sargs} {WDIR}',
     }
 
     cmds = [gencmd, workcmd]
@@ -113,11 +102,11 @@ def sub(args, PHASE, PROJ, WDIR_BASE, NPROCS):
     stat = 0
 
     for c in cmds:
-        logger.info('cmd=[{}]'.format(c))
+        logger.info(f'cmd=[{c}]')
         rc = proc.system(c)
         if rc != 0:
             stat = rc
-            logger.warning('failed to execute (code={}): "{}"'.format(rc, c))
+            logger.warning(f'failed to execute (code={rc}): "{c}"')
 
     return stat
 
