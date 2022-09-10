@@ -128,7 +128,7 @@ let _ =
 
       fprintf stderr "%d lines read\n" _parser#lines_read;
 
-      exit 0
+      ignore (exit 0)
     done
   with
   | Sys_error msg -> Xprint.error "%s" msg

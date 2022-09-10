@@ -267,6 +267,8 @@ module F (Stat : Aux.STATE_T) = struct
 		DEBUG_MSG "---> %s" (Token.qtoken_to_string qtoken);
 
 		let st, ed = Loc.to_lexposs loc in
+                last_tok := tok;
+                last_loc := loc;
 
 		tok, st, ed
 
@@ -279,10 +281,8 @@ module F (Stat : Aux.STATE_T) = struct
 		    eop_flag := true;
 
 		    BEGIN_DEBUG
-		      DEBUG_MSG "last token: %s"
-                      (Token.qtoken_to_string (!last_tok, !last_loc));
-		    DEBUG_MSG "EOP[%s]"
-		      (Loc.to_string ~short:true (env#current_pos_mgr#lexposs_to_loc ed ed));
+		      DEBUG_MSG "last token: %s" (Token.qtoken_to_string (!last_tok, !last_loc));
+		      DEBUG_MSG "EOP[%s]" (Loc.to_string ~short:true (env#current_pos_mgr#lexposs_to_loc ed ed));
 		    END_DEBUG;
 
 		    EOP, ed, ed
@@ -390,10 +390,8 @@ module F (Stat : Aux.STATE_T) = struct
 		    eop_flag := true;
 
 		    BEGIN_DEBUG
-		      DEBUG_MSG "last token: %s"
-                      (Token.qtoken_to_string (!last_tok, !last_loc));
-		    DEBUG_MSG "EOP[%s]"
-		      (Loc.to_string ~short:true (env#current_pos_mgr#lexposs_to_loc ed ed));
+                      DEBUG_MSG "last token: %s" (Token.qtoken_to_string (!last_tok, !last_loc));
+                      DEBUG_MSG "EOP[%s]" (Loc.to_string ~short:true (env#current_pos_mgr#lexposs_to_loc ed ed));
 		    END_DEBUG;
 
 		    EOP, ed, ed
@@ -1562,6 +1560,7 @@ module F (Stat : Aux.STATE_T) = struct
                 env#checkpoint Loc.dummy;
 
                 let last_tok = tbuf#get_last_taken_no_pp_branch in
+                let _ = last_tok in
                 DEBUG_MSG "last_tok=%s" (Token.rawtoken_to_string last_tok);
 
                 try

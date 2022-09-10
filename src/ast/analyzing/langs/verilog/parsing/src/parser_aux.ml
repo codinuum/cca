@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -376,11 +376,10 @@ class env = object (self)
     Stack.push (create_frame sattr) stack
 
   method end_scope =
-    let slen = Stack.length stack in
     try
       let frm = (Stack.pop stack) in
 
-      DEBUG_MSG "POP(%d): FRM: <%s>" slen (sattr_to_str frm.f_attr);
+      DEBUG_MSG "POP(%d): FRM: <%s>" (Stack.length stack) (sattr_to_str frm.f_attr);
 
       match frm.f_attr with
       | SApackage id -> Hashtbl.add symbol_tbl id frm
@@ -509,9 +508,11 @@ module F (Stat : STATE_T) = struct
     new Layeredloc.c ~layers loc
 
   let make_error_node start_offset end_offset =
-    DEBUG_MSG "start_offset=%d, end_offset=%d" start_offset end_offset;
-    let st, ed = env#get_last_active_ofss in
-    DEBUG_MSG "last_active_ofss: %d - %d" st ed;
+    BEGIN_DEBUG
+      DEBUG_MSG "start_offset=%d, end_offset=%d" start_offset end_offset;
+      let st, ed = env#get_last_active_ofss in
+      DEBUG_MSG "last_active_ofss: %d - %d" st ed
+    END_DEBUG;
 
     let lloc = lloc_of_offsets start_offset end_offset in
 

@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -229,10 +229,10 @@ class stack env = object (self)
   method register_activate_callback f   = Stack.push f activate_callback_stack
   method register_deactivate_callback f = Stack.push f deactivate_callback_stack
 
-  method unregister_push_callback       = let _ = Stack.pop push_callback_stack in ()
-  method unregister_pop_callback        = let _ = Stack.pop pop_callback_stack in ()
-  method unregister_activate_callback   = let _ = Stack.pop activate_callback_stack in ()
-  method unregister_deactivate_callback = let _ = Stack.pop deactivate_callback_stack in ()
+  method unregister_push_callback       = (begin ignore (Stack.pop push_callback_stack) end)[@warning "-5"]
+  method unregister_pop_callback        = (begin ignore (Stack.pop pop_callback_stack) end)[@warning "-5"]
+  method unregister_activate_callback   = (begin ignore (Stack.pop activate_callback_stack) end)[@warning "-5"]
+  method unregister_deactivate_callback = (begin ignore (Stack.pop deactivate_callback_stack) end)[@warning "-5"]
 
   method clear = Stack.clear stack
 

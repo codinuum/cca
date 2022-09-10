@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -148,7 +148,7 @@ let _ =
 
       Printf.printf "\n";
 
-      exit 0
+      ignore (exit 0)
     done
   with
   | Sys_error msg -> Xprint.error ~out:stdout "%s" msg

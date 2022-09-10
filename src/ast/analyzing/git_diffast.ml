@@ -80,12 +80,12 @@ let setup_log =
 
 let term_info title ~doc ~man =
   let man = man @ help_sections in
-  Term.info ~sdocs:global_option_section ~doc ~man title
+  Cmd.info ~sdocs:global_option_section ~doc ~man title
 
 type command = {
   name: string;
-  doc : string;
-  man : Manpage.block list;
+  doc: string;
+  man: Manpage.block list;
   term: unit Term.t;
 }
 
@@ -96,7 +96,7 @@ let command c =
   ] @ c.man in
   c.term, term_info c.name ~doc:c.doc ~man
 
-let mk (fn:'a): 'a Term.t = Term.(pure (fun () -> fn) $ setup_log)
+let mk (fn:'a): 'a Term.t = Term.(const (fun () -> fn) $ setup_log)
 
 (* Helpers *)
 let mk_flag ?section flags doc =
@@ -749,10 +749,10 @@ let help = {
         | `Error e                -> `Error (false, e)
         | `Ok t when t = "topics" -> List.iter print_endline cmds; `Ok ()
         | `Ok t                   -> `Help (man_format, Some t) in
-    Term.(ret (pure help $Term.man_format $Term.choice_names $topic $setup_log))
+    Term.(ret (const help $Arg.man_format $Term.choice_names $topic $setup_log))
 }
 
-let default =
+let default, info =
   let doc = "Mirage application builder" in
   let man = [
     `S "DESCRIPTION";
@@ -773,14 +773,14 @@ let default =
        \n\
        See 'ogit help <command>' for more information on a specific command.\n%!"
       in
-  Term.(pure usage $ setup_log),
-  Term.info "ogit"
+  Term.(const usage $ setup_log),
+  Cmd.info "ogit"
     ~version:"%%VERSION%%"
     ~sdocs:global_option_section
     ~doc
     ~man
 
-let commands = List.map command [
+let commands = List.map (fun c -> Cmd.v (Cmd.info c.name ~doc:c.doc ~man:c.man) c.term) [
     cat_file;
     (*ls_remote;*)
     ls_tree;
@@ -790,6 +790,6 @@ let commands = List.map command [
   ]
 
 let () =
-  match Term.eval_choice default commands with
-  | `Error _ -> exit 1
-  | _ -> ()
+  let ec = Cmd.eval (Cmd.group ~default info commands) in
+  if ec <> Cmd.Exit.ok then
+    exit 1
