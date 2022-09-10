@@ -108,6 +108,7 @@ class type c_t = object
 
   method prepend_token : token -> unit
   method discard_token : unit -> token
+  method discard_nth_token : int -> token
   method queue_token : token -> unit
   method reset : unit -> unit
 

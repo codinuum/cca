@@ -82,6 +82,7 @@ let rawtoken_to_string = function
   | DTOR_MACRO s         -> sprintf "DTOR_MACRO:%s" s
   | CLASS_HEAD_MACRO s   -> sprintf "CLASS_HEAD_MACRO:%s" s
   | FUNC_HEAD_MACRO s    -> sprintf "FUNC_HEAD_MACRO:%s" s
+  | CAST_HEAD_MACRO s    -> sprintf "CAST_HEAD_MACRO:%s" s
 
   | IDENT s               -> sprintf "IDENT:%s" s
   | IDENT_ s              -> sprintf "IDENT_:%s" s
@@ -535,6 +536,7 @@ let rawtoken_to_repr = function
   | DTOR_MACRO s         -> s
   | CLASS_HEAD_MACRO s   -> s
   | FUNC_HEAD_MACRO s    -> s
+  | CAST_HEAD_MACRO s    -> s
 
   | IDENT s               -> s
   | IDENT_ s              -> s

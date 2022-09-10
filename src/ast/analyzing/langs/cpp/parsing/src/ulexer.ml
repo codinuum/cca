@@ -158,7 +158,8 @@ let regexp pp_keyword = '#' white_space* identifier
 let regexp ws_or_lt = white_space | '\\' line_terminator
 let regexp ident_or_symbol = identifier | '.' | '=' | ['0'-'9']+identifier?
 let regexp pp_concatenated_identifier =
-  (identifier ws_or_lt* "##" ws_or_lt* )+ (ident_or_symbol ws_or_lt* "##" ws_or_lt* )* ident_or_symbol
+  (identifier ws_or_lt* "##" ws_or_lt* )+ (ident_or_symbol ws_or_lt* "##" ws_or_lt* )* ident_or_symbol |
+  (identifier "#")+ identifier?
 
 (* *)
 
@@ -370,6 +371,7 @@ let _find_keyword =
      "__has_include"    , HAS_INCLUDE;
      "__has_cpp_attribute", HAS_CPP_ATTRIBUTE;
 
+     "restrict"         , RESTRICT "restrict"; (* C99 *)
      "__restrict__"     , RESTRICT "__restrict__";
 
      "__asm__"          , GNU_ASM "__asm__";
@@ -649,7 +651,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |  '\\' -> mktok BS lexbuf
 
 |  eof ->
-    mktok EOF lexbuf
+    if env#lex_pp_line_flag then begin
+      env#exit_lex_pp_line();
+      mktok NEWLINE lexbuf
+    end
+    else
+      mktok EOF lexbuf
 
 |  _ ->
     let s = Ulexing.utf8_lexeme lexbuf in

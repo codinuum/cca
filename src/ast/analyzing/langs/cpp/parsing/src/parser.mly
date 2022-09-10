@@ -473,7 +473,8 @@ let warning = Parserlib_base.parse_warning
 %token <string> PARAMS_MACRO PARAMS_BODY_MACRO ARGS_MACRO ARG_MACRO NEW_INIT_MACRO ATTR_MACRO ACC_SPEC_MACRO
 %token <string> DECL_SPEC_MACRO CV_MACRO NOEXCEPT_MACRO NS_MACRO EMPTY_MACRO DELIM_MACRO BASE_MACRO
 %token <string> SUFFIX_MACRO BODY_MACRO BLOCK_HEAD_MACRO BLOCK_END_MACRO TYPE_MACRO CC_MACRO LAM_MACRO
-%token <string> PARAM_DECL_MACRO PTR_MACRO BASE_SPEC_MACRO DTOR_MACRO CLASS_HEAD_MACRO FUNC_HEAD_MACRO
+%token <string> PARAM_DECL_MACRO PTR_MACRO BASE_SPEC_MACRO DTOR_MACRO CLASS_HEAD_MACRO CAST_HEAD_MACRO
+%token <string> FUNC_HEAD_MACRO
 
 %token SUB_REQUIRES ELAB_ENUM ELAB_CLASS ODD_FOR ODD_ELSE
 %token TEMPL_LT TEMPL_LT_ TEMPL_GT LAM_LBRACKET ATTR_LBRACKET INI_LBRACE CLASS_LBRACE
@@ -523,9 +524,11 @@ COLON       : BASE_COLON
 ZERO        : PURE_ZERO
 
 IDENT: IDENT_V(value), IDENT_B(member_declarator:bit_field), IDENT_C(type_constraint)
-       IDENT_E(enumerator)
-       IDENT_EM(expr macro), IDENT_SM(stmt macro), IDENT_SXM(suffx macro), IDENT_TM(type macro), IDENT_IM(ident macro)
-       IDENT_PM(params macro), IDENT_CM(cv qualifier macro), IDENT_LM(literal macro), IDENT_AM(attr/args macro)
+       IDENT_E(enumerator),
+       IDENT_EM(expr macro), IDENT_SM(stmt macro), IDENT_SXM(suffx macro), IDENT_TM(type macro),
+       IDENT_IM(ident macro)
+       IDENT_PM(params macro), IDENT_CM(cv qualifier macro), IDENT_LM(literal macro),
+       IDENT_AM(attr/args macro)
        IDENT_TPM(templ param macro), IDENT_NSM(namespace macro), IDENT_DSM(decl or stmt macro)
        IDENT_BHM(block head macro), IDENT_BEM(block end macro), IDENT_BFM(bit-field macro),
        IDENT_CHM(cast/class head macro), IDENT_OM(op macro)
@@ -3551,6 +3554,7 @@ _designated_initializer_list:
 | dl=_designated_initializer_list COMMA d=designated_initializer_clause { d::dl }
 | dl=_designated_initializer_list COMMA p=pp_control_line { p::dl }
 | dl=_designated_initializer_list COMMA p=pp_control_line i=initializer_clause { i::p::dl }
+| dl=_designated_initializer_list COMMA p=pp_control_line d=designated_initializer_clause { d::p::dl }
 | dl=_designated_initializer_list COMMA i=initializer_clause { i::dl }
 | dl=_designated_initializer_list COMMA p=pp_dinit_if_section { p::dl }
 | dl=_designated_initializer_list COMMA pl=_pp_dinit_if_section_list d=designated_initializer_clause { d::pl@dl }
@@ -6855,6 +6859,7 @@ __initializer_list:
 | p=pp_init_if_section i=init_pack          { [i; p] }
 | il=_initializer_list p=pp_init_if_section i=initializer_clause { i::p::il }
 | il=_initializer_list p=pp_init_if_section i=init_pack          { i::p::il }
+| il=_initializer_list p=pp_dinit_if_section { p::il }
 ;
 
 %inline
@@ -8280,9 +8285,13 @@ cast_expression:
     { mknode ~pvec:[0; 1; 1] $startpos $endpos L.CastExpression [t; c] }
 | TY_LPAREN al=(*gnu_attribute*)attribute_specifier_seq t=type_id RPAREN c=cast_expression
     { mknode ~pvec:[List.length al; 1; 1] $startpos $endpos L.CastExpression (al @ [t; c]) }
-
-| TY_LPAREN t=type_id RPAREN p=pp_expr_if_section { mknode ~pvec:[0; 1; 1] $startpos $endpos L.CastExpression [t; p] }
-
+| TY_LPAREN t=type_id RPAREN p=pp_expr_if_section
+    { mknode ~pvec:[0; 1; 1] $startpos $endpos L.CastExpression [t; p] }
+| i=CAST_HEAD_MACRO c=cast_expression
+    { 
+      let t = mkleaf $startpos $endpos(i) (L.TypeMacro i) in
+      mknode ~pvec:[0; 1; 1] $startpos $endpos L.CastExpression [t; c]
+    }
 | i=IDENT_CHM ml=macro_args c=cast_expression
     { 
       let t = mknode ~pvec:[List.length ml; 0] $startpos $endpos(ml) (L.TypeMacroInvocation i) ml in
