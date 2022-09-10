@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -348,6 +348,7 @@ module F (Stat : Aux.STATE_T) = struct
 
     method exit_branch =
       let btag = Stack.pop branch_tag_stack in
+      let _ = btag in
       DEBUG_MSG "[%d] poped %s" lv (B.tag_to_string btag)
 
     method nbbuf = Stack.length stack
@@ -1212,6 +1213,7 @@ module F (Stat : Aux.STATE_T) = struct
                   if is_virtual_else then begin
                     for i = 1 to !to_be_discarded do
                       let t, _ = tokensrc#discard ~skip_pp_branch:false () in
+                      let _ = t in
                       DEBUG_MSG "discarded: %s" (Token.rawtoken_to_string t)
                     done;
                     let kloc =

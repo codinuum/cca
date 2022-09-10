@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -947,7 +947,7 @@ module F (Stat : Aux.STATE_T) = struct
           DEBUG_MSG "%d pp-markers found" nmarkers;
 
           let blv = self#peek_up_to_non_pp nmarkers buf token in
-
+          let _ = blv in
           DEBUG_MSG "branch level: %d" blv;
           (*Printf.printf "[%d] %s\n%!" blv (Token.qtoken_to_string token);*)
 

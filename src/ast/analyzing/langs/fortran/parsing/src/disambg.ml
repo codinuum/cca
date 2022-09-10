@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1623,6 +1623,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       =
     DEBUG_MSG "disambiguating:\n%s" (Printer.subtree_to_string node);
     let nds_to_str = Xlist.to_string (fun n -> L.to_string n#label) ";" in
+    let _ = nds_to_str in
     let rec doit node =
       if L.is_ambiguous_tuple node#label then begin
         let found, list, nl_opt, control =
@@ -1910,6 +1911,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         (match b_opt with Some b -> b#to_string | None -> "<none>")
         lab
     in
+    let _ = tpl_to_string in
     let lv_has_lab lv lab =
       match lv with
       | [] -> false

@@ -1554,6 +1554,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   '0' | white_space ->
     let s = Ulexing.utf8_lexeme lexbuf in
+    let _ = s in
     DEBUG_MSG "INITIAL LINE (%s) [%dL]" s genv#lnum;
     if genv#free_cont_flag then begin
       DEBUG_MSG "last line ends with '&' and continuation field is '%s'" s;
@@ -1589,6 +1590,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 |   letter ->
     let s = Ulexing.utf8_lexeme lexbuf in
+    let _ = s in
     DEBUG_MSG "CONTINUATION! (%s) [%dL]" s genv#lnum;
     if genv#free_cont_flag then begin
       DEBUG_MSG "last line ends with '&' and continuation field is '%s'" s;
@@ -4897,8 +4899,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         line_comment head ~pending_EOL pure_comment st lexbuf
       end
       else begin
-        let loc = mkloc lexbuf in
-        DEBUG_MSG "ACC Directive [%s]" (Loc.to_string loc);
+        DEBUG_MSG "ACC Directive [%s]" (Loc.to_string (mkloc lexbuf));
         acc ~pending_EOL pure_comment st "" lexbuf
       end
     end
