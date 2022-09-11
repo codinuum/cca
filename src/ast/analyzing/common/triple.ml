@@ -84,7 +84,7 @@ let make_real_literal r = make_literal ~ty:LT_real (string_of_float r)
 let minus_pat = Str.regexp_string "-"
 
 let gen_blank_node() =
-  let uuid = Uuidm.v4_gen (Random.get_state()) () in
+  let uuid = Uuidm.v `V4 in
   let uuid_str = sprintf "u%s" (Uuidm.to_string ~upper:true uuid) in
   N_Blank (Str.global_replace minus_pat "x" uuid_str)
 
