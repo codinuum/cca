@@ -2887,11 +2887,13 @@ class parser_c = object (self)
             | I.X (I.N N_iteration_statement), I.X (I.T T_WHILE)::_, I.X (I.T T_LPAREN) -> begin
                 scanner#ctx_expr();
                 scanner#ctx_ini();
+                env#set_condition_flag();
                 raise Exit
             end
             | I.X (I.N N_iteration_statement), I.X (I.T T_WHILE)::_, I.X (I.T T_RPAREN) -> begin
                 let sn = I.current_state_number menv_ in
                 ctx_start_of_stmt sn;
+                env#clear_condition_flag();
                 raise Exit
             end
             | I.X (I.N N_jump_statement), I.X (I.T T_RETURN)::_, I.X (I.T T_RETURN) -> begin
@@ -2928,8 +2930,8 @@ class parser_c = object (self)
             | I.X (I.N N_selection_statement), x::_, I.X (I.T T_LPAREN) -> begin
                 begin
                   match x with
-                  | I.X (I.T T_IF) -> scanner#ctx_expr()
-                  | I.X (I.T T_SWITCH) -> scanner#ctx_expr()
+                  | I.X (I.T T_IF) -> scanner#ctx_expr(); env#set_condition_flag()
+                  | I.X (I.T T_SWITCH) -> scanner#ctx_expr(); env#set_condition_flag()
                   | _ -> ()
                 end;
                 raise Exit
@@ -2941,12 +2943,14 @@ class parser_c = object (self)
                       let sn = I.current_state_number menv_ in
                       ctx_start_of_stmt sn;
                       scanner#ctx_stmt();
-                      env#set_end_of_if_head_flag()
+                      env#set_end_of_if_head_flag();
+                      env#clear_condition_flag()
                   end
                   | I.X (I.T T_SWITCH) -> begin
                       let sn = I.current_state_number menv_ in
                       ctx_start_of_stmt sn;
-                      scanner#ctx_stmt()
+                      scanner#ctx_stmt();
+                      env#clear_condition_flag()
                   end
                   | _ -> ()
                 end;

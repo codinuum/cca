@@ -110,6 +110,7 @@ class pstat = object (self)
   val mutable end_of_label_flag = false
   val mutable attr_flag = false
   val mutable linkage_spec_flag = false
+  val mutable condition_flag = false
 
   val paren_stack = Stack.create()
   val brace_stack = Stack.create()
@@ -195,6 +196,7 @@ class pstat = object (self)
     end_of_label_flag <- false;
     attr_flag <- false;
     linkage_spec_flag <- false;
+    condition_flag <- false;
     Stack.clear paren_stack;
     Stack.clear brace_stack;
     Stack.clear templ_param_arg_stack;
@@ -809,6 +811,18 @@ class pstat = object (self)
     end
 
   method linkage_spec_flag = linkage_spec_flag
+
+  method set_condition_flag () =
+    DEBUG_MSG "condition_flag set";
+    condition_flag <- true
+
+  method clear_condition_flag () =
+    if condition_flag then begin
+      DEBUG_MSG "condition_flag cleared";
+      condition_flag <- false
+    end
+
+  method condition_flag = condition_flag
 
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
@@ -2511,6 +2525,10 @@ class env = object (self)
   method set_linkage_spec_flag = pstat#set_linkage_spec_flag
   method clear_linkage_spec_flag = pstat#clear_linkage_spec_flag
   method linkage_spec_flag = pstat#linkage_spec_flag
+
+  method set_condition_flag = pstat#set_condition_flag
+  method clear_condition_flag = pstat#clear_condition_flag
+  method condition_flag = pstat#condition_flag
 
   method set_trailing_retty_flag = pstat#set_trailing_retty_flag
   method clear_trailing_retty_flag = pstat#clear_trailing_retty_flag

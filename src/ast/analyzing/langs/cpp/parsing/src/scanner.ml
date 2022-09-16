@@ -1104,6 +1104,7 @@ let flags_to_str e =
      "lambda_intro"               , e#lambda_intro_flag;
      "last_ty_templ_id"           , e#last_ty_templ_id_flag;
      "linkage_spec"               , e#linkage_spec_flag;
+     "condition"                  , e#condition_flag;
      "macro_arg"                  , e#macro_arg_flag;
      "ns_alias"                   , e#ns_alias_flag;
      "in_objc_message_expr"       , e#in_objc_message_expr;
@@ -2454,7 +2455,11 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 match prev_rawtoken2 with
                 | IF | WHILE ->
                     not
-                      (is_literal (self#peek_nth_rawtoken 2) ||
+                      (
+                       (match self#peek_nth_rawtoken 2 with
+                       | EQ -> true
+                       | x -> is_literal x
+                       ) ||
                       self#is_macro_obj (Token.rawtoken_to_repr (self#peek_rawtoken())))
 
                 | IDENT_V _ -> begin
@@ -4099,6 +4104,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     end
                     | _ -> false
                 end -> DEBUG_MSG "* @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) IDENT"; token
+
+                | _ when env#at_paren && env#condition_flag && begin
+                    match self#peek_nth_rawtoken 2 with
+                    | IDENT _ -> begin
+                        match self#peek_nth_rawtoken 3 with
+                        | EQ -> true
+                        | _ -> false
+                    end
+                    | _ -> false
+                end -> DEBUG_MSG "* @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) IDENT EQ"; token
 
                 | _ -> DEBUG_MSG "* @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) *"; mk (T.IDENT_V s)
             end
