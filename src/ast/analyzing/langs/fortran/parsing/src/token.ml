@@ -745,14 +745,16 @@ let rec rawtoken_to_string = function
   | END_ENUM s         -> "END_ENUM"    (* F2003 *)
   | END_FILE s         -> "END_FILE"
   | END_FORALL s       -> "END_FORALL"
-  | END_FUNCTION s     -> "END_FUNCTION"
+(*  | END_FUNCTION s     -> "END_FUNCTION"*)
   | END_IF s           -> "END_IF"
   | END_INTERFACE s    -> "END_INTERFACE"
   | END_MODULE s       -> "END_MODULE"
+  | END_PROCEDURE s    -> "END_PROCEDURE"
   | END_PROGRAM s      -> "END_PROGRAM"
   | END_SELECT s       -> "END_SELECT"
   | END_SUBMODULE s    -> "END_SUBMODULE" (* F2008 *)
-  | END_SUBROUTINE s   -> "END_SUBROUTINE"
+  | END_SUBPROGRAM s   -> sprintf "END_SUBPROGRAM(%s)" s
+(*  | END_SUBROUTINE s   -> "END_SUBROUTINE"*)
   | END_TYPE s         -> "END_TYPE"
   | END_WHERE s        -> "END_WHERE"
   | ENTRY s            -> "ENTRY"
@@ -1695,14 +1697,16 @@ let rec rawtoken_size = function
   | END_ENUM s
   | END_FILE s
   | END_FORALL s
-  | END_FUNCTION s
+(*  | END_FUNCTION s*)
   | END_IF s
   | END_INTERFACE s
   | END_MODULE s
+  | END_PROCEDURE s
   | END_PROGRAM s
   | END_SELECT s
   | END_SUBMODULE s
-  | END_SUBROUTINE s
+  | END_SUBPROGRAM s
+(*  | END_SUBROUTINE s*)
   | END_TYPE s
   | END_WHERE s
   | ENTRY s
@@ -2620,14 +2624,16 @@ let rawtoken_to_rep = function
   | END_ENUM s
   | END_FILE s
   | END_FORALL s
-  | END_FUNCTION s
+(*  | END_FUNCTION s*)
   | END_IF s
   | END_INTERFACE s
   | END_MODULE s
+  | END_PROCEDURE s
   | END_PROGRAM s
   | END_SELECT s
   | END_SUBMODULE s
-  | END_SUBROUTINE s
+  | END_SUBPROGRAM s
+(*  | END_SUBROUTINE s*)
   | END_TYPE s
   | END_WHERE s
   | ENTRY s
@@ -2856,14 +2862,16 @@ let get_keyword ?(elsef=fun t -> raise Not_found) = function
   | END_ENUM s
   | END_FILE s
   | END_FORALL s
-  | END_FUNCTION s
+(*  | END_FUNCTION s*)
   | END_IF s
   | END_INTERFACE s
   | END_MODULE s
+  | END_PROCEDURE s
   | END_PROGRAM s
   | END_SELECT s
   | END_SUBMODULE s
-  | END_SUBROUTINE s
+  | END_SUBPROGRAM s
+(*  | END_SUBROUTINE s*)
   | END_TYPE s
   | END_WHERE s
   | ENTRY s
@@ -3004,10 +3012,11 @@ let is_action_stmt_kw = function
   | CYCLE _
   | DEALLOCATE _
   | END_FILE _
-  | END_FUNCTION _
+(*  | END_FUNCTION _*)
   | END_PROGRAM _
   | END_SUBMODULE _
-  | END_SUBROUTINE _
+  | END_SUBPROGRAM _
+(*  | END_SUBROUTINE _*)
   | EXIT _
   | FORALL _
   | GO_TO _

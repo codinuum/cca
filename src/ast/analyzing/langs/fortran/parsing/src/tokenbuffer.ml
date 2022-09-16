@@ -94,12 +94,14 @@ module F (Stat : Aux.STATE_T) = struct
     | END_ASSOCIATE _
     | END_BLOCK _
     | END_CRITICAL _
-    | END_FUNCTION _
+(*    | END_FUNCTION _*)
     | END_MODULE _
+    | END_PROCEDURE _
     | END_PROGRAM _
     | END_SELECT _
     | END_SUBMODULE _
-    | END_SUBROUTINE _
+    | END_SUBPROGRAM _
+(*    | END_SUBROUTINE _*)
     | END_TYPE _
     | ENTRY _
     | ENUMERATOR _
@@ -143,6 +145,10 @@ module F (Stat : Aux.STATE_T) = struct
     | MODULE _ -> begin
         match tok with
         | PROCEDURE _ | FUNCTION _ | SUBROUTINE _ -> false
+
+        | KINDED_TYPE_SPEC _ | DOUBLE_PRECISION _ | CHARACTER _ | TYPE _ | CLASS _
+        | PREFIX_SPEC _ when env#in_interface_context -> false
+
         | _ -> true
     end
 
@@ -222,7 +228,8 @@ module F (Stat : Aux.STATE_T) = struct
   let get_if_action_cond last_tok tok =
     (is_head_of_stmt last_tok) &&
     (match tok with
-    | IF _ | END_PROGRAM _ | END_FUNCTION _ | END_SUBROUTINE _ -> false
+    | IF _ | END_PROGRAM _(* | END_FUNCTION _ | END_SUBROUTINE _*) | END_SUBPROGRAM _
+    | END_PROCEDURE _ -> false
     | _ -> true
     )
 
@@ -701,6 +708,10 @@ module F (Stat : Aux.STATE_T) = struct
             match last_tok with
             | PREFIX_SPEC _ | SUBPROGRAM _ | PROGRAM_UNIT _ | END_FRAGMENT -> ()
             (*| RECURSIVE _ | PURE _ | ELEMENTAL _ | IMPURE _ -> ()*)
+
+            | MODULE _ | KINDED_TYPE_SPEC _ | DOUBLE_PRECISION _ | CHARACTER _ | TYPE _ | CLASS _
+              when env#in_interface_context -> ()
+
             | _ -> begin
                 DEBUG_MSG "<keyword> --> <identifier>";
                 tok := IDENTIFIER s
@@ -1545,7 +1556,7 @@ module F (Stat : Aux.STATE_T) = struct
       | ELSE s | END s (*| IN s*) | INTENT_SPEC s -> begin
 	  match peek_next() with
 	  | IF s' | BLOCK_DATA s' | DO s' | FORALL s' | FUNCTION s'
-	  | INTERFACE s' | MODULE s' | SUBMODULE s' | PROGRAM s'
+	  | INTERFACE s' | MODULE s' | SUBMODULE s' | PROCEDURE s' | PROGRAM s'
 	  | SUBROUTINE s' | TYPE s' | WHERE s' (*| OUT s'*)
           | INTENT_SPEC s' | ASSOCIATE s' | CRITICAL s' | ENUM s'
 	  | IDENTIFIER s' | STRUCTURE s' | UNION s' | MAP s' -> begin
@@ -2340,7 +2351,8 @@ module F (Stat : Aux.STATE_T) = struct
           let rep = ref s in
           match last_tok with
           | PRIVATE _ | PUBLIC _ | PROCEDURE _ | CALL _ | USE _
-          | TYPE _ | END_TYPE _ | SUBROUTINE _ | END_SUBROUTINE _ | FUNCTION _ | END_FUNCTION _
+          | TYPE _ | END_TYPE _ | SUBROUTINE _ | FUNCTION _(* | END_SUBROUTINE _ | END_FUNCTION _*)
+          | END_SUBPROGRAM _ | END_PROCEDURE _
           | INTERFACE _ | END_INTERFACE _ | MODULE _ | END_MODULE _
           | LPAREN | COLON_COLON | PERCENT | COMMA
             -> begin
@@ -2567,7 +2579,7 @@ module F (Stat : Aux.STATE_T) = struct
           DEBUG_MSG "popping context_stack";
           context_stack#pop;
       end
-      | END_FUNCTION _ | END_SUBROUTINE _ -> begin
+      (*| END_FUNCTION _ | END_SUBROUTINE _*) | END_SUBPROGRAM _ | END_PROCEDURE _ -> begin
           if env#in_contains_context || env#in_interface_context then begin
             if not env#partial_parsing_flag then begin
               DEBUG_MSG "popping context_stack";
@@ -2636,8 +2648,8 @@ module F (Stat : Aux.STATE_T) = struct
     let qtoken = (!tok, !loc) in
 
     BEGIN_DEBUG
-    if _tok <> !tok then
-      DEBUG_MSG " --> %s" (Token.qtoken_to_string qtoken);
+      if _tok <> !tok then
+        DEBUG_MSG " --> %s" (Token.qtoken_to_string qtoken);
     END_DEBUG;
 
     tokensrc#set_prev_rawtok last_tok;
@@ -2999,8 +3011,9 @@ module F (Stat : Aux.STATE_T) = struct
           let rt = Token.qtoken_to_rawtoken qtoken' in
           begin
             match rt with
-            | END _ | END_BLOCK_DATA _ | END_FUNCTION _
-            | END_SUBROUTINE _ | END_PROGRAM _ | END_MODULE _ | END_SUBMODULE _
+            | END _ | END_BLOCK_DATA _(* | END_FUNCTION _ | END_SUBROUTINE _*) | END_SUBPROGRAM _
+            | END_PROCEDURE _
+            | END_PROGRAM _ | END_MODULE _ | END_SUBMODULE _
             | CONTAINS _
               -> begin
                 DEBUG_MSG "popping context_stack";

@@ -1808,6 +1808,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | ModuleSubprogram.SubroutineSubprogram n ->
               node#relab
                 (L.InternalSubprogram (InternalSubprogram.SubroutineSubprogram n))
+          | _ -> ()
       end
       | L.PpBranch -> begin
           disambiguate_pp_branch doit node

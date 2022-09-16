@@ -1555,10 +1555,14 @@ module F (Stat : STATE_T) = struct
   let register_subroutine ?(node=Ast.dummy_node) name =
     register_object ~node name N.Spec.mksubroutine
 
+  let register_separate_module_subprogram ?(node=Ast.dummy_node) name =
+    register_object ~node name N.Spec.mkseparate_module_subprogram
+
   let register_entry ?(node=Ast.dummy_node) name =
     match env#current_frame#scope with
     | N.ScopingUnit.FunctionSubprogram n -> register_function ~node n
     | N.ScopingUnit.SubroutineSubprogram n -> register_subroutine ~node n
+    | N.ScopingUnit.SeparateModuleSubprogram n -> register_separate_module_subprogram ~node n
     | _ ->
         failwith
           (Printf.sprintf
@@ -1767,20 +1771,33 @@ module F (Stat : STATE_T) = struct
     | _ -> parse_warning_loc node#loc "not a procedure-decl"
 
 
-  let begin_program_scope()               = ignore (env#_begin_scope N.ScopingUnit.Program)
-  let begin_derived_type_def_scope n      = env#_begin_scope (N.ScopingUnit.DerivedTypeDef n)
+  let begin_program_scope()          = ignore (env#_begin_scope N.ScopingUnit.Program)
+  let begin_derived_type_def_scope n = env#_begin_scope (N.ScopingUnit.DerivedTypeDef n)
 
-  let begin_headless_main_program_scope() = ignore (env#_begin_scope (N.ScopingUnit.MainProgram(None, ref false)))
+  let begin_headless_main_program_scope() =
+    ignore (env#_begin_scope (N.ScopingUnit.MainProgram(None, ref false)))
 
-  let begin_main_program_scope n_opt      = ignore (env#_begin_scope (N.ScopingUnit.MainProgram(n_opt, ref true)))
+  let begin_main_program_scope n_opt =
+    ignore (env#_begin_scope (N.ScopingUnit.MainProgram(n_opt, ref true)))
 
-  let begin_function_subprogram_scope n   = ignore (env#_begin_scope (N.ScopingUnit.FunctionSubprogram n))
-  let begin_subroutine_subprogram_scope n = ignore (env#_begin_scope (N.ScopingUnit.SubroutineSubprogram n))
-  let begin_module_scope n                = env#_begin_scope (N.ScopingUnit.Module n)
-  let begin_submodule_scope n             = env#_begin_scope (N.ScopingUnit.Module n)
-  let begin_block_data_scope n_opt        = ignore (env#_begin_scope (N.ScopingUnit.BlockData n_opt))
-  let begin_block_scope n_opt             = ignore (env#_begin_scope (N.ScopingUnit.BlockConstruct n_opt))
-  let begin_structure_decl_scope n_opt    = env#_begin_scope (N.ScopingUnit.StructureDecl n_opt)
+  let begin_function_subprogram_scope n =
+    ignore (env#_begin_scope (N.ScopingUnit.FunctionSubprogram n))
+
+  let begin_subroutine_subprogram_scope n =
+    ignore (env#_begin_scope (N.ScopingUnit.SubroutineSubprogram n))
+
+  let begin_separated_module_subprogram_scope n =
+    ignore (env#_begin_scope (N.ScopingUnit.SeparateModuleSubprogram n))
+
+  let begin_module_scope n         = env#_begin_scope (N.ScopingUnit.Module n)
+  let begin_submodule_scope n      = env#_begin_scope (N.ScopingUnit.Module n)
+  let begin_block_data_scope n_opt =
+    ignore (env#_begin_scope (N.ScopingUnit.BlockData n_opt))
+
+  let begin_block_scope n_opt =
+    ignore (env#_begin_scope (N.ScopingUnit.BlockConstruct n_opt))
+
+  let begin_structure_decl_scope n_opt = env#_begin_scope (N.ScopingUnit.StructureDecl n_opt)
 
   let end_scope() = env#end_scope
 

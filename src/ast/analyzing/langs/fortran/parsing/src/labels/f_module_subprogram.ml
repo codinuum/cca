@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,27 +22,36 @@ open Label_common
 type t =
   | FunctionSubprogram of name
   | SubroutineSubprogram of name
+  | SeparateModuleSubprogram of name
 
 let to_string = function
-  | FunctionSubprogram n   -> "FunctionSubprogram:"^n
-  | SubroutineSubprogram n -> "SubroutineSubprogram:"^n
+  | FunctionSubprogram n       -> "FunctionSubprogram:"^n
+  | SubroutineSubprogram n     -> "SubroutineSubprogram:"^n
+  | SeparateModuleSubprogram n -> "SeparateModuleSubprogram:"^n
 
 let to_simple_string = function
-  | FunctionSubprogram n   -> "<function_subprogram:"^n^">"
-  | SubroutineSubprogram n -> "<subroutine_subprogram:"^n^">"
+  | FunctionSubprogram n       -> "<function_subprogram:"^n^">"
+  | SubroutineSubprogram n     -> "<subroutine_subprogram:"^n^">"
+  | SeparateModuleSubprogram n -> "<separate_module_subprogram:"^n^">"
 
 let to_tag = function
-  | FunctionSubprogram n   -> "FunctionModuleSubprogram", [name_attr_name,n]
-  | SubroutineSubprogram n -> "SubroutineModuleSubprogram", [name_attr_name,n]
+  | FunctionSubprogram n       -> "FunctionModuleSubprogram", [name_attr_name,n]
+  | SubroutineSubprogram n     -> "SubroutineModuleSubprogram", [name_attr_name,n]
+  | SeparateModuleSubprogram n -> "SeparateModuleSubprogram", [name_attr_name,n]
 
 let get_name = function
   | FunctionSubprogram n   
-  | SubroutineSubprogram n -> n
+  | SubroutineSubprogram n
+  | SeparateModuleSubprogram n
+    -> n
 
 let get_name_opt = function
   | FunctionSubprogram n   
-  | SubroutineSubprogram n -> Some n
+  | SubroutineSubprogram n
+  | SeparateModuleSubprogram n
+    -> Some n
 
 let anonymize = function
-  | FunctionSubprogram n   -> FunctionSubprogram ""
-  | SubroutineSubprogram n -> SubroutineSubprogram ""
+  | FunctionSubprogram n       -> FunctionSubprogram ""
+  | SubroutineSubprogram n     -> SubroutineSubprogram ""
+  | SeparateModuleSubprogram n -> SeparateModuleSubprogram ""
