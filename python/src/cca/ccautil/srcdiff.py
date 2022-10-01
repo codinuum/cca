@@ -88,7 +88,7 @@ def read_info(info_paths):
     return i['nnodes']
 
 
-def count_nodes(files, cache_dir_base=None,
+def count_nodes(files, cache_dir_base=None, usecache=True,
                 load_fact=False,
                 fact_dir=None,
                 fact_versions=[],
@@ -109,23 +109,23 @@ def count_nodes(files, cache_dir_base=None,
     for f in files:
 
         if is_auxfile(f):
-            logger.info(f'pre-source "{f}" is ignored')
+            logger.debug(f'pre-source "{f}" is ignored')
             continue
 
         file_count += 1
-        logger.info(f'*** counting nodes in files ({file_count}/{nfiles})')
+        logger.debug(f'*** counting nodes in files ({file_count}/{nfiles})')
 
         logger.debug(f'"{f}"')
 
-        logger.info(f'cache_dir_base: "{cache_dir_base}"')
+        logger.debug(f'cache_dir_base: "{cache_dir_base}"')
 
         cache_path = diffts.get_cache_dir1(f, cache_dir_base, local_cache_name)
         info_paths = get_from_cache(cache_path, diffts.info_file_name,
                                     local_cache_name)
 
-        if (not load_fact) and info_paths:
+        if usecache and not load_fact and info_paths:
             n = read_info(info_paths)
-            logger.info(f'number of nodes: {f} --> {n} (cached)')
+            logger.debug(f'number of nodes: {f} --> {n} (cached)')
             c += n
             continue
 
@@ -137,12 +137,11 @@ def count_nodes(files, cache_dir_base=None,
 
         fact_opt = ''
         if load_fact:
-            logger.info('loading fact')
+            logger.debug('loading fact')
             if fact_versions:
                 fact_opt = ' -fact -fact:add-versions'
 
-                fact_opt += \
-                    ' {}'.format(diffts.get_fact_versions_opt(fact_versions))
+                fact_opt += f' {diffts.get_fact_versions_opt(fact_versions)}'
 
                 fact_opt += ' -fact:encoding:' + fact_encoding
                 fact_opt += ' -fact:hash:' + fact_hash_algo
@@ -157,16 +156,13 @@ def count_nodes(files, cache_dir_base=None,
                     fact_opt += ' -fact:project ' + fact_proj
 
                 if fact_proj_roots:
-                    fact_opt += \
-                        ' ' + diffts.get_fact_proj_roots_opt(fact_proj_roots)
+                    fact_opt += ' ' + diffts.get_fact_proj_roots_opt(fact_proj_roots)
 
                 if fact_into_virtuoso:
-                    fact_opt += \
-                        f' -fact:into-virtuoso {fact_into_virtuoso}'
+                    fact_opt += f' -fact:into-virtuoso {fact_into_virtuoso}'
 
                 if fact_into_directory:
-                    fact_opt += \
-                        f' -fact:into-directory {fact_into_directory}'
+                    fact_opt += f' -fact:into-directory {fact_into_directory}'
 
                 fact_opt += f' -fact:size-thresh {fact_size_thresh}'
             else:
@@ -178,7 +174,7 @@ def count_nodes(files, cache_dir_base=None,
 
         cmd = f'{diffts.diffast_cmd}{incomplete_opt} -parseonly{cache_opt}{fact_opt} {f}'
 
-        logger.info(f'cmd="{cmd}"')
+        logger.debug(f'cmd="{cmd}"')
 
         pc = proc.PopenContext(cmd)
         with pc as p:
@@ -189,11 +185,11 @@ def count_nodes(files, cache_dir_base=None,
                     g = m.groups()
                     try:
                         n = int(g[0])
-                        logger.info(f'number of nodes: {f} --> {n}')
+                        logger.debug(f'number of nodes: {f} --> {n}')
                         c += n
                         break
                     except Exception:
-                        logger.warning('not an integer: "{}"'.format(g[0]))
+                        logger.warning(f'not an integer: "{g[0]}"')
 
     return c
 
@@ -427,14 +423,14 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
         root1 = dir1
         root2 = dir2
 
-    modified_pairs = read_stat2(required['mod'],     roots=roots)
-    unmodified = read_stat2(required['unmod'],   roots=roots)
+    modified_pairs = read_stat2(required['mod'], roots=roots)
+    unmodified = read_stat2(required['unmod'], roots=roots)
     renamed = read_stat2(required['renamed'], roots=roots)
-    moved = read_stat2(required['moved'],   roots=roots)
+    moved = read_stat2(required['moved'], roots=roots)
     removed = read_stat1(required['removed'], root=root1)
-    added = read_stat1(required['added'],   root=root2)
+    added = read_stat1(required['added'], root=root2)
     copied = read_stat_except_first(required['copied'], root=root2)
-    glued = read_stat_except_last(required['glued'],   root=root1)
+    glued = read_stat_except_last(required['glued'], root=root1)
 
     result = {
         'modified': modified_pairs,
@@ -523,7 +519,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
                  get_rel1=lambda x: x, get_rel2=lambda x: x,
                  filt=lambda x: True):
 
-    logger.debug('size of pairs: {}'.format(len(pairs)))
+    logger.info(f'size of pairs: {len(pairs)}')
 
     result = []
     for (f1, f2) in pairs:
@@ -535,7 +531,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
 
         result.append((f1, f2))
 
-    logger.debug('size of filtered pairs: {}'.format(len(result)))
+    logger.info(f'size of filtered pairs: {len(result)}')
 
     return result
 
@@ -797,7 +793,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     try:
         modified_all = modified
 
-        logger.info('{} modified files'.format(len(modified_all)))
+        logger.info(f'{len(modified_all)} modified files')
 
         random.shuffle(modified_all)  # for multi-processing
 
@@ -808,11 +804,11 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
         for (file1, file2) in modified_all:
 
             if is_auxfile(file1):
-                logger.info(f'pre-source "{file1}" is ignored')
+                logger.debug(f'pre-source "{file1}" is ignored')
                 continue
 
             if is_auxfile(file2):
-                logger.info(f'pre-source "{file2}" is ignored')
+                logger.debug(f'pre-source "{file2}" is ignored')
                 continue
 
             count += 1

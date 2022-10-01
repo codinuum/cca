@@ -20,6 +20,8 @@
 
 import os
 import re
+import gzip
+import json
 import time
 import logging
 
@@ -38,6 +40,10 @@ mapfact_file_name = 'map.nt.gz'
 fact_file_name_pat = re.compile(r'^fact\.nt.*')
 changefact_file_name = 'changes.nt.gz'
 cfgfact_file_name = 'cfg.nt.gz'
+
+
+GMAP_JSON_FILE_NAME = 'gmap.json.gz'
+GDIFF_JSON_FILE_NAME = 'gdiff.json.gz'
 
 
 RETRY_COUNT = 3
@@ -280,6 +286,20 @@ def get_fact_proj_roots_opt(fact_proj_roots):
     return ' '.join(li)
 
 
+def read_json(data_path):
+    d = None
+    _open = open
+    if data_path.endswith('.gz'):
+        _open = gzip.open
+    try:
+        with _open(data_path, 'r') as f:
+            d = json.load(f)
+    except Exception as e:
+        logger.warning(f'{data_path}: {e}')
+
+    return d
+
+
 def read_file(r, name_pat_list, stat_paths, retry_count=RETRY_COUNT):
     count = 0
     stat_paths = stat_paths * (int(retry_count / len(stat_paths)) + 1)
@@ -444,9 +464,7 @@ def diffts(diff_cmd, file1, file2,
         if load_fact:
             logger.info('loading fact')
             if fact_versions:
-                fact_opt = \
-                    ' -fact -fact:add-versions {}'\
-                    .format(get_fact_versions_opt(fact_versions))
+                fact_opt = f' -fact -fact:add-versions {get_fact_versions_opt(fact_versions)}'
 
                 fact_opt += ' -fact:encoding:' + fact_encoding
                 fact_opt += ' -fact:hash:' + fact_hash_algo
@@ -467,16 +485,13 @@ def diffts(diff_cmd, file1, file2,
                     fact_opt += f' -fact:project {fact_proj}'
 
                 if fact_proj_roots:
-                    fact_opt += \
-                        ' {}'.format(get_fact_proj_roots_opt(fact_proj_roots))
+                    fact_opt += f' {get_fact_proj_roots_opt(fact_proj_roots)}'
 
                 if fact_into_virtuoso:
-                    fact_opt += \
-                        f' -fact:into-virtuoso {fact_into_virtuoso}'
+                    fact_opt += f' -fact:into-virtuoso {fact_into_virtuoso}'
 
                 if fact_into_directory:
-                    fact_opt += \
-                        f' -fact:into-directory {fact_into_directory}'
+                    fact_opt += f' -fact:into-directory {fact_into_directory}'
 
                 if fact_for_delta:
                     fact_opt += ' -fact:delta'
@@ -553,11 +568,35 @@ def diffast(file1, file2, **options):
 
 
 def diffast_get_cache_dir1(file, **options):
-    return get_cache_dir1_(diffast_cmd, file, **options)
+    opts = options.copy()
+    if 'usecache' in opts:
+        del opts['usecache']
+    if 'quiet' not in opts:
+        opts['quiet'] = True
+    return get_cache_dir1_(diffast_cmd, file, **opts)
 
 
 def diffast_get_cache_dir(file1, file2, **options):
-    return get_cache_dir(diffast_cmd, file1, file2, **options)
+    opts = options.copy()
+    if 'usecache' in opts:
+        del opts['usecache']
+    if 'quiet' not in opts:
+        opts['quiet'] = True
+    return get_cache_dir(diffast_cmd, file1, file2, **opts)
+
+
+def diffast_get_gmap(file1, file2, **options):
+    cache_dir = diffast_get_cache_dir(file1, file2, **options)
+    gmap_json = os.path.join(cache_dir, GMAP_JSON_FILE_NAME)
+    d = read_json(gmap_json)
+    return d
+
+
+def diffast_get_gdiff(file1, file2, **options):
+    cache_dir = diffast_get_cache_dir(file1, file2, **options)
+    gdiff_json = os.path.join(cache_dir, GDIFF_JSON_FILE_NAME)
+    d = read_json(gdiff_json)
+    return d
 
 
 def dump_unparsed(path, to_path, quiet=False):

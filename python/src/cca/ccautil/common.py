@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os.path
+import os
 import logging
 
 LOGGING_FORMAT = '[%(asctime)s][%(levelname)s][%(module)s][%(funcName)s] %(message)s'
