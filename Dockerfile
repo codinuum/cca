@@ -36,7 +36,7 @@ RUN set -x && \
             git rsync && \
     wget https://bootstrap.pypa.io/get-pip.py && \
     python3 get-pip.py && \
-    pip3 install pyodbc setuptools build[virtualenv] javalang && \
+    pip3 install pyodbc setuptools build[virtualenv] javalang python-rapidjson && \
     rm get-pip.py
 
 RUN set -x && \

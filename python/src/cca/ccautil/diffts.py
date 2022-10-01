@@ -21,7 +21,8 @@
 import os
 import re
 import gzip
-import json
+# import json
+import rapidjson as json
 import time
 import logging
 
