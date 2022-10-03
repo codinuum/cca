@@ -23,6 +23,7 @@ import sys
 import os
 import re
 import time
+import rapidjson as json
 import bz2
 import csv
 import xml.parsers.expat as expat
@@ -46,6 +47,8 @@ ccs_ext = '.ccs'
 astml_exts = ('.ast', '.ast.bz2')
 
 comp_exts = ('.bz2')
+
+INFO_JSON = 'info.json'
 
 #####
 
@@ -362,6 +365,7 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
 
     cache_dir = get_cache_dir(dir1, dir2, cache_dir_base, local_cache_name)
 
+    logger.info(f'usecache: "{usecache}"')
     logger.info(f'cache_dir: "{cache_dir}"')
 
     logger.info('checking cache...')
@@ -392,7 +396,7 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
     if usecache and cache_found:
         logger.info('cache found')
     else:
-        diffast(dir1, dir2, cache_dir_base=cache_dir_base,
+        diffast(dir1, dir2, usecache=usecache, cache_dir_base=cache_dir_base,
                 load_fact=load_fact,
                 fact_dir=fact_dir,
                 fact_versions=fact_versions,
@@ -441,6 +445,7 @@ def get_info(dir1, dir2, usecache=True, cache_dir_base=None,
         'moved': moved,
         'copied': copied,
         'glued': glued,
+        'cache_dir': cache_dir,
     }
 
     return result
@@ -536,7 +541,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
     return result
 
 
-def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
+def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_cache=False,
               include=[],
               exclude=[],
               ignore1=[], ignore2=[],
@@ -593,6 +598,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     nnodes1 = 0
     nnodes2 = 0
     nrelabels = 0
+    nmoves = 0
     nmovrels = 0
 
     line_sim_sum = 0.0
@@ -619,6 +625,12 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
                     quiet=quiet)
 
     logger.info(f'"{dir1}" - "{dir2}" get_info finished')
+
+    cache_dir_info_json = os.path.join(info['cache_dir'], INFO_JSON)
+    if use_result_cache and os.path.exists(cache_dir_info_json):
+        with open(cache_dir_info_json) as f:
+            res = json.load(f)
+        return res
 
     get_rel1 = (lambda x: x)
     get_rel2 = (lambda x: x)
@@ -712,6 +724,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
     random.shuffle(glued)
 
     count_opts = {
+        'usecache': usecache,
         'cache_dir_base': cache_dir_base,
         'load_fact': load_fact,
         'fact_dir': fact_dir,
@@ -890,6 +903,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
             cost += c
             nmappings += m
             nrelabels += r['nrelabels']
+            nmoves += r['nmoves']
             nmovrels += r['nmovrels']
 
     except Exception as e:
@@ -910,7 +924,8 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
            'nnodes2': nnodes2,
            'nnodes': nnodes,
            'nrelabels': nrelabels,
-           'nmovrels': nrelabels,
+           'nmoves': nmoves,
+           'nmovrels': nmovrels,
 
            'modified': modified,
            'renamed': renamed,
@@ -923,6 +938,9 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None,
 
     if line_sim and line_sim_count > 0:
         res['line_sim'] = line_sim_sum / line_sim_count
+
+    with open(cache_dir_info_json, 'w') as f:
+        json.dump(res, f)
 
     return res
 

@@ -551,6 +551,10 @@ def diffts(diff_cmd, file1, file2,
         'ninserts': 0,
         'ndeletes': 0,
         'nrelabels': 0,
+        'nmoves': 0,
+        'nmovrels': 0,
+        'nnodes1': 0,
+        'nnodes2': 0,
         # 'exitcode': 0,
         }
 
