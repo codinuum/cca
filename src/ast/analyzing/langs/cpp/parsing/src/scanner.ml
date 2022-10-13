@@ -24487,6 +24487,7 @@ module F (Stat : Aux.STATE_T) = struct
               | AMP_EQ _ | HAT_EQ _ | BAR_EQ _ | AMP _ | BAR _ | BAR_BAR _ | AMP_AMP _
               | LT | GT | LT_EQ | GT_EQ | EQ_EQ | EXCLAM_EQ _ | QUEST | DOT | MINUS_GT
               | GOTO
+              | CLASS | STRUCT | UNION
                 -> DEBUG_MSG "@"; get()
 
               | TY_TEMPL_GT when begin
@@ -24510,10 +24511,13 @@ module F (Stat : Aux.STATE_T) = struct
                   | _ -> false
               end -> DEBUG_MSG "@"; get()
 
+              | TY_LPAREN -> DEBUG_MSG "@"; get()
+
               | COMMA when begin
                   match self#peek_rawtoken() with
                   | COMMA | RPAREN | SEMICOLON _ -> true
                   | PLUS | MINUS | SLASH | PERC -> true
+                  | _ when env#at_type_paren -> true
                   | _ -> false
               end -> DEBUG_MSG "@"; get()
 
