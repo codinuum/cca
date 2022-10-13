@@ -24570,6 +24570,8 @@ module F (Stat : Aux.STATE_T) = struct
 
               | LBRACKET when self#peek_rawtoken() == RBRACKET -> DEBUG_MSG "@"; get()
 
+              | _ when context = STMT -> DEBUG_MSG "@"; get()
+
               | _ -> begin
                   match self#peek_rawtoken() with
                   | TY_LPAREN | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ

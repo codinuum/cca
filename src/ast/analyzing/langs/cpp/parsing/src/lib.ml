@@ -2133,7 +2133,14 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_parameters_and_qualifiers), I.X (I.T T_TY_LPAREN)::x::_, I.X (I.T T_RPAREN) -> begin
-                if env#in_body_brace_flag && scanner#context != NEW then
+                env#set_end_of_params_flag();
+                env#stack#exit_params();
+                env#clear_ty_param_key_flag();
+                if
+                  env#in_body_brace_flag &&
+                  scanner#context != NEW &&
+                  not (scanner#context == MEM && env#stack#at_class)
+                then
                   scanner#ctx_stmt()
                 else if scanner#context == CLASS then
                   ()
@@ -2142,9 +2149,6 @@ class parser_c = object (self)
                     scanner#ctx_mem()
                   else if scanner#context != NEW then
                     scanner#ctx_top();
-                env#set_end_of_params_flag();
-                env#stack#exit_params();
-                env#clear_ty_param_key_flag();
                 raise Exit
             end
 
