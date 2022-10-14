@@ -1059,6 +1059,7 @@ let flags_to_str e =
      "at_macro_arg_paren"         , e#at_macro_arg_paren;
      "at_paren"                   , e#at_paren;
      "at_type_paren"              , e#at_type_paren;
+     "at_bracket"                 , e#at_bracket;
      "asm"                        , e#asm_flag;
      "asm_block"                  , e#asm_block_flag;
      "asm_shader"                 , e#asm_shader_flag;
@@ -4447,9 +4448,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
         | DOT when begin
             match self#peek_nth_rawtoken 2 with
             | RPAREN -> true
-              | PTR_STAR | SLASH | PERC | PLUS | MINUS -> true
+            | PTR_STAR | SLASH | PERC | PLUS | MINUS -> true
             | _ -> false
-        end -> DEBUG_MSG "@ DOT"; mk (T.INT_MACRO s)
+        end -> DEBUG_MSG "@ DOT (RPAREN|...)"; mk (T.INT_MACRO s)
 
         | _ -> begin
             DEBUG_MSG "@ *";
@@ -5041,6 +5042,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
                 | _ -> false
             end -> DEBUG_MSG "NEWLINE @ TY_LPAREN"; mk (T.IDENT_OM s)
+
+            | _ when
+                env#sizeof_ty_flag && env#at_type_paren
+              -> DEBUG_MSG "* @ *"; token
 
             | _ -> DEBUG_MSG "* @ *"; mk (T.IDENT_V s)
         end
@@ -25311,8 +25316,17 @@ module F (Stat : Aux.STATE_T) = struct
           self#prepend_token (T.COMMA, edp, edp)
         end
 
-        | LBRACKET | LAM_LBRACKET | ATTR_LBRACKET -> env#open_bracket()
-        | RBRACKET -> env#close_bracket()
+        | LBRACKET | LAM_LBRACKET | ATTR_LBRACKET -> begin
+            env#open_paren PK_BRACKET;
+            env#open_bracket()
+        end
+
+        | OBJC_LBRACKET -> env#open_paren PK_BRACKET
+
+        | RBRACKET -> begin
+            env#close_bracket();
+            env#close_paren()
+        end
 
         | INI_LBRACE when context == TOP && prev_rawtoken == EOF -> begin
             DEBUG_MSG "@";

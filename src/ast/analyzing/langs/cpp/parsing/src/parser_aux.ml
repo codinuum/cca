@@ -29,8 +29,20 @@ open Common
 
 let mes fmt = _mes "Parser_aux" fmt
 
-type paren_kind_sub = PKS_NONE | PKS_SIZEOF
-type paren_kind = PK_NORMAL | PK_ARG | PK_TYPE of paren_kind_sub | PK_MACRO | PK_PP | PK_SS | PK_PS | PK_F
+type paren_kind_sub =
+  | PKS_NONE
+  | PKS_SIZEOF
+
+type paren_kind =
+  | PK_NORMAL
+  | PK_ARG
+  | PK_TYPE of paren_kind_sub
+  | PK_MACRO
+  | PK_PP
+  | PK_SS
+  | PK_PS
+  | PK_F
+  | PK_BRACKET
 
 let paren_kind_sub_to_string = function
   | PKS_NONE   -> "PKS_NONE"
@@ -45,6 +57,7 @@ let paren_kind_to_string = function
   | PK_SS     -> "PK_SS"
   | PK_PS     -> "PK_PS"
   | PK_F      -> "PK_F"
+  | PK_BRACKET -> "PK_BRACKET"
 
 type odd_brace_lv_t = { o_lv : int; mutable o_ini_lv : int }
 let odd_brace_lv_to_string { o_lv=lv; o_ini_lv=ilv } = sprintf "%d(%d)" lv ilv
@@ -1530,6 +1543,14 @@ class pstat = object (self)
     with
       _ -> false
 
+  method at_bracket =
+    try
+      match Stack.top paren_stack with
+      | PK_BRACKET -> true
+      | _ -> false
+    with
+      _ -> false
+
   method change_paren_kind pk =
     try
       let k = Stack.pop paren_stack in
@@ -1865,6 +1886,7 @@ class env = object (self)
   method at_fold_paren = pstat#at_fold_paren
   method at_paren = pstat#at_paren
   method at_macro_arg_paren = pstat#at_macro_arg_paren
+  method at_bracket = pstat#at_bracket
   method enter_templ_param_arg = pstat#enter_templ_param_arg
   method exit_templ_param_arg = pstat#exit_templ_param_arg
   method templ_param_arg_stack_top = pstat#templ_param_arg_stack_top
