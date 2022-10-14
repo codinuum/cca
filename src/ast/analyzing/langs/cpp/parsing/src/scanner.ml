@@ -24485,6 +24485,7 @@ module F (Stat : Aux.STATE_T) = struct
               | PP_DEFINE | PP_UNDEF | PP_IFDEF | PP_IFNDEF | EXCLAM _ | BOOL | RETURN
               | EQ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ | LT_LT_EQ | GT_GT_EQ
               | AMP_EQ _ | HAT_EQ _ | BAR_EQ _ | AMP _ | BAR _ | BAR_BAR _ | AMP_AMP _
+              | PLUS | MINUS | STAR | SLASH | PERC | LT_LT | GT_GT | HAT _
               | LT | GT | LT_EQ | GT_EQ | EQ_EQ | EXCLAM_EQ _ | QUEST | DOT | MINUS_GT
               | GOTO
               | CLASS | STRUCT | UNION
@@ -24570,7 +24571,7 @@ module F (Stat : Aux.STATE_T) = struct
 
               | LBRACKET when self#peek_rawtoken() == RBRACKET -> DEBUG_MSG "@"; get()
 
-              | _ when context = STMT -> DEBUG_MSG "@"; get()
+              | _ when context == STMT || context == EXPR -> DEBUG_MSG "@"; get()
 
               | _ -> begin
                   match self#peek_rawtoken() with
