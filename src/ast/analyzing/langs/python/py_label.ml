@@ -414,6 +414,13 @@ module Statement =
           -> true
       | _ -> false
 
+    let get_name = function
+      | FuncDef n
+      | AsyncFuncDef n
+      | ClassDef n
+          -> n
+      | _ -> raise Not_found
+
     let is_named_orig = is_named
 
     let anonymize = function
@@ -1379,7 +1386,19 @@ let get_category lab =
   let name, _ = to_tag lab in
   name
 
-let get_name lab = raise Not_found (* not yet *)
+let get_name = function
+  | FileInput n
+  | Name n
+  | DottedName n
+  | NamedSuite n
+  | NamedParameters n
+  | NamedArguments n
+  | Decorator n
+  | Decorators n
+  | Primary (Primary.Name n)
+    -> n
+  | Statement stmt -> Statement.get_name stmt
+  | _ -> raise Not_found
 
 let get_value = function
   | Primary (Primary.Literal lit) -> Literal.to_simple_string lit
