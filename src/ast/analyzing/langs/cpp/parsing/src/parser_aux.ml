@@ -1763,6 +1763,11 @@ class env = object (self)
 
   val mutable scanner_keep_flag = false
 
+  val inline_asm_functions = (Xset.create 0 : string Xset.t)
+
+  val mutable unqualified_name = ""
+  val mutable function_name = ""
+
   initializer
     stack#push top_frame
 
@@ -2287,6 +2292,28 @@ class env = object (self)
 
   method is_malformed_macro name =
     Xset.mem malformed_macro_names name
+
+  method register_inline_asm_function name =
+    DEBUG_MSG "%s" name;
+    Xset.add inline_asm_functions name
+
+  method is_inline_asm_function name =
+    let b = Xset.mem inline_asm_functions name in
+    DEBUG_MSG "%s -> %B" name b;
+    b
+
+  method get_unqualified_name() = unqualified_name
+  method set_unqualified_name n =
+    DEBUG_MSG "%s" n;
+    unqualified_name <- n
+  method clear_unqualified_name() = DEBUG_MSG "called"; unqualified_name <- ""
+
+  method get_function_name() = function_name
+  method set_function_name() =
+    let n = self#get_unqualified_name() in
+    DEBUG_MSG "%s" n;
+    function_name <- n
+  method clear_function_name() = DEBUG_MSG "called"; function_name <- ""
 
   method set_lex_line_head_flag () =
     DEBUG_MSG "lex_line_head_flag set";

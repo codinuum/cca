@@ -1744,6 +1744,7 @@ statement:
 | l=labeled_statement { l }
 | u=unlabeled_statement { u }
 (*| b=_block_declaration g=gnu_asm { mknode $startpos $endpos L.STMTS [b; g] }*)
+| a=asm_block { a }
 ;
 %inline
 unlabeled_statement:
@@ -9190,7 +9191,7 @@ literal_macro_call:
 ;
 
 unqualified_id:
-| i=IDENT_V { mkleaf $startpos $endpos (L.Identifier i) }
+| i=IDENT_V { env#set_unqualified_name i; mkleaf $startpos $endpos (L.Identifier i) }
 | o=operator_function_id { o }
 | c=conversion_function_id { c }
 | l=literal_operator_id { l }
@@ -11098,7 +11099,18 @@ pp_control_line:
       let lab =
         match tl with
         | (T.IDENT "omp",_,_)::rest -> L.OmpDirective (Token.seq_to_repr rest)
-        | (T.IDENT "acc",_,_)::rest -> L.AccDirective (Token.seq_to_repr rest)
+        | (IDENT "acc",_,_)::rest -> L.AccDirective (Token.seq_to_repr rest)
+        | (IDENT "inline_asm",_,_)::rest -> begin
+            let rec get_names = function
+              | (T.TY_LPAREN,_,_)::(IDENT x,_,_)::rest2
+              | (IDENT x,_,_)::rest2
+              | (COMMA,_,_)::(IDENT x,_,_)::rest2 -> x::(get_names rest2)
+              | _ -> []
+            in
+            let fl = get_names rest in
+            List.iter env#register_inline_asm_function fl;
+            L.PpPragma (Token.seq_to_repr tl)
+        end
         | _ -> L.PpPragma (Token.seq_to_repr tl)
       in
       mkleaf $startpos $endpos lab

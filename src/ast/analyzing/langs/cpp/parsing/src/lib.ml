@@ -2130,6 +2130,7 @@ class parser_c = object (self)
             | I.X (I.N N_parameters_and_qualifiers), _, I.X (I.T T_TY_LPAREN) -> begin
                 env#stack#enter_params();
                 scanner#ctx_ini();
+                env#set_function_name();
                 raise Exit
             end
             | I.X (I.N N_parameters_and_qualifiers), I.X (I.T T_TY_LPAREN)::x::_, I.X (I.T T_RPAREN) -> begin
@@ -4147,7 +4148,11 @@ class parser_c = object (self)
             | I.X (I.N N_declaration_seq)        -> scanner#ctx_reset()
             | I.X (I.N N_member_declaration)     -> scanner#ctx_mem(); scanner#ctx_ini()
             | I.X (I.N N_conversion_function_id) -> env#clear_conv_func_id_flag()
-            | I.X (I.N N_function_definition)    -> env#clear_in_body_brace_flag(); env#clear_end_of_params_flag()
+            | I.X (I.N N_function_definition)    -> begin
+                env#clear_in_body_brace_flag();
+                env#clear_end_of_params_flag();
+                env#clear_function_name()
+            end
             | I.X (I.N N_declaration)            -> env#clear_in_body_brace_flag()
             | I.X (I.N N_template_declaration)   -> env#stack#exit_template()
             | I.X (I.N N__using_directive)       -> env#clear_using_ns_flag()
