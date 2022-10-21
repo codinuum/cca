@@ -103,12 +103,22 @@ class pstat = object (self)
   val mutable asm_shader_flag = false
   val mutable dsl_flag = false
   val mutable objc_class_interface_flag = false
+  val mutable objc_protocol_decl_flag = false
+  val mutable objc_class_flag = false
   val mutable objc_block_flag = false
   val mutable objc_sel_flag = false
+  val mutable objc_meth_sel_flag = false
+  val mutable objc_meth_decl_flag = false
+  val mutable objc_superclass_flag = false
   val mutable objc_cat_flag = false
+  val mutable objc_protocol_ref_flag = false
   val mutable end_of_objc_meth_sel_flag = false
+  val mutable end_of_objc_meth_type_flag = false
+  val mutable end_of_objc_property_attrs_decl_flag = false
+  val mutable end_of_objc_protocol_ref_list_flag = false
   val mutable end_of_decl_spec_macro_call_flag = false
   val mutable end_of_attr_macro_call_flag = false
+  val mutable end_of_type_macro_call_flag = false
   val mutable dtor_flag = false
   val mutable pp_func_body_odd_flag = false
   val mutable class_name_flag = false
@@ -121,6 +131,7 @@ class pstat = object (self)
   val mutable cast_head_flag = false
   val mutable end_of_broken_decl_section_flag = false
   val mutable end_of_label_flag = false
+  val mutable end_of_mem_initializer_flag = false
   val mutable attr_flag = false
   val mutable linkage_spec_flag = false
   val mutable condition_flag = false
@@ -189,12 +200,22 @@ class pstat = object (self)
     asm_shader_flag <- false;
     dsl_flag <- false;
     objc_class_interface_flag <- false;
+    objc_protocol_decl_flag <- false;
+    objc_class_flag <- false;
     objc_block_flag <- false;
     objc_sel_flag <- false;
+    objc_meth_sel_flag <- false;
+    objc_meth_decl_flag <- false;
+    objc_superclass_flag <- false;
     objc_cat_flag <- false;
+    objc_protocol_ref_flag <- false;
     end_of_objc_meth_sel_flag <- false;
+    end_of_objc_meth_type_flag <- false;
+    end_of_objc_property_attrs_decl_flag <- false;
+    end_of_objc_protocol_ref_list_flag <- false;
     end_of_decl_spec_macro_call_flag <- false;
     end_of_attr_macro_call_flag <- false;
+    end_of_type_macro_call_flag <- false;
     dtor_flag <- false;
     pp_func_body_odd_flag <- false;
     class_name_flag <- false;
@@ -207,6 +228,7 @@ class pstat = object (self)
     cast_head_flag <- false;
     end_of_broken_decl_section_flag <- false;
     end_of_label_flag <- false;
+    end_of_mem_initializer_flag <- false;
     attr_flag <- false;
     linkage_spec_flag <- false;
     condition_flag <- false;
@@ -500,6 +522,30 @@ class pstat = object (self)
 
   method objc_class_interface_flag = objc_class_interface_flag
 
+  method set_objc_protocol_decl_flag () =
+    DEBUG_MSG "objc_protocol_decl_flag set";
+    objc_protocol_decl_flag <- true
+
+  method clear_objc_protocol_decl_flag () =
+    if objc_protocol_decl_flag then begin
+      DEBUG_MSG "objc_protocol_decl_flag cleared";
+      objc_protocol_decl_flag <- false
+    end
+
+  method objc_protocol_decl_flag = objc_protocol_decl_flag
+
+  method set_objc_class_flag () =
+    DEBUG_MSG "objc_class_flag set";
+    objc_class_flag <- true
+
+  method clear_objc_class_flag () =
+    if objc_class_flag then begin
+      DEBUG_MSG "objc_class_flag cleared";
+      objc_class_flag <- false
+    end
+
+  method objc_class_flag = objc_class_flag
+
   method enter_objc_message_expr () =
     DEBUG_MSG "entering objc_message_expr";
     objc_message_expr_level <- objc_message_expr_level + 1
@@ -537,6 +583,42 @@ class pstat = object (self)
 
   method objc_sel_flag = objc_sel_flag
 
+  method set_objc_meth_sel_flag () =
+    DEBUG_MSG "objc_meth_sel_flag set";
+    objc_meth_sel_flag <- true
+
+  method clear_objc_meth_sel_flag () =
+    if objc_meth_sel_flag then begin
+      DEBUG_MSG "objc_meth_sel_flag cleared";
+      objc_meth_sel_flag <- false
+    end
+
+  method objc_meth_sel_flag = objc_meth_sel_flag
+
+  method set_objc_meth_decl_flag () =
+    DEBUG_MSG "objc_meth_decl_flag set";
+    objc_meth_decl_flag <- true
+
+  method clear_objc_meth_decl_flag () =
+    if objc_meth_decl_flag then begin
+      DEBUG_MSG "objc_meth_decl_flag cleared";
+      objc_meth_decl_flag <- false
+    end
+
+  method objc_meth_decl_flag = objc_meth_decl_flag
+
+  method set_objc_superclass_flag () =
+    DEBUG_MSG "objc_superclass_flag set";
+    objc_superclass_flag <- true
+
+  method clear_objc_superclass_flag () =
+    if objc_superclass_flag then begin
+      DEBUG_MSG "objc_superclass_flag cleared";
+      objc_superclass_flag <- false
+    end
+
+  method objc_superclass_flag = objc_superclass_flag
+
   method set_objc_cat_flag () =
     DEBUG_MSG "objc_cat_flag set";
     objc_cat_flag <- true
@@ -548,6 +630,18 @@ class pstat = object (self)
     end
 
   method objc_cat_flag = objc_cat_flag
+
+  method set_objc_protocol_ref_flag () =
+    DEBUG_MSG "objc_protocol_ref_flag set";
+    objc_protocol_ref_flag <- true
+
+  method clear_objc_protocol_ref_flag () =
+    if objc_protocol_ref_flag then begin
+      DEBUG_MSG "objc_protocol_ref_flag cleared";
+      objc_protocol_ref_flag <- false
+    end
+
+  method objc_protocol_ref_flag = objc_protocol_ref_flag
 
   method set_dtor_flag () =
     DEBUG_MSG "dtor_flag set";
@@ -633,6 +727,42 @@ class pstat = object (self)
 
   method end_of_objc_meth_sel_flag = end_of_objc_meth_sel_flag
 
+  method set_end_of_objc_meth_type_flag () =
+    DEBUG_MSG "end_of_objc_meth_type_flag set";
+    end_of_objc_meth_type_flag <- true
+
+  method clear_end_of_objc_meth_type_flag () =
+    if end_of_objc_meth_type_flag then begin
+      DEBUG_MSG "end_of_objc_meth_type_flag cleared";
+      end_of_objc_meth_type_flag <- false
+    end
+
+  method end_of_objc_meth_type_flag = end_of_objc_meth_type_flag
+
+  method set_end_of_objc_property_attrs_decl_flag () =
+    DEBUG_MSG "end_of_objc_property_attrs_decl_flag set";
+    end_of_objc_property_attrs_decl_flag <- true
+
+  method clear_end_of_objc_property_attrs_decl_flag () =
+    if end_of_objc_property_attrs_decl_flag then begin
+      DEBUG_MSG "end_of_objc_property_attrs_decl_flag cleared";
+      end_of_objc_property_attrs_decl_flag <- false
+    end
+
+  method end_of_objc_property_attrs_decl_flag = end_of_objc_property_attrs_decl_flag
+
+  method set_end_of_objc_protocol_ref_list_flag () =
+    DEBUG_MSG "end_of_objc_protocol_ref_list_flag set";
+    end_of_objc_protocol_ref_list_flag <- true
+
+  method clear_end_of_objc_protocol_ref_list_flag () =
+    if end_of_objc_protocol_ref_list_flag then begin
+      DEBUG_MSG "end_of_objc_protocol_ref_list_flag cleared";
+      end_of_objc_protocol_ref_list_flag <- false
+    end
+
+  method end_of_objc_protocol_ref_list_flag = end_of_objc_protocol_ref_list_flag
+
   method set_end_of_decl_spec_macro_call_flag () =
     DEBUG_MSG "end_of_decl_spec_macro_call_flag set";
     end_of_decl_spec_macro_call_flag <- true
@@ -656,6 +786,18 @@ class pstat = object (self)
     end
 
   method end_of_attr_macro_call_flag = end_of_attr_macro_call_flag
+
+  method set_end_of_type_macro_call_flag () =
+    DEBUG_MSG "end_of_type_macro_call_flag set";
+    end_of_type_macro_call_flag <- true
+
+  method clear_end_of_type_macro_call_flag () =
+    if end_of_type_macro_call_flag then begin
+      DEBUG_MSG "end_of_type_macro_call_flag cleared";
+      end_of_type_macro_call_flag <- false
+    end
+
+  method end_of_type_macro_call_flag = end_of_type_macro_call_flag
 
   method set_str_flag () =
     DEBUG_MSG "str_flag set";
@@ -800,6 +942,18 @@ class pstat = object (self)
     end
 
   method end_of_label_flag = end_of_label_flag
+
+  method set_end_of_mem_initializer_flag () =
+    DEBUG_MSG "end_of_mem_initializer_flag set";
+    end_of_mem_initializer_flag <- true
+
+  method clear_end_of_mem_initializer_flag () =
+    if end_of_mem_initializer_flag then begin
+      DEBUG_MSG "end_of_mem_initializer_flag cleared";
+      end_of_mem_initializer_flag <- false
+    end
+
+  method end_of_mem_initializer_flag = end_of_mem_initializer_flag
 
   method set_attr_flag () =
     DEBUG_MSG "attr_flag set";
@@ -1744,6 +1898,7 @@ class env = object (self)
   val mutable virtual_func_flag = false
   val mutable value_flag = false
   val mutable dtor_if_section_flag = false
+  val mutable objc_flag = false
 
   val templ_head_stack = (Stack.create() : int Stack.t)
   val const_stack = Stack.create()
@@ -2466,9 +2621,23 @@ class env = object (self)
   method clear_dsl_flag = pstat#clear_dsl_flag
   method dsl_flag = pstat#dsl_flag
 
-  method set_objc_class_interface_flag = pstat#set_objc_class_interface_flag
+  method set_objc_class_interface_flag () =
+    pstat#set_objc_class_interface_flag();
+    objc_flag <- true
   method clear_objc_class_interface_flag = pstat#clear_objc_class_interface_flag
   method objc_class_interface_flag = pstat#objc_class_interface_flag
+
+  method set_objc_protocol_decl_flag () =
+    pstat#set_objc_protocol_decl_flag();
+    objc_flag <- true
+  method clear_objc_protocol_decl_flag = pstat#clear_objc_protocol_decl_flag
+  method objc_protocol_decl_flag = pstat#objc_protocol_decl_flag
+
+  method set_objc_class_flag () =
+    pstat#set_objc_class_flag();
+    objc_flag <- true
+  method clear_objc_class_flag = pstat#clear_objc_class_flag
+  method objc_class_flag = pstat#objc_class_flag
 
   method enter_objc_message_expr = pstat#enter_objc_message_expr
   method exit_objc_message_expr = pstat#exit_objc_message_expr
@@ -2483,9 +2652,25 @@ class env = object (self)
   method clear_objc_sel_flag = pstat#clear_objc_sel_flag
   method objc_sel_flag = pstat#objc_sel_flag
 
+  method set_objc_meth_sel_flag = pstat#set_objc_meth_sel_flag
+  method clear_objc_meth_sel_flag = pstat#clear_objc_meth_sel_flag
+  method objc_meth_sel_flag = pstat#objc_meth_sel_flag
+
+  method set_objc_meth_decl_flag = pstat#set_objc_meth_decl_flag
+  method clear_objc_meth_decl_flag = pstat#clear_objc_meth_decl_flag
+  method objc_meth_decl_flag = pstat#objc_meth_decl_flag
+
+  method set_objc_superclass_flag = pstat#set_objc_superclass_flag
+  method clear_objc_superclass_flag = pstat#clear_objc_superclass_flag
+  method objc_superclass_flag = pstat#objc_superclass_flag
+
   method set_objc_cat_flag = pstat#set_objc_cat_flag
   method clear_objc_cat_flag = pstat#clear_objc_cat_flag
   method objc_cat_flag = pstat#objc_cat_flag
+
+  method set_objc_protocol_ref_flag = pstat#set_objc_protocol_ref_flag
+  method clear_objc_protocol_ref_flag = pstat#clear_objc_protocol_ref_flag
+  method objc_protocol_ref_flag = pstat#objc_protocol_ref_flag
 
   method set_dtor_flag = pstat#set_dtor_flag
   method clear_dtor_flag = pstat#clear_dtor_flag
@@ -2515,6 +2700,18 @@ class env = object (self)
   method clear_end_of_objc_meth_sel_flag = pstat#clear_end_of_objc_meth_sel_flag
   method end_of_objc_meth_sel_flag = pstat#end_of_objc_meth_sel_flag
 
+  method set_end_of_objc_meth_type_flag = pstat#set_end_of_objc_meth_type_flag
+  method clear_end_of_objc_meth_type_flag = pstat#clear_end_of_objc_meth_type_flag
+  method end_of_objc_meth_type_flag = pstat#end_of_objc_meth_type_flag
+
+  method set_end_of_objc_property_attrs_decl_flag = pstat#set_end_of_objc_property_attrs_decl_flag
+  method clear_end_of_objc_property_attrs_decl_flag = pstat#clear_end_of_objc_property_attrs_decl_flag
+  method end_of_objc_property_attrs_decl_flag = pstat#end_of_objc_property_attrs_decl_flag
+
+  method set_end_of_objc_protocol_ref_list_flag = pstat#set_end_of_objc_protocol_ref_list_flag
+  method clear_end_of_objc_protocol_ref_list_flag = pstat#clear_end_of_objc_protocol_ref_list_flag
+  method end_of_objc_protocol_ref_list_flag = pstat#end_of_objc_protocol_ref_list_flag
+
   method set_end_of_decl_spec_macro_call_flag = pstat#set_end_of_decl_spec_macro_call_flag
   method clear_end_of_decl_spec_macro_call_flag = pstat#clear_end_of_decl_spec_macro_call_flag
   method end_of_decl_spec_macro_call_flag = pstat#end_of_decl_spec_macro_call_flag
@@ -2522,6 +2719,10 @@ class env = object (self)
   method set_end_of_attr_macro_call_flag = pstat#set_end_of_attr_macro_call_flag
   method clear_end_of_attr_macro_call_flag = pstat#clear_end_of_attr_macro_call_flag
   method end_of_attr_macro_call_flag = pstat#end_of_attr_macro_call_flag
+
+  method set_end_of_type_macro_call_flag = pstat#set_end_of_type_macro_call_flag
+  method clear_end_of_type_macro_call_flag = pstat#clear_end_of_type_macro_call_flag
+  method end_of_type_macro_call_flag = pstat#end_of_type_macro_call_flag
 
   method set_str_flag = pstat#set_str_flag
   method clear_str_flag = pstat#clear_str_flag
@@ -2566,6 +2767,10 @@ class env = object (self)
   method set_end_of_label_flag = pstat#set_end_of_label_flag
   method clear_end_of_label_flag = pstat#clear_end_of_label_flag
   method end_of_label_flag = pstat#end_of_label_flag
+
+  method set_end_of_mem_initializer_flag = pstat#set_end_of_mem_initializer_flag
+  method clear_end_of_mem_initializer_flag = pstat#clear_end_of_mem_initializer_flag
+  method end_of_mem_initializer_flag = pstat#end_of_mem_initializer_flag
 
   method set_attr_flag = pstat#set_attr_flag
   method clear_attr_flag = pstat#clear_attr_flag
@@ -2914,6 +3119,8 @@ class env = object (self)
     end
 
   method dtor_if_section_flag = dtor_if_section_flag
+
+  method objc_flag = objc_flag
 
   method set_using_ns_flag () =
     DEBUG_MSG "using_ns_flag set";

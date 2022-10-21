@@ -83,6 +83,7 @@ let rawtoken_to_string = function
   | CLASS_HEAD_MACRO s   -> sprintf "CLASS_HEAD_MACRO:%s" s
   | FUNC_HEAD_MACRO s    -> sprintf "FUNC_HEAD_MACRO:%s" s
   | CAST_HEAD_MACRO s    -> sprintf "CAST_HEAD_MACRO:%s" s
+  | OBJC_PROTOCOL_REF_LIST_MACRO s -> sprintf "OBJC_PROTOCOL_REF_LIST_MACRO:%s" s
 
   | IDENT s               -> sprintf "IDENT:%s" s
   | IDENT_ s              -> sprintf "IDENT_:%s" s
@@ -107,11 +108,13 @@ let rawtoken_to_string = function
   | IDENT_NSM s           -> sprintf "IDENT_NSM:%s" s
   | IDENT_DSM s           -> sprintf "IDENT_DSM:%s" s
   | IDENT_BHM s           -> sprintf "IDENT_BHM:%s" s
+  | IDENT_BIM s           -> sprintf "IDENT_BIM:%s" s
   | IDENT_BEM s           -> sprintf "IDENT_BEM:%s" s
   | IDENT_BFM s           -> sprintf "IDENT_BFM:%s" s
   | IDENT_BSM s           -> sprintf "IDENT_BSM:%s" s
   | IDENT_CHM s           -> sprintf "IDENT_CHM:%s" s
   | IDENT_AGM s           -> sprintf "IDENT_AGM:%s" s
+  | IDENT_AGSM s          -> sprintf "IDENT_AGSM:%s" s
   | IDENT_LOM s           -> sprintf "IDENT_LOM:%s" s
   | IDENT_PDM s           -> sprintf "IDENT_PDM:%s" s
   | IDENT_VM s            -> sprintf "IDENT_VM:%s" s
@@ -537,7 +540,7 @@ let rawtoken_to_repr = function
   | CLASS_HEAD_MACRO s   -> s
   | FUNC_HEAD_MACRO s    -> s
   | CAST_HEAD_MACRO s    -> s
-
+  | OBJC_PROTOCOL_REF_LIST_MACRO s -> s
   | IDENT s               -> s
   | IDENT_ s              -> s
   | IDENT_V s             -> s
@@ -561,11 +564,13 @@ let rawtoken_to_repr = function
   | IDENT_NSM s           -> s
   | IDENT_DSM s           -> s
   | IDENT_BHM s           -> s
+  | IDENT_BIM s           -> s
   | IDENT_BEM s           -> s
   | IDENT_BFM s           -> s
   | IDENT_BSM s           -> s
   | IDENT_CHM s           -> s
   | IDENT_AGM s           -> s
+  | IDENT_AGSM s          -> s
   | IDENT_LOM s           -> s
   | IDENT_PDM s           -> s
   | IDENT_VM s            -> s

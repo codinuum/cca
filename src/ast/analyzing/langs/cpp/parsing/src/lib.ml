@@ -231,11 +231,13 @@ class parser_c = object (self)
       | T_IDENT -> "IDENT"
       | T_IDENT_ -> "IDENT_"
       | T_IDENT_AGM -> "IDENT_AGM"
+      | T_IDENT_AGSM -> "IDENT_AGSM"
       | T_IDENT_AM -> "IDENT_AM"
       | T_IDENT_B -> "IDENT_B"
       | T_IDENT_BEM -> "IDENT_BEM"
       | T_IDENT_BFM -> "IDENT_BFM"
       | T_IDENT_BHM -> "IDENT_BHM"
+      | T_IDENT_BIM -> "IDENT_BIM"
       | T_IDENT_BM -> "IDENT_BM"
       | T_IDENT_BSM -> "IDENT_BSM"
       | T_IDENT_C -> "IDENT_C"
@@ -327,6 +329,7 @@ class parser_c = object (self)
       | T_OBJC_PROPERTY     -> "OBJC_PROPERTY"
       | T_OBJC_PROTECTED    -> "OBJC_PROTECTED"
       | T_OBJC_PROTOCOL     -> "OBJC_PROTOCOL"
+      | T_OBJC_PROTOCOL_REF_LIST_MACRO -> "OBJC_PROTOCOL_REF_LIST_MACRO"
       | T_OBJC_PUBLIC       -> "OBJC_PUBLIC"
       | T_OBJC_REQUIRED     -> "OBJC_REQUIRED"
       | T_OBJC_SELECTOR     -> "OBJC_SELECTOR"
@@ -677,6 +680,7 @@ class parser_c = object (self)
       | N_explicit_instantiation -> "explicit_instantiation"
       | N_explicit_specialization -> "explicit_specialization"
       | N_explicit_specifier -> "explicit_specifier"
+      | N_export_declaration -> "export_declaration"
       | N_expr_macro_call -> "expr_macro_call"
       | N_expr_or_braced_init_list -> "expr_or_braced_init_list"
       | N_expr_sub -> "expr_sub"
@@ -777,9 +781,12 @@ class parser_c = object (self)
       | N_list_pp_mdecl_elif_group_broken_ -> "list(pp_mdecl_elif_group_broken)"
       | N_list_pp_minit_elif_group_ -> "list(pp_minit_elif_group)"
       | N_list_pp_minit_elif_group_broken_ -> "list(pp_minit_elif_group_broken)"
+      | N_list_pp_objc_category_interface_head_elif_group_ -> "list(objc_category_interface_head_elif_group)"
+      | N_list_pp_objc_class_interface_head_elif_group_ -> "list(objc_class_interface_head_elif_group)"
       | N_list_pp_objc_idecl_elif_group_ -> "list(objc_idecl_elif_group)"
       | N_list_pp_objc_ivar_decl_elif_group_ -> "list(objc_ivar_decl_elif_group)"
       | N_list_pp_objc_proto_name_elif_group_ -> "list(objc_proto_name_elif_group)"
+      | N_list_pp_objc_protocol_ref_list_elif_group_ -> "list(objc_protocol_ref_list_elif_group)"
       | N_list_pp_p_elif_group_ -> "list(pp_p_elif_group)"
       | N_list_pp_old_param_decl_list_elif_group_ -> "list(pp_old_param_decl_list_elif_group)"
       | N_list_pp_param_elif_group_ -> "list(pp_param_elif_group)"
@@ -898,6 +905,7 @@ class parser_c = object (self)
       | N_objc_property_decl -> "objc_property_decl"
       | N_objc_protocol_decl -> "objc_protocol_decl"
       | N_objc_protocol_decl_list -> "objc_protocol_decl_list"
+      | N_objc_protocol_expr -> "objc_protocol_expr"
       | N_objc_protocol_name -> "objc_protocol_name"
       | N_objc_protocol_name_list -> "objc_protocol_name_list"
       | N_objc_protocol_ref_list -> "objc_protocol_ref_list"
@@ -1127,6 +1135,14 @@ class parser_c = object (self)
       | N_pp_minit_else_group -> "pp_minit_else_group"
       | N_pp_minit_if_group -> "pp_minit_if_group"
       | N_pp_minit_if_section -> "pp_minit_if_section"
+      | N_pp_objc_category_interface_head_elif_group -> "pp_objc_category_interface_head_elif_group"
+      | N_pp_objc_category_interface_head_else_group -> "pp_objc_category_interface_head_else_group"
+      | N_pp_objc_category_interface_head_if_group -> "pp_objc_category_interface_head_if_group"
+      | N_pp_objc_category_interface_head_if_section -> "pp_objc_category_interface_head_if_section"
+      | N_pp_objc_class_interface_head_elif_group -> "pp_objc_class_interface_head_elif_group"
+      | N_pp_objc_class_interface_head_else_group -> "pp_objc_class_interface_head_else_group"
+      | N_pp_objc_class_interface_head_if_group -> "pp_objc_class_interface_head_if_group"
+      | N_pp_objc_class_interface_head_if_section -> "pp_objc_class_interface_head_if_section"
       | N_pp_objc_idecl_elif_group -> "pp_objc_idecl_elif_group"
       | N_pp_objc_idecl_else_group -> "pp_objc_idecl_else_group"
       | N_pp_objc_idecl_if_section -> "pp_objc_idecl_if_section"
@@ -1138,6 +1154,9 @@ class parser_c = object (self)
       | N_pp_objc_proto_name_elif_group -> "pp_objc_proto_name_elif_group"
       | N_pp_objc_proto_name_else_group -> "pp_objc_proto_name_else_group"
       | N_pp_objc_proto_name_if_section -> "pp_objc_proto_name_if_section"
+      | N_pp_objc_protocol_ref_list_elif_group -> "pp_objc_protocol_ref_list_elif_group"
+      | N_pp_objc_protocol_ref_list_else_group -> "pp_objc_protocol_ref_list_else_group"
+      | N_pp_objc_protocol_ref_list_if_section -> "pp_objc_protocol_ref_list_if_section"
       | N_pp_old_param_decl_list_elif_group -> "pp_old_param_decl_list_elif_group"
       | N_pp_old_param_decl_list_else_group -> "pp_old_param_decl_list_else_group"
       | N_pp_old_param_decl_list_if_group -> "pp_old_param_decl_list_if_group"
@@ -1845,6 +1864,7 @@ class parser_c = object (self)
             | I.X (I.N N_ty_macro_call), _ , I.X (I.T T_RPAREN) -> begin
                 scanner#ctx_end_of_ty_spec();
                 env#exit_macro_arg();
+                env#set_end_of_type_macro_call_flag();
                 raise Exit
             end
             | I.X (I.N N_macro_arg_list), _ , I.X (I.T T_COMMA) -> begin
@@ -1852,9 +1872,10 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_declaration), I.X (I.N N_pp_decl_if_section_broken)::_,
-                I.X (I.T T_SEMICOLON) when (try List.nth rs 4 = I.X (I.N N_mid_templ_decl) with _ -> false) -> begin
-                env#stack#exit_template();
-            end
+                I.X (I.T T_SEMICOLON) when (try List.nth rs 4 = I.X (I.N N_mid_templ_decl) with _ -> false) ->
+                  begin
+                    env#stack#exit_template();
+                  end
             | I.X (I.N N_declaration), I.X (I.T T_GNU_ASM)::_ , I.X (I.T T_GNU_ASM) -> begin
                 env#enter_asm env#paren_level;
                 raise Exit
@@ -2438,12 +2459,13 @@ class parser_c = object (self)
                   env#exit_asm();
                 raise Exit
             end
-            | I.X (I.N N_labeled_statement), _::I.X (I.N N_pp_stmt_if_section_broken)::_, I.X (I.T T_MARKER) -> begin
-                scanner#ctx_stmt();
-                let sn = I.current_state_number menv_ in
-                ctx_start_of_stmt sn;
-                raise Exit
-            end
+            | I.X (I.N N_labeled_statement), _::I.X (I.N N_pp_stmt_if_section_broken)::_, I.X (I.T T_MARKER) ->
+                begin
+                  scanner#ctx_stmt();
+                  let sn = I.current_state_number menv_ in
+                  ctx_start_of_stmt sn;
+                  raise Exit
+                end
             | I.X (I.N N_label), _, I.X (I.T T_CASE) -> begin
                 scanner#ctx_in_case_label();
                 raise Exit
@@ -2610,6 +2632,7 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_mem_initializer), _, I.X (I.T T_RPAREN) -> begin
+                env#set_end_of_mem_initializer_flag();
                 match scanner#peek_rawtoken() with
                 | PP_IF | PP_IFDEF | PP_IFNDEF -> begin
                     scanner#ctx_mem_init();
@@ -3593,6 +3616,7 @@ class parser_c = object (self)
                 env#exit_templ_arg();
                 raise Exit
             end
+
             | I.X (I.N N_simple_template_id), _, I.X (I.T T_TEMPL_LT) -> begin
                 scanner#push_context();
                 scanner#push_sub_context();
@@ -3779,88 +3803,6 @@ class parser_c = object (self)
                 scanner#ctx_end_of_ty_spec();
                 env#exit_decltype();
                 env#set_end_of_decltype_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_class_interface), _, I.X (I.T T_OBJC_INTERFACE) -> begin
-                env#set_objc_class_interface_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_class_interface), _, I.X (I.T T_OBJC_END) -> begin
-                env#clear_objc_class_interface_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_category_interface), _, I.X (I.T T_OBJC_INTERFACE) -> begin
-                env#set_objc_class_interface_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_category_interface), _, I.X (I.T T_RPAREN) -> begin
-                env#set_objc_cat_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_category_interface), _, I.X (I.T T_OBJC_END) -> begin
-                env#clear_objc_class_interface_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_protocol_decl), _, I.X (I.T T_OBJC_PROTOCOL) -> begin
-                env#set_objc_class_interface_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_protocol_decl), _, I.X (I.T T_OBJC_END) -> begin
-                env#clear_objc_class_interface_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_message_expr), _, I.X (I.T T_OBJC_LBRACKET) -> begin
-                if scanner#peek_rawtoken() != RBRACKET then
-                  env#enter_objc_message_expr();
-                raise Exit
-            end
-            | I.X (I.N N_objc_message_expr), _, I.X (I.T T_RBRACKET) -> begin
-                env#exit_objc_message_expr();
-                raise Exit
-            end
-            | I.X (I.N N_statement), _, I.X (I.T T_OBJC_AUTORELEASEPOOL) -> begin
-                env#set_objc_block_flag();
-                raise Exit
-            end
-            | I.X (I.N N_statement), _, I.X (I.T T_OBJC_TRY) -> begin
-                env#set_objc_block_flag();
-                raise Exit
-            end
-            | I.X (I.N N_statement), _, I.X (I.T T_OBJC_FINALLY) -> begin
-                env#set_objc_block_flag();
-                raise Exit
-            end
-            | I.X (I.N N_statement), _, I.X (I.N N_compound_statement) -> begin
-                env#clear_objc_block_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_property_attrs_decl), _, I.X (I.T T_RPAREN) -> begin
-                scanner#ctx_ini();
-                raise Exit
-            end
-            | I.X (I.N N_objc_method_selector), _, I.X (I.T T_ELLIPSIS) -> begin
-                env#set_end_of_objc_meth_sel_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_catch_clause), _, I.X (I.T T_RPAREN) -> begin
-                let sn = I.current_state_number menv_ in
-                ctx_start_of_stmt sn;
-                raise Exit
-            end
-            | I.X (I.N N_objc_selector), _, I.X (I.T T_IDENT_V) -> begin
-                env#set_objc_sel_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_selector), _, I.X (I.T T_IDENT) -> begin
-                env#set_objc_sel_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_keyword_dtor), _, I.X (I.T T_IDENT_V) -> begin
-                env#set_objc_sel_flag();
-                raise Exit
-            end
-            | I.X (I.N N_objc_keyword_dtor), _, I.X (I.T T_IDENT) -> begin
-                env#set_objc_sel_flag();
                 raise Exit
             end
             | I.X (I.N N_decl_spec_macro_call), _, I.X (I.T T_LPAREN) -> begin
@@ -4119,9 +4061,150 @@ class parser_c = object (self)
             | _ -> ()
 
           in (* let proc_shift *)
+
+          let proc_shift_objc (_, l, rs, r, i) =
+            match l, rs, r with
+            | I.X (I.N N_objc_protocol_ref_list), I.X (I.T T_LT)::_, I.X (I.T T_LT) -> begin
+                env#set_objc_protocol_ref_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_protocol_ref_list), I.X (I.T T_LT)::_, I.X (I.T T_GT) -> begin
+                env#clear_objc_protocol_ref_flag();
+                env#set_end_of_objc_protocol_ref_list_flag();
+                raise Exit
+            end
+            | I.X (I.N N_pp_objc_protocol_ref_list_if_section), _, I.X (I.T T_LT) -> begin
+                env#set_objc_protocol_ref_flag();
+                scanner#ctx_top();
+                scanner#ctx_ini();
+                raise Exit
+            end
+            | I.X (I.N N_pp_objc_protocol_ref_list_if_section), _, I.X (I.T T_GT) -> begin
+                env#clear_objc_protocol_ref_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_class_decl_list), _, I.X (I.T T_OBJC_CLASS) -> begin
+                env#set_objc_class_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_class_decl_list), _, I.X (I.T T_SEMICOLON) -> begin
+                env#clear_objc_class_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_class_interface), _, I.X (I.T T_OBJC_INTERFACE) -> begin
+                env#set_objc_class_interface_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_class_interface), _, I.X (I.T T_OBJC_END) -> begin
+                env#clear_objc_class_interface_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_category_interface), _, I.X (I.T T_OBJC_INTERFACE) -> begin
+                env#set_objc_class_interface_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_category_interface), _, I.X (I.T T_RPAREN) -> begin
+                env#set_objc_cat_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_category_interface), _, I.X (I.T T_OBJC_END) -> begin
+                env#clear_objc_class_interface_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_protocol_decl), _, I.X (I.T T_OBJC_PROTOCOL) -> begin
+                env#set_objc_protocol_decl_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_protocol_decl), _, I.X (I.T T_OBJC_END) -> begin
+                env#clear_objc_protocol_decl_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_protocol_decl_list), _, I.X (I.T T_SEMICOLON) -> begin
+                env#clear_objc_protocol_decl_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_message_expr), _, I.X (I.T T_OBJC_LBRACKET) -> begin
+                if scanner#peek_rawtoken() != RBRACKET then
+                  env#enter_objc_message_expr();
+                raise Exit
+            end
+            | I.X (I.N N_objc_message_expr), _, I.X (I.T T_RBRACKET) -> begin
+                env#exit_objc_message_expr();
+                raise Exit
+            end
+            | I.X (I.N N_statement), _, I.X (I.T T_OBJC_AUTORELEASEPOOL) -> begin
+                env#set_objc_block_flag();
+                raise Exit
+            end
+            | I.X (I.N N_statement), _, I.X (I.T T_OBJC_TRY) -> begin
+                env#set_objc_block_flag();
+                raise Exit
+            end
+            | I.X (I.N N_statement), _, I.X (I.T T_OBJC_FINALLY) -> begin
+                env#set_objc_block_flag();
+                raise Exit
+            end
+            | I.X (I.N N_statement), _, I.X (I.N N_compound_statement) -> begin
+                env#clear_objc_block_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_property_attrs_decl), _, I.X (I.T T_RPAREN) -> begin
+                scanner#ctx_ini();
+                env#set_end_of_objc_property_attrs_decl_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_method_decl), _, x when begin
+                match x with
+                | I.X (I.T T_OBJC_PLUS) | I.X (I.T T_OBJC_MINUS) -> true
+                | _ -> false
+            end -> begin
+                env#set_objc_meth_decl_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_method_selector), _, I.X (I.T T_ELLIPSIS) -> begin
+                env#set_end_of_objc_meth_sel_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_method_type), _, I.X (I.T T_RPAREN) -> begin
+                env#set_end_of_objc_meth_type_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_catch_clause), _, I.X (I.T T_RPAREN) -> begin
+                let sn = I.current_state_number menv_ in
+                ctx_start_of_stmt sn;
+                raise Exit
+            end
+            | I.X (I.N N_objc_selector), _, I.X (I.T T_IDENT_V) -> begin
+                env#set_objc_sel_flag();
+                env#set_objc_meth_sel_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_selector), _, I.X (I.T T_IDENT) -> begin
+                env#set_objc_sel_flag();
+                env#set_objc_meth_sel_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_keyword_dtor), _, I.X (I.T T_IDENT_V) -> begin
+                env#set_objc_sel_flag();
+                env#set_objc_meth_sel_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_keyword_dtor), _, I.X (I.T T_IDENT) -> begin
+                env#set_objc_sel_flag();
+                env#set_objc_meth_sel_flag();
+                raise Exit
+            end
+            | I.X (I.N N_objc_superclass), _, I.X (I.T T_COLON) -> begin
+                env#set_objc_superclass_flag();
+                raise Exit
+            end
+            | _ -> ()
+          in
+
           begin
             try
-              iter_items menv_ proc_shift
+              iter_items menv_ proc_shift;
+              iter_items menv_ proc_shift_objc
             with
               Exit -> ()
           end;
@@ -4283,11 +4366,22 @@ class parser_c = object (self)
             | I.X (I.N N_pp_func_body_if_section) -> env#clear_pp_func_body_odd_flag()
             | I.X (I.N N_brace_or_equal_initializer) -> env#clear_init_flag()
             | I.X (I.N N_initializer_clause) -> env#clear_init_flag()
-            | I.X (I.N N_objc_method_selector) -> env#clear_end_of_objc_meth_sel_flag()
+            | I.X (I.N N_objc_method_selector) -> begin
+                env#clear_end_of_objc_meth_sel_flag();
+                env#clear_objc_meth_sel_flag();
+            end
             | I.X (I.N N_objc_selector) -> env#clear_objc_sel_flag()
             | I.X (I.N N_objc_keyword_dtor) -> env#clear_objc_sel_flag()
-            | I.X (I.N N_objc_method_decl) ->
-                env#clear_objc_sel_flag(); env#clear_end_of_objc_meth_sel_flag()
+            | I.X (I.N N_objc_method_decl) -> begin
+                env#clear_objc_sel_flag();
+                env#clear_end_of_objc_meth_sel_flag();
+                env#clear_objc_meth_decl_flag()
+            end
+            | I.X (I.N N_objc_method_type) -> env#clear_end_of_objc_meth_type_flag()
+            | I.X (I.N N_objc_property_attrs_decl) -> env#clear_end_of_objc_property_attrs_decl_flag()
+            | I.X (I.N N_objc_interface_decl) -> scanner#ctx_ini()
+            | I.X (I.N N_objc_superclass) -> env#clear_objc_superclass_flag()
+            | I.X (I.N N_objc_protocol_ref_list) -> env#clear_end_of_objc_protocol_ref_list_flag();
             | I.X (I.N N_attribute_argument_clause) -> env#clear_attr_flag()
             | I.X (I.N N_gnu_attribute) -> env#clear_attr_flag()
             | _ -> ()

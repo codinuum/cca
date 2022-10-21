@@ -115,6 +115,7 @@ type t =
   | DeductionGuide of name
   | ExplicitInstantiation
   | ExplicitSpecialization
+  | ExportDeclaration
   | LinkageSpecification of string
   | NamedNamespaceDefinition of ident  (* NamespaceDefinition *)
   | UnnamedNamespaceDefinition         (* NamespaceDefinition *)
@@ -752,6 +753,7 @@ type t =
   | ObjcCategoryInterface of ident * ident
   | ObjcSuperclass of ident
   | ObjcProtocolReferenceList
+  | ObjcProtocolReferenceListMacro of ident
   | ObjcInstanceVariables
   | ObjcInstanceVariableDeclaration
   | ObjcInterfaceDeclaration
@@ -777,6 +779,7 @@ type t =
   | ObjcPropertyAttribute of ident
   | ObjcMessageExpression
   | ObjcMessageSelector
+  | ObjcProtocolExpression
   | ObjcKeywordArgument of ident
   | ObjcProtocolInterfaceDeclarationOptional
   | ObjcProtocolInterfaceDeclarationRequired
@@ -873,6 +876,7 @@ let to_string = function
   | DeductionGuide n              -> "DeductionGuide:"^n
   | ExplicitInstantiation         -> "ExplicitInstantiation"
   | ExplicitSpecialization        -> "ExplicitSpecialization"
+  | ExportDeclaration             -> "ExportDeclaration"
   | LinkageSpecification s        -> "LinkageSpecification:"^s
   | NamedNamespaceDefinition i    -> "NamedNamespaceDefinition:"^i
   | UnnamedNamespaceDefinition    -> "UnnamedNamespaceDefinition"
@@ -1494,6 +1498,7 @@ let to_string = function
   | ObjcCategoryInterface(i, c)       -> "ObjcCategoryInterface:"^i^":"^c
   | ObjcSuperclass i                  -> "ObjcSuperclass:"^i
   | ObjcProtocolReferenceList         -> "ObjcProtocolReferenceList"
+  | ObjcProtocolReferenceListMacro i  -> "ObjcProtocolReferenceListMacro:"^i
   | ObjcInstanceVariables             -> "ObjcInstanceVariables"
   | ObjcInstanceVariableDeclaration   -> "ObjcInstanceVariableDeclaration"
   | ObjcInterfaceDeclaration          -> "ObjcInterfaceDeclaration"
@@ -1519,6 +1524,7 @@ let to_string = function
   | ObjcPropertyAttribute i           -> "ObjcPropertyAttribute:"^i
   | ObjcMessageExpression             -> "ObjcMessageExpression"
   | ObjcMessageSelector               -> "ObjcMessageSelector"
+  | ObjcProtocolExpression            -> "ObjcProtocolExpression"
   | ObjcKeywordArgument i             -> "ObjcKeywordArgument:"^i
   | ObjcProtocolInterfaceDeclarationOptional -> "ObjcProtocolInterfaceDeclarationOptional"
   | ObjcProtocolInterfaceDeclarationRequired -> "ObjcProtocolInterfaceDeclarationRequired"
@@ -1617,6 +1623,7 @@ let to_simple_string = function
   | DeductionGuide n              -> sprintf "<deduction-guide:%s>" n
   | ExplicitInstantiation         -> "template"
   | ExplicitSpecialization        -> "template<>"
+  | ExportDeclaration             -> "export"
   | LinkageSpecification s        -> "extern "^s
   | NamedNamespaceDefinition i    -> "namespace "^i
   | UnnamedNamespaceDefinition    -> "namespace"
@@ -2244,6 +2251,7 @@ let to_simple_string = function
   | ObjcCategoryInterface(i, c)       -> sprintf "@interface %s (%s)" i c
   | ObjcSuperclass i                  -> ": "^i
   | ObjcProtocolReferenceList         -> "<objc-protocol-reference-list>"
+  | ObjcProtocolReferenceListMacro i  -> i
   | ObjcInstanceVariables             -> "<objc-instance-variables>"
   | ObjcInstanceVariableDeclaration   -> "<objc-instance-variable-declaration>"
   | ObjcInterfaceDeclaration          -> "<objc-interface-declaration>"
@@ -2269,6 +2277,7 @@ let to_simple_string = function
   | ObjcPropertyAttribute i           -> i
   | ObjcMessageExpression             -> "<objc-message-expression>"
   | ObjcMessageSelector               -> "<objc-message-selector>"
+  | ObjcProtocolExpression            -> "<objc-protocol-expression>"
   | ObjcKeywordArgument i             -> i
   | ObjcProtocolInterfaceDeclarationOptional -> "@optional"
   | ObjcProtocolInterfaceDeclarationRequired -> "@required"
@@ -2369,6 +2378,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DeductionGuide n              -> "DeductionGuide", ["name",n]
   | ExplicitInstantiation         -> "ExplicitInstantiation", []
   | ExplicitSpecialization        -> "ExplicitSpecialization", []
+  | ExportDeclaration             -> "ExportDeclaration", []
   | LinkageSpecification s        -> "LinkageSpecification", ["linkage",s]
   | NamedNamespaceDefinition i    -> "NamedNamespaceDefinition", ["ident",i]
   | UnnamedNamespaceDefinition    -> "UnnamedNamespaceDefinition", []
@@ -3009,6 +3019,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ObjcCategoryInterface(i, c)       -> "ObjcCategoryInterface", ["ident",i;"category",c]
   | ObjcSuperclass i                  -> "ObjcSuperclass", ["ident",i]
   | ObjcProtocolReferenceList         -> "ObjcProtocolReferenceList", []
+  | ObjcProtocolReferenceListMacro i  -> "ObjcProtocolReferenceListMacro", ["ident",i]
   | ObjcInstanceVariables             -> "ObjcInstanceVariables", []
   | ObjcInstanceVariableDeclaration   -> "ObjcInstanceVariableDeclaration", []
   | ObjcInterfaceDeclaration          -> "ObjcInterfaceDeclaration", []
@@ -3034,6 +3045,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ObjcPropertyAttribute i           -> "ObjcPropertyAttribute", ["ident",i]
   | ObjcMessageExpression             -> "ObjcMessageExpression", []
   | ObjcMessageSelector               -> "ObjcMessageSelector", []
+  | ObjcProtocolExpression            -> "ObjcProtocolExpression", []
   | ObjcKeywordArgument i             -> "ObjcKeywordArgument", ["ident",i]
   | ObjcProtocolInterfaceDeclarationOptional -> "ObjcProtocolInterfaceDeclarationOptional", []
   | ObjcProtocolInterfaceDeclarationRequired -> "ObjcProtocolInterfaceDeclarationRequired", []
