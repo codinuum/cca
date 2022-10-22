@@ -69,7 +69,7 @@ RUN set -x && \
     eval $(opam env) && \
     opam switch create 4.14.0 && \
     eval $(opam env) && \
-    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre volt && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
     eval $(opam env) && \
     cd src && \
     make -C mldiff && \
