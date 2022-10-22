@@ -799,7 +799,10 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | ParametersAndQualifiersList -> mkstr2 651
   | LambdaIntroducerMacro i -> combo2 652 [i]
   | BaseSpecMacroInvocation i -> combo2 653 [i]
-  | NestedFunctionDefinition n -> combo2 655 [n]
+  | NestedFunctionDefinition n -> combo2 654 [n]
+  | ExportDeclaration -> mkstr2 655
+  | ObjcProtocolExpression -> mkstr2 656
+  | ObjcProtocolReferenceListMacro i -> combo2 657 [i]
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -1320,6 +1323,7 @@ let _anonymize ?(more=false) ?(most=false) = function
   | ObjcSelectorExpression _                 -> ObjcSelectorExpression ""
   | ObjcMethodMacroInvocation _              -> ObjcMethodMacroInvocation ""
   | ObjcKeywordName _                        -> ObjcKeywordName ""
+  | ObjcProtocolReferenceListMacro _         -> ObjcProtocolReferenceListMacro ""
 
   | SuffixMacroInvocation _ -> SuffixMacroInvocation ""
 

@@ -238,6 +238,14 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   end
   | ExplicitInstantiation  -> pr_nth_children 0; pr_string "template "; pr_nth_children 1
   | ExplicitSpecialization -> pr_string "template<>"; pr_nth_child 0;
+  | ExportDeclaration when nchildren = 0 -> pr_string "export {}"
+  | ExportDeclaration when nchildren = 1 -> pr_string "export "; pr_nth_children 0
+  | ExportDeclaration -> begin
+      pr_string "export"; pad1();
+      pb#pr_block_head();
+      pb#pr_a pr_cut pr_node_ children;
+      pb#pr_block_end()
+  end
   | LinkageSpecification s -> begin
       pr_string "extern "; pr_string s; pad1();
       pb#pr_block_head();
@@ -1261,7 +1269,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ObjcClassMethodDeclaration               -> pr_string "<objc-class-method-declaration>"
   | ObjcInstanceMethodDeclaration            -> pr_string "<objc-instance-method-declaration>"
   | ObjcMethodMacroInvocation i              -> pr_macro_invocation i
-  | ObjcMethodType                           -> pr_string "<objc-MethodType"
+  | ObjcMethodType                           -> pr_string "<objc-method-type"
   | ObjcMethodSelector                       -> pr_string "<objc-method-selector>"
   | ObjcMethodSelectorPack                   -> pr_string "<objc-method-selector-pack>"
   | ObjcSelector i                           -> pr_string i
@@ -1286,6 +1294,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ObjcFinally                              -> pr_string "@finally"
   | ObjcKeywordName ""                       -> pr_colon()
   | ObjcKeywordName i                        -> pr_string i; pr_colon()
+  | ObjcProtocolReferenceListMacro i         -> pr_string i
+  | ObjcProtocolExpression                   -> pr_string "<objc-protocol-expression>"
   end;
 
   let suffix = node#data#get_suffix in
