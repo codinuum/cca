@@ -67,7 +67,7 @@ RUN set -x && \
     cd /root && \
     opam init -y --disable-sandboxing && \
     eval $(opam env) && \
-    opam install -y camlp-streams camlzip cryptokit csv git-unix git-cohttp-unix menhir ocamlnet pxp ulex uuidm pcre volt && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix git-cohttp-unix menhir ocamlnet pxp ulex uuidm pcre cmdliner volt && \
     cd src && \
     make -C mldiff && \
     make -C util && \
