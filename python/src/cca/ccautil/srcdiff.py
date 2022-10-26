@@ -175,7 +175,7 @@ def count_nodes(files, cache_dir_base=None, usecache=True,
         if not load_fact:
             incomplete_opt = ' -incompleteinfo'
 
-        cmd = f'{diffts.diffast_cmd}{incomplete_opt} -parseonly{cache_opt}{fact_opt} {f}'
+        cmd = f'{diffts.diffast_cmd}{incomplete_opt} -parseonly{cache_opt}{fact_opt} "{f}"'
 
         logger.debug(f'cmd="{cmd}"')
 

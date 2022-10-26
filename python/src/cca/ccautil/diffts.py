@@ -224,7 +224,7 @@ def get_cache_dir1_(diff_cmd, a,
 
     opts = cache_opt + hash_opt
 
-    cmd = f'{diff_cmd} -parseonly{opts} -getcache {a}'
+    cmd = f'{diff_cmd} -parseonly{opts} -getcache "{a}"'
 
     if not quiet:
         logger.info(f'cmd: "{cmd}"')
@@ -256,7 +256,7 @@ def get_cache_dir(diff_cmd, a1, a2,
 
     opts = cache_opt + hash_opt
 
-    cmd = f'{diff_cmd}{opts} -getcache {a1} {a2}'
+    cmd = f'{diff_cmd}{opts} -getcache "{a1}" "{a2}"'
 
     if not quiet:
         logger.info(f'cmd: "{cmd}"')
@@ -539,7 +539,7 @@ def diffts(diff_cmd, file1, file2,
         cmd = ''.join((diff_cmd,
                        cache_opt, cachedir_opt, prep_opt, prem_opt, fact_opt,
                        dumpccs_opt, check_opt, other_opts))
-        cmd += f' {file1} {file2}'
+        cmd += f' "{file1}" "{file2}"'
 
         logger.info(f'cmd="{cmd}"')
 
@@ -605,7 +605,7 @@ def diffast_get_gdiff(file1, file2, **options):
 
 
 def dump_unparsed(path, to_path, quiet=False):
-    cmd = f'{diffast_cmd} -clearcache -parseonly -dump:src:out {to_path} {path}'
+    cmd = f'{diffast_cmd} -clearcache -parseonly -dump:src:out "{to_path}" "{path}"'
     if not quiet:
         logger.info('cmd="{}"'.format(cmd))
 
@@ -613,7 +613,7 @@ def dump_unparsed(path, to_path, quiet=False):
 
 
 def patchast(path, delta_path, out_path, quiet=False):
-    cmd = f'{patchast_cmd} -o {out_path} {path} {delta_path}'
+    cmd = f'{patchast_cmd} -o "{out_path}" "{path}" "{delta_path}"'
     if not quiet:
         logger.info(f'cmd="{cmd}"')
 
