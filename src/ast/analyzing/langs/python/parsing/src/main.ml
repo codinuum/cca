@@ -33,6 +33,7 @@ let _ =
   Arg.parse
     [
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump result";
+     "-k", Arg.Unit (fun () -> _parser#_set_keep_going_flag true), "\tparse tolerantly";
      "-w", Arg.Unit (fun () -> _parser#disable_with_stmt), "\tdisable with_statement feature";
     ]
     (fun s -> incr arg_count; filename := s)
@@ -66,10 +67,7 @@ let _ =
         Printf.printf "%d lines read\n" _parser#lines_read
       end
       else begin
-        BEGIN_INFO
-	  Printer.pr_fileinput ast#fileinput;
         Printf.printf "%d lines read\n" _parser#lines_read
-          END_INFO
       end;
 
       ignore (exit 0)

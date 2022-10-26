@@ -216,6 +216,10 @@ class translator options = object (self)
 	  mkstmtnode ~pvec:[ndecos; 1; na; 1] c
 
       | Ast.Sasync stmt -> mkstmtnode [self#of_statement stmt]
+
+      | Ast.Serror -> mkstmtnode [self#of_statement stmt]
+
+      | Ast.Smarker m -> mkstmtnode [self#of_statement stmt]
     in
     set_loc nd stmt.Ast.stmt_loc;
     nd
@@ -403,6 +407,7 @@ class translator options = object (self)
       | Ast.SSexec3(expr1, expr2, expr3) -> self#of_exprs ~pvec:[1; 1; 1] lab [expr1; expr2; expr3]
       | Ast.SSassert expr -> self#of_exprs lab [expr]
       | Ast.SSassert2(expr1, expr2) -> self#of_exprs lab [expr1; expr2]
+      | Ast.SSerror -> mksstmtnode []
     in
     set_loc nd sstmt.Ast.sstmt_loc;
     nd
@@ -515,6 +520,7 @@ class translator options = object (self)
       | Ast.Enamed(expr1, expr2)       -> self#of_exprs L.Named [expr1; expr2]
       | Ast.Efrom expr                 -> self#of_exprs L.From [expr]
       | Ast.Earg(expr1, expr2)         -> self#of_exprs L.Argument [expr1; expr2]
+      | Ast.Eerror                     -> self#of_exprs L.ERROR []
     in
     set_loc nd expr.Ast.expr_loc;
     nd

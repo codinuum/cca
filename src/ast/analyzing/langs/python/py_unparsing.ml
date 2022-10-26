@@ -127,7 +127,9 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   in
 
   match getlab node with
-  | L.Dummy       -> ()
+  | L.Dummy -> ()
+  | L.ERROR -> pr_string "ERROR"
+
   | L.FileInput n -> pr_children ~sep:pr_newline_indent_ ()
 
   | L.Statement stmt -> begin
@@ -176,6 +178,10 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
           pr_suite 3
       end
       | L.Statement.Async -> pr_string "async "; pr_nth_child 0
+
+      | L.Statement.ERROR -> pr_string "ERROR"
+
+      | L.Statement.MARKER m -> pr_string m
   end
   | L.SimpleStatement sstmt -> begin
       match sstmt with
@@ -210,6 +216,7 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
       end
       | L.SimpleStatement.RaiseFrom -> pr_string "raise "; pr_nth_child 0; pr_string " from "; pr_nth_child 1
       | L.SimpleStatement.Nonlocal -> pr_string "nonlocal "; pr_comma_children()
+      | L.SimpleStatement.ERROR -> pr_string "ERROR"
   end
 
   | L.Primary prim -> begin

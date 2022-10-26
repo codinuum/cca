@@ -54,6 +54,8 @@ and statement_desc =
   | Sasync_funcdef of decorator list * name * parameters * expr option * suite
   | Sfuncdef of decorator list * name * parameters * expr option * suite
   | Sclassdef of decorator list * name * arglist * suite
+  | Serror
+  | Smarker of string
 
 and simplestmt = { sstmt_desc: simplestmt_desc; sstmt_loc: loc }
 
@@ -84,7 +86,7 @@ and simplestmt_desc =
   | SSexec3 of expr * expr * expr
   | SSassert of expr
   | SSassert2 of expr * expr
-
+  | SSerror
 
 and dottedname_as_name = dottedname * name option
 
@@ -119,8 +121,8 @@ and expr_desc =
   | Estar of expr
   | Enamed of expr * expr
   | Efrom of expr
-
   | Earg of expr * expr
+  | Eerror
 
 and primary = { prim_desc: primary_desc; prim_loc: loc }
 

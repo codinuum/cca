@@ -394,6 +394,8 @@ module Statement =
       | ClassDef of name
       | Async
       | AsyncFuncDef of name
+      | ERROR
+      | MARKER of string
 
     let to_string = function
       | Simple            -> "Simple"
@@ -406,6 +408,8 @@ module Statement =
       | ClassDef name     -> "ClassDef:" ^ name
       | Async             -> "Async"
       | AsyncFuncDef name -> "AsyncFuncDef:" ^ name
+      | ERROR             -> "ERROR"
+      | MARKER m          -> "MARKER:" ^ m
 
     let is_named = function
       | FuncDef _
@@ -441,6 +445,8 @@ module Statement =
       | ClassDef name -> combo 7 [name]
       | Async -> mkstr 8
       | AsyncFuncDef name -> combo 9 [name]
+      | ERROR -> mkstr 10
+      | MARKER m -> combo 11 [m]
 
     let to_tag stmt =
       let name, attrs =
@@ -455,6 +461,8 @@ module Statement =
 	| ClassDef name -> "ClassDef", ["name",name]
         | Async             -> "Async", []
         | AsyncFuncDef name -> "AsyncFuncDef", ["name",name]
+        | ERROR -> "ERROR", []
+        | MARKER m -> "MARKER", ["line",m]
       in
       name, attrs
 
@@ -481,6 +489,7 @@ module SimpleStatement =
       | AnnAssign
       | RaiseFrom
       | Nonlocal
+      | ERROR
 
     let to_string = function
       | Expr       -> "Expr"
@@ -501,6 +510,7 @@ module SimpleStatement =
       | AnnAssign  -> "AnnAssign"
       | RaiseFrom  -> "RaiseFrom"
       | Nonlocal   -> "Nonlocal"
+      | ERROR      -> "ERROR"
 
     let to_short_string = function
       | Expr       -> mkstr 0
@@ -521,6 +531,7 @@ module SimpleStatement =
       | AnnAssign  -> mkstr 15
       | RaiseFrom  -> mkstr 16
       | Nonlocal   -> mkstr 17
+      | ERROR      -> mkstr 18
 
     let anonymize ?(more=false) = function
       | Assign aop -> Assign AssignmentOperator.Eq
@@ -547,6 +558,7 @@ module SimpleStatement =
         | AnnAssign  -> "AnnAssignStmt", []
         | RaiseFrom  -> "RaiseFromStmt", []
         | Nonlocal   -> "NonlocalStmt", []
+        | ERROR      -> "ERROR", []
       in
       name, attrs
 
@@ -647,6 +659,7 @@ let annotation_to_string = function
 
 type t = (* Label *)
   | Dummy
+  | ERROR
 
   | FileInput of name
   | DottedName of string
@@ -767,6 +780,7 @@ and expr_to_string expr =
   | Ast.Enamed(expr1, expr2) -> sprintf "Enamed(%s,%s)" (expr_to_string expr1) (expr_to_string expr2)
   | Ast.Efrom expr -> sprintf "Efrom(%s)" (expr_to_string expr)
   | Ast.Earg(expr1, expr2) -> sprintf "Earg(%s,%s)" (expr_to_string expr1) (expr_to_string expr2)
+  | Ast.Eerror -> "ERROR"
 
 and bop_to_string = function
   | Ast.Bmul    -> "Bmul"
@@ -909,6 +923,8 @@ let of_statement stmt =
     | Ast.Sasync_funcdef(_, name, _, _, _) -> Statement.AsyncFuncDef (conv_name name)
     | Ast.Sfuncdef(_, name, _, _, _)       -> Statement.FuncDef (conv_name name)
     | Ast.Sclassdef(_, name, _, _)         -> Statement.ClassDef (conv_name name)
+    | Ast.Serror                           -> Statement.ERROR
+    | Ast.Smarker m                        -> Statement.MARKER m
     )
 
 let tid_of_import name_as_names =
@@ -976,6 +992,7 @@ let of_simplestmt sstmt =
     | Ast.SSannassign _          -> SimpleStatement.AnnAssign
     | Ast.SSraisefrom _          -> SimpleStatement.RaiseFrom
     | Ast.SSnonlocal _           -> SimpleStatement.Nonlocal
+    | Ast.SSerror                -> SimpleStatement.ERROR
     )
 
 let of_bop bop = BinaryOperator (BinaryOperator.of_bop bop)
@@ -1012,6 +1029,7 @@ let of_primary p =
 
 let rec to_string = function
   | Dummy                 -> "Dummy"
+  | ERROR                 -> "ERROR"
 
   | Primary p             -> Primary.to_string p
   | UnaryOperator uo      -> UnaryOperator.to_string uo
@@ -1161,10 +1179,13 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Yield                 -> mkstr 65
   | Stride                -> mkstr 66
 
+  | ERROR -> mkstr 67
+
 let to_tag ?(strip=false) l =
   let name, attrs =
     match l with
     | Dummy                 -> "Dummy", []
+    | ERROR                 -> "ERROR", []
 
     | Primary p             -> Primary.to_tag p
     | UnaryOperator uo      -> UnaryOperator.to_tag uo

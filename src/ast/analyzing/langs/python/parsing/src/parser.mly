@@ -72,8 +72,13 @@ open Stat
 %token COLON_EQ MINUS_GT
 %token AWAIT ASYNC NONLOCAL
 
+(* Error handling *)
+%token <string> ERROR MARKER
+
 %start main
+
 %type <Ast.fileinput> main
+
 
 %%
 (********** Rules **********)
@@ -183,8 +188,10 @@ fpdefs:
 ;
 
 stmt:
-| simple_stmt { $1 }
+| simple_stmt   { $1 }
 | compound_stmt { $1 }
+| ERROR { mkerrstmt $startofs $endofs }
+| m=MARKER { mkmarkerstmt $startofs $endofs m }
 ;
 
 simple_stmt:
@@ -228,13 +235,17 @@ expr_stmt:
     {
      match $2 with
      | last :: a -> SSassign($1 :: (List.rev a), last)
-     | _ -> parse_error $startofs $endofs "syntax error"
+     | _ ->
+         parse_error $startofs $endofs "syntax error";
+         SSerror
     }
 ;
+
 eq_testlists:
 |              EQ testlist_or_yield_expr { [$2] }
 | eq_testlists EQ testlist_or_yield_expr { $3 :: $1 }
 ;
+
 testlist_or_yield_expr:
 | testlist_star_expr { $1 }
 | yield_expr { $1 }
@@ -258,11 +269,13 @@ augassign:
 print_stmt:
 | PRINT                { SSprint [] }
 | PRINT       testlist { SSprint $2.list }
-| PRINT GT_GT testlist 
+| PRINT GT_GT testlist
     { 
       match $3.list with
-	h :: t -> SSprintchevron(h, t) 
-      | _ -> parse_error $startofs $endofs "syntax error"
+      | h :: t -> SSprintchevron(h, t)
+      | _ ->
+          parse_error $startofs $endofs "syntax error";
+          SSerror
     }
 ;
 
@@ -321,8 +334,8 @@ import_from:
     {
      (*begin
        match $2, $4 with
-	 [_, "__future__"], [(_, "with_statement"), None] ->
-	   env#enable_with_stmt
+         [_, "__future__"], [(_, "with_statement"), None] ->
+           env#enable_with_stmt
        | _ -> ()
      end;*)
      SSfrom(None, Some $2, $4)
@@ -357,7 +370,15 @@ import_as_name:
 
 dotted_as_name:
 | dotted_name           { $1, None }
-| dotted_name name name { if (snd $2) = "as" then $1, Some $3 else parse_error $startofs $endofs "syntax error" }
+| dotted_name name name
+    { 
+      if (snd $2) = "as" then
+        $1, Some $3
+      else begin
+        parse_error $startofs $endofs "syntax error";
+        $1, Some $3
+      end
+    }
 | dotted_name AS name   { $1, Some $3 }
 ;
 
@@ -516,6 +537,7 @@ test:
 | or_test { $1 }
 | or_test IF or_test ELSE test { mkexpr $startofs $endofs (Econd($1, $3, $5)) }
 | lambdef { mkexpr $startofs $endofs $1 }
+(*| ERROR { mkerrexpr $startofs $endofs }*)
 ;
 
 or_test:
@@ -614,7 +636,7 @@ _primary:
 | _primary trailer
     { 
       let p = 
-	match $2 with
+        match $2 with
         | TRattrref n    -> Pattrref($1, n)
         | TRsubscript el -> Psubscript($1, el)
         | TRslice sil    -> Pslice($1, sil)
@@ -664,13 +686,15 @@ testlist_comp:
 | test_ comp_for { PcompT($1, $2) }
 | testlist_
     { 
-      if $1.yield then 
-	Pyield $1.list
+      if $1.yield then
+        Pyield $1.list
       else
-	if $1.comma then 	  
-	  (match $1.list with [t] -> Pparen t | _ -> Ptuple $1.list)
-	else 
-	  Ptuple $1.list
+        if $1.comma then
+          match $1.list with
+          | [t] -> Pparen t
+          | _ -> Ptuple $1.list
+        else
+          Ptuple $1.list
     }
 ;
 %inline
@@ -688,12 +712,18 @@ trailer:
 | LPAREN         RPAREN { TRcall emptyarglist }
 | LPAREN arglist RPAREN { TRcall $2 }
 | LBRACKET               RBRACKET { TRsubscript [] }
-| LBRACKET subscriptlist RBRACKET 
+| LBRACKET subscriptlist RBRACKET
     { 
       if (List.for_all (function SIexpr _ -> true | _ -> false) $2) then
-	TRsubscript 
-	  (List.map 
-	     (function SIexpr e -> e | _ -> parse_error $startofs $endofs "syntax error") $2)
+        TRsubscript
+          (List.map
+             (function
+               | SIexpr e -> e
+               | _ ->
+                   parse_error $startofs $endofs "syntax error";
+                   mkerrexpr $startofs $endofs
+             ) $2
+          )
       else TRslice $2
     }
 | DOT name { TRattrref $2 }
