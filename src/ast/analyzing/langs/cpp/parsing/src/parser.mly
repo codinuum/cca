@@ -2220,6 +2220,11 @@ iteration_statement:
       let pvec = [1; List.length cl; List.length el; 1] in
       mknode ~pvec $startpos $endpos L.ForStatement (i :: cl @ el @ [s])
     }
+| FOR LPAREN i=stmt_macro_call RPAREN s=statement
+    { 
+      let pvec = [1; 0; 0; 1] in
+      mknode ~pvec $startpos $endpos L.ForStatement [i; s]
+    }
 | FOR LPAREN
     i_opt=ioption(init_statement) f=for_range_declaration COLON fi=for_range_initializer
     RPAREN s=statement
@@ -10143,7 +10148,8 @@ macro_arg:
       let pvec = [0; 1; List.length vl; 0; 1] in
       mknode ~pvec $startpos $endpos L.BaseSpecifier (a :: vl @ [c])
     }
-;
+| TEMPLATE TEMPL_LT TEMPL_GT { mknode $startpos $endpos L.ExplicitSpecialization [] }
+| t=template_head { env#stack#exit_template(); t }
 
 stmts_macro_arg:
 | s=stmt_macro_arg { [s] }

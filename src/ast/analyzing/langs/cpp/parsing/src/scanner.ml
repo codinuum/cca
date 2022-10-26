@@ -326,6 +326,9 @@ let is_attr_macro_ident =
     "WK_API_DEPRECATED_WITH_REPLACEMENT";
     "NS_DEPRECATED";
     "JSC_API_AVAILABLE";
+    "ABSL_GUARDED_BY";
+    "WTF_REQUIRES_LOCK";
+    "RTC_LOCKS_EXCLUDED";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -393,6 +396,7 @@ let is_decl_spec_macro_ident =
     "HB_DEPRECATED_FOR";
     "CV_DECL_ALIGNED";
     "CVAPI";
+    "JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -916,6 +920,7 @@ let is_decl_macro_ident =
     "ASN1_ITEM_TEMPLATE";
     "ASN1_ITEM_TEMPLATE_END";
     "IGNORE_WARNINGS_BEGIN";
+    "DEFINE_VISIT_CHILDREN_WITH_MODIFIER";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -7030,6 +7035,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
                 | _ -> false
             end
+            | RPAREN when prev_rawtoken == LPAREN && prev_rawtoken2 == FOR -> true
             | _ -> false
         end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_SM s)
 
@@ -11973,7 +11979,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
         | IF | FOR | WHILE | SWITCH
         | IDENT_SM _ | IDENT_EM _ | IDENT_TM _ | IDENT_LM _ -> DEBUG_MSG "(IF|...) @"; mk T.LPAREN
 
-        | RETURN | EOF | LBRACE | EXCLAM _ | COMMA | LPAREN when begin
+        | RETURN | EOF | LBRACE | EXCLAM _ | COMMA | LPAREN | AMP_AMP _ | BAR_BAR _ when begin
             let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
             match ll with
             | [l] -> begin
@@ -15238,6 +15244,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
         | _ when env#expr_flag -> DEBUG_MSG "* @ *"; get()
 
+        | _ when env#end_of_params_flag && prev_rawtoken != COMMA -> DEBUG_MSG "* @ *"; get()
+
         | _ -> DEBUG_MSG "* @ *"; token
     end
   in
@@ -15401,11 +15409,14 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
             | _ when begin
                 context == EXPR && env#paren_level = 1 &&
-                ((prev_rawtoken == NEWLINE && is_pp_endif prev_rawtoken2 && prev_rawtoken3 == RPAREN &&
-                prev_rawtoken4 == NEWLINE) ||
-                not env#macro_arg_flag && not env#end_of_params_flag &&
-                not env#init_flag && prev_rawtoken != RBRACKET && prev_rawtoken != LPAREN &&
-                not env#braced_init_flag && try env#paren_stack_top == PK_NORMAL with _ -> false)
+                (
+                 (prev_rawtoken == NEWLINE && is_pp_endif prev_rawtoken2 && prev_rawtoken3 == RPAREN &&
+                  prev_rawtoken4 == NEWLINE
+                 ) ||
+                 not env#macro_arg_flag && not env#end_of_params_flag && not env#trailing_retty_flag &&
+                 not env#init_flag && prev_rawtoken != RBRACKET && prev_rawtoken != LPAREN &&
+                 not env#braced_init_flag && try env#paren_stack_top == PK_NORMAL with _ -> false
+                )
             end -> begin
               DEBUG_MSG "NEWLINE RPAREN PP_ENDIF NEWLINE @";
               DEBUG_MSG "lack of closing parenthesis";
@@ -15861,7 +15872,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | _ -> false
                 end -> DEBUG_MSG "@"; token
 
-                | _ when env#templ_param_arg_level > 0 && env#at_type_paren -> DEBUG_MSG "@"; token
+                | _ when begin
+                    env#templ_param_arg_level > 0 &&
+                    (env#at_type_paren || env#trailing_retty_flag)
+                end -> DEBUG_MSG "@"; token
 
                 | _ when env#templ_param_arg_level > 0 -> DEBUG_MSG "@"; mk T.TEMPL_GT
 
@@ -18508,7 +18522,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
       match prev_rawtoken with
       | CHAR | CHAR8_T| CHAR16_T| CHAR32_T | WCHAR_T | BOOL | SHORT | INT | LONG
       | FLOAT | DOUBLE | VOID | TYPE_MACRO _ | CONST | UNSIGNED | SIGNED | IDENT _
-      | PTR_STAR | PTR_AMP | PTR_AMP_AMP | TY_TEMPL_GT -> true
+      | PTR_STAR | PTR_AMP | PTR_AMP_AMP | TY_TEMPL_GT | AUTO -> true
       | _ -> false
   end && begin
     match self#peek_rawtoken() with
