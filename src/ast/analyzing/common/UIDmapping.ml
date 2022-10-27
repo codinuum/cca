@@ -221,6 +221,7 @@ let add map1 map1rev map2 map2rev uid1 uid2 =
 
 	Hashtbl.replace map1rev uid2 uid1;
 	Hashtbl.remove map1 uid2';
+	Hashtbl.remove map2 uid2';
 
         conflict1 := Some uid2';
 
