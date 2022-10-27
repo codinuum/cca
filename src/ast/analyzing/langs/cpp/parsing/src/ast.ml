@@ -908,7 +908,7 @@ and qn_of_typename_specifier (nd : node) =
       match nd#nth_children 0 with
       | [] -> uqn
       | [n] -> (encode_nested_name_spec n)^uqn
-      | _ -> assert false
+      | _ -> DEBUG_MSG "@"; assert false
   end
   | _ -> invalid_arg "Cpp.Ast.qn_of_typename_specifier"
 
@@ -928,7 +928,10 @@ and uqn_of_unqualified_id (nd : node) =
       match c#label with
       | TypeName _ | SimpleTemplateId _ -> "D"^(uqn_of_type_name c) (* ! *)
       | DecltypeSpecifier -> "D"^(encode_decltype c) (* ! *)
-      | _ -> assert false
+      | IdentifierMacroInvocation _ -> "D"^(uqn_of_ident_macro_invocation c) (* ! *)
+      | lab ->
+          DEBUG_MSG "%s" (L.to_string lab);
+          assert false
   end
   | IdentifierMacroInvocation i -> uqn_of_ident_macro_invocation nd
   | OperatorFunctionId
@@ -1991,8 +1994,11 @@ and simple_type_of_decl_spec_seq (nds : node list) =
                   match y#label with
                   | EnumHeadEnum
                   | EnumHeadEnumClass
-                  | EnumHeadEnumStruct -> fun x -> I.ElaboratedType.Enum x
-                  | _ -> assert false
+                  | EnumHeadEnumStruct
+                  | EnumHeadEnumMacro _ -> fun x -> I.ElaboratedType.Enum x
+                  | lab ->
+                      DEBUG_MSG "%s" (L.to_string lab);
+                      assert false
                 in
                 let n =
                   match y#nth_children 1 with
@@ -2003,7 +2009,7 @@ and simple_type_of_decl_spec_seq (nds : node list) =
                       | EnumHeadName qn -> (encode_nested_name_spec (List.hd z#children))^qn
                       | _ -> assert false
                   end
-                  | _ -> assert false
+                  | _ -> DEBUG_MSG "@"; assert false
                 in
                 (I.TypeSpec.Elaborated (k n))::ts
             end
