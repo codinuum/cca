@@ -17593,7 +17593,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
   end -> DEBUG_MSG "@"; mk T.ODD_RBRACE
 
   | RBRACE when begin
-      env#asm_flag && not env#braced_asm_flag &&
+      env#asm_flag && not env#braced_asm_flag && not env#at_paren &&
       (not env#asm_block_flag || env#is_inline_asm_function (env#get_function_name())) &&
       prev_rawtoken != END_ASM &&
       match self#peek_rawtoken() with
