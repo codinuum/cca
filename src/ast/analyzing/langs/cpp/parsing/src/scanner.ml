@@ -17769,7 +17769,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
   | SEMICOLON _ when begin
       env#get_paren_closing_info() && prev_rawtoken != RPAREN &&
       match self#peek_rawtoken() with
-      | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> true
+      | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ when env#pp_else_flag || env#pp_elif_flag -> true
       | _ -> false
   end -> begin
     DEBUG_MSG "RPAREN @";
