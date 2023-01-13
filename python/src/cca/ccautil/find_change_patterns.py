@@ -31,8 +31,7 @@ import json
 from xml.sax.saxutils import escape
 import logging
 
-from .siteconf import CCA_HOME
-from . import cca_config as config
+from .siteconf import CCA_HOME, PROJECTS_DIR_NAME
 from . import project, sparql
 from .factextractor import compo_join, P_TYPE, make_literal
 from .ns import FB_NS, CHG_NS, NS_TBL, PREFIX_TBL
@@ -518,7 +517,7 @@ class Finder(object):
     def get_ver_dir_r(self, verURI):
         v = self._conf.versions[self.get_vindex(verURI)]
         vdn = self._conf.get_ver_dir_name(v)
-        return os.path.join(config.PROJECTS_DIR_NAME, self._proj_id, vdn)
+        return os.path.join(PROJECTS_DIR_NAME, self._proj_id, vdn)
 
     def get_abbrev_ver(self, lver):
         av = lver
