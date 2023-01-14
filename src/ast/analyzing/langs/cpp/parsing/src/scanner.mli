@@ -23,6 +23,20 @@ module C = Context
 
 type token = T.token Parserlib_base.token
 
+type mode =
+  | M_NORMAL
+  | M_STMTS
+  | M_DECLS_SUB of string
+  | M_MEM_DECLS_SUB of string
+  | M_STMTS_SUB of string
+  | M_EXPR_SUB of string
+  | M_INIT_SUB of string
+  | M_TYPE_SUB of string
+  | M_SPECS_SUB of string
+  | M_DTORS_SUB of string
+  | M_ETORS_SUB of string
+  | M_OBJC_DECLS_SUB of string
+
 (*
 val is_type_name : string -> bool
 val templ_param_arg_balanced : ?level:int -> T.token list -> bool
@@ -31,9 +45,14 @@ val mem_at_level0 : ?rev:bool -> T.token list -> T.token -> bool
 val split_at_comma : T.token list -> T.token list list
 val contained_in_list : T.token list -> T.token list -> bool
 *)
+val is_pp_elif_else_like : Aux.env -> T.token -> bool
+val is_pp_elif_else_endif_like : Aux.env -> T.token -> bool
+val is_pp_control_line : T.token -> bool
 
 val is_params_body_macro : string -> bool
 val is_params_body_macro_ident : string -> bool
+
+type name_kind = K_NONE | K_TYPE | K_OBJ | K_TEMPL
 
 class type c_t = object
   method keep_flag : bool
@@ -52,7 +71,9 @@ class type c_t = object
   method current_token : token
   method current_loc : Ast.Loc.t
 
-  method enter_block : unit -> unit
+  method enter_block : ?no_tweak:bool -> unit -> unit
+  method set_body_flag : unit -> unit
+  method reset_body_name : unit -> unit
 
   method peek : unit -> token
   method peek_nth : int -> token
@@ -81,11 +102,11 @@ class type c_t = object
   method reg_ident_conv : string -> T.token -> unit
   method find_ident_conv : string -> T.token
 
-  method lookup_name : string -> Pinfo.Name.Spec.c
-  method is_type : ?defined:bool -> ?weak:bool -> string -> bool
+  method lookup_name : ?kind:name_kind -> ?prefix:string -> string -> Pinfo.Name.Spec.c
+  method is_type : ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
   method is_label : string -> bool
-  method is_templ : string -> bool
-  method is_val : string -> bool
+  method is_templ : ?prefix:string -> string -> bool
+  method is_val : ?prefix:string -> string -> bool
   method _is_val : string -> bool
   method is_macro_fun : string -> bool
   method is_macro_obj : string -> bool
@@ -128,6 +149,7 @@ class type c_t = object
   method context : C.t
   method sub_context : C.sub
   method top_context : C.t
+  method second_top_context : C.t
   method top_sub_context : C.sub
   method push_context : unit -> unit
   method push_sub_context : unit -> unit
@@ -153,6 +175,7 @@ class type c_t = object
   method ctx_end_of_id_expr : unit -> unit
   method ctx_end_of_stmt : unit -> unit
   method ctx_in_simple_templ_id : unit -> unit
+  method sync_ctx_with_info : Pinfo.pp_if_section_info -> unit
 
   method replay_queue_length : int
   method init_replay_queue : int -> Aux.pstat -> token list -> unit
@@ -170,6 +193,10 @@ class type c_t = object
   method set_token_hist_flag : unit -> unit
 
   method pp_restore_context : unit -> unit
+
+  method mode : mode
+  method set_mode : mode -> unit
+
 end
 
 val conv_token : Aux.env -> c_t -> token -> token

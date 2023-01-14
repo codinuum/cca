@@ -82,6 +82,7 @@ class pstat = object (self)
   val mutable exec_config_flag = false
   val mutable decltype_flag = false
   val mutable alignas_flag = false
+  val mutable alignof_flag = false
   val mutable noexcept_flag = false
   val mutable end_of_id_macro_call_flag = false
   val mutable end_of_literal_macro_call_flag = false
@@ -135,6 +136,12 @@ class pstat = object (self)
   val mutable attr_flag = false
   val mutable linkage_spec_flag = false
   val mutable condition_flag = false
+  val mutable mem_acc_flag = false
+  val mutable alias_flag = false
+  val mutable using_flag = false
+  val mutable mock_qualifier_flag = false
+  val mutable end_of_str_section_flag = false
+  val mutable new_flag = false
 
   val paren_stack = Stack.create()
   val brace_stack = Stack.create()
@@ -156,6 +163,7 @@ class pstat = object (self)
 
   val mutable brace_level_marker = 0
   val mutable brace_level_marker_flag = false
+  val mutable canceled_brace_level_marker = 0
 
   val mutable last_pp_if_section_info = I.dummy_info
 
@@ -179,6 +187,7 @@ class pstat = object (self)
     exec_config_flag <- false;
     decltype_flag <- false;
     alignas_flag <- false;
+    alignof_flag <- false;
     noexcept_flag <- false;
     start_of_func_body_flag <- false;
     end_of_id_macro_call_flag <- false;
@@ -232,6 +241,12 @@ class pstat = object (self)
     attr_flag <- false;
     linkage_spec_flag <- false;
     condition_flag <- false;
+    mem_acc_flag <- false;
+    alias_flag <- false;
+    using_flag <- false;
+    mock_qualifier_flag <- false;
+    end_of_str_section_flag <- false;
+    new_flag <- false;
     Stack.clear paren_stack;
     Stack.clear brace_stack;
     Stack.clear templ_param_arg_stack;
@@ -248,7 +263,8 @@ class pstat = object (self)
     objc_message_expr_level <- 0;
     pp_group_rel_brace_level <- 0;
     brace_level_marker <- 0;
-    brace_level_marker_flag <- false
+    brace_level_marker_flag <- false;
+    canceled_brace_level_marker <- 0
 
   method to_string =
     let l = [
@@ -305,6 +321,16 @@ class pstat = object (self)
     let lv1 = lv - 1 in
     DEBUG_MSG "lv=%d -> %d" lv lv1;
     brace_level_marker <- lv1
+
+  method canceled_brace_level_marker = canceled_brace_level_marker
+
+  method set_canceled_brace_level_marker lv =
+    DEBUG_MSG "lv=%d" lv;
+    canceled_brace_level_marker <- lv
+
+  method reset_canceled_brace_level_marker () =
+    DEBUG_MSG "@";
+    canceled_brace_level_marker <- 0
 
   method pp_group_rel_brace_level = pp_group_rel_brace_level
 
@@ -956,8 +982,10 @@ class pstat = object (self)
   method end_of_mem_initializer_flag = end_of_mem_initializer_flag
 
   method set_attr_flag () =
-    DEBUG_MSG "attr_flag set";
-    attr_flag <- true
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "attr_flag set";
+      attr_flag <- true
+    end
 
   method clear_attr_flag () =
     if attr_flag then begin
@@ -990,6 +1018,88 @@ class pstat = object (self)
     end
 
   method condition_flag = condition_flag
+
+  method set_mem_acc_flag () =
+    DEBUG_MSG "mem_acc_flag set";
+    mem_acc_flag <- true
+
+  method clear_mem_acc_flag () =
+    if mem_acc_flag then begin
+      DEBUG_MSG "mem_acc_flag cleared";
+      mem_acc_flag <- false
+    end
+
+  method mem_acc_flag = mem_acc_flag
+
+  method set_alias_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "alias_flag set";
+      alias_flag <- true
+    end
+
+  method clear_alias_flag () =
+    if alias_flag then begin
+      DEBUG_MSG "alias_flag cleared";
+      alias_flag <- false
+    end
+
+  method alias_flag = alias_flag
+
+  method set_using_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "using_flag set";
+      using_flag <- true
+    end
+
+  method clear_using_flag () =
+    if using_flag then begin
+      DEBUG_MSG "using_flag cleared";
+      using_flag <- false
+    end
+
+  method using_flag = using_flag
+
+  method set_mock_qualifier_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "mock_qualifier_flag set";
+      mock_qualifier_flag <- true
+    end
+
+  method clear_mock_qualifier_flag () =
+    if mock_qualifier_flag then begin
+      DEBUG_MSG "mock_qualifier_flag cleared";
+      mock_qualifier_flag <- false
+    end
+
+  method mock_qualifier_flag = mock_qualifier_flag
+
+  method set_end_of_str_section_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "end_of_str_section_flag set";
+      end_of_str_section_flag <- true
+    end
+
+  method clear_end_of_str_section_flag () =
+    if end_of_str_section_flag then begin
+      DEBUG_MSG "end_of_str_section_flag cleared";
+      end_of_str_section_flag <- false
+    end
+
+  method end_of_str_section_flag = end_of_str_section_flag
+
+  method set_new_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "new_flag set";
+      new_flag <- true
+    end
+
+  method clear_new_flag () =
+    if new_flag then begin
+      DEBUG_MSG "new_flag cleared";
+      new_flag <- false
+    end
+
+  method new_flag = new_flag
 
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
@@ -1150,6 +1260,18 @@ class pstat = object (self)
 
   method alignas_flag = alignas_flag
 
+  method enter_alignof () =
+    DEBUG_MSG "entering alignof";
+    alignof_flag <- true
+
+  method exit_alignof () =
+    if alignof_flag then begin
+      DEBUG_MSG "exiting alignof";
+      alignof_flag <- false
+    end
+
+  method alignof_flag = alignof_flag
+
   method enter_noexcept () =
     DEBUG_MSG "entering noexcept";
     noexcept_flag <- true
@@ -1291,12 +1413,13 @@ class pstat = object (self)
     let lv = self#pp_if_section_level in
     DEBUG_MSG "pp_if_section_level=%d" lv;
     if lv > 0 then begin
-      (Stack.top pp_if_section_stack).i_pp_elif <- Some self#brace_level
+      let top = Stack.top pp_if_section_stack in
+      top.i_pp_elif <- self#brace_level::top.i_pp_elif
     end
 
   method pp_elif_flag =
     try
-      (Stack.top pp_if_section_stack).i_pp_elif != None
+      (Stack.top pp_if_section_stack).i_pp_elif != []
     with
       Stack.Empty -> false
 
@@ -1365,6 +1488,16 @@ class pstat = object (self)
       info.i_rbraces <- x
     end
 
+  method get_rbrace_info () =
+    let lv = self#pp_if_section_level in
+    DEBUG_MSG "pp_if_section_level=%d" lv;
+    if lv > 0 then begin
+      let info = Stack.top pp_if_section_stack in
+      info.i_rbraces
+    end
+    else
+      0
+
   method incr_rbrace_info () =
     let lv = self#pp_if_section_level in
     DEBUG_MSG "pp_if_section_level=%d" lv;
@@ -1422,6 +1555,18 @@ class pstat = object (self)
     with
       _ -> false
 
+  method set_brace_paren_closing_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_brace_paren_closing <- true
+
+  method get_brace_paren_closing_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_brace_paren_closing
+    with
+      _ -> false
+
   method set_brace_closing_info n =
     let info = Stack.top pp_if_section_stack in
     DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
@@ -1465,6 +1610,30 @@ class pstat = object (self)
     try
       let info = Stack.top pp_if_section_stack in
       info.i_func_head
+    with
+      _ -> false
+
+  method set_broken_func_head_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_broken_func_head <- true
+
+  method get_broken_func_head_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_broken_func_head
+    with
+      _ -> false
+
+  method set_templ_closing_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_templ_closing <- true
+
+  method get_templ_closing_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_templ_closing
     with
       _ -> false
 
@@ -1530,6 +1699,18 @@ class pstat = object (self)
     try
       let info = Stack.top pp_if_section_stack in
       info.i_asm
+    with
+      _ -> false
+
+  method set_begin_asm_info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_begin_asm <- true
+
+  method get_begin_asm_info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_begin_asm
     with
       _ -> false
 
@@ -1612,7 +1793,7 @@ class pstat = object (self)
   method alt_pp_branch_flag =
     try
       let info = Stack.top pp_if_section_stack in
-      info.i_pp_elif != None || info.i_pp_else != None
+      info.i_pp_elif != [] || info.i_pp_else != None
     with
       Stack.Empty -> false
 
@@ -1684,7 +1865,7 @@ class pstat = object (self)
   method at_macro_arg_paren =
     try
       match Stack.top paren_stack with
-      | PK_MACRO -> true
+      | PK_MACRO | PK_SS -> true
       | _ -> false
     with
       _ -> false
@@ -1882,7 +2063,6 @@ class env = object (self)
   val mutable pp_define_body_flag = false
   val mutable pp_odd_flag = false
   val mutable pp_params_flag = false
-  val mutable alias_flag = false
   val mutable body_head_flag = false
   val mutable cast_key_flag = false
   val mutable conv_func_id_flag = false
@@ -1893,7 +2073,6 @@ class env = object (self)
   val mutable param_head_flag = false
   val mutable ty_param_key_flag = false
   val mutable typedef_flag = false
-  val mutable using_flag = false
   val mutable using_ns_flag = false
   val mutable virtual_func_flag = false
   val mutable value_flag = false
@@ -1922,11 +2101,31 @@ class env = object (self)
 
   val mutable unqualified_name = ""
   val mutable function_name = ""
+  val mutable name_prefix = ""
 
   initializer
     stack#push top_frame
 
-  method set_dtor_node nd = dtor_node <- nd
+  method set_top_frame frm = top_frame <- frm
+
+  method reset_name_prefix () = name_prefix <- ""
+  method name_prefix = name_prefix
+  method _set_name_prefix p =
+    DEBUG_MSG "p=%s" p;
+    name_prefix <- p
+  method set_name_prefix nd =
+    let p = Ast.encode_nested_name_spec nd in
+    DEBUG_MSG "p=%s" p;
+    name_prefix <- p
+
+  method set_dtor_node nd =
+    DEBUG_MSG "@";
+    dtor_node <- nd
+
+  method reset_dtor_node () =
+    DEBUG_MSG "@";
+    dtor_node <- Ast.dummy_node
+
   method get_dtor_prefix () =
     if self#stack#after_params then begin
       if dtor_node != Ast.dummy_node then
@@ -1938,6 +2137,18 @@ class env = object (self)
     end
     else
       ""
+
+  method get_dtor_prefix_and_qn () =
+    if self#stack#after_params then begin
+      if dtor_node != Ast.dummy_node then
+        let q, _ = Ast.qn_wrap_of_declarator dtor_node in
+        let p = Ast.prefix_of_encoded q in
+        p, q
+      else
+        "", ""
+    end
+    else
+      "", ""
 
   method scanner_keep_flag = scanner_keep_flag
   method set_scanner_keep_flag() = scanner_keep_flag <- true
@@ -1955,8 +2166,8 @@ class env = object (self)
     DEBUG_MSG "%s ->" (opt_to_string N.Spec.access_spec_to_string access_spec_opt);
     access_spec_opt <- None
 
-  method lookup_name n =
-    stack#find_name n
+  method lookup_name ?(filt=fun _ -> true) n =
+    stack#find_name ~filt n
 
   method lookup_namespace n =
     stack#find_namespace n
@@ -2146,6 +2357,30 @@ class env = object (self)
     let spec = new N.Spec.c nd#loc uqn (N.Spec.make_typaram tp_spec) in
     nd#set_info (I.from_spec spec);
     frm#register uqn spec
+
+  method register_elaborated_type (nd : Ast.node) =
+    DEBUG_MSG "nd=%s" (L.to_string nd#label);
+    let ok =
+      try
+        match (List.hd (nd#nth_children 2))#label with
+        | L.IdentifierMacroInvocation _ -> false
+        | _ -> true
+      with _ -> true
+    in
+    if ok then
+    let frm = stack#top in
+    let p = stack#get_prefix() in
+    let qn =
+      match nd#label with
+      | ElaboratedTypeSpecifierClass i
+      | ElaboratedTypeSpecifierStruct i
+      | ElaboratedTypeSpecifierUnion i
+      | ElaboratedTypeSpecifierEnum i -> i
+      | _ -> assert false
+    in
+    let spec = new N.Spec.c ~prefix:p nd#loc qn N.Spec.Type in
+    nd#set_info (I.from_spec spec);
+    frm#register qn spec
 
   method register_class_head nd =
     DEBUG_MSG "nd=%s" (L.to_string nd#label);
@@ -2426,10 +2661,11 @@ class env = object (self)
     end
 
   method register_resolved_macro name nd =
-    DEBUG_MSG "%s" name;
+    DEBUG_MSG "%s -> %s" name (L.to_string nd#label);
     Hashtbl.add resolved_macro_tbl name nd
 
   method find_resolved_macro name =
+    DEBUG_MSG "%s" name;
     Hashtbl.find resolved_macro_tbl name
 
   method register_pending_macro name parent_nd macro_kind tok_lst =
@@ -2440,12 +2676,15 @@ class env = object (self)
     Hashtbl.iter f pending_macro_tbl
 
   method find_pending_macro name =
+    DEBUG_MSG "%s" name;
     Hashtbl.find pending_macro_tbl name
 
   method register_malformed_macro name =
+    DEBUG_MSG "%s" name;
     Xset.add malformed_macro_names name
 
   method is_malformed_macro name =
+    DEBUG_MSG "%s" name;
     Xset.mem malformed_macro_names name
 
   method register_inline_asm_function name =
@@ -2784,6 +3023,30 @@ class env = object (self)
   method clear_condition_flag = pstat#clear_condition_flag
   method condition_flag = pstat#condition_flag
 
+  method set_mem_acc_flag = pstat#set_mem_acc_flag
+  method clear_mem_acc_flag = pstat#clear_mem_acc_flag
+  method mem_acc_flag = pstat#mem_acc_flag
+
+  method set_using_flag = pstat#set_using_flag
+  method clear_using_flag = pstat#clear_using_flag
+  method using_flag = pstat#using_flag
+
+  method set_mock_qualifier_flag = pstat#set_mock_qualifier_flag
+  method clear_mock_qualifier_flag = pstat#clear_mock_qualifier_flag
+  method mock_qualifier_flag = pstat#mock_qualifier_flag
+
+  method set_end_of_str_section_flag = pstat#set_end_of_str_section_flag
+  method clear_end_of_str_section_flag = pstat#clear_end_of_str_section_flag
+  method end_of_str_section_flag = pstat#end_of_str_section_flag
+
+  method set_new_flag = pstat#set_new_flag
+  method clear_new_flag = pstat#clear_new_flag
+  method new_flag = pstat#new_flag
+
+  method set_alias_flag = pstat#set_alias_flag
+  method clear_alias_flag = pstat#clear_alias_flag
+  method alias_flag = pstat#alias_flag
+
   method set_trailing_retty_flag = pstat#set_trailing_retty_flag
   method clear_trailing_retty_flag = pstat#clear_trailing_retty_flag
   method trailing_retty_flag = pstat#trailing_retty_flag
@@ -2808,6 +3071,7 @@ class env = object (self)
   method decr_lbrace_info = pstat#decr_lbrace_info
   method clear_rbrace_info = pstat#clear_rbrace_info
   method set_rbrace_info = pstat#set_rbrace_info
+  method get_rbrace_info = pstat#get_rbrace_info
   method incr_rbrace_info = pstat#incr_rbrace_info
   method decr_rbrace_info = pstat#decr_rbrace_info
   method set_odd_info = pstat#set_odd_info
@@ -2816,6 +3080,8 @@ class env = object (self)
   method get_broken_info = pstat#get_broken_info
   method set_paren_closing_info = pstat#set_paren_closing_info
   method get_paren_closing_info = pstat#get_paren_closing_info
+  method set_brace_paren_closing_info = pstat#set_brace_paren_closing_info
+  method get_brace_paren_closing_info = pstat#get_brace_paren_closing_info
   method set_brace_closing_info = pstat#set_brace_closing_info
   method incr_brace_closing_info = pstat#incr_brace_closing_info
   method get_brace_closing_info = pstat#get_brace_closing_info
@@ -2824,6 +3090,10 @@ class env = object (self)
   method get_brace_opening_info = pstat#get_brace_opening_info
   method set_func_head_info = pstat#set_func_head_info
   method get_func_head_info = pstat#get_func_head_info
+  method set_broken_func_head_info = pstat#set_broken_func_head_info
+  method get_broken_func_head_info = pstat#get_broken_func_head_info
+  method set_templ_closing_info = pstat#set_templ_closing_info
+  method get_templ_closing_info = pstat#get_templ_closing_info
   method set_func_body_info = pstat#set_func_body_info
   method get_func_body_info = pstat#get_func_body_info
   method set_semicolon_info = pstat#set_semicolon_info
@@ -2835,6 +3105,8 @@ class env = object (self)
   method get_cond_expr_info = pstat#get_cond_expr_info
   method set_asm_info = pstat#set_asm_info
   method get_asm_info = pstat#get_asm_info
+  method set_begin_asm_info = pstat#set_begin_asm_info
+  method get_begin_asm_info = pstat#get_begin_asm_info
   method set_lack_of_dtor_info = pstat#set_lack_of_dtor_info
   method get_lack_of_dtor_info = pstat#get_lack_of_dtor_info
   method set_class_brace_opening_info = pstat#set_class_brace_opening_info
@@ -2929,6 +3201,10 @@ class env = object (self)
   method exit_alignas = pstat#exit_alignas
   method alignas_flag = pstat#alignas_flag
 
+  method enter_alignof = pstat#enter_alignof
+  method exit_alignof = pstat#exit_alignof
+  method alignof_flag = pstat#alignof_flag
+
   method enter_noexcept = pstat#enter_noexcept
   method exit_noexcept = pstat#exit_noexcept
   method noexcept_flag = pstat#noexcept_flag
@@ -2973,30 +3249,6 @@ class env = object (self)
     end
 
   method for_range_init_flag = for_range_init_flag
-
-  method set_using_flag () =
-    DEBUG_MSG "using_flag set";
-    using_flag <- true
-
-  method clear_using_flag () =
-    if using_flag then begin
-      DEBUG_MSG "using_flag cleared";
-      using_flag <- false
-    end
-
-  method using_flag = using_flag
-
-  method set_alias_flag () =
-    DEBUG_MSG "alias_flag set";
-    alias_flag <- true
-
-  method clear_alias_flag () =
-    if alias_flag then begin
-      DEBUG_MSG "alias_flag cleared";
-      alias_flag <- false
-    end
-
-  method alias_flag = alias_flag
 
   method set_ty_param_key_flag () =
     DEBUG_MSG "ty_param_key_flag set";

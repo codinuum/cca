@@ -29,11 +29,14 @@ let rawtoken_to_string = function
   | EOF                  -> "EOF"
   | NEWLINE              -> "NEWLINE"
   (*| STMT_MARKER          -> "STMT_MARKER"*)
+  | BRACE_PAREN_MARKER   -> "BRACE_PAREN_MARKER"
   | SUFFIX_MARKER        -> "SUFFIX_MARKER"
   | STR_MARKER           -> "STR_MARKER"
   | COND_MARKER          -> "COND_MARKER"
   | LAM_MARKER           -> "LAM_MARKER"
   | SECTION_MARKER       -> "SECTION_MARKER"
+  | PP_MARKER            -> "PP_MARKER"
+  | MOCK_MARKER          -> "MOCK_MARKER"
   | MARKER               -> "MARKER"
   | DUMMY_STMT           -> "DUMMY_STMT"
   | DUMMY_EXPR           -> "DUMMY_EXPR"
@@ -49,9 +52,13 @@ let rawtoken_to_string = function
   | END_QPROP            -> "END_QPROP"
   | ASM_SHADER           -> "ASM_SHADER"
 
+  | GT_7 b                -> sprintf "GT_7:%B" !b
+  | CONFLICT_MARKER(s, b) -> sprintf "CONFLICT_MARKER:%s:%B" s !b
+
   | STR_MACRO s          -> sprintf "STR_MACRO:%s" s
   | INT_MACRO s          -> sprintf "INT_MACRO:%s" s
   | DECL_MACRO s         -> sprintf "DECL_MACRO:%s" s
+  | PRAGMA_MACRO s       -> sprintf "PRAGMA_MACRO:%s" s
   | STMT_MACRO s         -> sprintf "STMT_MACRO:%s" s
   | VIRT_SPEC_MACRO s    -> sprintf "VIRT_SPEC_MACRO:%s" s
   | OP_MACRO s           -> sprintf "OP_MACRO:%s" s
@@ -84,6 +91,9 @@ let rawtoken_to_string = function
   | FUNC_HEAD_MACRO s    -> sprintf "FUNC_HEAD_MACRO:%s" s
   | CAST_HEAD_MACRO s    -> sprintf "CAST_HEAD_MACRO:%s" s
   | OBJC_PROTOCOL_REF_LIST_MACRO s -> sprintf "OBJC_PROTOCOL_REF_LIST_MACRO:%s" s
+  | OBJC_SEL_MACRO s     -> sprintf "OBJC_SEL_MACRO:%s" s
+  | CLASS_BODY_HEAD_MACRO s -> sprintf "CLASS_BODY_HEAD_MACRO:%s" s
+  | CLASS_BODY_END_MACRO s  -> sprintf "CLASS_BODY_END_MACRO:%s" s
 
   | IDENT s               -> sprintf "IDENT:%s" s
   | IDENT_ s              -> sprintf "IDENT_:%s" s
@@ -99,6 +109,7 @@ let rawtoken_to_string = function
   | IDENT_IM s            -> sprintf "IDENT_IM:%s" s
   | IDENT_PM s            -> sprintf "IDENT_PM:%s" s
   | IDENT_PBM s           -> sprintf "IDENT_PBM:%s" s
+  | IDENT_PGM s           -> sprintf "IDENT_PGM:%s" s
   | IDENT_CM s            -> sprintf "IDENT_CM:%s" s
   | IDENT_LM s            -> sprintf "IDENT_LM:%s" s
   | IDENT_LPAREN s        -> sprintf "IDENT_LPAREN:%s" s
@@ -113,6 +124,7 @@ let rawtoken_to_string = function
   | IDENT_BFM s           -> sprintf "IDENT_BFM:%s" s
   | IDENT_BSM s           -> sprintf "IDENT_BSM:%s" s
   | IDENT_CHM s           -> sprintf "IDENT_CHM:%s" s
+  | IDENT_CTM s           -> sprintf "IDENT_CTM:%s" s
   | IDENT_AGM s           -> sprintf "IDENT_AGM:%s" s
   | IDENT_AGSM s          -> sprintf "IDENT_AGSM:%s" s
   | IDENT_LOM s           -> sprintf "IDENT_LOM:%s" s
@@ -120,6 +132,11 @@ let rawtoken_to_string = function
   | IDENT_VM s            -> sprintf "IDENT_VM:%s" s
   | IDENT_SXM s           -> sprintf "IDENT_SXM:%s" s
   | IDENT_DSL s           -> sprintf "IDENT_DSL:%s" s
+  | IDENT_DLM s           -> sprintf "IDENT_DLM:%s" s
+  | IDENT_CBHM s          -> sprintf "IDENT_CBHM:%s" s
+  | IDENT_CBEM s          -> sprintf "IDENT_CBEM:%s" s
+  | IDENT_IHM s           -> sprintf "IDENT_IHM:%s" s
+  | IDENT_IEM s           -> sprintf "IDENT_IEM:%s" s
 
   | AT                    -> "AT"
   | BS                    -> "BS"
@@ -139,6 +156,8 @@ let rawtoken_to_string = function
   | PP_LPAREN             -> "PP_LPAREN"
   | SS_LPAREN             -> "SS_LPAREN"
   | PS_LPAREN             -> "PS_LPAREN"
+  | S_LPAREN              -> "S_LPAREN"
+  | S_RPAREN              -> "S_RPAREN"
   | ELLIPSIS_             -> "ELLIPSIS_"
   | PTR_STAR              -> "PTR_STAR"
   | PTR_AMP               -> "PTR_AMP"
@@ -184,6 +203,9 @@ let rawtoken_to_string = function
   | PP_IF_B               -> "PP_IF_B"
   | PP_IFDEF_B            -> "PP_IFDEF_B"
   | PP_IFNDEF_B           -> "PP_IFNDEF_B"
+  | PP_IF_BROKEN          -> "PP_IF_BROKEN"
+  | PP_IFDEF_BROKEN       -> "PP_IFDEF_BROKEN"
+  | PP_IFNDEF_BROKEN      -> "PP_IFNDEF_BROKEN"
   | PP_IF_X               -> "PP_IF_X"
   | PP_IFDEF_X            -> "PP_IFDEF_X"
   | PP_IFNDEF_X           -> "PP_IFNDEF_X"
@@ -350,6 +372,7 @@ let rawtoken_to_string = function
   | PERC_COLON            -> "PERC_COLON"
   | PERC_COLON_PERC_COLON -> "PERC_COLON_PERC_COLON"
   | SEMICOLON b           -> sprintf "SEMICOLON:%B" b
+  | SEMICOLON_            -> "SEMICOLON_"
   | COLON                 -> "COLON"
   | ELLIPSIS              -> "ELLIPSIS"
   | QUEST                 -> "QUEST"
@@ -487,11 +510,14 @@ let rawtoken_to_repr = function
   | EOF                  -> ""
   | NEWLINE              -> "\n"
   (*| STMT_MARKER          -> ""*)
+  | BRACE_PAREN_MARKER   -> ""
   | STR_MARKER           -> ""
   | SUFFIX_MARKER        -> ""
   | COND_MARKER          -> ""
   | LAM_MARKER           -> ""
   | SECTION_MARKER       -> ""
+  | PP_MARKER            -> ""
+  | MOCK_MARKER          -> ""
   | MARKER               -> ""
   | DUMMY_STMT           -> ""
   | DUMMY_EXPR           -> ""
@@ -506,9 +532,14 @@ let rawtoken_to_repr = function
   | BEGIN_QPROP          -> ""
   | END_QPROP            -> ""
   | ASM_SHADER           -> ""
+
+  | GT_7 _                -> ">>>>>>>"
+  | CONFLICT_MARKER(s, _) -> s
+
   | STR_MACRO s          -> s
   | INT_MACRO s          -> s
   | DECL_MACRO s         -> s
+  | PRAGMA_MACRO s       -> s
   | STMT_MACRO s         -> s
   | VIRT_SPEC_MACRO s    -> s
   | OP_MACRO s           -> s
@@ -541,6 +572,9 @@ let rawtoken_to_repr = function
   | FUNC_HEAD_MACRO s    -> s
   | CAST_HEAD_MACRO s    -> s
   | OBJC_PROTOCOL_REF_LIST_MACRO s -> s
+  | OBJC_SEL_MACRO s      -> s
+  | CLASS_BODY_HEAD_MACRO s -> s
+  | CLASS_BODY_END_MACRO s -> s
   | IDENT s               -> s
   | IDENT_ s              -> s
   | IDENT_V s             -> s
@@ -555,6 +589,7 @@ let rawtoken_to_repr = function
   | IDENT_IM s            -> s
   | IDENT_PM s            -> s
   | IDENT_PBM s           -> s
+  | IDENT_PGM s           -> s
   | IDENT_CM s            -> s
   | IDENT_LM s            -> s
   | IDENT_LPAREN s        -> s
@@ -569,6 +604,7 @@ let rawtoken_to_repr = function
   | IDENT_BFM s           -> s
   | IDENT_BSM s           -> s
   | IDENT_CHM s           -> s
+  | IDENT_CTM s           -> s
   | IDENT_AGM s           -> s
   | IDENT_AGSM s          -> s
   | IDENT_LOM s           -> s
@@ -576,6 +612,11 @@ let rawtoken_to_repr = function
   | IDENT_VM s            -> s
   | IDENT_SXM s           -> s
   | IDENT_DSL s           -> s
+  | IDENT_DLM s           -> s
+  | IDENT_CBHM s          -> s
+  | IDENT_CBEM s          -> s
+  | IDENT_IHM s           -> s
+  | IDENT_IEM s           -> s
 
   | AT                    -> "@"
   | BS                    -> "\\"
@@ -595,6 +636,8 @@ let rawtoken_to_repr = function
   | PP_LPAREN             -> "("
   | SS_LPAREN             -> "("
   | PS_LPAREN             -> "("
+  | S_LPAREN              -> "("
+  | S_RPAREN              -> ")"
   | ELLIPSIS_             -> "..."
   | PTR_STAR              -> "*"
   | PTR_AMP               -> "&"
@@ -640,6 +683,9 @@ let rawtoken_to_repr = function
   | PP_IF_B               -> "#if"
   | PP_IFDEF_B            -> "#ifdef"
   | PP_IFNDEF_B           -> "#ifndef"
+  | PP_IF_BROKEN          -> "#if"
+  | PP_IFDEF_BROKEN       -> "#ifdef"
+  | PP_IFNDEF_BROKEN      -> "#ifndef"
   | PP_IF_X               -> "#if"
   | PP_IFDEF_X            -> "#ifdef"
   | PP_IFNDEF_X           -> "#ifndef"
@@ -808,6 +854,7 @@ let rawtoken_to_repr = function
   | PERC_COLON_PERC_COLON -> "%:%:"
   | SEMICOLON false       -> ""
   | SEMICOLON true        -> ";"
+  | SEMICOLON_            -> ";"
   | COLON                 -> ":"
   | ELLIPSIS              -> "..."
   | QUEST                 -> "?"

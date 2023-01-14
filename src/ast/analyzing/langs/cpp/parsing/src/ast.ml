@@ -1193,6 +1193,15 @@ and base_specs_of_base_clause ns (nd : node) =
           | _ -> bss @ [(base_spec_of_node ns x)], abssl
         ) ([], []) nd#children
   end
+  | ClassVirtSpecifierFinal
+  | ClassVirtSpecifierMsSealed
+  | VirtSpecifierMacro _ -> [], []
+  | L.PpIfSection _ -> begin
+      let alt_base_specs_list = alt_base_specs_list_of_node ns nd in
+      match alt_base_specs_list with
+      | [] -> [], []
+      | ys::yss -> ys, []
+  end
   | _ -> invalid_arg "Cpp.Ast.base_specs_of_base_clause"
 
 and qn_class_spec_of_class ns (nd : node) =
@@ -1911,6 +1920,7 @@ and type_spec_of_node ?(ns="") (nd : node) =
   | _ -> invalid_arg "Cpp.Ast.type_spec_of_node"
 
 and simple_type_of_class_head (nd : node) =
+  DEBUG_MSG "%s" (L.to_string nd#label);
   try
     let is_macro = ref false in
     let k =
@@ -1921,6 +1931,7 @@ and simple_type_of_class_head (nd : node) =
       | ClassHeadMacro i           -> is_macro := true; fun _ -> I.ElaboratedType.Macro (mk_macro_id i)
       | ClassHeadMacroInvocation i -> is_macro := true; fun _ -> I.ElaboratedType.Macro (mk_macro_call_id i)
       | PpIfSection _   -> raise Exit
+      (*| _ -> raise Not_found*)
       | _ -> assert false
     in
     let n =
@@ -1938,7 +1949,8 @@ and simple_type_of_class_head (nd : node) =
     in
     [I.TypeSpec.Elaborated (k n)]
   with
-    Exit ->
+  (*| Not_found -> []*)
+  | Exit ->
       let g x = x#nth_child 1 in
       let chs =
         (g (nd#nth_child 0))::
@@ -1977,10 +1989,24 @@ and simple_type_of_decl_spec_seq (nds : node list) =
         | PlaceholderTypeSpecifierAuto | PlaceholderTypeSpecifierDecltype
         | Char | Char8_t | Char16_t | Char32_t | Wchar_t | Bool | Short | Int | Long
         | Signed | Unsigned | Float | Double | Void
-        | ElaboratedTypeSpecifierClass _ | ElaboratedTypeSpecifierStruct _
-        | ElaboratedTypeSpecifierUnion _ | ElaboratedTypeSpecifierEnum _
-        | TypenameSpecifier _
         | Const | Volatile -> (type_spec_of_node x)::ts
+
+        | ElaboratedTypeSpecifierClass _ | ElaboratedTypeSpecifierStruct _
+        | ElaboratedTypeSpecifierUnion _ | ElaboratedTypeSpecifierEnum _ ->
+            let ns =
+              try
+                encode_nested_name_spec (List.hd (x#nth_children 1))
+              with _ -> ""
+            in
+            (type_spec_of_node ~ns x)::ts
+
+        | TypenameSpecifier _ ->
+            let ns =
+              try
+                encode_nested_name_spec (List.hd (x#nth_children 0))
+              with _ -> ""
+            in
+            (type_spec_of_node ~ns x)::ts
 
         | ClassSpecifier -> begin
             match x#nth_children 1 with

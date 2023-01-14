@@ -129,12 +129,15 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | DECLS               -> pr_seq ~sep:pr_cut ()
   | MEM_DECLS           -> pr_seq ~sep:pr_cut ()
   | STMTS               -> pb#open_vbox 0; pr_seq ~sep:pr_cut (); pb#close_box()
+  | EXPRS               -> pr_seq ~sep:pr_comma ()
   | INITS               -> pr_seq ~sep:pr_comma ()
   | LABELS              -> pr_seq()
   | SPECS               -> pr_seq()
   | ETORS               -> pr_seq ~sep:pr_comma ()
+  | OBJC_DECLS          -> pr_seq ~sep:pr_cut ()
   | TEMPL_PARAMS        -> pr_seq ~sep:pr_comma ()
   | TEMPL_ARGS          -> pr_seq ~sep:pr_comma ()
+  | DELIM_MACRO_ i      -> pr_macro_invocation i
   | DELIM_MACRO i -> begin
       for i = 0 to nchildren - 2 do
         if i > 0 then pr_comma();
@@ -147,6 +150,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       pr_id "Q_PROPERTY";
       pr_lparen(); pb#pr_a pad1 pr_node_ children; pr_rparen()
   end
+
+  | ERROR s -> pr_string s
 
   | TranslationUnit -> pb#open_vbox 0; pb#pr_a pr_cut pr_node_ children; pb#close_box()
 
@@ -208,6 +213,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | PpMacroParam s -> pr_string s
 
 (* Declaration *)
+  | InitDeclaration                      -> pb#pr_a pr_cut pr_node_ children
   | SimpleDeclaration                    -> pb#open_hbox(); pr_seq(); pb#close_box()
   | AsmDefinition s                      -> pr_nth_children 0; pr_string "asm"; pr_nth_children 1
   | NamespaceAliasDefinition i -> begin
@@ -298,6 +304,9 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | DeclarationMacroInvocationInvocation -> begin
       pr_nth_child 0; pr_lparen(); pb#pr_a pr_comma pr_node_ (nth_children 1); pr_rparen()
   end
+  | PragmaMacro i                        -> pr_id i
+  | PragmaMacroInvocation i              -> pr_macro_invocation i
+  | MockQualifier i                      -> pr_id i
   | DeclarationMacroInvocationArrow      -> pr_nth_child 0; pr_string "->"; pr_nth_children 1; pr_nth_children 2
   | DeclarationMacroInvocationDot        -> pr_nth_child 0; pr_string "."; pr_nth_children 1; pr_nth_children 2
   | ImportDeclaration s                  -> pr_string "import "; pr_string s
@@ -708,6 +717,10 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | GnuAsmBlock(a, s)               -> pr_string (sprintf "%s %s" a s)
   | GnuAttribute i                  -> pr_string i; pr_seq()
   | GnuStatementExpression          -> pr_lparen(); pr_nth_child 0; pr_rparen()
+  | AsmOperand
+    ->
+      pr_lbracket(); pr_nth_child 0; pr_rbracket(); pr_nth_child 1;
+      pr_lparen(); pr_nth_child 2; pr_rparen()
 
   | ClassSpecifier -> begin
       let mema = nth_children 1 in
@@ -1238,7 +1251,16 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | AsmName i                         -> pr_string (sprintf "%%[%s]" i)
   | AsmDirective i                    -> pr_string ("."^i)
   | VaArgs s                          -> pr_string s
-  | ClassBody                         -> pb#pr_block_head(); pb#pr_a pr_cut pr_node_ (nth_children 1); pb#pr_block_end()
+  | ClassBody -> begin
+      pb#pr_block_head(); pb#pr_a pr_cut pr_node_ (nth_children 1); pb#pr_block_end()
+  end
+  | ClassBodyHeadMacro i              -> pr_id i
+  | ClassBodyEndMacro i               -> pr_id i
+  | ClassBodyHeadMacroInvocation i    -> pr_macro_invocation i
+  | ClassBodyEndMacroInvocation i     -> pr_macro_invocation i
+  | InitHeadMacroInvocation i         -> pr_macro_invocation i
+  | InitEndMacroInvocation i          -> pr_macro_invocation i
+  | LiteralMacroArgument s            -> pr_string s
   | At                                -> pr_string "@"
   | Lparen                            -> pr_lparen()
   | Rparen                            -> pr_rparen()
@@ -1273,6 +1295,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ObjcMethodSelector                       -> pr_string "<objc-method-selector>"
   | ObjcMethodSelectorPack                   -> pr_string "<objc-method-selector-pack>"
   | ObjcSelector i                           -> pr_string i
+  | ObjcSelectorMacro i                      -> pr_string i
   | ObjcKeywordSelector                      -> pr_string "<objc-keyword-selector>"
   | ObjcKeywordDeclarator i                  -> pr_string i
   | ObjcSpecifierQualifier i                 -> pr_string i
@@ -1296,6 +1319,11 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ObjcKeywordName i                        -> pr_string i; pr_colon()
   | ObjcProtocolReferenceListMacro i         -> pr_string i
   | ObjcProtocolExpression                   -> pr_string "<objc-protocol-expression>"
+  | ObjcLiteral    -> pr_string "@"
+  | ObjcDictionary -> pr_string "@{}"
+  | ObjcArray      -> pr_string "@[]"
+  | ObjcKeyValue   -> pr_string "<objc-key-value>"
+  | ObjcClass      -> pr_string "@class"
   end;
 
   let suffix = node#data#get_suffix in

@@ -25,6 +25,7 @@ let dump_flag = ref false
 let verbose_flag = ref true
 let token_hist_flag = ref false
 let parse_macro_defs_flag = ref true
+let keep_going_flag = ref false
 
 let set_flags p =
   if !verbose_flag then
@@ -32,7 +33,8 @@ let set_flags p =
   if !token_hist_flag then
     p#set_token_hist_flag();
   if not !parse_macro_defs_flag then
-    p#clear_parse_macro_defs_flag()
+    p#clear_parse_macro_defs_flag();
+  p#_set_keep_going_flag !keep_going_flag
 
 let options = new Basic_options.c
 
@@ -41,6 +43,7 @@ let _ =
     [
      (*"-verbose", Arg.Unit (fun () -> verbose_flag := true), "\tdisplay verbose messages";*)
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump AST(s)";
+     "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tparse despite errors";
      "-token-hist", Arg.Unit (fun () -> token_hist_flag := true), "\tshow token histogram";
      "-ignore-macro-defs",
      Arg.Unit (fun () -> parse_macro_defs_flag := false), "ignore macro defs"

@@ -31,7 +31,7 @@ let decode_ident =
   Str.replace_first pat ""
 
 type pp_if_cond = PP_IF of string * Obj.t list | PP_IFDEF of ident | PP_IFNDEF of ident
-type pp_if_cond_sub = PP_NONE | PP_CLOSING | PP_STR
+type pp_if_cond_sub = PP_NONE | PP_CLOSING | PP_STR | PP_EXPR
 
 type pp_compl = {
     mutable c_brace : int;
@@ -48,7 +48,7 @@ type pp_if_section_info = {
     mutable i_templ_param_arg_level : int;
     mutable i_cond                  : pp_if_cond;
     mutable i_cond_sub              : pp_if_cond_sub;
-    mutable i_pp_elif               : int option;
+    mutable i_pp_elif               : int list;
     mutable i_pp_else               : int option;
     mutable i_lbraces               : int;
     mutable i_rbraces               : int;
@@ -64,10 +64,14 @@ type pp_if_section_info = {
     mutable i_comma                 : bool;
     mutable i_cond_expr             : bool;
     mutable i_asm                   : bool;
+    mutable i_begin_asm             : bool;
     mutable i_pp_if_compl           : pp_compl;
     mutable i_lack_of_dtor          : bool;
     mutable i_class_brace_opening   : bool;
     mutable i_follows_comma         : bool;
+    mutable i_brace_paren_closing   : bool;
+    mutable i_broken_func_head      : bool;
+    mutable i_templ_closing         : bool;
   }
 
 let pp_if_cond_to_string = function
@@ -79,6 +83,7 @@ let pp_if_cond_sub_to_string = function
   | PP_NONE -> ""
   | PP_CLOSING -> "closing"
   | PP_STR -> "str"
+  | PP_EXPR -> "expr"
 
 let pp_compl_to_string {
   c_brace=blv;
@@ -115,10 +120,14 @@ let pp_if_section_info_to_string {
   i_comma=cm;
   i_cond_expr=ce;
   i_asm=a;
+  i_begin_asm=ba;
   i_pp_if_compl=cmpl;
   i_lack_of_dtor=lod;
   i_class_brace_opening=cbo;
   i_follows_comma=fcm;
+  i_brace_paren_closing=bpc;
+  i_broken_func_head=bfh;
+  i_templ_closing=tcl;
 } =
   let l =
     ["odd",       o;
@@ -133,9 +142,13 @@ let pp_if_section_info_to_string {
      ",",         cm;
      "?",         ce;
      "asm",       a;
+     "begin_asm", ba;
      "lack_of_dtor", lod;
      "C{",        cbo;
      ",_",        fcm;
+     "})",        bpc;
+     "broken_func_head", bfh;
+     ">",         tcl;
    ] in
   let flags = String.concat "" (List.map (fun (k, v) -> "["^k^"]") (List.filter (fun (k, v) -> v) l)) in
   sprintf "{%s%s@%d;%s,%s;%sLv{:%d;Lv(:%d;Lv<:%d;\"{\":%d;\"}\":%d;%s%s%s%s}"
@@ -143,12 +156,14 @@ let pp_if_section_info_to_string {
     (C.to_string c) (C.sub_to_string sc)
     (match lab with DUMMY -> "" | _ -> (L.to_string lab)^";")
     blv plv tlv lb rb
-    (match ei with Some i -> sprintf "#elif:%d;" i | None -> "")
+    (match ei with
+    | _::_ -> sprintf "#elif:[%s];" (String.concat ";" (List.map string_of_int ei))
+    | [] -> "")
     (match es with Some i -> sprintf "#else:%d;" i | None -> "")
     (pp_compl_to_string cmpl)
     flags
 
-let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=None) ?(pp_else=None) ln c sc blv plv tlv cond = {
+let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=[]) ?(pp_else=None) ln c sc blv plv tlv cond = {
   i_line=ln;
   i_context=c;
   i_sub_context=sc;
@@ -174,10 +189,14 @@ let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=None) ?(pp_else=None) 
   i_comma=false;
   i_cond_expr=false;
   i_asm=false;
+  i_begin_asm=false;
   i_pp_if_compl={c_brace=0;c_paren=0};
   i_lack_of_dtor=false;
   i_class_brace_opening=false;
   i_follows_comma=false;
+  i_brace_paren_closing=false;
+  i_broken_func_head=false;
+  i_templ_closing=false;
 }
 
 let dummy_info = make_pp_if_section_info 0 C.TOP C.INI 0 0 0 (PP_IF("", []))
@@ -861,7 +880,7 @@ module Name = struct
       | Class of ident
       | Enum of ident
       | Params
-      | Block of int * string
+      | Block of int * string ref(* prefix*) * string ref(* qname *) * bool ref(*is_body*)
 
     let to_string = function
       | Top          -> "Top"
@@ -870,7 +889,11 @@ module Name = struct
       | Class i      -> sprintf "Class(%s)" i
       | Enum i       -> sprintf "Enum(%s)" i
       | Params       -> "Params"
-      | Block(ln, p) -> sprintf "Block@%d%s" ln (if p = "" then "" else "["^p^"]")
+      | Block(ln, p, q, b) ->
+          sprintf "Block@%d%s%s%s" ln
+            (if !p = "" then "" else "["^(!p)^"]")
+            (if !q = "" then "" else "["^(!q)^"]")
+            (if !b then "[body]" else "")
 
     let get_name = function
       | Namespace nn -> NestedNamespace.to_string nn
@@ -898,6 +921,14 @@ module Name = struct
 
     let is_block = function
       | Block _ -> true
+      | _ -> false
+
+    let is_body = function
+      | Block(_, _, _, b) -> !b
+      | _ -> false
+
+    let is_lambda_body = function
+      | Block(_, _, q, b) -> !q = "" && !b
       | _ -> false
 
   end (* Name.Scope *)
@@ -1172,6 +1203,9 @@ module Name = struct
             Some v
         ) _tbl
 
+    method find_all ?(filt=fun _ -> true) n =
+      List.filter filt (Hashtbl.find_all _tbl n)
+
     method find ?(filt=fun _ -> true) n =
       match List.filter filt (Hashtbl.find_all _tbl n) with
       | [] -> raise Not_found
@@ -1198,12 +1232,12 @@ module Name = struct
 
     method copy = {<_stack = Stack.copy _stack;>}
 
-    method get_prefix ?(prefix="") ?(ns_only=false) () =
+    method get_prefix ?(prefix="") ?(ns_only=false) ?(class_only=false) () =
       let q = ref "" in
       Stack.iter
         (fun frm ->
           match (frm#scope : Scope.t) with
-          | Namespace nn -> begin
+          | Namespace nn when not class_only -> begin
               q := (NestedNamespace.encode nn)^(!q);
               if prefix = !q then
                 q := ""
@@ -1213,8 +1247,8 @@ module Name = struct
               if prefix = !q then
                 q := ""
           end
-          | Block(_, p) when p != "" -> begin
-              q := p^(!q);
+          | Block(_, p, _, _) when not class_only && not ns_only && !p != "" -> begin
+              q := (!p)^(!q);
               if prefix = !q then
                 q := ""
           end
@@ -1252,11 +1286,18 @@ module Name = struct
 
     method push frm = Stack.push frm _stack
 
+    method reset_popped_frame () =
+      popped_frame <- new stack_frame Scope.Top
+
     method reset () =
       Stack.clear _stack;
-      popped_frame <- new stack_frame Scope.Top;
+      self#reset_popped_frame()
 
     method after_params = popped_frame#scope == Scope.Params
+
+    method set_popped_frame_scope_from_params_to_top () =
+      if popped_frame#scope == Scope.Params then
+        popped_frame#change_scope Top
 
     method enter_scope scope =
       DEBUG_MSG "entering %s scope" (Scope.to_string scope);
@@ -1267,17 +1308,27 @@ module Name = struct
     method enter_class i = self#enter_scope (Scope.Class i)
     method enter_enum i = self#enter_scope (Scope.Enum i)
     method enter_params () = self#enter_scope Scope.Params
-    method enter_block ?(prefix="") ln =
-      if popped_frame#scope == Scope.Params then begin
+    method enter_block ?(prefix="") ?(qname="") ?(no_tweak=false) ln =
+      if popped_frame#scope == Scope.Params && not no_tweak then begin
         DEBUG_MSG "changing last poped frame to Block";
-        popped_frame#change_scope (Scope.Block(ln, prefix));
+        popped_frame#change_scope (Scope.Block(ln, ref prefix, ref qname, ref false));
         DEBUG_MSG "entering %s scope" (Scope.to_string popped_frame#scope);
         Stack.push popped_frame _stack;
         DEBUG_MSG "%s" self#top#to_string;
         popped_frame <- new stack_frame Scope.Top
       end
       else
-        self#enter_scope (Scope.Block(ln, ""))
+        self#enter_scope (Scope.Block(ln, ref "", ref "", ref false))
+
+    method set_body_flag () =
+      match self#top#scope with
+      | Scope.Block(_, _, _, b) -> b := true
+      | _ -> ()
+
+    method reset_body_name () =
+      match self#top#scope with
+      | Scope.Block(_, p, q, _) -> p := ""; q := ""
+      | _ -> ()
 
     method _exit_scope chk_scp =
       let frm = Stack.pop _stack in
@@ -1366,6 +1417,8 @@ module Name = struct
     method in_template = self#in_scope Scope.is_template
     method in_class = self#in_scope Scope.is_class
     method in_block = self#in_scope Scope.is_block
+    method in_body = self#in_scope Scope.is_body
+    method in_lambda_body = self#in_scope Scope.is_lambda_body
     method in_params = self#in_scope Scope.is_params
 
     method at_top = self#at_scope Scope.is_top
@@ -1374,6 +1427,8 @@ module Name = struct
     method at_class = self#at_scope Scope.is_class
     method at_enum = self#at_scope Scope.is_enum
     method at_block = self#at_scope Scope.is_block
+    method at_body = self#at_scope Scope.is_body
+    method at_lambda_body = self#at_scope Scope.is_lambda_body
     method at_params = self#at_scope Scope.is_params
 
     method block_level =
@@ -1397,6 +1452,10 @@ module Name = struct
             with
               Not_found -> ()
           ) _stack;
+      if popped_frame#scope == Scope.Params then begin
+        popped_frame#find ~filt n
+      end
+      else
         raise Not_found
       with
         Found x -> DEBUG_MSG "found: %s" x#to_string; x

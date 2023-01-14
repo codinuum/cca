@@ -804,6 +804,34 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | ObjcProtocolExpression -> mkstr2 656
   | ObjcProtocolReferenceListMacro i -> combo2 657 [i]
 
+  | ObjcLiteral    -> mkstr2 658
+  | ObjcDictionary -> mkstr2 659
+  | ObjcKeyValue   -> mkstr2 660
+  | ObjcClass      -> mkstr2 661
+
+  | ERROR s -> combo2 662 [s]
+
+  | PragmaMacro i -> combo2 663 [i]
+  | PragmaMacroInvocation i -> combo2 664 [i]
+
+  | OBJC_DECLS -> mkstr2 665
+  | ObjcArray -> mkstr2 666
+  | MockQualifier i -> combo2 667 [i]
+
+  | EXPRS -> mkstr2 668
+  | AsmOperand -> mkstr2 669
+  | InitDeclaration -> mkstr2 670
+  | DELIM_MACRO_ i -> combo2 671 [i]
+  | ObjcSelectorMacro i -> combo2 672 [i]
+  | ClassBodyHeadMacro i -> combo2 673 [i]
+  | ClassBodyEndMacro i -> combo2 674 [i]
+  | ClassBodyHeadMacroInvocation i -> combo2 675 [i]
+  | ClassBodyEndMacroInvocation i -> combo2 676 [i]
+  | InitHeadMacroInvocation i -> combo2 677 [i]
+  | InitEndMacroInvocation i -> combo2 678 [i]
+  | LiteralMacroArgument s -> combo2 679 [s]
+
+
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
   | ElaboratedTypeSpecifier          when most -> DefiningTypeSpecifier
@@ -1193,6 +1221,8 @@ let _anonymize ?(more=false) ?(most=false) = function
   | NamespaceDefinitionMacro _          -> NamespaceDefinitionMacro ""
   | DeclarationMacro _                  -> DeclarationMacro ""
   | DeclarationMacroInvocation _        -> DeclarationMacroInvocation ""
+  | PragmaMacro _                       -> PragmaMacro ""
+  | PragmaMacroInvocation _             -> PragmaMacroInvocation ""
   | GotoStatement _                     -> GotoStatement ""
   | StatementMacroInvocation _          -> StatementMacroInvocation ""
   | StatementMacro _                    -> StatementMacro ""
