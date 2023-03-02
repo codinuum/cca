@@ -659,6 +659,7 @@ let is_type_macro_ident =
     "msgpack_unpack_struct";
     "STACK_OF";
     "LHASH_OF";
+    "VOLATILE";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -2165,6 +2166,11 @@ let parse_warning env stp edp (fmt : ('a, out_channel, unit, 'b) format4) : 'a =
   let path = Common.relpath env#current_filename in
   let head = Printf.sprintf "[%s]" path in
   PB.parse_warning ~out:stderr ~head stp edp fmt
+
+let is_start_of_stmt sc =
+  match sc with
+  | C.START_OF_STMT _ -> true
+  | _ -> false
 
 let conv_token (env : Aux.env) scanner (token : token) =
   DEBUG_MSG "@";
@@ -4800,6 +4806,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
         end -> DEBUG_MSG "(COMMA|LPAREN|QUEST) @ TY_LPAREN"; mk (T.IDENT_EM s)
 
         | TY_LPAREN when env#at_arg_paren && begin
+            (prev_rawtoken == COMMA || prev_rawtoken == LPAREN) &&
             match self#peek_nth_rawtoken 2 with
             | IDENT x -> begin
                 match self#peek_nth_rawtoken 3 with
@@ -5792,7 +5799,18 @@ let conv_token (env : Aux.env) scanner (token : token) =
               token
             end
 
-            | _ -> DEBUG_MSG "* @ * %s" env#name_prefix; mk (T.IDENT_V s)
+            | _ -> begin
+                DEBUG_MSG "* @ * (name_prefix=%s)" env#name_prefix;
+                if
+                  not env#braced_init_flag &&
+                  not env#stack#at_enum &&
+                  self#peek_rawtoken() == RBRACE
+                then begin
+                  DEBUG_MSG "complementing with a semicolon";
+                  self#prepend_token (mk_ (T.SEMICOLON false))
+                end;
+                mk (T.IDENT_V s)
+            end
         end
     end
     | MEM_INIT, END_OF_TY_SPEC when
@@ -14286,7 +14304,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       match ll with
                       | [l] -> begin
                           DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
-                          is_ty (self#peek_nth_rawtoken (nth+2)) && self#peek_nth_rawtoken (nth+3) != TY_LPAREN ||
+                          (prev_rawtoken != NEW || self#peek_nth_rawtoken (nth+1) != TY_LPAREN) &&
+                          is_ty (self#peek_nth_rawtoken (nth+2)) &&
+                          self#peek_nth_rawtoken (nth+3) != TY_LPAREN ||
                           match (l : T.token list) with
                           | x::_ when is_ty x -> true
                           | [IDENT _;ELAB_ENUM] -> true
@@ -14476,6 +14496,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       env#templ_arg_flag && is_ty prev_rawtoken &&
                       context != EXPR
                   end -> DEBUG_MSG "@ ... RPAREN TY_TEMPL_GT"; token
+
+                  | SEMICOLON _ when begin
+                      context == NEW && sub_context == INI && prev_rawtoken == RPAREN &&
+                      match self#peek_rawtoken() with
+                      | IDENT _ -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@ ... RPAREN SEMICOLON"; token
 
                   | rt -> DEBUG_MSG "@ ... RPAREN %s" (Token.rawtoken_to_string rt); mk T.LPAREN
               end
@@ -29206,7 +29233,9 @@ module F (Stat : Aux.STATE_T) = struct
                 env#close_in_body_brace()
               else if
                 (env#end_of_class_spec_flag || env#in_body_brace_flag) &&
-                not (is_semicolon prev_rawtoken) && not env#braced_init_flag &&
+                not (is_start_of_stmt sub_context) &&
+                not (is_semicolon prev_rawtoken) &&
+                not env#braced_init_flag &&
                 (match prev_rawtoken with
                 | NEWLINE | LBRACE -> false
                 | RBRACE when not env#end_of_class_spec_flag -> false
