@@ -89,27 +89,27 @@ and pr_statement level stmt =
       pr_string "try:";
       pr_suite level suite;
       pr_list
-	(function
-	  | EX _, suite ->
-	      pr_indent level; pr_string "except:"; pr_suite level suite
+        (function
+          | EX _, suite ->
+              pr_indent level; pr_string "except:"; pr_suite level suite
 
-	  | EX1(_, expr), suite ->
-	      pr_indent level;
-	      pr_string "except ";
-	      pr_expr expr;
-	      pr_colon();
-	      pr_suite level suite
+          | EX1(_, expr), suite ->
+              pr_indent level;
+              pr_string "except ";
+              pr_expr expr;
+              pr_colon();
+              pr_suite level suite
 
-	  | EX2(_, expr, targ), suite ->
-	      pr_indent level;
-	      pr_string "except ";
-	      pr_expr expr;
-	      pr_comma();
-	      pr_target targ;
-	      pr_colon();
-	      pr_suite level suite
+          | EX2(_, expr, targ), suite ->
+              pr_indent level;
+              pr_string "except ";
+              pr_expr expr;
+              pr_comma();
+              pr_target targ;
+              pr_colon();
+              pr_suite level suite
 
-	) pr_null except_suites;
+        ) pr_null except_suites;
       pr_else_opt level else_opt;
       pr_finally_opt level fin_opt
 
@@ -167,10 +167,13 @@ and pr_statement level stmt =
       pr_name name;
       (match arglist with
       | loc, [] when loc = Ast.Loc.dummy -> ()
-      |	_, [] -> pr_string "()"
+      | _, [] -> pr_string "()"
       | _ -> pr_string "("; pr_arglist arglist; pr_string ")");
       pr_colon();
       pr_suite level suite
+
+  | Serror -> pr_indent level; pr_string "ERROR"; pr_newline()
+  | Smarker m -> pr_string m; pr_newline()
 
 and pr_with_item (expr, targ_opt) =
   pr_expr expr;
@@ -324,6 +327,8 @@ and pr_smallstmt sstmt =
       pr_expr expr2
   end
 
+  | SSerror -> pr_string "ERROR"
+
 and pr_dottedname_as_name (dname, name_opt) =
   pr_dottedname dname;
   pr_opt (fun name -> pr_string " as "; pr_name name) name_opt
@@ -336,9 +341,9 @@ and pr_suite level (_, stmts) =
     match stmts with
     | [{stmt_desc=(Ssimple _); stmt_loc=l} as sstmt] -> pr_statement 0 sstmt
     | _ ->
-	let level' = level + 1 in
-	pr_newline();
-	pr_list (pr_statement level') pr_null stmts
+        let level' = level + 1 in
+        pr_newline();
+        pr_list (pr_statement level') pr_null stmts
 
 and pr_vararg = function
   | VAarg(fpdef, expr_opt) -> begin
@@ -396,13 +401,16 @@ and pr_expr expr =
   | Efrom expr           -> pr_string "from "; pr_expr expr
   | Earg(expr1, expr2)   -> pr_expr expr1; pr_string "="; pr_expr expr2 (* for print *)
 
+  | Eerror -> pr_string "ERROR"
+
 and pr_primary prim = _pr_primary prim.prim_desc
 
 and _pr_primary = function
   | Pname name   -> pr_name name
   | Pliteral lit -> pr_literal lit
   | Pparen expr  -> pr_string "("; pr_expr expr; pr_string ")"
-  | Ptuple exprs -> pr_string "(";  pr_exprs exprs; pr_string ")"
+  | Ptuple []    -> pr_string "()"
+  | Ptuple exprs -> pr_exprs exprs
   | Pyield exprs -> pr_string "(yield"; pr_exprs exprs; pr_string ")"
 
   | PcompT(expr, compfor) ->
@@ -448,10 +456,10 @@ and pr_literal = function
   | Limagnumber str -> pr_string str
   | Lstring pystrs ->
       pr_list
-	(function
+        (function
           | PSlong(_, s) -> pr_string s
           | PSshort(_, s) -> pr_string s
-	) pr_space pystrs
+        ) pr_space pystrs
 
 and pr_target x = pr_expr x
 

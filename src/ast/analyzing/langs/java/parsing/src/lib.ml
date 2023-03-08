@@ -191,14 +191,6 @@ class parser_c = object (self)
       | Some (I.Element (stat, v, stp, edp)) -> stp, edp
       | _ -> Lexing.dummy_pos, Lexing.dummy_pos
     in
-    let loc_of_poss stp edp =
-      let pos_mgr = env#current_pos_mgr in
-      let so = stp.Lexing.pos_cnum in
-      let sl, sc = pos_mgr#get_position so in
-      let eo = edp.Lexing.pos_cnum in
-      let el, ec = pos_mgr#get_position eo in
-      Astloc.make ~fname:env#current_filename so eo sl sc el ec
-    in
     let syntax_error menv =
       let stp, edp = poss_of_menv menv in
       let pos_mgr = env#current_pos_mgr in
@@ -301,7 +293,7 @@ class parser_c = object (self)
                               match rt1 with
                               | RBRACE -> begin
                                   let _, stp, edp = Token.decompose t1 in
-                                  let loc = loc_of_poss stp edp in
+                                  let loc = Scan.loc_of_poss stp edp in
                                   Common.warning_loc loc "adding SEMICOLON";
                                   scanner#prepend_rawtoken Tokens_.SEMICOLON Lexing.dummy_pos Lexing.dummy_pos
                               end
@@ -397,7 +389,7 @@ class parser_c = object (self)
                                     match rt2 with
                                     | ELSE _ -> begin
                                         let _, stp, edp = Token.decompose t1 in
-                                        let loc = loc_of_poss stp edp in
+                                        let loc = Scan.loc_of_poss stp edp in
                                         Common.warning_loc loc "adding a closing brace";
                                         scanner#prepend_rawtoken Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos
                                     end
@@ -741,7 +733,7 @@ class parser_c = object (self)
             end;
 
             let stp, edp = poss_of_menv _menv in
-            let loc = loc_of_poss stp edp in
+            let loc = Scan.loc_of_poss stp edp in
             let e = scanner#shadow_outline in
             let err = scanner#shadow_contents in
             scanner#reset_shadow_q;

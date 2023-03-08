@@ -51,7 +51,7 @@ COMMON_OBJS = base_options.cmo fs_options.cmo hash_options.cmo basic_options.cmo
 	storage.cmo fs.cmo
 COMMON_OBJS_DEP = $(foreach f,$(COMMON_OBJS),$(COMMON_DIR)/$(f))
 
-UTIL_OBJS = xprint.cmo xstring.cmo xlist.cmo xfile.cmo xset.cmo xhash.cmo xarray.cmo
+UTIL_OBJS = xprint.cmo xstring.cmo xlist.cmo xfile.cmo xqueue.cmo xset.cmo xhash.cmo xarray.cmo
 UTIL_OBJS_DEP = $(foreach f,$(UTIL_OBJS),$(UTIL_DIR)/$(f))
 
 OTHER_OBJS = $(UTIL_OBJS) $(COMMON_OBJS) $(LANGS_COMMON_OBJS)
@@ -65,29 +65,32 @@ OTHER_OBJS_OPT = $(OTHER_OBJS:.cmo=.cmx)
 LIB_OBJS_OPT = $(LIB_OBJS:.cmo=.cmx)
 LINKS_OPT = ../$(LIB_OPT)
 
-PACKAGES_NO_ULEX = -package menhirLib,dynlink,volt
-PACKAGES = -package str,ulex,menhirLib,cryptokit,netstring,dynlink,volt
+PACKAGES_NO_ULEX = -package str,unix,menhirLib,dynlink,volt
+PACKAGES = -package ulex,str,unix,menhirLib,cryptokit,netstring,dynlink,volt
 SYNTAX = -syntax camlp4o
 
 USE_MENHIR = true
-MENHIRFLAGS = --table --external-tokens Tokens_ --infer #--error-recovery
+
+#MENHIR_TRACE = --trace
+
+MENHIRFLAGS = $(MENHIR_TRACE) --table --explain --external-tokens Tokens_ --infer --ocamlc "ocamlc $(INCLS)" --inspection
 
 include $(SRC_DIR)/rules.mk
 
+all: opt
+
 production: SYNTAX := $(SYNTAX) -ppopt -level -ppopt WARN
 production: opt
-
-all: opt
 
 opt: ../$(LIB_OPT) $(PROG_OPT)
 
 debug: ../$(LIB) $(PROG)
 
-$(DEP)/tokens_.d: tokens.ml
 
-$(TOKENS_ML): $(MLY)
-	$(MENHIR) --base $(TOKENS) --only-tokens $(MLY)
+$(TOKENS_ML): $(MLY) parser_aux.ml
+	$(MENHIR) --base $(TOKENS) --only-tokens $(MLY) --table --inspection
 
+$(DEP)/tokens_.d: $(TOKENS_ML)
 
 $(MLY_OBJ): $(MLY_ML)
 	$(OCAMLFIND) $(OCAMLC_MODE) $(PACKAGES_NO_ULEX) $(SYNTAX) $(COMPFLAGS) -c $<

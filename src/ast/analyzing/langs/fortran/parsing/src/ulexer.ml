@@ -171,14 +171,17 @@ let _find_keyword =
       "endenum",         (fun s -> END_ENUM s);    (* F2003 *)
       "endfile",         (fun s -> END_FILE s);
       "endforall",       (fun s -> END_FORALL s);
-      "endfunction",     (fun s -> END_FUNCTION s);
+(*      "endfunction",     (fun s -> END_FUNCTION s);*)
+      "endfunction",     (fun s -> END_SUBPROGRAM s);
       "endif",           (fun s -> END_IF s);
       "endinterface",    (fun s -> END_INTERFACE s);
       "endmodule",       (fun s -> END_MODULE s);
+      "endprocedure",    (fun s -> END_PROCEDURE s); (* F2008 *)
       "endprogram",      (fun s -> END_PROGRAM s);
       "endselect",       (fun s -> END_SELECT s);
       "endsubmodule",    (fun s -> END_SUBMODULE s); (* F2008 *)
-      "endsubroutine",   (fun s -> END_SUBROUTINE s);
+(*      "endsubroutine",   (fun s -> END_SUBROUTINE s);*)
+      "endsubroutine",   (fun s -> END_SUBPROGRAM s);
       "endtype",         (fun s -> END_TYPE s);
       "endwhere",        (fun s -> END_WHERE s);
       "entry",           (fun s -> ENTRY s);
@@ -2181,20 +2184,23 @@ module F (Stat : Parser_aux.STATE_T) = struct
 |   "end"              -> (fun s -> END s), 3
 *)
 |   "endassociate"     -> (fun s -> END_ASSOCIATE s), 12
-|   "endblock"         -> (fun s -> END_BLOCK s), 12
+|   "endblock"         -> (fun s -> END_BLOCK s), 8
 |   "endblockdata"     -> (fun s -> END_BLOCK_DATA s), 12
 |   "endcritical"      -> (fun s -> END_CRITICAL s), 11
 |   "enddo"            -> (fun s -> END_DO s), 5
 |   "endfile"          -> (fun s -> END_FILE s), 7
 |   "endforall"        -> (fun s -> END_FORALL s), 9
-|   "endfunction"      -> (fun s -> END_FUNCTION s), 11
+(*|   "endfunction"      -> (fun s -> END_FUNCTION s), 11*)
+|   "endfunction"      -> (fun s -> END_SUBPROGRAM s), 11
 |   "endif"            -> (fun s -> END_IF s), 5
 |   "endinterface"     -> (fun s -> END_INTERFACE s), 12
 |   "endmodule"        -> (fun s -> END_MODULE s), 9
+|   "endprocedure"     -> (fun s -> END_PROCEDURE s), 12
 |   "endprogram"       -> (fun s -> END_PROGRAM s), 10
 |   "endselect"        -> (fun s -> END_SELECT s), 9
 |   "endsubmodule"     -> (fun s -> END_SUBMODULE s), 11
-|   "endsubroutine"    -> (fun s -> END_SUBROUTINE s), 13
+(*|   "endsubroutine"    -> (fun s -> END_SUBROUTINE s), 13*)
+|   "endsubroutine"    -> (fun s -> END_SUBPROGRAM s), 13
 |   "endtype"          -> (fun s -> END_TYPE s), 7
 |   "endwhere"         -> (fun s -> END_WHERE s), 8
 |   "entry"            -> (fun s -> ENTRY s), 5

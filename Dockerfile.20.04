@@ -16,7 +16,7 @@ RUN set -x && \
     cd /root && \
     apt-get update && \
     env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            sudo \
+            gosu \
             vim \
             opam \
             net-tools \
@@ -36,7 +36,7 @@ RUN set -x && \
             git rsync && \
     wget https://bootstrap.pypa.io/get-pip.py && \
     python3 get-pip.py && \
-    pip3 install pyodbc setuptools build[virtualenv] javalang && \
+    pip3 install pyodbc setuptools build[virtualenv] javalang python-rapidjson && \
     rm get-pip.py
 
 RUN set -x && \
@@ -67,10 +67,16 @@ RUN set -x && \
     cd /root && \
     opam init -y --disable-sandboxing && \
     eval $(opam env) && \
-    opam install -y camlp-streams camlzip cryptokit csv git-unix git-cohttp-unix menhir ocamlnet pxp ulex uuidm pcre volt && \
+    opam switch create 4.14.0 && \
+    eval $(opam env) && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
+    eval $(opam env) && \
     cd src && \
-    make && \
+    make -C mldiff && \
+    make -C util && \
+    make -C otreediff && \
     cd ast/analyzing && \
+    make production && \
     cp -r bin etc /opt/cca/ && \
     cp modules/Mverilog*.cmxs /opt/cca/modules/ && \
     cp modules/Mpython*.cmxs /opt/cca/modules/ && \

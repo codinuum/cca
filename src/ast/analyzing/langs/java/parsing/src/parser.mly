@@ -84,7 +84,7 @@ open Stat
 %type <Ast.block_statement> partial_block_statement
 
 
-// to avoid warnings
+(* to avoid warnings *)
 %start reserved
 %type <unit> reserved
 

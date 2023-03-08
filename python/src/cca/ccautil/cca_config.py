@@ -229,10 +229,15 @@ class Config(object):
             self.proj_path = get_proj_dir(pid, proj_dir=proj_dir)
 
         # for phylogeny
+        if self.abbrev_tbl == {}:
+            self.abbrev_tbl = dict(self.abbrev_list)
+
+        elif self.abbrev_list == []:
+            self.abbrev_list = list(self.abbrev_tbl.items())
+
         if self.vers == []:
             self.vers = [n for (n, a) in self.abbrev_list]
 
-        self.abbrev_tbl = dict(self.abbrev_list)
         for (x, a) in self.abbrev_tbl.items():
             self.inv_abbrev_tbl[a.rstrip()] = x
 

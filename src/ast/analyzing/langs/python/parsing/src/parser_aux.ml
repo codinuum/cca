@@ -25,9 +25,48 @@ class env = object (self)
 
   val mutable with_stmt_enabled = true (* always enabled in v2.6+ *)
 
+  val mutable keep_going_flag = true
+  val mutable shift_flag = false
+  val mutable last_token = Obj.repr ()
+  val mutable paren_level = 0
+  val mutable brace_level = 0
+  val mutable bracket_level = 0
+  val mutable block_level = 0
+
   method with_stmt_enabled = with_stmt_enabled
   method enable_with_stmt = with_stmt_enabled <- true
   method disable_with_stmt = with_stmt_enabled <- false
+
+  method keep_going_flag = keep_going_flag
+  method _set_keep_going_flag b = keep_going_flag <- b
+
+  method shift_flag = shift_flag
+  method set_shift_flag () =
+    DEBUG_MSG "set";
+    shift_flag <- true
+  method clear_shift_flag () =
+    DEBUG_MSG "clear";
+    shift_flag <- false
+
+  method last_token = last_token
+  method set_last_token o = last_token <- o
+
+  method reset_paren_level () = paren_level <- 0;
+  method paren_level = paren_level
+  method open_paren () = paren_level <- paren_level + 1
+  method close_paren () = paren_level <- paren_level - 1
+
+  method brace_level = brace_level
+  method open_brace () = brace_level <- brace_level + 1
+  method close_brace () = brace_level <- brace_level - 1
+
+  method bracket_level = bracket_level
+  method open_bracket () = bracket_level <- bracket_level + 1
+  method close_bracket () = bracket_level <- bracket_level - 1
+
+  method block_level = block_level
+  method open_block () = block_level <- block_level + 1
+  method close_block () = block_level <- block_level - 1
 
   method init =
     super#init
@@ -42,6 +81,7 @@ module type STATE_T = sig
   val env     : env
 end
 
+let warning_loc loc = PB.parse_warning_loc ~head:"[Python]" loc
 
 module F (Stat : STATE_T) = struct
 
@@ -62,13 +102,20 @@ module F (Stat : STATE_T) = struct
     let loc = Loc.make so eo sl sc el ec in
     loc
 
-  let parse_error start_offset end_offset msg =
-    let (sl, sc), (el, ec), so, eo = get_range start_offset end_offset in
-    let line, char = env#current_pos_mgr#get_position (eo + 1) in
-    let head = sprintf "[%d:%d]" line char in
-    fail_to_parse ~head msg
+  let parse_warning start_ofs end_ofs =
+    let loc = get_loc start_ofs end_ofs in
+    warning_loc loc
 
-
+  let parse_error start_ofs end_ofs (fmt : ('a, unit, string, 'b) format4) : 'a =
+    let loc = get_loc start_ofs end_ofs in
+    let loc_str = Astloc.to_string ~short:false ~prefix:"[" ~suffix:"]" loc in
+    Printf.ksprintf
+      (fun msg ->
+        if env#keep_going_flag then
+          Printf.fprintf stderr "[Python][WARNING]%s%s %s\n%!" PB.cmd_name loc_str msg
+        else
+          fail_to_parse ~head:loc_str msg
+      ) fmt
 
   let mkstmt so eo d = { stmt_desc=d; stmt_loc=(get_loc so eo) }
   let mksstmt so eo d = { sstmt_desc=d; sstmt_loc=(get_loc so eo) }
@@ -82,6 +129,26 @@ module F (Stat : STATE_T) = struct
   let emptyarglist = Ast.Loc.dummy, []
   let emptyvarargslist = emptyarglist
   let emptytypedargslist = emptyarglist
+
+  let mkerrexpr so eo =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { expr_desc=Eerror; expr_loc=loc }
+
+  let mkerrsstmt so eo =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { sstmt_desc=SSerror; sstmt_loc=loc }
+
+  let mkerrstmt so eo =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { stmt_desc=Serror; stmt_loc=loc }
+
+  let mkmarkerstmt so eo s =
+    let loc = get_loc so eo in
+    env#missed_regions#add loc;
+    { stmt_desc=Smarker s; stmt_loc=loc }
 
 end (* of functor Parser_aux.F *)
 

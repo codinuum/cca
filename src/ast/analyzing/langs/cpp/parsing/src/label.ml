@@ -49,15 +49,20 @@ type t =
   | PARTIAL_CONSTRUCT
   | DECLS
   | MEM_DECLS
+  | EXPRS
   | STMTS
   | INITS
   | LABELS
   | SPECS
   | ETORS
+  | OBJC_DECLS
   | TEMPL_PARAMS
   | TEMPL_ARGS
   | DELIM_MACRO of ident
+  | DELIM_MACRO_ of ident
   | Q_PROPERTY
+
+  | ERROR of string
 
   | TranslationUnit
 
@@ -115,6 +120,7 @@ type t =
   | DeductionGuide of name
   | ExplicitInstantiation
   | ExplicitSpecialization
+  | ExportDeclaration
   | LinkageSpecification of string
   | NamedNamespaceDefinition of ident  (* NamespaceDefinition *)
   | UnnamedNamespaceDefinition         (* NamespaceDefinition *)
@@ -732,6 +738,7 @@ type t =
   | DeclStmtBlock
   | AsmShader of string
   | AsmName of ident
+  | AsmOperand
   | AsmDirective of ident
   | VaArgs of string
   | PtrMacro of ident
@@ -752,6 +759,7 @@ type t =
   | ObjcCategoryInterface of ident * ident
   | ObjcSuperclass of ident
   | ObjcProtocolReferenceList
+  | ObjcProtocolReferenceListMacro of ident
   | ObjcInstanceVariables
   | ObjcInstanceVariableDeclaration
   | ObjcInterfaceDeclaration
@@ -769,6 +777,7 @@ type t =
   | ObjcMethodSelector
   | ObjcMethodSelectorPack
   | ObjcSelector of ident
+  | ObjcSelectorMacro of ident
   | ObjcKeywordSelector
   | ObjcKeywordDeclarator of ident
   | ObjcSpecifierQualifier of ident
@@ -777,6 +786,7 @@ type t =
   | ObjcPropertyAttribute of ident
   | ObjcMessageExpression
   | ObjcMessageSelector
+  | ObjcProtocolExpression
   | ObjcKeywordArgument of ident
   | ObjcProtocolInterfaceDeclarationOptional
   | ObjcProtocolInterfaceDeclarationRequired
@@ -790,6 +800,11 @@ type t =
   | ObjcFinally
   | ObjcMethodMacroInvocation of ident
   | ObjcKeywordName of ident
+  | ObjcLiteral
+  | ObjcArray
+  | ObjcDictionary
+  | ObjcKeyValue
+  | ObjcClass
 
   | SwiftArg of ident
   | SwiftFunCall
@@ -798,6 +813,18 @@ type t =
   | DslMacroArgument
   | ParametersAndQualifiersList
   | NestedFunctionDefinition of name
+  | PragmaMacro of ident
+  | PragmaMacroInvocation of ident
+  | MockQualifier of ident
+
+  | ClassBodyHeadMacro of ident
+  | ClassBodyEndMacro of ident
+  | ClassBodyHeadMacroInvocation of ident
+  | ClassBodyEndMacroInvocation of ident
+  | InitHeadMacroInvocation of ident
+  | InitEndMacroInvocation of ident
+  | InitDeclaration
+  | LiteralMacroArgument of string
 
 let to_string = function
   | DUMMY -> "DUMMY"
@@ -806,15 +833,19 @@ let to_string = function
   | PARTIAL_CONSTRUCT   -> "PARTIAL_CONSTRUCT"
   | DECLS               -> "DECLS"
   | MEM_DECLS           -> "MEM_DECLS"
+  | EXPRS               -> "EXPRS"
   | STMTS               -> "STMTS"
   | INITS               -> "INITS"
   | LABELS              -> "LABELS"
   | SPECS               -> "SPECS"
   | ETORS               -> "ETORS"
+  | OBJC_DECLS          -> "OBJC_DECLS"
   | TEMPL_PARAMS        -> "TEMPL_PARAMS"
   | TEMPL_ARGS          -> "TEMPL_ARGS"
   | DELIM_MACRO i       -> "DELIM_MACRO:"^i
+  | DELIM_MACRO_ i      -> "DELIM_MACRO_:"^i
   | Q_PROPERTY          -> "Q_PROPERTY"
+  | ERROR s             -> "ERROR:"^s
 
   | TranslationUnit -> "TranslationUnit"
 
@@ -873,6 +904,7 @@ let to_string = function
   | DeductionGuide n              -> "DeductionGuide:"^n
   | ExplicitInstantiation         -> "ExplicitInstantiation"
   | ExplicitSpecialization        -> "ExplicitSpecialization"
+  | ExportDeclaration             -> "ExportDeclaration"
   | LinkageSpecification s        -> "LinkageSpecification:"^s
   | NamedNamespaceDefinition i    -> "NamedNamespaceDefinition:"^i
   | UnnamedNamespaceDefinition    -> "UnnamedNamespaceDefinition"
@@ -1474,6 +1506,7 @@ let to_string = function
   | DeclStmtBlock                  -> "DeclStmtBlock"
   | AsmShader s                    -> "AsmShader:"^s
   | AsmName i                      -> "AsmName:"^i
+  | AsmOperand                     -> "AsmOperand"
   | AsmDirective i                 -> "AsmDirective:"^i
   | VaArgs s                       -> "VaArgs:"^s
   | PtrMacro i                     -> "PtrMacro:"^i
@@ -1494,6 +1527,7 @@ let to_string = function
   | ObjcCategoryInterface(i, c)       -> "ObjcCategoryInterface:"^i^":"^c
   | ObjcSuperclass i                  -> "ObjcSuperclass:"^i
   | ObjcProtocolReferenceList         -> "ObjcProtocolReferenceList"
+  | ObjcProtocolReferenceListMacro i  -> "ObjcProtocolReferenceListMacro:"^i
   | ObjcInstanceVariables             -> "ObjcInstanceVariables"
   | ObjcInstanceVariableDeclaration   -> "ObjcInstanceVariableDeclaration"
   | ObjcInterfaceDeclaration          -> "ObjcInterfaceDeclaration"
@@ -1511,6 +1545,7 @@ let to_string = function
   | ObjcMethodSelector                -> "ObjcMethodSelector"
   | ObjcMethodSelectorPack            -> "ObjcMethodSelectorPack"
   | ObjcSelector i                    -> "ObjcSelector:"^i
+  | ObjcSelectorMacro i               -> "ObjcSelectorMacro:"^i
   | ObjcKeywordSelector               -> "ObjcKeywordSelector"
   | ObjcKeywordDeclarator i           -> "ObjcKeywordDeclarator:"^i
   | ObjcSpecifierQualifier i          -> "ObjcSpecifierQualifier:"^i
@@ -1519,6 +1554,7 @@ let to_string = function
   | ObjcPropertyAttribute i           -> "ObjcPropertyAttribute:"^i
   | ObjcMessageExpression             -> "ObjcMessageExpression"
   | ObjcMessageSelector               -> "ObjcMessageSelector"
+  | ObjcProtocolExpression            -> "ObjcProtocolExpression"
   | ObjcKeywordArgument i             -> "ObjcKeywordArgument:"^i
   | ObjcProtocolInterfaceDeclarationOptional -> "ObjcProtocolInterfaceDeclarationOptional"
   | ObjcProtocolInterfaceDeclarationRequired -> "ObjcProtocolInterfaceDeclarationRequired"
@@ -1532,6 +1568,11 @@ let to_string = function
   | ObjcFinally     -> "ObjcFinally"
   | ObjcMethodMacroInvocation i -> "ObjcMethodMacroInvocation:"^i
   | ObjcKeywordName i -> "ObjcKeywordName:"^i
+  | ObjcLiteral    -> "ObjcLiteral"
+  | ObjcArray      -> "ObjcArray"
+  | ObjcDictionary -> "ObjcDictionary"
+  | ObjcKeyValue   -> "ObjcKeyValue"
+  | ObjcClass      -> "ObjcClass"
 
   | SwiftArg i   -> "SwiftArg:"^i
   | SwiftFunCall -> "SwiftFunCall"
@@ -1540,6 +1581,18 @@ let to_string = function
   | DslMacroArgument -> "DslMacroArgument"
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList"
   | NestedFunctionDefinition n -> "NestedFunctionDefinition:"^n
+  | PragmaMacro i -> "PragmaMacro:"^i
+  | PragmaMacroInvocation i -> "PragmaMacroInvocation:"^i
+  | MockQualifier i -> "MockQualifier:"^i
+
+  | ClassBodyHeadMacro i -> "ClassBodyHeadMacro:"^i
+  | ClassBodyEndMacro i -> "ClassBodyEndMacro:"^i
+  | ClassBodyHeadMacroInvocation i -> "ClassBodyHeadMacroInvocation:"^i
+  | ClassBodyEndMacroInvocation i -> "ClassBodyEndMacroInvocation:"^i
+  | InitHeadMacroInvocation i -> "InitHeadMacroInvocation:"^i
+  | InitEndMacroInvocation i -> "InitEndMacroInvocation:"^i
+  | InitDeclaration -> "InitDeclaration"
+  | LiteralMacroArgument s -> "LiteralMacroArgument:"^s
 
 
 let to_simple_string = function
@@ -1549,15 +1602,19 @@ let to_simple_string = function
   | PARTIAL_CONSTRUCT   -> "PARTIAL_CONSTRUCT"
   | DECLS               -> "DECLS"
   | MEM_DECLS           -> "MEM_DECLS"
+  | EXPRS               -> "EXPRS"
   | STMTS               -> "STMTS"
   | INITS               -> "INITS"
   | LABELS              -> "LABELS"
   | SPECS               -> "SPECS"
   | ETORS               -> "ETORS"
+  | OBJC_DECLS          -> "OBJC_DECLS"
   | TEMPL_PARAMS        -> "TEMPL_PARAMS"
   | TEMPL_ARGS          -> "TEMPL_ARGS"
   | DELIM_MACRO i       -> i
+  | DELIM_MACRO_ i      -> i
   | Q_PROPERTY          -> "Q_PROPERTY"
+  | ERROR s             -> s
 
   | TranslationUnit -> "<translation-unit>"
 
@@ -1617,6 +1674,7 @@ let to_simple_string = function
   | DeductionGuide n              -> sprintf "<deduction-guide:%s>" n
   | ExplicitInstantiation         -> "template"
   | ExplicitSpecialization        -> "template<>"
+  | ExportDeclaration             -> "export"
   | LinkageSpecification s        -> "extern "^s
   | NamedNamespaceDefinition i    -> "namespace "^i
   | UnnamedNamespaceDefinition    -> "namespace"
@@ -2224,6 +2282,7 @@ let to_simple_string = function
   | DeclStmtBlock                  -> "<decl-stmt-block>"
   | AsmShader s                    -> s
   | AsmName i                      -> sprintf "%%[%s]" i
+  | AsmOperand                     -> "<asm-operand>"
   | AsmDirective i                 -> "."^i
   | VaArgs s                       -> s
   | PtrMacro i                     -> i
@@ -2244,6 +2303,7 @@ let to_simple_string = function
   | ObjcCategoryInterface(i, c)       -> sprintf "@interface %s (%s)" i c
   | ObjcSuperclass i                  -> ": "^i
   | ObjcProtocolReferenceList         -> "<objc-protocol-reference-list>"
+  | ObjcProtocolReferenceListMacro i  -> i
   | ObjcInstanceVariables             -> "<objc-instance-variables>"
   | ObjcInstanceVariableDeclaration   -> "<objc-instance-variable-declaration>"
   | ObjcInterfaceDeclaration          -> "<objc-interface-declaration>"
@@ -2261,6 +2321,7 @@ let to_simple_string = function
   | ObjcMethodSelector                -> "<objc-method-selector>"
   | ObjcMethodSelectorPack            -> "<objc-method-selector-pack>"
   | ObjcSelector i                    -> i
+  | ObjcSelectorMacro i               -> i
   | ObjcKeywordSelector               -> "<objc-keyword-selector>"
   | ObjcKeywordDeclarator i           -> i
   | ObjcSpecifierQualifier i          -> i
@@ -2269,6 +2330,7 @@ let to_simple_string = function
   | ObjcPropertyAttribute i           -> i
   | ObjcMessageExpression             -> "<objc-message-expression>"
   | ObjcMessageSelector               -> "<objc-message-selector>"
+  | ObjcProtocolExpression            -> "<objc-protocol-expression>"
   | ObjcKeywordArgument i             -> i
   | ObjcProtocolInterfaceDeclarationOptional -> "@optional"
   | ObjcProtocolInterfaceDeclarationRequired -> "@required"
@@ -2282,6 +2344,11 @@ let to_simple_string = function
   | ObjcFinally     -> "@finally"
   | ObjcMethodMacroInvocation i -> i
   | ObjcKeywordName i -> i^":"
+  | ObjcLiteral -> "@"
+  | ObjcArray      -> "@[]"
+  | ObjcDictionary -> "@{}"
+  | ObjcKeyValue   -> ":"
+  | ObjcClass      -> "@class"
 
   | SwiftArg i   -> i^":"
   | SwiftFunCall -> "<swift-function-call>"
@@ -2290,7 +2357,18 @@ let to_simple_string = function
   | DslMacroArgument -> "<dsl-macro-argument>"
   | ParametersAndQualifiersList -> "<parameters-and-qualifiers-list>"
   | NestedFunctionDefinition n -> sprintf "<nested-function-definition:%s>" n
+  | PragmaMacro i -> i
+  | PragmaMacroInvocation i -> i
+  | MockQualifier i -> i
 
+  | ClassBodyHeadMacro i -> i
+  | ClassBodyEndMacro i -> i
+  | ClassBodyHeadMacroInvocation i -> i
+  | ClassBodyEndMacroInvocation i -> i
+  | InitHeadMacroInvocation i -> i
+  | InitEndMacroInvocation i -> i
+  | InitDeclaration -> "<init-declaration>"
+  | LiteralMacroArgument s -> s
 
 let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DUMMY -> "DUMMY", []
@@ -2299,15 +2377,19 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | PARTIAL_CONSTRUCT   -> "PARTIAL_CONSTRUCT", []
   | DECLS               -> "DECLS", []
   | MEM_DECLS           -> "MEM_DECLS", []
+  | EXPRS               -> "EXPRS", []
   | STMTS               -> "STMTS", []
   | INITS               -> "INITS", []
   | LABELS              -> "LABELS", []
   | SPECS               -> "SPECS", []
   | ETORS               -> "ETORS", []
+  | OBJC_DECLS          -> "OBJC_DECLS", []
   | TEMPL_PARAMS        -> "TEMPL_PARAMS", []
   | TEMPL_ARGS          -> "TEMPL_ARGS", []
   | DELIM_MACRO i       -> "DELIM_MACRO", ["ident",i]
+  | DELIM_MACRO_ i      -> "DELIM_MACRO_", ["ident",i]
   | Q_PROPERTY          -> "Q_PROPERTY", []
+  | ERROR s             -> "ERROR", ["line",s]
 
   | TranslationUnit -> "TranslationUnit", []
 
@@ -2369,6 +2451,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DeductionGuide n              -> "DeductionGuide", ["name",n]
   | ExplicitInstantiation         -> "ExplicitInstantiation", []
   | ExplicitSpecialization        -> "ExplicitSpecialization", []
+  | ExportDeclaration             -> "ExportDeclaration", []
   | LinkageSpecification s        -> "LinkageSpecification", ["linkage",s]
   | NamedNamespaceDefinition i    -> "NamedNamespaceDefinition", ["ident",i]
   | UnnamedNamespaceDefinition    -> "UnnamedNamespaceDefinition", []
@@ -2989,6 +3072,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DeclStmtBlock                  -> "DeclStmtBlock", []
   | AsmShader s                    -> "AsmShader", ["code",s]
   | AsmName i                      -> "AsmName", ["ident",i]
+  | AsmOperand                     -> "AsmOperand", []
   | AsmDirective i                 -> "AsmDirective", ["ident",i]
   | VaArgs s                       -> "VaArgs", ["code",s]
   | PtrMacro i                     -> "PtrMacro", ["ident",i]
@@ -3009,6 +3093,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ObjcCategoryInterface(i, c)       -> "ObjcCategoryInterface", ["ident",i;"category",c]
   | ObjcSuperclass i                  -> "ObjcSuperclass", ["ident",i]
   | ObjcProtocolReferenceList         -> "ObjcProtocolReferenceList", []
+  | ObjcProtocolReferenceListMacro i  -> "ObjcProtocolReferenceListMacro", ["ident",i]
   | ObjcInstanceVariables             -> "ObjcInstanceVariables", []
   | ObjcInstanceVariableDeclaration   -> "ObjcInstanceVariableDeclaration", []
   | ObjcInterfaceDeclaration          -> "ObjcInterfaceDeclaration", []
@@ -3026,6 +3111,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ObjcMethodSelector                -> "ObjcMethodSelector", []
   | ObjcMethodSelectorPack            -> "ObjcMethodSelectorPack", []
   | ObjcSelector i                    -> "ObjcSelector", ["ident",i]
+  | ObjcSelectorMacro i               -> "ObjcSelectorMacro", ["ident",i]
   | ObjcKeywordSelector               -> "ObjcKeywordSelector", []
   | ObjcKeywordDeclarator i           -> "ObjcKeywordDeclarator", ["ident",i]
   | ObjcSpecifierQualifier i          -> "ObjcSpecifierQualifier", ["ident",i]
@@ -3034,6 +3120,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ObjcPropertyAttribute i           -> "ObjcPropertyAttribute", ["ident",i]
   | ObjcMessageExpression             -> "ObjcMessageExpression", []
   | ObjcMessageSelector               -> "ObjcMessageSelector", []
+  | ObjcProtocolExpression            -> "ObjcProtocolExpression", []
   | ObjcKeywordArgument i             -> "ObjcKeywordArgument", ["ident",i]
   | ObjcProtocolInterfaceDeclarationOptional -> "ObjcProtocolInterfaceDeclarationOptional", []
   | ObjcProtocolInterfaceDeclarationRequired -> "ObjcProtocolInterfaceDeclarationRequired", []
@@ -3047,6 +3134,11 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ObjcFinally     -> "ObjcFinally", []
   | ObjcMethodMacroInvocation i -> "ObjcMethodMacroInvocation", ["ident",i]
   | ObjcKeywordName i -> "ObjcKeywordName", ["ident",i]
+  | ObjcLiteral -> "ObjcLiteral", []
+  | ObjcArray      -> "ObjcArray", []
+  | ObjcDictionary -> "ObjcDictionary", []
+  | ObjcKeyValue   -> "ObjcKeyValue", []
+  | ObjcClass      -> "ObjcClass", []
 
   | SwiftArg i   -> "SwiftArg", ["ident",i]
   | SwiftFunCall -> "SwiftFunCall", []
@@ -3055,10 +3147,23 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DslMacroArgument -> "DslMacroArgument", []
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList", []
   | NestedFunctionDefinition n -> "NestedFunctionDefinition", ["name",n]
+  | PragmaMacro i -> "PragmaMacro", ["ident",i]
+  | PragmaMacroInvocation i -> "PragmaMacroInvocation", ["ident",i]
+  | MockQualifier i -> "MockQualifier", ["ident",i]
+
+  | ClassBodyHeadMacro i -> "ClassBodyHeadMacro", ["ident",i]
+  | ClassBodyEndMacro i -> "ClassBodyEndMacro", ["ident",i]
+  | ClassBodyHeadMacroInvocation i -> "ClassBodyHeadMacroInvocation", ["ident",i]
+  | ClassBodyEndMacroInvocation i -> "ClassBodyEndMacroInvocation", ["ident",i]
+  | InitHeadMacroInvocation i -> "InitHeadMacroInvocation", ["ident",i]
+  | InitEndMacroInvocation i -> "InitEndMacroInvocation", ["ident",i]
+  | InitDeclaration -> "InitDeclaration", []
+  | LiteralMacroArgument s -> "LiteralMacroArgument", ["code",s]
 
 
 let get_name : t -> string = function
   | DELIM_MACRO n
+  | DELIM_MACRO_ n
   | PpDefine n
   | PpUndef n
   | PpIfdef n
@@ -3147,6 +3252,7 @@ let get_name : t -> string = function
   | ObjcCategoryInterface(n, _)
   | ObjcSuperclass n
   | ObjcSelector n
+  | ObjcSelectorMacro n
   | ObjcKeywordDeclarator n
   | ObjcSpecifierQualifier n
   | ObjcProtocolName n
@@ -3179,6 +3285,13 @@ let get_name : t -> string = function
   | FunctionBody n
   | FunctionTryBlock n
   | NestedFunctionDefinition n
+  | PragmaMacro n
+  | PragmaMacroInvocation n
+  | MockQualifier n
+  | ClassBodyHeadMacro n
+  | ClassBodyEndMacro n
+  | ClassBodyHeadMacroInvocation n
+  | ClassBodyEndMacroInvocation n
     -> n
 
   | PpInclude x -> x

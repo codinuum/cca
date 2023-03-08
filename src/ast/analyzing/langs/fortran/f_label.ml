@@ -239,8 +239,9 @@ module ModuleSubprogram = struct
   let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in
     function
-      | FunctionSubprogram n   -> combo 0 [n]
-      | SubroutineSubprogram n -> combo 1 [n]
+      | FunctionSubprogram n       -> combo 0 [n]
+      | SubroutineSubprogram n     -> combo 1 [n]
+      | SeparateModuleSubprogram n -> combo 2 [n]
 
 end
 
@@ -404,7 +405,8 @@ module Stmt = struct
 
     | AccessStmt a                -> catstr [mkstr2 81; AccessSpec.to_short_string a]
     | AssignStmt l                -> combo2 82 [l]
-    | DoStmt(n_opt, l_opt, v_opt) -> combo2 83 ((opt_to_list n_opt) @ (opt_to_list l_opt) @ (opt_to_list v_opt))
+    | DoStmt(n_opt, l_opt, v_opt) ->
+        combo2 83 ((opt_to_list n_opt) @ (opt_to_list l_opt) @ (opt_to_list v_opt))
 
     | PpMacroStmt n               -> combo2 84 [n]
 
@@ -471,7 +473,8 @@ module Stmt = struct
     | EndSubmoduleStmt n_opt          -> combo2 140 (opt_to_list n_opt)
     | AutomaticStmt                   -> mkstr2 141
     | StaticStmt                      -> mkstr2 142
-
+    | MpSubprogramStmt n              -> combo2 143 [n]
+    | EndMpSubprogramStmt n_opt       -> combo2 144 (opt_to_list n_opt)
 
   let to_short_string ?(ignore_identifiers_flag=false) = function
     | Labeled(lab, stmt) -> catstr ((_to_short_string stmt)::(encode_ids ~ignore_identifiers_flag [lab]))
@@ -2398,8 +2401,7 @@ let is_subprogram = function
       (ProgramUnit.SubroutineSubprogram _|ProgramUnit.FunctionSubprogram _)
   | InternalSubprogram
       (InternalSubprogram.SubroutineSubprogram _|InternalSubprogram.FunctionSubprogram _)
-  | ModuleSubprogram
-      (ModuleSubprogram.SubroutineSubprogram _|ModuleSubprogram.FunctionSubprogram _)
+  | ModuleSubprogram _
     -> true
   | _ -> false
 

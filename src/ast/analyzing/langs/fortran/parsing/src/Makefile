@@ -101,7 +101,7 @@ LIB_OBJS_OPT = $(LIB_OBJS:.cmo=.cmx)
 LINKS_OPT = ../$(LIB_OPT)
 
 PACKAGES_NO_ULEX = -package str,menhirLib,dynlink,volt
-PACKAGES = -package pxp,ulex,str,menhirLib,camlzip,cryptokit,netstring,netzip,dynlink,volt
+PACKAGES = -package camlp-streams,pxp,ulex,str,menhirLib,camlzip,cryptokit,netstring,netzip,dynlink,volt
 SYNTAX = -syntax camlp4o
 
 USE_MENHIR = true

@@ -19,6 +19,9 @@ open Printf
 
 open Tokens_
 
+module PB = Parserlib_base
+
+type t = T.token PB.token
 
 let get_rawtoken (rt, _, _) = rt
 
@@ -53,6 +56,10 @@ let rawtoken_to_string = function
   | WHILE    -> "WHILE"
   | WITHx    -> "WITH"
   | YIELD    -> "YIELD"
+  | NONLOCAL -> "NONLOCAL"
+  | DEL      -> "DEL"
+  | AWAIT    -> "AWAIT"
+  | ASYNC    -> "ASYNC"
 
   | NAMEx s -> sprintf "NAME(%s)" s
 
@@ -94,6 +101,8 @@ let rawtoken_to_string = function
   | LT_LT_EQ       -> "LT_LT_EQ"
   | STAR_STAR_EQ   -> "STAR_STAR_EQ"
 
+  | MINUS_GT -> "MINUS_GT"
+
   | COLON_EQ -> "COLON_EQ"
 
   | PLUS    -> "PLUS"
@@ -125,8 +134,133 @@ let rawtoken_to_string = function
 
   | EOF -> "EOF"
 
-  | _ -> "???"
+  | ERROR s -> sprintf "ERROR(%s)" s
+  | MARKER s -> sprintf "MARKER(%s)" s
+
+
+
+let rawtoken_to_orig = function
+  | AND      -> "and"
+  | AS       -> "as"
+  | ASSERT   -> "assert"
+  | BREAK    -> "break"
+  | CLASS    -> "class"
+  | CONTINUE -> "continue"
+  | DEF      -> "def"
+  | ELIF     -> "elif"
+  | ELSE     -> "else"
+  | EXCEPT   -> "except"
+  | EXEC     -> "exec"
+  | FINALLY  -> "finally"
+  | FOR      -> "for"
+  | FROM     -> "from"
+  | GLOBAL   -> "global"
+  | IF       -> "if"
+  | IMPORT   -> "import"
+  | IN       -> "in"
+  | IS       -> "is"
+  | LAMBDA   -> "lambda"
+  | NOT      -> "not"
+  | OR       -> "or"
+  | PASS     -> "pass"
+  | PRINT    -> "print"
+  | RAISE    -> "raise"
+  | RETURN   -> "return"
+  | TRY      -> "try"
+  | WHILE    -> "while"
+  | WITHx    -> "with"
+  | YIELD    -> "yield"
+  | NONLOCAL -> "nonlocal"
+  | DEL      -> "del"
+  | AWAIT    -> "await"
+  | ASYNC    -> "async"
+
+
+  | NAMEx s -> s
+
+  | INDENT    -> "INDENT"
+  | DEDENT    -> "DEDENT"
+  | NEWLINE n -> sprintf "NEWLINE(%d)" n
+
+  | INTEGER s     -> s
+  | LONGINTEGER s -> s
+  | FLOATNUMBER s -> s
+  | IMAGNUMBER s  -> s
+  | SHORTSTRING s -> s
+
+  | LONGSTRING_BEGIN_S s -> s
+  | LONGSTRING_BEGIN_D s -> s
+  | LONGSTRING_REST s    -> s
+
+  | EQ_EQ     -> "=="
+  | LT_EQ     -> "<="
+  | GT_EQ     -> ">="
+  | EXCLAM_EQ -> "!="
+  | LT_GT     -> "<>"
+
+  | STAR_STAR   -> "**"
+  | SLASH_SLASH -> "//"
+  | LT_LT       -> "<<"
+  | GT_GT       -> ">>"
+
+  | PLUS_EQ        -> "+="
+  | MINUS_EQ       -> "-="
+  | STAR_EQ        -> "*="
+  | SLASH_EQ       -> "/="
+  | SLASH_SLASH_EQ -> "//="
+  | PERCENT_EQ     -> "%="
+  | AMP_EQ         -> "&="
+  | PIPE_EQ        -> "|="
+  | HAT_EQ         -> "^="
+  | GT_GT_EQ       -> ">>="
+  | LT_LT_EQ       -> "<<="
+  | STAR_STAR_EQ   -> "**="
+
+  | MINUS_GT -> "->"
+
+  | COLON_EQ -> ":="
+
+  | PLUS    -> "+"
+  | MINUS   -> "-"
+  | STAR    -> "*"
+  | SLASH   -> "/"
+  | PERCENT -> "%"
+  | AMP     -> "&"
+  | PIPE    -> "|"
+  | HAT     -> "^"
+  | TILDE   -> "~"
+  | GT      -> ">"
+  | LT      -> "<"
+
+  | LPAREN    -> "("
+  | RPAREN    -> ")"
+  | LBRACE    -> "{"
+  | RBRACE    -> "}"
+  | LBRACKET  -> "["
+  | RBRACKET  -> "]"
+  | AT        -> "@"
+  | COMMA     -> ","
+  | COLON     -> ":"
+  | DOT       -> "."
+  | BACKQUOTE -> "`"
+  | EQ        -> "="
+  | SEMICOLON -> ";"
+  | ELLIPSIS  -> "..."
+
+  | EOF -> "EOF"
+
+  | ERROR s -> sprintf "ERROR(%s)" s
+  | MARKER s -> s
+
 
 let to_string (pos_mgr : Position.manager) (tok, st, ed) =
   let loc = pos_mgr#lexposs_to_loc st ed in
   sprintf "%s[%s]" (rawtoken_to_string tok) (Ast.Loc.to_string loc)
+
+
+let to_rawtoken = PB.token_to_rawtoken
+let to_lexposs  = PB.token_to_lexposs
+let decompose   = PB.decompose_token
+let create      = PB.make_token
+
+let to_orig t = rawtoken_to_orig (to_rawtoken t)

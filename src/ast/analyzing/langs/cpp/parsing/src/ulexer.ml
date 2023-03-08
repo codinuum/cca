@@ -540,6 +540,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let s = Ulexing.utf8_lexeme lexbuf in
     mktok (USER_CHAR_LITERAL s) lexbuf
 
+| ">>>>>>>" -> mktok (GT_7 (ref false)) lexbuf
+| "=======" -> conflict_marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
+| "|||||||" -> conflict_marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
+| "<<<<<<<" -> conflict_marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
+
 |  "%:%:" -> mktok SHARP_SHARP(*PERC_COLON_PERC_COLON*) lexbuf
 |  "..." -> mktok ELLIPSIS lexbuf
 |  "->*" -> mktok MINUS_GT_STAR lexbuf
@@ -637,6 +642,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let s = Ulexing.utf8_lexeme lexbuf in
     mktok (BS_IDENT s) lexbuf
 
+|  "@@" ->
+    let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
+    add_comment_region (offsets_to_loc st ed);
+    let l, c = env#current_pos_mgr#get_position st in
+    Xprint.warning "unknown token \"@@\" found at (%dL,%dC)" l c;
+    _token lexbuf
+
 |  '@' identifier ->
     let s = Ulexing.utf8_lexeme lexbuf in
     let kw = find_objc_keyword s in
@@ -731,6 +743,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
     DEBUG_MSG "s=\"%s\"" s;
     Buffer.add_string buf s;
     raw_string marker st buf lexbuf
+
+  and conflict_marker st s = lexer
+| line_terminator ->
+    (CONFLICT_MARKER(s, ref false)), mklexpos st, mklexpos ((Ulexing.lexeme_end lexbuf) - 1)
+| _ -> conflict_marker st (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 
 end (* Ulexer.F *)

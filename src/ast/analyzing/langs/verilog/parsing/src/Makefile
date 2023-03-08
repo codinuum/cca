@@ -84,7 +84,8 @@ USE_MENHIR = true
 
 #MENHIR_TRACE = --trace
 
-MENHIRFLAGS = $(MENHIR_TRACE) --table --external-tokens Tokens_ --infer --ocamlc "ocamlc $(INCLS)" #--error-recovery
+MENHIRFLAGS = $(MENHIR_TRACE) --table --external-tokens Tokens_ --infer --ocamlc "ocamlc $(INCLS)" \
+--strategy legacy #--error-recovery
 
 
 include $(SRC_DIR)/rules.mk

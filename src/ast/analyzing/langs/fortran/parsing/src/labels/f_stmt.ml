@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2022 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ type _t =
   | EndIfStmt of name option
   | EndInterfaceStmt 
   | EndModuleStmt of name option
+  | EndMpSubprogramStmt of name option
   | EndProgramStmt of name option
   | EndSelectStmt of name option
   | EndSubmoduleStmt of name option
@@ -88,6 +89,7 @@ type _t =
   | InterfaceStmt of name option
   | IntrinsicStmt
   | ModuleStmt of name
+  | MpSubprogramStmt of name
   | NamelistStmt
   | NullifyStmt
   | OpenStmt
@@ -215,6 +217,7 @@ let _to_string = function
   | EndIfStmt n_opt             -> "EndIfStmt"^(string_opt_to_string ~prefix:":" n_opt)
   | EndInterfaceStmt            -> "EndInterfaceStmt"
   | EndModuleStmt n_opt         -> "EndModuleStmt"^(string_opt_to_string ~prefix:":" n_opt)
+  | EndMpSubprogramStmt n_opt   -> "EndMpSubprogramStmt"^(string_opt_to_string ~prefix:":" n_opt)
   | EndProgramStmt n_opt        -> "EndProgramStmt"^(string_opt_to_string ~prefix:":" n_opt)
   | EndSelectStmt n_opt         -> "EndSelectStmt"^(string_opt_to_string ~prefix:":" n_opt)
   | EndSubmoduleStmt n_opt      -> "EndSubmoduleStmt"^(string_opt_to_string ~prefix:":" n_opt)
@@ -241,6 +244,7 @@ let _to_string = function
   | InterfaceStmt n_opt         -> "InterfaceStmt"^(string_opt_to_string ~prefix:":" n_opt)
   | IntrinsicStmt               -> "IntrinsicStmt"
   | ModuleStmt n                -> "ModuleStmt:"^n
+  | MpSubprogramStmt n          -> "MpSubprogramStmt:"^n
   | NamelistStmt                -> "NamelistStmt"
   | NullifyStmt                 -> "NullifyStmt"
   | OpenStmt                    -> "OpenStmt"
@@ -368,6 +372,7 @@ let _to_simple_string = function
   | EndIfStmt n_opt             -> "end if"^(string_opt_to_string ~prefix:" " n_opt)
   | EndInterfaceStmt            -> "end interface"
   | EndModuleStmt n_opt         -> "end module"^(string_opt_to_string ~prefix:" " n_opt)
+  | EndMpSubprogramStmt n_opt   -> "end procedure"^(string_opt_to_string ~prefix:" " n_opt)
   | EndProgramStmt n_opt        -> "end program"^(string_opt_to_string ~prefix:" " n_opt)
   | EndSelectStmt n_opt         -> "end select"^(string_opt_to_string ~prefix:" " n_opt)
   | EndSubmoduleStmt n_opt      -> "end submodule"^(string_opt_to_string ~prefix:" " n_opt)
@@ -394,6 +399,7 @@ let _to_simple_string = function
   | InterfaceStmt n_opt         -> "interface"^(string_opt_to_string ~prefix:" " n_opt)
   | IntrinsicStmt               -> "intrinsic"
   | ModuleStmt n                -> "module "^n
+  | MpSubprogramStmt n          -> "module procedure "^n
   | NamelistStmt                -> "namelist"
   | NullifyStmt                 -> "nullify"
   | OpenStmt                    -> "open"
@@ -526,6 +532,7 @@ let _to_tag = function
   | EndIfStmt n_opt             -> "EndIfStmt", (string_opt_to_attr name_attr_name n_opt)
   | EndInterfaceStmt            -> "EndInterfaceStmt", []
   | EndModuleStmt n_opt         -> "EndModuleStmt", (string_opt_to_attr name_attr_name n_opt)
+  | EndMpSubprogramStmt n_opt   -> "EndMpSubprogramStmt", (string_opt_to_attr name_attr_name n_opt)
   | EndProgramStmt n_opt        -> "EndProgramStmt", (string_opt_to_attr name_attr_name n_opt)
   | EndSelectStmt n_opt         -> "EndSelectStmt", (string_opt_to_attr name_attr_name n_opt)
   | EndSubmoduleStmt n_opt      -> "EndSubmoduleStmt", (string_opt_to_attr name_attr_name n_opt)
@@ -552,6 +559,7 @@ let _to_tag = function
   | InterfaceStmt n_opt         -> "InterfaceStmt", (string_opt_to_attr name_attr_name n_opt)
   | IntrinsicStmt               -> "IntrinsicStmt", []
   | ModuleStmt n                -> "ModuleStmt", [name_attr_name,n]
+  | MpSubprogramStmt n          -> "MpSubprogramStmt", [name_attr_name,n]
   | NamelistStmt                -> "NamelistStmt", []
   | NullifyStmt                 -> "NullifyStmt", []
   | OpenStmt                    -> "OpenStmt", []
@@ -641,6 +649,7 @@ let _get_name = function
   | EntryStmt n   
   | FunctionStmt n
   | ModuleStmt n 
+  | MpSubprogramStmt n 
   | ProgramStmt n
   | StmtFunctionStmt n
   | SubmoduleStmt(_, _, n)
@@ -670,6 +679,7 @@ let _get_name = function
   | EndFunctionStmt n_opt
   | EndIfStmt n_opt
   | EndModuleStmt n_opt
+  | EndMpSubprogramStmt n_opt
   | EndProgramStmt n_opt
   | EndSelectStmt n_opt
   | EndSubmoduleStmt n_opt
@@ -709,6 +719,7 @@ let _get_name_opt = function
   | EndFunctionStmt n_opt
   | EndIfStmt n_opt
   | EndModuleStmt n_opt
+  | EndMpSubprogramStmt n_opt
   | EndProgramStmt n_opt
   | EndSelectStmt n_opt
   | EndSubmoduleStmt n_opt
@@ -728,6 +739,7 @@ let _get_name_opt = function
   | EntryStmt n            
   | FunctionStmt n
   | ModuleStmt n 
+  | MpSubprogramStmt n 
   | ProgramStmt n
   | StmtFunctionStmt n
   | SubmoduleStmt(_, _, n)
@@ -1115,6 +1127,7 @@ let _anonymize = function
   | EntryStmt n              -> EntryStmt ""
   | FunctionStmt n           -> FunctionStmt ""
   | ModuleStmt n             -> ModuleStmt ""
+  | MpSubprogramStmt n       -> MpSubprogramStmt ""
   | ProgramStmt n            -> ProgramStmt ""
   | StmtFunctionStmt n       -> StmtFunctionStmt ""
   | SubroutineStmt n         -> SubroutineStmt ""
@@ -1132,6 +1145,7 @@ let _anonymize = function
   | EndFunctionStmt n_opt     -> EndFunctionStmt None
   | EndIfStmt n_opt           -> EndIfStmt None
   | EndModuleStmt n_opt       -> EndModuleStmt None
+  | EndMpSubprogramStmt n_opt -> EndMpSubprogramStmt None
   | EndProgramStmt n_opt      -> EndProgramStmt None
   | EndSelectStmt n_opt       -> EndSelectStmt None
   | EndSubroutineStmt n_opt   -> EndSubroutineStmt None

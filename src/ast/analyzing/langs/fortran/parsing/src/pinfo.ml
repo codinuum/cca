@@ -736,6 +736,7 @@ module Name = struct
       | IntrinsicSubroutine
       | FunctionSubprogram of object_spec
       | SubroutineSubprogram of object_spec
+      | SeparateModuleSubprogram of object_spec
       | Generic of object_spec
       | Procedure of procedure_spec
       | NamelistGroup of object_spec
@@ -767,6 +768,7 @@ module Name = struct
       | IntrinsicSubroutine        -> "IntrinsicSubroutine"
       | FunctionSubprogram ospec   -> "FunctionSubprogram"^ospec#to_string
       | SubroutineSubprogram ospec -> "SubroutineSubprogram"^ospec#to_string
+      | SeparateModuleSubprogram ospec -> "SeparateModuleSubprogram"^ospec#to_string
       | Generic ospec              -> "Generic"^ospec#to_string
       | Procedure pspec            -> "Procedure:"^pspec#to_string
       | NamelistGroup ospec        -> "NamelistGroup"^ospec#to_string
@@ -802,6 +804,7 @@ module Name = struct
       | IntrinsicSubroutine
       | FunctionSubprogram _
       | SubroutineSubprogram _
+      | SeparateModuleSubprogram _
       | Generic _
       | Procedure _
         -> true
@@ -858,6 +861,7 @@ module Name = struct
       | DerivedType(_, ospec)
       | FunctionSubprogram ospec
       | SubroutineSubprogram ospec
+      | SeparateModuleSubprogram ospec
       | Generic ospec
       | NamelistGroup ospec
       | Object ospec -> true
@@ -906,6 +910,7 @@ module Name = struct
       | DerivedType(_, ospec)
       | FunctionSubprogram ospec
       | SubroutineSubprogram ospec
+      | SeparateModuleSubprogram ospec
       | Generic ospec
       | NamelistGroup ospec
       | Object ospec -> ospec
@@ -937,6 +942,7 @@ module Name = struct
       | DerivedType(_, ospec)
       | FunctionSubprogram ospec
       | SubroutineSubprogram ospec
+      | SeparateModuleSubprogram ospec
       | Generic ospec
       | NamelistGroup ospec
       | Object ospec -> ospec#attr
@@ -971,6 +977,7 @@ module Name = struct
       | DerivedType(_, ospec)
       | FunctionSubprogram ospec
       | SubroutineSubprogram ospec
+      | SeparateModuleSubprogram ospec
       | Generic ospec
       | NamelistGroup ospec
       | Object ospec -> ospec#loc_of_decl
@@ -988,6 +995,7 @@ module Name = struct
       | DerivedType(_, ospec)
       | FunctionSubprogram ospec
       | SubroutineSubprogram ospec
+      | SeparateModuleSubprogram ospec
       | Generic ospec
       | NamelistGroup ospec
       | Object ospec -> ospec#set_loc_of_decl lod
@@ -1007,6 +1015,7 @@ module Name = struct
 
     let mkfunction ospec      = FunctionSubprogram ospec
     let mksubroutine ospec    = SubroutineSubprogram ospec
+    let mkseparate_module_subprogram ospec = SeparateModuleSubprogram ospec
     let mkgeneric ospec       = Generic ospec
     let mknamelistgroup ospec = NamelistGroup ospec
     let mkderivedtype f ospec = DerivedType(f, ospec)
@@ -1089,6 +1098,7 @@ module Name = struct
       | MainProgram of name option * bool ref (* headed or not *)
       | FunctionSubprogram of name
       | SubroutineSubprogram of name
+      | SeparateModuleSubprogram of name
       | Module of name
       | BlockData of name option
       | BlockConstruct of name option (* F2003 *)
@@ -1100,9 +1110,12 @@ module Name = struct
     let to_string = function
       | Program                -> "Program"
       | DerivedTypeDef n       -> "DerivedTypeDefinition:"^n
-      | MainProgram(n_opt, hd) -> sprintf "MainProgram(%s%B)" (string_opt_to_string ~prefix:":" ~suffix:"," n_opt) !hd
-      | FunctionSubprogram n   -> "FunctionSubprogram:"^n
-      | SubroutineSubprogram n -> "SubroutineSubprogram:"^n
+      | MainProgram(n_opt, hd) ->
+          sprintf "MainProgram(%s%B)" (string_opt_to_string ~prefix:":" ~suffix:"," n_opt) !hd
+
+      | FunctionSubprogram n       -> "FunctionSubprogram:"^n
+      | SubroutineSubprogram n     -> "SubroutineSubprogram:"^n
+      | SeparateModuleSubprogram n -> "SeparateModuleSubprogram:"^n
       | Module n               -> "Module:"^n
       | BlockData n_opt        -> "BlockData"^(string_opt_to_string ~prefix:":" n_opt)
       | BlockConstruct n_opt   -> "BlockConstruct"^(string_opt_to_string ~prefix:":" n_opt)
@@ -1390,6 +1403,7 @@ module Name = struct
       | Spec.DerivedType(_, ospec)
       | Spec.FunctionSubprogram ospec
       | Spec.SubroutineSubprogram ospec
+      | Spec.SeparateModuleSubprogram ospec
       | Spec.Generic ospec
       | Spec.NamelistGroup ospec -> begin
           try

@@ -18,9 +18,20 @@
 include Py_lib_base
 
 module Analyzing = Analyzing.F (Label)
+module DF        = Delta_format.Format
 
 let extract_change options tree1 tree2 uidmapping edits =
   [], [], [], (Xset.create 0) (* not yet *)
+
+
+class tree_patcher options tree_factory = object
+  inherit Lang.tree_patcher
+
+  method _patch = DF._patch options tree_factory
+
+  method patch = DF.patch options tree_factory
+
+end
 
 let _ =
   Lang.register Spython.parser_name
@@ -29,4 +40,5 @@ let _ =
        ~make_tree_builder:(new tree_builder)
        ~extract_change:extract_change
        ~extract_fact:extract_fact
+       ~make_tree_patcher:(new tree_patcher)
     )

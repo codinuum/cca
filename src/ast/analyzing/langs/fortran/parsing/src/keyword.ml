@@ -302,14 +302,17 @@ let find_separated_keyword =
       ["end"; "enum"],         (fun l -> END_ENUM (concat l)); (* F2003 *)
       ["end"; "file"],         (fun l -> END_FILE (concat l));
       ["end"; "forall"],       (fun l -> END_FORALL (concat l));
-      ["end"; "function"],     (fun l -> END_FUNCTION (concat l));
+(*      ["end"; "function"],     (fun l -> END_FUNCTION (concat l));*)
+      ["end"; "function"],     (fun l -> END_SUBPROGRAM (concat l));
       ["end"; "if"],           (fun l -> END_IF (concat l));
       ["end"; "interface"],    (fun l -> END_INTERFACE (concat l));
       ["end"; "module"],       (fun l -> END_MODULE (concat l));
+      ["end"; "procedure"],    (fun l -> END_PROCEDURE (concat l)); (* F2008 *)
       ["end"; "program"],      (fun l -> END_PROGRAM (concat l));
       ["end"; "select"],       (fun l -> END_SELECT (concat l));
       ["end"; "submodule"],    (fun l -> END_SUBMODULE (concat l)); (* F2008 *)
-      ["end"; "subroutine"],   (fun l -> END_SUBROUTINE (concat l));
+(*      ["end"; "subroutine"],   (fun l -> END_SUBROUTINE (concat l));*)
+      ["end"; "subroutine"],   (fun l -> END_SUBPROGRAM (concat l));
       ["end"; "type"],         (fun l -> END_TYPE (concat l));
       ["end"; "where"],        (fun l -> END_WHERE (concat l));
       ["go"; "to"],            (fun l -> GO_TO (concat l));

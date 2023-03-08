@@ -6019,11 +6019,15 @@ end;
       let b =
       not rt1#data#is_boundary && not rt2#data#is_boundary &&
       let get_bn = get_p_ancestor (fun x -> x#data#is_boundary) in
-      let bn1 = get_bn rt1 in
-      let bn2 = get_bn rt2 in
-      DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
-      DEBUG_MSG "bn2: %a %s %s" nps bn2 bn2#data#label (Loc.to_string bn2#data#src_loc);
-      is_map bn1 bn2 &&
+      (try
+        let bn1 = get_bn rt1 in
+        let bn2 = get_bn rt2 in
+        DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
+        DEBUG_MSG "bn2: %a %s %s" nps bn2 bn2#data#label (Loc.to_string bn2#data#src_loc);
+        is_map bn1 bn2
+      with
+        Not_found -> false)
+        &&
       let _ = () in
       (try
         let rt1_is_seq = rt1#data#is_sequence in
@@ -6162,6 +6166,7 @@ end;
           not rt1#data#is_sequence && not rt2#data#is_sequence &&
           (*rt1#data#is_named_orig && rt2#data#is_named_orig &&*)
           rt1#initial_nchildren > 0 && rt2#initial_nchildren > 0 &&
+          try
           let bn1 = get_bn rt1 in
           let bn2 = get_bn rt2 in
           DEBUG_MSG "bn1: %a %s %s" nps bn1 bn1#data#label (Loc.to_string bn1#data#src_loc);
@@ -6343,6 +6348,7 @@ end;
              ) bn1*)
            )
           )
+          with Not_found -> false
         then begin
           DEBUG_MSG "local variable inlining or extraction";
           edits#add_indivisible_move mid
