@@ -423,6 +423,8 @@ def diffts(diff_cmd, file1, file2,
            dironly=False,
            check=False,
            aggressive=False,
+           ignore_moves_of_unordered=False,
+           no_unnamed_node_moves=False,
            keep_filtered_temp=False,
            local_cache_name='',
            dump_delta=False,
@@ -523,9 +525,17 @@ def diffts(diff_cmd, file1, file2,
         other_opts = ''
         if aggressive:
             other_opts += ' -aggressive'
+
+        if no_unnamed_node_moves:
+            other_opts += ' -no-unnamed-node-moves'
+
+        if ignore_moves_of_unordered:
+            other_opts += ' -ignore-moves-of-unordered'
+
         if keep_filtered_temp:
             logger.info('keep filtered temp files')
             other_opts += ' -keep-filtered-temp-file'
+
         if keep_going:
             other_opts += ' -k'
 

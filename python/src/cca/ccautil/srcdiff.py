@@ -566,6 +566,8 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
               dumpccs=False,
               check=False,
               aggressive=False,
+              ignore_moves_of_unordered=False,
+              no_unnamed_node_moves=False,
               keep_filtered_temp=False,
               local_cache_name=None,
               dump_delta=False,
