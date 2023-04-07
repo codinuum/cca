@@ -113,7 +113,7 @@ PACKAGES += -package netzip,uuidm,dynlink,volt
 
 PACKAGES_WS = $(PACKAGES) -package pcre,sqlite3,netcgi2,netclient,nethttpd
 
-PACKAGES_GIT_DIFFAST = $(PACKAGES) -package lwt.unix,cmdliner,mtime.clock.os,logs.cli,logs.fmt,fmt.cli,fmt.tty,checkseum.ocaml,git,digestif.ocaml,git-unix
+PACKAGES_GIT_DIFFAST = $(PACKAGES) -package lwt.unix,cmdliner,mtime.clock.os,logs.cli,logs.fmt,fmt.cli,fmt.tty,checkseum.c,git,digestif.c,git-unix
 
 DEP_INCLS = -I $(COMMON_DIR) -I $(ENGINE_DIR) -I .
 
