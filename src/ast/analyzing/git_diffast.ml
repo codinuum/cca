@@ -17,10 +17,9 @@
 open Lwt.Infix
 open Cmdliner
 open Printf
-open Git
-open Git_unix
 
 (* begin compat *)
+(*
 type endpoint = {uri: Uri.t; headers: Cohttp.Header.t}
 
 let endpoint ?headers uri =
@@ -28,6 +27,7 @@ let endpoint ?headers uri =
     match headers with None -> Cohttp.Header.of_list [] | Some h -> h
   in
   {headers; uri}
+*)
 let string_of_perm = function
   | `Normal -> "100644"
   | `Everybody -> "100664"
@@ -107,10 +107,10 @@ let mk_opt ?section flags value doc mk default =
   let doc = Arg.info ?docs:section ~docv:value ~doc flags in
   Arg.(value & opt mk default & doc)
 
-(*let mk_required ?section flags value doc mk default =
+let mk_required ?section flags value doc mk default =
   let doc = Arg.info ?docs:section ~docv:value ~doc flags in
-  Arg.(required & opt mk default & doc)*)
-
+  Arg.(required & opt mk default & doc)
+(*
 let endp =
   let cv x = Ok (endpoint (Uri.of_string x)) in
   let pr ppf name = Format.pp_print_string ppf (Uri.to_string name.uri) in
@@ -120,32 +120,16 @@ let remote =
   let doc = Arg.info ~docv:"REPOSITORY"
       ~doc:"Location of the remote repository." [] in
   Arg.(required & pos 0 (some (*gri*)endp) None & doc)
+*)
 
-(*module S = struct (* Git_unix.Store does not work. Why? *)
-  module I = Git.Inflate
-  module D = Git.Deflate
-  include Git.Store.Make (Digestif.SHA1) (Git_unix.Fs) (I) (D)
-
-  let v ?dotgit ?compression ?buffer root =
-    v ?dotgit ?compression ?buffer () root
-end*)
-module S = Git_unix.Store
-
-module Hash   = S.Hash
-module Value  = S.Value
-module Blob   = Value.Blob
-module Commit = Value.Commit
-module Tree   = Value.Tree
-module Tag    = Value.Tag
-
-let unpack =
-  mk_flag ["unpack"] "Unpack the received pack archive."
+module Store = Git_unix.Store
+module Hash = Store.Hash
 
 let run t =
   Lwt_main.run (
     Lwt.catch
       (fun () -> t)
-      (function e -> eprintf "%s\n%!" (Printexc.to_string e); exit 1)
+      (function e -> eprintf "Uncaught exception: %s\n%!" (Printexc.to_string e); exit 1)
   )
 
 (* DIFFAST *)
@@ -157,7 +141,7 @@ let verbose() =
 class diffast_args = object (self)
 
   method repo =
-    let doc = Arg.info [] ~docv:"REPO_PATH" ~doc:"The repository path." in
+    let doc = Arg.info [] ~docv:"REPO_PATH" ~doc:"Path to the repository." in
     let path =
       let cv x = Ok Fpath.(v x) in
       let pr = Fpath.pp in
@@ -306,7 +290,7 @@ let get_opts
 
 let extract = {
   name = "extract";
-  doc = "Extract fact from Git object.";
+  doc = "Extract fact from commit.";
   man = [];
   term =
   let args = new diffast_args in
@@ -317,7 +301,7 @@ let extract = {
   in
 *)
   let sha1s =
-    let doc = Arg.info ~docv:"SHA1" ~doc:"Git object." [] in
+    let doc = Arg.info ~docv:"SHA1" ~doc:"SHA1 of Git commit." [] in
     Arg.(non_empty & pos_right 0 string [] & doc)
   in
   let extract
@@ -336,11 +320,11 @@ let extract = {
       in
       Lang.setup_options options;
 
-      S.v root >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
+      Store.v root >>= function
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err); Lwt.return_unit
         | Ok t -> begin
 
-        let module GS = Git_storage.F(S) in
+        let module GS = Git_storage.F(Store) in
         let repo_name = Fpath.to_string root in
         begin
           try
@@ -388,7 +372,7 @@ let diffast = {
   let ignore_unmodified = mk_flag ["ignore-unmodified"] "Ignore unmodified files." in
   let args = new diffast_args in
   let sha1s =
-    let doc = Arg.info [] ~docv:"SHA1" ~doc:"Git object." in
+    let doc = Arg.info [] ~docv:"SHA1" ~doc:"SHA1 of Git commit." in
     Arg.(non_empty & pos_right 0 string [] & doc)
   in
   let diffast recurse ignore_unmodified
@@ -416,8 +400,8 @@ let diffast = {
 
       Lang.setup_options options;
 
-      S.v root >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
+      Store.v root >>= function
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err); Lwt.return_unit
         | Ok t -> begin
 
         (match sha1s with
@@ -427,10 +411,10 @@ let diffast = {
             Lwt.return (s0, s1)
         end
         | [s1] -> begin
-            S.read_exn t (Hash.of_hex s1) >>= fun v ->
+            Store.read_exn t (Hash.of_hex s1) >>= fun v ->
               match v with
               | Git.Value.Commit commit -> begin
-                  match Commit.parents commit with
+                  match Store.Value.Commit.parents commit with
                   | [] -> begin
                       eprintf "[ERROR] specify another SHA1\n";
                       exit 1
@@ -452,10 +436,10 @@ let diffast = {
 
         options#set_fact_versions [|(Entity.V_GITREV, sha1_0);(Entity.V_GITREV, sha1_1)|];
 
-        let module GS = Git_storage.F(S) in
+        let module GS = Git_storage.F(Store) in
 
 	(*let dump_obj sha1 =
-	  S.read_exn t sha1 >>= fun v -> GS.dump_value sha1 v; Lwt.return_unit
+	  Store.read_exn t sha1 >>= fun v -> GS.dump_value sha1 v; Lwt.return_unit
 	in*)
 
         let repo_name = Fpath.to_string root in
@@ -469,29 +453,49 @@ let diffast = {
               match objs with
               | [GS.Tree tree0; GS.Tree tree1] -> begin
 
-                  if recurse then begin
+                  (*if recurse then begin
                     let diffast = new Diffastcore.c options in
                     diffast#compare_trees tree0 tree1
                   end
-                  else begin
+                  else *)begin
                     let info = Dirtree.compare_trees options tree0 tree1 in
                     eprintf "cache path: %s\n" info.Dirtree.i_cache_path;
 
                     let nmodified = List.length info.Dirtree.i_modified in
                     if nmodified > 0 then begin
-                      printf "[%d modified files]\n" nmodified;
+                      let cmp =
+                        if recurse then
+                          fun src0 src1 ->
+                            let diffast = new Diffastcore.c options in
+                            let cache_path = diffast#get_cache_path2 src0 src1 in
+                            let stat_paths = diffast#search_cache_for_stat cache_path in
+                            let dstat =
+	                      if stat_paths <> [] && (not options#clear_cache_flag) then begin
+	                        diffast#verbose_msg "cache found. skipping...";
+                                Stat.File.scan_diff_stat ~max_retry_count:options#max_retry_count
+                                  stat_paths
+                              end
+	                      else
+                                diffast#compare_files ~cache_path src0 src1
+                            in
+                            Stat.File.dump_diff_stat_ch ~short:true dstat stdout
+                        else
+                          fun _ _ -> ()
+                      in
+                      printf "%d modified files:\n" nmodified;
                       List.iter
                         (fun (f1, f2) ->
                           if f1#path = f2#path then
                             printf "* %s\n" f1#path
                           else
                             printf "* %s --> %s\n" f1#path f2#path;
-                          printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest)
+                          printf "  %s %s\n" (Xhash.to_hex f1#digest) (Xhash.to_hex f2#digest);
+                          cmp f1 f2
                         ) info.Dirtree.i_modified
                     end;
                     let nrenamed = List.length info.Dirtree.i_renamed in
                     if nrenamed > 0 then begin
-                      printf "[%d renamed files]\n" nrenamed;
+                      printf "%d renamed files:\n" nrenamed;
                       List.iter
                         (fun (f1, f2) ->
                           printf "* %s --> %s\n" f1#path f2#path;
@@ -500,7 +504,7 @@ let diffast = {
                     end;
                     let nmoved = List.length info.Dirtree.i_moved in
                     if nmoved > 0 then begin
-                      printf "[%d moved files]\n" nmoved;
+                      printf "%d moved files:\n" nmoved;
                       List.iter
                         (fun (f1, f2) ->
                           printf "* %s --> %s\n" f1#path f2#path;
@@ -509,7 +513,7 @@ let diffast = {
                     end;
                     let nremoved = List.length info.Dirtree.i_removed in
                     if nremoved > 0 then begin
-                      printf "[%d removed files]\n" nremoved;
+                      printf "%d removed files:\n" nremoved;
                       List.iter
                         (fun f ->
                           printf "* %s\n" f#path;
@@ -518,7 +522,7 @@ let diffast = {
                     end;
                     let nadded = List.length info.Dirtree.i_added in
                     if nadded > 0 then begin
-                      printf "[%d added files]\n" nadded;
+                      printf "%d added files:\n" nadded;
                       List.iter
                         (fun f ->
                           printf "* %s\n" f#path;
@@ -527,7 +531,7 @@ let diffast = {
                     end;
                     let ncopied = List.length info.Dirtree.i_copied in
                     if ncopied > 0 then begin
-                      printf "[%d copied files]\n" ncopied;
+                      printf "%d copied files:\n" ncopied;
                       List.iter
                         (fun (f, fs) ->
                           printf "* %s --> [%s]\n" f#path (String.concat ";" (List.map (fun f -> f#path) fs));
@@ -536,7 +540,7 @@ let diffast = {
                     end;
                     let nglued = List.length info.Dirtree.i_glued in
                     if nglued > 0 then begin
-                      printf "[%d glued files]\n" nglued;
+                      printf "%d glued files:\n" nglued;
                       List.iter
                         (fun (fs, f) ->
                           printf "* [%s] --> %s\n" (String.concat ";" (List.map (fun f -> f#path) fs)) f#path;
@@ -587,50 +591,56 @@ let diffast = {
 
 let catch_ f =
   Lwt.catch f (function
-      | Not_found ->
+      | Not_found -> begin
         eprintf "unknown revision or path not in the working tree\n%!";
         exit 1
-      | e -> eprintf "%s\n%!" (Printexc.to_string e); exit 1
+      end
+      | e -> begin
+          eprintf "Uncaught exception: %s\n%!" (Printexc.to_string e);
+          exit 1
+      end
     )
 
 (* CAT-FILE *)
 let cat_file = {
   name = "cat-file";
-  doc  = "Provide content or type and size information for repository objects";
+  doc  = "Provide content or type and size information for repository objects.";
   man  = [];
   term =
     let ty_flag = mk_flag ["t"] "Instead of the content, show the object type." in
     let sz_flag = mk_flag ["s"] "Instead of the content, show the object size." in
     let id =
-      let doc = Arg.info ~docv:"Hash1" ~doc:"The Hash1 of the repository object." [] in
+      let doc = Arg.info ~docv:"SHA1" ~doc:"The SHA1 of Git object." [] in
       Arg.(required & pos 0 (some string) None & doc)
     in
     let cat_file ty_flag sz_flag id =
       run begin
-      S.v Fpath.(v (Sys.getcwd ())) >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
+      Store.v Fpath.(v (Sys.getcwd ())) >>= function
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err); Lwt.return_unit
         | Ok t ->
 
-        catch_ (fun () ->
-            S.read_exn t (Hash.of_hex id) >>= fun v ->
-            let t, c, s = match v with
-              | Git.Value.Blob blob ->
-                let c = Blob.to_string blob in
-                "blob", c, String.length c
-              | Git.Value.Commit commit ->
-                let c = Fmt.to_to_string Commit.pp commit in
-                "commit", c, String.length c
-              | Git.Value.Tree tree ->
-                let c = Fmt.to_to_string Tree.pp tree in
-                "tree", c, String.length c
-              | Git.Value.Tag tag ->
-                let c = Fmt.to_to_string Tag.pp tag in
-                "tag", c, String.length c
-            in
-            if ty_flag then Printf.printf "%s%!\n" t;
-            if sz_flag then Printf.printf "%d%!\n" s;
-            if not ty_flag && not sz_flag then Printf.printf "%s%!\n" c;
-            Lwt.return_unit)
+        catch_
+              (fun () ->
+                Store.read_exn t (Hash.of_hex id) >>= fun v ->
+                  let ty, c, sz = match v with
+                  | Git.Value.Blob blob ->
+                      let c = Store.Value.Blob.to_string blob in
+                      "blob", c, String.length c
+                  | Git.Value.Commit commit ->
+                      let c = Fmt.to_to_string Store.Value.Commit.pp commit in
+                      "commit", c, String.length c
+                  | Git.Value.Tree tree ->
+                      let c = Fmt.to_to_string Store.Value.Tree.pp tree in
+                      "tree", c, String.length c
+                  | Git.Value.Tag tag ->
+                      let c = Fmt.to_to_string Store.Value.Tag.pp tag in
+                      "tag", c, String.length c
+                  in
+                  if ty_flag then Printf.printf "%s%!\n" ty;
+                  if sz_flag then Printf.printf "%d%!\n" sz;
+                  if not ty_flag && not sz_flag then Printf.printf "%s%!\n" c;
+                  Lwt.return_unit
+              )
       end
     in
     Term.(mk cat_file $ ty_flag $ sz_flag $ id)
@@ -645,8 +655,8 @@ let cat_file = {
     let ls remote =
       let module Sync = Sync (S) in
       run begin
-      S.v Fpath.(v (Sys.getcwd ())) >>= function
-        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
+      Store.v Fpath.(v (Sys.getcwd ())) >>= function
+        | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err); Lwt.return_unit
         | Ok t ->
 
         Sync.ls t remote >>= function
@@ -675,9 +685,7 @@ let ls_tree = {
     in
     let only_tree_flag = mk_flag ["d"] "Show only the named tree entry itself." in
     let oid =
-      let doc = Arg.info [] ~docv:"Hash1"
-          ~doc:"The Hash1 of the tree."
-      in
+      let doc = Arg.info [] ~docv:"SHA1" ~doc:"The SHA1 of the tree." in
       Arg.(required & pos 0 (some string) None & doc )
     in
     let get_kind = function
@@ -697,35 +705,89 @@ let ls_tree = {
         printf "tag %s %s\n" (Hash.to_hex h) path;
         Lwt.return_unit
       in
-      let rec walk t path h =
-        S.read_exn t h >>= function
-        | Git.Value.Commit c  -> walk t path (Commit.tree c)
-        | Git.Value.Blob _    -> pp_blob path h
-        | Git.Value.Tag _     -> pp_tag path h
-        | Git.Value.Tree tree ->
-          Lwt_list.iter_s (fun e ->
-              let path = Filename.concat path e.Git.Tree.name in
-              let kind, is_dir = get_kind e.Git.Tree.perm in
-              let mode = string_of_perm e.Git.Tree.perm in
-              let show =
-                if is_dir then not recurse || show_tree || only_tree
-                else not only_tree
-              in
-              if show then pp_tree mode kind path e;
-              if is_dir && recurse then walk t path e.Git.Tree.node
-              else Lwt.return_unit
-            ) (Tree.to_list tree)
+      let rec walk store path hash =
+        Store.read store hash >>= function
+          | Error err -> begin
+              eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err);
+              Lwt.return_unit
+          end
+          | Ok v ->
+              match v with
+              | Git.Value.Commit c  -> walk store path (Store.Value.Commit.tree c)
+              | Git.Value.Blob _    -> pp_blob path hash
+              | Git.Value.Tag _     -> pp_tag path hash
+              | Git.Value.Tree tree -> begin
+                  Lwt_list.iter_s
+                    (fun e ->
+                      let path = Filename.concat path e.Git.Tree.name in
+                      let kind, is_dir = get_kind e.Git.Tree.perm in
+                      let mode = string_of_perm e.Git.Tree.perm in
+                      let show =
+                        if is_dir then
+                          not recurse || show_tree || only_tree
+                        else
+                          not only_tree
+                      in
+                      if show then
+                        pp_tree mode kind path e;
+
+                      if is_dir && recurse then
+                        walk store path e.Git.Tree.node
+                      else
+                        Lwt.return_unit
+                    ) (Store.Value.Tree.to_list tree)
+          end
       in
       run begin
-        S.v Fpath.(v (Sys.getcwd ())) >>= function
-          | Error err -> eprintf "[ERROR] %s\n" (Fmt.str "%a" S.pp_error err); Lwt.return_unit
-          | Ok t ->
+        Store.v Fpath.(v (Sys.getcwd ())) >>= function
+          | Error err -> begin
+              eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err);
+              Lwt.return_unit
+          end
+          | Ok store -> begin
+              let hash = Hash.of_hex oid in
+              catch_
+                (fun () ->
+                  walk store "" hash
+                )
+          end
+      end
+    in
+    Term.(mk ls $ recurse_flag $ show_tree_flag $ only_tree_flag $ oid)
+}
 
-        let h = Hash.of_hex oid in
-        catch_ (fun () -> walk t "" h)
-      end in
-    Term.(mk ls $ recurse_flag $ show_tree_flag
-          $ only_tree_flag $ oid)
+(* SHOW *)
+let show = {
+  name = "show";
+  doc  = "Show various types of objects.";
+  man  = [];
+  term =
+    let oid =
+      let doc = Arg.info [] ~docv:"SHA1" ~doc:"The SHA1 of Git object." in
+      Arg.(required & pos 0 (some string) None & doc )
+    in
+    let pp =
+      let ok ppf = function
+        | Git.Value.Commit c -> Fmt.pf ppf "<commit>\n%a\n" (Fmt.hvbox Store.Value.Commit.pp) c
+        | Git.Value.Blob b -> Fmt.string ppf (Git.Blob.to_string b)
+        | Git.Value.Tree t -> Fmt.pf ppf "<tree>\n%a\n" (Fmt.hvbox Store.Value.Tree.pp) t
+        | Git.Value.Tag t -> Fmt.pf ppf "<tag>\n%a\n" Store.Value.Tag.pp t
+        (*| _ -> Fmt.string ppf "<git-object>"*)
+      in
+      Fmt.result ~ok ~error:Store.pp_error
+    in
+    let show oid =
+      Lwt_main.run
+        (
+         Store.v (Fpath.v (Sys.getcwd ())) >>= function
+           | Error err -> begin
+               eprintf "[ERROR] %s\n" (Fmt.str "%a" Store.pp_error err);
+               Lwt.return_unit
+           end
+           | Ok store -> Store.read store (Hash.of_hex oid) >|= pp Fmt.stdout
+        )
+    in
+    Term.(const show $ oid)
 }
 
 (* HELP *)
@@ -781,13 +843,14 @@ let default, info =
     ~man
 
 let commands = List.map (fun c -> Cmd.v (Cmd.info c.name ~doc:c.doc ~man:c.man) c.term) [
-    cat_file;
-    (*ls_remote;*)
-    ls_tree;
-    diffast;
-    extract;
-    help;
-  ]
+  cat_file;
+  (*ls_remote;*)
+  ls_tree;
+  show;
+  diffast;
+  extract;
+  help;
+]
 
 let () =
   let ec = Cmd.eval (Cmd.group ~default info commands) in
