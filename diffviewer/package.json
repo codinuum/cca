@@ -1,6 +1,6 @@
 {
   "name": "diffviewer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A viewer for Diff/AST",
   "main": "main.js",
   "scripts": {
@@ -16,12 +16,13 @@
   "license": "Apache 2.0",
   "devDependencies": {
     "electron": ">=11.5.0",
-    "electron-packager": "^15.1.0"
+    "electron-packager": ">=15.1.0"
   },
   "dependencies": {
-    "codemirror": "^5.58.1",
-    "diff_match_patch": "^0.1.1",
-    "jquery": "^3.5.1",
-    "minimist": "^1.2.5"
+    "codemirror": "^5.65.12",
+    "diff_match_patch": ">=0.1.1",
+    "jquery": ">=3.5.1",
+    "minimist": ">=1.2.5",
+    "isomorphic-git": "^1.23.0"
   }
 }
