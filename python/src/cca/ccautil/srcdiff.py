@@ -577,6 +577,8 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
               sim_thresh=0.7,
               quiet=False,
               no_node_count=False,
+              count_nodes=count_nodes,
+              **extra_kwargs
               ):
 
     filt = (lambda x: True)
@@ -861,6 +863,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
                      fact_for_delta=fact_for_delta,
                      keep_going=keep_going,
                      quiet=quiet,
+                     **extra_kwargs
                      )
 
             t0 = time.time() - st0
