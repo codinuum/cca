@@ -28,8 +28,8 @@ from . import java_token_diff as java
 def line_sim(f1, f2):
     if filecmp.cmp(f1, f2):
         return 0.0
-    lines1 = open(f1, 'U').readlines()
-    lines2 = open(f2, 'U').readlines()
+    lines1 = open(f1, encoding='utf-8', errors='replace').readlines()
+    lines2 = open(f2, encoding='utf-8', errors='replace').readlines()
     matcher = difflib.SequenceMatcher(None, lines1, lines2)
     similarity = matcher.quick_ratio()
     return similarity
