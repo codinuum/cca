@@ -214,7 +214,7 @@ let print_result a b chng1 chng2 =
           for j = j to j2 - 1 do printf "> %s\n" b.(j); done;
           loop i2 j2
         end
-      | (true, talse) -> begin
+      | (true, false) -> begin
           let i2 =
             let rec loop i =
               if i = Array.length a || not chng1.(i) then i
