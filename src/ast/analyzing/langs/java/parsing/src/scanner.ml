@@ -187,12 +187,14 @@ module F (Stat : Aux.STATE_T) = struct
               DEBUG_MSG "n=%d" n;
               let loc = loc_of_poss stp edp in
               DEBUG_MSG "adding %d closing braces" n;
-              Common.warning_loc loc "adding %d closing braces" n;
-              let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
-              for i = 1 to n do
-                self#prepend_token t;
-                (*env#close_block*)
-              done
+              if n > 0 then begin
+                Common.warning_loc loc "adding %d closing braces" n;
+                let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
+                for i = 1 to n do
+                  self#prepend_token t;
+                  (*env#close_block*)
+                done
+              end
           end
           | RBRACE when blv = 1 -> ()
           | RBRACE when blv = 0 && begin match env#context_stack_as_list with
@@ -218,12 +220,14 @@ module F (Stat : Aux.STATE_T) = struct
               DEBUG_MSG "n=%d" n;
               let loc = loc_of_poss stp edp in
               DEBUG_MSG "adding %d closing braces" n;
-              Common.warning_loc loc "adding %d closing braces" n;
-              let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
-              for i = 1 to n do
-                self#prepend_token t;
-                (*env#close_block*)
-              done
+              if n > 0 then begin
+                Common.warning_loc loc "adding %d closing braces" n;
+                let t = Token.create Tokens_.RBRACE Lexing.dummy_pos Lexing.dummy_pos in
+                for i = 1 to n do
+                  self#prepend_token t;
+                  (*env#close_block*)
+                done
+              end
           end
         in
         match rawtok with
@@ -300,7 +304,11 @@ module F (Stat : Aux.STATE_T) = struct
             end
         end
         | RPAREN _ when
-            env#in_method && env#paren_level > 1 && not env#at_for && not env#at_lambda && not env#at_res &&
+            env#in_method &&
+            env#paren_level > 1 &&
+            not env#at_for &&
+            not env#at_lambda &&
+            not env#at_res &&
             not has_error -> begin
 
             let t1, rt1 = self#peek_nth 1 in
@@ -311,12 +319,16 @@ module F (Stat : Aux.STATE_T) = struct
                 DEBUG_MSG "n=%d" n;
                 let loc = loc_of_poss stp edp in
                 DEBUG_MSG "adding %d closing parentheses" n;
-                Common.warning_loc loc "adding %d closing parentheses" n;
-                let dummy_loc = loc_of_poss Lexing.dummy_pos Lexing.dummy_pos in
-                let t = Token.create (Tokens_.RPAREN dummy_loc) Lexing.dummy_pos Lexing.dummy_pos in
-                for i = 1 to n do
-                  self#prepend_token t;
-                done
+                if n > 0 then begin
+                  Common.warning_loc loc "adding %d closing parentheses" n;
+                  let dummy_loc = loc_of_poss Lexing.dummy_pos Lexing.dummy_pos in
+                  let t =
+                    Token.create (Tokens_.RPAREN dummy_loc) Lexing.dummy_pos Lexing.dummy_pos
+                  in
+                  for i = 1 to n do
+                    self#prepend_token t;
+                  done
+                end
             end
             | _ -> ()
         end
