@@ -10315,7 +10315,8 @@ module Edit = struct
                 if fact_for_delta then begin
                   try
                     let cinst = self#make_chg_inst Editop.Trel nd1 nd2 in
-                    fact_add cinst fmtl;
+                    if fmtl <> [] then
+                      fact_add cinst fmtl;
                     triple_add Triple.c_rel cinst nd1 nd2
                   with
                     Invalid_argument _(*"Triple._make_entity"*) -> ()
