@@ -428,6 +428,7 @@ def diffts(diff_cmd, file1, file2,
            keep_filtered_temp=False,
            local_cache_name='',
            dump_delta=False,
+           minimize_delta=False,
            fact_for_delta=False,
            keep_going=False,
            quiet=False):
@@ -545,6 +546,9 @@ def diffts(diff_cmd, file1, file2,
 
         if dump_delta:
             other_opts += ' -dump:delta'
+
+        if minimize_delta:
+            other_opts += ' -dump:delta:minimize'
 
         cmd = ''.join((diff_cmd,
                        cache_opt, cachedir_opt, prep_opt, prem_opt, fact_opt,
