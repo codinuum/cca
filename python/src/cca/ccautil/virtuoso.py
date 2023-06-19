@@ -97,11 +97,12 @@ class ODBCDriver(object):
         except Exception as e:
             logger.warning(str(e))
             logger.warning('using pypyodbc')
-            from . import pypyodbc as pyodbc
-            # import pypyodbc as pyodbc
+            # from . import pypyodbc as pyodbc
+            import pypyodbc as pyodbc
             pyodbc.lowercase = False
             self._db = pyodbc.connect((connect_string+';wideAsUTF16=1'),
                                       ansi=False, autocommit=True)
+            self._pypyodbc_flag = True
 
     def conv_row(self, row):
         d = {}
