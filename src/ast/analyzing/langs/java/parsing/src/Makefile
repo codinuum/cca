@@ -137,7 +137,10 @@ clean:
 
 distclean: clean
 	$(RM) $(MLY_ML) $(MLY_MLI) $(MLY:.mly=.output) $(MLY:.mly=.automaton) $(MLY:.mly=.conflicts) 
-	$(RM) $(TOKENS_ML) $(TOKENS_MLI) classtbl.ml
+	$(RM) $(TOKENS_ML) $(TOKENS_MLI)
+
+veryclean: distclean
+	$(RM) classtbl.ml
 
 ifneq ($(MAKECMDGOALS), clean)
 ifneq ($(MAKECMDGOALS), distclean)
