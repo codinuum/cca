@@ -81,7 +81,7 @@ class parser_c = object (self)
     in
     scanner#register_replay_success_callback replay_success_callback;
 
-    let terminal_to_string : type a . a T.terminal -> string = function
+    let terminal_to_string : type a . a I.terminal -> string = function
       | T_ACC_SPEC_MACRO -> "ACC_SPEC_MACRO"
       | T_ALIGNAS -> "ALIGNAS"
       | T_ALIGNOF -> "ALIGNOF"
