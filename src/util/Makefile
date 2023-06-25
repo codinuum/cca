@@ -1,7 +1,7 @@
 
 SRC_DIR = ..
 
-PACKAGES = -package unix,num,camlzip,cryptokit,netzip,netstring,pxp,volt
+PACKAGES = -package unix,camlzip,cryptokit,netzip,netstring,pxp,volt
 
 SYNTAX = -syntax camlp4o
 
