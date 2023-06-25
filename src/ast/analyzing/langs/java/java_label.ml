@@ -1606,11 +1606,12 @@ module Statement = struct
     | Expression(se, tid) -> 104
 
 
-  let to_tag s =
+  let to_tag ?(strip=false) s =
     let name, attrs =
       match s with
       | Empty           -> "EmptyStatement", []
       | Assert          -> "AssertStatement", []
+      | If _ when strip -> "IfStatement", []
       | If tid          -> "IfStatement", mktidattr tid
       | For             -> "BasicForStatement", []
       | ForEnhanced     -> "EnhancedForStatement", []
@@ -2373,7 +2374,7 @@ let to_tag ?(strip=false) l =
     | Type ty                     -> Type.to_tag ty
     | Primary p                   -> Primary.to_tag p
     | Expression e                -> Expression.to_tag e
-    | Statement s                 -> Statement.to_tag s
+    | Statement s                 -> Statement.to_tag ~strip s
     | Modifier m                  -> Modifier.to_tag m
     | Annotation a                -> Annotation.to_tag a
     | TypeBound                   -> "TypeBound", []
