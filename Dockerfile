@@ -67,7 +67,7 @@ RUN set -x && \
     cd /root && \
     opam init -y --disable-sandboxing && \
     eval $(opam env) && \
-    opam switch create 4.14.0 && \
+    opam switch create 4.14.1 && \
     eval $(opam env) && \
     opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
     eval $(opam env) && \
