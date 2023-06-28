@@ -277,6 +277,17 @@ let speclist =
    "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
    sprintf "N\t\thuge array size threshold (default: %d)" options#huge_array_threshold;
 
+   "-ignore-huge-exprs", Arg.Unit (fun () -> options#set_ignore_huge_exprs_flag),
+   sprintf "\t\tignore huge exprs (default:%s)"
+     (if options#ignore_huge_exprs_flag then "ignore" else "scan");
+
+   "-scan-huge-exprs", Arg.Unit (fun () -> options#clear_ignore_huge_exprs_flag),
+   sprintf "\t\tdo not ignore huge exprs (default:%s)"
+     (if options#ignore_huge_exprs_flag then "ignore" else "scan");
+
+   "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
+   sprintf "N\t\thuge array size threshold (default: %d)" options#huge_array_threshold;
+
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
    sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
 

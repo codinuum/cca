@@ -268,6 +268,15 @@ class c = object (self)
   method huge_array_threshold = huge_array_threshold
   method set_huge_array_threshold x = huge_array_threshold <- x
 
+  val mutable ignore_huge_exprs_flag = true
+  method ignore_huge_exprs_flag  = ignore_huge_exprs_flag
+  method set_ignore_huge_exprs_flag  = ignore_huge_exprs_flag <- true
+  method clear_ignore_huge_exprs_flag  = ignore_huge_exprs_flag <- false
+
+  val mutable huge_expr_threshold = 512
+  method huge_expr_threshold = huge_expr_threshold
+  method set_huge_expr_threshold x = huge_expr_threshold <- x
+
   (* pre-processor *)
   val mutable ignore_if0_flag = true
   method ignore_if0_flag = ignore_if0_flag

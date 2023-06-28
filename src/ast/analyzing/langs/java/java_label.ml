@@ -1902,6 +1902,7 @@ type t = (* Label *)
   | Error of string
 
   | HugeArray of int * string
+  | HugeExpr of int * string
 
   | EmptyDeclaration
 
@@ -2018,6 +2019,7 @@ let rec to_string = function
   | AnnotDim                                -> "AnnotDim"
 
   | HugeArray(sz, c)                        -> sprintf "HugeArray(%d):%s\n" sz c
+  | HugeExpr(sz, c)                         -> sprintf "HugeExpr(%d):%s\n" sz c
 
   | EmptyDeclaration                        -> "EmptyDeclaration"
 
@@ -2109,6 +2111,7 @@ let anonymize ?(more=false) = function
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
   | ForHeader(name, dims)          -> ForHeader("", 0)
   | HugeArray _                    -> HugeArray(0, "")
+  | HugeExpr _                     -> HugeExpr(0, "")
   | Block tid                      -> Block null_tid
 
   | WildcardBoundsExtends when more -> Wildcard
@@ -2239,6 +2242,7 @@ let rec to_simple_string = function
   | AnnotDim                    -> "[]"
   | Error s                     -> s
   | HugeArray(sz, c)            -> c
+  | HugeExpr(sz, c)             -> c
   | EmptyDeclaration            -> ";"
   | ForHeader(name, dims)         -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | Aspect name                   -> "aspect "^name
@@ -2365,6 +2369,10 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | ClassnamePatternParen         -> mkstr 102
   | ClassnamePatternName name     -> combo 103 [name]
   | ClassnamePatternNamePlus name -> combo 104 [name]
+
+  | HugeExpr(sz, c) ->
+      let h = Xhash.digest_hex_of_string Xhash.MD5 c in
+      combo 105 [string_of_int sz; h]
 
 let sig_attr_name = "___signature"
 
@@ -2495,6 +2503,7 @@ let to_tag ?(strip=false) l =
     | Error s -> "Error", ["contents",xmlenc s]
 
     | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code",xmlenc c]
+    | HugeExpr(sz, c) -> "HugeExpr", ["size",string_of_int sz;"code",xmlenc c]
 
     | EmptyDeclaration -> "EmptyDeclaration", []
 
@@ -2628,6 +2637,7 @@ let to_char lab =
     | ClassnamePatternParen         -> 106
     | ClassnamePatternName name     -> 107
     | ClassnamePatternNamePlus name -> 108
+    | HugeExpr _ -> 109
   in
   char_pool.(to_index lab)
 
@@ -3039,6 +3049,7 @@ let is_named_orig = function
   | CatchParameter _
   | ForHeader _
   | HugeArray _
+  | HugeExpr _
     -> true
 
   | ClassnamePatternName _
@@ -3416,6 +3427,7 @@ let is_throws = function
 let is_expression = function
   | Primary _
   | Expression _
+  | HugeExpr _
     -> true
   | _ -> false
 
@@ -3775,6 +3787,10 @@ let get_name lab =
     | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       "HUGE_ARRAY_"^h
+
+    | HugeExpr(sz, c) ->
+      let h = Xhash.digest_hex_of_string Xhash.MD5 c in
+      "HUGE_EXPR_"^h
 
     | ClassnamePatternName name
     | ClassnamePatternNamePlus name
@@ -4167,8 +4183,9 @@ let of_elem_data =
     "AmbiguousMethodInvocation",                (fun a -> mkp a Primary.(AmbiguousMethodInvocation(find_name a)));
 
     "Error",                                    (fun a -> Error(find_attr a "contents"));
-    "HugeArray",
-    (fun a -> HugeArray (int_of_string (find_attr a "size"), (find_code a)));
+    "HugeArray", (fun a -> HugeArray (int_of_string (find_attr a "size"), (find_code a)));
+    "HugeExpr", (fun a -> HugeExpr (int_of_string (find_attr a "size"), (find_code a)));
+
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
 
     "ForHeader", (fun a -> ForHeader(find_name a, find_dims a));

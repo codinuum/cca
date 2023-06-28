@@ -601,6 +601,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "}"
 
   | L.HugeArray(_, c) -> pr_string c
+  | L.HugeExpr(_, c) -> pr_string c
 
   | L.Throws _ when nchildren = 0 -> ()
   | L.Throws _ ->

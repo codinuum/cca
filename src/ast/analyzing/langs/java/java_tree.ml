@@ -1005,9 +1005,6 @@ class translator options =
         in
         let nd =
           if options#ignore_huge_arrays_flag then begin
-            let buf = Buffer.create 0 in
-            let _oc = new Xchannel.out_channel (Xchannel.Destination.of_buffer buf) in
-            let oc = Spec_base.OutChannel.of_xchannel _oc in
             let n = new c options nd false in
             let _ = n#setup_initial_children in
             (*let _ = n#setup_initial_size in
@@ -1024,6 +1021,9 @@ class translator options =
             if sz >= options#huge_array_threshold then begin
               Xprint.verbose options#verbose_flag "huge array found at %s (size=%d)"
                 (Ast.Loc.to_string vi.Ast.vi_loc) sz;
+              let buf = Buffer.create 0 in
+              let _oc = new Xchannel.out_channel (Xchannel.Destination.of_buffer buf) in
+              let oc = Spec_base.OutChannel.of_xchannel _oc in
               let _ = n#unparse_ch oc in
               let u = Buffer.contents buf in
               let _ = Spec_base.OutChannel.close oc in
@@ -1629,7 +1629,7 @@ class translator options =
    set_loc nd ao.Ast.ao_loc;
    nd
 
-  method of_expression ?(is_stmt=false) e =
+  method of_expression ?(sub=false) ?(is_stmt=false) e =
     let nd =
       match e.Ast.e_desc with
       | Ast.Eprimary prim -> self#of_primary prim
@@ -1637,10 +1637,42 @@ class translator options =
       | Ast.Eunary(unary_op, expr) ->
           self#mknode (L.of_unary_operator ~is_stmt unary_op) [self#of_expression expr]
 
-      | Ast.Ebinary(bin_op, expr1, expr2) ->
-          self#mknode (L.of_binary_operator bin_op)
-            [self#of_expression expr1; self#of_expression expr2]
-
+      | Ast.Ebinary(bin_op, expr1, expr2) -> begin
+          let nd =
+            self#mknode (L.of_binary_operator bin_op)
+              [self#of_expression ~sub:true expr1; self#of_expression ~sub:true expr2]
+          in
+          if not sub && options#ignore_huge_exprs_flag then begin
+            let n = new c options nd false in
+            let _ = n#setup_initial_children in
+            (*let _ = n#setup_initial_size in
+              let sz = n#initial_size in*)
+            let sz =
+              let c = ref 0 in
+              n#scan_whole_initial
+                (fun n ->
+                  if L.is_literal (getlab n) then
+                    incr c
+                );
+              !c
+            in
+            if sz >= options#huge_expr_threshold then begin
+              Xprint.verbose options#verbose_flag "huge expression found at %s (size=%d)"
+                (Ast.Loc.to_string e.Ast.e_loc) sz;
+              let buf = Buffer.create 0 in
+              let _oc = new Xchannel.out_channel (Xchannel.Destination.of_buffer buf) in
+              let oc = Spec_base.OutChannel.of_xchannel _oc in
+              let _ = n#unparse_ch oc in
+              let u = Buffer.contents buf in
+              let _ = Spec_base.OutChannel.close oc in
+              self#mkleaf (L.HugeExpr(sz, u))
+            end
+            else
+              nd
+          end
+          else
+            nd
+      end
       | Ast.Ecast(ty, expr) ->
           self#mknode (L.Expression L.Expression.Cast)
             [self#of_javatype 0 ty; self#of_expression expr]
