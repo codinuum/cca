@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ class parser_c = object (self)
   inherit [Tokens_.token, Ast.c] PB.sb_c (new Aux.env) as super
 
   val mutable keep_going_flag = true
+  val mutable rely_on_naming_convention_flag = false
 
   val mutable parser_main = fun ul -> Obj.magic ()
   val mutable scanner     = Obj.magic ()
@@ -33,6 +34,10 @@ class parser_c = object (self)
   method _set_keep_going_flag b =
     keep_going_flag <- b;
     env#_set_keep_going_flag b
+
+  method _set_rely_on_naming_convention_flag b =
+    rely_on_naming_convention_flag <- b;
+    env#_set_rely_on_naming_convention_flag b
 
   method parser_init =
     env#begin_scope();

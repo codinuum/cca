@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -159,12 +159,63 @@ let int_set_to_string s =
      (List.map string_of_int
         (List.fast_sort compare (Xset.to_list s))))
 
+
+
+let tree_eq r1 r2 =
+  let node_eq n1 n2 =
+    if not n1#data#is_named_orig && not n2#data#is_named_orig then
+      n1#data#elem_name_for_delta = n2#data#elem_name_for_delta
+    else
+      match n1#data#orig_lab_opt, n2#data#orig_lab_opt with
+      | Some o1, Some o2 -> o1 = o2
+      | Some o, None -> o = n2#data#_label
+      | None, Some o -> o = n1#data#_label
+      | _ -> n1#data#eq n2#data
+  in
+  let tree_eq r1 r2 =
+    let rec scan nds1 nds2 =
+      match nds1, nds2 with
+      | [], [] -> true
+      | nd1::rest1, nd2::rest2 -> begin
+          DEBUG_MSG "%a - %a" Misc.nups nd1 Misc.nups nd2;
+          (if node_eq nd1 nd2 then
+            let cl1 = Array.to_list nd1#initial_children in
+            let cl2 = Array.to_list nd2#initial_children in
+            let sub = scan cl1 cl2 in
+            sub
+          else begin
+            DEBUG_MSG "%s != %s" (nd1#initial_to_string) (nd2#initial_to_string);
+            false
+          end)
+            &&
+          (scan rest1 rest2)
+      end
+      | nd::_, [] -> begin
+          DEBUG_MSG "number of children mismatch: (>) %s [%s,...]"
+            (nd#parent#initial_to_string) (nd#initial_to_string);
+          false
+      end
+      | [], nd::_ -> begin
+          DEBUG_MSG "number of children mismatch: (<) %s [%s,...]"
+            (nd#parent#initial_to_string) (nd#initial_to_string);
+          false
+      end
+    in
+    scan [r1] [r2]
+  in
+  let b = tree_eq r1 r2 in
+  DEBUG_MSG "%B" b;
+  b
+
+exception Abort
+
 class ['tree] interpreter (tree : 'tree) = object (self)
 
   val op_tbl = Hashtbl.create 0 (* uid -> mutation list *)
 
   (* stid -> subtree *)
   val subtree_tbl = (Hashtbl.create 0 : (subtree_id, 'tree) Hashtbl.t)
+  val mutable dup_list = []
 
   (* mid -> subtree *)
   val copied_subtree_tbl = (Hashtbl.create 0 : (MID.t, 'tree) Hashtbl.t)
@@ -232,6 +283,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
   val path_key_tbl = Hashtbl.create 0 (* node -> parent key *)
 
   val composition_tbl = Hashtbl.create 0
+
+  val renamed_nodes = Xset.create 0
 
   (*val no_trans_mutations = Xset.create 0*)
 
@@ -5528,9 +5581,13 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       ?(adj_opt=(None : int option))
       ?(depth_opt=(None : int option))
       ?(shift_opt=(None : int option))
-      stid subtree (path : path_c) (paths : boundary) =
+      ?(dup=false)
+      stid subtree (path : path_c) (paths : boundary)
+      =
     Hashtbl.add subtree_tbl stid subtree;
     Hashtbl.add path_tbl subtree#root path;
+    if dup then
+      dup_list <- stid :: dup_list;
     begin
       match key_opt with
       | Some k -> Hashtbl.add path_key_tbl subtree#root k
@@ -6101,7 +6158,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             | Some k -> self#add_composition key k
             | _ -> ()
           end;
-	  let a0 =
+          let a0 =
             subtree#initial_acc_parent ?ignore_ofs:(Some false) ?from:None path0#path
           in
           let pnd0, elem0 = a0.Otree.node, a0.Otree.elem in
@@ -6191,7 +6248,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           try
             let parent_tree = self#find_subtree key in
 
-	    DEBUG_MSG "parent tree (key=%s):\n%s"
+            DEBUG_MSG "parent tree (key=%s):\n%s"
               (key_to_string key) parent_tree#initial_to_string;
 
             let adj =
@@ -6216,8 +6273,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       | None, None -> default()
       | _ ->
           let ed_str =
-	    sprintf "Dinsert(path:%s,paths:%s,key_opt:%s,adj_opt:%s,depth_opt:%s,shift_opt:%s\n%s)"
-	      path#to_string (boundary_to_string paths)
+            sprintf "Dinsert(path:%s,paths:%s,key_opt:%s,adj_opt:%s,depth_opt:%s,shift_opt:%s\n%s)"
+              path#to_string (boundary_to_string paths)
               (key_opt_to_string key_opt) (int_opt_to_string adj_opt)
               (int_opt_to_string depth_opt) (int_opt_to_string shift_opt)
               subtree#initial_to_string
@@ -6264,8 +6321,8 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       let q = Queue.create() in
       subtree#preorder_scan_all
         (fun n ->
-	  DEBUG_MSG "     queueing %s" n#initial_to_string;
-	  Queue.add n#data q
+          DEBUG_MSG "     queueing %s" n#initial_to_string;
+          Queue.add n#data q
         );
       (*let nds = self#boundary_to_nds path paths in*)
       let nds =
@@ -6281,18 +6338,19 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       END_DEBUG;
       scan_initial_cluster nd nds
         (fun n ->
-	  DEBUG_MSG "     n -> %s" n#initial_to_string;
-	  try
-	    let d = Queue.take q in
-	    n#set_data d
-	  with
+          DEBUG_MSG "     n -> %s" n#initial_to_string;
+          try
+            let d = Queue.take q in
+            n#set_data d;
+            Xset.add renamed_nodes n
+          with
             Queue.Empty ->
               let ed_str =
-	        sprintf "Dchange(path:%s,%s,\n%s)"
-	          path#to_string (boundary_to_string paths)
+                sprintf "Dchange(path:%s,%s,\n%s)"
+                  path#to_string (boundary_to_string paths)
                   subtree#initial_to_string
               in
-	      Xprint.error
+              Xprint.error
                 "invalid delta: inconsistent change: %s" ed_str
         )
     in
@@ -6304,7 +6362,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | Mfull -> apply nd
 
   method interpret_change_attr ?(mctl=Mfull) (path : path_c) attr v =
-    let apply nd = nd#data#change_attr attr v in
+    let apply nd =
+      nd#data#change_attr attr v;
+      Xset.add renamed_nodes nd
+    in
     let nd = self#acc path#path in
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
@@ -6313,7 +6374,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | Mfull -> apply nd
 
   method interpret_delete_attr ?(mctl=Mfull) (path : path_c) attr =
-    let apply nd = nd#data#delete_attr attr in
+    let apply nd =
+      nd#data#delete_attr attr;
+      Xset.add renamed_nodes nd
+    in
     let nd = self#acc path#path in
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
@@ -6322,7 +6386,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | Mfull -> apply nd
 
   method interpret_insert_attr ?(mctl=Mfull) (path : path_c) attr v =
-    let apply nd = nd#data#insert_attr attr v in
+    let apply nd =
+      nd#data#insert_attr attr v;
+      Xset.add renamed_nodes nd
+    in
     let nd = self#acc path#path in
     DEBUG_MSG "nd=%s" nd#initial_to_string;
     match mctl with
@@ -6330,5 +6397,86 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | MinsertOnly -> self#add_move_relabel nd apply
     | Mfull -> apply nd
 
+  method private is_edited_node nd =
+    let b = Hashtbl.mem key_tbl nd || Xset.mem renamed_nodes nd in
+    DEBUG_MSG "%a -> %B" Misc.nups nd b;
+    b
 
-end (* of class Delta.interpreter *)
+  method check_potential_duplicate () =
+    let find_pos parent nd =
+      let idx = ref (-1) in
+      let uid = nd#uid in
+      try
+        Array.iteri
+          (fun i x ->
+            if x#uid = uid then begin
+              idx := i;
+              raise Exit
+            end
+          ) parent#initial_children;
+        raise Not_found
+      with
+        Exit -> !idx
+    in
+    let ptbl = Hashtbl.create 0 in
+    let check_stid stid =
+      DEBUG_MSG "stid=\"%s\"" (stid_to_str stid);
+      try
+        let subtree = Hashtbl.find subtree_tbl stid in
+        let rt = subtree#root in
+        DEBUG_MSG "rt=%s" rt#initial_to_string;
+        try
+          let parent = rt#initial_parent in
+          DEBUG_MSG "parent=%s" parent#initial_to_string;
+          let pos = find_pos parent rt in
+          DEBUG_MSG "pos=%d" pos;
+          let chk p =
+            let sib = parent#initial_children.(p) in
+            DEBUG_MSG "p=%d sib=%s" p sib#initial_to_string;
+            if self#is_edited_node sib then
+              tree_eq rt sib
+            else
+              raise Abort
+          in
+          let nchildren = parent#initial_nchildren in
+          let to_be_pruned =
+            (try
+              for p = pos + 1 to nchildren - 1 do
+                if chk p then
+                  raise Exit
+              done;
+              false
+            with
+            | Exit -> true
+            | Abort -> false
+            ) ||
+            try
+              for p = pos - 1 downto 0 do
+                if chk p then
+                  raise Exit
+              done;
+              false
+            with
+            | Exit -> true
+            | Abort -> false
+          in
+          DEBUG_MSG "stid=\"%s\": to_be_pruned=%B" (stid_to_str stid) to_be_pruned;
+          if to_be_pruned then
+            try
+              let posl = Hashtbl.find ptbl parent in
+              Hashtbl.replace ptbl parent (pos::posl)
+            with
+              Not_found -> Hashtbl.add ptbl parent [pos]
+        with
+          _ -> ()
+      with
+        Not_found -> WARN_MSG "not found: %s" (stid_to_str stid);
+    in
+    List.iter check_stid dup_list;
+    Hashtbl.iter
+      (fun parent posl ->
+        parent#prune_initial_children posl
+      ) ptbl
+
+
+end (* of class Delta_interpret.interpreter *)

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -147,6 +147,8 @@ class env = object (self)
   val mutable global_frame = new frame FKother
 
   val mutable keep_going_flag = true
+  val mutable rely_on_naming_convention_flag = false
+
   val mutable lex_brace_level = 0
   val mutable class_flag = false
   val mutable shift_flag = false
@@ -276,6 +278,9 @@ class env = object (self)
 
   method keep_going_flag = keep_going_flag
   method _set_keep_going_flag b = keep_going_flag <- b
+
+  method rely_on_naming_convention_flag = rely_on_naming_convention_flag
+  method _set_rely_on_naming_convention_flag b = rely_on_naming_convention_flag <- b
 
   method at_res =
     begin
@@ -628,11 +633,26 @@ class env = object (self)
       | _ -> ()
     with _ -> ()
 
+  method set_is_static() =
+    try
+      match self#current_frame#kind with
+      | FKmethod(_, x) -> x := true
+      | _ -> ()
+    with _ -> ()
+
   method has_super =
     try
       let frame = self#find_frame is_class_frame in
       match frame#kind with
-      | FKclass _ -> true
+      | FKclass(_, has_super) -> !has_super
+      | _ -> false
+    with _ -> false
+
+  method in_static_method =
+    try
+      let frame = self#find_frame is_method_frame in
+      match frame#kind with
+      | FKmethod(_, is_static) -> !is_static
       | _ -> false
     with _ -> false
 
@@ -826,6 +846,38 @@ class env = object (self)
           Not_found -> ()
       ) stack;
     !l
+
+  method surrounding_class_has_super =
+    let b =
+      try
+        Stack.iter
+          (fun frame ->
+            match frame#kind with
+            | FKclass(_, has_super) when !has_super -> raise (Frame_found frame)
+            | _ -> ()
+          ) stack;
+        false
+      with
+        Frame_found _ -> true
+    in
+    DEBUG_MSG "b=%B" b;
+    b
+
+  method surrounding_method_is_static =
+    let b =
+      try
+        Stack.iter
+          (fun frame ->
+            match frame#kind with
+            | FKmethod(_, is_static) when !is_static -> raise (Frame_found frame)
+            | _ -> ()
+          ) stack;
+        false
+      with
+        Frame_found _ -> true
+    in
+    DEBUG_MSG "b=%B" b;
+    b
 
   method inner_most_class ?(exclude_current=false) () =
     DEBUG_MSG "exclude_current=%B" exclude_current;
@@ -1775,6 +1827,18 @@ module F (Stat : STATE_T) = struct
       else if is_field_access n then begin
         name_to_facc n
       end
+      else if
+        whole && is_simple q &&
+        (
+         env#in_static_method ||
+         (env#rely_on_naming_convention_flag && Ast.is_rightmost_id_capitalized q) ||
+         (not env#rely_on_naming_convention_flag && (not env#surrounding_class_has_super))
+        )
+      then begin
+        set_name_attribute (NAtype (env#resolve q)) q;
+        DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
+        _mkprim loc (Pname n)
+      end
       else begin
         if whole then
           set_name_attribute (NAambiguous (env#resolve q)) q
@@ -1985,6 +2049,14 @@ module F (Stat : STATE_T) = struct
       (fun m ->
         match m.m_desc with
         | Mannotation a -> not (is_predefined_annotation a)
+        | _ -> false
+      ) ms.ms_modifiers
+
+  let has_static ms =
+    List.exists
+      (fun m ->
+        match m.m_desc with
+        | Mstatic -> true
         | _ -> false
       ) ms.ms_modifiers
 

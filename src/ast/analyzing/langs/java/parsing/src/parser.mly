@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -211,7 +211,7 @@ unann_class_or_interface_type_spec:
     {
      let rr =
        try
-	 mkresolved (get_type_fqn n)
+         mkresolved (get_type_fqn n)
        with
        | _ -> env#resolve n
      in
@@ -277,8 +277,8 @@ unann_array_type:
     { 
       let head, a0, n0 = c in
       let ty =
-	_mktype (Loc.merge (get_loc $startofs $endofs) n.n_loc) 
-	  (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)]))
+        _mktype (Loc.merge (get_loc $startofs $endofs) n.n_loc)
+          (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)]))
       in
       mktype $startofs $endofs (Tarray(ty, List.length d))
     }
@@ -287,8 +287,8 @@ unann_array_type:
     { 
       let head, a, n = c in
       let ty =
-	_mktype (Loc.merge (get_loc $startofs $endofs) ts.tas_loc) 
-	  (TclassOrInterface(head @ [TSapply(a, n, ts)])) 
+        _mktype (Loc.merge (get_loc $startofs $endofs) ts.tas_loc)
+          (TclassOrInterface(head @ [TSapply(a, n, ts)]))
       in
       mktype $startofs $endofs (Tarray(ty, List.length d))
     }
@@ -538,9 +538,9 @@ _package_declaration:
 
       set_attribute_P_P n;
       let loc =
-	match a with
-	| [] -> Loc.merge p (get_loc $startofs $endofs)
-	| _ -> get_loc $startofs $endofs
+        match a with
+        | [] -> Loc.merge p (get_loc $startofs $endofs)
+        | _ -> get_loc $startofs $endofs
       in
       mkpkgdecl loc a n 
     }
@@ -566,11 +566,11 @@ single_type_import_declaration:
             with _ ->
               P.name_to_simple_string n
           in
-	  register_identifier_as_typename fqn (rightmost_identifier n);
-	  set_attribute_PT_T (mkresolved fqn) n;
+          register_identifier_as_typename fqn (rightmost_identifier n);
+          set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-	  _ ->
+          _ ->
             ()(*let sn = P.name_to_simple_string n in
             parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
@@ -881,12 +881,12 @@ enum_declaration_head0:
       let _, id = i in
       match env#java_lang_spec with
       | Common.JLS3 | Common.JLSx ->
-	  env#set_java_lang_spec_JLS3;
-	  register_identifier_as_class (mkfqn_cls id) id;
-	  begin_scope ~kind:(FKclass(id, ref false)) ();
-	  m_opt, id
+          env#set_java_lang_spec_JLS3;
+          register_identifier_as_class (mkfqn_cls id) id;
+          begin_scope ~kind:(FKclass(id, ref false)) ();
+          m_opt, id
       | Common.JLS2 ->
-	  parse_error $symbolstartofs $endofs "'enum' declaration is not available in JLS2"
+          parse_error $symbolstartofs $endofs "'enum' declaration is not available in JLS2"
     }
 ;
 enum_declaration_head:
@@ -927,9 +927,9 @@ enum_constant_head:
       let loc0, id = i in
       register_identifier_as_enumconst (mkfqn id) id;
       let loc =
-	match a with
-	| [] -> Loc.merge loc0 (get_loc $startofs $endofs)
-	| _ -> get_loc $startofs $endofs
+        match a with
+        | [] -> Loc.merge loc0 (get_loc $startofs $endofs)
+        | _ -> get_loc $startofs $endofs
       in
       begin_scope();
       (loc, a, id, e)
@@ -969,17 +969,17 @@ field_declaration:
 | m_opt=modifiers_opt t=unann_type v=variable_declarators SEMICOLON 
     { 
       let loc = 
-	match m_opt with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match m_opt with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       List.iter 
-	(fun vd ->
+        (fun vd ->
           let i = fst vd.vd_variable_declarator_id in
-	  register_identifier_as_field i t;
-	  (*env#register_identifier ~qualify:true i IAfield;*)
-	  vd.vd_is_local := false;
-	) v;
+          register_identifier_as_field i t;
+          (*env#register_identifier ~qualify:true i IAfield;*)
+          vd.vd_is_local := false;
+        ) v;
       Ast.proc_type (register_qname_as_typename ~skip:1) t;
       mkfd loc m_opt t v
     }
@@ -1146,19 +1146,25 @@ void:
 ;
 
 method_header:
-| m_opt=modifiers_opt ts_opt=type_parameters_opt tv=type_or_void md=method_declarator t_opt=throws_opt 
+| m_opt=modifiers_opt ts_opt=type_parameters_opt tv=type_or_void
+    md=method_declarator t_opt=throws_opt
     { 
       let (id, params_loc, params), dim = md in
       let loc =
-	match m_opt with
-	| None -> begin
+        match m_opt with
+        | None -> begin
             match ts_opt with
             | Some ts -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
             | None    -> Loc.merge tv.ty_loc (get_loc $symbolstartofs $endofs)
         end
-	| Some _ -> get_loc $symbolstartofs $endofs
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       Ast.proc_type (register_qname_as_typename ~skip:1) tv;
+      let _ =
+        match m_opt with
+        | Some ms when has_static ms -> env#set_is_static()
+        | _ -> ()
+      in
       mkmh loc m_opt ts_opt tv id params_loc params dim t_opt
     }
 ;
@@ -1175,7 +1181,7 @@ method_declarator_head:
     { 
       let _, id = i in
       register_identifier_as_method id; 
-      begin_scope(); 
+      begin_scope ~kind:(FKmethod(id, ref false)) ();
       id, lp
     }
 ;
@@ -1183,22 +1189,22 @@ method_declarator_head:
 method_declarator:
 | m=method_declarator_head f=formal_parameter_list0 rp=RPAREN 
        { 
-	 let id, lparen_loc = m in
-	 let params_loc = Loc.merge lparen_loc rp in
-	 (id, params_loc, f), 0 
+         let id, lparen_loc = m in
+         let params_loc = Loc.merge lparen_loc rp in
+         (id, params_loc, f), 0
        }
 | m=method_declarator_head i=identifier rp=RPAREN 
        { 
          if env#keep_going_flag then begin
            parse_warning $startofs(rp) $endofs(rp) "identifier expected";
-	   let id, lparen_loc = m in
-	   let params_loc = Loc.merge lparen_loc rp in
+           let id, lparen_loc = m in
+           let params_loc = Loc.merge lparen_loc rp in
            let t =
              mktype $startofs(i) $endofs(i)
                (TclassOrInterface([TSname([], mkname $startofs(i) $endofs(i) (Nsimple(ref NAunknown, (snd i))))]))
            in
            let f = [mkfp (fst i) None t ("_", 0) false] in
-	   (id, params_loc, f), 0
+           (id, params_loc, f), 0
          end
          else
            parse_error $startofs(rp) $endofs(rp) "identifier expected"
@@ -1215,9 +1221,9 @@ formal_parameter:
 | v=variable_modifiers_opt t=unann_type d=variable_declarator_id 
     { 
       let loc = 
-	match v with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match v with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       register_identifier_as_parameter (fst d) t;
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
@@ -1226,9 +1232,9 @@ formal_parameter:
 | v=variable_modifiers_opt t=unann_type ELLIPSIS d=variable_declarator_id 
     { 
       let loc = 
-	match v with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match v with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       register_identifier_as_parameter (fst d) t;
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
@@ -1285,13 +1291,13 @@ constructor_declaration:
       end_typeparameter_scope ts_opt;
       let cloc, sn, params_loc, params = c in
       let loc = 
-	match m_opt with
-	| None -> begin
+        match m_opt with
+        | None -> begin
             match ts_opt with
             | Some ts -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
             | None ->  Loc.merge cloc (get_loc $symbolstartofs $endofs)
         end
-	| Some _ -> get_loc $symbolstartofs $endofs
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       mkcnd loc m_opt ts_opt sn params_loc params t_opt cb
     }
@@ -1426,9 +1432,9 @@ annotation_type_member_declaration:
 | m_opt=modifiers_opt j=unann_type i=identifier LPAREN RPAREN a=ann_dims0 d=default_value_opt SEMICOLON 
     { 
       let loc = 
-	match m_opt with
-	| None -> Loc.merge j.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match m_opt with
+        | None -> Loc.merge j.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       let _, id = i in
       _mkatmd loc (ATMDelement(m_opt, j, id, a, d))
@@ -1550,8 +1556,8 @@ local_variable_declaration:
     { 
        List.iter
        (fun vd ->
-	 register_identifier_as_variable (fst vd.vd_variable_declarator_id) t;
-	 vd.vd_is_local := true;
+         register_identifier_as_variable (fst vd.vd_variable_declarator_id) t;
+         vd.vd_is_local := true;
        ) v;
       mklvd $symbolstartofs $endofs m_opt t v
     }
@@ -1723,8 +1729,8 @@ enhanced_for_statement:
     { end_scope();
       let fp0 = j in
       let fp =
-	mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
-	  fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
+        mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
+          fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
       in
       mkstmt $startofs $endofs (SforEnhanced(fp, e, s))
     }
@@ -1738,8 +1744,8 @@ enhanced_for_statement_no_short_if:
     { end_scope();
       let fp0 = j in
       let fp =
-	mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
-	  fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
+        mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
+          fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
       in
       mkstmt $startofs $endofs (SforEnhanced(fp, e, s))
     }
@@ -1852,9 +1858,9 @@ catch_formal_parameter:
 | ms_opt=variable_modifiers_opt tl=catch_type d=variable_declarator_id
     {
       let loc = 
-	match ms_opt with
-	| None -> Loc.merge (List.hd tl).ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match ms_opt with
+        | None -> Loc.merge (List.hd tl).ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       List.iter (register_identifier_as_parameter (fst d)) tl;
       mkcfp loc ms_opt tl d
@@ -1898,8 +1904,8 @@ assert_statement:
       in
       match env#java_lang_spec with
       | Common.JLS3 | Common.JLSx -> 
-	  env#set_java_lang_spec_JLS3;
-	  mkstmt $startofs $endofs lab
+          env#set_java_lang_spec_JLS3;
+          mkstmt $startofs $endofs lab
       | Common.JLS2 -> 
           parse_error $startofs $endofs "assert statement is not available in JLS2"
     }
@@ -1982,9 +1988,9 @@ method_reference:
 | p=unann_primitive_type d=ann_dims0 COLON_COLON tas_opt=type_arguments_opt NEW
     { 
       let ty =
-	match d with
-	| [] -> p
-	| l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
+        match d with
+        | [] -> p
+        | l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
       in
       mkmr $startofs $endofs (MRtypeNew(ty, tas_opt))
     }
@@ -2015,9 +2021,9 @@ class_instance_creation_expression:
     { 
       let tyargs, ty = c in
       begin 
-	match cb with 
-	| None -> end_scope() 
-	| _ -> () 
+        match cb with
+        | None -> end_scope()
+        | _ -> ()
       end;
       mkcic $startofs $endofs (CICunqualified(tyargs, ty, a, cb))
     }
@@ -2028,17 +2034,17 @@ class_instance_creation_expression:
       let _, id = i in
       let po, no, tyargs = c in
       let cic =
-	match po, no with
-	| Some p, None -> 
-	    CICqualified(p, tyargs, id, t, a, cb)
-	| None, Some n ->
-	    CICnameQualified(n, tyargs, id, t, a, cb)
-	| _ -> assert false
+        match po, no with
+        | Some p, None ->
+            CICqualified(p, tyargs, id, t, a, cb)
+        | None, Some n ->
+            CICnameQualified(n, tyargs, id, t, a, cb)
+        | _ -> assert false
       in
       begin 
-	match cb with 
-	| None -> end_scope() 
-	| _ -> () 
+        match cb with
+        | None -> end_scope()
+        | _ -> ()
       end;
       mkcic $startofs $endofs cic
     }
@@ -2118,14 +2124,14 @@ method_invocation:
       set_name_attribute NAmethod n;
       register_qname_as_method n;
       if is_local_name n then begin
-	mkmi $startofs $endofs (MImethodName(n, a)) 
+        mkmi $startofs $endofs (MImethodName(n, a))
       end
       else begin
-	try
-	  let q = get_qualifier n in
+        try
+          let q = get_qualifier n in
           env#set_attribute_A q;
-	  let id = rightmost_identifier n in
-	  if
+          let id = rightmost_identifier n in
+          if
             is_local_name q ||
             is_implicit_field_name q ||
             is_field_access q ||
@@ -2134,10 +2140,18 @@ method_invocation:
             set_name_attribute NAexpression q;
             register_qname_as_expression q;
             env#reclassify_identifier(leftmost_of_name q);
-	    mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
+            mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
           end
           else begin
-            if is_type_name q || not env#has_super then begin
+            if
+              is_type_name q ||
+              (*Ast.is_simple q &&*)
+              (
+               env#in_static_method ||
+               (env#rely_on_naming_convention_flag && Ast.is_rightmost_id_capitalized q) ||
+               (not env#rely_on_naming_convention_flag && (not env#surrounding_class_has_super))
+              )
+            then begin
               try
                 let fqn = get_type_fqn q in
                 set_attribute_PT_T (mkresolved fqn) q;
@@ -2155,8 +2169,8 @@ method_invocation:
               (*raise (Unknown "")*)
             end
           end
-	with
-	| Not_found -> mkmi $startofs $endofs (MImethodName(n, a))
+        with
+        | Not_found -> mkmi $startofs $endofs (MImethodName(n, a))
       end
     }
 
@@ -2189,7 +2203,7 @@ method_invocation:
           with
             Not_found -> ()
         end;
-	mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
+        mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
       end
       else begin
         if is_type_name q then begin
@@ -2255,9 +2269,9 @@ array_access:
       end;
       register_qname_as_array n;
       if is_local_name n then
-	mkaa $startofs $endofs (AAname(n, e))
+        mkaa $startofs $endofs (AAname(n, e))
       else
-	mkaa $startofs $endofs (AAprimary(_name_to_prim n.n_loc n, e))
+        mkaa $startofs $endofs (AAprimary(_name_to_prim n.n_loc n, e))
     }
 | p=primary_no_new_array LBRACKET e=expression RBRACKET 
      { 
@@ -2335,9 +2349,9 @@ cast_expression:
 | LPAREN p=primitive_type d=ann_dims0 RPAREN u=unary_expression 
     { 
       let ty =
-	match d with
-	| [] -> p
-	| l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
+        match d with
+        | [] -> p
+        | l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
       in
       mkexpr $startofs $endofs (Ecast(ty, u)) 
     }
@@ -2358,9 +2372,9 @@ cast_expression:
     { 
       let ty = name_to_ty_args (Loc.merge n.n_loc ts.tas_loc) a n ts in
       let ty' = 
-	match d with
-	| [] -> ty
-	| l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
+        match d with
+        | [] -> ty
+        | l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
       in
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
@@ -2370,22 +2384,22 @@ cast_expression:
        u=unary_expression_not_plus_minus_or_lambda_expression
     { 
       let tspecs =
-	match c.ty_desc with
-	| TclassOrInterface ts | Tclass ts | Tinterface ts -> ts
-	| _ -> parse_error $startofs $endofs "invalid type"
+        match c.ty_desc with
+        | TclassOrInterface ts | Tclass ts | Tinterface ts -> ts
+        | _ -> parse_error $startofs $endofs "invalid type"
       in
       let ty = 
-	_mkty (Loc.merge n.n_loc c.ty_loc) 
-	  (TclassOrInterface((TSapply(a, n, ts0)) :: tspecs))
+        _mkty (Loc.merge n.n_loc c.ty_loc)
+          (TclassOrInterface((TSapply(a, n, ts0)) :: tspecs))
       in
       let ty' = 
-	match d with 
-	| [] -> ty
-	| l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
+        match d with
+        | [] -> ty
+        | l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
       in
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
-      mkexpr $startofs $endofs (Ecast(ty', u)) 
+      mkexpr $startofs $endofs (Ecast(ty', u))
     }
 ;
 
@@ -2501,7 +2515,7 @@ assign_op:
 | GT_GT_GT_EQ { AOshiftRUEq }
 | AND_EQ      { AOandEq }
 | HAT_EQ      { AOxorEq }
-| OR_EQ	      { AOorEq }
+| OR_EQ       { AOorEq }
 ;
 
 expression_opt:

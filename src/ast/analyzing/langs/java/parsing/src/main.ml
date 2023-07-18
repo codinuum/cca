@@ -27,12 +27,14 @@ let filename = ref ""
 let arg_count = ref 0
 let dump_flag = ref false
 let keep_going_flag = ref false
+let rely_on_naming_convention_flag = ref false
 
 let _ =
   Arg.parse
     [
      "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump result";
-     "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tparse tolerantly";
+     "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tcontinue parsing despite errors";
+     "-n", Arg.Unit (fun () -> rely_on_naming_convention_flag := true), "\trely on naming convention";
     ]
     (fun s -> incr arg_count; filename := s)
     ("usage: " ^ Filename.basename (Sys.argv.(0))
@@ -50,6 +52,7 @@ let _ =
   try
     let _parser = new Lib.parser_c in
     _parser#_set_keep_going_flag !keep_going_flag;
+    _parser#_set_rely_on_naming_convention_flag !rely_on_naming_convention_flag;
     while true do
       let ast =
 	if !compile_mode then

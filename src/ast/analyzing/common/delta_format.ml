@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -33,6 +33,12 @@ let get_attr_boundary xnode a =
   with
     Attribute_not_found _ -> []
 
+let get_dup_attr xnode =
+  try
+    bool_of_string (get_attr xnode potential_dup_attr)
+  with
+    Attribute_not_found _ -> false
+
 let _get_attr_opt conv xnode a =
   try
     Some (conv (get_attr xnode a))
@@ -60,6 +66,7 @@ module IrreversibleFormat = struct
     | Dinsert of subtree_id * 'tree tree_t
           * path_c * boundary
           * subtree_key option * int option * int option * int option
+          * bool(*potential_dup*)
 
     | Dmove of move_control * MID.t
           * path_c * boundary * path_c * boundary
@@ -78,7 +85,7 @@ module IrreversibleFormat = struct
 	sprintf "Ddelete(path:%s,%s)"
 	  path#to_string (boundary_to_string paths)
 
-    | Dinsert(stid, tree, path, paths, key_opt, adj_opt, depth_opt, shift_opt) ->
+    | Dinsert(stid, tree, path, paths, key_opt, adj_opt, depth_opt, shift_opt, dup) ->
         let l =
           [ "path",      path#to_string;
             "paths",     boundary_to_string paths;
@@ -87,6 +94,7 @@ module IrreversibleFormat = struct
             "adj_opt",   int_opt_to_string adj_opt;
             "depth_opt", int_opt_to_string depth_opt;
             "shift_opt", int_opt_to_string shift_opt;
+            "potential_dup", string_of_bool dup;
           ]
         in
 	sprintf "Dinsert(%s,\n%s)" (attrs_to_string l) tree#initial_to_string
@@ -158,7 +166,8 @@ module IrreversibleFormat = struct
             let adj_opt = get_iattr_opt xnode adj_attr in
             let depth_opt = get_iattr_opt xnode depth_attr in
             let shift_opt = get_iattr_opt xnode shift_attr in
-	    Dinsert(stid, tree, path, paths, key_opt, adj_opt, depth_opt, shift_opt)
+            let dup = get_dup_attr xnode in
+	    Dinsert(stid, tree, path, paths, key_opt, adj_opt, depth_opt, shift_opt, dup)
 
 	  else if name = mov_tag then
             let mid = MID.of_string (get_attr xnode mid_attr) in
@@ -317,7 +326,7 @@ module IrreversibleFormat = struct
         List.map
           (fun ed ->
             match ed with
-            | Dinsert(stid, subtree, path, [], None, None, None, None) -> begin
+            | Dinsert(stid, subtree, path, [], None, None, None, None, dup) -> begin
                 if (*path#offset <> 0.0 && *)not path#stay && path#upstream = 0 && path#key_opt = None then begin
                   try
                     let _ppath, elem = Path.split path#path in
@@ -343,7 +352,7 @@ module IrreversibleFormat = struct
                           in
                           let path' = new path_c _path' in
                           let depth_opt' = Some depth' in
-                          let ed' = Dinsert(stid, subtree, path', [], key_opt', None, depth_opt', None) in
+                          let ed' = Dinsert(stid, subtree, path', [], key_opt', None, depth_opt', None, dup) in
                           DEBUG_MSG "%s" (edit_to_string ed);
                           DEBUG_MSG " -> %s" (edit_to_string ed');
                           ed'
@@ -405,8 +414,8 @@ module IrreversibleFormat = struct
       List.iter
         (fun ed ->
           match ed with
-          | Dinsert(stid, subtree, path, paths, key_opt, adj_opt, depth_opt, shift_opt) ->
-              interpreter#reg_subtree ~key_opt ~adj_opt ~depth_opt ~shift_opt stid subtree path paths
+          | Dinsert(stid, subtree, path, paths, key_opt, adj_opt, depth_opt, shift_opt, dup) ->
+              interpreter#reg_subtree ~key_opt ~adj_opt ~depth_opt ~shift_opt ~dup stid subtree path paths
 
           | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to,
                   key_opt, adj_opt, depth_opt, shift_opt) -> begin
@@ -442,7 +451,7 @@ module IrreversibleFormat = struct
               interpreter#interpret_delete path paths
 
 	  | Dinsert(stid, subtree,
-                    path, paths, key_opt, adj_opt, depth_opt, shift_opt) ->
+                    path, paths, key_opt, adj_opt, depth_opt, shift_opt, dup) ->
                       DEBUG_MSG "<** %s **>" (edit_to_string ed);
                       interpreter#interpret_insert
                         (key_of_stid stid) subtree path paths
@@ -463,6 +472,8 @@ module IrreversibleFormat = struct
       interpreter#mutate();
 
       interpreter#shift_positions();
+
+      interpreter#check_potential_duplicate();
 
       (*DEBUG_MSG "final tree:\n%s" tree#initial_to_string;*)
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -68,16 +68,26 @@ let iattr_to_str = function
   | IAarray -> "array"
 
 
-type frame_kind = FKclass of string * bool(* has_super *)ref | FKtypeparameter | FKother
+type frame_kind =
+  | FKclass of string * bool(* has_super *)ref
+  | FKtypeparameter
+  | FKmethod of string * bool(* is_static *)ref
+  | FKother
 
 let frame_kind_to_string = function
-  | FKclass(s, x) -> sprintf "class:%s:%B" s !x
+  | FKclass(s, x) -> sprintf "class:%s:has_super=%B" s !x
   | FKtypeparameter -> "typeparameter"
+  | FKmethod(s, x) -> sprintf "method:%s:is_static=%B" s !x
   | FKother -> "other"
 
 let is_class_frame = function
   | FKclass _ -> true
   | _ -> false
+
+let is_method_frame = function
+  | FKmethod _ -> true
+  | _ -> false
+
 class frame kind = object (self)
   val tbl = (Hashtbl.create 0 : (string, identifier_attribute) Hashtbl.t)
 
@@ -87,10 +97,16 @@ class frame kind = object (self)
 
   method is_typeparameter_frame = kind = FKtypeparameter
   method is_class_frame = is_class_frame kind
+  method is_method_frame = is_method_frame kind
 
   method get_class_name =
     match kind with
     | FKclass(n, _) -> n
+    | _ -> raise Not_found
+
+  method get_method_name =
+    match kind with
+    | FKmethod(n, _) -> n
     | _ -> raise Not_found
 
   method private _add t id attr =
@@ -263,6 +279,14 @@ let rightmost_identifier n =
   | Nqualified(_, _, id) -> id
   | _ -> "?"
 
+let is_capitalized s = String.capitalize_ascii s = s
+
+let is_rightmost_id_capitalized n =
+  match n.n_desc with
+  | Nsimple(_, id) -> is_capitalized id
+  | Nqualified(_, _, id) -> is_capitalized id
+  | _ -> false
+
 let rightmost_name n =
   match n.n_desc with
   | Nqualified(a, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
@@ -272,6 +296,12 @@ let get_qualifier name =
   match name.n_desc with
   | Nsimple _ -> raise Not_found
   | Nqualified(_, n, _) -> n
+  | _ -> raise Not_found
+
+let rec get_length name =
+  match name.n_desc with
+  | Nsimple _ -> 1
+  | Nqualified(_, n, _) -> 1 + get_length n
   | _ -> raise Not_found
 
 let is_simple n =

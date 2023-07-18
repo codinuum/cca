@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -189,6 +189,8 @@ let speclist =
    "-parser:disable", Arg.String options#disable_parser, "PARSER_ID\tdisable parser";
    "-parser:reduce-ast", Arg.Unit (fun () -> options#set_ast_reduction_flag), "\t\treduce AST";
    "-parser:normalize-ast", Arg.Unit (fun () -> options#set_normalize_ast_flag), "\tnormalize AST";
+   "-parser:rely-on-naming-convention",
+   Arg.Unit (fun () -> options#set_rely_on_naming_convention_flag), "\trely on naming convention";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";
@@ -306,7 +308,8 @@ let speclist =
 
    "-weak", Arg.Unit set_weak_flags, "\t\t\tweaken node equation and node permutation detection";
 
-   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag), "\t\t\taggressively find moves";
+   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
+   "\t\t\taggressively find moves";
 
    "-ignore-moves-of-unordered", Arg.Unit (fun () -> options#set_ignore_move_of_unordered_flag),
    "\tignore moves of unordered constructs";

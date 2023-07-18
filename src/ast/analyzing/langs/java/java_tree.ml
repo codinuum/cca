@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1504,17 +1504,27 @@ class translator options =
     end
     | Some q -> begin
         if Ast.is_ambiguous_name q then begin
-          let mknd ?(children=[]) =
-            name_to_node ~children (fun x -> L.Primary.AmbiguousName x)
-          in
-          let rec doit n =
-            try
-              let n0, _ = Ast.decompose_name n in
-              mknd ~children:[doit n0] n
-            with
-              _ -> mknd n
-          in
-          doit name
+          if
+            options#rely_on_naming_convention_flag &&
+            (*Ast.is_simple q &&*)
+            Ast.is_rightmost_id_capitalized q
+          then begin
+            (* assumes a type name starts with a capital letter *)
+            name_to_node (fun x -> L.Primary.AmbiguousName x) name
+          end
+          else begin
+            let mknd ?(children=[]) =
+              name_to_node ~children (fun x -> L.Primary.AmbiguousName x)
+            in
+            let rec doit n =
+              try
+                let n0, _ = Ast.decompose_name n in
+                mknd ~children:[doit n0] n
+              with
+                _ -> mknd n
+            in
+            doit name
+          end
         end
         else
           name_to_node (fun x -> L.Primary.Name x) name
