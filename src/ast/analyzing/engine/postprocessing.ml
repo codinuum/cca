@@ -3437,12 +3437,15 @@ module F (Label : Spec.LABEL_T) = struct
                     b
                   in
                   let is_stable n1 n2 =
+                    DEBUG_MSG "%a-%a" ups n1#uid ups n2#uid;
                     let cond0 =
                       try
                         let ca1 = n1#initial_parent#initial_children in
                         let ca2 = n2#initial_parent#initial_children in
-                        is_mapped (get_left false ca1 n1) (get_left false ca2 n2) &&
-                        is_mapped (get_right false ca1 n1) (get_right false ca2 n2)
+                        let left = is_mapped (get_left false ca1 n1) (get_left false ca2 n2) in
+                        let right = is_mapped (get_right false ca1 n1) (get_right false ca2 n2) in
+                        DEBUG_MSG "left=%B right=%B" left right;
+                        left && right || (left || right) && n1#data#equals n2#data
                       with _ -> false
                     in
                     DEBUG_MSG "cond0=%B" cond0;
@@ -3459,7 +3462,9 @@ module F (Label : Spec.LABEL_T) = struct
                           let ca2 = Array.copy p2#initial_children in
 
                           BEGIN_DEBUG
-                            let a2s ca = Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca) in
+                            let a2s ca =
+                              Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca)
+                            in
                             DEBUG_MSG "ca1: [%s]" (a2s ca1);
                             DEBUG_MSG "ca2: [%s]" (a2s ca2)
                           END_DEBUG;
@@ -3469,7 +3474,9 @@ module F (Label : Spec.LABEL_T) = struct
                             [ca1; ca2];
 
                           BEGIN_DEBUG
-                            let a2s ca = Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca) in
+                            let a2s ca =
+                              Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca)
+                            in
                             DEBUG_MSG "ca1: -> [%s]" (a2s ca1);
                             DEBUG_MSG "ca2: -> [%s]" (a2s ca2)
                           END_DEBUG;
@@ -4389,6 +4396,8 @@ module F (Label : Spec.LABEL_T) = struct
                 if u1 <> uid1 || u2 <> uid2 then begin
                   if uidmapping#remove u1 u2 then begin
                     removed_pairs := u1_u2 :: !removed_pairs;
+                    if List.mem u1_u2 !added_pairs then
+                      added_pairs := Xlist.subtract !added_pairs [u1_u2];
                     DEBUG_MSG "removed %a-%a" ups u1 ups u2;
                   end
                 end
