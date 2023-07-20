@@ -148,6 +148,7 @@ class env = object (self)
 
   val mutable keep_going_flag = true
   val mutable rely_on_naming_convention_flag = false
+  val mutable partial_name_resolution_flag = false
 
   val mutable lex_brace_level = 0
   val mutable class_flag = false
@@ -281,6 +282,9 @@ class env = object (self)
 
   method rely_on_naming_convention_flag = rely_on_naming_convention_flag
   method _set_rely_on_naming_convention_flag b = rely_on_naming_convention_flag <- b
+
+  method partial_name_resolution_flag = partial_name_resolution_flag
+  method _set_partial_name_resolution_flag b = partial_name_resolution_flag <- b
 
   method at_res =
     begin
@@ -1804,6 +1808,14 @@ module F (Stat : STATE_T) = struct
 
   let _name_to_prim ?(whole=true) loc n =
     DEBUG_MSG "[%s] %s (whole=%B)" (Loc.to_string loc) (P.name_to_string n) whole;
+
+    if env#partial_name_resolution_flag then begin
+      set_name_attribute ~force:true (NAambiguous (env#resolve ~force_defer:true n)) n;
+      DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
+      _mkprim loc (Pname n)
+    end
+    else
+
     let id = rightmost_identifier n in
     try
       let q = get_qualifier n in

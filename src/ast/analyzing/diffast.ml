@@ -191,6 +191,8 @@ let speclist =
    "-parser:normalize-ast", Arg.Unit (fun () -> options#set_normalize_ast_flag), "\tnormalize AST";
    "-parser:rely-on-naming-convention",
    Arg.Unit (fun () -> options#set_rely_on_naming_convention_flag), "\trely on naming convention";
+   "-parser:partial-name-resolution",
+   Arg.Unit (fun () -> options#set_partial_name_resolution_flag), "\tskip part of name resolution";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";

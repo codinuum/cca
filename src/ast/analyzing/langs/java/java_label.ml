@@ -1476,6 +1476,9 @@ module Statement = struct
     | Continue of identifier option
     | Labeled of identifier
     | Expression of Expression.t * tie_id
+    | FlattenedIf of tie_id
+    | ElseIf of tie_id
+    | Else
 
   let get_name = function
     | Break (Some ident)
@@ -1528,6 +1531,10 @@ module Statement = struct
 
       | Labeled ident -> sprintf "Labeled(%s)" ident
       | Expression(se, tid) -> (Expression.to_string se)^"("^(tid_to_string tid)^")"
+
+      | FlattenedIf tid -> sprintf "FlattenedIf(%s)" (tid_to_string tid)
+      | ElseIf tid      -> sprintf "ElseIf(%s)" (tid_to_string tid)
+      | Else            -> "Else"
     in
     "Statement." ^ str
 
@@ -1538,6 +1545,8 @@ module Statement = struct
     | Labeled ident         -> Labeled ""
     | Expression(se, tid)   -> Expression(Expression.anonymize ~more se, anonymize_tid ~more tid)
     | If tid                -> If null_tid(*(anonymize_tid ~more tid)*)
+    | FlattenedIf tid       -> FlattenedIf null_tid(*(anonymize_tid ~more tid)*)
+    | ElseIf tid            -> ElseIf null_tid(*(anonymize_tid ~more tid)*)
     | stmt                  -> stmt
 
   let to_simple_string = function
@@ -1557,6 +1566,9 @@ module Statement = struct
     | Continue ident_opt -> (match ident_opt with None -> "continue" | Some ident -> "continue "^ident)
     | Labeled ident      -> ident
     | Expression(se, tid) -> "<se>" (* Expression.to_simple_string se *)
+    | FlattenedIf tid -> "<flattened-if>"
+    | ElseIf tid      -> "else if"
+    | Else            -> "else"
 
   let to_short_string = function
     | Empty        -> mkstr 0
@@ -1585,7 +1597,9 @@ module Statement = struct
 
     | Labeled ident       -> catstr [mkstr 14; ident]
     | Expression(se, tid) -> catstr [mkstr 15; Expression.to_short_string se; tid_to_string tid]
-
+    | FlattenedIf tid -> catstr [mkstr 16; tid_to_string tid]
+    | ElseIf tid      -> catstr [mkstr 17; tid_to_string tid]
+    | Else            -> mkstr 18
 
   let to_index = function
     | Empty               -> 3
@@ -1604,7 +1618,9 @@ module Statement = struct
     | Continue ident_opt  -> 102
     | Labeled ident       -> 103
     | Expression(se, tid) -> 104
-
+    | FlattenedIf _       -> 105
+    | ElseIf _            -> 106
+    | Else                -> 107
 
   let to_tag ?(strip=false) s =
     let name, attrs =
@@ -1640,6 +1656,11 @@ module Statement = struct
           let t, a = Expression.to_tag se in
           t^"Statement",  a(* @ (mkstmttidattr tid)*)
 
+      | FlattenedIf _ when strip -> "FlattenedIfStatement", []
+      | FlattenedIf tid          -> "FlattenedIfStatement", mktidattr tid
+      | ElseIf _ when strip      -> "ElseIfStatement", []
+      | ElseIf tid               -> "ElseIfStatement", mktidattr tid
+      | Else                     -> "ElseStatement", []
 
     in
     name, attrs
@@ -1656,6 +1677,8 @@ module Statement = struct
     | Assert, If _ | If _, Assert
     | If _, Switch | Switch, If _
     | If _, If _
+    | FlattenedIf _, Switch | Switch, FlattenedIf _
+    | ElseIf _, If _ | If _, ElseIf _
     | For, ForEnhanced | ForEnhanced, For
     | For, While | While, For
     | ForEnhanced, While | While, ForEnhanced
@@ -4055,6 +4078,9 @@ let of_elem_data =
     "EmptyStatement",           (fun a -> mks Statement.Empty);
     "AssertStatement",          (fun a -> mks Statement.Assert);
     "IfStatement",              (fun a -> mks (Statement.If(find_tid a)));
+    "FlattenedIfStatement",     (fun a -> mks (Statement.FlattenedIf(find_tid a)));
+    "ElseIfStatement",          (fun a -> mks (Statement.ElseIf(find_tid a)));
+    "ElseStatement",            (fun a -> mks Statement.Else);
     "BasicForStatement",        (fun a -> mks Statement.For);
     "EnhancedForStatement",     (fun a -> mks Statement.ForEnhanced);
     "WhileStatement",           (fun a -> mks Statement.While);

@@ -24,6 +24,7 @@ class parser_c = object (self)
 
   val mutable keep_going_flag = true
   val mutable rely_on_naming_convention_flag = false
+  val mutable partial_name_resolution_flag = false
 
   val mutable parser_main = fun ul -> Obj.magic ()
   val mutable scanner     = Obj.magic ()
@@ -38,6 +39,10 @@ class parser_c = object (self)
   method _set_rely_on_naming_convention_flag b =
     rely_on_naming_convention_flag <- b;
     env#_set_rely_on_naming_convention_flag b
+
+  method _set_partial_name_resolution_flag b =
+    partial_name_resolution_flag <- b;
+    env#_set_partial_name_resolution_flag b
 
   method parser_init =
     env#begin_scope();

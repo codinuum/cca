@@ -164,6 +164,11 @@ class c = object (self)
   method set_rely_on_naming_convention_flag = rely_on_naming_convention_flag <- true
   method clear_rely_on_naming_convention_flag = rely_on_naming_convention_flag <- false
 
+  val mutable partial_name_resolution_flag = false
+  method partial_name_resolution_flag = partial_name_resolution_flag
+  method set_partial_name_resolution_flag = partial_name_resolution_flag <- true
+  method clear_partial_name_resolution_flag = partial_name_resolution_flag <- false
+
   (* *)
   val mutable latest_target = ""
   method latest_target = latest_target
@@ -260,27 +265,36 @@ class c = object (self)
 
 
   val mutable ignore_identifiers_flag = false
-  method ignore_identifiers_flag  = ignore_identifiers_flag
-  method set_ignore_identifiers_flag  = ignore_identifiers_flag <- true
-  method clear_ignore_identifiers_flag  = ignore_identifiers_flag <- false
+  method ignore_identifiers_flag = ignore_identifiers_flag
+  method set_ignore_identifiers_flag = ignore_identifiers_flag <- true
+  method clear_ignore_identifiers_flag = ignore_identifiers_flag <- false
 
   val mutable ignore_huge_arrays_flag = true
-  method ignore_huge_arrays_flag  = ignore_huge_arrays_flag
-  method set_ignore_huge_arrays_flag  = ignore_huge_arrays_flag <- true
-  method clear_ignore_huge_arrays_flag  = ignore_huge_arrays_flag <- false
+  method ignore_huge_arrays_flag = ignore_huge_arrays_flag
+  method set_ignore_huge_arrays_flag = ignore_huge_arrays_flag <- true
+  method clear_ignore_huge_arrays_flag = ignore_huge_arrays_flag <- false
 
   val mutable huge_array_threshold = 256
   method huge_array_threshold = huge_array_threshold
   method set_huge_array_threshold x = huge_array_threshold <- x
 
   val mutable ignore_huge_exprs_flag = true
-  method ignore_huge_exprs_flag  = ignore_huge_exprs_flag
-  method set_ignore_huge_exprs_flag  = ignore_huge_exprs_flag <- true
-  method clear_ignore_huge_exprs_flag  = ignore_huge_exprs_flag <- false
+  method ignore_huge_exprs_flag = ignore_huge_exprs_flag
+  method set_ignore_huge_exprs_flag = ignore_huge_exprs_flag <- true
+  method clear_ignore_huge_exprs_flag = ignore_huge_exprs_flag <- false
 
   val mutable huge_expr_threshold = 512
   method huge_expr_threshold = huge_expr_threshold
   method set_huge_expr_threshold x = huge_expr_threshold <- x
+
+  val mutable flatten_if_flag = true
+  method flatten_if_flag = flatten_if_flag
+  method set_flatten_if_flag = flatten_if_flag <- true
+  method clear_flatten_if_flag = flatten_if_flag <- false
+
+  val mutable deep_if_threshold = 128
+  method deep_if_threshold = deep_if_threshold
+  method set_deep_if_threshold x = deep_if_threshold <- x
 
   (* pre-processor *)
   val mutable ignore_if0_flag = true

@@ -1939,7 +1939,24 @@ class translator options =
           let s_ = self#normalize_block_stmt s_ in
           self#mknode lab [e_; s_] (* order sensitive s -> e *)
 
-      | Ast.SifThenElse(e, s1, s2) ->
+      | Ast.SifThenElse(e, s1, s2) -> begin
+          let rec get_depth x =
+            match x.Ast.s_desc with
+            | Ast.SifThenElse(_, _, s) -> 1 + get_depth s
+            | Ast.SifThen _ -> 1
+            | _ -> 0
+          in
+          let flatten_if =
+            if options#flatten_if_flag && block_context <> "if" then begin
+              let d = get_depth s2 in
+              let b = d > options#deep_if_threshold in
+              DEBUG_MSG "flatten_if=%B (depth=%d)" b d;
+              b
+            end
+            else
+              false
+          in
+
           let e_ = self#of_expression e in
           let tid = self#mktid e_ in
           (*let tid = L.null_tid in*)
@@ -1948,8 +1965,68 @@ class translator options =
           let s2_ = self#of_statement ~block_context:"if" s2 in
           let s1_ = self#normalize_block_stmt s1_ in
           let s2_ = self#normalize_block_stmt s2_ in
-          self#mknode lab [e_; s1_; s2_] (* order sensitive s2 -> s1 -> e *)
+          let nd = self#mknode lab [e_; s1_; s2_] in (* order sensitive s2 -> s1 -> e *)
 
+          if flatten_if then begin
+            let elseif_count = ref 0 in
+            let else_count = ref 0 in
+            let rec flatten ?(is_top=true) nd0 =
+              let lab0 = getlab nd0 in
+              let nchildren0 = nd0#nchildren in
+              if is_top then
+                if L.is_if lab0 then
+                  if nchildren0 = 3 then
+                    let next = nd0#children.(2) in
+                    if L.is_if (getlab next) then begin
+                      nd0#del_rightmost_child();
+                      let loc_ = Loc._merge nd0#data#src_loc nd0#children.(1)#data#src_loc in
+                      nd0#data#set_loc loc_;
+                      nd0 :: (flatten ~is_top:false next)
+                    end
+                    else
+                      assert false
+                  else
+                    assert false
+                else
+                  assert false
+              else (* not is_top *)
+                if L.is_if lab0 then
+                  let lab_ =
+                    match lab0 with
+                    | L.Statement (L.Statement.If tid0) -> L.Statement (L.Statement.ElseIf tid0)
+                    | _ -> assert false
+                  in
+                  if nchildren0 = 3 then begin
+                    let next = nd0#children.(2) in
+                    let loc_ = Loc._merge nd0#data#src_loc nd0#children.(1)#data#src_loc in
+                    let nd_ = self#mknode lab_ (Array.to_list (Array.sub nd0#children 0 2)) in
+                    nd_#data#set_loc loc_;
+                    incr elseif_count;
+                    if L.is_if (getlab next) then
+                      nd_ :: (flatten ~is_top:false next)
+                    else begin
+                      let nd__ = self#mknode (L.Statement (L.Statement.Else)) [next] in
+                      nd__#data#set_loc next#data#src_loc;
+                      incr else_count;
+                      [nd_; nd__]
+                    end
+                  end
+                  else begin
+                    let nd_ = self#mknode lab_ (Array.to_list nd0#children) in
+                    nd_#data#set_loc nd0#data#src_loc;
+                    incr elseif_count;
+                    [nd_]
+                  end
+                else
+                  assert false
+            in
+            let children = flatten nd in
+            let ordinal_tbl_opt = Some (new ordinal_tbl [1; !elseif_count; !else_count]) in
+            self#mknode ~ordinal_tbl_opt (L.Statement (L.Statement.FlattenedIf tid)) children
+          end
+          else
+            nd
+      end
       | Ast.Swhile(e, s) ->
           let s_ = self#of_statement ~block_context:"while" s in
           let s_ = self#normalize_block_stmt s_ in

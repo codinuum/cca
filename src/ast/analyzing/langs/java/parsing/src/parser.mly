@@ -2123,7 +2123,7 @@ method_invocation:
     { 
       set_name_attribute NAmethod n;
       register_qname_as_method n;
-      if is_local_name n then begin
+      if is_local_name n || env#partial_name_resolution_flag then begin
         mkmi $startofs $endofs (MImethodName(n, a))
       end
       else begin
