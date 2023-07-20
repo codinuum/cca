@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
    Copyright 2020 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,13 @@
 module L = Cpp_label
 module Tree = Sourcecode.Tree (L)
 
-open Unparsing_base
+module Fmtr = struct
+  let formatter = Format.std_formatter
+end
+
+module UPB = Unparsing_base.Make(Fmtr)
+
+open UPB
 
 (*******)
 let _pr_semicolon() = pr_string ";"

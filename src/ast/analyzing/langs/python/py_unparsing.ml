@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,7 +18,13 @@
 module L = Py_label
 module Tree = Sourcecode.Tree (L)
 
-open Unparsing_base
+module Fmtr = struct
+  let formatter = Format.std_formatter
+end
+
+module UPB = Unparsing_base.Make(Fmtr)
+
+open UPB
 
 let indent_unit = ref 4
 

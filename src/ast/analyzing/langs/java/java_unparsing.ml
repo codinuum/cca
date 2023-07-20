@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,7 +23,13 @@
 
 module L = Java_label
 
-open Unparsing_base
+module Fmtr = struct
+  let formatter = Format.std_formatter
+end
+
+module UPB = Unparsing_base.Make(Fmtr)
+
+open UPB
 
 let pb = new ppbox
 
@@ -729,6 +735,45 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
               pr_node ~fail_on_error else_part
             end
           end
+
+      | L.Statement.FlattenedIf _ ->
+          if nchildren > 0 then begin
+            pb#open_vbox pb#indent;
+            pb#pr_a (fun () -> pr_string " ") (pr_node ~fail_on_error) children;
+            pb#close_box()
+          end
+
+      | L.Statement.ElseIf _ ->
+          pr_string "else if ("; pr_nth_child 0; pr_rparen();
+          begin
+            try
+              if L.is_block (getlab (children.(1))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
+          if nchildren < 2 then
+            pr_string "{}"
+          else
+            pr_nth_child 1
+
+      | L.Statement.Else ->
+          pr_string "else";
+          begin
+            try
+              if L.is_block (getlab (children.(0))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
+          if nchildren < 1 then
+            pr_string "{}"
+          else
+            pr_nth_child 0
 
       | L.Statement.For ->
           pr_string "for (";

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -14,6 +14,14 @@
    limitations under the License.
 *)
 
+
+module type FMTR = sig
+  val formatter : Format.formatter
+end
+
+module Make (Fmtr : FMTR) = struct
+
+let fmtr = Fmtr.formatter
 
 type block_style = BSshort | BStall
 
@@ -33,16 +41,16 @@ let box_to_string = function
   | Bhv i  -> sprintf "Bhv(%d)" i
   | Bhov i -> sprintf "Bhov(%d)" i
 
-let pr_string      = Format.print_string
-let pr_break       = Format.print_break
-let pr_space       = Format.print_space
-let pr_newline     = Format.print_newline
-let pr_cut         = Format.print_cut
-let pr_int         = Format.print_int
-let pr_float       = Format.print_float
-let pr_char        = Format.print_char
-let pr_bool        = Format.print_bool
-let pr_flush       = Format.print_flush
+let pr_string      = Format.pp_print_string fmtr
+let pr_break       = Format.pp_print_break fmtr
+let pr_space       = Format.pp_print_space fmtr
+let pr_newline     = Format.pp_print_newline fmtr
+let pr_cut         = Format.pp_print_cut fmtr
+let pr_int         = Format.pp_print_int fmtr
+let pr_float       = Format.pp_print_float fmtr
+let pr_char        = Format.pp_print_char fmtr
+let pr_bool        = Format.pp_print_bool fmtr
+let pr_flush       = Format.pp_print_flush fmtr
 
 let _pr_comma()    = pr_string ","
 let _pr_eq()       = pr_string "="
@@ -64,7 +72,7 @@ let pr_semicolon() = pr_string ";"
 let pr_bor()       = pr_string "|"
 let pr_none()      = ()
 
-let force_newline = Format.force_newline
+let force_newline = Format.pp_force_newline fmtr
 
 let pad i = pr_string (String.make i ' ')
 let pad1() = pad 1
@@ -82,7 +90,7 @@ class ppbox = object (self)
 
   val mutable indent = 2
 
-  val mutable orig_functions = Format.get_formatter_out_functions()
+  val mutable orig_functions = Format.pp_get_formatter_out_functions fmtr ()
 
   val box_stack = Stack.create()
 
@@ -113,12 +121,12 @@ class ppbox = object (self)
         | Bhov i -> self#open_hovbox i; if i > 0 then pad i
       ) stat
 
-  method open_box i    = self#enter_box (B i); if boxing_flag then Format.open_box i
-  method open_hbox()   = self#enter_box Bh; if boxing_flag then Format.open_hbox()
-  method open_vbox i   = self#enter_box (Bv i); if boxing_flag then Format.open_vbox i
-  method open_hvbox i  = self#enter_box (Bhv i); if boxing_flag then Format.open_hvbox i
-  method open_hovbox i = self#enter_box (Bhov i); if boxing_flag then Format.open_hovbox i
-  method close_box()   = self#exit_box(); if boxing_flag then Format.close_box()
+  method open_box i    = self#enter_box (B i); if boxing_flag then Format.pp_open_box fmtr i
+  method open_hbox()   = self#enter_box Bh; if boxing_flag then Format.pp_open_hbox fmtr ()
+  method open_vbox i   = self#enter_box (Bv i); if boxing_flag then Format.pp_open_vbox fmtr i
+  method open_hvbox i  = self#enter_box (Bhv i); if boxing_flag then Format.pp_open_hvbox fmtr i
+  method open_hovbox i = self#enter_box (Bhov i); if boxing_flag then Format.pp_open_hovbox fmtr i
+  method close_box()   = self#exit_box(); if boxing_flag then Format.pp_close_box fmtr ()
 
   method enable_backslash_newline() =
     orig_functions <- Format.get_formatter_out_functions();
@@ -140,13 +148,13 @@ class ppbox = object (self)
     let stat = self#checkpoint_box() in
     pr_newline();
     self#restore_box stat;
-    Format.set_formatter_out_functions fs
+    Format.pp_set_formatter_out_functions fmtr fs
 
   method disable_backslash_newline() =
     let stat = self#checkpoint_box() in
     pr_flush();
     self#restore_box stat;
-    Format.set_formatter_out_functions orig_functions
+    Format.pp_set_formatter_out_functions fmtr orig_functions
 
 
 
@@ -212,3 +220,5 @@ let apply_nth f a i =
     f a.(i)
   with
     Invalid_argument _ -> pr_string "___"
+
+end (* of module Make *)
