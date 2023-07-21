@@ -160,6 +160,14 @@ class [ 'a ] node (d : 'a) =
 
     method nchildren = Array.length children
 
+    method del_rightmost_child () =
+      let len = self#nchildren in
+      self#set_children (Array.sub self#children 0 (len - 1))
+
+    method del_leftmost_child () =
+      let len = self#nchildren in
+      self#set_children (Array.sub self#children 1 (len - 1))
+
     method add_child_rightmost child =
       let len = self#nchildren in
       self#set_children (Array.append self#children [|child|]);
