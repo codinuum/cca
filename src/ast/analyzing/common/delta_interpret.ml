@@ -166,11 +166,13 @@ let tree_eq r1 r2 =
     if not n1#data#is_named_orig && not n2#data#is_named_orig then
       n1#data#elem_name_for_delta = n2#data#elem_name_for_delta
     else
-      match n1#data#orig_lab_opt, n2#data#orig_lab_opt with
+      n1#data#orig_to_elem_data_for_eq = n2#data#orig_to_elem_data_for_eq
+      (*match n1#data#orig_lab_opt, n2#data#orig_lab_opt with
       | Some o1, Some o2 -> o1 = o2
+
       | Some o, None -> o = n2#data#_label
       | None, Some o -> o = n1#data#_label
-      | _ -> n1#data#eq n2#data
+      | _ -> n1#data#eq n2#data*)
   in
   let tree_eq r1 r2 =
     let rec scan nds1 nds2 =
@@ -6433,7 +6435,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           let chk p =
             let sib = parent#initial_children.(p) in
             DEBUG_MSG "p=%d sib=%s" p sib#initial_to_string;
-            if self#is_edited_node sib then
+            if true(*self#is_edited_node sib*) then
               tree_eq rt sib
             else
               raise Abort
