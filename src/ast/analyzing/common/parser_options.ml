@@ -16,6 +16,8 @@
 (* parser_options.ml *)
 
 
+let default_java_lang_spec = 8
+
 let get_dist_dir () =
   Filename.dirname (Filename.dirname (Xfile.abspath Sys.executable_name))
 
@@ -168,6 +170,11 @@ class c = object (self)
   method partial_name_resolution_flag = partial_name_resolution_flag
   method set_partial_name_resolution_flag = partial_name_resolution_flag <- true
   method clear_partial_name_resolution_flag = partial_name_resolution_flag <- false
+
+  val mutable java_lang_spec = default_java_lang_spec
+  method java_lang_spec = java_lang_spec
+  method set_java_lang_spec lv = java_lang_spec <- lv
+  method reset_java_lang_spec = java_lang_spec <- default_java_lang_spec
 
   (* *)
   val mutable latest_target = ""

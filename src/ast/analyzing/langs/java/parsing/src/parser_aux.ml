@@ -134,7 +134,8 @@ exception Frame_found of frame
 class env = object (self)
   inherit [Source_base.c] Env_base.c as super
 
-  val mutable java_lang_spec = JLSx
+  val mutable java_lang_spec = default_java_lang_spec
+  val mutable actual_java_lang_spec = JLSnone
 
   val mutable current_package_name = ""
 
@@ -157,6 +158,8 @@ class env = object (self)
   val mutable in_aspect_flag = false
   val mutable in_declare_flag = false
   val mutable in_pointcut_flag = false
+
+  val mutable case_flag = false
 
   val mutable g_brace_level = 0
 
@@ -205,6 +208,16 @@ class env = object (self)
   method clear_in_pointcut_flag =
     DEBUG_MSG "clear";
     in_pointcut_flag <- false
+
+  method case_flag = case_flag
+
+  method set_case_flag =
+    DEBUG_MSG "set";
+    case_flag <- true
+
+  method clear_case_flag =
+    DEBUG_MSG "clear";
+    case_flag <- false
 
   method shift_flag = shift_flag
 
@@ -591,13 +604,16 @@ class env = object (self)
   method classtbl = classtbl
 
   method java_lang_spec = java_lang_spec
-  method is_java_lang_spec_unknown = java_lang_spec = JLSx
-  method is_java_lang_spec_JLS3    = java_lang_spec = JLS3
-  method is_java_lang_spec_JLS2    = java_lang_spec = JLS2
-  method set_java_lang_spec_unknown = java_lang_spec <- JLSx
-  method set_java_lang_spec_JLS3    = java_lang_spec <- JLS3
-  method set_java_lang_spec_JLS2    = java_lang_spec <- JLS2
+  method set_java_lang_spec lv = java_lang_spec <- JLS lv
+  method reset_java_lang_spec = java_lang_spec <- default_java_lang_spec
 
+  method actual_java_lang_spec = actual_java_lang_spec
+  method set_actual_java_lang_spec lv =
+    match actual_java_lang_spec with
+    | JLSnone -> actual_java_lang_spec <- JLS lv
+    | JLS x when lv > x -> actual_java_lang_spec <- JLS lv
+    | _ -> ()
+  method reset_actual_java_lang_spec = java_lang_spec <- JLSnone
 
   method set_current_package_name n =
     current_package_name <- n
@@ -1215,7 +1231,8 @@ class env = object (self)
     super#init;
     Stack.clear stack;
     self#begin_scope ~frame_opt:(Some global_frame) ();
-    self#set_java_lang_spec_unknown;
+    self#reset_java_lang_spec;
+    self#reset_actual_java_lang_spec;
     Stack.clear context_stack;
     Stack.push (C_toplevel (create_top_stat())) context_stack
 
@@ -1393,6 +1410,13 @@ module F (Stat : STATE_T) = struct
                                              ch_implements=i_opt;
                                              ch_loc=loc;
                                            }
+  let _mkrh loc ms id ts_opt h i_opt = { rh_modifiers=ms;
+                                         rh_identifier=id;
+                                         rh_type_parameters=ts_opt;
+                                         rh_record_header=h;
+                                         rh_implements=i_opt;
+                                         rh_loc=loc;
+                                       }
   let _mkcd loc d = { cd_desc=d; cd_loc=loc }
   let _mkifh loc ms id ts_opt s_opt = { ifh_modifiers=ms;
                                         ifh_identifier=id;
@@ -1919,7 +1943,11 @@ module F (Stat : STATE_T) = struct
     else
       parse_error_loc loc "syntax error: %s" s
 
-  let mksb so eo l = { sb_switch_block_stmt_grps=l; sb_loc=(get_loc so eo) }
+  let mksb so eo sbs srs= { sb_switch_block_stmt_grps=sbs; sb_switch_rules=srs; sb_loc=(get_loc so eo) }
+
+  let mksrl so eo x = { srl_desc=x; srl_loc=(get_loc so eo) }
+
+  let mksrb so eo x = { srb_desc=x; srb_loc=(get_loc so eo) }
 
   let mkexc so eo c = { exc_class=c; exc_loc=(get_loc so eo) }
   let mkexi so eo ifs = { exi_interfaces=ifs; exi_loc=(get_loc so eo) }
@@ -2019,6 +2047,7 @@ module F (Stat : STATE_T) = struct
 
   let mkaa so eo d = { aa_desc=d; aa_loc=(get_loc so eo) }
   let mkch so eo ms id ts_opt s_opt i_opt = _mkch (get_loc so eo) ms id ts_opt s_opt i_opt
+  let mkrh so eo ms id ts_opt h i_opt = _mkrh (get_loc so eo) ms id ts_opt h i_opt
   let mkcd so eo d = _mkcd (get_loc so eo) d
   let mkifh so eo ms id ts_opt s_opt = _mkifh (get_loc so eo) ms id ts_opt s_opt
   let mkifd so eo d = _mkifd (get_loc so eo) d
@@ -2071,5 +2100,15 @@ module F (Stat : STATE_T) = struct
         | Mstatic -> true
         | _ -> false
       ) ms.ms_modifiers
+
+  let check_JLS_level lv thunk error =
+    match env#java_lang_spec with
+    | Common.JLS x when lv <= x -> begin
+        env#set_actual_java_lang_spec lv;
+        thunk()
+    end
+    | Common.JLS x when lv > x -> error()
+    | _ -> error()
+
 
 end (* of functor Parser_aux.F *)

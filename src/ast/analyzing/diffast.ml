@@ -192,7 +192,9 @@ let speclist =
    "-parser:rely-on-naming-convention",
    Arg.Unit (fun () -> options#set_rely_on_naming_convention_flag), "\trely on naming convention";
    "-parser:partial-name-resolution",
-   Arg.Unit (fun () -> options#set_partial_name_resolution_flag), "\tskip part of name resolution";
+   Arg.Unit (fun () -> options#set_partial_name_resolution_flag), "\tresolve names partially";
+   "-parser:JLS",
+   Arg.Int (fun lv -> options#set_java_lang_spec lv), "\tset JLS level";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";

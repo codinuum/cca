@@ -433,6 +433,7 @@ module Literal = struct
     | True | False
     | Character of string
     | String of string
+    | TextBlock of string
     | Null
 
   let utf8_escape_pat = Str.regexp "\\\\u\\([0-9a-fA-F]+\\)"
@@ -499,9 +500,11 @@ module Literal = struct
       | Ast.Linteger str when anonymize_int -> (Integer "")
       | Ast.LfloatingPoint str when anonymize_float -> (FloatingPoint "")
       | Ast.Lstring str when anonymize_string -> (String "")
+      | Ast.LtextBlock str when anonymize_string -> (TextBlock "")
 
       | Ast.Lcharacter str when reduce -> (Character (reduce_char str))
       | Ast.Lstring str when reduce -> (String (reduce_string str))
+      | Ast.LtextBlock str when reduce -> (TextBlock (reduce_string str))
 
       | Ast.Linteger str -> (Integer str)
       | Ast.LfloatingPoint str -> (FloatingPoint str)
@@ -509,6 +512,7 @@ module Literal = struct
       | Ast.Lfalse -> False
       | Ast.Lcharacter str -> (Character str)
       | Ast.Lstring str -> (String str)
+      | Ast.LtextBlock str -> (TextBlock str)
       | Ast.Lnull -> Null
 
   let to_string lit =
@@ -520,6 +524,7 @@ module Literal = struct
       | False -> "False"
       | Character str -> sprintf "Character(%s)" str
       | String str -> sprintf "String(%s)" str
+      | TextBlock str -> sprintf "TextBlock(%s)" str
       | Null -> "Null"
     in
     "Literal." ^ str
@@ -529,6 +534,7 @@ module Literal = struct
     | FloatingPoint str -> FloatingPoint ""
     | Character str     -> Character ""
     | String str        -> String ""
+    | TextBlock str     -> TextBlock ""
     (*| True | False      -> False*)
     | lit               -> lit
 
@@ -549,6 +555,11 @@ module Literal = struct
           "\""^(Digest.to_hex (Digest.string str))^"\""
         else
           "\""^(String.escaped str)^"\""
+    | TextBlock str     ->
+        if (String.length str) > string_len_threshold then
+          "\""^(Digest.to_hex (Digest.string str))^"\""
+        else
+          "\""^(String.escaped str)^"\""
     | Null              -> "null"
 
   let to_value = function
@@ -558,6 +569,7 @@ module Literal = struct
     | False             -> "false"
     | Character str     -> sprintf "'%s'" str
     | String str        -> "\""^str^"\""
+    | TextBlock str     -> "\"\"\""^str^"\"\"\""
     | Null              -> "null"
 
   let to_short_string = function
@@ -571,8 +583,12 @@ module Literal = struct
           catstr [mkstr 5; Digest.to_hex (Digest.string str)]
         else
           catstr [mkstr 6; str]
-    | Null              -> mkstr 7
-
+    | TextBlock str     ->
+        if (String.length str) > string_len_threshold then
+          catstr [mkstr 7; Digest.to_hex (Digest.string str)]
+        else
+          catstr [mkstr 8; str]
+    | Null              -> mkstr 9
 
   let to_tag lit =
     let name, attrs =
@@ -583,6 +599,7 @@ module Literal = struct
       | False             -> "False", []
       | Character str     -> "CharacterLiteral", ["value",xmlenc str]
       | String str        -> "StringLiteral", ["value",xmlenc str]
+      | TextBlock str     -> "TextBlockLiteral", ["value",xmlenc str]
       | Null              -> "NullLiteral", []
     in
     name, attrs
@@ -1034,6 +1051,11 @@ module Primary = struct
           raise Not_found
         else
           s
+    | Literal (Literal.TextBlock s) ->
+        if s = "" then
+          raise Not_found
+        else
+          s
     (*| Literal (Literal.String s) -> s
     | Literal (Literal.Character s|Literal.Integer s|Literal.FloatingPoint s) -> s*)
 
@@ -1063,6 +1085,7 @@ module Primary = struct
       -> true
 
     | Literal (Literal.String s) -> s <> ""
+    | Literal (Literal.TextBlock s) -> s <> ""
     (*| Literal (Literal.String s) -> true
     | Literal (Literal.Character _|Literal.Integer _|Literal.FloatingPoint _) -> true*)
 
@@ -1314,6 +1337,7 @@ module Expression = struct
     | Primary of Primary.t
     | AssignmentOperator of AssignmentOperator.t * tie_id
     | Lambda
+    | Switch
 
   let get_name = function
     | Primary prim -> Primary.get_name prim
@@ -1338,6 +1362,7 @@ module Expression = struct
       | Primary p             -> Primary.to_string p
       | AssignmentOperator(ao, tid) -> sprintf "%s(%s)" (AssignmentOperator.to_string ao) (tid_to_string tid)
       | Lambda                -> "Lambda"
+      | Switch                -> "Switch"
     in
     "Expression." ^ str
 
@@ -1358,6 +1383,7 @@ module Expression = struct
     | Primary p             -> Primary.to_simple_string p
     | AssignmentOperator(ao, tid) -> AssignmentOperator.to_simple_string ao
     | Lambda                -> "<lambda>"
+    | Switch                -> "switch"
 
   let to_short_string = function
     | Cond                  -> mkstr 0
@@ -1368,6 +1394,7 @@ module Expression = struct
     | Primary p             -> catstr [mkstr 5; Primary.to_short_string p]
     | AssignmentOperator(ao, tid) -> catstr [mkstr 6; AssignmentOperator.to_short_string ao; tid_to_string tid]
     | Lambda                -> mkstr 7
+    | Switch                -> mkstr 8
 
   let to_tag e =
     let name, attrs =
@@ -1380,6 +1407,7 @@ module Expression = struct
       | Primary p             -> Primary.to_tag p
       | AssignmentOperator(ao, tid) -> AssignmentOperator.to_tag ao (mktidattr tid)
       | Lambda                -> "Lambda", []
+      | Switch                -> "Switch", []
     in
     name, attrs
 
@@ -1710,6 +1738,7 @@ type kind =
   | Kclass of name
   | Kinterface of name
   | Kenum of name
+  | Krecord of name
   | Kannotation of name
   | Kfield of name
   | Kconstructor of name
@@ -1728,6 +1757,7 @@ let kind_to_suffix k =
   | Kclass _     -> "C"
   | Kinterface   -> "I"
   | Kenum        -> "E"
+  | Krecord      -> "R"
   | Kannotation  -> "@"
   | Kfield       -> "f"
   | Kconstructor -> "c"
@@ -1742,6 +1772,7 @@ let kind_to_anonymous_string = function
   | Kclass n       -> "Class"
   | Kinterface n   -> "Interface"
   | Kenum n        -> "Enum"
+  | Krecord n      -> "Record"
   | Kannotation n  -> "Annotation"
   | Kfield n       -> "Field"
   | Kconstructor n -> "Constructor"
@@ -1756,6 +1787,7 @@ let kind_to_string = function
   | Kclass n       -> "Class:"^n
   | Kinterface n   -> "Interface:"^n
   | Kenum n        -> "Enum:"^n
+  | Krecord n      -> "Record:"^n
   | Kannotation n  -> "Annotation:"^n
   | Kfield n       -> "Field:"^n
   | Kconstructor n -> "Constructor:"^n
@@ -1770,6 +1802,7 @@ let kind_to_attrs = function
   | Kclass n       -> ["kind","class";"name",xmlenc n]
   | Kinterface n   -> ["kind","interface";"name",xmlenc n]
   | Kenum n        -> ["kind","enum";"name",xmlenc n]
+  | Krecord n      -> ["kind","record";"name",xmlenc n]
   | Kannotation n  -> ["kind","annotation";"name",xmlenc n]
   | Kfield n       -> ["kind","field";"name",xmlenc n]
   | Kconstructor n -> ["kind","constructor";"name",xmlenc n]
@@ -1784,6 +1817,7 @@ let kind_to_name_attrs = function
   | Kclass n
   | Kinterface n
   | Kenum n
+  | Krecord n
   | Kannotation n
   | Kfield n
   | Kconstructor n
@@ -1798,6 +1832,7 @@ let kind_to_name = function
   | Kclass n
   | Kinterface n
   | Kenum n
+  | Krecord n
   | Kannotation n
   | Kfield n
   | Kconstructor n
@@ -1812,15 +1847,16 @@ let kind_to_short_string = function
   | Kclass n       -> combo 0 [n]
   | Kinterface n   -> combo 1 [n]
   | Kenum n        -> combo 2 [n]
-  | Kannotation n  -> combo 3 [n]
-  | Kfield n       -> combo 4 [n]
-  | Kconstructor n -> combo 5 [n]
-  | Kmethod n      -> combo 6 [n]
-  | Kparameter n   -> combo 7 [n]
-  | Klocal n       -> combo 8 [n]
-  | Kany           -> mkstr 9
-  | Kaspect n      -> combo 10 [n]
-  | Kpointcut n    -> combo 11 [n]
+  | Krecord n      -> combo 3 [n]
+  | Kannotation n  -> combo 4 [n]
+  | Kfield n       -> combo 5 [n]
+  | Kconstructor n -> combo 6 [n]
+  | Kmethod n      -> combo 7 [n]
+  | Kparameter n   -> combo 8 [n]
+  | Klocal n       -> combo 9 [n]
+  | Kany           -> mkstr 10
+  | Kaspect n      -> combo 11 [n]
+  | Kpointcut n    -> combo 12 [n]
 
 type t = (* Label *)
 (*    Dummy *)
@@ -1887,6 +1923,7 @@ type t = (* Label *)
   | Class of name
   | Enum of name
   | EnumConstant of name
+  | Record of name
   | Extends
   | Implements
   | ClassBody of name (* class name *)
@@ -1904,6 +1941,7 @@ type t = (* Label *)
   | IDsingleStatic of name * name
   | IDstaticOnDemand of name (* package name or type name *)
 
+(* *)
   | ImportDeclarations
   | TypeDeclarations
   | CompilationUnit
@@ -1948,6 +1986,10 @@ type t = (* Label *)
   | ClassnamePatternParen
   | ClassnamePatternName of name
   | ClassnamePatternNamePlus of name
+
+  | SwitchRule
+  | SRLconstant
+  | SRLdefault
 
 
 let rec to_string = function
@@ -2012,6 +2054,7 @@ let rec to_string = function
   | Class name                              -> sprintf "Class(%s)" name
   | Enum name                               -> sprintf "Enum(%s)" name
   | EnumConstant name                       -> sprintf "EnumConstant(%s)" name
+  | Record name                             -> sprintf "Record(%s)" name
   | Extends                                 -> "Extends"
   | Implements                              -> "Implements"
   | ClassBody name                          -> sprintf "ClassBody(%s)" name
@@ -2066,6 +2109,10 @@ let rec to_string = function
   | ClassnamePatternName name     -> sprintf "ClassnamePatternName(%s)" name
   | ClassnamePatternNamePlus name -> sprintf "ClassnamePatternNamePlus(%s)" name
 
+  | SwitchRule -> "SwitchRule"
+  | SRLconstant -> "SRLconstant"
+  | SRLdefault -> "SRLdefault"
+
 
 let anonymize ?(more=false) = function
   | Constructor(name, msig) when more     -> Constructor("", "")
@@ -2113,6 +2160,7 @@ let anonymize ?(more=false) = function
   | Class _                        -> Class ""
   | Enum _                         -> Enum ""
   | EnumConstant _                 -> EnumConstant ""
+  | Record _                       -> Record ""
   | ClassBody _                    -> ClassBody ""
   | EnumBody _                     -> EnumBody ""
   | Interface _                    -> Interface ""
@@ -2235,9 +2283,10 @@ let rec to_simple_string = function
   | Throws name                 -> "throws"
   | MethodBody(name, msig)      -> "<body>"
   | Specifier k                 -> "<spec:"^(kind_to_string k)^">"
-  | Class name                  -> name
-  | Enum name                   -> name
+  | Class name                  -> "class "^name
+  | Enum name                   -> "enum "^name
   | EnumConstant name           -> name
+  | Record name                 -> "record "^name
   | Extends                     -> "extends"
   | Implements                  -> "implements"
   | ClassBody name              -> "<body>"
@@ -2285,6 +2334,10 @@ let rec to_simple_string = function
   | ClassnamePatternParen         -> "()"
   | ClassnamePatternName name     -> name
   | ClassnamePatternNamePlus name -> name^"+"
+  | SwitchRule                    -> "<switch-rule>"
+  | SRLconstant                   -> "<sw-label>"
+  | SRLdefault                    -> "default"
+
 
 let rec to_short_string ?(ignore_identifiers_flag=false) =
   let combo = combo ~ignore_identifiers_flag in function
@@ -2397,6 +2450,12 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 105 [string_of_int sz; h]
 
+  | SwitchRule -> mkstr 106
+  | SRLconstant -> mkstr 107
+  | SRLdefault -> mkstr 107
+  | Record name -> combo 108 [name]
+
+
 let sig_attr_name = "___signature"
 
 let to_tag ?(strip=false) l =
@@ -2479,6 +2538,7 @@ let to_tag ?(strip=false) l =
     | Class name                  -> "ClassDeclaration", ["name",xmlenc name]
     | Enum name                   -> "EnumDeclaration", ["name",xmlenc name]
     | EnumConstant name           -> "EnumConstant", ["name",xmlenc name]
+    | Record name                 -> "RecordDeclaration", ["name",xmlenc name]
     | Extends                     -> "Extends", []
     | Implements                  -> "Implements", []
     | ClassBody name              -> "ClassBody", ["name",xmlenc name]
@@ -2550,6 +2610,9 @@ let to_tag ?(strip=false) l =
     | ClassnamePatternParen         -> "ClassnamePatternParen", []
     | ClassnamePatternName name     -> "ClassnamePatternName", ["name",xmlenc name]
     | ClassnamePatternNamePlus name -> "ClassnamePatternNamePlus", ["name",xmlenc name]
+    | SwitchRule                    -> "SwitchRule", []
+    | SRLconstant                   -> "ConstantRuleLabel", []
+    | SRLdefault                    -> "DefaultRuleLabel", []
 
   in
   name, attrs
@@ -2661,6 +2724,10 @@ let to_char lab =
     | ClassnamePatternName name     -> 107
     | ClassnamePatternNamePlus name -> 108
     | HugeExpr _ -> 109
+    | SwitchRule -> 110
+    | SRLconstant -> 111
+    | SRLdefault -> 112
+    | Record name -> 113
   in
   char_pool.(to_index lab)
 
@@ -3014,6 +3081,7 @@ let is_named = function
   | Class _
   | Enum _
   | EnumConstant _
+  | Record _
   | ClassBody _
   | EnumBody _
   | Interface _
@@ -3058,6 +3126,7 @@ let is_named_orig = function
   | Class _
   | Enum _
   | EnumConstant _
+  | Record _
   | Interface _ 
   | Specifier _
   | AnnotationType _
@@ -3288,6 +3357,10 @@ let is_enumconstant = function
   | EnumConstant _ -> true
   | _ -> false
 
+let is_record = function
+  | Record _ -> true
+  | _ -> false
+
 let is_typedeclaration = function
   | Class _ | Interface _ | Enum _ | AnnotationType _ -> true
   | _ -> false
@@ -3370,8 +3443,16 @@ let is_switchblockstmtgroup = function
   | SwitchBlockStatementGroup -> true
   | _ -> false
 
+let is_switchrule = function
+  | SwitchRule -> true
+  | _ -> false
+
 let is_switchlabel = function
   | SLconstant | SLdefault -> true
+  | _ -> false
+
+let is_switchrulelabel = function
+  | SRLconstant | SRLdefault -> true
   | _ -> false
 
 let is_arrayinitializer = function
@@ -3393,6 +3474,10 @@ let is_literal = function
 
 let is_string_literal = function
   | Primary (Primary.Literal (Literal.String _)) -> true
+  | _ -> false
+
+let is_text_block = function
+  | Primary (Primary.Literal (Literal.TextBlock _)) -> true
   | _ -> false
 
 let is_int_literal = function
@@ -3781,6 +3866,7 @@ let get_name lab =
     | Class name
     | Enum name
     | EnumConstant name
+    | Record name
     | ClassBody name
     | EnumBody name
     | Interface name
@@ -3913,6 +3999,7 @@ let find_kind a =
     | "class" -> Kclass n
     | "interface" -> Kinterface n
     | "enum" -> Kenum n
+    | "record" -> Krecord n
     | "annotation" -> Kannotation n
     | "field" -> Kfield n
     | "constructor" -> Kconstructor n
@@ -3981,6 +4068,7 @@ let of_elem_data =
     "False",                (fun a -> mklit a Literal.False);
     "CharacterLiteral",     (fun a -> mklit a (Literal.Character(Scanf.unescaped(find_value a))));
     "StringLiteral",        (fun a -> mklit a (Literal.String(Scanf.unescaped(find_value a))));
+    "TextBlockLiteral",     (fun a -> mklit a (Literal.TextBlock(Scanf.unescaped(find_value a))));
     "NullLiteral",          (fun a -> mklit a Literal.Null);
 
     "Assign",        (fun a -> mkaop a AssignmentOperator.Eq);
@@ -4070,6 +4158,7 @@ let of_elem_data =
     "Instanceof",  (fun a -> mke a Expression.Instanceof);
     "Cast",        (fun a -> mke a Expression.Cast);
     "Lambda",      (fun a -> mke a Expression.Lambda);
+    "Switch",      (fun a -> mke a Expression.Switch);
 
     "NormalAnnotation",        (fun a -> Annotation (Annotation.Normal(find_name a)));
     "MarkerAnnotation",        (fun a -> Annotation (Annotation.Marker(find_name a)));
@@ -4129,6 +4218,8 @@ let of_elem_data =
     "NameInvocation",            (fun a -> NameInvocation(find_name a));
     "ConstantLabel",             (fun a -> SLconstant);
     "DefaultLabel",              (fun a -> SLdefault);
+    "ConstantRuleLabel",         (fun a -> SRLconstant);
+    "DefaultRuleLabel",          (fun a -> SRLdefault);
     "ConditionalElementValue",   (fun a -> EVconditional);
     "AnnotationElementValue",    (fun a -> EVannotation);
     "ArrayInitElementValue",     (fun a -> EVarrayInit);
@@ -4148,6 +4239,7 @@ let of_elem_data =
     "ForUpdate",                 (fun a -> ForUpdate(find_tid a));
     "SwitchBlock",               (fun a -> SwitchBlock);
     "SwitchBlockStatementGroup", (fun a -> SwitchBlockStatementGroup);
+    "SwitchRule",                (fun a -> SwitchRule);
     "DimExpression",             (fun a -> DimExpr);
     "Arguments",                 (fun a -> Arguments);
     "Annotations",               (fun a -> Annotations);
@@ -4173,11 +4265,13 @@ let of_elem_data =
     "ClassSpecifier",            (fun a -> Specifier (Kclass(find_name a)));
     "InterfaceSpecifier",        (fun a -> Specifier (Kinterface(find_name a)));
     "EnumSpecifier",             (fun a -> Specifier (Kenum(find_name a)));
+    "RecordSpecifier",           (fun a -> Specifier (Krecord(find_name a)));
     "AnnotationSpecifier",       (fun a -> Specifier (Kannotation(find_name a)));
 
     "ClassDeclaration",          (fun a -> Class(find_name a));
     "EnumDeclaration",           (fun a -> Enum(find_name a));
     "EnumConstant",              (fun a -> EnumConstant(find_name a));
+    "RecordDeclaration",         (fun a -> Record(find_name a));
     "Extends",                   (fun a -> Extends);
     "Implements",                (fun a -> Implements);
     "ClassBody",                 (fun a -> ClassBody(find_name a));

@@ -111,7 +111,7 @@ let get_precedence_of_expression e =
   | Eprimary({ p_desc=PclassInstanceCreation _})
   | Eprimary({ p_desc=ParrayCreationExpression _})
   | Ecast _ -> 13
-  | Einstanceof _ -> 9
+  | Einstanceof _  | EinstanceofP _ -> 9
   | Econd _ -> 2
   | Eassignment _ -> 1
   | _ -> 0
@@ -359,6 +359,7 @@ let pr_literal lit =
     | Lfalse           -> "false"
     | Lcharacter s     -> "'"^s^"'"
     | Lstring s        -> "\""^s^"\""
+    | LtextBlock s     -> "\"\"\""^s^"\"\"\""
     | Lnull            -> "null")
 
 let pr_unary_operator op =
@@ -629,15 +630,24 @@ and pr_expression prec expr =
 
   | Einstanceof(e, ty) ->
       pr_expression prec' e; pr_string " instanceof "; pr_type ty
+
+  | EinstanceofP(e, lvd) ->
+      pr_expression prec' e; pr_string " instanceof "; pr_local_variable_declaration lvd
+
   | Econd(e1, e2, e3) ->
       pr_expression prec' e1; pr_string " ? ";
       pr_expression prec' e2; pr_string " : "; pr_expression prec' e3
+
   | Eassignment a -> pr_assignment a
 
   | Elambda(params, body) ->
       pr_lambda_params params;
       pr_string " -> ";
       pr_lambda_body prec' body
+
+  | Eswitch(e, sb) ->
+      pr_string "switch ("; pr_expression 0 e; pr_rparen();
+      pr_switch_block BSshort sb
 
   | Eerror s -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
@@ -734,7 +744,7 @@ and pr_statement sty s =
   | Sempty -> pr_semicolon()
   | Sexpression se -> pr_expression_statement se
   | Sswitch(e, sb) ->
-      pr_string "switch("; pr_expression 0 e; pr_rparen();
+      pr_string "switch ("; pr_expression 0 e; pr_rparen();
       pr_switch_block sty sb
   | Sdo(s, e) ->
       pr_string "do "; pr_statement sty s;
@@ -844,12 +854,13 @@ and pr_catches sty cs = pr_list pr_space (pr_catch_clause sty) cs
 
 and pr_switch_label sl =
   match sl.sl_desc with
-  | SLconstant ce -> pr_string "case "; pr_expression 0 ce; pr_colon()
+  | SLconstant el -> pr_string "case "; pr_list pr_comma (pr_expression 0) el; pr_colon()
   | SLdefault -> pr_string "default:"
 
 and pr_switch_block sty sb =
   pr_block_begin_short();
   pr_list pr_space (pr_switch_block_stmt_grp sty) sb.sb_switch_block_stmt_grps;
+  pr_list pr_space (pr_switch_rule sty) sb.sb_switch_rules;
   pr_block_end()
 
 and pr_switch_block_stmt_grp sty (sls, bss) =
@@ -859,6 +870,24 @@ and pr_switch_block_stmt_grp sty (sls, bss) =
   open_vbox 0;
   pr_list pr_space (pr_block_statement sty) bss;
   close_box();
+  close_box()
+
+and pr_switch_rule_label srl =
+  match srl.srl_desc with
+  | SLconstant el -> pr_string "case "; pr_list pr_comma (pr_expression 0) el; pr_string " ->"
+  | SLdefault -> pr_string "default ->"
+
+and pr_switch_rule_body sty srb =
+  match srb.srb_desc with
+  | SRBexpr e -> pr_expression 0 e; pr_semicolon()
+  | SRBblock b -> pr_block sty b
+  | SRBthrow t -> pr_statement sty t
+
+and pr_switch_rule sty (srl, srb) =
+  pr_switch_rule_label srl;
+  pr_break 1 indent;
+  open_vbox 0;
+  pr_switch_rule_body sty srb;
   close_box()
 
 and pr_local_variable_declaration_statement lvd =
@@ -1201,10 +1230,23 @@ and pr_class_declaration_head kind ch =
   pr_implements_op ch.ch_implements;
   close_box()
 
+and pr_record_declaration_head kind rh =
+  open_vbox 0;
+  open_box 0;
+  begin
+    match rh.rh_modifiers with None -> () | Some ms -> pr_modifiers ms; pr_space()
+  end;
+  pr_string (kind^" "); pr_id rh.rh_identifier;
+  pr_option pr_type_parameters rh.rh_type_parameters;
+  pr_lparen(); pr_formal_parameters rh.rh_record_header; pr_rparen();
+  pr_implements_op rh.rh_implements;
+  close_box()
+
 and pr_class_declaration cd =
   match cd.cd_desc with
   | CDclass(ch, body) -> pr_class_declaration_head "class" ch; pr_class_body body; close_box()
   | CDenum(eh, body)  -> pr_class_declaration_head "enum" eh; pr_enum_body body; close_box()
+  | CDrecord(rh, body) -> pr_record_declaration_head "record" rh; pr_class_body body; close_box()
   | CDaspect(ah, body) -> pr_class_declaration_head "aspect" ah; pr_aspect_body body; close_box()
 
 let pr_type_declaration td =

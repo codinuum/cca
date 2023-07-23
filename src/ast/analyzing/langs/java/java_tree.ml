@@ -642,15 +642,15 @@ class translator options =
       | Ast.TclassOrInterface tss
       | Ast.Tclass tss
       | Ast.Tinterface tss -> begin
-          let nds, ordinal_tbl_opt =
+          let take_children, nds, ordinal_tbl_opt =
             match tss with
-            | [] -> [], None
+            | [] -> false, [], None
             | [Ast.TSname(al, _)] ->
                 let ordinal_tbl_opt = Some (new ordinal_tbl [0; List.length al; 0]) in
-                (List.map self#of_annotation al), ordinal_tbl_opt
+                false, (List.map self#of_annotation al), ordinal_tbl_opt
             | _ -> begin
                 List.fold_left
-                  (fun (l, _) spec ->
+                  (fun (_, l, _) spec ->
                     let al, n, tas_opt =
                       match spec with
                       | Ast.TSname(al, n)       -> al, n, None
@@ -687,13 +687,14 @@ class translator options =
                     let lab = L.Type (L.Type.ClassOrInterface id) in
                     let nd = self#mknode ~orig_lab_opt ~ordinal_tbl_opt lab c in
                     set_loc nd loc;
-                    [nd], ordinal_tbl_opt
-                  ) ([], None) tss
+                    true, [nd], ordinal_tbl_opt
+                  ) (false, [], None) tss
             end
           in
-          match nds with
-          | [] -> [], None, None
-          | nd :: _ -> (Array.to_list nd#children), get_orig_lab_opt nd, ordinal_tbl_opt
+          match take_children, nds with
+          | _, [] -> [], None, None
+          | true, (nd :: _) -> (Array.to_list nd#children), get_orig_lab_opt nd, ordinal_tbl_opt
+          | false, nds -> nds, None, ordinal_tbl_opt
       end
       | Ast.Tarray(t, dims) -> begin
           let children, _lab_opt, ordinal_tbl_opt = get_children t.Ast.ty_desc in
@@ -717,6 +718,7 @@ class translator options =
     in
     let nd = self#mknode ~orig_lab_opt ~ordinal_tbl_opt (L.of_javatype ty) children in
     set_loc nd ty.Ast.ty_loc;
+    DEBUG_MSG "!!! %s" nd#to_string;
     nd
 
 
@@ -1691,11 +1693,19 @@ class translator options =
           self#mknode (L.Expression L.Expression.Instanceof)
             [self#of_expression expr; self#of_javatype 0 ty]
 
+      | Ast.EinstanceofP(expr, lvd) ->
+          self#mknode (L.Expression L.Expression.Instanceof)
+            ((self#of_expression expr)::(self#of_local_variable_declaration ~is_stmt:false lvd))
+
       | Ast.Econd(expr1, expr2, expr3) ->
           self#mknode (L.Expression L.Expression.Cond)
             [self#of_expression expr1; self#of_expression expr2; self#of_expression expr3]
 
       | Ast.Eassignment assignment -> self#of_assignment ~is_stmt assignment
+
+      | Ast.Eswitch(e, switch_block) ->
+          self#mknode (L.Expression L.Expression.Switch)
+            [self#of_expression e; self#of_switch_block switch_block]
 
       | Ast.Elambda(params, body) ->
           self#mknode (L.Expression L.Expression.Lambda)
@@ -1761,8 +1771,7 @@ class translator options =
   method of_switch_label sl =
     let nd =
       match sl.Ast.sl_desc with
-      | Ast.SLconstant const_expr ->
-          self#mknode L.SLconstant [self#of_expression const_expr]
+      | Ast.SLconstant el -> self#mknode L.SLconstant (List.map self#of_expression el)
       | Ast.SLdefault -> self#mkleaf L.SLdefault
     in
     set_loc nd sl.Ast.sl_loc;
@@ -1777,6 +1786,31 @@ class translator options =
       (List.flatten (List.map self#of_block_statement bss))
     in
     let nd = self#mknode ~ordinal_tbl_opt L.SwitchBlockStatementGroup children in
+    set_nodes_loc nd children;
+    nd
+
+  method of_switch_rule_label srl =
+    let nd =
+      match srl.Ast.srl_desc with
+      | Ast.SLconstant el -> self#mknode L.SRLconstant (List.map self#of_expression el)
+      | Ast.SLdefault -> self#mkleaf L.SRLdefault
+    in
+    set_loc nd srl.Ast.srl_loc;
+    nd
+
+  method of_switch_rule_body srb =
+    let nd =
+      match srb.Ast.srb_desc with
+      | Ast.SRBexpr e -> self#of_expression e
+      | Ast.SRBblock b -> self#of_block ~tid:(self#__mktid "switch-rule") b
+      | Ast.SRBthrow t -> self#of_statement t
+    in
+    set_loc nd srb.Ast.srb_loc;
+    nd
+
+  method of_switch_rule (srl, srb) =
+    let children = [self#of_switch_rule_label srl; self#of_switch_rule_body srb] in
+    let nd = self#mknode L.SwitchRule children in
     set_nodes_loc nd children;
     nd
 
@@ -1860,9 +1894,8 @@ class translator options =
   method of_switch_block sb =
     let nd =
       self#mknode (L.SwitchBlock)
-        (List.map
-           self#of_switch_block_statement_group
-           sb.Ast.sb_switch_block_stmt_grps)
+        ((List.map self#of_switch_block_statement_group sb.Ast.sb_switch_block_stmt_grps) @
+         (List.map self#of_switch_rule sb.Ast.sb_switch_rules))
     in
     set_loc nd sb.Ast.sb_loc;
     nd
@@ -2630,6 +2663,15 @@ class translator options =
     let children = mod_nodes @ ta_nodes @ ex_nodes @ im_nodes in
     self#make_specifier_node kind children otbl h.Ast.ch_loc
 
+  method of_record_declaration_head ?(interface=false) kind otbl h =
+    let ident = h.Ast.rh_identifier in
+    let mod_nodes = self#of_modifiers_opt ~interface kind (*ident*) h.Ast.rh_modifiers in
+    let ta_nodes = self#of_type_parameters_opt ident h.Ast.rh_type_parameters in
+    let h_nodes = List.map self#of_parameter h.Ast.rh_record_header in
+    let im_nodes = self#of_implements_opt h.Ast.rh_implements in
+    let children = mod_nodes @ ta_nodes @ h_nodes @ im_nodes in
+    self#make_specifier_node kind children otbl h.Ast.rh_loc
+
   method of_class_declaration ?(interface=false) is_top cd =
     let nd =
       match cd.Ast.cd_desc with
@@ -2676,6 +2718,19 @@ class translator options =
           in
           let children = specifier_node @ [body_node] in
           self#mknode (L.Enum ident) children
+
+      | Ast.CDrecord(h, body) ->
+          let otbl =
+            [if h.Ast.rh_modifiers <> None then 1 else 0;
+             if h.Ast.rh_type_parameters <> None then 1 else 0;
+             List.length h.Ast.rh_record_header;
+             if h.Ast.rh_implements <> None then 1 else 0;
+           ]
+          in
+          let ident = h.Ast.rh_identifier in
+          let specifier_node = self#of_record_declaration_head ~interface (L.Krecord ident) otbl h in
+          let children = specifier_node @ [self#of_class_body ident body] in
+          self#mknode (L.Record ident) children
 
       | Ast.CDaspect(h, body) ->
           let otbl =

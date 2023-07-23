@@ -97,6 +97,23 @@ let find_keyword =
      "volatile",     (fun l -> VOLATILE l);
      "while",        (fun l -> WHILE l);
 
+     (* "exports", (fun l -> EXPORTS l); *)
+     (* "module", (fun l -> MODULE l); *)
+     (* "non-sealed", (fun l -> NON_SEALED l); *)
+     (* "open", (fun l -> OPEN l); *)
+     (* "opens", (fun l -> OPENS l); *)
+     (* "permits", (fun l -> PERMITS l); *)
+     (* "provides", (fun l -> PROVIDES l); *)
+     "record", (fun l -> RECORD l);
+     (* "requires", (fun l -> REQUIRES l); *)
+     (* "sealed", (fun l -> SEALED l); *)
+     (* "to", (fun l -> TO l); *)
+     (* "transitive", (fun l -> TRANSITIVE l); *)
+     (* "uses", (fun l -> USES l); *)
+     (* "var", (fun l -> VAR l); *)
+     (* "with", (fun l -> WITH l); *)
+     (* "yield", (fun l -> YIELD l); *)
+
      "aspect",       (fun l -> ASPECT l);
      "pointcut",     (fun l -> POINTCUT l);
      "within",       (fun l -> WITHIN l);
@@ -213,6 +230,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
     unicode_escape | [^'\013' '\010' '"' '\\'] | escape_sequence
   let regexp string_literal = '"' string_character* '"'
 
+  let regexp text_block_quote = "\"\"\""
+  let regexp text_block_item = [^'\\']
+
   let regexp null_literal = "null"
 
   let regexp literal = integer_literal | floating_point_literal | boolean_literal
@@ -239,6 +259,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
   |   "/**" ->
       document_comment (Ulexing.lexeme_start lexbuf) lexbuf;
       token lexbuf
+
+  |   text_block_quote -> text_block (Ulexing.utf8_lexeme lexbuf) lexbuf
 
   |   "true"  -> mktok TRUE lexbuf
   |   "false" -> mktok FALSE lexbuf
@@ -344,6 +366,28 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
 	
 
+  and text_block s = lexer
+  |   text_block_quote -> mktok (TEXT_BLOCK (s^(Ulexing.utf8_lexeme lexbuf))) lexbuf
+  |   _ -> text_block (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
+(*  |   text_block_item -> text_block (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
+  |   _ ->
+      let s0 = Ulexing.utf8_lexeme lexbuf in
+      let mes = Printf.sprintf "invalid symbol: %s(%s)" s0
+          (Seq.fold_left
+             (fun h c ->
+               h^(Printf.sprintf "%02x" (Char.code c))
+             ) "0x" (String.to_seq s0)
+          )
+      in
+      if env#keep_going_flag then begin
+        let loc = offsets_to_loc (Ulexing.lexeme_start lexbuf) (Ulexing.lexeme_end lexbuf) in
+        Common.warning_loc loc "%s" mes;
+        (*mktok (ERROR mes) lexbuf*)
+        text_block s lexbuf
+      end
+      else
+        lexing_error lexbuf mes*)
+
   and traditional_comment st = lexer
   |   "*/" -> env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st (Ulexing.lexeme_end lexbuf))
   |   _ -> traditional_comment st lexbuf
@@ -361,14 +405,17 @@ module F (Stat : Parser_aux.STATE_T) = struct
   |   _ -> marker st (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 
-  let set_to_JLS2 loc kw =
-    match env#java_lang_spec with
-    | Common.JLSx ->
-	Common.warning_loc loc "'%s' occurred as an identifier, assuming JLS2..." kw;
-	env#set_java_lang_spec_JLS2
-    | Common.JLS3 ->
-        Aux.parse_error_loc loc "'%s' identifier is not available in JLS3" kw
-    | Common.JLS2 -> ()
+  let set_to_JLS lv loc kw =
+    match env#actual_java_lang_spec with
+    | Common.JLSnone -> begin
+	Common.warning_loc loc "'%s' occurred as an identifier (JLS%d or before)" kw lv;
+	env#set_actual_java_lang_spec lv
+    end
+    | Common.JLS x when lv > x -> begin
+	Common.warning_loc loc "'%s' occurred as an identifier (JLS%d or before)" kw lv;
+	env#set_actual_java_lang_spec lv
+    end
+    | _ -> ()
 
 
   module P = Parser.Make (Stat)
@@ -403,6 +450,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let tok, st, ed = Token.decompose t in
     match tok with
     | ENUM loc
+    | RECORD loc
     | ASSERT loc
     | ASPECT loc | POINTCUT loc | WITHIN loc | DECLARE loc
       -> Token.create (IDENTIFIER(loc, name)) st ed
@@ -469,8 +517,19 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | IDENTIFIER _, (IMPLEMENTS _ | LBRACE) -> t
           | _ -> begin
               DEBUG_MSG "ENUM --> <identifier>";
-              set_to_JLS2 loc "enum";
+              set_to_JLS 2 loc "enum";
               kw_to_ident "enum" t
+          end
+      end
+      | RECORD loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (LT _ | LPAREN _) -> t
+          | _ -> begin
+              DEBUG_MSG "RECORD --> <identifier>";
+              set_to_JLS 15 loc "record";
+              kw_to_ident "record" t
           end
       end
       | DEFAULT loc -> begin
@@ -482,6 +541,11 @@ module F (Stat : Parser_aux.STATE_T) = struct
               Token.create (DEFAULT__COLON loc) st ed
           end
           | _ -> t
+      end
+      | MINUS_GT when env#case_flag -> begin
+          DEBUG_MSG "MINUS_GT --> MINUS_GT__CASE";
+          let st, ed = Token.to_lexposs t in
+          Token.create MINUS_GT__CASE st ed
       end
       | AT loc -> begin
           let _, tok2 = peek_nth 1 in
@@ -737,7 +801,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           end
           | _ -> begin
               DEBUG_MSG "ASSERT --> <identifier>";
-              set_to_JLS2 loc "assert";
+              set_to_JLS 2 loc "assert";
               kw_to_ident "assert" res
           end
       end

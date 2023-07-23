@@ -18,9 +18,10 @@
 module PB = Parserlib_base
 
 type java_language_specification =
-  | JLSx
-  | JLS2
-  | JLS3
+  | JLSnone
+  | JLS of int
+
+let default_java_lang_spec = JLS 8
 
 exception Internal_error of string
 

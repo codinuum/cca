@@ -126,6 +126,7 @@ let get_prec_of_expression = function
   | L.Expression.Instanceof -> 10
   | L.Expression.Cond -> 3
   | L.Expression.Lambda -> 0
+  | L.Expression.Switch -> 0
 
 let get_prec = function
   | L.Primary p    -> get_prec_of_primary p
@@ -298,6 +299,19 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error L.is_implements specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_enumbody children;
+      pb#close_box()
+
+  | L.Record i ->
+      let specs = get_specs children in
+      pb#open_vbox 0;
+      pb#open_box 0;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
+      pr_string "class "; pr_id i;
+      pr_selected ~fail_on_error L.is_typeparameters specs;
+      pr_parameters ~fail_on_error children;
+      pr_selected ~fail_on_error L.is_implements specs;
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_classbody children;
       pb#close_box()
 
   | L.Interface i ->
@@ -680,12 +694,18 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end;
       pr_nth_child 1
 
-  | L.SLconstant -> pr_string "case "; pr_nth_child 0; pr_string ":"
+  | L.SLconstant ->
+      pr_string "case "; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string ":"
   | L.SLdefault -> pr_string "default:"
+
+  | L.SRLconstant ->
+      pr_string "case "; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string " ->"
+  | L.SRLdefault -> pr_string "default ->"
 
   | L.SwitchBlock ->
       pb#pr_block_begin_short();
       pr_selected ~fail_on_error ~blk_style ~sep:pr_space L.is_switchblockstmtgroup children;
+      pr_selected ~fail_on_error ~blk_style ~sep:pr_space L.is_switchrule children;
       pb#pr_block_end()
 
   | L.SwitchBlockStatementGroup ->
@@ -694,6 +714,17 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#open_vbox 0;
       pr_selected ~fail_on_error ~sep:pr_space
         (fun lab -> L.is_block lab || L.is_blockstatement lab)
+        children;
+      pb#close_box();
+      pb#close_box()
+
+  | L.SwitchRule ->
+      pb#open_vbox 0;
+      pr_selected ~fail_on_error ~sep:pr_space L.is_switchrulelabel children; pr_break 1 pb#indent;
+      pb#open_vbox 0;
+      pr_selected ~fail_on_error ~sep:pr_space ~tail:pr_semicolon L.is_expression children;
+      pr_selected ~fail_on_error ~sep:pr_space
+        (fun lab -> L.is_block lab || L.is_statement lab)
         children;
       pb#close_box();
       pb#close_box()
@@ -1009,6 +1040,7 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
         | L.Literal.False           -> "false"
         | L.Literal.Character c     -> "'"^c^"'"
         | L.Literal.String s        -> "\""^s^"\""
+        | L.Literal.TextBlock s     -> "\"\"\""^s^"\"\"\""
         | L.Literal.Null            -> "null"
       in
       pr_string s
@@ -1256,6 +1288,20 @@ and pr_expression ?(fail_on_error=true) ?(prec=0) e children =
         | _ -> pr_string error_symbol
       end;
       pr_string " -> "; pr_nth_child 1
+  end
+
+  | L.Expression.Switch -> begin
+      pr_string "switch ("; pr_nth_child 0; pr_rparen();
+      begin
+        try
+          if L.is_switchblock (getlab (children.(1))) then
+            pad 1
+          else
+            pr_break 1 pb#indent;
+        with
+          _ -> pad 1
+      end;
+      pr_nth_child 1
   end
 
 

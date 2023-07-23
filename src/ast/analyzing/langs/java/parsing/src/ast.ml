@@ -352,6 +352,7 @@ type literal =
   | Lfalse
   | Lcharacter of string
   | Lstring of string
+  | LtextBlock of string
   | Lnull
 
 type assignment_operator = { ao_desc : assignment_operator_desc; ao_loc : loc; }
@@ -490,11 +491,21 @@ and class_declaration_head = {
     ch_loc             : loc;
   }
 
+and record_declaration_head = {
+    rh_modifiers       : modifiers option;
+    rh_identifier      : identifier;
+    rh_type_parameters : type_parameters option;
+    rh_record_header   : formal_parameter list;
+    rh_implements      : implements option;
+    rh_loc             : loc;
+  }
+
 and class_declaration = { cd_desc : class_declaration_desc; cd_loc : loc; }
 
 and class_declaration_desc =
   | CDclass of class_declaration_head * class_body
   | CDenum  of class_declaration_head * enum_body
+  | CDrecord of record_declaration_head * class_body
   | CDaspect of class_declaration_head * aspect_body
 
 and type_parameters = { tps_type_parameters : type_parameter list;
@@ -856,9 +867,11 @@ and expression_desc =
   | Ebinary of binary_operator * expression * expression
   | Ecast of javatype * expression
   | Einstanceof of expression * javatype
+  | EinstanceofP of expression * local_variable_declaration
   | Econd of expression * expression * expression
   | Eassignment of assignment
   | Elambda of lambda_params * lambda_body
+  | Eswitch of expression * switch_block
   | Eerror of string
 
 and lambda_params = { lp_desc : lambda_params_desc; lp_loc : loc; }
@@ -893,14 +906,25 @@ and left_hand_side = expression
 and constant_expression = expression (* where ... *)
 
 and switch_label_desc =
-  | SLconstant of constant_expression
+  | SLconstant of constant_expression list
   | SLdefault
 
 and switch_label = { sl_desc : switch_label_desc; sl_loc : loc; }
 
-and switch_block_stmt_grp = (switch_label list * block_statement list)
+and switch_block_stmt_grp = switch_label list * block_statement list
+
+and switch_rule_label = { srl_desc : switch_label_desc; srl_loc : loc; }
+
+and switch_rule = switch_rule_label * switch_rule_body
+
+and switch_rule_body = { srb_desc : switch_rule_body_desc; srb_loc : loc; }
+and switch_rule_body_desc =
+  | SRBexpr of expression
+  | SRBblock of block
+  | SRBthrow of statement
 
 and switch_block = { sb_switch_block_stmt_grps : switch_block_stmt_grp list;
+                     sb_switch_rules           : switch_rule list;
                      sb_loc                    : loc;
                    }
 
@@ -1010,9 +1034,18 @@ and proc_expression f e =
   | Ebinary(_, e0, e1) -> List.iter (proc_expression f) [e0; e1]
   | Ecast(ty, e0) -> proc_type f ty; proc_expression f e0
   | Einstanceof(e0, ty) -> proc_expression f e0; proc_type f ty
+  | EinstanceofP(e0, lvd) -> proc_expression f e0; proc_local_variable_declaration f lvd
   | Econd(e0, e1, e2) -> List.iter (proc_expression f) [e0; e1; e2]
   | Eassignment(lhs, _, rhs) -> List.iter (proc_expression f) [lhs; rhs]
   | Elambda(_, b) -> proc_lambda_block f b
+  | Eswitch(e, swb) -> begin
+      proc_expression f e;
+      List.iter
+        (fun (sls, bss) ->
+          List.iter (proc_switch_label f) sls;
+          List.iter (proc_block_statement f) bss)
+        swb.sb_switch_block_stmt_grps
+  end
   | _ -> ()
 
 and proc_lambda_block f = function
@@ -1152,7 +1185,7 @@ and proc_statement_expression f se =
 
 and proc_switch_label f sl =
   match sl.sl_desc with
-  | SLconstant e -> proc_expression f e
+  | SLconstant el -> List.iter (proc_expression f) el
   | SLdefault -> ()
 
 and proc_statement f s =
@@ -1243,6 +1276,12 @@ and proc_class_declaration_head f ch =
   proc_op proc_extends_class f ch.ch_extends_class;
   proc_op proc_implements f ch.ch_implements
 
+and proc_record_declaration_head f rh =
+  proc_op proc_modifiers f rh.rh_modifiers;
+  proc_op proc_type_parameters f rh.rh_type_parameters;
+  List.iter (proc_formal_parameter f) rh.rh_record_header;
+  proc_op proc_implements f rh.rh_implements
+
 and proc_class_declaration f cd =
   match cd.cd_desc with
   | CDclass(ch, cb) ->
@@ -1251,6 +1290,9 @@ and proc_class_declaration f cd =
   | CDenum(eh, eb) ->
       proc_class_declaration_head f eh;
       proc_enum_body f eb
+  | CDrecord(rh, cb) ->
+      proc_record_declaration_head f rh;
+      proc_class_body f cb
   | CDaspect(ah, ab) ->
       proc_class_declaration_head f ah;
       proc_aspect_body f ab

@@ -22,6 +22,7 @@ module Aux = Parser_aux
 class parser_c = object (self)
   inherit [Tokens_.token, Ast.c] PB.sb_c (new Aux.env) as super
 
+  val mutable java_lang_spec = 8
   val mutable keep_going_flag = true
   val mutable rely_on_naming_convention_flag = false
   val mutable partial_name_resolution_flag = false
@@ -31,6 +32,14 @@ class parser_c = object (self)
   val mutable _parse      = fun () -> Obj.magic ()
 
   val mutable rollback_record = [] (* (error_state_num * rawtoken) list *)
+
+  method set_java_lang_spec lv =
+    if lv = 2 || lv = 3 || lv > 6 then begin
+      java_lang_spec <- lv;
+      env#set_java_lang_spec lv
+    end
+    else
+      invalid_arg "Java.Lib.parser_c#set_java_lang_spec"
 
   method _set_keep_going_flag b =
     keep_going_flag <- b;
@@ -657,6 +666,23 @@ class parser_c = object (self)
 
             | I.X (I.N N_class_declaration_head0), _, I.X (I.T T_CLASS) -> begin
                 env#set_class_flag;
+                raise Exit
+            end
+
+            | I.X (I.N N_switch_label), _, I.X (I.T T_CASE) -> begin
+                env#set_case_flag;
+                raise Exit
+            end
+            | I.X (I.N N_switch_rule_label), _, I.X (I.T T_CASE) -> begin
+                env#set_case_flag;
+                raise Exit
+            end
+            | I.X (I.N N_switch_label), _, I.X (I.T T_COLON) -> begin
+                env#clear_case_flag;
+                raise Exit
+            end
+            | I.X (I.N N_switch_rule_label), _, I.X (I.T T_MINUS_GT__CASE) -> begin
+                env#clear_case_flag;
                 raise Exit
             end
 

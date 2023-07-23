@@ -35,11 +35,13 @@ open Stat
 
 %token EOF
 
+(* Literals *)
 %token <Ast.Loc.t * string> IDENTIFIER
 %token <string> INTEGER_LITERAL
 %token <string> FLOATING_POINT_LITERAL
 %token <string> CHARACTER_LITERAL
 %token <string> STRING_LITERAL
+%token <string> TEXT_BLOCK
 %token TRUE FALSE NULL
 
 (* Separators *)
@@ -53,7 +55,7 @@ open Stat
 %token EQ_EQ LT_EQ GT_EQ EXCLAM_EQ AND_AND OR_OR PLUS_PLUS MINUS_MINUS
 %token PLUS MINUS STAR SLASH AND OR HAT PERCENT LT_LT GT_GT GT_GT_GT
 %token PLUS_EQ MINUS_EQ STAR_EQ SLASH_EQ AND_EQ OR_EQ HAT_EQ PERCENT_EQ 
-%token LT_LT_EQ GT_GT_EQ GT_GT_GT_EQ MINUS_GT
+%token LT_LT_EQ GT_GT_EQ GT_GT_GT_EQ MINUS_GT MINUS_GT__CASE
 
 (* Keywords *)
 %token <Ast.Loc.t> ABSTRACT ASSERT BOOLEAN BREAK BYTE 
@@ -65,15 +67,21 @@ open Stat
 %token <Ast.Loc.t> SHORT STATIC STRICTFP SUPER SWITCH SYNCHRONIZED
 %token <Ast.Loc.t> THIS THROW THROWS TRANSIENT TRY VOLATILE VOID WHILE
 
+(* Contextual Keywords *)
+%token <Ast.Loc.t> EXPORTS MODULE NON_SEALED OPEN OPENS PERMITS PROVIDES RECORD REQUIRES
+%token <Ast.Loc.t> SEALED TO TRANSITIVE USES VAR WITH_ YIELD
+
 (* AspectJ *)
 %token <Ast.Loc.t> ASPECT POINTCUT WITHIN DECLARE
 %token DOT_DOT
 
+(* *)
 %token <Ast.statement> STMT
 %token <Ast.block_statement> BLOCK_STMT
 %token <string> MARKER ERROR ERROR_STMT ERROR_MOD
 %token GT_7
 %token EOP
+
 
 %start main
 %start partial_assert_statement
@@ -105,7 +113,25 @@ clist0(X):
 reserved:
 | GOTO  { }
 | CONST { }
+
 | GT_7 { }
+
+| EXPORTS { }
+| MODULE { }
+| NON_SEALED { }
+| OPEN { }
+| OPENS { }
+| PERMITS { }
+| PROVIDES { }
+| RECORD { }
+| REQUIRES { }
+| SEALED { }
+| TO { }
+| TRANSITIVE { }
+| USES { }
+| VAR { }
+| WITH_ { }
+| YIELD { }
 ;
 
 partial_block_statement:
@@ -128,6 +154,15 @@ literal:
 | FALSE                    { Lfalse }
 | c=CHARACTER_LITERAL      { Lcharacter(String.sub c 1 ((String.length c) - 2)) }
 | s=STRING_LITERAL         { env#incr_nstrings(); Lstring(String.sub s 1 ((String.length s) - 2)) }
+| s=TEXT_BLOCK
+    { 
+      check_JLS_level 15
+        (fun () ->
+          env#incr_nstrings();
+          LtextBlock(String.sub s 3 ((String.length s) - 6))
+        )
+        (fun () -> parse_error $startofs $endofs "text-block is available since JLS15")
+    }
 | NULL                     { Lnull }
 ;
 
@@ -659,6 +694,7 @@ static_type_import_on_demand_declaration:
 type_declaration: 
 | c=class_declaration     { mktd $startofs $endofs (TDclass c) }
 | e=enum_declaration      { mktd $startofs $endofs (TDclass e) }
+| r=record_declaration    { mktd $startofs $endofs (TDclass r) } (* JLS16 *)
 | i=interface_declaration { mktd $startofs $endofs (TDinterface i) }
 | SEMICOLON               { mktd $startofs $endofs TDempty }
 | a=aspect_declaration    { mktd $startofs $endofs (TDclass a) }
@@ -775,6 +811,50 @@ element_value_comma:
 | e=element_value COMMA { e }
 ;
 
+record_declaration_head0:
+| m_opt=modifiers_opt RECORD i=identifier
+    { 
+      let _, id = i in
+      let fqn = mkfqn_cls id in
+      register_identifier_as_class fqn id;
+      begin_scope ~kind:(FKclass(id, ref false)) ();
+      m_opt, id
+    }
+;
+record_declaration_head1:
+| rh=record_declaration_head0 ts_opt=type_parameters_opt { rh, ts_opt }
+;
+record_header:
+| LPAREN                            RPAREN { [] }
+(*| LPAREN rl=clist(record_component) RPAREN { rl }*)
+| LPAREN rl=clist(formal_parameter) RPAREN { rl }
+;
+(*record_component:
+| ms=annotations0 t=unann_type                       i=identifier { }
+| ms=annotations0 t=unann_type              ELLIPSIS i=identifier { }
+| ms=annotations0 t=unann_type a=annotation ELLIPSIS i=identifier { }
+;*)
+record_declaration_head:
+| rh1=record_declaration_head1 h=record_header i_opt=interfaces_opt
+    { 
+      let rh0, ts_opt = rh1 in
+      end_typeparameter_scope ts_opt;
+      let ms_opt, id = rh0 in
+      begin
+        match ms_opt with
+        | Some ms when has_user_defined_annotation ms -> env#set_has_super()
+        | _ -> ()
+      end;
+      mkrh $startofs $endofs ms_opt id ts_opt h i_opt
+    }
+;
+record_declaration:
+| rh=record_declaration_head b=class_body
+    { 
+      mkcd $startofs $endofs (CDrecord(rh, b))
+    }
+;
+
 class_declaration_head0:
 | m_opt=modifiers_opt CLASS i=identifier 
     { 
@@ -869,6 +949,7 @@ class_member_declaration:
 | m=method_declaration    { m }
 | c=class_declaration     { mkcbd $startofs $endofs (CBDclass c) }
 | e=enum_declaration      { mkcbd $startofs $endofs (CBDclass e) }
+| r=record_declaration    { mkcbd $startofs $endofs (CBDclass r) } (* JLS16 *)
 | i=interface_declaration { mkcbd $startofs $endofs (CBDinterface i) }
 | SEMICOLON               { mkcbd $startofs $endofs CBDempty }
 | s=MARKER                { mkerrcbd $startofs $endofs s }
@@ -879,14 +960,13 @@ enum_declaration_head0:
 | m_opt=modifiers_opt ENUM i=IDENTIFIER
     { 
       let _, id = i in
-      match env#java_lang_spec with
-      | Common.JLS3 | Common.JLSx ->
-          env#set_java_lang_spec_JLS3;
+      check_JLS_level 3
+        (fun () ->
           register_identifier_as_class (mkfqn_cls id) id;
           begin_scope ~kind:(FKclass(id, ref false)) ();
           m_opt, id
-      | Common.JLS2 ->
-          parse_error $symbolstartofs $endofs "'enum' declaration is not available in JLS2"
+        )
+        (fun () -> parse_error $symbolstartofs $endofs "'enum' declaration is available since JLS3")
     }
 ;
 enum_declaration_head:
@@ -1664,10 +1744,37 @@ switch_statement:
 ;
 
 switch_block:
-| LBRACE                                                 RBRACE { mksb $startofs $endofs [] }
-| LBRACE                                 s=switch_labels RBRACE { mksb $startofs $endofs [(s, [])] }
-| LBRACE g=switch_block_statement_groups                 RBRACE { mksb $startofs $endofs (List.rev g) }
-| LBRACE g=switch_block_statement_groups s=switch_labels RBRACE { mksb $startofs $endofs (List.rev ((s, [])::g)) }
+| LBRACE                                                 RBRACE { mksb $startofs $endofs [] [] }
+| LBRACE                                 s=switch_labels RBRACE { mksb $startofs $endofs [(s, [])] [] }
+| LBRACE g=switch_block_statement_groups                 RBRACE { mksb $startofs $endofs (List.rev g) [] }
+| LBRACE g=switch_block_statement_groups s=switch_labels RBRACE { mksb $startofs $endofs (List.rev ((s, [])::g)) [] }
+| LBRACE r=switch_rules RBRACE { mksb $startofs $endofs [] (List.rev r) } (* JLS14 *)
+;
+
+switch_rules:
+|                 r=switch_rule { [r] }
+| rs=switch_rules r=switch_rule { r :: rs }
+;
+
+switch_rule_label:
+| CASE cl=clist(constant_expression) MINUS_GT__CASE
+    { 
+      check_JLS_level 14
+        (fun () -> mksrl $startofs $endofs (SLconstant cl))
+        (fun () -> parse_error $startofs $endofs "switch-rule is available since JLS14")
+    }
+| DEFAULT MINUS_GT
+    { 
+      check_JLS_level 14
+        (fun () -> mksrl $startofs $endofs SLdefault)
+        (fun () -> parse_error $startofs $endofs "switch-rule is available since JLS14")
+    }
+;
+
+switch_rule:
+| s=switch_rule_label e=expression SEMICOLON { s, mksrb $startofs(e) $endofs (SRBexpr e) }
+| s=switch_rule_label b=block { s, mksrb $startofs(b) $endofs (SRBblock b)  }
+| s=switch_rule_label t=throw_statement { s, mksrb $startofs(t) $endofs (SRBthrow t) }
 ;
 
 switch_block_statement_groups:
@@ -1685,8 +1792,17 @@ switch_labels:
 ;
 
 switch_label: 
-| CASE c=constant_expression COLON { mksl $startofs $endofs (SLconstant c) }
-| DEFAULT__COLON             COLON { mksl $startofs $endofs SLdefault }
+| CASE cl=clist(constant_expression) COLON
+    { 
+      let thunk () = mksl $startofs $endofs (SLconstant cl) in
+      if List.length cl > 1 then begin
+        check_JLS_level 14 thunk
+          (fun () -> parse_error $startofs $endofs "multi-switch-label is available since JLS14")
+      end
+      else
+        thunk()
+    }
+| DEFAULT__COLON COLON { mksl $startofs $endofs SLdefault }
 ;
 
 while_statement:
@@ -1902,12 +2018,9 @@ assert_statement:
         | Some e -> Sassert2(b, e)
         | None   -> Sassert1 b
       in
-      match env#java_lang_spec with
-      | Common.JLS3 | Common.JLSx -> 
-          env#set_java_lang_spec_JLS3;
-          mkstmt $startofs $endofs lab
-      | Common.JLS2 -> 
-          parse_error $startofs $endofs "assert statement is not available in JLS2"
+      check_JLS_level 3
+        (fun () -> mkstmt $startofs $endofs lab)
+        (fun () -> parse_error $startofs $endofs "assert statement is available since JLS3")
     }
 ;
 
@@ -2329,7 +2442,17 @@ unary_expression_not_plus_minus:
 | p=postfix_expression      { p }
 | TILDE  u=unary_expression { mkexpr $startofs $endofs (Eunary(UOcomplement, u)) }
 | EXCLAM u=unary_expression { mkexpr $startofs $endofs (Eunary(UOnot, u)) }
-| c=cast_expression { c }
+| c=cast_expression         { c }
+| s=switch_expression       { s }
+;
+
+switch_expression:
+| SWITCH LPAREN e=expr_or_err RPAREN s=switch_block
+    { 
+      check_JLS_level 14
+        (fun () -> mkexpr $startofs $endofs (Eswitch(e, s)))
+        (fun () -> parse_error $startofs $endofs "switch-expression is available since JLS14")
+    }
 ;
 
 unary_expression_not_plus_minus_or_lambda_expression:
@@ -2453,6 +2576,39 @@ instanceof_expression:
     { 
       let e = mkerrexpr $startofs $endofs(s) s in
       mkexpr $startofs $endofs (Einstanceof(e, r))
+    }
+| i=instanceof_expression INSTANCEOF p=pattern { mkexpr $startofs $endofs (EinstanceofP(i, p)) }
+| s=ERROR INSTANCEOF p=pattern
+    { 
+      let e = mkerrexpr $startofs $endofs(s) s in
+      mkexpr $startofs $endofs (EinstanceofP(e, p))
+    }
+;
+
+pattern:
+| t=reference_type v=variable_declarator_id
+    { 
+      check_JLS_level 14
+        (fun () ->
+          let vd = mkvd $startofs(v) $endofs v None in
+          register_identifier_as_variable (fst vd.vd_variable_declarator_id) t;
+          vd.vd_is_local := true;
+          mklvd $symbolstartofs $endofs None t [vd]
+        )
+        (fun () -> parse_error $startofs $endofs "instanceof-pattern is available since JLS16")
+    }
+| f=FINAL t=reference_type v=variable_declarator_id
+    { 
+      ignore f;
+      check_JLS_level 14
+        (fun () ->
+          let m = mkmod $startofs $endofs(f) Mfinal in
+          let vd = mkvd $startofs(v) $endofs v None in
+          register_identifier_as_variable (fst vd.vd_variable_declarator_id) t;
+          vd.vd_is_local := true;
+          mklvd $startofs $endofs (Some (mkmods $startofs $endofs(f) [m])) t [vd]
+        )
+        (fun () -> parse_error $startofs $endofs "instanceof-pattern is available since JLS16")
     }
 ;
 
@@ -2649,6 +2805,7 @@ unary_expression_not_plus_minus_nn:
 | TILDE u=unary_expression  { mkexpr $startofs $endofs (Eunary(UOcomplement, u)) }
 | EXCLAM u=unary_expression { mkexpr $startofs $endofs (Eunary(UOnot, u)) }
 | c=cast_expression         { c }
+| s=switch_expression       { s }
 ;
 
 multiplicative_expression_nn:
@@ -2686,7 +2843,9 @@ relational_expression_nn:
 instanceof_expression_nn:
 | r=relational_expression_nn { r }
 | n=name INSTANCEOF r=reference_type { mkexpr $startofs $endofs (Einstanceof(_name_to_expr n.n_loc n, r)) }
+| n=name INSTANCEOF p=pattern        { mkexpr $startofs $endofs (EinstanceofP(_name_to_expr n.n_loc n, p)) }
 | i=instanceof_expression_nn INSTANCEOF r=reference_type { mkexpr $startofs $endofs (Einstanceof(i, r)) }
+| i=instanceof_expression_nn INSTANCEOF p=pattern        { mkexpr $startofs $endofs (EinstanceofP(i, p)) }
 ;
 
 equality_expression_nn:
