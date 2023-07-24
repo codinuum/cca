@@ -1555,6 +1555,12 @@ end;
       Xprint.verbose options#verbose_flag "fixing up edit sequences...";
       Postprocessing.fixup_edits options lang cenv tree1 tree2 pruned edits uidmapping pre_uidmapping;
 
+      let dchange = Filename.concat cache_path Stat.changes_file_name in
+      let edits_copy = edits#copy in
+      edits_copy#ungroup tree1 tree2;
+      edits_copy#cleanup_ghost tree1 tree2;
+      Edit.dump_changes options lang tree1 tree2 uidmapping edits_copy edits dchange;
+
       if options#dump_delta_flag then begin
         let delta =
           if options#dump_delta_out <> "" then
@@ -1562,19 +1568,8 @@ end;
           else
             Filename.concat cache_path Delta_base.delta_file_name^".xml"
         in
-        let dchange = Filename.concat cache_path Stat.changes_file_name in
-        let edits_copy = edits#copy in
-        edits_copy#ungroup tree1 tree2;
-        edits_copy#cleanup_ghost tree1 tree2;
-        Edit.dump_changes options lang tree1 tree2 uidmapping edits_copy edits dchange;
-        edits#dump_delta tree1 tree2 uidmapping edits_copy delta
-      end
-      else begin
-        let dchange = Filename.concat cache_path Stat.changes_file_name in
-        let edits_copy = edits#copy in
-        edits_copy#ungroup tree1 tree2;
-        edits_copy#cleanup_ghost tree1 tree2;
-        Edit.dump_changes options lang tree1 tree2 uidmapping edits_copy edits dchange;
+        let info_file_path = Filename.concat cache_path "delta_info.json" in
+        edits#dump_delta ~info_file_path tree1 tree2 uidmapping edits_copy delta
       end;
 
       let orig_edits =

@@ -30,6 +30,7 @@ class seq options = object (self)
 
   method dump_delta
       ?(extra_ns_decls=[])
+      ?(info_file_path="")
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
       (uidmapping : node_t UIDmapping.c)
@@ -44,6 +45,7 @@ class seq options = object (self)
     dedits#dump_delta
       ~extra_ns_decls
       ~comp
+      ~info_file_path
       uidmapping fname
 
 end (* of class seq *)

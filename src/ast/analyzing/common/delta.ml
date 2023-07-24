@@ -11816,11 +11816,17 @@ module Edit = struct
       method dump_delta
           ?(extra_ns_decls=[])
           ?(comp=Compression.none)
+          ?(info_file_path="")
           uidmapping
           file_name
           =
         let fact_file_name = Xfile.change_extension file_name ".nt" in
-        let info_file_name = Xfile.change_extension file_name "_info.json" in
+        let info_file_name =
+          if info_file_path = "" then
+            Xfile.change_extension file_name "_info.json"
+          else
+            info_file_path
+        in
         Xchannel.dump ~comp file_name
           (self#dump_delta_ch ~extra_ns_decls ~fact_file_name ~info_file_name uidmapping)
 

@@ -4515,6 +4515,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method dump_delta
       ?(extra_ns_decls=([] : (string * string) list))
+      ?(info_file_path="")
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
       (uidmapping : 'node_t UIDmapping.c)
