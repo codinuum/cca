@@ -1556,7 +1556,12 @@ end;
       Postprocessing.fixup_edits options lang cenv tree1 tree2 pruned edits uidmapping pre_uidmapping;
 
       if options#dump_delta_flag then begin
-        let delta = Filename.concat cache_path Delta_base.delta_file_name^".xml" in
+        let delta =
+          if options#dump_delta_out <> "" then
+            options#dump_delta_out
+          else
+            Filename.concat cache_path Delta_base.delta_file_name^".xml"
+        in
         let dchange = Filename.concat cache_path Stat.changes_file_name in
         let edits_copy = edits#copy in
         edits_copy#ungroup tree1 tree2;
