@@ -16,7 +16,7 @@
 (* parser_options.ml *)
 
 
-let default_java_lang_spec = 8
+let default_java_lang_spec = 11
 
 let get_dist_dir () =
   Filename.dirname (Filename.dirname (Xfile.abspath Sys.executable_name))

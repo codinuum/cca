@@ -990,6 +990,11 @@ let _mkprim loc d = { p_desc=d; p_loc=loc }
 
 let mh_is_generic mh = mh.mh_type_parameters <> None
 
+let get_modifiers_from_mh mh =
+  match mh.mh_modifiers with
+  | Some ms -> ms.ms_modifiers
+  | _ -> []
+
 let proc_op proc f op =
   match op with
   | Some x -> proc f x

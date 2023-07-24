@@ -337,10 +337,7 @@ type_arguments_opt:
 
 type_arguments:
 | LT GT { mktyargs $startofs $endofs [] }
-| LT tas=type_argument_list_1 
-    { 
-      mktyargs $startofs $endofs tas 
-    }
+| LT tas=type_argument_list_1 { mktyargs $startofs $endofs tas }
 ;
 
 %inline
@@ -1585,6 +1582,20 @@ interface_method_declaration:
 | mh=method_header b=method_body
     { 
       if mh_is_generic mh then end_scope();
+      begin
+        try
+          List.iter
+            (fun m ->
+              if m.m_desc = Mprivate then begin
+                check_JLS_level 11
+                  (fun () -> raise Exit)
+                  (fun () ->
+                    parse_error $startofs m.Ast.m_loc.Loc.end_offset
+                      "private interface method is available since JLS11")
+              end
+            ) (get_modifiers_from_mh mh)
+        with Exit -> ()
+      end;
       let loc = Loc.merge mh.mh_loc (get_loc $startofs $endofs) in
       mkimed loc mh b
     }
@@ -1948,7 +1959,12 @@ resource_spec_opt:
 ;
 
 resource_spec:
-| LPAREN rl=resource_list ioption(SEMICOLON) RPAREN { mkresspec $symbolstartofs $endofs rl }
+| LPAREN rl=resource_list ioption(SEMICOLON) RPAREN
+    { 
+      check_JLS_level 7
+        (fun () -> mkresspec $symbolstartofs $endofs rl)
+        (fun () -> parse_error $startofs $endofs "resource-spec is available since JLS7")
+    }
 ;
 
 resource_list:
@@ -1958,8 +1974,18 @@ resource_list:
 
 resource:
 | l=local_variable_declaration { mkres $startofs $endofs (RlocalVarDecl l)}
-| f=field_access { mkres $startofs $endofs (RfieldAccess f) }
-| n=name { mkres $startofs $endofs (Rname n) }
+| f=field_access
+    { 
+      check_JLS_level 11
+        (fun () -> mkres $startofs $endofs (RfieldAccess f))
+        (fun () -> parse_error $startofs $endofs "variable-access is available since JLS11")
+    }
+| n=name
+    { 
+      check_JLS_level 11
+        (fun () -> mkres $startofs $endofs (Rname n))
+        (fun () -> parse_error $startofs $endofs "variable-access is available since JLS11")
+    }
 ;
 
 %inline
@@ -2146,6 +2172,17 @@ class_instance_creation_expression:
     { 
       let _, id = i in
       let po, no, tyargs = c in
+      let _ =
+        match t with
+        | Some tas when List.length tas.tas_type_arguments = 0 -> begin
+            check_JLS_level 11
+              (fun () -> ())
+              (fun () ->
+                parse_error $startofs(t) $endofs(t)
+                  "diamond instance creation is available since JLS11")
+        end
+        | _ -> ()
+      in
       let cic =
         match po, no with
         | Some p, None ->
