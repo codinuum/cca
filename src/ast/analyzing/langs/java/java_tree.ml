@@ -624,20 +624,26 @@ class translator options =
 
   method of_javatype dims ty =
     let ty =
-      if dims > 0 then begin
+      if dims <> [] then begin
         let mkty d = { Ast.ty_desc=d; ty_loc=ty.Ast.ty_loc } in
         match ty.Ast.ty_desc with
-        | Ast.Tarray(ty', dims') -> mkty (Ast.Tarray(ty', dims' + dims))
+        | Ast.Tarray(ty', dims') -> mkty (Ast.Tarray(ty', dims' @ dims))
         | _                      -> mkty (Ast.Tarray(ty, dims))
       end
       else
         ty
     in
-    let rec get_children desc =
+    let rec get_children ?(dims=[]) desc =
+      let mkotbl, mkc =
+        if dims = [] then
+          (fun specs -> Some (new ordinal_tbl specs)), fun l -> l
+        else
+          (fun specs -> Some (new ordinal_tbl (specs @ [List.length dims]))), fun l -> l @ dims
+      in
       match desc with
       | Ast.Tprimitive(al, _) ->
-          let ordinal_tbl_opt = Some (new ordinal_tbl [0; List.length al; 0]) in
-          (List.map self#of_annotation al), None, ordinal_tbl_opt
+          let ordinal_tbl_opt = mkotbl [0; List.length al; 0] in
+          mkc (List.map self#of_annotation al), None, ordinal_tbl_opt
 
       | Ast.TclassOrInterface tss
       | Ast.Tclass tss
@@ -646,8 +652,8 @@ class translator options =
             match tss with
             | [] -> false, [], None
             | [Ast.TSname(al, _)] ->
-                let ordinal_tbl_opt = Some (new ordinal_tbl [0; List.length al; 0]) in
-                false, (List.map self#of_annotation al), ordinal_tbl_opt
+                let ordinal_tbl_opt = mkotbl [0; List.length al; 0] in
+                false, mkc (List.map self#of_annotation al), ordinal_tbl_opt
             | _ -> begin
                 List.fold_left
                   (fun (_, l, _) spec ->
@@ -679,10 +685,8 @@ class translator options =
                       | Some tas -> [self#of_type_arguments id tas]
                       | None -> []
                     in
-                    let c = l @ (List.map self#of_annotation al) @ tal in
-                    let ordinal_tbl_opt =
-                      Some (new ordinal_tbl [List.length l; List.length al; List.length tal])
-                    in
+                    let c = mkc (l @ (List.map self#of_annotation al) @ tal) in
+                    let ordinal_tbl_opt = mkotbl [List.length l; List.length al; List.length tal] in
                     let orig_lab_opt = Some (L.Type (L.Type.ClassOrInterface orig_id)) in
                     let lab = L.Type (L.Type.ClassOrInterface id) in
                     let nd = self#mknode ~orig_lab_opt ~ordinal_tbl_opt lab c in
@@ -693,14 +697,20 @@ class translator options =
           in
           match take_children, nds with
           | _, [] -> [], None, None
-          | true, (nd :: _) -> (Array.to_list nd#children), get_orig_lab_opt nd, ordinal_tbl_opt
+          | true, (nd :: _) -> Array.to_list nd#children, get_orig_lab_opt nd, ordinal_tbl_opt
           | false, nds -> nds, None, ordinal_tbl_opt
       end
       | Ast.Tarray(t, dims) -> begin
-          let children, _lab_opt, ordinal_tbl_opt = get_children t.Ast.ty_desc in
+          let dims_ =
+            if Ast.annot_exists dims then
+              List.map self#of_annot_dim dims
+            else
+              []
+          in
+          let children, _lab_opt, ordinal_tbl_opt = get_children ~dims:dims_ t.Ast.ty_desc in
           let lab_opt =
             match _lab_opt with
-            | Some (L.Type lab) -> Some (L.Type (L.Type.Array(lab, dims)))
+            | Some (L.Type lab) -> Some (L.Type (L.Type.Array(lab, List.length dims)))
             | Some _ -> assert false
             | None -> None
           in
@@ -735,22 +745,47 @@ class translator options =
       (P.type_to_short_string 0 mh.Ast.mh_return_type)*)
     sprintf "(%s)%s"
       (Xlist.to_string (self#param_to_tystr ~resolve) "" params)
-      (P.type_to_short_string ~resolve 0 mh.Ast.mh_return_type)
+      (P.type_to_short_string ~resolve [] mh.Ast.mh_return_type)
 
   method of_parameter param =
-    let name, dims = param.Ast.fp_variable_declarator_id in
-    let mods = param.Ast.fp_modifiers in
-    let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
-    let ordinal_tbl_opt =
-      Some (new ordinal_tbl [List.length mod_nodes; 1])
-    in
-    let d = if param.Ast.fp_variable_arity then 1 else 0 in
-    let nd =
-      self#mknode ~ordinal_tbl_opt (L.Parameter(name, dims, param.Ast.fp_variable_arity))
-        (mod_nodes @ [self#of_javatype d param.Ast.fp_type])
-    in
-    set_loc nd param.Ast.fp_loc;
-    nd
+    match param.Ast.fp_receiver with
+    | Some id ->
+        let mods = param.Ast.fp_modifiers in
+        let mod_nodes = self#of_modifiers_opt (L.Kparameter "") mods in
+        let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1]) in
+        let nd =
+          self#mknode ~ordinal_tbl_opt
+            (L.ReceiverParameter (if id = "" then None else Some id))
+            (mod_nodes @ [self#of_javatype [] param.Ast.fp_type])
+        in
+        set_loc nd param.Ast.fp_loc;
+        nd
+    | _ -> begin
+        let name, dims = param.Ast.fp_variable_declarator_id in
+        let mods = param.Ast.fp_modifiers in
+        let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
+        let dims_have_annot = Ast.annot_exists dims in
+        let otbl_spec =
+          if dims_have_annot then
+            [List.length mod_nodes; 1; List.length dims]
+          else
+            [List.length mod_nodes; 1]
+        in
+        let ordinal_tbl_opt = Some (new ordinal_tbl otbl_spec) in
+        let dim_nds =
+          if dims_have_annot then
+            List.map self#of_annot_dim dims
+          else
+            []
+        in
+        let nd =
+          self#mknode ~ordinal_tbl_opt
+            (L.Parameter(name, List.length dims, param.Ast.fp_variable_arity))
+            (mod_nodes @ [self#of_javatype [] param.Ast.fp_type] @ dim_nds)
+        in
+        set_loc nd param.Ast.fp_loc;
+        nd
+    end
 
   method of_for_header param =
     let name, dims = param.Ast.fp_variable_declarator_id in
@@ -760,8 +795,8 @@ class translator options =
       Some (new ordinal_tbl [List.length mod_nodes; 1])
     in
     let nd =
-      self#mknode ~ordinal_tbl_opt (L.ForHeader(name, dims))
-        (mod_nodes @ [self#of_javatype 0 param.Ast.fp_type])
+      self#mknode ~ordinal_tbl_opt (L.ForHeader(name, List.length dims))
+        (mod_nodes @ [self#of_javatype [] param.Ast.fp_type])
     in
     set_loc nd param.Ast.fp_loc;
     nd
@@ -822,7 +857,7 @@ class translator options =
       Some (new ordinal_tbl [1; List.length tb.Ast.tb_additional_bounds])
     in
     let children =
-      (self#of_javatype 0 tb.Ast.tb_reference_type) ::
+      (self#of_javatype [] tb.Ast.tb_reference_type) ::
       (List.map self#of_additional_bound tb.Ast.tb_additional_bounds)
     in
     let nd = self#mknode ~ordinal_tbl_opt L.TypeBound children in
@@ -830,7 +865,7 @@ class translator options =
     nd
 
   method of_additional_bound ab =
-    let nd = self#of_javatype 0 ab.Ast.ab_interface in
+    let nd = self#of_javatype [] ab.Ast.ab_interface in
     set_loc nd ab.Ast.ab_loc;
     nd
 
@@ -933,7 +968,7 @@ class translator options =
     | Some ms -> [self#of_modifiers kind (*name*) ms]
 
   method of_throws mname th =
-    let leaves = List.map (self#of_javatype 0) th.Ast.th_exceptions in
+    let leaves = List.map (self#of_javatype []) th.Ast.th_exceptions in
     let nd = self#mklnode (L.Throws mname) leaves in
     set_loc nd th.Ast.th_loc;
     nd
@@ -954,23 +989,25 @@ class translator options =
     let mods = header.Ast.mh_modifiers in
     let tparams = header.Ast.mh_type_parameters in
     let params = header.Ast.mh_parameters in
+    let dims = header.Ast.mh_dims in
     let throws = header.Ast.mh_throws in
 
     let mod_nodes = self#of_modifiers_opt ~interface_method (L.Kmethod ident) mods in
     let tp_nodes = self#of_type_parameters_opt ident tparams in
-    let rty = self#of_javatype 0 header.Ast.mh_return_type in
+    let rty = self#of_javatype [] header.Ast.mh_return_type in
     let p_nodes = self#of_parameters ident header.Ast.mh_parameters_loc params in
+    let dim_nodes = List.map self#of_annot_dim dims in
     let th_nodes = self#of_throws_opt ident throws in
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length mod_nodes;
                              List.length tp_nodes;
                              1;
                              List.length p_nodes;
+                             List.length dim_nodes;
                              List.length th_nodes;
                            ])
     in
-    let children =
-      mod_nodes @ tp_nodes @ [rty] @ p_nodes @ th_nodes in
+    let children = mod_nodes @ tp_nodes @ [rty] @ p_nodes @ dim_nodes @ th_nodes in
     let msig = self#signature_of_method_header header in
     let orig_msig = self#signature_of_method_header ~resolve:false header in
     let orig_lab_opt =
@@ -1055,7 +1092,7 @@ class translator options =
     let ordinal_tbl_opt = Some (new ordinal_tbl [List.length children]) in
     let nd =
       self#mknode ~ordinal_tbl_opt
-        (L.VariableDeclarator(name, dims, !(vd.Ast.vd_is_local))) children
+        (L.VariableDeclarator(name, List.length dims, !(vd.Ast.vd_is_local))) children
     in
     nd#data#set_loc loc;
     nd
@@ -1068,13 +1105,16 @@ class translator options =
 
     if options#normalize_ast_flag then begin
       let _mklvdecl ghost vd vdnd =
-        let ty_leaf = self#of_javatype 0 lvd.Ast.lvd_type in
+        let ty_leaf = self#of_javatype [] lvd.Ast.lvd_type in
         let vdid = vd.Ast.vd_variable_declarator_id in
-        let vdid_str = fst vdid in
-        let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdid_str) mods in
+        let vdid_id, vdid_dims = vdid in
+        let vdid_ = vdid_id, List.length vdid_dims in
+        let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdid_id) mods in
         let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; 1]) in
         let children = mod_nodes @ [ty_leaf; vdnd] in
-        let nd = self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, [vdid])) children in
+        let nd =
+          self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, [vdid_])) children
+        in
         if ghost then begin
           nd#data#set_loc Loc.ghost;
           List.iter set_ghost_rec mod_nodes;
@@ -1098,12 +1138,19 @@ class translator options =
     end
     else begin
       let vdids = List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors in
+      let vdids_ =
+        List.map
+          (fun vd ->
+            let vdid_id, vdid_dims = vd.Ast.vd_variable_declarator_id in
+            vdid_id, List.length vdid_dims
+          ) vdtors
+      in
       let vdids_str = self#vdids_to_str vdids in
       let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdids_str) mods in
       let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors]) in
-      let ty_leaf = self#of_javatype 0 lvd.Ast.lvd_type in
+      let ty_leaf = self#of_javatype [] lvd.Ast.lvd_type in
       let nd =
-        self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, vdids))
+        self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, vdids_))
           (mod_nodes @
            [ty_leaf] @
            (List.map self#of_variable_declarator vdtors))
@@ -1119,7 +1166,9 @@ class translator options =
     let orig_lab_opt, lab =
       if anonymize_int || anonymize_float || anonymize_string then
         (Some (L.of_literal ~reduce:options#ast_reduction_flag lit)),
-        L.of_literal ~anonymize_int ~anonymize_float ~anonymize_string ~reduce:options#ast_reduction_flag lit
+        L.of_literal
+          ~anonymize_int ~anonymize_float ~anonymize_string ~reduce:options#ast_reduction_flag
+          lit
       else
         None, L.of_literal ~reduce:options#ast_reduction_flag lit
     in
@@ -1147,7 +1196,7 @@ class translator options =
   method of_type_argument ta =
     let nd =
       match ta.Ast.ta_desc with
-      | Ast.TAreferenceType ty -> self#of_javatype 0 ty
+      | Ast.TAreferenceType ty -> self#of_javatype [] ty
       | Ast.TAwildcard wc      -> self#of_wildcard wc
     in
     set_loc nd ta.Ast.ta_loc;
@@ -1173,8 +1222,8 @@ class translator options =
   method of_wildcard_bounds wb =
     let nd =
       match wb.Ast.wb_desc with
-      | Ast.WBextends ty -> self#mknode L.WildcardBoundsExtends [self#of_javatype 0 ty]
-      | Ast.WBsuper ty   -> self#mknode L.WildcardBoundsSuper [self#of_javatype 0 ty]
+      | Ast.WBextends ty -> self#mknode L.WildcardBoundsExtends [self#of_javatype [] ty]
+      | Ast.WBsuper ty   -> self#mknode L.WildcardBoundsSuper [self#of_javatype [] ty]
     in
     set_loc nd wb.Ast.wb_loc;
     nd
@@ -1238,7 +1287,7 @@ class translator options =
          ]
         in
         let children =
-          ta_nodes @ [self#of_javatype 0 ty] @ args_nd @ cb_nodes
+          ta_nodes @ [self#of_javatype [] ty] @ args_nd @ cb_nodes
         in
         let orig_lab_opt =
           Some (L.Primary.InstanceCreation orig_name)
@@ -1473,8 +1522,8 @@ class translator options =
   method of_array_creation_expression = function
     | Ast.ACEtype(ty, exprs, dims) ->
         let ordinal_tbl_opt = Some (new ordinal_tbl [1; List.length exprs]) in
-        self#mknode ~ordinal_tbl_opt (L.Primary (L.Primary.ArrayCreationDims dims))
-          ((self#of_javatype 0 ty) :: (List.map self#of_dim_expr exprs))
+        self#mknode ~ordinal_tbl_opt (L.Primary (L.Primary.ArrayCreationDims (List.length dims)))
+          ((self#of_javatype [] ty) :: (List.map self#of_dim_expr exprs))
 
     | Ast.ACEtypeInit(_, _, [array_initializer]) when options#ast_reduction_flag ->
         self#of_variable_initializer array_initializer
@@ -1537,7 +1586,7 @@ class translator options =
       match p.Ast.p_desc with
       | Ast.Pname name -> let loc0 = Ast.Loc.collapse_forward p.Ast.p_loc in self#of_name loc0 name
       | Ast.Pliteral lit -> self#of_literal lit
-      | Ast.PclassLiteral ty -> self#mknode (L.Primary L.Primary.ClassLiteral) [self#of_javatype 0 ty]
+      | Ast.PclassLiteral ty -> self#mknode (L.Primary L.Primary.ClassLiteral) [self#of_javatype [] ty]
       | Ast.PclassLiteralVoid -> self#mkleaf (L.Primary (L.Primary.ClassLiteralVoid))
       | Ast.Pthis -> self#mkleaf (L.Primary L.Primary.This)
       | Ast.PqualifiedThis name ->
@@ -1613,7 +1662,7 @@ class translator options =
   | Ast.MRtypeNew(ty, tas_opt) ->
       let ta_nodes = self#of_type_arguments_opt "" tas_opt in
       let ordinal_tbl_opt = Some (new ordinal_tbl [1; List.length ta_nodes]) in
-      let ty_node = self#of_javatype 0 ty in
+      let ty_node = self#of_javatype [] ty in
       let n = L.get_name (getlab ty_node) in
       let orig_lab_opt =
         match get_orig_lab_opt ty_node with
@@ -1687,11 +1736,11 @@ class translator options =
       end
       | Ast.Ecast(ty, expr) ->
           self#mknode (L.Expression L.Expression.Cast)
-            [self#of_javatype 0 ty; self#of_expression expr]
+            [self#of_javatype [] ty; self#of_expression expr]
 
       | Ast.Einstanceof(expr, ty) ->
           self#mknode (L.Expression L.Expression.Instanceof)
-            [self#of_expression expr; self#of_javatype 0 ty]
+            [self#of_expression expr; self#of_javatype [] ty]
 
       | Ast.EinstanceofP(expr, lvd) ->
           self#mknode (L.Expression L.Expression.Instanceof)
@@ -1840,12 +1889,13 @@ class translator options =
     let name, dims = param.Ast.cfp_variable_declarator_id in
     let mods = param.Ast.cfp_modifiers in
     let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
-    let type_nodes = List.map (self#of_javatype 0) param.Ast.cfp_type_list in
+    let type_nodes = List.map (self#of_javatype []) param.Ast.cfp_type_list in
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length mod_nodes; List.length type_nodes])
     in
     let nd =
-      self#mknode ~ordinal_tbl_opt (L.CatchParameter(name, dims)) (mod_nodes @ type_nodes)
+      self#mknode ~ordinal_tbl_opt
+        (L.CatchParameter(name, List.length dims)) (mod_nodes @ type_nodes)
     in
     set_loc nd param.Ast.cfp_loc;
     nd
@@ -2177,13 +2227,14 @@ class translator options =
 
     if options#normalize_ast_flag then begin
       let _mkfdecl ghost vd vdnd =
-        let ty_leaf = self#of_javatype 0 fd.Ast.fd_type in
+        let ty_leaf = self#of_javatype [] fd.Ast.fd_type in
         let vdid = vd.Ast.vd_variable_declarator_id in
-        let vdid_str = fst vdid in
-        let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_str) mods in
+        let vdid_id, vdid_dims = vdid in
+        let vdid_ = vdid_id, List.length vdid_dims in
+        let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_id) mods in
         let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; 1]) in
         let children = mod_nodes @ [ty_leaf; vdnd] in
-        let nd = self#mknode ~ordinal_tbl_opt (L.FieldDeclaration [vdid]) children in
+        let nd = self#mknode ~ordinal_tbl_opt (L.FieldDeclaration [vdid_]) children in
         if ghost then begin
           nd#data#set_loc Loc.ghost;
           List.iter set_ghost_rec mod_nodes;
@@ -2207,12 +2258,19 @@ class translator options =
     end
     else begin
       let vdids = List.map (fun vd -> vd.Ast.vd_variable_declarator_id) vdtors in
+      let vdids_ =
+        List.map
+          (fun vd ->
+            let vdid_id, vdid_dims = vd.Ast.vd_variable_declarator_id in
+            vdid_id, List.length vdid_dims
+          ) vdtors
+      in
       let vdid_str = self#vdids_to_str vdids in
       let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_str) mods in
       let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors]) in
-      let ty_leaf = self#of_javatype 0 fd.Ast.fd_type in
+      let ty_leaf = self#of_javatype [] fd.Ast.fd_type in
       let nd =
-        self#mknode ~ordinal_tbl_opt (L.FieldDeclaration vdids)
+        self#mknode ~ordinal_tbl_opt (L.FieldDeclaration vdids_)
           (mod_nodes @
            [ty_leaf] @
            (List.map self#of_variable_declarator vdtors))
@@ -2411,9 +2469,16 @@ class translator options =
     in
     let stmts = List.flatten (List.map self#of_block_statement bss) in
     let children = ctor_nodes @ stmts in
-    let msig = sprintf "(%s)V" signature in
+    let msig =
+      if options#java_anon_ctor_body_flag then
+        ""
+      else
+        sprintf "(%s)V" signature
+    in
     let orig_lab_opt = Some (L.ConstructorBody(name, "")) in
-    let nd = self#mknode ~ordinal_tbl_opt ~orig_lab_opt (L.ConstructorBody(name, msig)) children in
+    let nd =
+      self#mknode ~ordinal_tbl_opt ~orig_lab_opt (L.ConstructorBody(name, msig)) children
+    in
     set_loc nd cnb.Ast.cnb_loc;
     nd
 
@@ -2620,7 +2685,7 @@ class translator options =
     nd
 
   method of_extends_class exc =
-    let nd = self#mknode L.Extends [self#of_javatype 0 exc.Ast.exc_class] in
+    let nd = self#mknode L.Extends [self#of_javatype [] exc.Ast.exc_class] in
     set_loc nd exc.Ast.exc_loc;
     nd
 
@@ -2629,7 +2694,7 @@ class translator options =
   method of_extends_interfaces exi =
     let nd =
       self#mklnode L.ExtendsInterfaces
-        (List.map (self#of_javatype 0) exi.Ast.exi_interfaces)
+        (List.map (self#of_javatype []) exi.Ast.exi_interfaces)
     in
     set_loc nd exi.Ast.exi_loc;
     nd
@@ -2638,7 +2703,7 @@ class translator options =
 
   method of_implements im =
     let nd =
-      self#mklnode L.Implements (List.map (self#of_javatype 0) im.Ast.im_interfaces)
+      self#mklnode L.Implements (List.map (self#of_javatype []) im.Ast.im_interfaces)
     in
     set_loc nd im.Ast.im_loc;
     nd
@@ -2752,7 +2817,9 @@ class translator options =
     self#_of_class_body aname body abd.Ast.abd_loc
 
   method of_abstract_method_declaration amd =
-    self#of_method_header ~interface_method:true ~loc_opt:(Some amd.Ast.amd_loc) amd.Ast.amd_method_header
+    self#of_method_header
+      ~interface_method:true ~loc_opt:(Some amd.Ast.amd_loc)
+      amd.Ast.amd_method_header
 
   method of_interface_member_declaration imd =
     match imd.Ast.imd_desc with
@@ -2833,7 +2900,8 @@ class translator options =
   method of_default_value dv = self#of_element_value dv
 
   method of_annot_dim adim =
-    let nd = self#mknode L.AnnotDim (self#of_annotations adim.Ast.ad_annotations) in
+    let lab = L.AnnotDim adim.Ast.ad_ellipsis in
+    let nd = self#mknode lab (self#of_annotations adim.Ast.ad_annotations) in
     set_loc nd adim.Ast.ad_loc;
     nd
 
@@ -2851,7 +2919,7 @@ class translator options =
                                    List.length dval_nodes])
           in
           [self#mknode ~ordinal_tbl_opt (L.ElementDeclaration ident)
-             (mod_nodes @ [self#of_javatype 0 ty] @
+             (mod_nodes @ [self#of_javatype [] ty] @
               (List.map self#of_annot_dim dl) @ dval_nodes)]
 
       | Ast.ATMDclass cd -> [self#of_class_declaration false cd]

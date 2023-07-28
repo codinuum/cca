@@ -2108,7 +2108,7 @@ end;
 	    BEGIN_DEBUG
 	      List.iter2
 	        (fun u1 u2 ->
-		  DEBUG_MSG "pre_map_add: adding %a - %a" ups u1 ups u2
+		  DEBUG_MSG "adding %a - %a" ups u1 ups u2
 	        ) !us1 !us2
             END_DEBUG;
 

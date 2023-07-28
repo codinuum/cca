@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -6218,8 +6218,10 @@ end;
           in
           let is_crossing n1 n2 =
             let b =
+              (*let statement_only = Some true in*)
+              let statement_only = Some false in
               edits#is_crossing_with_untouched
-                ?mask:None ?incompatible_only:None ?statement_only:(Some true) uidmapping n1 n2
+                ?mask:None ?incompatible_only:None ?statement_only uidmapping n1 n2
             in
             DEBUG_MSG "%a %a -> %B" nps n1 nps n2 b;
             b
@@ -6251,7 +6253,9 @@ end;
                    fun x ->
                      try
                        let px = x#initial_parent in
-                       DEBUG_MSG "%a(%s) vs %a(%s)" ups prt1#uid prt1#data#label ups px#uid px#data#label;
+                       DEBUG_MSG "%a(%s) vs %a(%s)"
+                         ups prt1#uid prt1#data#label ups px#uid px#data#label;
+
                        if is_ins px && prt1#data#eq px#data && not (is_crossing prt1 px) then begin
 
                          DEBUG_MSG "!!!!! adding to upairs: %a [%s] - %a [%s]"
@@ -7952,7 +7956,22 @@ end;
               is_stable_map x1 x2 &&
               tree2#is_initial_ancestor rt2 x2 && tree2#is_initial_ancestor x2 n2
             with _ -> false
-          ) n1
+          ) n1 ||
+        has_p_descendant
+          (fun x1 ->
+            try
+              let x2 = nmap x1 in
+              is_stable_map x1 x2 &&
+              tree2#is_initial_ancestor rt2 x2 &&
+              let ngi1 = n1#gindex in
+              let ngi2 = n2#gindex in
+              let xgi1 = x1#gindex in
+              let xgi2 = x2#gindex in
+              DEBUG_MSG "ngi1=%d xgi1=%d ngi2=%d xgi2=%d" ngi1 xgi1 ngi2 xgi2;
+              ngi1 <> xgi1 && ngi2 <> xgi2 &&
+              (ngi1 - xgi1) * (ngi2 - xgi2) < 0
+            with _ -> false
+          ) rt1
       in
       DEBUG_MSG "%a %a -> %B" nps n1 nps n2 b;
       b

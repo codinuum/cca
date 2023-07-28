@@ -21,7 +21,7 @@ type java_language_specification =
   | JLSnone
   | JLS of int
 
-let default_java_lang_spec = JLS 8
+let default_java_lang_spec = JLS 11
 
 exception Internal_error of string
 

@@ -385,9 +385,8 @@ type binary_operator =
   | BOeq | BOneq | BOlt | BOgt | BOle | BOge
   | BObitAnd | BObitOr | BObitXor | BOand | BOor
 
-type variable_declarator_id = identifier * dims
-
 type javatype = { ty_desc : javatype_desc; ty_loc : loc; }
+
 and primitive_type =
   | PTbyte | PTshort | PTint | PTlong
   | PTchar
@@ -401,7 +400,7 @@ and javatype_desc =
   | Tclass of type_spec list
   | Tinterface of type_spec list
 
-  | Tarray of javatype (* other than array *) * dims
+  | Tarray of javatype (* other than array *) * annot_dim list
 
   | Tvoid (* not a type (only for convenience) *)
 
@@ -422,6 +421,8 @@ and wildcard_bounds_desc =
 and wildcard = annotation list * wildcard_bounds option
 
 and type_arguments = { tas_type_arguments : type_argument list; tas_loc : loc; }
+
+and variable_declarator_id = identifier * annot_dim list
 
 and throws = { th_exceptions : javatype list;
 		th_loc        : loc;
@@ -444,6 +445,7 @@ and formal_parameter =
       fp_variable_declarator_id : variable_declarator_id;
       fp_variable_arity         : bool;
       fp_loc                    : loc;
+      fp_receiver               : identifier option;
     }
 
 and modifiers = { ms_modifiers : modifier list; ms_loc : loc; }
@@ -613,7 +615,7 @@ and method_header = { mh_modifiers       : modifiers option;
 		      mh_name            : identifier;
 		      mh_parameters_loc  : loc;
 		      mh_parameters      : formal_parameter list;
-		      mh_dims            : dims;
+		      mh_dims            : annot_dim list;
 		      mh_throws          : throws option;
 		      mh_loc             : loc;
 		    }
@@ -689,7 +691,8 @@ and annotation_type_member_declaration_desc =
   | ATMDempty
 
 and annot_dim = { ad_annotations : annotations;
-                  ad_loc : loc;
+                  ad_loc         : loc;
+                  ad_ellipsis    : bool;
                 }
 
 and interface_body = { ib_member_declarations : interface_member_declaration list;
@@ -806,8 +809,8 @@ and method_reference_desc =
   | MRtypeNew of javatype * type_arguments option
 
 and array_creation_expression =
-  | ACEtype of javatype * dim_expr list * dims
-  | ACEtypeInit of javatype * dims * array_initializer
+  | ACEtype of javatype * dim_expr list * annot_dim list
+  | ACEtypeInit of javatype * annot_dim list * array_initializer
 
 and dim_expr = { de_desc : expression; de_loc : loc; }
 
@@ -994,6 +997,14 @@ let get_modifiers_from_mh mh =
   match mh.mh_modifiers with
   | Some ms -> ms.ms_modifiers
   | _ -> []
+
+let get_annot_dims_from_type ty =
+  match ty.ty_desc with
+  | Tarray(_, dl) -> dl
+  | _ -> []
+
+let annot_exists =
+  List.exists (fun adim -> adim.ad_annotations <> [])
 
 let proc_op proc f op =
   match op with

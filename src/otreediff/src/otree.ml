@@ -2795,6 +2795,17 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
       else
 	f nd
 
+    method fast_rev_scan_whole_initial_subtree nd (f : 'node -> unit) = (* ditto *)
+      let gi = nd#gindex in
+      if GI.is_valid gi then
+	let lgi = (self#initial_leftmost nd)#gindex in
+	if GI.is_valid lgi then
+	  for i = GI.to_int nd#gindex downto lgi do
+	    f (self#search_node_by_gindex (GI.of_int i))
+	  done
+      else
+	f nd
+
 
     method whole_initial_subtree_size nd =
       let sz = ref 0 in

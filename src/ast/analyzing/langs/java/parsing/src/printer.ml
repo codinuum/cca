@@ -181,10 +181,8 @@ let dims_to_short_string dims =
     res := !res ^ "["
   done; !res
 
-
-
 let rec type_to_short_string ?(resolve=true) dims ty =
-  let dim_str = dims_to_short_string dims in
+  let dim_str = dims_to_short_string (List.length dims) in
   let base =
     match ty.ty_desc with
     | Tprimitive(a, p) -> begin
@@ -203,7 +201,7 @@ let rec type_to_short_string ?(resolve=true) dims ty =
     | Tclass tspecs
     | Tinterface tspecs -> type_specs_to_short_string ~resolve tspecs
 
-    | Tarray(ty, dims') -> type_to_short_string ~resolve (dims + dims') ty
+    | Tarray(ty, dims') -> type_to_short_string ~resolve (dims @ dims') ty
 
     | Tvoid -> "V"
 
@@ -236,9 +234,9 @@ and type_spec_to_short_string ?(resolve=false) tspec =
   | TSname(_, n)
   | TSapply(_, n, _) -> n_to_s n
 
-and annotations_to_string ?(show_attr=false) = function
+and annotations_to_string ?(show_attr=false) ?(sep=" ") = function
   | [] -> ""
-  | al -> (Xlist.to_string (annotation_to_string ~show_attr) " " al)^" "
+  | al -> (Xlist.to_string (annotation_to_string ~show_attr) " " al)^sep
 
 and annotation_to_string ?(show_attr=false) a =
   match a.a_desc with
@@ -260,13 +258,13 @@ and type_arguments_to_short_string tyargs =
 
 and type_argument_to_short_string ?(resolve=true) ta =
   match ta.ta_desc with
-  | TAreferenceType ty -> type_to_short_string ~resolve 0 ty
+  | TAreferenceType ty -> type_to_short_string ~resolve [] ty
   | TAwildcard wc      -> wildcard_to_short_string wc
 
 and wildcard_bounds_to_short_string ?(resolve=true) wb =
   match wb.wb_desc with
-  | WBextends ty -> sprintf "extends %s" (type_to_short_string ~resolve 0 ty)
-  | WBsuper ty   -> sprintf "super %s" (type_to_short_string ~resolve 0 ty)
+  | WBextends ty -> sprintf "extends %s" (type_to_short_string ~resolve [] ty)
+  | WBsuper ty   -> sprintf "super %s" (type_to_short_string ~resolve [] ty)
 
 and wildcard_to_short_string = function
   | al, Some wcb -> sprintf "%s? %s" (annotations_to_string al) (wildcard_bounds_to_short_string wcb)
@@ -275,6 +273,14 @@ and wildcard_to_short_string = function
 
 let rec dims_to_string dims =
   if dims = 0 then "" else "[]"^(dims_to_string (dims - 1))
+
+let rec annot_dims_to_string dims =
+  match dims with
+  | [] -> ""
+  | ad::rest ->
+      (annotations_to_string ~sep:"" ad.ad_annotations)^
+      (if ad.ad_ellipsis then "" else "[]")^
+      (annot_dims_to_string rest)
 
 let rec type_to_string ?(resolve=false) ?(show_attr=true) ty =
   match ty.ty_desc with
@@ -296,7 +302,7 @@ let rec type_to_string ?(resolve=false) ?(show_attr=true) ty =
     -> (list_to_string (type_spec_to_string ~resolve ~show_attr) "." tspecs)
 
   | Tarray(ty, dims)  ->
-      (type_to_string ~resolve ~show_attr ty)^(dims_to_string dims)
+      (type_to_string ~resolve ~show_attr ty)^(annot_dims_to_string dims)
 
   | Tvoid -> "void"
 
@@ -571,9 +577,9 @@ and pr_array_creation_expression = function
       let des = List.map (fun de -> de.de_desc) des in
       pr_string "new "; pr_type ty; pr_string "[";
       pr_expressions 0 (fun () -> pr_string "][") des; pr_string "]";
-      pr_dims dims
+      pr_annot_dims dims
   | ACEtypeInit(ty, dims, ai) ->
-      pr_string "new "; pr_type ty; pr_dims dims;
+      pr_string "new "; pr_type ty; pr_annot_dims dims;
       pr_string "{"; pr_array_initializer ai; pr_string "}"
 
 and pr_method_invocation mi =
@@ -687,7 +693,7 @@ and pr_variable_initializer vi =
 
 and pr_array_initializer ai = pr_list pr_comma pr_variable_initializer ai
 
-and pr_variable_declarator_id(id, dims) = pr_id id; pr_dims dims
+and pr_variable_declarator_id (id, dims) = pr_id id; pr_annot_dims dims
 
 and pr_variable_declarator vd =
   pr_variable_declarator_id vd.vd_variable_declarator_id;
@@ -726,6 +732,7 @@ and pr_method_header mh =
   pr_option pr_type_parameters mh.mh_type_parameters;
   pr_type mh.mh_return_type; pad 1; pr_id mh.mh_name;
   pr_lparen(); pr_formal_parameters mh.mh_parameters; pr_rparen();
+  pr_annot_dims mh.mh_dims;
   pr_throws_op mh.mh_throws;
   close_box()
 
@@ -1091,9 +1098,14 @@ and pr_annotation_type_member_declaration atmd =
   | ATMDinterface id -> pr_interface_declaration id
   | ATMDempty -> pr_semicolon()
 
+and pr_annot_dims adims = pr_list pr_space pr_annot_dim adims;
+
 and pr_annot_dim adim =
   pr_annotations adim.ad_annotations;
-  pr_string "[]"
+  if adim.ad_ellipsis then
+    pr_string ""
+  else
+    pr_string "[]"
 
 and pr_explicit_constructor_invocation eci =
   match eci.eci_desc with

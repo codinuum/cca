@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -516,6 +516,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 END_DEBUG;
                 b
             end
+            | [ed';ed''] when ed = ed' || ed = ed'' -> begin
+                DEBUG_MSG "duplication: %s" (to_string ed);
+                true
+            end
             | [ed';ed''] -> begin
                 DEBUG_MSG "%s conflicts %s and %s" (to_string ed) (to_string ed') (to_string ed'');
                 false
@@ -542,7 +546,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     match edit with
     | Delete(_, uid, _, _) -> add del_tbl uid edit
     | Insert(_, uid, _, _) -> add ins_tbl uid edit
-    | Relabel(_, (uid1, _, _), (uid2, _, _))    -> add2 rel1_tbl rel2_tbl uid1 uid2 edit
+    | Relabel(_, (uid1, _, _), (uid2, _, _)) -> add2 rel1_tbl rel2_tbl uid1 uid2 edit
     | Move(_, _, (uid1, _, _), (uid2, _, _)) -> begin
         add2 mov1_tbl mov2_tbl uid1 uid2 edit;
         begin
@@ -1589,7 +1593,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             else
               _rel_list := (nd1, nd2) :: !_rel_list
         end
-      | Move(_, _, (_, info1, excludes1), (_, info2, excludes2)) -> begin
+      | Move(mid, _, (_, info1, excludes1), (_, info2, excludes2)) -> begin
           let nd1 = Info.get_node info1 in
           let nd2 = Info.get_node info2 in
           Hashtbl.add mapped_node_tbl nd2 nd1;
@@ -1597,9 +1601,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           let nds2 = List.map Info.get_node !excludes2 in
           let el1 = ref [] in
           let el2 = ref [] in
-          tree1#scan_initial_cluster (nd1, nds1) (fun n -> el1 := n :: !el1);
-          tree2#scan_initial_cluster (nd2, nds2) (fun n -> el2 := n :: !el2);
-          assert (List.length !el1 = List.length !el2);
+          let add r n = if not (is_ghost_node n) then r := n :: !r in
+          tree1#scan_initial_cluster (nd1, nds1) (add el1);
+          tree2#scan_initial_cluster (nd2, nds2) (add el2);
+          let nel1 = List.length !el1 in
+          let nel2 = List.length !el2 in
+          DEBUG_MSG "%a: nd1=%a |el1|=%d nd2=%a |el2|=%d" MID.ps !mid UID.ps nd1#uid nel1 UID.ps nd2#uid nel2;
+          assert (nel1 = nel2);
           List.iter2
             (fun n1 n2 ->
               Hashtbl.add mapped_node_tbl n2 n1;
@@ -3058,6 +3066,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                         Not_found -> false
                     in
 
+                    let stable_node_pairs = ref [] in
+
                     let cond1 =
                       let stable_count = ref 0 in
                       try
@@ -3074,6 +3084,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                     tree'#is_initial_ancestor nd' n'
                                   then begin
                                     DEBUG_MSG "stable: %a - %a" nps n nps n';
+                                    stable_node_pairs := (n, n') :: !stable_node_pairs;
                                     incr stable_count
                                   end
                                   else
@@ -3190,18 +3201,48 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                             check_children tbl c c'
                           ) n#initial_children n'#initial_children
                       end
-                      else if n#data#eq n'#data && n#data#is_sequence && n'#data#is_sequence then begin
+                      else if
+                        n#data#eq n'#data && n#data#is_sequence && n'#data#is_sequence
+                      then begin
                         DEBUG_MSG "abort: %a - %a" nps n nps n';
                         raise Abort
                       end
                     in
 
-                    let check_matched_subtrees r r' =
-                      tree#fast_scan_whole_initial_subtree r
+                    let check_matched_subtrees ?(spairs=[]) r r' =
+                      DEBUG_MSG "r=%a r'=%a" nps r nps r';
+                      let npairs = ref spairs in
+                      let add ?(parent_only=false) x x' =
+                        DEBUG_MSG "extra: %a - %a" nps x nps x';
+                        let npair = x, x' in
+                        if not parent_only then begin
+                          npairs := npair :: !npairs;
+                          tbl_add_s extra_node_pair_tbl uid' npair
+                        end;
+                        try
+                          let px = x#initial_parent in
+                          let px' = x'#initial_parent in
+                          if
+                            (*px#initial_nchildren = 1 && px'#initial_nchildren = 1 &&*)
+                            px != r && px' != r' &&
+                            px#data#eq px'#data
+                          then begin
+                            DEBUG_MSG "another extra: %a - %a" nps px nps px';
+                            let npair = px, px' in
+                            npairs := npair :: !npairs;
+                            tbl_add_s extra_node_pair_tbl uid' npair
+                          end
+                        with _ -> ()
+                      in
+                      List.iter (fun (x, x') -> add ~parent_only:true x x') spairs;
+
+                      tree#(*fast_rev_scan_whole_initial_subtree*)fast_scan_whole_initial_subtree r
                         (fun n ->
+                          DEBUG_MSG "n=%a" nps n;
                           match n#data#_digest with
                           | None -> ()
                           | Some d -> begin
+                              DEBUG_MSG "d=%s" (Xhash.to_hex d);
                               try
                                 match cenv#multiple_subtree_matches#find d with
                                 | [], _, _ | _, [], _ -> ()
@@ -3217,8 +3258,19 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                     in
                                     match l, l' with
                                     | [x, _], [x', _] -> begin
-                                        DEBUG_MSG "extra: %a - %a" nps x nps x';
-                                        tbl_add_s extra_node_pair_tbl uid' (x, x')
+                                        DEBUG_MSG "x=%a x'=%a" nps x nps x';
+                                        let is_crossing = UIDmapping.is_crossing x x' in
+                                        let is_incompat =
+                                          UIDmapping.is_incompatible tree tree' x x'
+                                        in
+                                        if
+                                          List.mem (x, x') spairs ||
+                                          not
+                                            (List.exists
+                                               (fun (y, y') -> is_crossing y y' || is_incompat y y')
+                                               !npairs)
+                                        then
+                                          add x x'
                                     end
                                     | _ -> ()
                                 end
@@ -3234,9 +3286,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                         List.iter (fun f -> f()) !deferred_ops;
                         Hashtbl.iter
                           (fun k vs ->
-                            Xset.iter (tbl_add_s extra_node_pair_tbl k) vs
+                            Xset.iter
+                              (fun v ->
+                                BEGIN_DEBUG
+                                  let x1, x2 = v in
+                                  DEBUG_MSG "extra: %a - %a" nps x1 nps x2
+                                END_DEBUG;
+                                tbl_add_s extra_node_pair_tbl k v
+                              ) vs
                           ) tbl;
-                        check_matched_subtrees nd nd';
+                        check_matched_subtrees ~spairs:!stable_node_pairs nd nd';
                         DEBUG_MSG "!!!!!!!! adding %a (nd: %a)" nps nd' nps nd;
                         cands := uid' :: !cands
                       with
@@ -3444,12 +3503,14 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           let handle_extra ?(from_parent=false) r1 r2 =
             DEBUG_MSG "%a-%a" nups r1 nups r2;
             let handle n1 n2 =
+              DEBUG_MSG "%a-%a" nups n1 nups n2;
               let u1, u2 = n1#uid, n2#uid in
 
               if self#mem_del u1 then
                 remove_edit ~from_parent (self#find_del u1)
               else if self#mem_mov1 u1 then begin
                 let u1' = uidmapping#find u1 in
+                DEBUG_MSG "u1=%a u1'=%a" ups u1 ups u1';
                 List.iter (remove_edit ~from_parent) (self#find12 u1 u1');
                 let _ = uidmapping#remove u1 u1' in
                 self#add_edit (make_insert (tree2#search_node_by_uid u1'))
@@ -3459,20 +3520,43 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 remove_edit ~from_parent (self#find_ins u2)
               else if self#mem_mov2 u2 then begin
                 let u2' = uidmapping#inv_find u2 in
+                DEBUG_MSG "u2'=%a u2=%a" ups u2' ups u2;
                 List.iter (remove_edit ~from_parent) (self#find12 u2' u2);
                 let _ = uidmapping#remove u2' u2 in
                 self#add_edit (make_delete (tree1#search_node_by_uid u2'))
               end;
 
-              let _ = uidmapping#add_unsettled u1 u2 in
+              let conflict1, conflict2 = uidmapping#add_unsettled u1 u2 in
+              begin
+                match conflict1 with
+                | Some u1 -> begin
+                    DEBUG_MSG "u1=%a" ups u1;
+                    List.iter (remove_edit ~from_parent) (self#find1 u1);
+                    self#add_edit (make_delete (tree1#search_node_by_uid u1))
+                end
+                | _ -> ()
+              end;
+              begin
+                match conflict2 with
+                | Some u2 -> begin
+                    DEBUG_MSG "u2=%a" ups u2;
+                    List.iter (remove_edit ~from_parent) (self#find2 u2);
+                    self#add_edit (make_insert (tree2#search_node_by_uid u2))
+                end
+                | _ -> ()
+              end;
+
               if not (n1#data#eq n2#data) then
                 self#add_edit (make_relabel n1 n2)
             in
             let nl1 = ref [] in
             let nl2 = ref [] in
-            tree1#fast_scan_whole_initial_subtree r1 (fun n1 -> nl1 := n1 :: !nl1);
-            tree2#fast_scan_whole_initial_subtree r2 (fun n2 -> nl2 := n2 :: !nl2);
-            if List.length !nl1 = List.length !nl2 then begin
+            let ncl1 = ref [] in
+            let ncl2 = ref [] in
+            let add nl ncl n = nl := n :: !nl; ncl := n#initial_nchildren :: !ncl in
+            tree1#fast_scan_whole_initial_subtree r1 (add nl1 ncl1);
+            tree2#fast_scan_whole_initial_subtree r2 (add nl2 ncl2);
+            if List.length !nl1 = List.length !nl2 && !ncl1 = !ncl2 then begin
               List.iter2 handle !nl1 !nl2
             end
             else begin
@@ -3898,7 +3982,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                       match self#find12 u u' with
                                       | [] | [Relabel _] ->
                                           let n' = tree2#search_node_by_uid u' in
-                                          if is_crossing nd1 n2 n n' || is_incompatible nd1 n2 n n' then
+                                          if
+                                            is_crossing nd1 n2 n n' ||
+                                            is_incompatible nd1 n2 n n'
+                                          then
                                             raise Found
                                       | _ -> ()
                                     with
@@ -4001,7 +4088,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                       match self#find12 u' u with
                                       | [] | [Relabel _] ->
                                           let n' = tree1#search_node_by_uid u' in
-                                          if is_crossing n1 nd2 n' n || is_incompatible n1 nd2 n' n then
+                                          if
+                                            is_crossing n1 nd2 n' n ||
+                                            is_incompatible n1 nd2 n' n
+                                          then
                                             raise Found
                                       | _ -> ()
                                     with

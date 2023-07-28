@@ -227,26 +227,24 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.IDstaticOnDemand n   -> pr_string "import static "; pr_name n; pr_string ".*;"
 
-  | L.Annotations -> pb#pr_a pr_space (pr_node ~fail_on_error) children
+  | L.Annotations -> pb#pr_a ~tail:pr_space pr_space (pr_node ~fail_on_error) children
 
   | L.Annotation a -> begin
       match a with
       | L.Annotation.Normal n ->
           pr_string "@"; pr_name n; pr_lparen();
           pb#pr_va pr_comma (pr_node ~fail_on_error) children;
-          pr_rparen();
-          pr_space()
+          pr_rparen()
 
-      | L.Annotation.Marker n -> pr_string "@"; pr_name n; pr_space()
+      | L.Annotation.Marker n -> pr_string "@"; pr_name n
 
       | L.Annotation.SingleElement n ->
           pr_string "@"; pr_name n; pr_lparen();
           pr_nth_child 0;
-          pr_rparen();
-          pr_space()
+          pr_rparen()
   end
 
-  | L.Modifiers _ -> pb#pr_a pr_none (pr_node ~fail_on_error) children
+  | L.Modifiers _ -> pb#pr_a ~tail:pr_space pr_space (pr_node ~fail_on_error) children
 
   | L.Modifier m -> begin
       begin
@@ -265,8 +263,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
         | L.Modifier.Default      -> pr_string "default"
         | L.Modifier.Error s      -> pr_string s
-      end;
-      pad 1
+      end
   end
 
   | L.ElementValuePair i -> pr_id i; pr_string "="; pr_nth_child 0
@@ -306,9 +303,9 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#open_vbox 0;
       pb#open_box 0;
       pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
-      pr_string "class "; pr_id i;
+      pr_string "record "; pr_id i;
       pr_selected ~fail_on_error L.is_typeparameters specs;
-      pr_parameters ~fail_on_error children;
+      pr_lparen(); pr_selected ~fail_on_error L.is_parameter specs; pr_rparen();
       pr_selected ~fail_on_error L.is_implements specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_classbody children;
@@ -543,9 +540,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_semicolon();
       pb#close_box()
 
-  | L.AnnotDim ->
-      pr_selected ~fail_on_error ~sep:pr_space ~tail:pr_space L.is_annotations children;
-      pr_string "[]";
+  | L.AnnotDim ellipsis ->
+      pr_selected ~fail_on_error ~sep:pr_space(* ~tail:pr_space*) L.is_annotations children;
+      if ellipsis then
+        ()
+      else
+        pr_string "[]";
 
   | L.FieldDeclarations _ -> pb#pr_a pr_space (pr_node ~fail_on_error) children
 
@@ -603,9 +603,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
               pr_name n;
               pr_selected ~fail_on_error L.is_typearguments children
           end
-          | L.Type.Array(ty, dims) when va && dims = 1 -> pr_ty ty
-          | L.Type.Array(ty, dims) when va -> pr_ty ty; pr_string (dims_to_string (dims-1))
-          | L.Type.Array(ty, dims) -> pr_ty ty; pr_string (dims_to_string dims)
+          (*| L.Type.Array(ty, dims) when va && dims = 1 -> pr_ty ty
+          | L.Type.Array(ty, dims) when va -> pr_ty ty; pr_dims (dims-1)*)
+          | L.Type.Array(ty, dims) ->
+              pr_ty ty;
+              pr_selected ~fail_on_error ~otherwise:(fun () -> pr_dims dims) L.is_annot_dim children
+
           | L.Type.Void -> pr_string "void"
         in
         pr_ty ty
@@ -642,7 +645,28 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
       if va then pr_string "...";
       pad 1;
-      pr_id i; pr_dims dims
+      pr_id i;
+      pr_selected ~fail_on_error ~otherwise:(fun () -> pr_dims dims) L.is_annot_dim children
+
+  | L.ReceiverParameter id_opt ->
+      pb#open_hbox();
+      pr_selected ~fail_on_error L.is_modifiers children;
+      pb#close_box();
+
+      (*pr_selected ~fail_on_error L.is_type children;*)
+      let a' = find_nodes L.is_type children in
+      if (Array.length a') > 0 then begin
+        pb#pr_a pr_none (pr_node ~fail_on_error ~va ~blk_style ~prec) a';
+      end;
+
+      pad 1;
+
+      begin
+        match id_opt with
+        | Some id -> pr_id id; pr_dot()
+        | _ -> ()
+      end;
+      pr_string "this"
 
   | L.ForHeader(i, dims) ->
       pr_selected ~fail_on_error L.is_modifiers children;
@@ -656,11 +680,13 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.Method(i, _) ->
       (*pb#open_vbox 0;*)
       pb#open_box 0;
-      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers children;
+      let opv () = pb#open_vbox 0 in
+      pr_selected ~fail_on_error ~head:opv ~tail:pb#close_box L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
       pr_selected ~fail_on_error L.is_type children; pad 1;
       pr_id i;
       pr_parameters ~fail_on_error children;
+      pr_selected ~fail_on_error L.is_annot_dim children;
       pr_selected ~fail_on_error L.is_throws children;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style ~head:pad1 ~otherwise:pr_semicolon

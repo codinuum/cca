@@ -309,6 +309,9 @@ class c = object (self)
   method set_ignore_if0_flag = ignore_if0_flag <- true
   method clear_ignore_if0_flag = ignore_if0_flag <- false
 
+  (* Java *)
+  val mutable java_anon_ctor_body_flag = false
+
   (* Python *)
   val mutable python_with_stmt_disabled_flag = false
 
@@ -377,6 +380,10 @@ class c = object (self)
 
 
 (* configurations getter/setter *)
+  (* Java *)
+  method java_anon_ctor_body_flag = java_anon_ctor_body_flag
+  method set_java_anon_ctor_body_flag = java_anon_ctor_body_flag <- true
+  method clear_java_anon_ctor_body_flag = java_anon_ctor_body_flag <- false
 
   (* Python *)
   method python_with_stmt_disabled_flag = python_with_stmt_disabled_flag

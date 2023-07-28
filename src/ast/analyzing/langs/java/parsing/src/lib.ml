@@ -22,7 +22,7 @@ module Aux = Parser_aux
 class parser_c = object (self)
   inherit [Tokens_.token, Ast.c] PB.sb_c (new Aux.env) as super
 
-  val mutable java_lang_spec = 8
+  val mutable java_lang_spec = 11
   val mutable keep_going_flag = true
   val mutable rely_on_naming_convention_flag = false
   val mutable partial_name_resolution_flag = false
@@ -36,7 +36,11 @@ class parser_c = object (self)
   method set_java_lang_spec lv =
     if lv = 2 || lv = 3 || lv > 6 then begin
       java_lang_spec <- lv;
-      env#set_java_lang_spec lv
+      env#set_java_lang_spec lv;
+      if lv < 3 then
+        Ulexer.delete_keyword "enum";
+      if lv < 16 then
+        Ulexer.delete_keyword "record";
     end
     else
       invalid_arg "Java.Lib.parser_c#set_java_lang_spec"

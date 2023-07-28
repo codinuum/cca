@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -417,7 +417,7 @@ module Type = struct
     | Ast.TclassOrInterface tss -> ClassOrInterface (conv_type_specs ~resolve tss)
     | Ast.Tclass tss            -> Class (conv_type_specs ~resolve tss)
     | Ast.Tinterface tss        -> Interface (conv_type_specs ~resolve tss)
-    | Ast.Tarray(ty, dims)      -> Array(of_javatype ~resolve ty, dims)
+    | Ast.Tarray(ty, dims)      -> Array(of_javatype ~resolve ty, List.length dims)
     | Ast.Tvoid                 -> Void
 
 
@@ -1908,7 +1908,8 @@ type t = (* Label *)
   | Arguments
   | NamedArguments of name (* method *)
   | Parameters of name (* method *)
-  | Parameter of name * dims * bool
+  | Parameter of identifier * dims * bool
+  | ReceiverParameter of identifier option
   | TypeParameter of name (* type variable *)
   | TypeParameters of name
   | ArrayInitializer
@@ -1951,14 +1952,14 @@ type t = (* Label *)
   | FieldDeclarations of name
 
   | InferredFormalParameters
-  | InferredFormalParameter of name
+  | InferredFormalParameter of identifier
 
   | ResourceSpec
   (*| Resource of name * dims*)
 
   | CatchParameter of name * dims
 
-  | AnnotDim
+  | AnnotDim of bool (* is_ellipsis *)
 
   | Error of string
 
@@ -2037,8 +2038,10 @@ let rec to_string = function
   | WildcardBoundsExtends                   -> "WildcardBoundsExtends"
   | WildcardBoundsSuper                     -> "WildcardBoundsSuper"
   | Parameters name                         -> sprintf "Parameters(%s)" name
-  | Parameter(name, dims, va)               ->
-      sprintf "Parameter(%s,%d,%s)" name dims (if va then "..." else "")
+  | Parameter(id, dims, va)               ->
+      sprintf "Parameter(%s,%d,%s)" id dims (if va then "..." else "")
+  | ReceiverParameter id_opt                ->
+      sprintf "ReceiverParameter(%s)" (match id_opt with Some id -> id^".this" | _ -> "this")
 
   | TypeParameter name                      -> sprintf "TypeParameter(%s)" name
   | TypeParameters name                     -> sprintf "TypeParameters(%s)" name
@@ -2075,14 +2078,14 @@ let rec to_string = function
   | ElementDeclaration name                 -> sprintf "ElementDeclaration(%s)" name
   | FieldDeclarations name                  -> sprintf "FieldDeclarations(%s)" name
   | InferredFormalParameters                -> "InferredFormalParameters"
-  | InferredFormalParameter name            -> sprintf "InferredFormalParameter(%s)" name
+  | InferredFormalParameter ident           -> sprintf "InferredFormalParameter(%s)" ident
 
   | ResourceSpec                            -> sprintf "ResourceSpec"
   (*| Resource(name, dims)                    -> sprintf "Resource(%s,%d)" name dims*)
 
   | CatchParameter(name, dims)              -> sprintf "CatchParameter(%s,%d)" name dims
 
-  | AnnotDim                                -> "AnnotDim"
+  | AnnotDim ellipsis                       -> sprintf "AnnotDim(%B)" ellipsis
 
   | HugeArray(sz, c)                        -> sprintf "HugeArray(%d):%s\n" sz c
   | HugeExpr(sz, c)                         -> sprintf "HugeExpr(%d):%s\n" sz c
@@ -2149,7 +2152,8 @@ let anonymize ?(more=false) = function
   | NamedArguments _               -> NamedArguments ""
   | TypeArguments(nth, name)       -> TypeArguments(1, "")
   | Parameters _                   -> Parameters ""
-  | Parameter(name, dims, va)      -> Parameter("", 0, false)
+  | Parameter _                    -> Parameter("", 0, false)
+  | ReceiverParameter _            -> ReceiverParameter None
   | TypeParameter _                -> TypeParameter ""
   | TypeParameters _               -> TypeParameters ""
   | Modifiers _                    -> Modifiers Kany
@@ -2270,8 +2274,9 @@ let rec to_simple_string = function
   | WildcardBoundsExtends       -> "? extends"
   | WildcardBoundsSuper         -> "? super"
   | Parameters name             -> "<params>"
-  | Parameter(name, dims, va)   ->
-      name^(if dims = 0 then "" else sprintf "[%d]" dims)^(if va then "..." else "")
+  | Parameter(id, dims, va)   ->
+      id^(if dims = 0 then "" else sprintf "[%d]" dims)^(if va then "..." else "")
+  | ReceiverParameter id_opt    -> (match id_opt with Some id -> id^".this" | _ -> "this")
   | TypeParameter name          -> name
   | TypeParameters name         -> "<ty_params>"
   | ArrayInitializer            -> "<array-init>"
@@ -2306,12 +2311,12 @@ let rec to_simple_string = function
   | CompilationUnit             -> "<compilation_unit>"
   | ElementDeclaration name     -> name^"()"
   | FieldDeclarations name      -> "<fdecls>"
-  | InferredFormalParameters     -> "<inferred_formal_parameters>"
-  | InferredFormalParameter name -> name
+  | InferredFormalParameters    -> "<inferred_formal_parameters>"
+  | InferredFormalParameter id   -> id
   | ResourceSpec                -> "<resource_spec>"
   (*| Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d]" dims)*)
   | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
-  | AnnotDim                    -> "[]"
+  | AnnotDim ellipsis           -> if ellipsis then "..." else "[]"
   | Error s                     -> s
   | HugeArray(sz, c)            -> c
   | HugeExpr(sz, c)             -> c
@@ -2377,7 +2382,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | TypeArguments(nth, name)                -> combo 35 [name]
   | Wildcard                                -> mkstr 36
   | Parameters name                         -> combo 37 [name]
-  | Parameter(name, dims, va)               -> combo 38 [name; (string_of_int dims); (if va then "..." else "")]
+  | Parameter(id, dims, va)                 -> combo 38 [id; (string_of_int dims); (if va then "..." else "")]
   | TypeParameter name                      -> combo 39 [name]
   | TypeParameters name                     -> combo 40 [name]
   | ArrayInitializer                        -> mkstr 41
@@ -2415,14 +2420,14 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | WildcardBoundsExtends                   -> mkstr 74
   | WildcardBoundsSuper                     -> mkstr 75
   | InferredFormalParameters                -> mkstr 76
-  | InferredFormalParameter name            -> combo 77 [name]
+  | InferredFormalParameter id              -> combo 77 [id]
   | Error s                                 -> mkstr 79
   | SwitchBlock                             -> mkstr 80
   | ConstructorBody(name, msig)             -> combo 81 [name;msig]
   | ResourceSpec                            -> mkstr 82
   (*| Resource(name, dims)                    -> combo 83 [name; string_of_int dims]*)
   | CatchParameter(name, dims)              -> combo 84 [name; string_of_int dims]
-  | AnnotDim                                -> mkstr 85
+  | AnnotDim ellipsis                       -> combo 85 [if ellipsis then "..." else "[]"]
   | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 86 [string_of_int sz; h]
@@ -2454,6 +2459,9 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | SRLconstant -> mkstr 107
   | SRLdefault -> mkstr 107
   | Record name -> combo 108 [name]
+
+  | ReceiverParameter None -> mkstr 109
+  | ReceiverParameter (Some id) -> combo 109 [id]
 
 
 let sig_attr_name = "___signature"
@@ -2521,7 +2529,9 @@ let to_tag ?(strip=false) l =
     | WildcardBoundsExtends       -> "WildcardBoundsExtends", []
     | WildcardBoundsSuper         -> "WildcardBoundsSuper", []
     | Parameters name             -> "Parameters", ["name",xmlenc name]
-    | Parameter(name, dims, va)   -> "Parameter", ["name",xmlenc name;dims_attr_name,string_of_int dims;"va",string_of_bool va]
+    | Parameter(id, dims, va)     -> "Parameter", ["name",xmlenc id;dims_attr_name,string_of_int dims;"va",string_of_bool va]
+    | ReceiverParameter None      -> "ReceiverParameter", []
+    | ReceiverParameter (Some id) -> "ReceiverParameter", ["name",xmlenc id]
     | TypeParameter name          -> "TypeParameter", ["name",xmlenc name]
     | TypeParameters name         -> "TypeParameters", ["name",xmlenc name]
     | ArrayInitializer            -> "ArrayInitializer", []
@@ -2565,7 +2575,7 @@ let to_tag ?(strip=false) l =
     | FieldDeclarations name      -> "FieldDeclarations", ["name",xmlenc name]
 
     | InferredFormalParameters     -> "InferredFormalParameters", []
-    | InferredFormalParameter name -> "InferredFormalParameter", ["name",xmlenc name]
+    | InferredFormalParameter id   -> "InferredFormalParameter", ["name",xmlenc id]
 
     | CompilationUnit             -> "CompilationUnit", []
     | LocalVariableDeclaration(isstmt, vdids) ->
@@ -2581,7 +2591,7 @@ let to_tag ?(strip=false) l =
     | CatchParameter(name, dims)  -> "CatchParameter", ["name",xmlenc name;
                                                         dims_attr_name,string_of_int dims]
 
-    | AnnotDim                    -> "AnnotDim", []
+    | AnnotDim ellipsis -> "AnnotDim", ["ellipsis",string_of_bool ellipsis]
 
     | Error s -> "Error", ["contents",xmlenc s]
 
@@ -2694,15 +2704,15 @@ let to_char lab =
     | LocalVariableDeclaration(isstmt, vdids) -> 77
     | WildcardBoundsExtends -> 78
     | WildcardBoundsSuper -> 79
-    | InferredFormalParameters     -> 80
-    | InferredFormalParameter name -> 81
+    | InferredFormalParameters -> 80
+    | InferredFormalParameter id -> 81
     | Error _ -> 83
     | SwitchBlock -> 84
     | ConstructorBody _ -> 85
     | ResourceSpec -> 86
     (*| Resource _ -> 87*)
     | CatchParameter(name, dims) -> 88
-    | AnnotDim                   -> 89
+    | AnnotDim _                 -> 89
     | HugeArray _ -> 90
     | EmptyDeclaration -> 91
     | ForHeader _ -> 109
@@ -2728,6 +2738,7 @@ let to_char lab =
     | SRLconstant -> 111
     | SRLdefault -> 112
     | Record name -> 113
+    | ReceiverParameter _ -> 114
   in
   char_pool.(to_index lab)
 
@@ -3775,7 +3786,7 @@ let is_catch_parameter = function
   | _ -> false
 
 let is_annot_dim = function
-  | AnnotDim -> true
+  | AnnotDim _ -> true
   | _ -> false
 
 let is_aspect = function
@@ -3913,8 +3924,10 @@ let get_name lab =
         raise Not_found
     end
   in
-  if n = "" then
+  if n = "" then begin
+    (*Printf.printf "!!! get_name: lab=%s" (to_string lab);*)
     raise Not_found
+  end
   else
     n
 
@@ -4250,6 +4263,7 @@ let of_elem_data =
     "WildcardBoundsSuper",       (fun a -> WildcardBoundsSuper);
     "Parameters",                (fun a -> Parameters(find_name a));
     "Parameter",                 (fun a -> Parameter(find_name a, find_dims a, find_bool a "va"));
+    "ReceiverParameter",         (fun a -> ReceiverParameter(try Some (find_name a) with _ -> None));
     "TypeParameter",             (fun a -> TypeParameter(find_name a));
     "TypeParameters",            (fun a -> TypeParameters(find_name a));
     "ArrayInitializer",          (fun a -> ArrayInitializer);
@@ -4297,7 +4311,7 @@ let of_elem_data =
     "ResourceSpec",                             (fun a -> ResourceSpec);
     (*"Resource",                                 (fun a -> Resource(find_name a, find_dims a));*)
     "CatchParameter",                           (fun a -> CatchParameter(find_name a, find_dims a));
-    "AnnotDim",                                 (fun a -> AnnotDim);
+    "AnnotDim",                                 (fun a -> AnnotDim(find_bool a "ellipsis"));
 
     "AmbiguousName",                            (fun a -> mkp a Primary.(AmbiguousName(find_name a)));
     "AmbiguousMethodInvocation",                (fun a -> mkp a Primary.(AmbiguousMethodInvocation(find_name a)));

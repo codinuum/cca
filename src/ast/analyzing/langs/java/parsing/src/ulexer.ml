@@ -43,7 +43,7 @@ let mktok rawtok ulexbuf =
 let dollar_pat = Str.regexp_string "$"
 let escape_dollar = Str.global_replace dollar_pat "&#36;"
 
-let find_keyword =
+let find_keyword, delete_keyword =
   let keyword_list =
     [
      "abstract",     (fun l -> ABSTRACT l);
@@ -130,7 +130,8 @@ let find_keyword =
     with
       Not_found -> IDENTIFIER(loc, escape_dollar s)
   in
-  find
+  let delete s = Hashtbl.remove keyword_table s in
+  find, delete
 
 
 module F (Stat : Parser_aux.STATE_T) = struct
@@ -518,6 +519,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | _ -> begin
               DEBUG_MSG "ENUM --> <identifier>";
               set_to_JLS 2 loc "enum";
+              delete_keyword "enum";
               kw_to_ident "enum" t
           end
       end
@@ -529,6 +531,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | _ -> begin
               DEBUG_MSG "RECORD --> <identifier>";
               set_to_JLS 15 loc "record";
+              delete_keyword "record";
               kw_to_ident "record" t
           end
       end

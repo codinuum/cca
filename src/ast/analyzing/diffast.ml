@@ -84,21 +84,25 @@ let set_dump_src_flag() =
   options#set_dump_src_flag;
   options#set_no_collapse_flag
 
+let set_dump_delta_flag () =
+  options#set_dump_delta_flag;
+  options#set_java_anon_ctor_body_flag
+
 let set_dump_delta_out s =
   options#set_dump_delta_out s;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let set_dump_rev_delta() =
   options#clear_irreversible_flag;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let set_dump_irrev_delta() =
   options#set_irreversible_flag;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let set_dump_compressed_delta() =
   options#set_compress_delta_flag;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let clear_prematch_flags() =
   options#set_prematch_flag
@@ -207,11 +211,10 @@ let speclist =
    "-dump:src:out", Arg.String set_dump_src_out, "FILE\tdump unparsed AST into file";
 
 (* delta *)
-   "-dump:delta", Arg.Unit (fun () -> options#set_dump_delta_flag), "\t\tdump delta (Java only)";
+   "-dump:delta", Arg.Unit set_dump_delta_flag, "\t\tdump delta (Java only)";
    "-dump:delta:out", Arg.String set_dump_delta_out, "FILE\tdump delta into file";
    "-dump:delta:minimize", Arg.Unit set_minimize_delta_flags, "\t\tminimize delta";
    "-dump:delta:minimize:more", Arg.Unit set_minimize_delta_more_flags, "\tminimize delta more";
-(*   "-dump:delta:out", Arg.String set_dump_delta_out, "FILE\tdump delta into file";*)
 (*   "-dump:delta:rev", Arg.Unit set_dump_rev_delta, "\tgenerate reversible delta";*)
 (*   "-dump:delta:irrev", Arg.Unit set_dump_irrev_delta, "\tgenerate irreversible delta";*)
    "-dump:delta:compress", Arg.Unit set_dump_compressed_delta, "\t\tdump compressed AST";

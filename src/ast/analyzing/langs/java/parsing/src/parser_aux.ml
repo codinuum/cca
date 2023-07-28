@@ -1394,12 +1394,13 @@ module F (Stat : STATE_T) = struct
 				     ec_loc=loc
 				   }
 
-  let mkfp loc ms ty vdid va = { fp_modifiers=ms;
-				 fp_type=ty;
-				 fp_variable_declarator_id=vdid;
-				 fp_variable_arity=va;
-				 fp_loc=loc
-			       }
+  let mkfp ?(receiver=None) loc ms ty vdid va = { fp_modifiers=ms;
+				                  fp_type=ty;
+				                  fp_variable_declarator_id=vdid;
+				                  fp_variable_arity=va;
+				                  fp_loc=loc;
+                                                  fp_receiver=receiver;
+			                        }
   let _mkargs loc args = { as_arguments=args; as_loc=loc }
   let _mkatmd loc d = { atmd_desc=d; atmd_loc=loc }
   let _mkimd loc d = { imd_desc=d; imd_loc=loc }
@@ -2007,8 +2008,10 @@ module F (Stat : STATE_T) = struct
   let mkatmd so eo d = _mkatmd (get_loc so eo) d
   let mkimd so eo d = _mkimd (get_loc so eo) d
   let mkbs so eo d = { bs_desc=d; bs_loc=(get_loc so eo) }
-  let mkad so eo a = { ad_annotations=a; ad_loc=(get_loc so eo) }
-
+  let mkad ?(ellipsis=false) so eo a = { ad_annotations=a;
+                                         ad_loc=(get_loc so eo);
+                                         ad_ellipsis=ellipsis;
+                                       }
   let mkerrbs so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
@@ -2102,6 +2105,11 @@ module F (Stat : STATE_T) = struct
       ) ms.ms_modifiers
 
   let check_JLS_level lv thunk error =
+    (*let jls_to_string = function
+      | Common.JLSnone -> "JLS?"
+      | Common.JLS x -> sprintf "JLS%d" x
+    in
+    DEBUG_MSG "env#java_lang_spec=%s" (jls_to_string env#java_lang_spec);*)
     match env#java_lang_spec with
     | Common.JLS x when lv <= x -> begin
         env#set_actual_java_lang_spec lv;

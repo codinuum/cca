@@ -477,7 +477,7 @@ module IrreversibleFormat = struct
 
       (*DEBUG_MSG "final tree:\n%s" tree#initial_to_string;*)
 
-      DEBUG_MSG "T (final):\n%s\n" tree#to_string;
+      DEBUG_MSG "T (final):\n%s\n" tree#initial_to_string;
 
       (*try*)
         tree#unparse_ch ~fail_on_error ch
