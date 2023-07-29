@@ -97,22 +97,26 @@ let find_keyword, delete_keyword =
      "volatile",     (fun l -> VOLATILE l);
      "while",        (fun l -> WHILE l);
 
-     (* "exports", (fun l -> EXPORTS l); *)
-     (* "module", (fun l -> MODULE l); *)
-     (* "non-sealed", (fun l -> NON_SEALED l); *)
-     (* "open", (fun l -> OPEN l); *)
-     (* "opens", (fun l -> OPENS l); *)
-     (* "permits", (fun l -> PERMITS l); *)
-     (* "provides", (fun l -> PROVIDES l); *)
-     "record", (fun l -> RECORD l);
-     (* "requires", (fun l -> REQUIRES l); *)
-     (* "sealed", (fun l -> SEALED l); *)
-     (* "to", (fun l -> TO l); *)
-     (* "transitive", (fun l -> TRANSITIVE l); *)
-     (* "uses", (fun l -> USES l); *)
-     (* "var", (fun l -> VAR l); *)
-     (* "with", (fun l -> WITH l); *)
-     (* "yield", (fun l -> YIELD l); *)
+     "exports", (fun l -> EXPORTS l);(* 9 *)
+     "module", (fun l -> MODULE l);(* 9 *)
+     "open", (fun l -> OPEN l);(* 9 *)
+     "opens", (fun l -> OPENS l);(* 9 *)
+     "provides", (fun l -> PROVIDES l);(* 9 *)
+     "requires", (fun l -> REQUIRES l);(* 9 *)
+     "to", (fun l -> TO l);(* 9 *)
+     "transitive", (fun l -> TRANSITIVE l);(* 9 *)
+     "uses", (fun l -> USES l);(* 9 *)
+     "with", (fun l -> WITH_ l);(* 9 *)
+
+     (* "var", (fun l -> VAR l); *)(* 10 *)
+
+     (* "yield", (fun l -> YIELD l); *)(* 14 *)
+
+     "record", (fun l -> RECORD l);(* 16 *)
+
+     (* "non-sealed", (fun l -> NON_SEALED l); *)(* 17 *)
+     (* "permits", (fun l -> PERMITS l); *)(* 17 *)
+     (* "sealed", (fun l -> SEALED l); *)(* 17 *)
 
      "aspect",       (fun l -> ASPECT l);
      "pointcut",     (fun l -> POINTCUT l);
@@ -130,7 +134,10 @@ let find_keyword, delete_keyword =
     with
       Not_found -> IDENTIFIER(loc, escape_dollar s)
   in
-  let delete s = Hashtbl.remove keyword_table s in
+  let delete s =
+    DEBUG_MSG "deleting keyword \"%s\"" s;
+    Hashtbl.remove keyword_table s
+  in
   find, delete
 
 
@@ -451,8 +458,12 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let tok, st, ed = Token.decompose t in
     match tok with
     | ENUM loc
-    | RECORD loc
     | ASSERT loc
+
+    | EXPORTS loc | MODULE loc | NON_SEALED loc | OPEN loc | OPENS loc | PERMITS loc
+    | PROVIDES loc | RECORD loc | REQUIRES loc | SEALED loc | TO loc | TRANSITIVE loc
+    | USES loc | VAR loc | WITH_ loc | YIELD loc
+
     | ASPECT loc | POINTCUT loc | WITHIN loc | DECLARE loc
       -> Token.create (IDENTIFIER(loc, name)) st ed
     | _ -> t
@@ -518,9 +529,150 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | IDENTIFIER _, (IMPLEMENTS _ | LBRACE) -> t
           | _ -> begin
               DEBUG_MSG "ENUM --> <identifier>";
-              set_to_JLS 2 loc "enum";
-              delete_keyword "enum";
-              kw_to_ident "enum" t
+              let kw = "enum" in
+              set_to_JLS 2 loc kw;
+              delete_keyword kw;
+              kw_to_ident kw t
+          end
+      end
+
+      | OPEN loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | MODULE _, IDENTIFIER _ -> t
+          | _ -> begin
+              DEBUG_MSG "OPEN --> <identifier>";
+              let kw = "open" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | TRANSITIVE loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | (STATIC _ | IDENTIFIER _), (IDENTIFIER _ | DOT | SEMICOLON) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "TRANSITIVE --> <identifier>";
+              let kw = "transitive" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | TO loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | COMMA | SEMICOLON) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "TO --> <identifier>";
+              let kw = "to" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | WITH_ loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | COMMA | SEMICOLON) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "WITH_ --> <identifier>";
+              let kw = "with" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | MODULE loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | LBRACE) -> t
+          | _ -> begin
+              DEBUG_MSG "MODULE --> <identifier>";
+              let kw = "module" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | REQUIRES loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | SEMICOLON) -> t
+          | (STATIC _ | TRANSITIVE _), IDENTIFIER _ -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "REQUIRES --> <identifier>";
+              let kw = "module" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | EXPORTS loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | TO _) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "EXPORTS --> <identifier>";
+              let kw = "exports" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | OPENS loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | TO _) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "OPENS --> <identifier>";
+              let kw = "opens" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | USES loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | SEMICOLON) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "USES --> <identifier>";
+              let kw = "uses" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
+          end
+      end
+      | PROVIDES loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | WITH_ _) -> t
+          | _ when env#in_module -> t
+          | _ -> begin
+              DEBUG_MSG "PROVIDES --> <identifier>";
+              let kw = "provides" in
+              (*set_to_JLS 8 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
           end
       end
       | RECORD loc -> begin
@@ -530,11 +682,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
           | IDENTIFIER _, (LT _ | LPAREN _) -> t
           | _ -> begin
               DEBUG_MSG "RECORD --> <identifier>";
-              set_to_JLS 15 loc "record";
-              delete_keyword "record";
-              kw_to_ident "record" t
+              let kw = "record" in
+              (*set_to_JLS 15 loc kw;*)
+              (*delete_keyword kw;*)
+              kw_to_ident kw t
           end
       end
+
       | DEFAULT loc -> begin
           let _, tok2 = peek_nth 1 in
           match tok2 with

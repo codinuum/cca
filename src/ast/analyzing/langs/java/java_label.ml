@@ -902,6 +902,7 @@ module Modifier = struct
     | Strictfp
 (*    | Annotation*)
     | Default
+    | Transitive
     | Error of string
 
   let to_string m =
@@ -920,6 +921,7 @@ module Modifier = struct
       | Strictfp     -> "Strictfp"
 (*      | Annotation   -> "Annotation"*)
       | Default      -> "Default"
+      | Transitive   -> "Transitive"
       | Error s      -> "Error:"^s
     in
     "Modifier." ^ str
@@ -943,6 +945,7 @@ module Modifier = struct
     | Volatile     -> "volatile"
     | Strictfp     -> "strictfp"
 (*    | Annotation   -> "@"*)
+    | Transitive   -> "transitive"
     | Default      -> "default"
     | Error s      -> s
 
@@ -960,7 +963,8 @@ module Modifier = struct
     | Strictfp     -> mkstr 10
 (*    | Annotation   -> mkstr 11*)
     | Default      -> mkstr 12
-    | Error s      -> combo 13 [s]
+    | Transitive   -> mkstr 13
+    | Error s      -> combo 14 [s]
 
   let to_tag m =
     match m with
@@ -977,6 +981,7 @@ module Modifier = struct
     | Strictfp     -> "Strictfp", []
 (*    | Annotation   -> "Annotation"*)
     | Default      -> "Default", []
+    | Transitive   -> "Transitive", []
     | Error s      -> "ErrorModifier", ["contents",xmlenc s]
 
 end (* of module Modifier *)
@@ -1936,6 +1941,16 @@ type t = (* Label *)
   | InterfaceBody of name (* interface name *)
   | PackageDeclaration of name
 
+  | Module of name
+  | Open
+  | ModuleName of name
+  | ModuleBody of name
+  | Requires of name
+  | Exports of name
+  | Opens of name
+  | Uses of name
+  | Provides of name
+
 (* import declarations *)
   | IDsingle of name (* type name *)
   | IDtypeOnDemand of name
@@ -2116,6 +2131,16 @@ let rec to_string = function
   | SRLconstant -> "SRLconstant"
   | SRLdefault -> "SRLdefault"
 
+  | Module name -> sprintf "Module(%s)" name
+  | Open -> "Open"
+  | ModuleName name -> sprintf "ModuleName(%s)" name
+  | ModuleBody name -> sprintf "ModuleBody(%s)" name
+  | Requires name -> sprintf "Requires(%s)" name
+  | Exports name -> sprintf "Exports(%s)" name
+  | Opens name -> sprintf "Opens(%s)" name
+  | Uses name -> sprintf "Uses(%s)" name
+  | Provides name -> sprintf "Provides(%s)" name
+
 
 let anonymize ?(more=false) = function
   | Constructor(name, msig) when more     -> Constructor("", "")
@@ -2192,6 +2217,14 @@ let anonymize ?(more=false) = function
   | WildcardBoundsExtends when more -> Wildcard
   | WildcardBoundsSuper when more   -> Wildcard
   | CatchClause tid                 -> CatchClause (anonymize_tid ~more tid)
+
+  | Module _ -> Module ""
+  | ModuleBody _ -> ModuleBody ""
+  | Requires _ -> Requires ""
+  | Exports _ -> Exports ""
+  | Opens _ -> Opens ""
+  | Uses _ -> Uses ""
+  | Provides _ -> Provides ""
 
   | lab                            -> lab
 
@@ -2313,7 +2346,7 @@ let rec to_simple_string = function
   | FieldDeclarations name      -> "<fdecls>"
   | InferredFormalParameters    -> "<inferred_formal_parameters>"
   | InferredFormalParameter id   -> id
-  | ResourceSpec                -> "<resource_spec>"
+  | ResourceSpec                -> "<resource-spec>"
   (*| Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d]" dims)*)
   | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
   | AnnotDim ellipsis           -> if ellipsis then "..." else "[]"
@@ -2342,6 +2375,16 @@ let rec to_simple_string = function
   | SwitchRule                    -> "<switch-rule>"
   | SRLconstant                   -> "<sw-label>"
   | SRLdefault                    -> "default"
+
+  | Module name -> sprintf "module %s" name
+  | Open -> "open"
+  | ModuleName name -> name
+  | ModuleBody name -> sprintf "<module-body:%s>" name
+  | Requires name -> sprintf "requires %s" name
+  | Exports name -> sprintf "exports %s" name
+  | Opens name -> sprintf "opens %s" name
+  | Uses name -> sprintf "uses %s" name
+  | Provides name -> sprintf "provides %s" name
 
 
 let rec to_short_string ?(ignore_identifiers_flag=false) =
@@ -2462,6 +2505,16 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
 
   | ReceiverParameter None -> mkstr 109
   | ReceiverParameter (Some id) -> combo 109 [id]
+
+  | Module name -> combo 110 [name]
+  | Open -> mkstr 111
+  | ModuleName name -> combo 112 [name]
+  | ModuleBody name -> combo 113 [name]
+  | Requires name -> combo 114 [name]
+  | Exports name -> combo 115 [name]
+  | Opens name -> combo 116 [name]
+  | Uses name -> combo 117 [name]
+  | Provides name -> combo 118 [name]
 
 
 let sig_attr_name = "___signature"
@@ -2624,6 +2677,16 @@ let to_tag ?(strip=false) l =
     | SRLconstant                   -> "ConstantRuleLabel", []
     | SRLdefault                    -> "DefaultRuleLabel", []
 
+    | Module name     -> "ModuleDeclaration", ["name",xmlenc name]
+    | Open            -> "Open", []
+    | ModuleName name -> "ModuleName", ["name",xmlenc name]
+    | ModuleBody name -> "ModuleBody", ["name",xmlenc name]
+    | Requires name   -> "RequiresDirective", ["name",xmlenc name]
+    | Exports name    -> "ExportsDirective", ["name",xmlenc name]
+    | Opens name      -> "OpensDirective", ["name",xmlenc name]
+    | Uses name       -> "UsesDirective", ["name",xmlenc name]
+    | Provides name   -> "ProvidesDirective", ["name",xmlenc name]
+
   in
   name, attrs
 
@@ -2739,6 +2802,15 @@ let to_char lab =
     | SRLdefault -> 112
     | Record name -> 113
     | ReceiverParameter _ -> 114
+    | Module name -> 115
+    | Open -> 116
+    | ModuleName name -> 117
+    | ModuleBody name -> 118
+    | Requires name -> 119
+    | Exports name -> 120
+    | Opens name -> 121
+    | Uses name -> 122
+    | Provides name -> 123
   in
   char_pool.(to_index lab)
 
@@ -3118,6 +3190,16 @@ let is_named = function
   | ClassnamePatternNamePlus _
       -> true
 
+  | Module _
+  | ModuleName _
+  | ModuleBody _
+  | Requires _
+  | Exports _
+  | Opens _
+  | Uses _
+  | Provides _
+    -> true
+
   | _ -> false
 
 let is_named_orig = function
@@ -3159,10 +3241,20 @@ let is_named_orig = function
   | ClassnamePatternNamePlus _
       -> true
 
+  | Module _
+  | ModuleName _
+  | Requires _
+  | Exports _
+  | Opens _
+  | Uses _
+  | Provides _
+    -> true
+
   | _ -> false
 
 
 let is_to_be_notified = function
+  | Module _
   | Class _
   | Interface _
   | Method _ -> true
@@ -3173,6 +3265,7 @@ let is_partition = function
   | IDtypeOnDemand _
   | IDsingleStatic _
   | IDstaticOnDemand _
+  | Module _
   | Class _
   | Enum _
   | Interface _
@@ -3182,6 +3275,7 @@ let is_partition = function
 
 
 let is_boundary = function
+  | Module _
   | Class _
   | Interface _
   | FieldDeclaration _
@@ -3198,6 +3292,7 @@ let is_boundary = function
   | _ -> false
 
 let is_sequence = function
+  | ModuleBody _
   | Block _
   | MethodBody _
   | ConstructorBody _
@@ -3296,6 +3391,26 @@ let is_import_single = function
 
 let is_type = function
   | Type _ -> true
+  | _ -> false
+
+let is_module = function
+  | Module _ -> true
+  | _ -> false
+
+let is_module_body = function
+  | ModuleBody _ -> true
+  | _ -> false
+
+let is_open = function
+  | Open -> true
+  | _ -> false
+
+let is_module_directive = function
+  | Requires _
+  | Exports _
+  | Opens _
+  | Uses _
+  | Provides _ -> true
   | _ -> false
 
 let is_class = function
@@ -3919,6 +4034,15 @@ let get_name lab =
     | Modifiers k
     | Specifier k -> kind_to_name k
 
+    | Module name
+    | ModuleName name
+    | ModuleBody name
+    | Requires name
+    | Exports name
+    | Opens name
+    | Uses name
+    | Provides name -> name
+
     | _ -> begin
         (*WARN_MSG "name not found: %s" (to_string lab);*)
         raise Not_found
@@ -4071,8 +4195,8 @@ let of_elem_data =
     "DoubleType",    (fun a -> mkty a Type.Double);
     "BooleanType",   (fun a -> mkty a Type.Boolean);
     "ReferenceType", (fun a -> mkty a (Type.ClassOrInterface (find_name a)));
-    "ClassType",     (fun a -> mkty a (Type.Class (find_name a)));
-    "InterfaceType", (fun a -> mkty a (Type.Interface (find_name a)));
+    "ClassType",     (fun a -> mkty a (Type.Class(find_name a)));
+    "InterfaceType", (fun a -> mkty a (Type.Interface(find_name a)));
     "Void",          (fun a -> mkty a Type.Void);
 
     "IntegerLiteral",       (fun a -> mklit a (Literal.Integer(find_value a)));
@@ -4341,6 +4465,16 @@ let of_elem_data =
     "ClassnamePatternParen",    (fun a -> ClassnamePatternParen);
     "ClassnamePatternName",     (fun a -> ClassnamePatternName(find_name a));
     "ClassnamePatternNamePlus", (fun a -> ClassnamePatternNamePlus(find_name a));
+
+    "ModuleDeclaration", (fun a -> Module(find_name a));
+    "Open",              (fun a -> Open);
+    "ModuleName",        (fun a -> ModuleName(find_name a));
+    "ModuleBody",        (fun a -> ModuleBody(find_name a));
+    "RequiresDirective", (fun a -> Requires(find_name a));
+    "ExportsDirective",  (fun a -> Exports(find_name a));
+    "OpensDirective",    (fun a -> Opens(find_name a));
+    "UsesDirective",     (fun a -> Uses(find_name a));
+    "ProvidesDirective", (fun a -> Provides(find_name a));
    ]
   in
   let tbl = Hashtbl.create (List.length tag_list) in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1535,7 +1535,11 @@ module Edit = struct
                 List.map nmap' (get_p_descendants ~moveon is_stable_' x')
             in
             DEBUG_MSG "ss=[%a]" nsps ss;
-            let grp = List.filter (fun tn -> List.exists (fun s -> tn == s || is_ancestor tn s) ss) top_nodes in
+            let grp =
+              List.filter
+                (fun tn -> List.exists (fun s -> tn == s || is_ancestor tn s) ss)
+                top_nodes
+            in
             DEBUG_MSG "grp=[%a]" nsps grp;
             grp
           in
@@ -1631,7 +1635,9 @@ module Edit = struct
               try
                 let xk = self#find_key x'#uid in
                 let a, (pt, ps) =  Hashtbl.find ancto_tbl xk in
-                pt#key_opt = None && not (Hashtbl.mem edit_parent_tbl xk) && not (Hashtbl.mem parent_key_tbl xk)
+                pt#key_opt = None &&
+                not (Hashtbl.mem edit_parent_tbl xk) &&
+                not (Hashtbl.mem parent_key_tbl xk)
               with _ -> false) ||
 
               match !paths_opt with
@@ -1703,7 +1709,9 @@ module Edit = struct
                                  (fun tn ->
                                    is_ancestor tn y && is_ancestor tn x
                                  ) top_nodes
-                             ) (List.map nmap' (if is_stable' y' then [y'] else get_p_descendants is_stable' y'))
+                             ) (List.map
+                                  nmap'
+                                  (if is_stable' y' then [y'] else get_p_descendants is_stable' y'))
                          in
                          if b then
                            DEBUG_MSG "found: y'=%a" nps y';
@@ -1845,14 +1853,19 @@ module Edit = struct
                     let prev_cond =
                       x'#initial_pos > 0 &&
                       try
-                        let prev' = x'#initial_parent#initial_children.(x'#initial_pos-1) in
+                        let ca' = x'#initial_parent#initial_children in
+                        let xpos' = x'#initial_pos in
+                        let prev' = ca'.(xpos'-1) in
                         DEBUG_MSG "prev'=%a" nps prev';
                         (not (is_stable' prev') &&
                          (Xset.mem simple_ins_roots prev' ||
                          self#find_key_opt prev'#uid =
                          self#find_key_opt prev'#initial_parent#uid)
                         ) ||
-                        self#is_canceled_stable_node prev'
+                        self#is_canceled_stable_node prev' &&
+                        xpos' > 1 &&
+                        array_range_exists
+                          (fun x -> not (self#is_canceled_stable_node x)) ca' 0 (xpos'-2)
                       with
                       | _ -> true
                     in
@@ -2020,6 +2033,12 @@ module Edit = struct
                       _ -> fun _ -> false
                   in*)
                   self#is_canceled_stable_node x' ||
+                  (try
+                    let ca' = x'#initial_parent#initial_children in
+                    array_range_forall self#is_canceled_stable_node ca' 0 (x'#initial_pos-1)
+                  with
+                    _ -> false)
+                  ||
                   List.exists
                     (fun x ->
                       DEBUG_MSG "x=%a" nps x;
@@ -2272,7 +2291,8 @@ module Edit = struct
                             array_range_exists
                               (fun c ->
                                 not (self#is_excluded c) &&
-                                array_range_exists (fun c1 -> List.memq c1 rest) ca (c#initial_pos + 1) (len - 1)
+                                array_range_exists
+                                  (fun c1 -> List.memq c1 rest) ca (c#initial_pos + 1) (len - 1)
                               ) ca (s#initial_pos + 1) (len - 1)
                           in
                           DEBUG_MSG "not_to_be_reversed=%B" not_to_be_reversed;
@@ -5609,11 +5629,24 @@ module Edit = struct
                           let a, (pt, ps) = Hashtbl.find ancto_tbl k in
                           let p = pt#position in
                           let nb = List.length ps in
-                          DEBUG_MSG "a=%a p=%d nb=%d" nps a p nb;
+                          DEBUG_MSG "a=%a p=%d nb=%d ps=%s" nps a p nb (paths_to_string ps);
                           (try not (is_ancestor_key k (List.hd !prev)) with _ -> true) &&
                           not
                             (array_range_exists
-                               (fun x -> x == nd || is_ancestor x nd) a#initial_children p (p+nb-1)) ||
+                               (fun x ->
+                                 x == nd ||
+                                 is_ancestor x nd &&
+                                 let xpos = x#initial_pos in
+                                 let rp = xpos - p in
+                                 let xpath = List.nth ps rp in
+                                 xpath#has_frac_ofs ||
+                                 let sr' = self#get_subtree_root (stid_of_key k) in
+                                 DEBUG_MSG "sr'=%a" nps sr';
+                                 let y' = self#acc sr' (Path.get_parent xpath#path) in
+                                 DEBUG_MSG "y'=%a" nps y';
+                                 (*y' == x' || *)is_ancestor y' x'
+                               ) a#initial_children p (p+nb-1)) ||
+
                           array_range_exists
                             (fun x ->
                               is_ancestor x nd &&
@@ -6665,6 +6698,9 @@ module Edit = struct
                 DEBUG_MSG "ss'=[%a]" nsps ss';
 
                 let to_be_lifted0 =
+                  if ss' = [] then
+                    false
+                  else
                   let a' = get_p_ancestor is_stable' nd' in
                   let a = nmap' a' in
                   DEBUG_MSG "a'=%a a=%a" nps a' nps a;
@@ -7193,11 +7229,18 @@ module Edit = struct
                     not (self#is_node_to_be_lifted n) &&
                     not (self#is_canceled_stable_node n))
                   then begin
-                    if can_ignore_lift n && (Xset.mem lifted_nodes n' || self#is_node_to_be_lifted n || self#is_canceled_stable_node n) then DEBUG_MSG "!!!!!!!!!!";
+                    if
+                      can_ignore_lift n && (Xset.mem lifted_nodes n' ||
+                      self#is_node_to_be_lifted n ||
+                      self#is_canceled_stable_node n)
+                    then
+                      DEBUG_MSG "!!!!!!!!!!";
+
                     if forward then begin
                       begin
                         match !_stable_nodes' with
-                        | [] -> _stable_node_opt' := Some n'; _stable_nodes' := n' :: !_stable_nodes'
+                        | [] ->
+                            _stable_node_opt' := Some n'; _stable_nodes' := n' :: !_stable_nodes'
                         | _ -> ()
                       end;
                       if
@@ -7207,7 +7250,7 @@ module Edit = struct
                       then
                         _stable_nodes' := n' :: !_stable_nodes'
                     end
-                    else begin
+                    else begin (* backward *)
                       _stable_node_opt' := Some n';
                       DEBUG_MSG "check: count=%d: a stable node %a found" count nps n';
                       raise Exit
@@ -7441,7 +7484,9 @@ module Edit = struct
                           not (is_stable pnd) &&
                           not (is_stable' anc'#initial_parent) &&
                           lsn'#initial_parent == rsn'#initial_parent &&
-                          try lsn'#initial_parent#initial_children.(lsn'#initial_pos+1) == rsn' with _ -> false
+                          try
+                            lsn'#initial_parent#initial_children.(lsn'#initial_pos+1) == rsn'
+                          with _ -> false
                         -> begin
                           let r = nmap' r' in
                           if Xlist.overlap (find_parent_keys r) ks then begin
@@ -7508,7 +7553,11 @@ module Edit = struct
 
                     DEBUG_MSG "anc'=%a lsn'=%a rsn'=%a" nps anc' nps lsn' nps rsn';
                     let context_cond =
-                      let b = self#has_parent_path lsn' && self#has_parent_path rsn' in if b then DEBUG_MSG "!!!!!"; b ||
+                      let b =
+                        self#has_parent_path lsn' && self#has_parent_path rsn'
+                      in
+                      if b then DEBUG_MSG "!!!!!";
+                      b ||
                       let plsn' = lsn'#initial_parent in
                       let prsn' = rsn'#initial_parent in
                       plsn' == prsn' && prsn' == anc' &&
@@ -7616,6 +7665,7 @@ module Edit = struct
                                      get_p_descendants is_stable x
                                  ) xs)
                           in
+                          let ss = List.filter (fun x -> not (self#is_canceled_stable_node x)) ss in
                           DEBUG_MSG "ss=[%a]" nsps ss;
                           if (List.length ss) > 2 then begin
                             let ss' = List.map nmap ss in
@@ -7755,12 +7805,19 @@ module Edit = struct
                               | [] when List.length rss' = 1 -> a'
                               | [] -> lsn'#initial_parent
                               | rsn0'::_ ->
-                                  let a0', _ = self#get_latest_common_ancestor tree' [lsn'; rsn0'] in
+                                  let a0', _ =
+                                    self#get_latest_common_ancestor tree' [lsn'; rsn0']
+                                  in
                                   a0'
                           in
                           DEBUG_MSG "pnd=%a" nps pnd;
                           DEBUG_MSG "a'=%a" nps a';
-                          let ofs = if !l_has_conflicts && not !r_is_desc_of_conflict then 0.0 else float l_count in
+                          let ofs =
+                            if !l_has_conflicts && not !r_is_desc_of_conflict then
+                              0.0
+                            else
+                              float l_count
+                          in
                           let ok =
                             try
                               a' != (nmap pnd)
@@ -7780,7 +7837,12 @@ module Edit = struct
                           end
                       end
                       | None -> begin
-                          let ofs = if !l_has_conflicts && not !r_is_desc_of_conflict then 0.0 else float l_count in
+                          let ofs =
+                            if !l_has_conflicts && not !r_is_desc_of_conflict then
+                              0.0
+                            else
+                              float l_count
+                          in
                           let elem = Elem.make ~ofs (get_pos anc' lsn') in
                           DEBUG_MSG "elem=%s" (Elem.to_string elem);
                           anc', (Path.append anc'#apath elem), upstream, false
@@ -9969,7 +10031,14 @@ module Edit = struct
 
 	  match ed with
 	  | Delete(nd1, excluded1) -> begin
-              info_add nd1; info_add nd1#initial_parent;
+              info_add nd1;
+              let pnd = nd1#initial_parent in
+              info_add pnd;
+              begin
+                try
+                  info_add pnd#initial_parent;
+                with _ -> ()
+              end;
 
 	      let path1 = new path_c nd1#apath in
 
@@ -10475,7 +10544,14 @@ module Edit = struct
               []
           end
           | Move(mid, _, nd1, excluded1, nd2, excluded2) -> begin
-              info_add nd1; info_add nd1#initial_parent;
+              info_add nd1;
+              let pnd = nd1#initial_parent in
+              info_add pnd;
+              begin
+                try
+                  info_add pnd#initial_parent;
+                with _ -> ()
+              end;
 
               let remote_stable_tbl1 =
                 get_remote_stable_tbl self#is_stable1 excluded1

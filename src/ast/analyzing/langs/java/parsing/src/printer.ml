@@ -496,6 +496,7 @@ and pr_modifier m =
   | Mstrictfp     -> pr_string "strictfp"
   | Mannotation a -> pr_annotation a
   | Mdefault      -> pr_string "default"
+  | Mtransitive   -> pr_string "transitive"
   | Merror s      -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 
@@ -546,6 +547,7 @@ and pr_class_instance_creation cic =
       close_box();
       pr_option pr_class_body body_opt;
       close_box()
+
   | CICqualified(p, tyargs1_opt, id, tyargs2_opt, args, body_opt) ->
       pr_primary (get_precedence ".") p;
       pr_string ".new ";
@@ -554,6 +556,7 @@ and pr_class_instance_creation cic =
       pr_option pr_type_arguments tyargs2_opt;
       pr_lparen(); pr_argument_list args; pr_rparen();
       pr_option pr_class_body body_opt
+
   | CICnameQualified(n, tyargs1_opt, id, tyargs2_opt, args, body_opt) ->
       pr_name n;
       pr_string ".new ";
@@ -1238,6 +1241,7 @@ and pr_class_declaration_head kind ch =
   end;
   pr_string (kind^" "); pr_id ch.ch_identifier;
   pr_option pr_type_parameters ch.ch_type_parameters;
+  close_box();
   pr_option pr_extends_class ch.ch_extends_class;
   pr_implements_op ch.ch_implements;
   close_box()
@@ -1251,8 +1255,93 @@ and pr_record_declaration_head kind rh =
   pr_string (kind^" "); pr_id rh.rh_identifier;
   pr_option pr_type_parameters rh.rh_type_parameters;
   pr_lparen(); pr_formal_parameters rh.rh_record_header; pr_rparen();
+  close_box();
   pr_implements_op rh.rh_implements;
   close_box()
+
+and pr_module_declaration m =
+  pr_module_declaration_head m.mod_head;
+  pr_space();
+  pr_module_body m.mod_body
+
+and pr_module_declaration_head mdh =
+  begin
+    match mdh.mdh_annotations with
+    | [] -> ()
+    | a -> pr_annotations a; pr_space()
+  end;
+  begin
+    match mdh.mdh_open with
+    | Some _ -> pr_string "open "
+    | _ -> ()
+  end;
+  pr_string "module "; pr_name mdh.mdh_name
+
+and pr_module_body mb =
+  match mb.mb_module_directives with
+  | [] -> pr_string " {}"
+  | ds ->
+      pr_block_begin_tall();
+      pr_list pr_space pr_module_directive ds;
+      pr_block_end()
+
+and pr_module_name mn = pr_name mn.mn_name
+
+and pr_module_directive md =
+  match md.md_desc with
+  | MDrequires(ms, n) ->
+      open_box 0;
+      pr_string "requires ";
+      begin
+        match ms with
+        | [] -> ()
+        | _ -> pr_list pr_space pr_modifier ms; pr_space()
+      end;
+      pr_name n;
+      pr_semicolon();
+      close_box()
+
+  | MDexports(n, ns) ->
+      open_box 0;
+      pr_string "exports "; pr_name n;
+      begin
+        match ns with
+        | [] -> ()
+        | _ ->
+            pr_space(); pr_string "to";
+            open_box 0; pr_space(); pr_list pr_comma pr_module_name ns; close_box()
+      end;
+      pr_semicolon();
+      close_box()
+
+  | MDopens(n, ns) ->
+      open_box 0;
+      pr_string "opens "; pr_name n;
+      pr_string "privides "; pr_name n;
+      begin
+        match ns with
+        | [] -> ()
+        | _ ->
+            pr_space(); pr_string "to";
+            open_box 0; pr_space(); pr_list pr_comma pr_module_name ns; close_box()
+      end;
+      pr_semicolon();
+      close_box()
+
+  | MDuses n -> pr_string "uses "; pr_name n; pr_semicolon()
+
+  | MDprovides(n, ns) ->
+      open_box 0;
+      pr_string "privides "; pr_name n;
+      begin
+        match ns with
+        | [] -> ()
+        | _ ->
+            pr_space(); pr_string "with";
+            open_box 0; pr_space(); pr_list pr_comma pr_module_name ns; close_box()
+      end;
+      pr_semicolon();
+      close_box()
 
 and pr_class_declaration cd =
   match cd.cd_desc with
@@ -1292,7 +1381,7 @@ let pr_import_declaration id =
 
 let pr_import_declarations = pr_list pr_newline pr_import_declaration
 
-let pr_compilation_unit { cu_package=pd_op; cu_imports=ids; cu_tydecls=tds } =
+let pr_compilation_unit { cu_package=pd_op; cu_imports=ids; cu_tydecls=tds; cu_modecl=mo } =
   let _ =
     match pd_op with
     | Some pd -> pr_package_declaration pd; pr_newline()
@@ -1304,5 +1393,6 @@ let pr_compilation_unit { cu_package=pd_op; cu_imports=ids; cu_tydecls=tds } =
     | _ -> pr_import_declarations ids; pr_newline()
   in
   pr_type_declarations tds;
+  pr_option pr_module_declaration mo;
   pr_newline()
 

@@ -262,6 +262,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
         | L.Modifier.Strictfp     -> pr_string "strictfp"
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
         | L.Modifier.Default      -> pr_string "default"
+        | L.Modifier.Transitive   -> pr_string "transitive"
         | L.Modifier.Error s      -> pr_string s
       end
   end
@@ -273,6 +274,53 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "{"; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string "}"
 
   | L.Specifier _ -> ()
+
+  | L.Module n ->
+      pb#open_vbox 0;
+      pb#open_box 0;
+      pr_selected ~fail_on_error ~blk_style ~tail:pr_space L.is_annotation children;
+      pr_selected ~fail_on_error ~tail:pad1 L.is_open children;
+      pr_string "module "; pr_name n;
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_module_body children;
+      pb#close_box()
+
+  | L.Open -> pr_string "open"
+  | L.ModuleName n -> pr_name n
+
+  | L.Requires n ->
+      pb#open_box 0;
+      pr_string "requires";
+      pr_selected ~fail_on_error ~head:pr_space ~tail:pr_space L.is_modifier children;
+      pr_name n;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.Exports n ->
+      pb#open_box 0;
+      pr_string "exports "; pr_name n;
+      let pr_to () = pr_space(); pr_string "to"; pr_space() in
+      pb#pr_a ~head:pr_to pr_comma (pr_node ~fail_on_error) children;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.Opens n ->
+      pb#open_box 0;
+      pr_string "opens "; pr_name n;
+      let pr_to () = pr_space(); pr_string "to"; pr_space() in
+      pb#pr_a ~head:pr_to pr_comma (pr_node ~fail_on_error) children;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.Uses n -> pr_string "uses "; pr_name n; pr_semicolon()
+
+  | L.Provides n ->
+      pb#open_box 0;
+      pr_string "provides "; pr_name n;
+      let pr_with () = pr_space(); pr_string "with"; pr_space() in
+      pb#pr_a ~head:pr_with pr_comma (pr_node ~fail_on_error) children;
+      pr_semicolon();
+      pb#close_box()
 
   | L.Class i ->
       let specs = get_specs children in
@@ -392,6 +440,14 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.ClassnamePatternName n -> pr_name n
   | L.ClassnamePatternNamePlus n -> pr_name n; pr_string "+"
 
+  | L.ModuleBody _ ->
+        if nchildren = 0 then
+          pr_string "{}"
+        else begin
+          pb#pr_block_begin_tall();
+          pb#pr_a pr_cut (pr_node ~fail_on_error) children;
+          pb#pr_block_end()
+        end
 
   | L.ClassBody _ ->
         if nchildren = 0 then

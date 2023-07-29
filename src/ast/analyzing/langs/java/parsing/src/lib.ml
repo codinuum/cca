@@ -37,10 +37,32 @@ class parser_c = object (self)
     if lv = 2 || lv = 3 || lv > 6 then begin
       java_lang_spec <- lv;
       env#set_java_lang_spec lv;
-      if lv < 3 then
+      if lv < 3 then begin
         Ulexer.delete_keyword "enum";
-      if lv < 16 then
+      end;
+      if lv < 9 then begin
+        Ulexer.delete_keyword "exports";
+        Ulexer.delete_keyword "module";
+        Ulexer.delete_keyword "open";
+        Ulexer.delete_keyword "opens";
+        Ulexer.delete_keyword "provides";
+        Ulexer.delete_keyword "requires";
+        Ulexer.delete_keyword "to";
+        Ulexer.delete_keyword "transitive";
+        Ulexer.delete_keyword "uses";
+        Ulexer.delete_keyword "with";
+      end;
+      if lv < 14 then begin
+        Ulexer.delete_keyword "yield";
+      end;
+      if lv < 16 then begin
         Ulexer.delete_keyword "record";
+      end;
+      if lv < 17 then begin
+        Ulexer.delete_keyword "non-sealed";
+        Ulexer.delete_keyword "permits";
+        Ulexer.delete_keyword "sealed";
+      end
     end
     else
       invalid_arg "Java.Lib.parser_c#set_java_lang_spec"
@@ -559,6 +581,16 @@ class parser_c = object (self)
                 raise Exit
             end
 
+            | I.X (I.N N_module_body), _, I.X (I.T T_LBRACE) -> begin
+                (*save_state menv_;*)
+                env#enter_module;
+                raise Exit
+            end
+            | I.X (I.N N_module_body), _, I.X (I.T T_RBRACE) -> begin
+                save_state menv_;
+                env#exit_context;
+                raise Exit
+            end
             | I.X (I.N N_class_body), _, I.X (I.T T_LBRACE) -> begin
                 (*save_state menv_;*)
                 env#enter_class;

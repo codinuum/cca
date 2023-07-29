@@ -115,21 +115,10 @@ reserved:
 
 | GT_7 { }
 
-| EXPORTS { }
-| MODULE { }
 | NON_SEALED { }
-| OPEN { }
-| OPENS { }
 | PERMITS { }
-| PROVIDES { }
-| RECORD { }
-| REQUIRES { }
 | SEALED { }
-| TO { }
-| TRANSITIVE { }
-| USES { }
 | VAR { }
-| WITH_ { }
 | YIELD { }
 ;
 
@@ -542,14 +531,20 @@ identifier:
 
 (***** *****)
 
-
 compilation_unit:
+| u=ordinary_compilation_unit { u }
+| u=modular_compilation_unit { u }
+;
+
+%inline
+ordinary_compilation_unit:
 |                                                                   { mkcu None [] [] }
 |                                              t=type_declarations  { mkcu None [] t }
 |                       i=import_declarations  t=type_declarations0 { mkcu None i t }
 | p=package_declaration i=import_declarations0 t=type_declarations0 { mkcu (Some p) i t }
 
-| p=package_declaration i=import_declarations0 t=type_declarations i2=import_declarations t2=type_declarations0
+| p=package_declaration i=import_declarations0 t=type_declarations
+    i2=import_declarations t2=type_declarations0
     { 
       if env#keep_going_flag then begin
         parse_warning $startofs(i2) $endofs(i2) "illegal import declaration(s)";
@@ -558,6 +553,88 @@ compilation_unit:
       else
         parse_error $startofs(i2) $endofs(i2) "illegal import declaration(s)"
     }
+;
+
+%inline
+modular_compilation_unit:
+|                        m=module_declaration { mkmcu [] m }
+| i=import_declarations  m=module_declaration { mkmcu i m }
+;
+module_declaration:
+| h=module_declaration_head b=module_body { mkmodule $startofs $endofs h b }
+;
+module_declaration_head:
+| a=annotations0        MODULE n=name
+    { 
+      check_JLS_level 9
+        (fun () -> mkmdh $symbolstartofs $endofs a None n)
+        (fun () -> parse_error $startofs $endofs "module-declaration is available since JLS9")
+    }
+| a=annotations0 o=OPEN MODULE n=name
+    { 
+      check_JLS_level 9
+        (fun () -> mkmdh $symbolstartofs $endofs a (Some o) n)
+        (fun () -> parse_error $startofs $endofs "module-declaration is available since JLS9")
+    }
+;
+module_body:
+| LBRACE ds=module_directive* RBRACE { mkmb $startofs $endofs ds }
+;
+module_name:
+| n=name { mkmn $startofs $endofs n }
+;
+module_directive:
+| REQUIRES ms=requires_modifier* n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDrequires(ms, n)))
+        (fun () -> parse_error $startofs $endofs "requires-directive is available since JLS9")
+    }
+| EXPORTS n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDexports(n, [])))
+        (fun () -> parse_error $startofs $endofs "exports-directive is available since JLS9")
+    }
+| EXPORTS n=name TO ns=clist(module_name) SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDexports(n, ns)))
+        (fun () -> parse_error $startofs $endofs "exports-directive is available since JLS9")
+    }
+| OPENS n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDopens(n, [])))
+        (fun () -> parse_error $startofs $endofs "opens-directive is available since JLS9")
+    }
+| OPENS n=name TO ns=clist(module_name) SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDopens(n, ns)))
+        (fun () -> parse_error $startofs $endofs "opens-directive is available since JLS9")
+    }
+| USES n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDuses n))
+        (fun () -> parse_error $startofs $endofs "uses-directive is available since JLS9")
+    }
+| PROVIDES n=name WITH_ ns=clist(module_name) SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDprovides(n, ns)))
+        (fun () -> parse_error $startofs $endofs "provides-directive is available since JLS9")
+    }
+;
+requires_modifier:
+| TRANSITIVE
+    { 
+      check_JLS_level 9
+        (fun () -> mkmod $startofs $endofs Mtransitive)
+        (fun () -> parse_error $startofs $endofs "transitive-modifier is available since JLS9")
+    }
+| STATIC { mkmod $startofs $endofs Mstatic }
 ;
 
 %inline

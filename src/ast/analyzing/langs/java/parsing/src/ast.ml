@@ -465,6 +465,7 @@ and modifier_desc =
   | Mstrictfp
   | Mannotation of annotation
   | Mdefault
+  | Mtransitive
   | Merror of string
 
 and variable_initializer = { vi_desc : variable_initializer_desc; vi_loc : loc; }
@@ -501,6 +502,32 @@ and record_declaration_head = {
     rh_implements      : implements option;
     rh_loc             : loc;
   }
+
+and module_declaration = {
+    mod_head : module_declaration_head;
+    mod_body : module_body;
+    mod_loc  : loc;
+  }
+
+and module_declaration_head = {
+    mdh_annotations : annotation list;
+    mdh_open        : loc option;
+    mdh_name        : name;
+    mdh_loc         : loc;
+  }
+
+and module_name = { mn_name : name; mn_loc : loc }
+
+and module_body = { mb_module_directives : module_directive list; mb_loc : loc }
+
+and module_directive = { md_desc : module_directive_desc; md_loc : loc }
+
+and module_directive_desc =
+  | MDrequires of modifier list * name
+  | MDexports of name * module_name list
+  | MDopens of name * module_name list
+  | MDuses of name
+  | MDprovides of name * module_name list
 
 and class_declaration = { cd_desc : class_declaration_desc; cd_loc : loc; }
 
@@ -987,6 +1014,7 @@ type compilation_unit =
     { cu_package   : package_declaration option;
       cu_imports   : import_declaration list;
       cu_tydecls   : type_declaration list;
+      cu_modecl    : module_declaration option;
     }
 
 let _mkprim loc d = { p_desc=d; p_loc=loc }

@@ -83,6 +83,7 @@ type context =
   | C_toplevel of top_stat
   | C_class of class_stat
   | C_method of meth_stat
+  | C_module
 
 let stack_to_list stack = List.rev (Stack.fold (fun l x -> x::l) [] stack)
 
@@ -121,6 +122,7 @@ let context_to_string = function
   | C_toplevel tstat -> Printf.sprintf "%s" (top_stat_to_string tstat)
   | C_class cstat -> Printf.sprintf "C%s" (class_stat_to_string cstat)
   | C_method mstat -> Printf.sprintf "M%s" (meth_stat_to_string mstat)
+  | C_module -> Printf.sprintf "MOD"
 
 let stack_memq stack x =
   try
@@ -265,6 +267,11 @@ class env = object (self)
     Stack.push (C_class (create_class_stat())) context_stack;
     DEBUG_MSG "context_stack: %s" self#context_stack_rep
 
+  method enter_module =
+    DEBUG_MSG "enter";
+    Stack.push C_module context_stack;
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep
+
   method enter_method =
     DEBUG_MSG "enter";
     Stack.push (C_method (create_meth_stat())) context_stack;
@@ -288,6 +295,12 @@ class env = object (self)
     DEBUG_MSG "context_stack: %s" self#context_stack_rep;
     match Stack.top context_stack with
     | C_class _ -> true
+    | _ -> false
+
+  method in_module =
+    DEBUG_MSG "context_stack: %s" self#context_stack_rep;
+    match Stack.top context_stack with
+    | C_module -> true
     | _ -> false
 
   method keep_going_flag = keep_going_flag
@@ -383,6 +396,7 @@ class env = object (self)
     | C_method mstat -> mstat.m_tap_level
     | C_class cstat -> cstat.c_tap_level
     | C_toplevel tstat -> tstat.t_tap_level
+    | C_module -> 0
 
   method in_tap = self#tap_level > 0
 
@@ -392,6 +406,7 @@ class env = object (self)
       | C_method mstat -> mstat.m_tap_level <- mstat.m_tap_level + 1
       | C_class cstat -> cstat.c_tap_level <- cstat.c_tap_level + 1
       | C_toplevel tstat -> tstat.t_tap_level <- tstat.t_tap_level + 1
+      | C_module -> ()
     end;
     DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
 
@@ -401,6 +416,7 @@ class env = object (self)
       | C_method mstat -> mstat.m_tap_level <- mstat.m_tap_level - 1
       | C_class cstat -> cstat.c_tap_level <- cstat.c_tap_level - 1
       | C_toplevel tstat -> tstat.t_tap_level <- tstat.t_tap_level - 1
+      | C_module -> ()
     end;
     DEBUG_MSG "context_stack: %s" (self#context_stack_rep)
 
@@ -1418,6 +1434,11 @@ module F (Stat : STATE_T) = struct
                                          rh_implements=i_opt;
                                          rh_loc=loc;
                                        }
+  let _mkmodule loc h b = { mod_head=h; mod_body=b; mod_loc=loc }
+  let _mkmn loc n = { mn_name=n; mn_loc = loc }
+  let _mkmdh loc a o n = { mdh_annotations=a; mdh_open=o; mdh_name=n; mdh_loc=loc }
+  let _mkmb loc ds = { mb_module_directives=ds; mb_loc=loc }
+  let _mkmd loc d = { md_desc=d; md_loc=loc }
   let _mkcd loc d = { cd_desc=d; cd_loc=loc }
   let _mkifh loc ms id ts_opt s_opt = { ifh_modifiers=ms;
                                         ifh_identifier=id;
@@ -2051,6 +2072,11 @@ module F (Stat : STATE_T) = struct
   let mkaa so eo d = { aa_desc=d; aa_loc=(get_loc so eo) }
   let mkch so eo ms id ts_opt s_opt i_opt = _mkch (get_loc so eo) ms id ts_opt s_opt i_opt
   let mkrh so eo ms id ts_opt h i_opt = _mkrh (get_loc so eo) ms id ts_opt h i_opt
+  let mkmodule so eo h b = _mkmodule (get_loc so eo) h b
+  let mkmn so eo n = _mkmn (get_loc so eo) n
+  let mkmdh so eo a o n = _mkmdh (get_loc so eo) a o n
+  let mkmb so eo ds = _mkmb (get_loc so eo) ds
+  let mkmd so eo d = _mkmd (get_loc so eo) d
   let mkcd so eo d = _mkcd (get_loc so eo) d
   let mkifh so eo ms id ts_opt s_opt = _mkifh (get_loc so eo) ms id ts_opt s_opt
   let mkifd so eo d = _mkifd (get_loc so eo) d
@@ -2058,7 +2084,8 @@ module F (Stat : STATE_T) = struct
   let mksl so eo d = { sl_desc=d; sl_loc=(get_loc so eo) }
   let mkevp so eo d = { evp_desc=d; evp_loc=(get_loc so eo) }
 
-  let mkcu p i t = { cu_package=p; cu_imports=i; cu_tydecls=t }
+  let mkcu p i t = { cu_package=p; cu_imports=i; cu_tydecls=t; cu_modecl=None }
+  let mkmcu i m = { cu_package=None; cu_imports=i; cu_tydecls=[]; cu_modecl=(Some m) }
 
   let begin_scope ?(kind=FKother) () = env#begin_scope ~kind ()
   let end_scope() = env#end_scope()

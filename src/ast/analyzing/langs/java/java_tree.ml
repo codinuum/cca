@@ -869,36 +869,34 @@ class translator options =
     set_loc nd ab.Ast.ab_loc;
     nd
 
-  method of_modifiers kind (*name*) ms =
-    let children =
-      List.map
-        (fun m ->
-          match m.Ast.m_desc with
-          | Ast.Mannotation a -> self#of_annotation a
-          | _ -> begin
-              let lab =
-                match m.Ast.m_desc with
-                | Ast.Mpublic       -> L.Modifier.Public
-                | Ast.Mprotected    -> L.Modifier.Protected
-                | Ast.Mprivate      -> L.Modifier.Private
-                | Ast.Mstatic       -> L.Modifier.Static
-                | Ast.Mabstract     -> L.Modifier.Abstract
-                | Ast.Mfinal        -> L.Modifier.Final
-                | Ast.Mnative       -> L.Modifier.Native
-                | Ast.Msynchronized -> L.Modifier.Synchronized
-                | Ast.Mtransient    -> L.Modifier.Transient
-                | Ast.Mvolatile     -> L.Modifier.Volatile
-                | Ast.Mstrictfp     -> L.Modifier.Strictfp
-                | Ast.Mdefault      -> L.Modifier.Default
-                | Ast.Merror s      -> L.Modifier.Error s
-                | Ast.Mannotation _ -> assert false
-              in
-              let nd = self#mkleaf (L.Modifier lab) in
-              set_loc nd m.Ast.m_loc;
-              nd
-          end
-        ) ms.Ast.ms_modifiers
+  method of_modifier m =
+    match m.Ast.m_desc with
+    | Ast.Mannotation a -> self#of_annotation a
+    | _ ->
+    let lab =
+      match m.Ast.m_desc with
+      | Ast.Mpublic       -> L.Modifier.Public
+      | Ast.Mprotected    -> L.Modifier.Protected
+      | Ast.Mprivate      -> L.Modifier.Private
+      | Ast.Mstatic       -> L.Modifier.Static
+      | Ast.Mabstract     -> L.Modifier.Abstract
+      | Ast.Mfinal        -> L.Modifier.Final
+      | Ast.Mnative       -> L.Modifier.Native
+      | Ast.Msynchronized -> L.Modifier.Synchronized
+      | Ast.Mtransient    -> L.Modifier.Transient
+      | Ast.Mvolatile     -> L.Modifier.Volatile
+      | Ast.Mstrictfp     -> L.Modifier.Strictfp
+      | Ast.Mdefault      -> L.Modifier.Default
+      | Ast.Mtransitive   -> L.Modifier.Transitive
+      | Ast.Merror s      -> L.Modifier.Error s
+      | Ast.Mannotation _ -> assert false
     in
+    let nd = self#mkleaf (L.Modifier lab) in
+    set_loc nd m.Ast.m_loc;
+    nd
+
+  method of_modifiers kind (*name*) ms =
+    let children = List.map self#of_modifier ms.Ast.ms_modifiers in
     let children' =
       if options#sort_unordered_flag then
         List.fast_sort compare_node children
@@ -2721,7 +2719,9 @@ class translator options =
 
   method of_class_declaration_head ?(interface=false) ?(enum=false) ?(nested_enum=false) kind otbl h =
     let ident = h.Ast.ch_identifier in
-    let mod_nodes = self#of_modifiers_opt ~interface ~enum ~nested_enum kind (*ident*) h.Ast.ch_modifiers in
+    let mod_nodes =
+      self#of_modifiers_opt ~interface ~enum ~nested_enum kind (*ident*) h.Ast.ch_modifiers
+    in
     let ta_nodes = self#of_type_parameters_opt ident h.Ast.ch_type_parameters in
     let ex_nodes = self#of_extends_class_opt h.Ast.ch_extends_class in
     let im_nodes = self#of_implements_opt h.Ast.ch_implements in
@@ -2736,6 +2736,48 @@ class translator options =
     let im_nodes = self#of_implements_opt h.Ast.rh_implements in
     let children = mod_nodes @ ta_nodes @ h_nodes @ im_nodes in
     self#make_specifier_node kind children otbl h.Ast.rh_loc
+
+  method of_module_name mn =
+    let nd = self#mkleaf (L.ModuleName (L.conv_name mn.Ast.mn_name)) in
+    set_loc nd mn.Ast.mn_loc;
+    nd
+
+  method of_module_directive md =
+    let of_modifiers = List.map self#of_modifier in
+    let of_module_names = List.map self#of_module_name in
+    let nd =
+      match md.Ast.md_desc with
+      | MDrequires(ms, n) -> self#mknode (L.Requires (L.conv_name n)) (of_modifiers ms)
+      | MDexports(n, ns) -> self#mknode (L.Exports (L.conv_name n)) (of_module_names ns)
+      | MDopens(n, ns) -> self#mknode (L.Opens (L.conv_name n)) (of_module_names ns)
+      | MDuses n -> self#mkleaf (L.Uses (L.conv_name n))
+      | MDprovides(n, ns) -> self#mknode (L.Provides (L.conv_name n)) (of_module_names ns)
+    in
+    set_loc nd md.Ast.md_loc;
+    nd
+
+  method of_module_body name mb =
+    let children = List.map self#of_module_directive mb.Ast.mb_module_directives in
+    let nd = self#mknode (L.ModuleBody name) children in
+    set_loc nd mb.Ast.mb_loc;
+    nd
+
+  method of_module_declaration m =
+    let mdh = m.Ast.mod_head in
+    let a_nodes = List.map self#of_annotation mdh.Ast.mdh_annotations in
+    let o_nodes =
+      match mdh.Ast.mdh_open with
+      | Some loc -> let nd = self#mkleaf L.Open in set_loc nd loc; [nd]
+      | _ -> []
+    in
+    let name_str = L.conv_name mdh.Ast.mdh_name in
+    let mb = m.Ast.mod_body in
+    let body_node = self#of_module_body name_str mb in
+    let ordinal_tbl_opt = Some (new ordinal_tbl [List.length a_nodes; List.length o_nodes; 1]) in
+    let children = a_nodes @ o_nodes @ [body_node] in
+    let nd = self#mknode ~ordinal_tbl_opt (L.Module name_str) children in
+    set_loc nd m.Ast.mod_loc;
+    nd
 
   method of_class_declaration ?(interface=false) is_top cd =
     let nd =
@@ -3028,6 +3070,7 @@ let of_compilation_unit options cu =
   let package_decl = cu.Ast.cu_package in
   let import_decls = cu.Ast.cu_imports in
   let type_decls = cu.Ast.cu_tydecls in
+  let modecl = cu.Ast.cu_modecl in
   let pdecl_nodes = of_opt trans#of_package_decl package_decl in
   let idecl_nodes = trans#of_import_decls import_decls in
   let tdecl_nodes =
@@ -3039,14 +3082,20 @@ let of_compilation_unit options cu =
         set_nodes_loc nd td_nodes;
         [nd]
   in
+  let modecl_nodes =
+    match modecl with
+    | Some m -> [trans#of_module_declaration m]
+    | _ -> []
+  in
   let compilation_unit_node =
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length pdecl_nodes;
                              List.length idecl_nodes;
                              List.length tdecl_nodes;
+                             List.length modecl_nodes;
                            ])
     in
-    let children = pdecl_nodes @ idecl_nodes @ tdecl_nodes in
+    let children = pdecl_nodes @ idecl_nodes @ tdecl_nodes @ modecl_nodes in
     let nd = mknode options ~ordinal_tbl_opt L.CompilationUnit children in
     set_nodes_loc nd children;
     nd
