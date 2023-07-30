@@ -1863,9 +1863,18 @@ module Edit = struct
                          self#find_key_opt prev'#initial_parent#uid)
                         ) ||
                         self#is_canceled_stable_node prev' &&
-                        xpos' > 1 &&
-                        array_range_exists
-                          (fun x -> not (self#is_canceled_stable_node x)) ca' 0 (xpos'-2)
+                        (
+                         (try
+                           DEBUG_MSG "top_nodes=[%a]" nsps top_nodes;
+                           let x = nmap' x' in
+                           DEBUG_MSG "x=%a" nps x;
+                           List.memq x top_nodes
+                         with _ -> false
+                         ) ||
+                         (* ????? *)
+                         xpos' > 1 &&
+                         array_range_exists
+                           (fun x -> not (self#is_canceled_stable_node x)) ca' 0 (xpos'-2))
                       with
                       | _ -> true
                     in
@@ -2033,7 +2042,7 @@ module Edit = struct
                       _ -> fun _ -> false
                   in*)
                   self#is_canceled_stable_node x' ||
-                  (try
+                  (try (* ????? *)
                     let ca' = x'#initial_parent#initial_children in
                     array_range_forall self#is_canceled_stable_node ca' 0 (x'#initial_pos-1)
                   with
@@ -2119,6 +2128,7 @@ module Edit = struct
           | _ -> begin
               let sorted = sort_nodes_by_gindex nds in
               let nd0, ndx = List.hd sorted, Xlist.last sorted in
+              DEBUG_MSG "nd0=%a ndx=%a" nps nd0 nps ndx;
               let last_gi = ndx#gindex in
               let cur = ref nd0#initial_parent in
               begin
@@ -2130,6 +2140,7 @@ module Edit = struct
                   _ -> ()
               end;
               let anc = !cur in
+              DEBUG_MSG "anc=%a" nps anc;
               (*let st = ref (-1) in
               let ed = ref (-1) in*)
               let topa =
@@ -2414,9 +2425,12 @@ module Edit = struct
                 | hd :: tl -> (Xlist.last tl)#initial_pos - hd#initial_pos + 1
               in
               DEBUG_MSG "pos_range=%d" pos_range;*)
-              let pos_shift, paths_count, extra_lift_flag, keys, occupied = check_occupancy anc' top_nd_tbl' in
+              let pos_shift, paths_count, extra_lift_flag, keys, occupied =
+                check_occupancy anc' top_nd_tbl'
+              in
               DEBUG_MSG "pos_shift=%d paths_count=%d" pos_shift paths_count;
-              DEBUG_MSG "extra_lift_flag=%B keys=[%s] occupied=[%a]" extra_lift_flag (keys_to_string keys) nsps occupied;
+              DEBUG_MSG "extra_lift_flag=%B keys=[%s] occupied=[%a]"
+                extra_lift_flag (keys_to_string keys) nsps occupied;
               let pos_shift, paths_count =
                 if pos_shift > 0 then
                   match top_nds' with
@@ -2859,12 +2873,29 @@ module Edit = struct
                     DEBUG_MSG "canceled: %a -> %B" nps sn canceled;
                     let pk_opt = self#find_key_opt sn#initial_parent#uid in
                     DEBUG_MSG "pk_opt=%s" (key_opt_to_string pk_opt);
-                    if
-                      canceled && key_opt = pk_opt ||
-                      (List.for_all (fun (a, b) -> a > i || i > b) ranges) ||
-                      (match sub_ins_idx_opt with Some j -> j = i | _ -> false) ||
-                      Xset.mem to_be_canceled sn && (not extra_lift_flag || !sub_ins_opt = None)
-                    then begin
+                    let cond0 () =
+                      let b = canceled && key_opt = pk_opt in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    let cond1 () =
+                      let b = List.for_all (fun (a, b) -> i < a || b < i) ranges in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    let cond2 () =
+                      let b = match sub_ins_idx_opt with Some j -> j = i | _ -> false in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    let cond3 () =
+                      let b =
+                        Xset.mem to_be_canceled sn && (not extra_lift_flag || !sub_ins_opt = None)
+                      in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    if cond0() || cond1() || cond2() || cond3() then begin
                       let mem = get_anc_in_mem sn in
                       DEBUG_MSG "lift cand: i=%d (%a) mem=%a" i nps sn nps mem;
                       lift_cands := (i, mem, true) :: !lift_cands;
@@ -6871,6 +6902,7 @@ module Edit = struct
             if is_stable n then begin
               DEBUG_MSG "n=%a is stable" nps n;
               let n' = nmap n in
+              DEBUG_MSG "n'=%a" nps n';
               self#is_canceled_stable_node n' ||
               if
                 not (Xset.mem lifted_nodes n') &&
