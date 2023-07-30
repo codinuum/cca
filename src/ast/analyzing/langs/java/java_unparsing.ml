@@ -270,8 +270,10 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.ElementValuePair i -> pr_id i; pr_string "="; pr_nth_child 0
   | L.EVconditional      -> pr_nth_child 0
   | L.EVannotation       -> pr_nth_child 0
-  | L.EVarrayInit        ->
-      pr_string "{"; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string "}"
+  | L.EVarrayInit ->
+      pb#open_box 0;
+      pr_string "{"; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string "}";
+      pb#close_box()
 
   | L.Specifier _ -> ()
 

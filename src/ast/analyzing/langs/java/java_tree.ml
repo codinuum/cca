@@ -707,10 +707,15 @@ class translator options =
             else
               []
           in
+          let ndims =
+            let count = ref 0 in
+            List.iter (fun d -> if not d.Ast.ad_ellipsis then incr count) dims;
+            !count
+          in
           let children, _lab_opt, ordinal_tbl_opt = get_children ~dims:dims_ t.Ast.ty_desc in
           let lab_opt =
             match _lab_opt with
-            | Some (L.Type lab) -> Some (L.Type (L.Type.Array(lab, List.length dims)))
+            | Some (L.Type lab) -> Some (L.Type (L.Type.Array(lab, ndims)))
             | Some _ -> assert false
             | None -> None
           in

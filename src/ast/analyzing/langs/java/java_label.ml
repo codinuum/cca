@@ -461,15 +461,17 @@ module Literal = struct
     in
     let conv = function
       | Str.Delim u -> begin
-          let i = int_of_string (Str.replace_first utf8_escape_pat "0x\\1" u) in
-          if i < 8 then
-            "\\" ^ (string_of_int i)
-          else if i = 0xb then
-            "\\u000b"
-          else
-            try
-              Scanf.unescaped (enc1 i)
-            with _ -> u
+          try
+            let i = int_of_string (Str.replace_first utf8_escape_pat "0x\\1" u) in
+            if i < 8 then
+              "\\" ^ (string_of_int i)
+            else if i = 0xb then
+              "\\u000b"
+            else
+              try
+                Scanf.unescaped (enc1 i)
+              with _ -> u
+          with _ -> u
       end
       | Str.Text t -> t
     in
