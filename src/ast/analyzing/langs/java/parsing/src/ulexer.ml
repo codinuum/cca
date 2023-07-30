@@ -518,24 +518,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
       ed
     in
 
-    let res =
-      let t = take() in
+    let check_contextual_keywords t =
       let tok, st, ed = Token.decompose t in
       match tok with
-      | ENUM loc -> begin
-          let _, tok2 = peek_nth 1 in
-          let _, tok3 = peek_nth 2 in
-          match tok2, tok3 with
-          | IDENTIFIER _, (IMPLEMENTS _ | LBRACE) -> t
-          | _ -> begin
-              DEBUG_MSG "ENUM --> <identifier>";
-              let kw = "enum" in
-              set_to_JLS 2 loc kw;
-              delete_keyword kw;
-              kw_to_ident kw t
-          end
-      end
-
       | OPEN loc -> begin
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
@@ -688,7 +673,26 @@ module F (Stat : Parser_aux.STATE_T) = struct
               kw_to_ident kw t
           end
       end
+      | _ -> t
+    in
 
+    let res =
+      let t = take() in
+      let tok, st, ed = Token.decompose t in
+      match tok with
+      | ENUM loc -> begin
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (IMPLEMENTS _ | LBRACE) -> t
+          | _ -> begin
+              DEBUG_MSG "ENUM --> <identifier>";
+              let kw = "enum" in
+              set_to_JLS 2 loc kw;
+              delete_keyword kw;
+              kw_to_ident kw t
+          end
+      end
       | DEFAULT loc -> begin
           let _, tok2 = peek_nth 1 in
           match tok2 with
@@ -879,8 +883,9 @@ module F (Stat : Parser_aux.STATE_T) = struct
           DEBUG_MSG "ASPECT --> <identifier>";
           kw_to_ident "aspect" t
       end
-      | _ -> t
+      | _ -> check_contextual_keywords t
     in (* res *)
+
     let tok, st, ed = Token.decompose res in
     let res' =
       match tok with
@@ -890,10 +895,13 @@ module F (Stat : Parser_aux.STATE_T) = struct
               let q0 = new Xqueue.c in
               let last = ref res in
               let take() =
-                try
-                  queue#take
-                with
-                  Queue.Empty -> token ulexbuf
+                let t =
+                  try
+                    queue#take
+                  with
+                    Queue.Empty -> token ulexbuf
+                in
+                check_contextual_keywords t
               in
               begin
                 let blv = ref 0 in
