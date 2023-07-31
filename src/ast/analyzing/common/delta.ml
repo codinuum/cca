@@ -5720,7 +5720,7 @@ module Edit = struct
                                     DEBUG_MSG "a=%a" nps a;
                                     let ks = Hashtbl.find rev_ancto_tbl (a, pos) in
                                     DEBUG_MSG "ks=[%s]" (keys_to_string ks);
-                                    ks <> []
+                                    List.exists (fun k0 -> k0 <> k) ks
                                   with
                                     _ -> false
                             in
