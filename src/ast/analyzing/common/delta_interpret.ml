@@ -443,12 +443,16 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     | None -> raise Not_found
 
   method private is_stable nd =
-    try
-      match self#find_key nd with
-      | K_stable -> true
-      | _ -> false
-    with
-      Not_found -> not (self#is_deleted nd)
+    let b =
+      try
+        match self#find_key nd with
+        | K_stable -> true
+        | k -> (*DEBUG_MSG "%a -> %s" nps nd (key_to_string k); *)false
+      with
+        Not_found -> not (self#is_deleted nd)
+    in
+    DEBUG_MSG "%a -> %B" nps nd b;
+    b
 
   method private find_key nd = Hashtbl.find key_tbl nd
 

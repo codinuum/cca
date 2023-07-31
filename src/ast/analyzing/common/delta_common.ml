@@ -199,6 +199,7 @@ let rec get_p_descendants ?(keep_going=false) ?(moveon=fun x -> true) pred nd =
     List.flatten
       (List.map
          (fun n ->
+           (*DEBUG_MSG "n=%a" nps n;*)
            if pred n then
              n ::
              (if keep_going && moveon n then begin

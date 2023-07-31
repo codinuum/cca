@@ -77,6 +77,7 @@ let rev_array_exists f a =
     Exit -> true
 
 exception Defer
+exception Abort
 
 module Edit = struct
 
@@ -1862,19 +1863,20 @@ module Edit = struct
                          self#find_key_opt prev'#uid =
                          self#find_key_opt prev'#initial_parent#uid)
                         ) ||
-                        self#is_canceled_stable_node prev' &&
-                        (
+                        self#is_canceled_stable_node prev'(* &&
+                        ( (* NG????? *)
                          (try
                            DEBUG_MSG "top_nodes=[%a]" nsps top_nodes;
                            let x = nmap' x' in
                            DEBUG_MSG "x=%a" nps x;
                            List.memq x top_nodes
                          with _ -> false
-                         ) ||
-                         (* ????? *)
+                         )(* ||
+                         (* NG????? *)
                          xpos' > 1 &&
                          array_range_exists
-                           (fun x -> not (self#is_canceled_stable_node x)) ca' 0 (xpos'-2))
+                           (fun x -> not (self#is_canceled_stable_node x)) ca' 0 (xpos'-2)*)
+                        )*)
                       with
                       | _ -> true
                     in
@@ -2006,6 +2008,26 @@ module Edit = struct
                 let b =
                   base_cond ||
                   not (is_stable' x') && b ||
+                  (*b && ( (* NG????? *)
+                  let xpos' = x'#initial_pos in
+                  xpos' > 1 &&
+                  try
+                    let ca' = x'#initial_parent#initial_children in
+                    try
+                      for i = xpos' - 1 downto 0 do
+                        let ci' = ca'.(i) in
+                        DEBUG_MSG "i=%d ci'=%a" i nps ci';
+                        if not (_is_excluded ci') && not (is_stable' ci') then
+                          raise Exit;
+                        if not (self#is_canceled_stable_node ci') then
+                          raise Abort
+                      done;
+                      false
+                    with
+                    | Exit -> true
+                    | Abort -> false
+                  with _ -> false
+                  ) ||*)
                   b &&
                   let check_prev tn =
                     try
@@ -2042,12 +2064,12 @@ module Edit = struct
                       _ -> fun _ -> false
                   in*)
                   self#is_canceled_stable_node x' ||
-                  (try (* ????? *)
+                  (*(try (* NG????? *)
                     let ca' = x'#initial_parent#initial_children in
                     array_range_forall self#is_canceled_stable_node ca' 0 (x'#initial_pos-1)
                   with
                     _ -> false)
-                  ||
+                  ||*)
                   List.exists
                     (fun x ->
                       DEBUG_MSG "x=%a" nps x;
@@ -5459,6 +5481,7 @@ module Edit = struct
         b
 
       method private get_parent_key_opt
+          ?(delete_root=None)
           ?(force_lift=false)
           ?(parent_ins_point_opt=None)
           ?(anc_to_opt=None)
@@ -5661,28 +5684,65 @@ module Edit = struct
                           let p = pt#position in
                           let nb = List.length ps in
                           DEBUG_MSG "a=%a p=%d nb=%d ps=%s" nps a p nb (paths_to_string ps);
+                          let to_be_lifted0 () =
+                            let b =
+                              try
+                                not
+                                  (array_range_exists
+                                     (fun x ->
+                                       (x == nd || is_ancestor x nd) &&
+                                       let xpos = x#initial_pos in
+                                       let rp = xpos - p in
+                                       DEBUG_MSG "x=%a xpos=%d rp=%d" nps x xpos rp;
+                                       let xpath = List.nth ps rp in
+                                       DEBUG_MSG "xpath=%s" xpath#to_string;
+                                       let sr' = self#get_subtree_root (stid_of_key k) in
+                                       DEBUG_MSG "sr'=%a" nps sr';
+                                       let y' = self#acc sr' (Path.get_parent xpath#path) in
+                                       DEBUG_MSG "y'=%a nd'=%a" nps y' nps nd';
+                                       is_ancestor y' nd'
+                                     ) a#initial_children p (p+nb-1))
+                              with _
+                                -> false
+                            in
+                            DEBUG_MSG "%B" b;
+                            b
+                          in
+                          let to_be_lifted1 () =
+                            let b =
+                              match delete_root with
+                              | None -> false
+                              | Some delrt ->
+                                  let pos = delrt#initial_pos in
+                                  DEBUG_MSG "delrt=%a pos=%d" nps delrt pos;
+                                  try
+                                    let a = delrt#initial_parent in
+                                    DEBUG_MSG "a=%a" nps a;
+                                    let ks = Hashtbl.find rev_ancto_tbl (a, pos) in
+                                    DEBUG_MSG "ks=[%s]" (keys_to_string ks);
+                                    ks <> []
+                                  with
+                                    _ -> false
+                            in
+                            DEBUG_MSG "%B" b;
+                            b
+                          in
+                          let b =
                           (try not (is_ancestor_key k (List.hd !prev)) with _ -> true) &&
                           not
                             (array_range_exists
-                               (fun x ->
-                                 x == nd ||
-                                 is_ancestor x nd &&
-                                 let xpos = x#initial_pos in
-                                 let rp = xpos - p in
-                                 let xpath = List.nth ps rp in
-                                 xpath#has_frac_ofs ||
-                                 let sr' = self#get_subtree_root (stid_of_key k) in
-                                 DEBUG_MSG "sr'=%a" nps sr';
-                                 let y' = self#acc sr' (Path.get_parent xpath#path) in
-                                 DEBUG_MSG "y'=%a" nps y';
-                                 (*y' == x' || *)is_ancestor y' x'
-                               ) a#initial_children p (p+nb-1)) ||
+                               (fun x -> x == nd || is_ancestor x nd)
+                               a#initial_children p (p+nb-1)
+                            ) ||
 
                           array_range_exists
                             (fun x ->
                               is_ancestor x nd &&
                               (List.nth ps (x#initial_pos - p))#has_frac_ofs
                             ) a#initial_children p (p+nb-1)
+                          in
+                          DEBUG_MSG "%B" b;
+                          b || to_be_lifted0() || to_be_lifted1()
                         with
                           _ -> false
                       end
@@ -10090,7 +10150,7 @@ module Edit = struct
                     DEBUG_MSG "force_lift: %a -> %B" nps n1 force_lift;
 
                     let key_opt, upstream, sub_path_opt =
-                      self#get_parent_key_opt ~force_lift
+                      self#get_parent_key_opt ~delete_root:(Some nd1) ~force_lift
                         self#is_stable1 self#is_stable2 tree1 tree2
                         uidmapping#find uidmapping#inv_find n1
                     in
