@@ -5481,7 +5481,6 @@ module Edit = struct
         b
 
       method private get_parent_key_opt
-          ?(delete_root=None)
           ?(force_lift=false)
           ?(parent_ins_point_opt=None)
           ?(anc_to_opt=None)
@@ -5684,6 +5683,7 @@ module Edit = struct
                           let p = pt#position in
                           let nb = List.length ps in
                           DEBUG_MSG "a=%a p=%d nb=%d ps=%s" nps a p nb (paths_to_string ps);
+
                           let to_be_lifted0 () =
                             let b =
                               try
@@ -5710,22 +5710,12 @@ module Edit = struct
                           in
                           let to_be_lifted1 () =
                             let b =
-                              match delete_root with
-                              | None -> false
-                              | Some delrt ->
-                                  let pos = delrt#initial_pos in
-                                  DEBUG_MSG "delrt=%a pos=%d" nps delrt pos;
-                                  try
-                                    let a = delrt#initial_parent in
-                                    DEBUG_MSG "a=%a" nps a;
-                                    let ks0 = Hashtbl.find rev_ancto_tbl (a, pos) in
-                                    DEBUG_MSG "ks0=[%s]" (keys_to_string ks0);
-                                    List.exists
-                                      (fun k0 ->
-                                        not (List.mem k0 !ks)
-                                      ) ks0
-                                  with
-                                    _ -> false
+                              let ks0 = Hashtbl.find rev_ancto_tbl (a, p) in
+                              DEBUG_MSG "ks0=[%s]" (keys_to_string ks0);
+                              List.exists
+                                (fun k0 ->
+                                  not (List.mem k0 !ks)
+                                ) ks0
                             in
                             DEBUG_MSG "%B" b;
                             b
@@ -10153,7 +10143,7 @@ module Edit = struct
                     DEBUG_MSG "force_lift: %a -> %B" nps n1 force_lift;
 
                     let key_opt, upstream, sub_path_opt =
-                      self#get_parent_key_opt ~delete_root:(Some nd1) ~force_lift
+                      self#get_parent_key_opt ~force_lift
                         self#is_stable1 self#is_stable2 tree1 tree2
                         uidmapping#find uidmapping#inv_find n1
                     in

@@ -1387,8 +1387,22 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
     DEBUG_MSG "finished"
 
+  method private detect_loop () =
+    let visited = Xset.create 0 in
+    tree#rev_scan_whole_initial_subtree tree#root
+      (fun nd ->
+        DEBUG_MSG "%s" nd#initial_to_string;
+        if Xset.mem visited nd then begin
+          DEBUG_MSG "infinite loop detected!";
+          failwith "infinite loop detected"
+        end
+        else
+          Xset.add visited nd
+      )
+
   method dump_dot_ch ch =
     DEBUG_MSG "start";
+    (*self#detect_loop();*)
     let buf = Buffer.create 0 in
     Buffer.add_string buf "digraph I {\nordering=out;\n";
 
