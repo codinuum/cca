@@ -354,7 +354,7 @@ let scan_ancestors ?(moveon=fun x -> true) nd f =
   | Exit -> ()
   | Otree.Parent_not_found _ -> ()
 
-let get_ancestors nd =
+let get_ancestors ?(limit=None) nd =
   let l = ref [] in
   begin
     try
@@ -362,10 +362,14 @@ let get_ancestors nd =
       while true do
         let pos = (!cur)#initial_pos in
         cur := (!cur)#initial_parent;
-        l := (!cur, pos) :: !l
+        l := (!cur, pos) :: !l;
+        match limit with
+        | Some x when x == !cur -> raise Exit
+        | _ -> ()
       done
     with
-      Otree.Parent_not_found _ -> ()
+    | Exit
+    | Otree.Parent_not_found _ -> ()
   end;
   DEBUG_MSG "%a -> [%s]" nps nd
     (Xlist.to_string (fun (n, pos) -> sprintf "(%a,%d)" nps n pos) ";" !l);

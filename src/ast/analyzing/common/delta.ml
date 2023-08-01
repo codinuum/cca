@@ -5684,6 +5684,8 @@ module Edit = struct
                           let nb = List.length ps in
                           DEBUG_MSG "a=%a p=%d nb=%d ps=%s" nps a p nb (paths_to_string ps);
 
+                          let x_opt = ref None in
+
                           let to_be_lifted0 () =
                             let b =
                               try
@@ -5700,7 +5702,12 @@ module Edit = struct
                                        DEBUG_MSG "sr'=%a" nps sr';
                                        let y' = self#acc sr' (Path.get_parent xpath#path) in
                                        DEBUG_MSG "y'=%a nd'=%a" nps y' nps nd';
-                                       is_ancestor y' nd'
+                                       if is_ancestor y' nd' then begin
+                                         x_opt := Some x;
+                                         true
+                                       end
+                                       else
+                                         false
                                      ) a#initial_children p (p+nb-1))
                               with _
                                 -> false
@@ -5710,12 +5717,29 @@ module Edit = struct
                           in
                           let to_be_lifted1 () =
                             let b =
-                              let ks0 = Hashtbl.find rev_ancto_tbl (a, p) in
-                              DEBUG_MSG "ks0=[%s]" (keys_to_string ks0);
-                              List.exists
-                                (fun k0 ->
-                                  not (List.mem k0 !ks)
-                                ) ks0
+                              match !x_opt with
+                              | None -> false
+                              | Some x -> begin
+                                  DEBUG_MSG "x=%a" nps x;
+                                  try
+                                    List.iter
+                                      (fun (y, p) ->
+                                        DEBUG_MSG "y=%a p=%d" nps y p;
+                                        let ks0 = Hashtbl.find rev_ancto_tbl (y, p) in
+                                        DEBUG_MSG "ks0=[%s]" (keys_to_string ks0);
+                                        if
+                                          List.exists
+                                            (fun k0 ->
+                                              not (List.mem k0 !ks)
+                                            ) ks0
+                                        then
+                                          raise Found
+                                      ) (get_ancestors ~limit:(Some x) nd);
+                                    false
+                                  with
+                                  | Found -> true
+                                  | _ -> false
+                              end
                             in
                             DEBUG_MSG "%B" b;
                             b
