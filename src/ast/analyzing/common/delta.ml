@@ -5718,9 +5718,12 @@ module Edit = struct
                                   try
                                     let a = delrt#initial_parent in
                                     DEBUG_MSG "a=%a" nps a;
-                                    let ks = Hashtbl.find rev_ancto_tbl (a, pos) in
-                                    DEBUG_MSG "ks=[%s]" (keys_to_string ks);
-                                    List.exists (fun k0 -> k0 <> k) ks
+                                    let ks0 = Hashtbl.find rev_ancto_tbl (a, pos) in
+                                    DEBUG_MSG "ks0=[%s]" (keys_to_string ks0);
+                                    List.exists
+                                      (fun k0 ->
+                                        not (List.mem k0 !ks)
+                                      ) ks0
                                   with
                                     _ -> false
                             in
