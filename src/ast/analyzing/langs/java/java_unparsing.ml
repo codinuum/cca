@@ -292,7 +292,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.Requires n ->
       pb#open_box 0;
-      pr_string "requires";
+      pr_string "requires ";
       pr_selected ~fail_on_error ~head:pr_space ~tail:pr_space L.is_modifier children;
       pr_name n;
       pr_semicolon();
