@@ -654,16 +654,16 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end
       else begin
         let rec pr_ty = function
-          | L.Type.Byte
+          | (L.Type.Byte
           | L.Type.Short
           | L.Type.Int
           | L.Type.Long
           | L.Type.Char
           | L.Type.Float
           | L.Type.Double
-          | L.Type.Boolean -> begin
+          | L.Type.Boolean) as ty0 -> begin
               pr_selected ~fail_on_error ~sep:pr_space ~tail:pr_space L.is_annotation children;
-              pr_string (type_to_string ty)
+              pr_string (type_to_string ty0)
           end
           | L.Type.ClassOrInterface n
           | L.Type.Class n
