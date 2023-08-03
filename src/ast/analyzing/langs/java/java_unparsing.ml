@@ -263,6 +263,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
         | L.Modifier.Default      -> pr_string "default"
         | L.Modifier.Transitive   -> pr_string "transitive"
+        | L.Modifier.Sealed       -> pr_string "sealed"
+        | L.Modifier.NonSealed    -> pr_string "non-sealed"
         | L.Modifier.Error s      -> pr_string s
       end
   end
@@ -333,6 +335,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error L.is_typeparameters specs;
       pr_selected ~fail_on_error L.is_extends specs;
       pr_selected ~fail_on_error L.is_implements specs;
+      pr_selected ~fail_on_error L.is_permits specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_classbody children;
       pb#close_box()
@@ -369,6 +372,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "interface "; pr_id i;
       pr_typeparameters ~fail_on_error specs;
       pr_selected ~fail_on_error L.is_extendsinterfaces specs;
+      pr_selected ~fail_on_error L.is_permits specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_interfacebody children;
       pb#close_box()
@@ -587,6 +591,14 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_break 1 pb#indent;
       pr_string "extends ";
       pb#pr_hova pr_comma (pr_node ~fail_on_error) children
+
+  | L.Permits when nchildren = 0 -> ()
+  | L.Permits ->
+      pr_break 1 pb#indent;
+      pr_string "permits ";
+      pb#pr_hova pr_comma (pr_node ~fail_on_error) children
+
+  | L.TypeName n -> pr_name n
 
   | L.ElementDeclaration i ->
       pb#open_box 0;
@@ -953,6 +965,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           pr_selected ~fail_on_error ~tail:pad1 L.is_block children;
           pr_selected ~fail_on_error ~tail:pad1 L.is_catch_clause children;
           pr_selected ~fail_on_error ~tail:pad1 L.is_finally children
+
+      | L.Statement.Yield -> pr_string "yield "; pr_nth_child 0; pr_semicolon()
 
       | L.Statement.Switch ->
           pr_string "switch ("; pr_nth_child 0; pr_rparen();

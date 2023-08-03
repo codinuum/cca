@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -136,6 +136,16 @@ let pr_hovlist pr_sep pr = function
   | l ->
       open_hovbox 0; pr_list (fun () -> pr_sep(); pr_cut()) pr l; close_box()
 
+let pr_loc loc = pr_string (sprintf "{%s}" (Loc.to_string loc))
+
+let pr_id id = pr_string id
+
+let dims_to_short_string dims =
+  let res = ref "" in
+  for i = 1 to dims do
+    res := !res ^ "["
+  done; !res
+
 let name_attribute_to_string = function
   | NApackage       -> "P"
   | NAtype r        -> "T:"^(resolve_result_to_str r)
@@ -149,39 +159,29 @@ let name_attribute_to_string = function
 let rec name_to_simple_string name =
   match name.n_desc with
   | Nsimple(attr, sn) -> sn
-  | Nqualified(attr, n, sn) ->
-      sprintf "%s.%s" (name_to_simple_string n) sn
+  | Nqualified(attr, n, al, sn) ->
+      sprintf "%s.%s%s" (name_to_simple_string n) (annotations_to_string al) sn
   | Nerror s -> s
 
-let rec _name_to_string name =
+and _name_to_string name =
   match name.n_desc with
   | Nsimple(attr, sn) ->
       sprintf "(%s)_{%s}" sn (name_attribute_to_string !attr)
 
-  | Nqualified(attr, n, sn) ->
-      sprintf "(%s.%s)_{%s}" (_name_to_string n) sn (name_attribute_to_string !attr)
+  | Nqualified(attr, n, al, sn) ->
+      sprintf "(%s.%s%s)_{%s}" (_name_to_string n) (annotations_to_string al) sn (name_attribute_to_string !attr)
 
   | Nerror s -> s
 
-let name_to_string ?(show_attr=true) n =
+and name_to_string ?(show_attr=true) n =
   if show_attr then
     _name_to_string n
   else
     name_to_simple_string n
 
-let pr_loc loc = pr_string (sprintf "{%s}" (Loc.to_string loc))
+and pr_name name = pr_string (name_to_string ~show_attr:true name)
 
-let pr_name name = pr_string (name_to_string ~show_attr:true name)
-
-let pr_id id = pr_string id
-
-let dims_to_short_string dims =
-  let res = ref "" in
-  for i = 1 to dims do
-    res := !res ^ "["
-  done; !res
-
-let rec type_to_short_string ?(resolve=true) dims ty =
+and type_to_short_string ?(resolve=true) dims ty =
   let dim_str = dims_to_short_string (List.length dims) in
   let base =
     match ty.ty_desc with
@@ -497,6 +497,8 @@ and pr_modifier m =
   | Mannotation a -> pr_annotation a
   | Mdefault      -> pr_string "default"
   | Mtransitive   -> pr_string "transitive"
+  | Msealed       -> pr_string "sealed"
+  | Mnon_sealed   -> pr_string "non-sealed"
   | Merror s      -> pr_string "<ERROR:"; pr_string s; pr_string ">"
 
 
@@ -733,6 +735,7 @@ and pr_method_header mh =
     match mh.mh_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1
   end;
   pr_option pr_type_parameters mh.mh_type_parameters;
+  pr_annotations mh.mh_annotations;
   pr_type mh.mh_return_type; pad 1; pr_id mh.mh_name;
   pr_lparen(); pr_formal_parameters mh.mh_parameters; pr_rparen();
   pr_annot_dims mh.mh_dims;
@@ -794,6 +797,7 @@ and pr_statement sty s =
 	  pr_finally_short fin
       | _ -> () (* impossible *)
   end
+  | Syield e -> pr_string "yield "; pr_expression 0 e; pr_semicolon()
   | Slabeled(id, s) -> pr_id id; pr_string ": "; pr_statement sty s
   | SifThen(e, s) ->
       pr_string "if ("; pr_expression 0 e; pr_rparen(); pr_space(); pr_statement_short s;
@@ -983,6 +987,21 @@ and pr_class_body_declaration cbd =
   | CBDpointcut p -> pr_pointcut_declaration p
   | CBDdeclare d -> pr_declare_declaration d
 
+and pr_record_body_declaration rbd =
+  match rbd.rbd_desc with
+  | RBDclass_body_decl c -> pr_class_body_declaration c
+  | RBDcompact_ctor_decl c -> pr_compact_ctor_decl c
+
+and pr_compact_ctor_decl ccnd =
+  open_box 0;
+  begin
+    match ccnd.ccnd_modifiers with None -> () | Some ms -> pr_modifiers ms; pad 1
+  end;
+  pr_id ccnd.ccnd_name;
+  close_box();
+  pr_constructor_body ccnd.ccnd_body
+
+
 and pr_declare_declaration dd =
   match dd.dd_desc with
   | DDparents(kwd, c, x_opt, i_opt) ->
@@ -1057,6 +1076,7 @@ and pr_interface_declaration_head kind ifh =
   pr_string (kind^" "); pr_id ifh.ifh_identifier;
   pr_option pr_type_parameters ifh.ifh_type_parameters;
   pr_option pr_extends_interfaces ifh.ifh_extends_interfaces;
+  pr_option pr_permits ifh.ifh_permits;
   close_box()
 
 and pr_interface_declaration ifd =
@@ -1172,6 +1192,17 @@ and pr_class_body cb =
       pr_class_body_declarations body;
       pr_block_end()
 
+and pr_record_body_declarations rbds =
+  pr_list pr_space pr_record_body_declaration rbds
+
+and pr_record_body rb =
+  match rb.rb_record_body_declarations with
+  | [] -> pr_string " {}"
+  | body ->
+      pr_block_begin_tall();
+      pr_record_body_declarations body;
+      pr_block_end()
+
 and pr_enum_body eb =
   match eb.eb_enum_constants, eb.eb_class_body_declarations with
   | [], [] -> pr_string " {}"
@@ -1218,6 +1249,15 @@ and pr_implements_op = function
   | None -> ()
   | Some cls -> pr_implements cls
 
+and pr_permits pm =
+    pr_break 1 indent;
+    pr_string "permits ";
+    open_box 0; pr_list pr_comma pr_name pm.pm_type_names; close_box()
+
+and pr_permits_op = function
+  | None -> ()
+  | Some pm -> pr_permits pm
+
 and pr_type_parameters tps =
   pr_string "<";
   pr_list pr_comma pr_type_parameter tps.tps_type_parameters;
@@ -1244,6 +1284,7 @@ and pr_class_declaration_head kind ch =
   close_box();
   pr_option pr_extends_class ch.ch_extends_class;
   pr_implements_op ch.ch_implements;
+  pr_permits_op ch.ch_permits;
   close_box()
 
 and pr_record_declaration_head kind rh =
@@ -1317,7 +1358,6 @@ and pr_module_directive md =
   | MDopens(n, ns) ->
       open_box 0;
       pr_string "opens "; pr_name n;
-      pr_string "privides "; pr_name n;
       begin
         match ns with
         | [] -> ()
@@ -1332,7 +1372,7 @@ and pr_module_directive md =
 
   | MDprovides(n, ns) ->
       open_box 0;
-      pr_string "privides "; pr_name n;
+      pr_string "provides "; pr_name n;
       begin
         match ns with
         | [] -> ()
@@ -1347,7 +1387,7 @@ and pr_class_declaration cd =
   match cd.cd_desc with
   | CDclass(ch, body) -> pr_class_declaration_head "class" ch; pr_class_body body; close_box()
   | CDenum(eh, body)  -> pr_class_declaration_head "enum" eh; pr_enum_body body; close_box()
-  | CDrecord(rh, body) -> pr_record_declaration_head "record" rh; pr_class_body body; close_box()
+  | CDrecord(rh, body) -> pr_record_declaration_head "record" rh; pr_record_body body; close_box()
   | CDaspect(ah, body) -> pr_class_declaration_head "aspect" ah; pr_aspect_body body; close_box()
 
 let pr_type_declaration td =

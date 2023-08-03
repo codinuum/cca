@@ -240,7 +240,7 @@ module Attr = struct
   let split_comma = Str.split (Str.regexp_string ",")
   let split_colon = Str.split (Str.regexp_string ":")
 
-  let find_vdids attrs = vdids_of_string (find_attr attrs vdids_attr_name)
+  let find_vdids ?(attr_name=vdids_attr_name) attrs = vdids_of_string (find_attr attrs attr_name)
   let find_dims attrs  = int_of_string (find_attr attrs dims_attr_name)
   let find_vars attrs  = split_comma (find_attr attrs vars_attr_name)
   let find_args attrs  = split_comma (find_attr attrs "args")

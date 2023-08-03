@@ -110,13 +110,13 @@ let find_keyword, delete_keyword =
 
      (* "var", (fun l -> VAR l); *)(* 10 *)
 
-     (* "yield", (fun l -> YIELD l); *)(* 14 *)
+     "yield", (fun l -> YIELD l);(* 14 *)
 
      "record", (fun l -> RECORD l);(* 16 *)
 
-     (* "non-sealed", (fun l -> NON_SEALED l); *)(* 17 *)
-     (* "permits", (fun l -> PERMITS l); *)(* 17 *)
-     (* "sealed", (fun l -> SEALED l); *)(* 17 *)
+     "sealed", (fun l -> SEALED l);(* 17 *)
+     "non-sealed", (fun l -> NON_SEALED l);(* 17 *)
+     "permits", (fun l -> PERMITS l);(* 17 *)
 
      "aspect",       (fun l -> ASPECT l);
      "pointcut",     (fun l -> POINTCUT l);
@@ -431,24 +431,6 @@ module F (Stat : Parser_aux.STATE_T) = struct
   let assert_stmt_parser = PB.mkparser P.partial_assert_statement
   let block_stmt_parser  = PB.mkparser P.partial_block_statement
 
-  let mkscanner q =
-    if q#is_empty then begin
-      fun () -> Token.create EOP Loc.dummy_lexpos Loc.dummy_lexpos
-    end
-    else begin
-      let last = ref q#peek in
-      fun () ->
-        try
-          let t = q#take in
-          DEBUG_MSG ">>> %s" (Token.to_string env#current_pos_mgr t);
-          last := t;
-          t
-        with
-          Queue.Empty ->
-            let _, _, ed = Token.decompose !last in
-            Token.create EOP ed ed
-    end
-
   let string_of_token_queue = Common.token_queue_to_string Token.to_orig
   (*let string_of_token_queue (q : 'a Xqueue.c) =
     let l = q#fold (fun l x -> x::l) [] in
@@ -518,162 +500,282 @@ module F (Stat : Parser_aux.STATE_T) = struct
       ed
     in
 
-    let check_contextual_keywords t =
+    let check_contextual_keywords ?(at_stmt=false) t =
       let tok, st, ed = Token.decompose t in
       match tok with
-      | OPEN loc -> begin
-          let _, tok2 = peek_nth 1 in
-          let _, tok3 = peek_nth 2 in
-          match tok2, tok3 with
-          | MODULE _, IDENTIFIER _ -> t
-          | _ -> begin
-              DEBUG_MSG "OPEN --> <identifier>";
-              let kw = "open" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
-      end
       | TRANSITIVE loc -> begin
+          let conv () =
+            DEBUG_MSG "TRANSITIVE --> <identifier>";
+            let kw = "transitive" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | (STATIC _ | IDENTIFIER _), (IDENTIFIER _ | DOT | SEMICOLON) -> t
           | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "TRANSITIVE --> <identifier>";
-              let kw = "transitive" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
-      | TO loc -> begin
+      | SEALED loc -> begin
+          let conv () =
+            DEBUG_MSG "SEALED --> <identifier>";
+            let kw = "sealed" in
+            (*set_to_JLS 16 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
           let _, tok2 = peek_nth 1 in
-          let _, tok3 = peek_nth 2 in
-          match tok2, tok3 with
-          | IDENTIFIER _, (DOT | COMMA | SEMICOLON) -> t
-          | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "TO --> <identifier>";
-              let kw = "to" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          match tok2 with
+          | AT _
+          | PUBLIC _ | PROTECTED _ | PRIVATE _ | ABSTRACT _ | STATIC _ | FINAL _ | STRICTFP _
+          | NON_SEALED _
+          | CLASS _ | INTERFACE _ -> t
+          | _ -> conv()
       end
-      | WITH_ loc -> begin
+      | NON_SEALED loc -> begin
+          let conv () =
+            DEBUG_MSG "NON_SEALED --> <identifier>";
+            let kw = "non-sealed" in
+            (*set_to_JLS 16 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
           let _, tok2 = peek_nth 1 in
-          let _, tok3 = peek_nth 2 in
-          match tok2, tok3 with
-          | IDENTIFIER _, (DOT | COMMA | SEMICOLON) -> t
-          | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "WITH_ --> <identifier>";
-              let kw = "with" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          match tok2 with
+          | AT _
+          | PUBLIC _ | PROTECTED _ | PRIVATE _ | ABSTRACT _ | STATIC _ | FINAL _ | STRICTFP _
+          | SEALED _
+          | CLASS _ | INTERFACE _ -> t
+          | _ -> conv()
       end
-      | MODULE loc -> begin
+      | YIELD loc -> begin
+          let conv () =
+            DEBUG_MSG "YIELD --> <identifier>";
+            let kw = "yield" in
+            (*set_to_JLS 13 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          let _, tok2 = peek_nth 1 in
+          match tok2 with
+          | IDENTIFIER _ | EXCLAM | TILDE | NEW _ | SWITCH _
+          | TRUE | FALSE | NULL
+          | INTEGER_LITERAL _ | FLOATING_POINT_LITERAL _ | CHARACTER_LITERAL _ | STRING_LITERAL _ -> t
+          | LPAREN _ | PLUS | MINUS | PLUS_PLUS | MINUS_MINUS when env#stmt_head_flag -> t
+          | _ -> conv()
+      end
+      | PERMITS loc -> begin
+          let conv () =
+            DEBUG_MSG "PERMITS --> <identifier>";
+            let kw = "permits" in
+            (*set_to_JLS 16 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (DOT | LBRACE) -> t
-          | _ -> begin
-              DEBUG_MSG "MODULE --> <identifier>";
-              let kw = "module" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
+      end
+      | TO loc -> begin
+          let conv () =
+            DEBUG_MSG "TO --> <identifier>";
+            let kw = "to" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | COMMA | SEMICOLON) -> t
+          | _ when env#in_module -> t
+          | _ -> conv()
+      end
+      | WITH_ loc -> begin
+          let conv () =
+            DEBUG_MSG "WITH_ --> <identifier>";
+            let kw = "with" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | COMMA | SEMICOLON) -> t
+          | _ when env#in_module -> t
+          | _ -> conv()
+      end
+      | OPEN loc -> begin
+          let conv () =
+            DEBUG_MSG "OPEN --> <identifier>";
+            let kw = "open" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | MODULE _, IDENTIFIER _ -> t
+          | _ -> conv()
+      end
+      | MODULE loc -> begin
+          let conv () =
+            DEBUG_MSG "MODULE --> <identifier>";
+            let kw = "module" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
+          let _, tok2 = peek_nth 1 in
+          let _, tok3 = peek_nth 2 in
+          match tok2, tok3 with
+          | IDENTIFIER _, (DOT | LBRACE) -> t
+          | _ -> conv()
       end
       | REQUIRES loc -> begin
+          let conv () =
+            DEBUG_MSG "REQUIRES --> <identifier>";
+            let kw = "module" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (DOT | SEMICOLON) -> t
           | (STATIC _ | TRANSITIVE _), IDENTIFIER _ -> t
           | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "REQUIRES --> <identifier>";
-              let kw = "module" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
       | EXPORTS loc -> begin
+          let conv () =
+            DEBUG_MSG "EXPORTS --> <identifier>";
+            let kw = "exports" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (DOT | TO _) -> t
           | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "EXPORTS --> <identifier>";
-              let kw = "exports" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
       | OPENS loc -> begin
+          let conv () =
+            DEBUG_MSG "OPENS --> <identifier>";
+            let kw = "opens" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (DOT | TO _) -> t
           | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "OPENS --> <identifier>";
-              let kw = "opens" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
       | USES loc -> begin
+          let conv () =
+            DEBUG_MSG "USES --> <identifier>";
+            let kw = "uses" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (DOT | SEMICOLON) -> t
           | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "USES --> <identifier>";
-              let kw = "uses" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
       | PROVIDES loc -> begin
+          let conv () =
+            DEBUG_MSG "PROVIDES --> <identifier>";
+            let kw = "provides" in
+            (*set_to_JLS 8 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
+          if at_stmt then
+            conv()
+          else
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (DOT | WITH_ _) -> t
           | _ when env#in_module -> t
-          | _ -> begin
-              DEBUG_MSG "PROVIDES --> <identifier>";
-              let kw = "provides" in
-              (*set_to_JLS 8 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
       | RECORD loc -> begin
+          let conv () =
+            DEBUG_MSG "RECORD --> <identifier>";
+            let kw = "record" in
+            (*set_to_JLS 15 loc kw;*)
+            (*delete_keyword kw;*)
+            kw_to_ident kw t
+          in
           let _, tok2 = peek_nth 1 in
           let _, tok3 = peek_nth 2 in
           match tok2, tok3 with
           | IDENTIFIER _, (LT _ | LPAREN _) -> t
-          | _ -> begin
-              DEBUG_MSG "RECORD --> <identifier>";
-              let kw = "record" in
-              (*set_to_JLS 15 loc kw;*)
-              (*delete_keyword kw;*)
-              kw_to_ident kw t
-          end
+          | _ -> conv()
       end
       | _ -> t
+    in
+
+    let mkscanner q =
+      if q#is_empty then begin
+        fun () -> Token.create EOP Loc.dummy_lexpos Loc.dummy_lexpos
+      end
+      else begin
+        let last = ref q#peek in
+        fun () ->
+          try
+            let t = q#take in
+            let t = check_contextual_keywords t in
+            DEBUG_MSG ">>> %s" (Token.to_string env#current_pos_mgr t);
+            last := t;
+            t
+          with
+            Queue.Empty ->
+              let _, _, ed = Token.decompose !last in
+              Token.create EOP ed ed
+      end
     in
 
     let res =
@@ -901,7 +1003,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
                   with
                     Queue.Empty -> token ulexbuf
                 in
-                check_contextual_keywords t
+                check_contextual_keywords ~at_stmt:true t
               in
               begin
                 let blv = ref 0 in
@@ -973,6 +1075,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | _ -> res
     in
     env#set_last_rawtoken (Obj.repr (Token.to_rawtoken res'));
+    env#clear_stmt_head_flag;
     res'
 
 

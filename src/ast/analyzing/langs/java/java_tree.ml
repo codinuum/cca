@@ -31,7 +31,7 @@ let sprintf = Printf.sprintf
 let qualifier_of_name n =
   match n.Ast.n_desc with
   | Ast.Nsimple(_, ident) -> None
-  | Ast.Nqualified(_, name, _) -> Some name
+  | Ast.Nqualified(_, name, _, _) -> Some name
   | Ast.Nerror s -> None
 
 let conv_loc = L.conv_loc
@@ -893,6 +893,8 @@ class translator options =
       | Ast.Mstrictfp     -> L.Modifier.Strictfp
       | Ast.Mdefault      -> L.Modifier.Default
       | Ast.Mtransitive   -> L.Modifier.Transitive
+      | Ast.Msealed       -> L.Modifier.Sealed
+      | Ast.Mnon_sealed   -> L.Modifier.NonSealed
       | Ast.Merror s      -> L.Modifier.Error s
       | Ast.Mannotation _ -> assert false
     in
@@ -1556,6 +1558,15 @@ class translator options =
         in
         name_to_node mklab name
     end
+    | Some _ when options#partial_name_resolution_flag -> begin
+        let mklab =
+          if Ast.is_ambiguous_name name then
+            (fun x -> L.Primary.AmbiguousName x)
+          else
+            (fun x -> L.Primary.Name x)
+        in
+        name_to_node mklab name
+    end
     | Some q -> begin
         if Ast.is_ambiguous_name q then begin
           if
@@ -2013,6 +2024,8 @@ class translator options =
              ((self#of_block ~tid:(self#__mktid "try") block) ::
               ((List.map self#of_catch catches) @ (of_opt self#of_finally finally_opt))))
 
+      | Ast.Syield e -> self#mknode (L.Statement L.Statement.Yield) [self#of_expression e]
+
       | Ast.Slabeled(name, s) ->
           self#mknode (L.Statement (L.Statement.Labeled name)) [self#of_statement s]
 
@@ -2434,6 +2447,35 @@ class translator options =
       ) nds;
     nds
 
+  method of_record_body_declaration rbd =
+    match rbd.Ast.rbd_desc with
+    | RBDclass_body_decl cbd -> self#of_class_body_declaration cbd
+    | RBDcompact_ctor_decl ccd -> self#of_compact_ctor_decl ccd
+
+  method of_compact_ctor_decl ccd =
+    let mods = ccd.Ast.ccnd_modifiers in
+    let orig_name = ccd.Ast.ccnd_name in
+    let name = orig_name^".<init>" in
+    let signature = "" in
+    let mod_nodes = self#of_modifiers_opt (L.Kconstructor signature) mods in
+    let ordinal_tbl_opt =
+      Some (new ordinal_tbl [List.length mod_nodes;
+                             1;
+                           ])
+    in
+    let children =
+      mod_nodes @ [self#of_constructor_body name signature ccd.Ast.ccnd_body]
+    in
+    let msig = sprintf "(%s)V" signature in
+    let annot = L.make_annotation msig in
+    let orig_lab_opt = Some (L.Constructor(orig_name, ""(*msig*))) in
+    let nd =
+      self#mknode ~orig_lab_opt ~annot ~ordinal_tbl_opt
+        (L.Constructor(name, msig)) children
+    in
+    set_loc nd ccd.Ast.ccnd_loc;
+    [nd]
+
   method of_pointcut_expr pe =
     let lab, children =
       match pe.pe_desc with
@@ -2485,16 +2527,23 @@ class translator options =
     set_loc nd cnb.Ast.cnb_loc;
     nd
 
+  method of_record_body ?(in_method=false) rname rb =
+    let body = rb.Ast.rb_record_body_declarations in
+    let children =
+      List.flatten (List.map self#of_record_body_declaration body)
+    in
+    self#_of_class_body ~in_method rname children rb.Ast.rb_loc
+
   method of_class_body_opt ?(in_method=false) name cb = of_opt (self#of_class_body ~in_method name) cb
 
   method of_class_body ?(in_method=false) cname cb =
     let body = cb.Ast.cb_class_body_declarations in
-    self#_of_class_body ~in_method cname body cb.Ast.cb_loc
-
-  method _of_class_body ?(in_method=false) cname body loc =
     let children =
       List.flatten (List.map self#of_class_body_declaration body)
     in
+    self#_of_class_body ~in_method cname children cb.Ast.cb_loc
+
+  method _of_class_body ?(in_method=false) cname children loc =
     let children' =
       if in_method then
         children
@@ -2713,6 +2762,20 @@ class translator options =
 
   method of_implements_opt im = of_opt self#of_implements im
 
+  method of_type_name n =
+    let nd = self#mkleaf (L.TypeName (L.conv_name ~resolve:false n)) in
+    set_loc nd n.Ast.n_loc;
+    nd
+
+  method of_permits pm =
+    let nd =
+      self#mklnode L.Permits (List.map self#of_type_name pm.Ast.pm_type_names)
+    in
+    set_loc nd pm.Ast.pm_loc;
+    nd
+
+  method of_permits_opt pm = of_opt self#of_permits pm
+
   method make_specifier_node kind children otbl loc =
     if children = [] then
       []
@@ -2730,7 +2793,8 @@ class translator options =
     let ta_nodes = self#of_type_parameters_opt ident h.Ast.ch_type_parameters in
     let ex_nodes = self#of_extends_class_opt h.Ast.ch_extends_class in
     let im_nodes = self#of_implements_opt h.Ast.ch_implements in
-    let children = mod_nodes @ ta_nodes @ ex_nodes @ im_nodes in
+    let pm_nodes = self#of_permits_opt h.Ast.ch_permits in
+    let children = mod_nodes @ ta_nodes @ ex_nodes @ im_nodes @ pm_nodes in
     self#make_specifier_node kind children otbl h.Ast.ch_loc
 
   method of_record_declaration_head ?(interface=false) kind otbl h =
@@ -2841,7 +2905,7 @@ class translator options =
           in
           let ident = h.Ast.rh_identifier in
           let specifier_node = self#of_record_declaration_head ~interface (L.Krecord ident) otbl h in
-          let children = specifier_node @ [self#of_class_body ident body] in
+          let children = specifier_node @ [self#of_record_body ident body] in
           self#mknode (L.Record ident) children
 
       | Ast.CDaspect(h, body) ->
@@ -2861,7 +2925,10 @@ class translator options =
 
   method of_aspect_body aname abd =
     let body = abd.Ast.abd_aspect_body_declarations in
-    self#_of_class_body aname body abd.Ast.abd_loc
+    let children =
+      List.flatten (List.map self#of_class_body_declaration body)
+    in
+    self#_of_class_body aname children abd.Ast.abd_loc
 
   method of_abstract_method_declaration amd =
     self#of_method_header
@@ -2982,7 +3049,8 @@ class translator options =
     let children =
       (self#of_modifiers_opt ~interface:true kind (*ident*) h.Ast.ifh_modifiers) @
       (self#of_type_parameters_opt ident h.Ast.ifh_type_parameters) @
-      (self#of_extends_interfaces_opt h.Ast.ifh_extends_interfaces)
+      (self#of_extends_interfaces_opt h.Ast.ifh_extends_interfaces) @
+      (self#of_permits_opt h.Ast.ifh_permits)
     in
     self#make_specifier_node kind children otbl h.Ast.ifh_loc
 

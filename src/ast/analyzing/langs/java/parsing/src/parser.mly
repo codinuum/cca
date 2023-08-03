@@ -115,11 +115,7 @@ reserved:
 
 | GT_7 { }
 
-| NON_SEALED { }
-| PERMITS { }
-| SEALED { }
 | VAR { }
-| YIELD { }
 ;
 
 partial_block_statement:
@@ -510,16 +506,25 @@ simple_name:
 
 %inline
 qualified_name:
-| n=name DOT i=identifier 
+| n=name DOT i=identifier
     { 
       let _, id = i in
-      mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
+      mkname $startofs $endofs (Nqualified(ref NAunknown, n, [], id))
+    }
+| n=name DOT a=annotations i=identifier
+    { 
+      check_JLS_level 10
+        (fun () ->
+          let _, id = i in
+          mkname $startofs $endofs (Nqualified(ref NAunknown, n, a, id))
+        )
+        (fun () -> parse_error $startofs(a) $endofs(a) "dot annotation is available since JLS10")
     }
 (*| s=ERROR DOT i=identifier
     { 
       let n = mkerrname $startofs $endofs(s) s in
       let _, id = i in
-      mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
+      mkname $startofs $endofs (Nqualified(ref NAunknown, n, [], id))
     }*)
 ;
 
@@ -850,6 +855,18 @@ adhoc_modifier:
 | VOLATILE     { Mvolatile }
 | STRICTFP     { Mstrictfp }
 | DEFAULT      { Mdefault }
+| SEALED
+    { 
+      check_JLS_level 17
+        (fun () -> Msealed)
+        (fun () -> parse_error $startofs $endofs "sealed-modifier is available since JLS17")
+    }
+| NON_SEALED
+    { 
+      check_JLS_level 17
+        (fun () -> Mnon_sealed)
+        (fun () -> parse_error $startofs $endofs "sealed-modifier is available since JLS17")
+    }
 ;
 
 %inline
@@ -960,11 +977,33 @@ record_declaration_head:
     }
 ;
 record_declaration:
-| rh=record_declaration_head b=class_body
+| rh=record_declaration_head b=record_body
     { 
       check_JLS_level 16
         (fun () -> mkcd $startofs $endofs (CDrecord(rh, b)))
         (fun () -> parse_error $startofs $endofs "record-declaration is available since JLS16")
+    }
+;
+
+record_body:
+| LBRACE c=record_body_declarations0 RBRACE { end_scope(); mkrb $startofs $endofs c }
+;
+
+%inline
+record_body_declarations0:
+| l=list(record_body_declaration) { l }
+;
+
+record_body_declaration:
+| c=class_body_declaration { mkrbd $startofs $endofs (RBDclass_body_decl c) }
+| c=compact_constructor_declaration { mkrbd $startofs $endofs (RBDcompact_ctor_decl c) }
+;
+
+compact_constructor_declaration:
+| m_opt=modifiers_opt i=identifier cb=constructor_body
+    { 
+      let _, id = i in
+      mkccnd $symbolstartofs $endofs m_opt id cb
     }
 ;
 
@@ -982,7 +1021,7 @@ class_declaration_head1:
 | ch=class_declaration_head0 ts_opt=type_parameters_opt { ch, ts_opt }
 ;
 class_declaration_head:
-| ch1=class_declaration_head1 s_opt=super_opt i_opt=interfaces_opt
+| ch1=class_declaration_head1 s_opt=super_opt i_opt=interfaces_opt p_opt=permits_opt
     { 
       let ch0, ts_opt = ch1 in
       end_typeparameter_scope ts_opt;
@@ -992,7 +1031,7 @@ class_declaration_head:
         | Some ms when has_user_defined_annotation ms -> env#set_has_super()
         | _ -> ()
       end;
-      mkch $startofs $endofs ms_opt id ts_opt s_opt i_opt
+      mkch $startofs $endofs ms_opt id ts_opt s_opt i_opt p_opt
     }
 ;
 class_declaration:
@@ -1032,6 +1071,25 @@ interfaces_opt:
 %inline
 interface_type_list:
 | l=clist(interface_type) { l }
+;
+
+permits:
+| PERMITS tl=type_name_list
+    { 
+      check_JLS_level 17
+        (fun () -> mkpm $startofs $endofs tl)
+        (fun () -> parse_error $startofs $endofs "class-permits is available since JLS17")
+    }
+;
+
+%inline
+permits_opt:
+| p=ioption(permits) { p }
+;
+
+%inline
+type_name_list:
+| l=clist(name) { l }
 ;
 
 class_body: 
@@ -1086,7 +1144,7 @@ enum_declaration_head:
 | eh0=enum_declaration_head0 i_opt=interfaces_opt
     { 
       let ms, id = eh0 in
-      mkch $startofs $endofs ms id None None i_opt
+      mkch $startofs $endofs ms id None None i_opt None
     }
 ;
 enum_declaration:
@@ -1191,7 +1249,7 @@ aspect_declaration_head:
 | ah0=aspect_declaration_head0 s_opt=super_opt i_opt=interfaces_opt
     { 
       let ms, id = ah0 in
-      mkch $startofs $endofs ms id None s_opt i_opt
+      mkch $startofs $endofs ms id None s_opt i_opt None
     }
 ;
 aspect_declaration:
@@ -1351,17 +1409,12 @@ void:
 ;
 
 method_header:
-| m_opt=modifiers_opt ts_opt=type_parameters_opt tv=type_or_void
-    md=method_declarator t_opt=throws_opt
+| m_opt=modifiers_opt tv=type_or_void md=method_declarator t_opt=throws_opt
     { 
       let (id, params_loc, params), dim = md in
       let loc =
         match m_opt with
-        | None -> begin
-            match ts_opt with
-            | Some ts -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
-            | None    -> Loc.merge tv.ty_loc (get_loc $symbolstartofs $endofs)
-        end
+        | None -> Loc.merge tv.ty_loc (get_loc $symbolstartofs $endofs)
         | Some _ -> get_loc $symbolstartofs $endofs
       in
       Ast.proc_type (register_qname_as_typename ~skip:1) tv;
@@ -1370,7 +1423,24 @@ method_header:
         | Some ms when has_static ms -> env#set_is_static()
         | _ -> ()
       in
-      mkmh loc m_opt ts_opt tv id params_loc params dim t_opt
+      mkmh loc m_opt None [] tv id params_loc params dim t_opt
+    }
+| m_opt=modifiers_opt ts=type_parameters al=annotations0 tv=type_or_void
+    md=method_declarator t_opt=throws_opt
+    { 
+      let (id, params_loc, params), dim = md in
+      let loc =
+        match m_opt with
+        | None -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
+      in
+      Ast.proc_type (register_qname_as_typename ~skip:1) tv;
+      let _ =
+        match m_opt with
+        | Some ms when has_static ms -> env#set_is_static()
+        | _ -> ()
+      in
+      mkmh loc m_opt (Some ts) al tv id params_loc params dim t_opt
     }
 ;
 
@@ -1651,12 +1721,12 @@ normal_interface_declaration_head1:
 | h0=normal_interface_declaration_head0 ts_opt=type_parameters_opt { h0, ts_opt }
 ;
 normal_interface_declaration_head:
-| h1=normal_interface_declaration_head1 e_opt=extends_interfaces_opt
+| h1=normal_interface_declaration_head1 e_opt=extends_interfaces_opt p_opt=permits_opt
     { 
       let h0, ts_opt = h1 in
       end_typeparameter_scope ts_opt;
       let ms, id = h0 in
-      mkifh $startofs $endofs ms id ts_opt e_opt
+      mkifh $startofs $endofs ms id ts_opt e_opt p_opt
     }
 ;
 normal_interface_declaration:
@@ -1672,7 +1742,7 @@ annotation_type_declaration_head:
       let _, id = i in
       register_identifier_as_interface (mkfqn_cls id) id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      mkifh $startofs $endofs m_opt id None None
+      mkifh $startofs $endofs m_opt id None None None
     }
 ;
 
@@ -1903,6 +1973,7 @@ statement_without_trailing_substatement:
 | s=synchronized_statement { s }
 | t=throw_statement        { t }
 | t=try_statement          { t }
+| y=yield_statement        { y }
 | a=assert_statement       { a }
 | s=STMT                   { s }
 | s=ERROR_STMT             { mkerrstmt $startofs $endofs s }
@@ -2170,6 +2241,15 @@ try_statement:
 | tb=try_block           f=finally { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, None, Some f)) }
 | tb=try_block c=catches f=finally { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, Some c, Some f)) }
 | tb=try_block                     { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, None, None)) }
+;
+
+yield_statement:
+| YIELD e=expression SEMICOLON
+    { 
+      check_JLS_level 14
+        (fun () -> mkstmt $startofs $endofs (Syield e))
+        (fun () -> parse_error $startofs $endofs "yield-statement is available since JLS14")
+    }
 ;
 
 %inline

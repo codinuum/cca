@@ -156,6 +156,7 @@ class env = object (self)
   val mutable lex_brace_level = 0
   val mutable class_flag = false
   val mutable shift_flag = false
+  val mutable stmt_head_flag = false
 
   val mutable in_aspect_flag = false
   val mutable in_declare_flag = false
@@ -230,6 +231,16 @@ class env = object (self)
   method clear_shift_flag =
     DEBUG_MSG "clear";
     shift_flag <- false
+
+  method stmt_head_flag = stmt_head_flag
+
+  method set_stmt_head_flag =
+    DEBUG_MSG "set";
+    stmt_head_flag <- true
+
+  method clear_stmt_head_flag =
+    DEBUG_MSG "clear";
+    stmt_head_flag <- false
 
   method class_flag = class_flag
 
@@ -1237,7 +1248,7 @@ class env = object (self)
     let rec set n =
       match n.n_desc with
       | Nsimple(at, _) -> set1 at (NAambiguous (self#resolve ~force_defer n))
-      | Nqualified(at0, n0, _) -> set n0; set1 at0 (NAambiguous (self#resolve ~force_defer n))
+      | Nqualified(at0, n0, _, _) -> set n0; set1 at0 (NAambiguous (self#resolve ~force_defer n))
       | _ -> ()
     in
     set name
@@ -1397,6 +1408,7 @@ module F (Stat : STATE_T) = struct
   let _simple_name_to_expr loc n = _mkexpr loc (Eprimary (_simple_name_to_prim loc n))
   let mkpkgdecl loc a n = { pd_annotations=a; pd_name=n; pd_loc=loc }
   let _mkcbd loc d = { cbd_desc=d; cbd_loc=loc }
+  let _mkrbd loc d = { rbd_desc=d; rbd_loc=loc }
   let mkfd loc ms ty vds = { fd_modifiers=ms;
 			     fd_type=ty;
 			     fd_variable_declarators=vds;
@@ -1420,13 +1432,14 @@ module F (Stat : STATE_T) = struct
   let _mkargs loc args = { as_arguments=args; as_loc=loc }
   let _mkatmd loc d = { atmd_desc=d; atmd_loc=loc }
   let _mkimd loc d = { imd_desc=d; imd_loc=loc }
-  let _mkch loc ms id ts_opt s_opt i_opt = { ch_modifiers=ms;
-                                             ch_identifier=id;
-                                             ch_type_parameters=ts_opt;
-                                             ch_extends_class=s_opt;
-                                             ch_implements=i_opt;
-                                             ch_loc=loc;
-                                           }
+  let _mkch loc ms id ts_opt s_opt i_opt p_opt = { ch_modifiers=ms;
+                                                   ch_identifier=id;
+                                                   ch_type_parameters=ts_opt;
+                                                   ch_extends_class=s_opt;
+                                                   ch_implements=i_opt;
+                                                   ch_permits=p_opt;
+                                                   ch_loc=loc;
+                                                 }
   let _mkrh loc ms id ts_opt h i_opt = { rh_modifiers=ms;
                                          rh_identifier=id;
                                          rh_type_parameters=ts_opt;
@@ -1440,22 +1453,24 @@ module F (Stat : STATE_T) = struct
   let _mkmb loc ds = { mb_module_directives=ds; mb_loc=loc }
   let _mkmd loc d = { md_desc=d; md_loc=loc }
   let _mkcd loc d = { cd_desc=d; cd_loc=loc }
-  let _mkifh loc ms id ts_opt s_opt = { ifh_modifiers=ms;
-                                        ifh_identifier=id;
-                                        ifh_type_parameters=ts_opt;
-                                        ifh_extends_interfaces=s_opt;
-                                        ifh_loc=loc;
-                                      }
+  let _mkifh loc ms id ts_opt s_opt p_opt = { ifh_modifiers=ms;
+                                              ifh_identifier=id;
+                                              ifh_type_parameters=ts_opt;
+                                              ifh_extends_interfaces=s_opt;
+                                              ifh_permits=p_opt;
+                                              ifh_loc=loc;
+                                            }
   let _mkifd loc d = { ifd_desc=d; ifd_loc=loc }
-  let mkmh loc m tp rt id pl p d t = { mh_modifiers=m;
-				       mh_type_parameters=tp;
-				       mh_return_type=rt;
-				       mh_name=id;
-				       mh_parameters_loc=pl;
-				       mh_parameters=p;
-				       mh_dims=d;
-				       mh_throws=t;
-				       mh_loc=loc
+  let mkmh loc m tp al rt id pl p d t = { mh_modifiers=m;
+				          mh_type_parameters=tp;
+                                          mh_annotations=al;
+				          mh_return_type=rt;
+				          mh_name=id;
+				          mh_parameters_loc=pl;
+				          mh_parameters=p;
+				          mh_dims=d;
+				          mh_throws=t;
+				          mh_loc=loc
 				     }
   let mkimed loc mh b = { amd_method_header=mh; amd_body=b; amd_loc=loc }
   let mkcnd loc m tp n pl p t b = { cnd_modifiers=m;
@@ -1467,6 +1482,11 @@ module F (Stat : STATE_T) = struct
 				    cnd_body=b;
 				    cnd_loc=loc
 				  }
+  let mkccnd so eo m i b = { ccnd_modifiers=m;
+			     ccnd_name=i;
+			     ccnd_body=b;
+			     ccnd_loc=(get_loc so eo);
+			   }
 
 
   let _mkfqn ?(exclude_current=false) sep id =
@@ -1648,7 +1668,7 @@ module F (Stat : STATE_T) = struct
               with
                 Not_found -> env#classtbl#resolve i
       end
-      | Nqualified(_, n, i) -> begin
+      | Nqualified(_, n, _, i) -> begin
           (*try
             get_tyname (env#lookup_identifier ~afilt i)
           with
@@ -1847,9 +1867,13 @@ module F (Stat : STATE_T) = struct
               PfieldAccess(FAimplicit name)
         in
         _mkprim name.n_loc lab
-    | Nqualified(a, n, i) ->
+
+    | Nqualified(a, n, [], i) ->
         a := NAexpression;
         _mkprim name.n_loc (PfieldAccess(FAprimary(name_to_facc n, i)))
+
+    | Nqualified(a, n, _, i) -> _mkprim name.n_loc (Pname name)
+
     | Nerror s -> _mkprim name.n_loc (Pname name)
 
   let _name_to_prim ?(whole=true) loc n =
@@ -1956,7 +1980,9 @@ module F (Stat : STATE_T) = struct
 
   let mkcic so eo d = { cic_desc=d; cic_loc=(get_loc so eo) }
   let mkcb so eo decls = { cb_class_body_declarations=decls; cb_loc=(get_loc so eo) }
+  let mkrb so eo decls = { rb_record_body_declarations=decls; rb_loc=(get_loc so eo) }
   let mkcbd so eo d = _mkcbd (get_loc so eo) d
+  let mkrbd so eo d = _mkrbd (get_loc so eo) d
   let mkerrcbd so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
@@ -1974,6 +2000,7 @@ module F (Stat : STATE_T) = struct
   let mkexc so eo c = { exc_class=c; exc_loc=(get_loc so eo) }
   let mkexi so eo ifs = { exi_interfaces=ifs; exi_loc=(get_loc so eo) }
   let mkim so eo ifs = { im_interfaces=ifs; im_loc=(get_loc so eo) }
+  let mkpm so eo tns = { pm_type_names=tns; pm_loc=(get_loc so eo) }
   let mkeb so eo ecs cbds = { eb_enum_constants=ecs;
 			      eb_class_body_declarations=cbds;
 			      eb_loc=(get_loc so eo)
@@ -2070,7 +2097,7 @@ module F (Stat : STATE_T) = struct
       parse_error_loc loc "syntax error: %s" s
 
   let mkaa so eo d = { aa_desc=d; aa_loc=(get_loc so eo) }
-  let mkch so eo ms id ts_opt s_opt i_opt = _mkch (get_loc so eo) ms id ts_opt s_opt i_opt
+  let mkch so eo ms id ts_opt s_opt i_opt p_opt = _mkch (get_loc so eo) ms id ts_opt s_opt i_opt p_opt
   let mkrh so eo ms id ts_opt h i_opt = _mkrh (get_loc so eo) ms id ts_opt h i_opt
   let mkmodule so eo h b = _mkmodule (get_loc so eo) h b
   let mkmn so eo n = _mkmn (get_loc so eo) n
@@ -2078,7 +2105,7 @@ module F (Stat : STATE_T) = struct
   let mkmb so eo ds = _mkmb (get_loc so eo) ds
   let mkmd so eo d = _mkmd (get_loc so eo) d
   let mkcd so eo d = _mkcd (get_loc so eo) d
-  let mkifh so eo ms id ts_opt s_opt = _mkifh (get_loc so eo) ms id ts_opt s_opt
+  let mkifh so eo ms id ts_opt s_opt p_opt = _mkifh (get_loc so eo) ms id ts_opt s_opt p_opt
   let mkifd so eo d = _mkifd (get_loc so eo) d
   let mkde so eo d = { de_desc=d; de_loc=(get_loc so eo) }
   let mksl so eo d = { sl_desc=d; sl_loc=(get_loc so eo) }

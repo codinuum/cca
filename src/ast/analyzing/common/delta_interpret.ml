@@ -6481,12 +6481,14 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             | Abort -> false
           in
           DEBUG_MSG "stid=\"%s\": to_be_pruned=%B" (stid_to_str stid) to_be_pruned;
-          if to_be_pruned then
+          if to_be_pruned then begin
+            WARN_MSG "stid=\"%s\" is to be pruned" (stid_to_str stid);
             try
               let posl = Hashtbl.find ptbl parent in
               Hashtbl.replace ptbl parent (pos::posl)
             with
               Not_found -> Hashtbl.add ptbl parent [pos]
+          end
         with
           _ -> ()
       with

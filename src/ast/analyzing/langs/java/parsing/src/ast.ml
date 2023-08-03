@@ -190,12 +190,6 @@ let get_resolved_name = function
         s
   | _ -> raise Not_found
 
-type name = { n_desc : name_desc; n_loc : loc; }
-and name_desc =
-  | Nsimple of name_attribute ref * identifier
-  | Nqualified of name_attribute ref * name * identifier
-  | Nerror of string
-
 let set1 orig a =
   match !orig with
   | NApackageOrType -> begin
@@ -216,134 +210,7 @@ let set1 orig a =
   | NAunknown -> orig := a
   | _ -> ()
 
-let set_name_attribute ?(force=false) a n =
-  match n.n_desc with
-  | Nsimple(at, _) when force -> at := a
-  | Nqualified(at, _, _) when force -> at := a
-  | Nsimple(at, _) -> set1 at a
-  | Nqualified(at, _, _) -> set1 at a
-  | _ -> ()
-
-let set_attribute lattr attr name =
-  let rec set_attr a n =
-    match n.n_desc with
-    | Nsimple(at, _) -> set1 at a
-    | Nqualified(at, n, _) -> set1 at a;(* set_attr a n*)
-    | _ -> ()
-  in
-  match name.n_desc with
-  | Nsimple _ -> set_attr attr name
-  | Nqualified(at, n, _) -> set_attr lattr n; set1 at attr
-  | _ -> ()
-
-let set_attribute_PT_T rr = set_attribute NApackageOrType (NAtype rr)
-let set_attribute_P_T rr  = set_attribute NApackage (NAtype rr)
-let set_attribute_PT_PT   = set_attribute NApackageOrType NApackageOrType
-let set_attribute_P_P     = set_attribute NApackage NApackage
-(*let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod*)
-(*let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression*)
-
-
-let get_name_attribute name =
-  match name.n_desc with
-  | Nsimple(attr, _)
-  | Nqualified(attr, _, _) -> !attr
-  | _ -> NAunknown
-
-let compose_name ?(attr=ref NAunknown) name ident =
-  let desc = Nqualified(attr, name, ident) in
-  let loc = Loc.widen name.n_loc ((String.length ident) + 1) in
-  {n_desc=desc;n_loc=loc}
-
-let decompose_name name =
-  match name.n_desc with
-  | Nsimple _ -> failwith "Ast.decompose_name"
-  | Nqualified(_, n, id) -> n, id
-  | _ -> failwith "Ast.decompose_name"
-
-let rec leftmost_of_name n =
-  match n.n_desc with
-  | Nsimple(attr, id) -> attr, id
-  | Nqualified(_, n, _) -> leftmost_of_name n
-  | _ -> ref NAunknown, "?"
-
-let rec leftmost_name n =
-  match n.n_desc with
-  | Nsimple(attr, id) -> n
-  | Nqualified(_, n, _) -> leftmost_name n
-  | _ -> n
-
-let rightmost_identifier n =
-  match n.n_desc with
-  | Nsimple(_, id) -> id
-  | Nqualified(_, _, id) -> id
-  | _ -> "?"
-
 let is_capitalized s = String.capitalize_ascii s = s
-
-let is_rightmost_id_capitalized n =
-  match n.n_desc with
-  | Nsimple(_, id) -> is_capitalized id
-  | Nqualified(_, _, id) -> is_capitalized id
-  | _ -> false
-
-let rightmost_name n =
-  match n.n_desc with
-  | Nqualified(a, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
-  | _ -> n
-
-let get_qualifier name =
-  match name.n_desc with
-  | Nsimple _ -> raise Not_found
-  | Nqualified(_, n, _) -> n
-  | _ -> raise Not_found
-
-let rec get_length name =
-  match name.n_desc with
-  | Nsimple _ -> 1
-  | Nqualified(_, n, _) -> 1 + get_length n
-  | _ -> raise Not_found
-
-let is_simple n =
-  match n.n_desc with
-  | Nsimple _ -> true
-  | _ -> false
-
-let is_qualified n =
-  match n.n_desc with
-  | Nqualified _ -> true
-  | _ -> false
-
-let is_ambiguous_name name =
-  match get_name_attribute name with
-  | NAambiguous _ -> true
-  | _ -> false
-
-let is_type_name name =
-  match get_name_attribute name with
-  | NAtype _ -> true
-  | NApackageOrType -> true
-  | _ -> false
-
-let is_type name =
-  match get_name_attribute name with
-  | NAtype _ -> true
-  | _ -> false
-
-let is_package_or_type_name name =
-  match get_name_attribute name with
-  | NApackageOrType -> true
-  | _ -> false
-
-let is_expression name =
-  match get_name_attribute name with
-  | NAexpression -> true
-  | _ -> false
-
-let is_unknown_name name =
-  (get_name_attribute name) = NAunknown
-
-let dummy_name = { n_desc=Nsimple(ref NAunknown, ""); n_loc=Loc.dummy; }
 
 type literal =
   | Linteger of string
@@ -385,7 +252,13 @@ type binary_operator =
   | BOeq | BOneq | BOlt | BOgt | BOle | BOge
   | BObitAnd | BObitOr | BObitXor | BOand | BOor
 
-type javatype = { ty_desc : javatype_desc; ty_loc : loc; }
+type name = { n_desc : name_desc; n_loc : loc; }
+and name_desc =
+  | Nsimple of name_attribute ref * identifier
+  | Nqualified of name_attribute ref * name * annotation list * identifier
+  | Nerror of string
+
+and javatype = { ty_desc : javatype_desc; ty_loc : loc; }
 
 and primitive_type =
   | PTbyte | PTshort | PTint | PTlong
@@ -425,19 +298,23 @@ and type_arguments = { tas_type_arguments : type_argument list; tas_loc : loc; }
 and variable_declarator_id = identifier * annot_dim list
 
 and throws = { th_exceptions : javatype list;
-		th_loc        : loc;
+	       th_loc        : loc;
 	      }
 
 and extends_class = { exc_class : javatype;
-		       exc_loc   : loc
+		      exc_loc   : loc
 		     }
 and extends_interfaces = { exi_interfaces : javatype list;
-			    exi_loc        : loc;
+			   exi_loc        : loc;
 			  }
 
 and implements = { im_interfaces : javatype list;
-		    im_loc        : loc;
+		   im_loc        : loc;
 		  }
+
+and permits = { pm_type_names : name list;
+		pm_loc    : loc;
+	      }
 
 and formal_parameter =
     { fp_modifiers              : modifiers option;
@@ -466,6 +343,8 @@ and modifier_desc =
   | Mannotation of annotation
   | Mdefault
   | Mtransitive
+  | Msealed
+  | Mnon_sealed
   | Merror of string
 
 and variable_initializer = { vi_desc : variable_initializer_desc; vi_loc : loc; }
@@ -491,6 +370,7 @@ and class_declaration_head = {
     ch_type_parameters : type_parameters option;
     ch_extends_class   : extends_class option;
     ch_implements      : implements option;
+    ch_permits         : permits option;
     ch_loc             : loc;
   }
 
@@ -534,7 +414,7 @@ and class_declaration = { cd_desc : class_declaration_desc; cd_loc : loc; }
 and class_declaration_desc =
   | CDclass of class_declaration_head * class_body
   | CDenum  of class_declaration_head * enum_body
-  | CDrecord of record_declaration_head * class_body
+  | CDrecord of record_declaration_head * record_body
   | CDaspect of class_declaration_head * aspect_body
 
 and type_parameters = { tps_type_parameters : type_parameter list;
@@ -589,6 +469,19 @@ and class_body_declaration_desc =
   | CBDpointcut of pointcut_declaration
   | CBDdeclare of declare_declaration
 
+and record_body =
+    { rb_record_body_declarations : record_body_declaration list;
+      rb_loc                      : loc;
+    }
+
+and record_body_declaration = { rbd_desc : record_body_declaration_desc;
+			        rbd_loc  : loc;
+			      }
+
+and record_body_declaration_desc =
+  | RBDclass_body_decl of class_body_declaration
+  | RBDcompact_ctor_decl of compact_constructor_declaration
+
 and declare_declaration = { dd_desc : declare_declaration_desc;
                             dd_loc  : loc;
                           }
@@ -638,6 +531,7 @@ and field_declaration = { fd_modifiers            : modifiers option;
 
 and method_header = { mh_modifiers       : modifiers option;
 		      mh_type_parameters : type_parameters option;
+                      mh_annotations     : annotation list;
 		      mh_return_type     : javatype;
 		      mh_name            : identifier;
 		      mh_parameters_loc  : loc;
@@ -656,6 +550,12 @@ and constructor_declaration = { cnd_modifiers       : modifiers option;
 				cnd_body            : constructor_body;
 				cnd_loc             : loc;
 			      }
+
+and compact_constructor_declaration = { ccnd_modifiers       : modifiers option;
+				        ccnd_name            : identifier;
+				        ccnd_body            : constructor_body;
+				        ccnd_loc             : loc;
+			              }
 
 and constructor_body =
     { cnb_explicit_constructor_invocation : explicit_constructor_invocation option;
@@ -681,6 +581,7 @@ and interface_declaration_head = {
     ifh_identifier         : identifier;
     ifh_type_parameters    : type_parameters option;
     ifh_extends_interfaces : extends_interfaces option;
+    ifh_permits            : permits option;
     ifh_loc                : loc;
   }
 
@@ -781,6 +682,7 @@ and statement_desc =
   | Ssynchronized of expression * block
   | Sthrow of expression
   | Stry of resource_spec option * block * catches option * finally option
+  | Syield of expression
 
   | Slabeled of identifier * statement
   | SifThen of expression * statement
@@ -989,6 +891,135 @@ and resource_desc =
   | RfieldAccess of field_access
   | Rname of name
 
+
+let set_name_attribute ?(force=false) a n =
+  match n.n_desc with
+  | Nsimple(at, _) when force -> at := a
+  | Nqualified(at, _, _, _) when force -> at := a
+  | Nsimple(at, _) -> set1 at a
+  | Nqualified(at, _, _, _) -> set1 at a
+  | _ -> ()
+
+let set_attribute lattr attr name =
+  let rec set_attr a n =
+    match n.n_desc with
+    | Nsimple(at, _) -> set1 at a
+    | Nqualified(at, n, _, _) -> set1 at a;(* set_attr a n*)
+    | _ -> ()
+  in
+  match name.n_desc with
+  | Nsimple _ -> set_attr attr name
+  | Nqualified(at, n, _, _) -> set_attr lattr n; set1 at attr
+  | _ -> ()
+
+let set_attribute_PT_T rr = set_attribute NApackageOrType (NAtype rr)
+let set_attribute_P_T rr  = set_attribute NApackage (NAtype rr)
+let set_attribute_PT_PT   = set_attribute NApackageOrType NApackageOrType
+let set_attribute_P_P     = set_attribute NApackage NApackage
+(*let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod*)
+(*let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression*)
+
+
+let get_name_attribute name =
+  match name.n_desc with
+  | Nsimple(attr, _)
+  | Nqualified(attr, _, _, _) -> !attr
+  | _ -> NAunknown
+
+let compose_name ?(attr=ref NAunknown) name ident =
+  let desc = Nqualified(attr, name, [], ident) in
+  let loc = Loc.widen name.n_loc ((String.length ident) + 1) in
+  {n_desc=desc;n_loc=loc}
+
+let decompose_name name =
+  match name.n_desc with
+  | Nsimple _ -> failwith "Ast.decompose_name"
+  | Nqualified(_, n, _, id) -> n, id
+  | _ -> failwith "Ast.decompose_name"
+
+let rec leftmost_of_name n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> attr, id
+  | Nqualified(_, n, _, _) -> leftmost_of_name n
+  | _ -> ref NAunknown, "?"
+
+let rec leftmost_name n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> n
+  | Nqualified(_, n, _, _) -> leftmost_name n
+  | _ -> n
+
+let rightmost_identifier n =
+  match n.n_desc with
+  | Nsimple(_, id) -> id
+  | Nqualified(_, _, _, id) -> id
+  | _ -> "?"
+
+let is_rightmost_id_capitalized n =
+  match n.n_desc with
+  | Nsimple(_, id) -> is_capitalized id
+  | Nqualified(_, _, _, id) -> is_capitalized id
+  | _ -> false
+
+let rightmost_name n =
+  match n.n_desc with
+  | Nqualified(a, _, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
+  | _ -> n
+
+let get_qualifier name =
+  match name.n_desc with
+  | Nsimple _ -> raise Not_found
+  | Nqualified(_, n, _, _) -> n
+  | _ -> raise Not_found
+
+let rec get_length name =
+  match name.n_desc with
+  | Nsimple _ -> 1
+  | Nqualified(_, n, _, _) -> 1 + get_length n
+  | _ -> raise Not_found
+
+let is_simple n =
+  match n.n_desc with
+  | Nsimple _ -> true
+  | _ -> false
+
+let is_qualified n =
+  match n.n_desc with
+  | Nqualified _ -> true
+  | _ -> false
+
+let is_ambiguous_name name =
+  match get_name_attribute name with
+  | NAambiguous _ -> true
+  | _ -> false
+
+let is_type_name name =
+  match get_name_attribute name with
+  | NAtype _ -> true
+  | NApackageOrType -> true
+  | _ -> false
+
+let is_type name =
+  match get_name_attribute name with
+  | NAtype _ -> true
+  | _ -> false
+
+let is_package_or_type_name name =
+  match get_name_attribute name with
+  | NApackageOrType -> true
+  | _ -> false
+
+let is_expression name =
+  match get_name_attribute name with
+  | NAexpression -> true
+  | _ -> false
+
+let is_unknown_name name =
+  (get_name_attribute name) = NAunknown
+
+let dummy_name = { n_desc=Nsimple(ref NAunknown, ""); n_loc=Loc.dummy; }
+
+
 type package_declaration = { pd_annotations : annotations;
 			     pd_name        : name;
 			     pd_loc         : loc;
@@ -1103,7 +1134,8 @@ and _name_to_facc name =
       | NAexpression -> PfieldAccess(FAimplicit name)
       | _ -> Pname name
   end
-  | Nqualified(a, n, i) -> PfieldAccess(FAprimary(name_to_facc n, i))
+  | Nqualified(a, n, [], i) -> PfieldAccess(FAprimary(name_to_facc n, i))
+  | Nqualified(a, n, _, i) -> Pname name
   | Nerror s -> Pname name
 
 and name_to_facc name = _mkprim name.n_loc (_name_to_facc name)
@@ -1175,6 +1207,15 @@ and proc_class_body_declaration f cbd =
   | CBDconstructor cd -> proc_constructor_declaration f cd
   | _ -> ()
 
+and proc_record_body_declaration f rbd =
+  match rbd.rbd_desc with
+  | RBDclass_body_decl c -> proc_class_body_declaration f c
+  | RBDcompact_ctor_decl c -> proc_compact_ctor_decl f c
+
+and proc_compact_ctor_decl f ccnd =
+  proc_op proc_modifiers f ccnd.ccnd_modifiers;
+  proc_constructor_body f ccnd.ccnd_body
+
 and proc_type_bound f tb =
   proc_type f tb.tb_reference_type;
   List.iter (fun ab -> proc_type f ab.ab_interface) tb.tb_additional_bounds
@@ -1188,6 +1229,7 @@ and proc_type_parameters f tps =
 and proc_method_header f mh =
   proc_op proc_modifiers f mh.mh_modifiers;
   proc_op proc_type_parameters f mh.mh_type_parameters;
+  List.iter (proc_annotation f) mh.mh_annotations;
   proc_type f mh.mh_return_type;
   List.iter (proc_formal_parameter f) mh.mh_parameters;
   proc_op proc_throws f mh.mh_throws
@@ -1255,6 +1297,8 @@ and proc_statement f s =
       proc_block f b;
       proc_op (fun f catches -> List.iter (proc_catch f) catches) f cts_op;
       proc_op (fun f fin -> proc_block f fin.f_block) f fin_op
+  | Syield e ->
+      proc_expression f e
   | Slabeled(_, s0) -> proc_statement f s0
   | SifThen(e, s0)
   | Swhile(e, s0) ->
@@ -1314,11 +1358,15 @@ and proc_extends_class f exc =
 and proc_implements f im =
   List.iter (proc_type f) im.im_interfaces
 
+and proc_permits f pm =
+  List.iter f pm.pm_type_names
+
 and proc_class_declaration_head f ch =
   proc_op proc_modifiers f ch.ch_modifiers;
   proc_op proc_type_parameters f ch.ch_type_parameters;
   proc_op proc_extends_class f ch.ch_extends_class;
-  proc_op proc_implements f ch.ch_implements
+  proc_op proc_implements f ch.ch_implements;
+  proc_op proc_permits f ch.ch_permits
 
 and proc_record_declaration_head f rh =
   proc_op proc_modifiers f rh.rh_modifiers;
@@ -1336,7 +1384,7 @@ and proc_class_declaration f cd =
       proc_enum_body f eb
   | CDrecord(rh, cb) ->
       proc_record_declaration_head f rh;
-      proc_class_body f cb
+      proc_record_body f cb
   | CDaspect(ah, ab) ->
       proc_class_declaration_head f ah;
       proc_aspect_body f ab
@@ -1356,7 +1404,8 @@ and proc_enum_constant f ec =
 and proc_interface_declaration_head f ifh =
   proc_op proc_modifiers f ifh.ifh_modifiers;
   proc_op proc_type_parameters f ifh.ifh_type_parameters;
-  proc_op (fun f ei -> List.iter (proc_type f) ei.exi_interfaces) f ifh.ifh_extends_interfaces
+  proc_op (fun f ei -> List.iter (proc_type f) ei.exi_interfaces) f ifh.ifh_extends_interfaces;
+  proc_op proc_permits f ifh.ifh_permits
 
 and proc_interface_declaration f ifd =
   match ifd.ifd_desc with
@@ -1453,6 +1502,9 @@ and proc_method_reference f mr =
 and proc_class_body f cb =
   List.iter (proc_class_body_declaration f) cb.cb_class_body_declarations
 
+and proc_record_body f rb =
+  List.iter (proc_record_body_declaration f) rb.rb_record_body_declarations
+
 and proc_arguments f args =
   List.iter (proc_expression f) args.as_arguments
 
@@ -1492,7 +1544,7 @@ and name_attribute_to_string = function
 and name_to_simple_string name =
   match name.n_desc with
   | Nsimple(attr, sn) -> sn
-  | Nqualified(attr, n, sn) ->
+  | Nqualified(attr, n, al, sn) ->
       sprintf "%s.%s" (name_to_simple_string n) sn
   | Nerror s -> s
 
@@ -1501,7 +1553,7 @@ and name_to_string name =
   | Nsimple(attr, sn) ->
       sprintf "(%s)_%s" sn (name_attribute_to_string !attr)
 
-  | Nqualified(attr, n, sn) ->
+  | Nqualified(attr, n, al, sn) ->
       sprintf "(%s.%s)_%s" (name_to_string n) sn (name_attribute_to_string !attr)
 
   | Nerror s -> s

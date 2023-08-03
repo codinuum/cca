@@ -150,7 +150,7 @@ class parser_c = object (self)
             | Ast.NAunknown     -> DEBUG_MSG "NAunknown"; resolve_qname nattr_r qname
             | a -> DEBUG_MSG "%s" (Printer.name_attribute_to_string a)
         end
-	| Ast.Nqualified(nattr_r, q, id) -> begin
+	| Ast.Nqualified(nattr_r, q, _, id) -> begin
             DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
 	    resolve_name q;
             if Ast.get_name_attribute q = Ast.NAexpression then begin
@@ -321,6 +321,7 @@ class parser_c = object (self)
             | I.X (I.N N_block), _, I.X (I.T T_LBRACE) -> begin
                 DEBUG_MSG "@";
                 env#open_block;
+                env#set_stmt_head_flag;
                 save_state menv_;
                 raise Exit
             end
@@ -411,6 +412,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_labeled_statement_head), _, I.X (I.T T_COLON) -> begin
                 save_state menv_;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_local_variable_declaration_statement), _, I.X (I.T T_SEMICOLON) -> begin
@@ -481,26 +483,39 @@ class parser_c = object (self)
                 save_state menv_;
                 raise Exit
             end
-            (*| I.X (I.N N_if_then_statement), _, I.X (I.T T_RPAREN) -> begin
-                save_state menv_;
+            | I.X (I.N N_if_then_statement), _, I.X (I.T T_RPAREN) -> begin
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement), _, I.X (I.T T_RPAREN) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement), _, I.X (I.T T_ELSE) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement_no_short_if), _, I.X (I.T T_RPAREN) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement_no_short_if), _, I.X (I.T T_ELSE) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
-            end*)
+            end
+            | I.X (I.N N_while_statement), _, I.X (I.T T_RPAREN) -> begin
+                env#set_stmt_head_flag;
+                raise Exit
+            end
+            | I.X (I.N N_do_statement), _, I.X (I.T T_DO) -> begin
+                env#set_stmt_head_flag;
+                raise Exit
+            end
             (* *)
             | I.X (I.N N_method_invocation), _, I.X (I.T T_LPAREN) -> begin
                 env#enter_ivk;
@@ -685,18 +700,22 @@ class parser_c = object (self)
             end
             | I.X (I.N N_for_statement), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_for_statement_no_short_if), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_enhanced_for_statement), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_enhanced_for_statement_no_short_if), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
 
@@ -715,6 +734,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_switch_label), _, I.X (I.T T_COLON) -> begin
                 env#clear_case_flag;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_switch_rule_label), _, I.X (I.T T_MINUS_GT__CASE) -> begin
