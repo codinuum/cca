@@ -746,7 +746,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   and conflict_marker st s = lexer
 | line_terminator ->
-    (CONFLICT_MARKER(s, ref false)), mklexpos st, mklexpos ((Ulexing.lexeme_end lexbuf) - 1)
+    (CONFLICT_MARKER(ref false, s)), mklexpos st, mklexpos ((Ulexing.lexeme_end lexbuf) - 1)
 | _ -> conflict_marker st (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
 
 

@@ -23,19 +23,7 @@ module C = Context
 
 type token = T.token Parserlib_base.token
 
-type mode =
-  | M_NORMAL
-  | M_STMTS
-  | M_DECLS_SUB of string
-  | M_MEM_DECLS_SUB of string
-  | M_STMTS_SUB of string
-  | M_EXPR_SUB of string
-  | M_INIT_SUB of string
-  | M_TYPE_SUB of string
-  | M_SPECS_SUB of string
-  | M_DTORS_SUB of string
-  | M_ETORS_SUB of string
-  | M_OBJC_DECLS_SUB of string
+type mode = Aux.parsing_mode
 
 (*
 val is_type_name : string -> bool
@@ -192,10 +180,14 @@ class type c_t = object
   method show_token_hist : unit -> unit
   method set_token_hist_flag : unit -> unit
 
+  method set_dump_tokens_flag : unit -> unit
+
   method pp_restore_context : unit -> unit
 
   method mode : mode
   method set_mode : mode -> unit
+
+  method token_seq : Token_seq.c
 
 end
 

@@ -28,19 +28,23 @@ let np () n = if n = "" then "" else "("^n^")"
 type macro_kind =
   | ObjectLike
   | FunctionLike of string list * string (* parameter_list * va_args *)
+  | MK_DUMMY
 
 let macro_kind_to_string = function
   | ObjectLike -> ""
   | FunctionLike(sl, s) ->
       sprintf "(%s%s)" (String.concat "," sl) (if s = "" then "" else sprintf ",%s..." s)
+  | MK_DUMMY -> "MK_DUMMY"
 
 let macro_kind_to_rep = function
   | ObjectLike -> ""
   | FunctionLike(sl, s) -> (String.concat ", " sl)^(if s = "" then "" else "...")
+  | MK_DUMMY -> "MK_DUMMY"
 
 let macro_kind_to_attrs = function
   | ObjectLike -> []
   | FunctionLike(sl, s) -> ["params",(String.concat "," sl);"va_args",s]
+  | MK_DUMMY -> []
 
 type t =
   | DUMMY

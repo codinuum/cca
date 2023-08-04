@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2020-2023 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -37,11 +37,12 @@ class parser_c = object (self)
 
   val mutable token_hist_flag = false
   val mutable parse_macro_defs_flag = true
+  val mutable dump_tokens_flag = false
 
   val mutable scanner = Obj.magic ()
   val mutable _parse = fun () -> Obj.magic ()
 
-  val mutable mode = Scanner.M_NORMAL
+  val mutable mode = Aux.M_NORMAL
 
   val mutable tokens_read = 0
 
@@ -51,6 +52,11 @@ class parser_c = object (self)
 
   method clear_parse_macro_defs_flag () =
     parse_macro_defs_flag <- false
+
+  method set_dump_tokens_flag () =
+    dump_tokens_flag <- true;
+    env#set_dump_tokens_flag();
+    scanner#set_dump_tokens_flag()
 
   method make_source file  = new Source.c file
   method make_source_stdin = new Source.c Storage.stdin
@@ -74,6 +80,8 @@ class parser_c = object (self)
     let menv_backup_obj = ref None in
 
     scanner <- new Scan.c env;
+
+    let token_seq = scanner#token_seq in
 
     let replay_success_callback () =
       DEBUG_MSG "called";
@@ -362,6 +370,7 @@ class parser_c = object (self)
       | T_PLUS -> "PLUS"
       | T_PLUS_EQ -> "PLUS_EQ"
       | T_PLUS_PLUS -> "PLUS_PLUS"
+      | T_PMODE -> "PMODE"
       | T_PP_ -> "PP_"
       | T_PP_DEFINE -> "PP_DEFINE"
       | T_PP_ELIF -> "PP_ELIF"
@@ -1468,10 +1477,10 @@ class parser_c = object (self)
           DEBUG_MSG "\n%a" (pr_menv "shift" 0) menv_;
           for ith = 1 to 9 do
             BEGIN_DEBUG
-            match I.get ith menv_ with
-            | Some _ -> DEBUG_MSG "\n%a" (pr_menv "shift" ith) menv_
-            | _ -> ()
-                  END_DEBUG
+              match I.get ith menv_ with
+              | Some _ -> DEBUG_MSG "\n%a" (pr_menv "shift" ith) menv_
+              | _ -> ()
+            END_DEBUG
           done;
 
           let ctx_start_of_stmt sn =
@@ -2921,6 +2930,9 @@ class parser_c = object (self)
                             env#set_body_head_flag();
                             env#set_in_body_brace_flag();
                             scanner#set_body_flag();
+                            token_seq#set_func_body_flag();
+                            token_seq#add_token (T.IDENT_V "<func>");
+                            token_seq#add_token T.LBRACE;
                             raise Exit
                         end
                         | _, I.X (I.N N_declaration), _, _, _ -> begin
@@ -3030,6 +3042,8 @@ class parser_c = object (self)
                         | _, I.X (I.N N_function_definition), _, _, _ -> begin
                             scanner#ctx_reset();
                             env#clear_in_body_brace_flag();
+                            token_seq#add_token T.EOF;
+                            token_seq#clear_func_body_flag();
                             raise Exit
                         end
                         | _, I.X (I.N N_declaration), _, _, _ -> begin
@@ -3677,6 +3691,8 @@ class parser_c = object (self)
                   )
             end
             | I.X (I.N N_pp_elif), _, I.X (I.T T_NEWLINE) -> begin
+                env#exit_pp_group();
+                env#enter_pp_group();
                 env#clear_end_of_params_flag();
                 scanner#pp_restore_context();
                 if env#get_broken_info() then begin
@@ -3720,6 +3736,8 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_pp_else), _, I.X (I.T T_NEWLINE) -> begin
+                env#exit_pp_group();
+                env#enter_pp_group();
                 env#clear_end_of_params_flag();
                 scanner#pp_restore_context();
                 if env#get_broken_info() then begin
@@ -4750,6 +4768,10 @@ class parser_c = object (self)
             scanner#stop_replay_queue();
             scanner#restore_context();
             scanner#restore_state();
+            if dump_tokens_flag then begin
+              token_seq#clear_sub();
+              (*token_seq#clear_macro()*)
+            end;
             let menv =
               match !menv_backup_obj with
               | Some x -> rollback x scanner#state_number
@@ -4762,6 +4784,10 @@ class parser_c = object (self)
             scanner#setup_replay();
             scanner#restore_context();
             scanner#restore_state();
+            if dump_tokens_flag then begin
+              token_seq#clear_sub();
+              (*token_seq#clear_macro()*)
+            end;
             let menv =
               match !menv_backup_obj with
               | Some x -> rollback x scanner#state_number
@@ -4942,12 +4968,21 @@ class parser_c = object (self)
             DEBUG_MSG "pending_macro (%s): %s"
               (match macro_kind with
               | ObjectLike -> "object-like"
-              | _ -> "function-like") name;
+              | FunctionLike _ -> "function-like"
+              | MK_DUMMY -> "DUMMY"
+              ) name;
+
+            if macro_kind == MK_DUMMY then begin
+              if env#dump_tokens_flag then
+                token_seq#reg_dummy_macro name
+            end
+            else
 
             let params =
               match macro_kind with
               | FunctionLike(il, _) -> il
-              | _ -> []
+              | ObjectLike -> []
+              | _ -> assert false
             in
             let setup_macro_node nd =
               let mnd =
@@ -4955,6 +4990,7 @@ class parser_c = object (self)
                   match macro_kind with
                   | ObjectLike -> Label.ObjectLikeMacro
                   | FunctionLike _ -> Label.FunctionLikeMacro macro_kind
+                  | _ -> assert false
                 in
                 new Ast.node ~lloc:(nd#lloc) ~children:[nd] lab
               in
@@ -5000,6 +5036,20 @@ class parser_c = object (self)
               scanner#queue_token (EOF, !last_lexpos, !last_lexpos);
               !last_lexpos
             in
+            let enter_macro =
+              if dump_tokens_flag then
+                fun name mode ->
+                  token_seq#clear_sub();
+                  token_seq#enter_macro name mode
+              else
+                fun _ _ -> ()
+            in
+            let exit_macro =
+              if dump_tokens_flag then
+                fun () -> token_seq#exit_macro()
+              else
+                fun () -> ()
+            in
             try
               DEBUG_MSG "parsing %s with decls_sub" name;
               mode <- M_DECLS_SUB name;
@@ -5007,8 +5057,10 @@ class parser_c = object (self)
               let _ = setup_scanner() in
               scanner#ctx_top();
               scanner#ctx_ini();
+              enter_macro name mode;
               let ckpt = P.Incremental.decls_sub ini_pos in
               let nd = loop ckpt in
+              exit_macro();
               setup_macro_node nd
             with
               Failed_to_parse pos ->
@@ -5021,8 +5073,10 @@ class parser_c = object (self)
                       let _ = setup_scanner() in
                       scanner#ctx_mem();
                       scanner#ctx_ini();
+                      enter_macro name mode;
                       let ckpt = P.Incremental.mem_decls_sub ini_pos in
                       let nd = loop ckpt in
+                      exit_macro();
                       setup_macro_node nd
                   (*end
                   | _ -> raise (Failed_to_parse pos)*)
@@ -5036,9 +5090,11 @@ class parser_c = object (self)
                   scanner#prepend_token (SEMICOLON false, last_lexpos, last_lexpos);
                   scanner#ctx_stmt();
                   scanner#ctx_ini();
+                  enter_macro name mode;
                   let ckpt = P.Incremental.stmts_sub ini_pos in
                   let nd = loop ckpt in
                   let _ = nd#remove_leftmost_child in
+                  exit_macro();
                   setup_macro_node nd
                 with
                   Failed_to_parse pos ->
@@ -5050,8 +5106,10 @@ class parser_c = object (self)
                       let _ = setup_scanner() in
                       scanner#ctx_expr();
                       scanner#ctx_ini();
+                      enter_macro name mode;
                       let ckpt = P.Incremental.expr_sub ini_pos in
                       let nd = loop ckpt in
+                      exit_macro();
                       setup_macro_node nd
                     with
                       Failed_to_parse _ ->
@@ -5063,8 +5121,10 @@ class parser_c = object (self)
                       let _ = setup_scanner() in
                       scanner#ctx_mem_init();
                       scanner#ctx_ini();
+                      enter_macro name mode;
                       let ckpt = P.Incremental.init_sub ini_pos in
                       let nd = loop ckpt in
+                      exit_macro();
                       setup_macro_node nd
                     with
                       Failed_to_parse _ ->
@@ -5075,8 +5135,10 @@ class parser_c = object (self)
                           let _ = setup_scanner() in
                           scanner#ctx_top();
                           scanner#ctx_ini();
+                          enter_macro name mode;
                           let ckpt = P.Incremental.type_sub ini_pos in
                           let nd = loop ckpt in
+                          exit_macro();
                           setup_macro_node nd
                         with
                           Failed_to_parse _ ->
@@ -5087,9 +5149,11 @@ class parser_c = object (self)
                               let _ = setup_scanner() in
                               scanner#ctx_top();
                               scanner#ctx_ini();
+                              enter_macro name mode;
                               (*scanner#ctx_end_of_dtor();*)
                               let ckpt = P.Incremental.specs_sub ini_pos in
                               let nd = loop ckpt in
+                              exit_macro();
                               setup_macro_node nd
                             with
                               Failed_to_parse _ ->
@@ -5100,9 +5164,11 @@ class parser_c = object (self)
                                   let _ = setup_scanner() in
                                   scanner#ctx_mem_init();
                                   scanner#ctx_ini();
+                                  enter_macro name mode;
                                   (*scanner#ctx_end_of_dtor();*)
                                   let ckpt = P.Incremental.dtors_sub ini_pos in
                                   let nd = loop ckpt in
+                                  exit_macro();
                                   setup_macro_node nd
                                 with
                                   Failed_to_parse _ ->
@@ -5113,8 +5179,10 @@ class parser_c = object (self)
                                       let _ = setup_scanner() in
                                       scanner#ctx_enum();
                                       scanner#ctx_ini();
+                                      enter_macro name mode;
                                       let ckpt = P.Incremental.etors_sub ini_pos in
                                       let nd = loop ckpt in
+                                      exit_macro();
                                       setup_macro_node nd
                                     with
                                       Failed_to_parse _ ->
@@ -5126,16 +5194,18 @@ class parser_c = object (self)
                                           scanner#ctx_mem();
                                           scanner#ctx_ini();
                                           env#set_objc_class_interface_flag();
-                                          env#set_objc_class_interface_flag();
+                                          enter_macro name mode;
                                           let ckpt = P.Incremental.objc_decls_sub ini_pos in
                                           let nd = loop ckpt in
+                                          exit_macro();
                                           setup_macro_node nd
                                         with
-                                          Failed_to_parse _ -> begin
+                                        | Failed_to_parse _ when dump_tokens_flag -> ()
+                                        | Failed_to_parse _ -> begin
                                             DEBUG_MSG "all attempts failed for %s" name;
                                             Xprint.warning "all attempts failed for %s" name;
                                             raise (Failed_to_parse pos)
-                                          end
+                                        end
           )
       end;
       new Ast.c root
@@ -5167,7 +5237,10 @@ class parser_c = object (self)
 
     _parse <- fun () ->
       try
-        do_parse()
+        let ast = do_parse() in
+        if dump_tokens_flag then
+          token_seq#dump (env#current_source#file#fullpath^".tkns");
+        ast
       with
         Failed_to_parse pos ->
           let fn = env#current_source#file#fullpath in

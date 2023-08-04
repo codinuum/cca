@@ -518,7 +518,7 @@ let warning = Parserlib_base.parse_warning
 %token <string> SUFFIX_MACRO BODY_MACRO BLOCK_HEAD_MACRO BLOCK_END_MACRO TYPE_MACRO CC_MACRO
 %token <string> LAM_MACRO PARAM_DECL_MACRO PTR_MACRO BASE_SPEC_MACRO DTOR_MACRO CLASS_HEAD_MACRO
 %token <string> CAST_HEAD_MACRO FUNC_HEAD_MACRO PRAGMA_MACRO
-%token <string>  CLASS_BODY_HEAD_MACRO CLASS_BODY_END_MACRO
+%token <string> CLASS_BODY_HEAD_MACRO CLASS_BODY_END_MACRO
 %token <string> OBJC_PROTOCOL_REF_LIST_MACRO OBJC_SEL_MACRO
 
 %token SUB_REQUIRES ELAB_ENUM ELAB_CLASS ODD_FOR ODD_ELSE
@@ -552,7 +552,7 @@ let warning = Parserlib_base.parse_warning
 %token ASM_SHADER
 
 %token <bool ref> GT_7
-%token <string * bool ref> CONFLICT_MARKER
+%token <bool ref * string> CONFLICT_MARKER
 
 (*
 REQUIRES : SUB_REQUIRES
@@ -665,6 +665,7 @@ PP_IFNDEF : PP_IFNDEF_E PP_IFNDEF_SHIFT PP_IFNDEF_CLOSING
 %token <int> BRACE_LEVEL
 %token <string> PP_UNKNOWN
 %token <string ref> PP_ELIF PP_ELSE PP_ENDIF
+%token <Parser_aux.parsing_mode> PMODE
 
 %nonassoc HEAD_COLON_COLON
 %nonassoc PREC
@@ -740,6 +741,7 @@ special_token:
 | OBJC_DEFS { }
 | OBJC_SYNTHESIZE { }
 | OBJC_DYNAMIC { }
+| PMODE { }
 ;
 
 main:
@@ -1577,27 +1579,27 @@ pp_stmt_if_group_broken:
 pp_stmt_elif_group_broken:
 | p=pp_elif o=odd_if_stmt_broken
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; 1] in
       mknode ~pvec $startpos $endpos (_pp_elif_group p) [p; o]
     }
 | p=pp_elif dl=decl_specifier_seq d=declarator EQ
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let o = mknode ~pvec:[0; List.length dl; 1] $startpos(dl) $endpos L.SimpleDeclaration (dl @ [d]) in
       let pvec = [1; 1] in
       mknode ~pvec $startpos $endpos (_pp_elif_group p) [p; o]
     }
 | p=pp_elif sl=statement_seq o=odd_if_stmt_broken
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; (List.length sl) + 1] in
       mknode ~pvec $startpos $endpos (_pp_elif_group p) (p::sl@[o])
     }
 | pi=pp_elif p0=postfix_expression LPAREN p1=postfix_expression LPAREN
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; 1] in
       p0#add_suffix "(";
       p1#add_suffix "(";
@@ -1608,7 +1610,7 @@ pp_stmt_elif_group_broken:
 | pi=pp_elif
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; List.length el] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1619,7 +1621,7 @@ pp_stmt_elif_group_broken:
 | pi=pp_elif
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN b=broken_expr
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; (List.length el) + 1] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1631,7 +1633,7 @@ pp_stmt_elif_group_broken:
     l=logical_or_expression ao=assignment_operator
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; List.length el] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1643,7 +1645,7 @@ pp_stmt_elif_group_broken:
 | pi=pp_elif sl=statement_seq
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN b=broken_expr
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; (List.length el) + 1] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1661,7 +1663,7 @@ pp_stmt_elif_group_broken:
       ignore r;
       env#stack#exit_block();
       env#pstat#close_brace();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       lh#add_prefix "(";
       lh#add_suffix " {";
       let s = mknode $startpos(r) $endpos L.ReturnStatement [lh] in
@@ -1670,7 +1672,7 @@ pp_stmt_elif_group_broken:
 | pi=pp_elif r=RETURN p=postfix_expression LPAREN el=expression_list c_opt=ioption(COMMA_BROKEN)
     { 
       ignore r;
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       p#add_suffix "(";
       if c_opt <> None then
         (Xlist.last el)#add_suffix ",";
@@ -1682,7 +1684,7 @@ pp_stmt_elif_group_broken:
     { 
       env#stack#exit_block();
       env#pstat#close_brace();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       p#add_suffix "(";
       lh#add_suffix " {";
       let e = mknode $startpos(p) $endpos L.PostfixExpressionFunCall [p; lh] in
@@ -1692,7 +1694,7 @@ pp_stmt_elif_group_broken:
     { 
       env#stack#exit_block();
       env#pstat#close_brace();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       p#add_suffix "(";
       lh#add_suffix " {";
       let e = mknode $startpos(p) $endpos L.PostfixExpressionFunCall [p; lh] in
@@ -1724,27 +1726,27 @@ pp_stmt_elif_group_broken:
 pp_stmt_else_group_broken:
 | p=pp_else o=odd_if_stmt_broken
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; 1] in
       mknode ~pvec $startpos $endpos (_pp_else_group p) [p; o]
     }
 | p=pp_else dl=decl_specifier_seq d=declarator EQ
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let o = mknode ~pvec:[0; List.length dl; 1] $startpos(dl) $endpos L.SimpleDeclaration (dl @ [d]) in
       let pvec = [1; 1] in
       mknode ~pvec $startpos $endpos (_pp_else_group p) [p; o]
     }
 | p=pp_else sl=statement_seq o=odd_if_stmt_broken
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; (List.length sl) + 1] in
       mknode ~pvec $startpos $endpos (_pp_else_group p) (p::sl@[o])
     }
 | pi=pp_else p0=postfix_expression LPAREN p1=postfix_expression LPAREN
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; 1] in
       p0#add_suffix "(";
       p1#add_suffix "(";
@@ -1755,7 +1757,7 @@ pp_stmt_else_group_broken:
 | pi=pp_else
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; List.length el] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1766,7 +1768,7 @@ pp_stmt_else_group_broken:
 | pi=pp_else
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN b=broken_expr
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; (List.length el) + 1] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1778,7 +1780,7 @@ pp_stmt_else_group_broken:
     l=logical_or_expression ao=assignment_operator
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; List.length el] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1790,7 +1792,7 @@ pp_stmt_else_group_broken:
 | pi=pp_else sl=statement_seq
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN b=broken_expr
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let pvec = [1; (List.length el) + 1] in
       p#add_suffix "(";
       (Xlist.last el)#add_suffix ",";
@@ -1808,7 +1810,7 @@ pp_stmt_else_group_broken:
       ignore r;
       env#stack#exit_block();
       env#pstat#close_brace();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       lh#add_prefix "(";
       lh#add_suffix " {";
       let s = mknode $startpos(r) $endpos L.ReturnStatement [lh] in
@@ -1817,7 +1819,7 @@ pp_stmt_else_group_broken:
 | pi=pp_else r=RETURN p=postfix_expression LPAREN el=expression_list c_opt=ioption(COMMA_BROKEN)
     { 
       ignore r;
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       p#add_suffix "(";
       if c_opt <> None then
         (Xlist.last el)#add_suffix ",";
@@ -1829,7 +1831,7 @@ pp_stmt_else_group_broken:
     { 
       env#stack#exit_block();
       env#pstat#close_brace();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       p#add_suffix "(";
       lh#add_suffix " {";
       let e = mknode $startpos(p) $endpos L.PostfixExpressionFunCall [p; lh] in
@@ -1839,7 +1841,7 @@ pp_stmt_else_group_broken:
     { 
       env#stack#exit_block();
       env#pstat#close_brace();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       p#add_suffix "(";
       lh#add_suffix " {";
       let e = mknode $startpos(p) $endpos L.PostfixExpressionFunCall [p; lh] in
@@ -1894,7 +1896,7 @@ statement:
 | a=asm_block { a }
 | m=CONFLICT_MARKER
     { 
-      let s, _ = m in
+      let _, s = m in
       mkerr $startpos $endpos s
     }
 ;
@@ -4370,7 +4372,7 @@ declaration:
 | p=objc_protocol_decl_list { p }
 | m=CONFLICT_MARKER
     { 
-      let s, _ = m in
+      let _, s = m in
       mkerr $startpos $endpos s
     }
 ;
@@ -5843,38 +5845,38 @@ pp_dtor_if_group_broken:
 pp_dtor_elif_group_broken:
 | p=pp_elif n=noptr_declarator TY_LPAREN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let n_ = mknode $startpos(n) $endpos L.NoptrDeclaratorFunc [n] in
       mknode ~pvec:[1; 0; 1] $startpos $endpos (_pp_elif_group p) (p::[n_])
     }
 | p=pp_elif pl=pp_control_line+ n=noptr_declarator TY_LPAREN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let n_ = mknode $startpos(n) $endpos L.NoptrDeclaratorFunc [n] in
       mknode ~pvec:[1; List.length pl; 1] $startpos $endpos (_pp_elif_group p) (p::pl@[n_])
     }
 | p=pp_elif b=broken_func_head
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       mknode ~pvec:[1; 0; 1] $startpos $endpos (_pp_elif_group p) [p; b]
     }
 ;
 pp_dtor_else_group_broken:
 | p=pp_else n=noptr_declarator TY_LPAREN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let n_ = mknode $startpos(n) $endpos L.NoptrDeclaratorFunc [n] in
       mknode ~pvec:[1; 0; 1] $startpos $endpos (_pp_else_group p) (p::[n_])
     }
 | p=pp_else pl=pp_control_line+ n=noptr_declarator TY_LPAREN
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let n_ = mknode $startpos(n) $endpos L.NoptrDeclaratorFunc [n] in
       mknode ~pvec:[1; List.length pl; 1] $startpos $endpos (_pp_else_group p) (p::pl@[n_])
     }
 | p=pp_else b=broken_func_head
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       mknode ~pvec:[1; 0; 1] $startpos $endpos (_pp_else_group p) [p; b]
     }
 ;
@@ -6639,7 +6641,7 @@ pp_minit_if_group_broken:
 pp_minit_elif_group_broken:
 | pi=pp_elif m=mem_initializer_id LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       m#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(m) $endpos L.PostfixExpressionFunCall (m::el) in
@@ -6649,7 +6651,7 @@ pp_minit_elif_group_broken:
 pp_minit_else_group_broken:
 | pi=pp_else m=mem_initializer_id LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       m#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(m) $endpos L.PostfixExpressionFunCall (m::el) in
@@ -8033,7 +8035,7 @@ pp_expr_if_group_broken:
 pp_expr_elif_group_broken:
 | pi=pp_elif p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8043,7 +8045,7 @@ pp_expr_elif_group_broken:
 pp_expr_else_group_broken:
 | pi=pp_else p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8094,8 +8096,8 @@ pp_expr_if_group_broken2:
 pp_expr_elif_group_broken2:
 | pi=pp_elif p0=postfix_expression LPAREN p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8104,8 +8106,8 @@ pp_expr_elif_group_broken2:
     }
 | pi=pp_elif p0=postfix_expression LPAREN o=logical_or_expression b=BAR_BAR p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8115,8 +8117,8 @@ pp_expr_elif_group_broken2:
     }
 | pi=pp_elif o=logical_or_expression b=BAR_BAR p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8127,8 +8129,8 @@ pp_expr_elif_group_broken2:
 pp_expr_else_group_broken2:
 | pi=pp_else p0=postfix_expression LPAREN p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8137,8 +8139,8 @@ pp_expr_else_group_broken2:
     }
 | pi=pp_else p0=postfix_expression LPAREN o=logical_or_expression b=BAR_BAR p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -8148,8 +8150,8 @@ pp_expr_else_group_broken2:
     }
 | pi=pp_else o=logical_or_expression b=BAR_BAR p=postfix_expression LPAREN el_opt=expression_list_opt
     { 
-      env#pstat#close_paren();
-      env#pstat#close_paren();
+      env#pstat#close_paren ~pseudo:true ();
+      env#pstat#close_paren ~pseudo:true ();
       let el = list_opt_to_list el_opt in
       p#add_suffix "(";
       let e_ = mknode ~pvec:[1; List.length el] $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
@@ -10734,7 +10736,7 @@ member_declaration:
     { mknode ~pvec:[1; 1] $startpos $endpos (L.MsProperty i) [t; m] }
 | m=CONFLICT_MARKER
     { 
-      let s, _ = m in
+      let _, s = m in
       mkerr $startpos $endpos s
     }
 ;
@@ -12231,8 +12233,11 @@ _pp_define:
       let nd = mknode $startpos $endpos (L.PpDefine i) [mnd] in
       if pending then
         env#register_pending_macro i nd Ast.L.ObjectLike tl_obj
-      else
+      else begin
         env#register_resolved_macro i mnd;
+        if env#dump_tokens_flag then
+          env#register_pending_macro i nd Ast.L.MK_DUMMY tl_obj
+      end;
       env#register_macro_obj (Ast.mk_macro_id i) mnd;
       nd
     }
@@ -12244,6 +12249,8 @@ pp_define:
     { 
       let nd = mkleaf $startpos $endpos (L.PpDefine i) in
       env#register_macro_obj (Ast.mk_macro_id i) nd;
+      if env#dump_tokens_flag then
+        env#register_pending_macro i nd Ast.L.MK_DUMMY (Obj.repr []);
       nd
     }
 | p=_pp_define NEWLINE { reloc $startpos $endpos p }
@@ -12252,11 +12259,15 @@ pp_define:
       let tl_ = list_opt_to_list tl_opt in
       let tl__obj = Obj.repr tl_ in
       (*let tnd = mkleaf $startpos(tl_opt) $endpos(tl_opt) (L.TokenSeq tl__obj) in*)
-      let tndl, pending = check_macro_body $startpos(tl_opt) $endpos(tl_opt) tl_ (*tl__obj*)(Token.seq_to_repr tl_) in
+      let tndl, pending =
+        check_macro_body $startpos(tl_opt) $endpos(tl_opt) tl_ (*tl__obj*)(Token.seq_to_repr tl_)
+      in
       let mnd = mknode $startpos(tl_opt) $endpos(tl_opt) (L.FunctionLikeMacro mk) tndl in
       let nd = mknode $startpos $endpos (L.PpDefine i) [mnd] in
       if pending then
-        env#register_pending_macro i nd mk tl__obj;
+        env#register_pending_macro i nd mk tl__obj
+      else if env#dump_tokens_flag then
+        env#register_pending_macro i nd Ast.L.MK_DUMMY tl__obj;
       env#register_macro_fun (Ast.mk_macro_call_id i) nd;
       nd
     }
@@ -12830,12 +12841,21 @@ token_seq:
 ;
 
 token:
+| m=PMODE       { mktok $startpos $endpos (T.PMODE m) }
 | LPAREN        { mktok $startpos $endpos T.LPAREN }
+| FOLD_LPAREN   { mktok $startpos $endpos T.FOLD_LPAREN }
+| PS_LPAREN     { mktok $startpos $endpos T.PS_LPAREN }
+| S_LPAREN      { mktok $startpos $endpos T.S_LPAREN }
+| SS_LPAREN     { mktok $startpos $endpos T.SS_LPAREN }
 | TY_LPAREN     { mktok $startpos $endpos T.TY_LPAREN }
+| TY_LPAREN_    { mktok $startpos $endpos T.TY_LPAREN_ }
 | RPAREN        { mktok $startpos $endpos T.RPAREN }
+| S_RPAREN      { mktok $startpos $endpos T.S_RPAREN }
 | LBRACE        { mktok $startpos $endpos T.LBRACE }
 | INI_LBRACE    { mktok $startpos $endpos T.INI_LBRACE }
+| CLASS_LBRACE  { mktok $startpos $endpos T.CLASS_LBRACE }
 | RBRACE        { mktok $startpos $endpos T.RBRACE }
+| ODD_RBRACE    { mktok $startpos $endpos T.ODD_RBRACE }
 | LBRACKET      { mktok $startpos $endpos T.LBRACKET }
 | OBJC_LBRACKET { mktok $startpos $endpos T.OBJC_LBRACKET }
 | LAM_LBRACKET  { mktok $startpos $endpos T.LAM_LBRACKET }
@@ -12844,9 +12864,13 @@ token:
 (*| TEMPL_LT      { mktok $startpos $endpos T.TEMPL_LT }*)
 | TEMPL_GT      { mktok $startpos $endpos T.TEMPL_GT }
 (*| TY_TEMPL_GT   { mktok $startpos $endpos T.TY_TEMPL_GT }*)
+| BEGIN_ASM     { mktok $startpos $endpos T.BEGIN_ASM }
 | END_ASM       { mktok $startpos $endpos T.END_ASM }
 | PP_DEFINE     { mktok $startpos $endpos T.PP_DEFINE }
 | PP_UNDEF      { mktok $startpos $endpos T.PP_UNDEF }
+| t=PP_ELIF     { mktok $startpos $endpos (T.PP_ELIF t) }
+| t=PP_ELSE     { mktok $startpos $endpos (T.PP_ELSE t) }
+| t=PP_ENDIF    { mktok $startpos $endpos (T.PP_ENDIF t) }
 | PP_ERROR      { mktok $startpos $endpos T.PP_ERROR }
 | PP_LINE       { mktok $startpos $endpos T.PP_LINE }
 | PP_INCLUDE    { mktok $startpos $endpos T.PP_INCLUDE }
@@ -12859,7 +12883,7 @@ token:
 | OBJC_END      { mktok $startpos $endpos T.OBJC_END }
 | OBJC_FINALLY  { mktok $startpos $endpos T.OBJC_FINALLY }
 | OBJC_INTERFACE { mktok $startpos $endpos T.OBJC_INTERFACE }
-| OBJC_MINUS    { mktok $startpos $endpos T.MINUS }
+| OBJC_MINUS    { mktok $startpos $endpos T.OBJC_MINUS }
 | OBJC_OPTIONAL { mktok $startpos $endpos T.OBJC_OPTIONAL }
 | OBJC_PACKAGE  { mktok $startpos $endpos T.OBJC_PACKAGE }
 | OBJC_PLUS     { mktok $startpos $endpos T.PLUS }
@@ -12895,6 +12919,7 @@ quasi_keyword:
 extra_keyword:
 | t=MS_ASM     { mktok $startpos $endpos (T.MS_ASM t) }
 | t=MS_CDECL   { mktok $startpos $endpos (T.MS_CDECL t) }
+| t=MS_PRAGMA  { mktok $startpos $endpos (T.MS_PRAGMA t) }
 | t=MS_STDCALL { mktok $startpos $endpos (T.MS_STDCALL t) }
 | t=RESTRICT   { mktok $startpos $endpos (T.RESTRICT t) }
 | t=GNU_ASM    { mktok $startpos $endpos (T.GNU_ASM t) }
@@ -12902,17 +12927,6 @@ extra_keyword:
 ;
 
 token_no_paren:
-| t=IDENT   { mktok $startpos $endpos (T.IDENT t) }
-| t=IDENT_B { mktok $startpos $endpos (T.IDENT_B t) }
-| t=IDENT_C { mktok $startpos $endpos (T.IDENT_C t) }
-| t=IDENT_V { mktok $startpos $endpos (T.IDENT_V t) }
-| t=IDENT_E { mktok $startpos $endpos (T.IDENT_E t) }
-| t=IDENT_EM { mktok $startpos $endpos (T.IDENT_EM t) }
-| t=IDENT_SM { mktok $startpos $endpos (T.IDENT_SM t) }
-| t=IDENT_TM { mktok $startpos $endpos (T.IDENT_TM t) }
-| t=IDENT_IM { mktok $startpos $endpos (T.IDENT_IM t) }
-| t=IDENT_PM { mktok $startpos $endpos (T.IDENT_PM t) }
-
 | t=INT_LITERAL        { mktok $startpos $endpos (T.INT_LITERAL t) }
 | t=CHAR_LITERAL       { mktok $startpos $endpos (T.CHAR_LITERAL t) }
 | t=FLOAT_LITERAL      { mktok $startpos $endpos (T.FLOAT_LITERAL t) }
@@ -12925,7 +12939,95 @@ token_no_paren:
 
 | t=PP_STRINGIZED { mktok $startpos $endpos (T.PP_STRINGIZED t) }
 
-| t=STR_MACRO     { mktok $startpos $endpos (T.STR_MACRO t) }
+| MARKER { mktok $startpos $endpos T.MARKER }
+| DUMMY_DTOR { mktok $startpos $endpos T.DUMMY_DTOR }
+| DUMMY_EXPR { mktok $startpos $endpos T.DUMMY_EXPR }
+| DUMMY_STMT { mktok $startpos $endpos T.DUMMY_STMT }
+| t=DOXYGEN_LINE { mktok $startpos $endpos (T.DOXYGEN_LINE t) }
+
+| t=IDENT   { mktok $startpos $endpos (T.IDENT t) }
+| t=IDENT_  { mktok $startpos $endpos (T.IDENT_ t) }
+| t=IDENT_B { mktok $startpos $endpos (T.IDENT_B t) }
+| t=IDENT_C { mktok $startpos $endpos (T.IDENT_C t) }
+| t=IDENT_V { mktok $startpos $endpos (T.IDENT_V t) }
+| t=IDENT_E { mktok $startpos $endpos (T.IDENT_E t) }
+| t=IDENT_LPAREN { mktok $startpos $endpos (T.IDENT_LPAREN t) }
+| t=IDENT_AGM { mktok $startpos $endpos (T.IDENT_AGM t) }
+| t=IDENT_AGSM { mktok $startpos $endpos (T.IDENT_AGSM t) }
+| t=IDENT_AM { mktok $startpos $endpos (T.IDENT_AM t) }
+| t=IDENT_BEM { mktok $startpos $endpos (T.IDENT_BEM t) }
+| t=IDENT_BFM { mktok $startpos $endpos (T.IDENT_BFM t) }
+| t=IDENT_BHM { mktok $startpos $endpos (T.IDENT_BHM t) }
+| t=IDENT_BIM { mktok $startpos $endpos (T.IDENT_BIM t) }
+| t=IDENT_BM { mktok $startpos $endpos (T.IDENT_BM t) }
+| t=IDENT_BSM { mktok $startpos $endpos (T.IDENT_BSM t) }
+| t=IDENT_CBEM { mktok $startpos $endpos (T.IDENT_CBEM t) }
+| t=IDENT_CBHM { mktok $startpos $endpos (T.IDENT_CBHM t) }
+| t=IDENT_CHM { mktok $startpos $endpos (T.IDENT_CHM t) }
+| t=IDENT_CM { mktok $startpos $endpos (T.IDENT_CM t) }
+| t=IDENT_CTM { mktok $startpos $endpos (T.IDENT_CTM t) }
+| t=IDENT_DLM { mktok $startpos $endpos (T.IDENT_DLM t) }
+| t=IDENT_DM { mktok $startpos $endpos (T.IDENT_DM t) }
+| t=IDENT_DSM { mktok $startpos $endpos (T.IDENT_DSM t) }
+| t=IDENT_EM { mktok $startpos $endpos (T.IDENT_EM t) }
+| t=IDENT_IEM { mktok $startpos $endpos (T.IDENT_IEM t) }
+| t=IDENT_IHM { mktok $startpos $endpos (T.IDENT_IHM t) }
+| t=IDENT_IM { mktok $startpos $endpos (T.IDENT_IM t) }
+| t=IDENT_LM { mktok $startpos $endpos (T.IDENT_LM t) }
+| t=IDENT_LOM { mktok $startpos $endpos (T.IDENT_LOM t) }
+| t=IDENT_NSM { mktok $startpos $endpos (T.IDENT_NSM t) }
+| t=IDENT_OM { mktok $startpos $endpos (T.IDENT_OM t) }
+| t=IDENT_PBM { mktok $startpos $endpos (T.IDENT_PBM t) }
+| t=IDENT_PDM { mktok $startpos $endpos (T.IDENT_PDM t) }
+| t=IDENT_PGM { mktok $startpos $endpos (T.IDENT_PGM t) }
+| t=IDENT_PM { mktok $startpos $endpos (T.IDENT_PM t) }
+| t=IDENT_SM { mktok $startpos $endpos (T.IDENT_SM t) }
+| t=IDENT_SXM { mktok $startpos $endpos (T.IDENT_SXM t) }
+| t=IDENT_TM { mktok $startpos $endpos (T.IDENT_TM t) }
+| t=IDENT_TPM { mktok $startpos $endpos (T.IDENT_TPM t) }
+| t=IDENT_VM { mktok $startpos $endpos (T.IDENT_VM t) }
+
+| t=IDENT_DSL { mktok $startpos $endpos (T.IDENT_DSL t) }
+
+| t=ACC_SPEC_MACRO { mktok $startpos $endpos (T.ACC_SPEC_MACRO t) }
+| t=ARGS_MACRO { mktok $startpos $endpos (T.ARGS_MACRO t) }
+| t=ARG_MACRO { mktok $startpos $endpos (T.ARG_MACRO t) }
+| t=ATTR_MACRO { mktok $startpos $endpos (T.ATTR_MACRO t) }
+| t=BASE_MACRO { mktok $startpos $endpos (T.BASE_MACRO t) }
+| t=BASE_SPEC_MACRO { mktok $startpos $endpos (T.BASE_SPEC_MACRO t) }
+| t=BLOCK_HEAD_MACRO { mktok $startpos $endpos (T.BLOCK_HEAD_MACRO t) }
+| t=BLOCK_END_MACRO { mktok $startpos $endpos (T.BLOCK_END_MACRO t) }
+| t=BODY_MACRO { mktok $startpos $endpos (T.BODY_MACRO t) }
+| t=CAST_HEAD_MACRO { mktok $startpos $endpos (T.CAST_HEAD_MACRO t) }
+| t=CC_MACRO { mktok $startpos $endpos (T.CC_MACRO t) }
+| t=CLASS_BODY_END_MACRO { mktok $startpos $endpos (T.CLASS_BODY_END_MACRO t) }
+| t=CLASS_BODY_HEAD_MACRO { mktok $startpos $endpos (T.CLASS_BODY_HEAD_MACRO t) }
+| t=CLASS_HEAD_MACRO { mktok $startpos $endpos (T.CLASS_HEAD_MACRO t) }
+| t=CV_MACRO { mktok $startpos $endpos (T.CV_MACRO t) }
+| t=DECL_MACRO { mktok $startpos $endpos (T.DECL_MACRO t) }
+| t=DECL_SPEC_MACRO { mktok $startpos $endpos (T.DECL_SPEC_MACRO t) }
+| t=DELIM_MACRO { mktok $startpos $endpos (T.DELIM_MACRO t) }
+| t=DTOR_MACRO { mktok $startpos $endpos (T.DTOR_MACRO t) }
+| t=EMPTY_MACRO { mktok $startpos $endpos (T.EMPTY_MACRO t) }
+| t=FUNC_HEAD_MACRO { mktok $startpos $endpos (T.FUNC_HEAD_MACRO t) }
+| t=INT_MACRO { mktok $startpos $endpos (T.INT_MACRO t) }
+| t=LAM_MACRO { mktok $startpos $endpos (T.LAM_MACRO t) }
+| t=NEW_INIT_MACRO { mktok $startpos $endpos (T.NEW_INIT_MACRO t) }
+| t=NOEXCEPT_MACRO { mktok $startpos $endpos (T.NOEXCEPT_MACRO t) }
+| t=NS_MACRO { mktok $startpos $endpos (T.NS_MACRO t) }
+| t=OBJC_PROTOCOL_REF_LIST_MACRO { mktok $startpos $endpos (T.OBJC_PROTOCOL_REF_LIST_MACRO t) }
+| t=OBJC_SEL_MACRO { mktok $startpos $endpos (T.OBJC_SEL_MACRO t) }
+| t=OP_MACRO { mktok $startpos $endpos (T.OP_MACRO t) }
+| t=PARAMS_BODY_MACRO { mktok $startpos $endpos (T.PARAMS_BODY_MACRO t) }
+| t=PARAMS_MACRO  { mktok $startpos $endpos (T.PARAMS_MACRO t) }
+| t=PARAM_DECL_MACRO { mktok $startpos $endpos (T.PARAM_DECL_MACRO t) }
+| t=PRAGMA_MACRO { mktok $startpos $endpos (T.PRAGMA_MACRO t) }
+| t=PTR_MACRO  { mktok $startpos $endpos (T.PTR_MACRO t) }
+| t=STMT_MACRO { mktok $startpos $endpos (T.STMT_MACRO t) }
+| t=STR_MACRO { mktok $startpos $endpos (T.STR_MACRO t) }
+| t=SUFFIX_MACRO { mktok $startpos $endpos (T.SUFFIX_MACRO t) }
+| t=TYPE_MACRO { mktok $startpos $endpos (T.TYPE_MACRO t) }
+| t=VIRT_SPEC_MACRO { mktok $startpos $endpos (T.VIRT_SPEC_MACRO t) }
 
 | ALIGNAS          { mktok $startpos $endpos T.ALIGNAS }
 | ALIGNOF          { mktok $startpos $endpos T.ALIGNOF }
@@ -12970,6 +13072,7 @@ token_no_paren:
 | HAS_INCLUDE      { mktok $startpos $endpos T.HAS_INCLUDE }
 | IF               { mktok $startpos $endpos T.IF }
 | INLINE           { mktok $startpos $endpos T.INLINE }
+| IN               { mktok $startpos $endpos T.IN }
 | INT              { mktok $startpos $endpos T.INT }
 | LONG             { mktok $startpos $endpos T.LONG }
 | MUTABLE          { mktok $startpos $endpos T.MUTABLE }
@@ -12977,10 +13080,12 @@ token_no_paren:
 | NEW              { mktok $startpos $endpos T.NEW }
 | NOEXCEPT         { mktok $startpos $endpos T.NOEXCEPT }
 | NULLPTR          { mktok $startpos $endpos T.NULLPTR }
+| ODD_ELSE         { mktok $startpos $endpos T.ODD_ELSE }
 | OPERATOR         { mktok $startpos $endpos T.OPERATOR }
 | PRIVATE          { mktok $startpos $endpos T.PRIVATE }
 | PROTECTED        { mktok $startpos $endpos T.PROTECTED }
 | PUBLIC           { mktok $startpos $endpos T.PUBLIC }
+| PURE_ZERO        { mktok $startpos $endpos T.PURE_ZERO }
 | REGISTER         { mktok $startpos $endpos T.REGISTER }
 | REINTERPRET_CAST { mktok $startpos $endpos T.REINTERPRET_CAST }
 | REQUIRES         { mktok $startpos $endpos T.REQUIRES }
@@ -13021,6 +13126,7 @@ token_no_paren:
 | PERC_COLON            { mktok $startpos $endpos T.PERC_COLON }
 | PERC_COLON_PERC_COLON { mktok $startpos $endpos T.PERC_COLON_PERC_COLON }
 | b=SEMICOLON           { mktok $startpos $endpos (T.SEMICOLON b) }
+| SEMICOLON_            { mktok $startpos $endpos T.SEMICOLON_ }
 | COLON                 { mktok $startpos $endpos T.COLON }
 | BASE_COLON            { mktok $startpos $endpos T.BASE_COLON }
 | ELLIPSIS              { mktok $startpos $endpos T.ELLIPSIS }

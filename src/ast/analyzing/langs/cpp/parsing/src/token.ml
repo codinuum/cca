@@ -26,6 +26,7 @@ type t = T.token PB.token
 
 
 let rawtoken_to_string = function
+  | PMODE m              -> "PMODE:"^(Parser_aux.parsing_mode_to_string m)
   | EOF                  -> "EOF"
   | NEWLINE              -> "NEWLINE"
   (*| STMT_MARKER          -> "STMT_MARKER"*)
@@ -53,7 +54,7 @@ let rawtoken_to_string = function
   | ASM_SHADER           -> "ASM_SHADER"
 
   | GT_7 b                -> sprintf "GT_7:%B" !b
-  | CONFLICT_MARKER(s, b) -> sprintf "CONFLICT_MARKER:%s:%B" s !b
+  | CONFLICT_MARKER(b, s) -> sprintf "CONFLICT_MARKER:%B:%s" !b s
 
   | STR_MACRO s          -> sprintf "STR_MACRO:%s" s
   | INT_MACRO s          -> sprintf "INT_MACRO:%s" s
@@ -250,7 +251,7 @@ let rawtoken_to_string = function
   | INT_LITERAL s         -> sprintf "INT_LITERAL:%s" s
   | CHAR_LITERAL s        -> sprintf "CHAR_LITERAL:%s" s
   | FLOAT_LITERAL s       -> sprintf "FLOAT_LITERAL:%s" s
-  | STR_LITERAL s         -> sprintf "STR_LITERAL:%s" s
+  | STR_LITERAL s         -> sprintf "STR_LITERAL:%s" (String.escaped s)
   | BOOL_LITERAL s        -> sprintf "BOOL_LITERAL:%s" s
   | USER_INT_LITERAL s    -> sprintf "USER_INT_LITERAL:%s" s
   | USER_FLOAT_LITERAL s  -> sprintf "USER_FLOAT_LITERAL:%s" s
@@ -507,6 +508,7 @@ let to_string (pos_mgr : Position.manager) (tok, st, ed) =
   Printf.sprintf "%s[%s]" (rawtoken_to_string tok) (Ast.Loc.to_string ~short:true loc)
 
 let rawtoken_to_repr = function
+  | PMODE _              -> ""
   | EOF                  -> ""
   | NEWLINE              -> "\n"
   (*| STMT_MARKER          -> ""*)
@@ -534,7 +536,7 @@ let rawtoken_to_repr = function
   | ASM_SHADER           -> ""
 
   | GT_7 _                -> ">>>>>>>"
-  | CONFLICT_MARKER(s, _) -> s
+  | CONFLICT_MARKER(_, s) -> s
 
   | STR_MACRO s          -> s
   | INT_MACRO s          -> s

@@ -26,19 +26,7 @@ open Compat
 
 type token = T.token PB.token
 
-type mode =
-  | M_NORMAL
-  | M_STMTS
-  | M_DECLS_SUB of string
-  | M_MEM_DECLS_SUB of string
-  | M_STMTS_SUB of string
-  | M_EXPR_SUB of string
-  | M_INIT_SUB of string
-  | M_TYPE_SUB of string
-  | M_SPECS_SUB of string
-  | M_DTORS_SUB of string
-  | M_ETORS_SUB of string
-  | M_OBJC_DECLS_SUB of string
+type mode = Aux.parsing_mode
 
 let pr_ctx () s = Printf.sprintf "               >>>>>>>>>>>>>>>>>> %s\n" s
 
@@ -1270,6 +1258,15 @@ let flags_to_str e =
      "at_paren"                   , e#at_paren;
      "at_type_paren"              , e#at_type_paren;
      "at_bracket"                 , e#at_bracket;
+     "at_ini_brace"               , e#at_ini_brace;
+     "at_class_brace"             , e#at_class_brace;
+     "at_brace"                   , e#at_brace;
+     "at_objc_msg"                , e#at_objc_msg;
+     "at_attr"                    , e#at_attr;
+     "at_lam_intr"                , e#at_lam_intr;
+     "at_subscr"                  , e#at_subscr;
+     "at_templ_arg"               , e#at_templ_arg;
+     "at_templ_param"             , e#at_templ_param;
      "asm"                        , e#asm_flag;
      "asm_block"                  , e#asm_block_flag;
      "asm_shader"                 , e#asm_shader_flag;
@@ -1713,10 +1710,14 @@ class type c_t = object
   method show_token_hist : unit -> unit
   method set_token_hist_flag : unit -> unit
 
+  method set_dump_tokens_flag : unit -> unit
+
   method pp_restore_context : unit -> unit
 
   method mode : mode
   method set_mode : mode -> unit
+
+  method token_seq : Token_seq.c
 
 end
 
@@ -1895,24 +1896,24 @@ let _is_conflict_marker_end s = Xstring.startswith s ">>>>>>>"
 let _is_conflict_marker_mid s = _is_conflict_marker_bar s || _is_conflict_marker_eq s
 
 let is_conflict_marker_start = function
-  | T.CONFLICT_MARKER(s, _) -> _is_conflict_marker_start s
+  | T.CONFLICT_MARKER(_, s) -> _is_conflict_marker_start s
   | _ -> false
 
 let is_conflict_marker_bar = function
-  | T.CONFLICT_MARKER(s, _) -> _is_conflict_marker_bar s
+  | T.CONFLICT_MARKER(_, s) -> _is_conflict_marker_bar s
   | _ -> false
 
 let is_conflict_marker_eq = function
-  | T.CONFLICT_MARKER(s, _) -> _is_conflict_marker_eq s
+  | T.CONFLICT_MARKER(_, s) -> _is_conflict_marker_eq s
   | _ -> false
 
 let is_conflict_marker_mid = function
-  | T.CONFLICT_MARKER(s, _) -> _is_conflict_marker_mid s
+  | T.CONFLICT_MARKER(_, s) -> _is_conflict_marker_mid s
   | _ -> false
 
 let is_conflict_marker_end = function
   | T.GT_7 _ -> true
-  | CONFLICT_MARKER(s, _) -> _is_conflict_marker_end s
+  | CONFLICT_MARKER(_, s) -> _is_conflict_marker_end s
   | _ -> false
 
 let is_conflict_marker = function
@@ -1922,38 +1923,38 @@ let is_conflict_marker = function
 
 let is_pp_elif_like env = function
   | T.PP_ELIF _ -> true
-  | CONFLICT_MARKER(s, marker_flag) ->
+  | CONFLICT_MARKER(marker_flag, s) ->
       env#keep_going && not !marker_flag && _is_conflict_marker_bar s
   | _ -> false
 
 let is_pp_else_like env = function
   | T.PP_ELSE _ -> true
-  | CONFLICT_MARKER(s, marker_flag) ->
+  | CONFLICT_MARKER(marker_flag, s) ->
       env#keep_going && not !marker_flag && _is_conflict_marker_eq s
   | _ -> false
 
 let is_pp_endif_like env = function
   | T.PP_ENDIF _ -> true
-  | CONFLICT_MARKER(s, marker_flag) ->
+  | CONFLICT_MARKER(marker_flag, s) ->
       env#keep_going && not !marker_flag && _is_conflict_marker_end s
   | _ -> false
 
 let is_pp_elif_else_like env = function
   | T.PP_ELIF _ | PP_ELSE _ -> true
-  | CONFLICT_MARKER(s, marker_flag) ->
+  | CONFLICT_MARKER(marker_flag, s) ->
       env#keep_going && not !marker_flag && _is_conflict_marker_mid s
   | _ -> false
 
 let is_pp_elif_else_endif_like env = function
   | T.PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> true
-  | CONFLICT_MARKER(s, marker_flag) ->
+  | CONFLICT_MARKER(marker_flag, s) ->
       env#keep_going && not !marker_flag &&
       (_is_conflict_marker_mid s || _is_conflict_marker_end s)
   | _ -> false
 
 let is_pp_if_like env = function
   | T.PP_IF | PP_IFDEF | PP_IFNDEF -> true
-  | CONFLICT_MARKER(s, marker_flag) ->
+  | CONFLICT_MARKER(marker_flag, s) ->
       env#keep_going && not !marker_flag && _is_conflict_marker_start s
   | _ -> false
 
@@ -8006,6 +8007,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
               end
               | _ -> [mk (T.IDENT_V s)]
             in
+            if env#dump_tokens_flag && keep_flag then
+              self#token_seq#exit_sub();
             self#init_replay_queue sn (env#get_pstat()) cands;
             token
         end
@@ -19153,6 +19156,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
           (*let sub_cond = ref false in*)
           let rec check_body lv macro_kind tok_list_obj =
             match (macro_kind : Label.macro_kind) with
+            | MK_DUMMY -> false
             | ObjectLike -> begin
                 let tok_list = (Obj.obj tok_list_obj : token list) in
                 let plv, blv, last_rt =
@@ -20441,7 +20445,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
     raise To_be_recovered
   end
 
-  | CONFLICT_MARKER(s, maker_flag) when begin
+  | CONFLICT_MARKER(maker_flag, s) when begin
       env#keep_going && _is_conflict_marker_start s
   end -> begin
     DEBUG_MSG "@";
@@ -20460,7 +20464,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
       DEBUG_MSG "breaking=%B" breaking;*)
     if true(*breaking*) then begin
       (*let filt = function
-        | T.CONFLICT_MARKER(_, marker_flag) -> marker_flag := false; true
+        | T.CONFLICT_MARKER(marker_flag, _) -> marker_flag := false; true
         | GT_7 marker_flag -> marker_flag := false; true
         | _ -> true
         in
@@ -20474,7 +20478,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
       token
   end
 
-  | CONFLICT_MARKER(s, marker_flag) when begin
+  | CONFLICT_MARKER(marker_flag, s) when begin
       env#keep_going && not !marker_flag && _is_conflict_marker_bar s
   end -> begin
     parse_warning env stp edp "conflict marker \"%s\" found" s;
@@ -20483,7 +20487,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
     raise To_be_recovered
   end
 
-  | CONFLICT_MARKER(s, marker_flag) when begin
+  | CONFLICT_MARKER(marker_flag, s) when begin
       env#keep_going && not !marker_flag && _is_conflict_marker_eq s
   end -> begin
     parse_warning env stp edp "conflict marker \"%s\" found" s;
@@ -20539,7 +20543,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
           raise To_be_recovered
         end
         else begin
-          let t = (T.CONFLICT_MARKER(marker, ref true), stp, !last_pos) in
+          let t = (T.CONFLICT_MARKER(ref true, marker), stp, !last_pos) in
           t
         end
       in
@@ -21778,7 +21782,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             DEBUG_MSG "NEWLINE @";
             token
           end
-          else if env#at_arg_paren then begin
+          else if env#at_arg_paren || env#_arg_paren_flag && env#at_ini_brace then begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
             | PLUS | MINUS | PTR_STAR | SLASH | PERC -> DEBUG_MSG "NEWLINE @"; gete()
@@ -23118,7 +23122,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
           match (l : T.token list) with
           | (BAR _|COLON)::_ -> DEBUG_MSG "(COMMA|NEWLINE) @"; gete()
           | COMMA::_ when env#macro_arg_flag -> DEBUG_MSG "(COMMA|NEWLINE) @"; gete()
-          | COMMA::tl when env#at_arg_paren && Xlist.last tl != DOT
+          | COMMA::tl when (env#at_arg_paren || env#_arg_paren_flag && env#at_ini_brace) && Xlist.last tl != DOT
             -> DEBUG_MSG "(COMMA|NEWLINE) @"; _gete()
           | SEMICOLON _::_ -> DEBUG_MSG "(COMMA|NEWLINE) @"; token
           | _ when is_start_of_stmt() && not env#braced_init_flag
@@ -24509,7 +24513,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
         self#prepend_token (_mk (T.SEMICOLON false))
       end;
 
-      if env#at_arg_paren && env#paren_level > 0 then begin
+      if (*env#at_arg_paren*)env#_arg_paren_flag && env#paren_level > 0 then begin
         parse_warning env stp edp "complementing with a parenthesis";
         self#prepend_token (_mk T.RPAREN)
       end;
@@ -24839,7 +24843,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
               DEBUG_MSG "complementing with %d closing brace(s)" lv;
               self#prepend_token token;
 
-              if env#at_arg_paren && env#paren_level > 0 then begin
+              if (*env#at_arg_paren*)env#_arg_paren_flag && env#paren_level > 0 then begin
                 parse_warning env stp edp "complementing with a parenthesis";
                 self#prepend_token (_mk T.RPAREN)
               end;
@@ -26009,7 +26013,9 @@ module F (Stat : Aux.STATE_T) = struct
 
     val mutable token_hist_flag = false
 
-    val mutable mode = M_NORMAL
+    val mutable dump_tokens_flag = false
+
+    val mutable mode = (M_NORMAL : mode)
 
     val mutable context = C.TOP
     val mutable sub_context = C.INI
@@ -26049,6 +26055,9 @@ module F (Stat : Aux.STATE_T) = struct
     val ident_conv_tbl = Hashtbl.create 0
 
     val macro_fun_set = Xset.create 0
+
+    val token_seq = new Token_seq.c
+    method token_seq = token_seq
 
     method reg_ident_conv s rt =
       let tbl =
@@ -26312,6 +26321,8 @@ module F (Stat : Aux.STATE_T) = struct
 
     method set_token_hist_flag () = token_hist_flag <- true
 
+    method set_dump_tokens_flag () = dump_tokens_flag <- true
+
     method pp_restore_context () =
       try
         let info = env#pp_if_section_top_info in
@@ -26572,7 +26583,9 @@ module F (Stat : Aux.STATE_T) = struct
       saved_pstat <- pstat#copy;
       env#save_stack();
       env#set_scanner_keep_flag();
-      keep_flag <- true
+      keep_flag <- true;
+      if dump_tokens_flag then
+        token_seq#enter_sub()
 
     method stop_replay_queue () =
       DEBUG_MSG "token queue stopped";
@@ -26588,12 +26601,16 @@ module F (Stat : Aux.STATE_T) = struct
       end;
       env#clear_scanner_keep_flag();
       keep_flag <- false;
-      replay_flag <- true
+      replay_flag <- true;
+      (*if dump_tokens_flag then
+        token_seq#exit_sub()*)
 
     method clear_keep_flag () =
       DEBUG_MSG "keep_flag cleared";
       env#clear_scanner_keep_flag();
-      keep_flag <- false
+      keep_flag <- false;
+      if dump_tokens_flag then
+        token_seq#exit_sub()
 
     method keep_flag = keep_flag
     (*method replay_flag = replay_flag*)
@@ -26633,6 +26650,8 @@ module F (Stat : Aux.STATE_T) = struct
           if not mix then begin
             self#clear_alternative_tokens();
             replay_success_callback();
+            if dump_tokens_flag then
+              token_seq#exit_sub()
           end;
           raise Queue.Empty
 
@@ -26802,7 +26821,7 @@ module F (Stat : Aux.STATE_T) = struct
                 l := rt :: !l
             end
 
-            | CONFLICT_MARKER(s, _) when Xstring.startswith s "<<<<<<<" -> begin
+            | CONFLICT_MARKER(_, s) when Xstring.startswith s "<<<<<<<" -> begin
                 if regard_pp_if && filt_rt then
                   raise Found;
                 if regard_pp_if && until rt then
@@ -26811,7 +26830,7 @@ module F (Stat : Aux.STATE_T) = struct
                 l := rt :: !l
             end
 
-            | CONFLICT_MARKER(s, _) when !lv = 0 -> DEBUG_MSG "@"; raise Exit
+            | CONFLICT_MARKER(_, s) when !lv = 0 -> DEBUG_MSG "@"; raise Exit
 
             | GT_7 _ -> begin
                 decr lv;
@@ -28101,6 +28120,7 @@ module F (Stat : Aux.STATE_T) = struct
         DEBUG_MSG "%s" (flags_to_str env);
         DEBUG_MSG "scope: %s" env#stack#scopes_to_string;
         DEBUG_MSG "block level: %d" env#stack#block_level;
+        DEBUG_MSG "bracket stack: %s" env#pstat#bracket_stack_to_string;
 
         DEBUG_MSG "prev4=%s" (Token.rawtoken_to_string prev_rawtoken4);
         DEBUG_MSG "prev3=%s" (Token.rawtoken_to_string prev_rawtoken3);
@@ -29141,14 +29161,26 @@ module F (Stat : Aux.STATE_T) = struct
 
         | LBRACKET | LAM_LBRACKET | ATTR_LBRACKET -> begin
             env#open_paren PK_BRACKET;
-            env#open_bracket()
+            env#open_bracket();
+            if not env#pp_line_flag then
+              match rawtok with
+              | LBRACKET -> env#_open_bracket BK_SUBSCR
+              | LAM_LBRACKET -> env#_open_bracket BK_LAM_INTR
+              | ATTR_LBRACKET -> env#_open_bracket BK_ATTR
+              | _ -> ()
         end
 
-        | OBJC_LBRACKET -> env#open_paren PK_BRACKET
+        | OBJC_LBRACKET -> begin
+            env#open_paren PK_BRACKET;
+            if not env#pp_line_flag then
+              env#_open_bracket BK_OBJC_MSG
+        end
 
         | RBRACKET -> begin
             env#close_bracket();
-            env#close_paren()
+            env#close_paren();
+            if not env#pp_line_flag then
+              env#_close_bracket()
         end
 
         | INI_LBRACE when context == TOP && prev_rawtoken == EOF -> begin
@@ -29161,6 +29193,12 @@ module F (Stat : Aux.STATE_T) = struct
         | LBRACE | INI_LBRACE | CLASS_LBRACE when not env#pp_line_flag -> begin
             env#open_in_body_brace();
             env#open_brace();
+            if not env#pp_line_flag then
+              match rawtok with
+              | LBRACE -> env#_open_bracket BK_BRACE
+              | INI_LBRACE -> env#_open_bracket BK_INI_BRACE
+              | CLASS_LBRACE -> env#_open_bracket BK_CLASS_BRACE
+              | _ -> ()
         end
 
         | RBRACE when not env#pp_line_flag -> begin
@@ -29273,6 +29311,8 @@ module F (Stat : Aux.STATE_T) = struct
                 | _ -> ()
               end;
               env#close_brace();
+              if not env#pp_line_flag then
+                env#_close_bracket()
             end
             else if
               match self#peek_rawtoken() with
@@ -29327,6 +29367,7 @@ module F (Stat : Aux.STATE_T) = struct
               raise To_be_recovered
             end
         end
+
         | TY_LPAREN when prev_rawtoken == EOF && begin
             match context with
             | TOP | MEM -> begin
@@ -29341,11 +29382,13 @@ module F (Stat : Aux.STATE_T) = struct
           self#prepend_token (mk T.DUMMY_DTOR);
           raise To_be_recovered
         end
+
         | TY_LPAREN when prev_rawtoken != MARKER && env#get_broken_func_head_info() -> begin
             self#prepend_token token;
             self#prepend_token (mk T.MARKER);
             raise To_be_recovered
         end
+
         | TY_LPAREN -> begin
             let sub =
               match prev_rawtoken with
@@ -29354,10 +29397,11 @@ module F (Stat : Aux.STATE_T) = struct
             in
             env#open_paren (PK_TYPE sub)
         end
+
         | PP_LPAREN -> env#open_paren PK_PP
         | SS_LPAREN -> env#open_paren PK_SS
         | PS_LPAREN -> env#open_paren PK_PS
-        | FOLD_LPAREN -> env#open_paren PK_F
+        | FOLD_LPAREN -> env#open_paren PK_FOLD
 
         | LPAREN -> begin
             if not env#asm_flag then begin
@@ -30313,6 +30357,8 @@ module F (Stat : Aux.STATE_T) = struct
 
       begin
         let rawtok, _, _ = token in
+        if dump_tokens_flag then
+          token_seq#add_token rawtok;
         match rawtok with
         | COLON_COLON -> ()
         | _ -> env#clear_value_flag()
