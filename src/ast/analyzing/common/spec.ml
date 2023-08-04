@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ class type node_data_t = object ('self)
   method get_value    : string
   method has_value    : bool
   method has_non_trivial_value : bool
+  method has_non_trivial_tid : bool
   method is_string_literal : bool
   method is_int_literal    : bool
   method is_real_literal   : bool
@@ -384,7 +385,7 @@ module type LABEL_T = sig
   val get_value          : t -> string
   val has_value          : t -> bool
   val has_non_trivial_value : t -> bool
-
+  val has_non_trivial_tid   : t -> bool
   val cannot_be_keyroot  : node_t -> bool
 
   val is_phantom         : t -> bool

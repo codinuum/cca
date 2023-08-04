@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -474,6 +474,7 @@ module Tree (L : Spec.LABEL_T) = struct
       method get_value = L.get_value lab
       method has_value = L.has_value lab
       method has_non_trivial_value = L.has_non_trivial_value lab
+      method has_non_trivial_tid = L.has_non_trivial_tid lab
       method is_string_literal = L.is_string_literal lab
       method is_int_literal = L.is_int_literal lab
       method is_real_literal = L.is_real_literal lab

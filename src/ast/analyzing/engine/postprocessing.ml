@@ -270,7 +270,7 @@ module F (Label : Spec.LABEL_T) = struct
       Not_found -> false
 
 
-  let check_relabel options ?(exact=false) tree1 tree2 nd1 nd2 uidmapping =
+  let check_relabel options ?(exact=false) ?(matches=[]) tree1 tree2 nd1 nd2 uidmapping =
     let parent_cond =
       let p1 = nd1#has_initial_parent in
       let p2 = nd2#has_initial_parent in
@@ -287,7 +287,8 @@ module F (Label : Spec.LABEL_T) = struct
           else
             false
         with
-          Not_found -> false
+          Not_found ->
+            List.mem (pnd1, pnd2) matches
       else
         if (not p1) && (not p2) then
           true
@@ -2820,7 +2821,8 @@ module F (Label : Spec.LABEL_T) = struct
           let arelabels = (* ??? *)
             List.filter
               (fun (n1, n2) ->
-                check_relabel options ~exact:true tree1 tree2 n1 n2 uidmapping
+                DEBUG_MSG "%a-%a" nps n1 nps n2;
+                check_relabel options ~exact:true ~matches:amatches tree1 tree2 n1 n2 uidmapping
               ) arelabels
           in
 

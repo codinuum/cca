@@ -1,6 +1,6 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2020-2023 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -3374,6 +3374,8 @@ let has_non_trivial_value : t -> bool = function
   | UserDefinedFloatingLiteral _
   | UserDefinedIntegerLiteral _ -> true
   | _ -> false
+
+let has_non_trivial_tid lab = false (* not yet *)
 
 module ClassKey = struct
   type t =

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -317,6 +317,8 @@ let tid_to_string (e, a) =
     (* "" *) e
   else
     e^";"^a
+
+let hash_of_tid ((h, _) : tie_id) = h
 
 
 let anonymize_tid ?(more=false) ((e, a) : tie_id) =

@@ -1979,7 +1979,7 @@ class translator options =
   method of_statement ?(block_context="block") s =
     let nd =
       match s.Ast.s_desc with
-      | Ast.Sblock block   -> self#of_block ~tid:(self#__mktid "block"(*block_context*)) block
+      | Ast.Sblock block   -> self#of_block ~tid:(self#__mktid block_context) block
       | Ast.Sempty         -> self#mkleaf (L.Statement L.Statement.Empty)
       | Ast.Sexpression se -> self#of_statement_expression ~is_stmt:true se
 
@@ -1988,7 +1988,7 @@ class translator options =
             [self#of_expression e; self#of_switch_block switch_block]
 
       | Ast.Sdo(s, e) ->
-          let s_ = self#of_statement ~block_context:"do" s in
+          let s_ = self#of_statement (*~block_context:"do"*) s in
           let s_ = self#normalize_block_stmt s_ in
           (self#mknode (L.Statement L.Statement.Do) [s_; self#of_expression e])
 
@@ -2034,7 +2034,7 @@ class translator options =
           let tid = self#mktid e_ in
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
-          let s_ = self#of_statement ~block_context:"if" s in
+          let s_ = self#of_statement (*~block_context:"if"*) s in
           let s_ = self#normalize_block_stmt s_ in
           self#mknode lab [e_; s_] (* order sensitive s -> e *)
 
@@ -2060,8 +2060,8 @@ class translator options =
           let tid = self#mktid e_ in
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
-          let s1_ = self#of_statement ~block_context:"if" s1 in
-          let s2_ = self#of_statement ~block_context:"if" s2 in
+          let s1_ = self#of_statement (*~block_context:"if"*) s1 in
+          let s2_ = self#of_statement (*~block_context:"if"*) s2 in
           let s1_ = self#normalize_block_stmt s1_ in
           let s2_ = self#normalize_block_stmt s2_ in
           let nd = self#mknode lab [e_; s1_; s2_] in (* order sensitive s2 -> s1 -> e *)
@@ -2127,7 +2127,7 @@ class translator options =
             nd
       end
       | Ast.Swhile(e, s) ->
-          let s_ = self#of_statement ~block_context:"while" s in
+          let s_ = self#of_statement (*~block_context:"while"*) s in
           let s_ = self#normalize_block_stmt s_ in
           self#mknode (L.Statement L.Statement.While) [self#of_expression e; s_]
 
@@ -2139,7 +2139,7 @@ class translator options =
                                    1;
                                  ])
           in
-          let s_ = self#of_statement ~block_context:"for" s in
+          let s_ = self#of_statement (*~block_context:"for"*) s in
           let s_ = self#normalize_block_stmt s_ in
           let children =
             (match init_opt with None -> [] | Some init -> [self#of_for_init init]) @
@@ -2169,7 +2169,7 @@ class translator options =
           self#mknode ~ordinal_tbl_opt (L.Statement L.Statement.For) children
 
       | Ast.SforEnhanced(param, e, s) ->
-          let s_ = self#of_statement ~block_context:"for" s in
+          let s_ = self#of_statement (*~block_context:"for"*) s in
           let s_ = self#normalize_block_stmt s_ in
           self#mknode (L.Statement L.Statement.ForEnhanced)
             [self#of_for_header param;

@@ -38,6 +38,7 @@ type tie_id = Lang_base.tie_id
 
 let null_tid      = Lang_base.null_tid
 let mktid         = Lang_base.mktid
+let hash_of_tid   = Lang_base.hash_of_tid
 let tid_to_string = Lang_base.tid_to_string
 let anonymize_tid = Lang_base.anonymize_tid
 let mktidattr     = Lang_base.mktidattr
@@ -1526,6 +1527,11 @@ module Statement = struct
     | FlattenedIf of tie_id
     | ElseIf of tie_id
     | Else
+
+  let get_tid = function
+    | If tid | FlattenedIf tid | ElseIf tid -> tid
+    (*| Expression tid -> tid*)
+    | _ -> raise Not_found
 
   let get_name = function
     | Break (Some ident)
@@ -3042,8 +3048,23 @@ let relabel_allowed (lab1, lab2) =
     match lab1, lab2 with
     | Statement stmt1, Statement stmt2 -> Statement.relabel_allowed(stmt1, stmt2)
 
-    | Statement (Statement.Expression(Expression.Primary _, _)), Primary _
-    | Primary _, Statement (Statement.Expression(Expression.Primary _, _)) -> true
+    | Statement (Statement.Expression(Expression.Primary _p, _)), Primary p
+    | Primary p, Statement (Statement.Expression(Expression.Primary _p, _)) -> begin
+        match p with
+        | Primary.InstanceCreation _
+        | Primary.QualifiedInstanceCreation _
+        | Primary.NameQualifiedInstanceCreation _
+        | Primary.PrimaryMethodInvocation _
+        | Primary.SimpleMethodInvocation _
+        | Primary.SuperMethodInvocation _
+        | Primary.ClassSuperMethodInvocation _
+        | Primary.TypeMethodInvocation _ -> begin
+            try
+              Primary.get_name _p = Primary.get_name p
+            with _ -> false
+        end
+        | _ -> false
+    end
 
     | Statement (Statement.Expression(e, _)), Primary p
     | Primary p, Statement (Statement.Expression(e, _)) -> begin
@@ -3066,8 +3087,8 @@ let relabel_allowed (lab1, lab2) =
     | Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
     | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
 
-    | Statement (Statement.Expression _), lab
-    | lab, Statement (Statement.Expression _) -> is_statement_expression lab
+    (*| Statement (Statement.Expression _), lab
+    | lab, Statement (Statement.Expression _) -> is_statement_expression lab*)
 
     (*| Expression (Expression.Primary _), Primary _
     | Primary _, Expression (Expression.Primary _)*)
@@ -3088,6 +3109,9 @@ let relabel_allowed (lab1, lab2) =
 
     | Expression Expression.Cond, Statement Statement.If _
     | Statement Statement.If _, Expression Expression.Cond
+
+    | Expression Expression.Switch, Statement Statement.If _
+    | Statement Statement.If _, Expression Expression.Switch
 
     | Implements, Extends | Extends, Implements
     | Implements, ExtendsInterfaces | ExtendsInterfaces, Implements
@@ -3354,6 +3378,7 @@ let is_wildcard_bounds = function
 
 let is_if = function
   | Statement Statement.If _ -> true
+  | Statement Statement.FlattenedIf _ -> true
   | _ -> false
 
 let is_while = function
@@ -4113,6 +4138,14 @@ let has_non_trivial_value lab =
   try
     let v = get_value lab in
     v <> "0" && v <> "1" && v <> "-1" && v <> "" && v <> "true" && v <> "false" && v <> "null"
+  with
+    Not_found -> false
+
+let has_non_trivial_tid lab =
+  try
+    match lab with
+    | Statement stmt when (hash_of_tid (Statement.get_tid stmt) <> "") -> true
+    | _ -> false
   with
     Not_found -> false
 

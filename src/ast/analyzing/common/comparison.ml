@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -696,6 +696,24 @@ class ['node_t, 'tree_t] c
           b
     end
     | None -> fun nd -> nd#data#has_non_trivial_value
+
+  method has_weak_non_trivial_tid =
+    match multiple_node_matches with
+    | Some mnm -> begin
+        fun (nd : 'node_t) ->
+          let b =
+            nd#data#has_non_trivial_tid &&
+            match mnm#find nd#data#_label with
+            | [_], [_] -> true
+            | _ -> false
+          in
+          DEBUG_MSG "%s -> %B" (mnm#label_to_string nd#data#_label) b;
+          (*if b then
+            Printf.printf "! has_non_trivial_tid: %s\n"
+              (mnm#label_to_string nd#data#_label);*)
+          b
+    end
+    | None -> fun nd -> nd#data#has_non_trivial_tid
 
   method has_weak_trivial_value =
     match multiple_node_matches with
@@ -2075,12 +2093,18 @@ class ['node_t, 'tree_t] c
               _is_plausible nd1 nd2
             with _ -> false
           in
+          let tid_eq nd1 nd2 =
+            let b = self#has_weak_non_trivial_tid nd1 && nd1#data#eq nd2#data in
+            DEBUG_MSG "%a-%a -> %B" nups nd1 nups nd2 b;
+            b
+          in
 
           if
             (ancsim_old = 1.0 && subtree_sim_old = 1.0 && ancsim_new < 1.0 && subtree_sim_new < 1.0) ||
             (
              anc_sim_almost_same && subtree_sim_old = 1.0 && subtree_sim_new < 1.0 && chk_for_old() ||
-             is_plausible nd1old nd2old && not (is_plausible nd1new nd2new)
+             is_plausible nd1old nd2old && not (is_plausible nd1new nd2new) ||
+             tid_eq nd1old nd2old && not (tid_eq nd1new nd2new)
             ) ||
             prefer_sim && subtree_sim_old > subtree_sim_new
             (* || (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
@@ -2096,6 +2120,7 @@ class ['node_t, 'tree_t] c
             (ancsim_new = 1.0 && subtree_sim_new = 1.0 && ancsim_old < 1.0 && subtree_sim_old < 1.0) ||
             (anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new() ||
             is_plausible nd1new nd2new && not (is_plausible nd1old nd2old)) ||
+            tid_eq nd1old nd2old && not (tid_eq nd1new nd2new) ||
             prefer_sim && subtree_sim_new > subtree_sim_old
             (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin

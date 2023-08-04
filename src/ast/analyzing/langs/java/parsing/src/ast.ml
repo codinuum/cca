@@ -210,7 +210,12 @@ let set1 orig a =
   | NAunknown -> orig := a
   | _ -> ()
 
-let is_capitalized s = String.capitalize_ascii s = s
+let is_capitalized s =
+  try
+    let c = Char.code s.[0] in
+    65 <= c && c <= 90
+  with
+    _ -> false
 
 type literal =
   | Linteger of string
@@ -937,17 +942,31 @@ let decompose_name name =
   | Nqualified(_, n, _, id) -> n, id
   | _ -> failwith "Ast.decompose_name"
 
+let rec iter_id f n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> f id
+  | Nqualified(_, n0, _, id) -> f id; iter_id f n0
+  | _ -> ()
+
 let rec leftmost_of_name n =
   match n.n_desc with
   | Nsimple(attr, id) -> attr, id
   | Nqualified(_, n, _, _) -> leftmost_of_name n
   | _ -> ref NAunknown, "?"
 
+let leftmost_identifier n =
+  let _, id = leftmost_of_name n in
+  id
+
 let rec leftmost_name n =
   match n.n_desc with
   | Nsimple(attr, id) -> n
   | Nqualified(_, n, _, _) -> leftmost_name n
   | _ -> n
+
+let is_leftmost_id_capitalized n =
+  let id = leftmost_identifier n in
+  is_capitalized id
 
 let rightmost_identifier n =
   match n.n_desc with
@@ -971,6 +990,19 @@ let get_qualifier name =
   | Nsimple _ -> raise Not_found
   | Nqualified(_, n, _, _) -> n
   | _ -> raise Not_found
+
+let qualifier_contains_capitalized n =
+  try
+    let q = get_qualifier n in
+    iter_id
+      (fun i ->
+        if is_capitalized i then
+          raise Exit
+      ) q;
+    false
+  with
+  | Exit -> true
+  | _ -> false
 
 let rec get_length name =
   match name.n_desc with

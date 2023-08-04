@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1435,6 +1435,8 @@ let has_non_trivial_value lab =
     v <> "0" && v <> "1" && v <> "True" && v <> "False" && v <> "None"
   with
     Not_found -> false
+
+let has_non_trivial_tid lab = false (* not yet *)
 
 let cannot_be_keyroot nd = false
 

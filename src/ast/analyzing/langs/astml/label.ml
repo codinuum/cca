@@ -144,6 +144,10 @@ let is_attr_for_value a =
 let is_attr_for_string_literal a =
   is_attr_for_value a
 
+let is_attr_for_tid a =
+  (remove_prefix a) = "tid"
+
+
 let is_string_literal { elem_name=name; elem_attrs=attrs; } =
   Xstring.endswith name "string" &&
   List.exists
@@ -856,7 +860,19 @@ let has_value { elem_attrs=attrs; } =
   in
   doit attrs
 
+let has_tid { elem_attrs=attrs; } =
+  let rec doit = function
+    | [] -> false
+    | (a, v)::rest ->
+        if is_attr_for_tid a then
+          true
+        else
+          doit rest
+  in
+  doit attrs
+
 let has_non_trivial_value = has_value (* tentative *)
+let has_non_trivial_tid = has_tid (* tentative *)
 
 let get_operator { elem_attrs=attrs; } =
   let rec doit = function

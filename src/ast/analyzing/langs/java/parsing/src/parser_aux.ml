@@ -1879,7 +1879,7 @@ module F (Stat : STATE_T) = struct
   let _name_to_prim ?(whole=true) loc n =
     DEBUG_MSG "[%s] %s (whole=%B)" (Loc.to_string loc) (P.name_to_string n) whole;
 
-    if env#partial_name_resolution_flag then begin
+    if env#partial_name_resolution_flag && qualifier_contains_capitalized n then begin
       set_name_attribute ~force:true (NAambiguous (env#resolve ~force_defer:true n)) n;
       DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
       _mkprim loc (Pname n)
