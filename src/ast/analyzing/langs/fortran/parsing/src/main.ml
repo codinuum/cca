@@ -101,11 +101,11 @@ let _ =
 
       if !dump_ast then
         Printer.dump ast#root
-      else begin
+      (*else begin
         BEGIN_INFO
 	  Printer.dump ast#root;
         END_INFO
-      end;
+      end*);
 
       Printf.printf "*** PARSED! ***\n";
 
