@@ -40,7 +40,7 @@ TOKENS_OBJ = $(TOKENS).cmo
 LIB_OBJS = common.cmo context.cmo label.cmo pinfo.cmo ast.cmo source.cmo parser_aux.cmo \
 	$(TOKENS_OBJ) tokens_.cmo token.cmo \
 	$(MLY_OBJ) $(ULEXER_OBJ) \
-	scanner.cmo lib.cmo 
+	token_seq.cmo scanner.cmo lib.cmo 
 
 OBJS = $(LIB_OBJS) main.cmo
 
