@@ -3564,6 +3564,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             end
           in
 
+          let node_pair_set_to_list s =
+            List.fast_sort
+              (fun x0 x1 -> Stdlib.compare (fst x1)#gindex (fst x0)#gindex)
+              (Xset.to_list s)
+          in
+
           let handle1 ?(from_parent=false) u1 =
             DEBUG_MSG "u1:%a" ups u1;
             let p1 = ref u1 in
@@ -3590,9 +3596,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 p1 := (!pn1)#uid
               ) !node_pairs;
             try
-              Xset.iter
+              List.iter
                 (fun (n2, n1) -> handle_extra ~from_parent n1 n2)
-                (Hashtbl.find !extra_node_pair_tbl01 u1)
+                (node_pair_set_to_list (Hashtbl.find !extra_node_pair_tbl01 u1))
             with
               Not_found -> ()
           in
@@ -3623,9 +3629,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 p2 := (!pn2)#uid
               ) !node_pairs;
             try
-              Xset.iter
+              List.iter
                 (fun (n1, n2) -> handle_extra ~from_parent n1 n2)
-                (Hashtbl.find !extra_node_pair_tbl02 u2)
+                (node_pair_set_to_list (Hashtbl.find !extra_node_pair_tbl02 u2))
             with
               Not_found -> ()
           in
