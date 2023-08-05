@@ -1529,7 +1529,8 @@ module Statement = struct
     | Else
 
   let get_tid = function
-    | If tid | FlattenedIf tid | ElseIf tid -> tid
+    | If tid -> tid
+    (*| FlattenedIf tid | ElseIf tid -> tid*)
     (*| Expression tid -> tid*)
     | _ -> raise Not_found
 

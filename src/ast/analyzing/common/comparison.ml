@@ -685,11 +685,14 @@ class ['node_t, 'tree_t] c
           let b =
             nd#data#has_non_trivial_value ||
             nd#data#has_value &&
-            match mnm#find nd#data#_label with
-            | [_], [_] -> true
-            | _ -> false
+            try
+              match mnm#find nd#data#_label with
+              | [_], [_] -> true
+              | _ -> false
+            with
+              Not_found -> false
           in
-          DEBUG_MSG "%s -> %B" (mnm#label_to_string nd#data#_label) b;
+          DEBUG_MSG "%a: %s -> %B" ups nd#uid (mnm#label_to_string nd#data#_label) b;
           (*if b then
             Printf.printf "! has_non_trivial_value: %s\n"
               (mnm#label_to_string nd#data#_label);*)
@@ -703,9 +706,12 @@ class ['node_t, 'tree_t] c
         fun (nd : 'node_t) ->
           let b =
             nd#data#has_non_trivial_tid &&
-            match mnm#find nd#data#_label with
-            | [_], [_] -> true
-            | _ -> false
+            try
+              match mnm#find nd#data#_label with
+              | [_], [_] -> true
+              | _ -> false
+            with
+              Not_found -> false
           in
           DEBUG_MSG "%s -> %B" (mnm#label_to_string nd#data#_label) b;
           (*if b then
@@ -721,9 +727,12 @@ class ['node_t, 'tree_t] c
         fun (nd : 'node_t) ->
           let b =
             nd#data#has_value && not nd#data#has_non_trivial_value ||
-            match mnm#find nd#data#_label with
-            | _::_::_, _::_::_ -> true
-            | _ -> false
+            try
+              match mnm#find nd#data#_label with
+              | _::_::_, _::_::_ -> true
+              | _ -> false
+            with
+              _ -> false
           in
           DEBUG_MSG "%s -> %B" (mnm#label_to_string nd#data#_label) b;
           (*if b then
@@ -2094,18 +2103,21 @@ class ['node_t, 'tree_t] c
             with _ -> false
           in
           let tid_eq nd1 nd2 =
-            let b = self#has_weak_non_trivial_tid nd1 && nd1#data#eq nd2#data in
+            DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+            let b =
+              self#has_weak_non_trivial_tid nd1 &&
+              self#has_weak_non_trivial_tid nd2 &&
+              nd1#data#eq nd2#data
+            in
             DEBUG_MSG "%a-%a -> %B" nups nd1 nups nd2 b;
             b
           in
 
           if
-            (ancsim_old = 1.0 && subtree_sim_old = 1.0 && ancsim_new < 1.0 && subtree_sim_new < 1.0) ||
-            (
-             anc_sim_almost_same && subtree_sim_old = 1.0 && subtree_sim_new < 1.0 && chk_for_old() ||
-             is_plausible nd1old nd2old && not (is_plausible nd1new nd2new) ||
-             tid_eq nd1old nd2old && not (tid_eq nd1new nd2new)
-            ) ||
+            ancsim_old = 1.0 && subtree_sim_old = 1.0 && ancsim_new < 1.0 && subtree_sim_new < 1.0 ||
+            anc_sim_almost_same && subtree_sim_old = 1.0 && subtree_sim_new < 1.0 && chk_for_old() ||
+            is_plausible nd1old nd2old && not (is_plausible nd1new nd2new) ||
+            tid_eq nd1old nd2old && not (tid_eq nd1new nd2new) ||
             prefer_sim && subtree_sim_old > subtree_sim_new
             (* || (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin
@@ -2117,10 +2129,10 @@ class ['node_t, 'tree_t] c
             add_cache false b ncd ncsim
           end
           else if
-            (ancsim_new = 1.0 && subtree_sim_new = 1.0 && ancsim_old < 1.0 && subtree_sim_old < 1.0) ||
-            (anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new() ||
-            is_plausible nd1new nd2new && not (is_plausible nd1old nd2old)) ||
-            tid_eq nd1old nd2old && not (tid_eq nd1new nd2new) ||
+            ancsim_new = 1.0 && subtree_sim_new = 1.0 && ancsim_old < 1.0 && subtree_sim_old < 1.0 ||
+            anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new() ||
+            is_plausible nd1new nd2new && not (is_plausible nd1old nd2old) ||
+            tid_eq nd1new nd2new && not (tid_eq nd1old nd2old) ||
             prefer_sim && subtree_sim_new > subtree_sim_old
             (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin
