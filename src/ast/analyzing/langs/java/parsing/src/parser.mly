@@ -2582,6 +2582,9 @@ method_invocation:
       if is_local_name n then begin
         mkmi $startofs $endofs (MImethodName(n, a))
       end
+      else if env#partial_name_resolution_flag then begin
+        mkmi $startofs $endofs (MImethodName(n, a))
+      end
       else begin
         try
           let q = get_qualifier n in
@@ -2618,9 +2621,6 @@ method_invocation:
                   set_attribute_PT_T (env#resolve q) q;
                   register_qname_as_typename q;
                   mkmi $startofs $endofs (MItypeName(q, None, id, a))
-            end
-            else if env#partial_name_resolution_flag && qualifier_contains_capitalized n then begin
-              mkmi $startofs $endofs (MItypeName(q, None, id, a))
             end
             else begin
               env#reclassify_identifier(leftmost_of_name q);

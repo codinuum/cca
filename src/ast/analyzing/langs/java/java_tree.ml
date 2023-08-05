@@ -1542,8 +1542,14 @@ class translator options =
   method of_name loc0 name =
     let name_to_node ?(children=[]) mkplab n =
       let unresolved = L.conv_name ~resolve:false n in
+      let resolved =
+        if options#partial_name_resolution_flag then
+          unresolved
+        else
+          L.conv_name n
+      in
       let orig_lab_opt = Some (L.Primary (mkplab unresolved)) in
-      let nd = self#mknode ~orig_lab_opt (L.Primary (mkplab (L.conv_name n))) children in
+      let nd = self#mknode ~orig_lab_opt (L.Primary (mkplab resolved)) children in
       let loc = Ast.Loc.widen loc0 (String.length unresolved) in
       set_loc nd loc;
       nd

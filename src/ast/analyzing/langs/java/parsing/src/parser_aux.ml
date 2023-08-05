@@ -1879,8 +1879,8 @@ module F (Stat : STATE_T) = struct
   let _name_to_prim ?(whole=true) loc n =
     DEBUG_MSG "[%s] %s (whole=%B)" (Loc.to_string loc) (P.name_to_string n) whole;
 
-    if env#partial_name_resolution_flag && qualifier_contains_capitalized n then begin
-      set_name_attribute ~force:true (NAambiguous (env#resolve ~force_defer:true n)) n;
+    if env#partial_name_resolution_flag then begin
+      set_name_attribute ~force:true (NAambiguous (env#resolve ~force_defer:false n)) n;
       DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
       _mkprim loc (Pname n)
     end
@@ -1913,7 +1913,7 @@ module F (Stat : STATE_T) = struct
         whole && is_simple q &&
         (
          env#in_static_method ||
-         (env#rely_on_naming_convention_flag && Ast.is_rightmost_id_capitalized q) ||
+         (env#rely_on_naming_convention_flag && is_rightmost_id_capitalized q) ||
          (not env#rely_on_naming_convention_flag && (not env#surrounding_class_has_super))
         )
       then begin

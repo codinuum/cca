@@ -991,6 +991,16 @@ let get_qualifier name =
   | Nqualified(_, n, _, _) -> n
   | _ -> raise Not_found
 
+let is_rightmost_qualifier_capitalized n =
+  try
+    let q = get_qualifier n in
+    match q.n_desc with
+    | Nsimple(_, id)
+    | Nqualified(_, _, _, id) -> is_capitalized id
+    | _ -> false
+  with
+  | _ -> false
+
 let qualifier_contains_capitalized n =
   try
     let q = get_qualifier n in
@@ -1002,6 +1012,18 @@ let qualifier_contains_capitalized n =
     false
   with
   | Exit -> true
+  | _ -> false
+
+let is_all_qualifier_lowercase n =
+  try
+    let q = get_qualifier n in
+    iter_id
+      (fun i ->
+        if is_capitalized i then
+          raise Exit
+      ) q;
+    true
+  with
   | _ -> false
 
 let rec get_length name =
