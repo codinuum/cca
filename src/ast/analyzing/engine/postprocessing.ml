@@ -5779,13 +5779,13 @@ end;
       DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
       b
     in
-    let has_subtree_match n1 n2 =
+    let has_same_digest n1 n2 =
       let b =
       match n1#data#_digest with
       | Some d1 -> begin
           match n2#data#_digest with
-          | Some d2 when d2 = d1 -> true
-          | _ -> false
+          | Some d2 -> d2 = d1
+          | None -> n1#data#eq n2#data
       end
       | _ -> false
       in
@@ -6808,19 +6808,49 @@ end;
           in (* cond *)
           if cond then begin
 
-            List.iter
-              (fun mov ->
-                match mov with
-                | Edit.Move(_, kind, (uid1, info1, ex1), (uid2, info2, ex2)) -> begin
-                    let nd1 = Info.get_node info1 in
-                    let nd2 = Info.get_node info2 in
-                    if has_subtree_match nd1 nd2 then begin
-                      Xset.add to_be_excluded mov;
-                      DEBUG_MSG "to be excluded: %s" (Edit.to_string mov)
-                    end
-                end
-                | _ -> assert false
-              ) movl;
+            begin
+              let xtbl = Hashtbl.create 0 in
+              List.iter
+                (fun mov ->
+                  match mov with
+                  | Edit.Move(_mid, kind, (uid1, info1, ex1), (uid2, info2, ex2)) -> begin
+                      let mid = !_mid in
+                      let nd1 = Info.get_node info1 in
+                      let nd2 = Info.get_node info2 in
+                      if has_same_digest nd1 nd2 then begin
+                        try
+                          let r1, movs = Hashtbl.find xtbl mid in
+                          let r1_ =
+                            if tree1#is_initial_ancestor nd1 r1 then
+                              nd1
+                            else
+                              r1
+                          in
+                          let movs_ = mov::movs in
+                          DEBUG_MSG "%a: r1: %a -> %a (count=%d)"
+                            MID.ps mid nps r1 nps r1_ (List.length movs_);
+                          Hashtbl.replace xtbl mid (r1_, movs_)
+                        with
+                          Not_found -> begin
+                            DEBUG_MSG "%a: r1: %a (count=1)" MID.ps mid nps nd1;
+                            Hashtbl.add xtbl mid (nd1, [mov])
+                          end
+                      end
+                  end
+                  | _ -> assert false
+                ) movl;
+              Hashtbl.iter
+                (fun m (r1, movs) ->
+                  let sz = tree1#whole_initial_subtree_size r1 in
+                  DEBUG_MSG "%a: sz=%d r1=%a" MID.ps m sz nps r1;
+                  if sz > 1 && List.length movs = sz then
+                    List.iter
+                      (fun m ->
+                        DEBUG_MSG "to be excluded: %s" (Edit.to_string m);
+                        Xset.add to_be_excluded m
+                      ) movs
+                ) xtbl
+            end;
 
             BEGIN_DEBUG
               let head =
