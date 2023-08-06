@@ -1330,7 +1330,16 @@ module F (Stat : STATE_T) = struct
   let register_identifier_as_method id        = env#register_identifier id IAmethod
   let register_identifier_as_parameter id t   = env#register_identifier id IAparameter
   let register_identifier_as_variable id t    = env#register_identifier id IAvariable
-  let register_identifier_as_field id t       = env#register_identifier id IAfield
+
+  let register_identifier_as_field ?(is_static=false) id t =
+    let attr =
+      if is_static then
+        IAstatic ""
+      else
+        IAfield
+    in
+    env#register_identifier id attr
+
   let register_identifier_as_constructor id   = env#register_identifier id IAconstructor
   let register_identifier_as_label id         = env#register_identifier id IAlabel
   let register_identifier_as_typeparameter id = env#register_identifier id IAtypeparameter

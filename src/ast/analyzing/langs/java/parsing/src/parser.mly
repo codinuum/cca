@@ -1219,15 +1219,15 @@ enum_body_declarations0:
 field_declaration:
 | m_opt=modifiers_opt t=unann_type v=variable_declarators SEMICOLON 
     { 
-      let loc = 
+      let loc, is_static =
         match m_opt with
-        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-        | Some _ -> get_loc $symbolstartofs $endofs
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs), false
+        | Some ms -> get_loc $symbolstartofs $endofs, has_static ms
       in
       List.iter 
         (fun vd ->
           let id, _ = vd.vd_variable_declarator_id in
-          register_identifier_as_field id t;
+          register_identifier_as_field ~is_static id t;
           (*env#register_identifier ~qualify:true id IAfield;*)
           vd.vd_is_local := false;
         ) v;
