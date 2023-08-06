@@ -3346,6 +3346,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           gps lgi1 gps gi1 (l1+1) gps lgi2 gps gi2 (l2+1);
 
         let moveon =
+          let b =
           if same_digest ~digest_for_all:true nd1 nd2 then begin
             assert (l1 = l2);
             let rec loop i =
@@ -3363,6 +3364,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           end
           else
             true
+          in
+          DEBUG_MSG "%B" b;
+          b
         in
 
         if moveon then begin
@@ -3682,6 +3686,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
 
   method shrink_moves (* shrink moves to improve SPSM *)
+      (cenv : ('node_t, 'tree_t) Comparison.c)
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
       (uidmapping : 'node_t UIDmapping.c)
@@ -3953,10 +3958,43 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             let cands1, c1an =
               try
                 let an1, an2 = find_stably_mapped_ancestor tree2 uidmapping#find self#find12 nd1 in
-
-                if tree2#is_initial_ancestor an2 nd2 then
-                  [], None
-
+                DEBUG_MSG "an1=%a an2=%a" nps an1 nps an2;
+                if tree2#is_initial_ancestor an2 nd2 then begin
+                  if nd1#initial_parent == an1 && nd2#initial_parent == an2 then begin
+                    match nd1#data#_digest with
+                    | Some d -> begin
+                        DEBUG_MSG "d=%s" (Xhash.to_hex d);
+                        try
+                          match cenv#multiple_subtree_matches#find d with
+                          | [], _, _ | _, [], _ -> [], None
+                          | l1, l2, _ -> begin
+                              let cands = ref [] in
+                              List.iter
+                                (fun (x1, mems1) ->
+                                  List.iter
+                                    (fun (x2, mems2) ->
+                                      if
+                                        x2 == nd2 &&
+                                        not (self#is_crossing_with_untouched uidmapping x1 x2)
+                                      then begin
+                                        cands := (mems1, mems2)::!cands
+                                      end
+                                    ) l2
+                                ) l1;
+                              match !cands with
+                              | [] -> [], None
+                              | l ->
+                                  (List.map (fun (ms1, ms2) -> List.combine ms1 ms2) l),
+                                  Some (an1, an2)
+                          end
+                        with
+                          Not_found -> [], None
+                    end
+                    | None -> [], None
+                  end
+                  else
+                    [], None
+                end
                 else begin
                   BEGIN_DEBUG
                     let au1, au2 = an1#uid, an2#uid in
@@ -4059,10 +4097,43 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             let cands2, c2an =
               try
                 let an2, an1 = find_stably_mapped_ancestor tree1 uidmapping#inv_find self#find21 nd2 in
-
-                if tree1#is_initial_ancestor an1 nd1 then
-                  [], None
-
+                DEBUG_MSG "an1=%a an2=%a" nps an1 nps an2;
+                if tree1#is_initial_ancestor an1 nd1 then begin
+                  if nd1#initial_parent == an1 && nd2#initial_parent == an2 then begin
+                    match nd2#data#_digest with
+                    | Some d -> begin
+                        DEBUG_MSG "d=%s" (Xhash.to_hex d);
+                        try
+                          match cenv#multiple_subtree_matches#find d with
+                          | [], _, _ | _, [], _ -> [], None
+                          | l1, l2, _ -> begin
+                              let cands = ref [] in
+                              List.iter
+                                (fun (x1, mems1) ->
+                                  List.iter
+                                    (fun (x2, mems2) ->
+                                      if
+                                        x1 == nd1 &&
+                                        not (self#is_crossing_with_untouched uidmapping x1 x2)
+                                      then begin
+                                        cands := (mems1, mems2)::!cands
+                                      end
+                                    ) l2
+                                ) l1;
+                              match !cands with
+                              | [] -> [], None
+                              | l ->
+                                  (List.map (fun (ms1, ms2) -> List.combine ms1 ms2) l),
+                                  Some (an1, an2)
+                          end
+                        with
+                          Not_found -> [], None
+                    end
+                    | None -> [], None
+                  end
+                  else
+                    [], None
+                end
                 else begin
                   BEGIN_DEBUG
                     let au1, au2 = an1#uid, an2#uid in

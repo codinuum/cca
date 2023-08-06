@@ -2648,7 +2648,10 @@ method_invocation:
 | q=name DOT t=type_arguments i=identifier a=arguments
     { 
       let _, id = i in
-      if
+      if env#partial_name_resolution_flag then begin
+        mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
+      end
+      else if
         is_local_name q ||
         is_implicit_field_name q ||
         is_field_access q ||

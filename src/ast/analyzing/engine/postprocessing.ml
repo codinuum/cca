@@ -5767,6 +5767,7 @@ end;
       b
     in
     let has_uniq_match n1 n2 =
+      let b =
       try
         match cenv#multiple_node_matches#find n1#data#_label with
         | _, [] | [], _ -> true
@@ -5774,6 +5775,22 @@ end;
         | _ -> false
       with
         _ -> false
+      in
+      DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
+      b
+    in
+    let has_subtree_match n1 n2 =
+      let b =
+      match n1#data#_digest with
+      | Some d1 -> begin
+          match n2#data#_digest with
+          | Some d2 when d2 = d1 -> true
+          | _ -> false
+      end
+      | _ -> false
+      in
+      DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
+      b
     in
     let exists_uniq_match =
       List.exists
@@ -6790,6 +6807,21 @@ end;
             r < thresh*)
           in (* cond *)
           if cond then begin
+
+            List.iter
+              (fun mov ->
+                match mov with
+                | Edit.Move(_, kind, (uid1, info1, ex1), (uid2, info2, ex2)) -> begin
+                    let nd1 = Info.get_node info1 in
+                    let nd2 = Info.get_node info2 in
+                    if has_subtree_match nd1 nd2 then begin
+                      Xset.add to_be_excluded mov;
+                      DEBUG_MSG "to be excluded: %s" (Edit.to_string mov)
+                    end
+                end
+                | _ -> assert false
+              ) movl;
+
             BEGIN_DEBUG
               let head =
                 if Xset.length to_be_excluded > 0 then
@@ -7597,7 +7629,7 @@ end;
       let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
       let removed_move_tbl = edits#shrink_moves_rp cenv tree1 tree2 uidmapping move_region_tbl in
       let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-      edits#shrink_moves tree1 tree2 uidmapping move_region_tbl removed_move_tbl
+      edits#shrink_moves cenv tree1 tree2 uidmapping move_region_tbl removed_move_tbl
     end;
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
