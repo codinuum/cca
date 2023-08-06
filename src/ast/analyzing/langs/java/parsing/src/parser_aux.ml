@@ -1880,7 +1880,7 @@ module F (Stat : STATE_T) = struct
     DEBUG_MSG "[%s] %s (whole=%B)" (Loc.to_string loc) (P.name_to_string n) whole;
 
     if env#partial_name_resolution_flag then begin
-      set_name_attribute ~force:true (NAambiguous (env#resolve ~force_defer:false n)) n;
+      set_name_attribute ~force:true (NAambiguous (mkresolved (P.name_to_simple_string n))) n;
       DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
       _mkprim loc (Pname n)
     end
