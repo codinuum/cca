@@ -1527,6 +1527,9 @@ module F (Stat : STATE_T) = struct
     if is_qualified n then begin
       false
     end
+    else if env#partial_name_resolution_flag then begin
+      false
+    end
     else begin
       let is_local n =
 	let id = rightmost_identifier n in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1250,6 +1250,7 @@ let adjust_renames
 *)
   cenv#set_is_possible_rename
     (fun ?(strict=false) n1 n2 ->
+      DEBUG_MSG "strict=%B %a-%a" strict UID.ps n1#uid UID.ps n2#uid;
       let bi1_opt = try Some (get_bid n1) with Not_found -> None in
       let bi2_opt = try Some (get_bid n2) with Not_found -> None in
       match bi1_opt, bi2_opt with

@@ -2081,6 +2081,14 @@ module F (Label : Spec.LABEL_T) = struct
       if rely_on_context then
         fun n1 n2 ->
           let chk umap =
+            let chk_ca n ca =
+              let alab = Obj.obj n#data#_anonymized_label in
+              DEBUG_MSG "n=%a alab=%s" ups n#uid (Label.to_string alab);
+              let cl = List.filter (fun c -> c#data#_anonymized_label = alab) (Array.to_list ca) in
+              match cl with
+              | [_] -> true
+              | _ -> false
+            in
             let pn1 = n1#initial_parent in
             let pn2 = n2#initial_parent in
             (*((try umap pn1#uid = pn2#uid with _ -> false) ||
@@ -2089,7 +2097,15 @@ module F (Label : Spec.LABEL_T) = struct
             let pu2 = pn2#uid in
             (
              (try umap pu1 = pu2 with _ -> false) ||
-             (try umap pn1#initial_parent#uid = pn2#initial_parent#uid with _ -> false)
+             (try umap pn1#initial_parent#uid = pn2#initial_parent#uid with _ -> false) ||
+             (try
+               let ppn1 = pn1#initial_parent in
+               chk_ca n1 pn1#initial_children && umap ppn1#uid = pn2#uid
+             with _ -> false) ||
+             (try
+               let ppn2 = pn2#initial_parent in
+               chk_ca n2 pn2#initial_children && umap pn1#uid = ppn2#uid
+             with _ -> false)
              (*has_p_ancestor (fun x -> try umap pu1 = x#uid with _ -> false) n2 ||
              has_p_ancestor (fun x -> try umap x#uid = pu2 with _ -> false) n1 ||
              Array.exists
@@ -2127,7 +2143,7 @@ module F (Label : Spec.LABEL_T) = struct
       DEBUG_MSG "       override=%B no_mapping_override=%B" override no_mapping_override;
       DEBUG_MSG "       no_moves=%B downward=%B use_binding_info=%B rely_on_binding_info=%B"
                                     no_moves downward use_binding_info rely_on_binding_info;
-      DEBUG_MSG "       last=%B" last;
+      DEBUG_MSG "       rely_on_context=%B last=%B" rely_on_context last;
       if not (Xset.is_empty bad_pairs) then begin
         Xset.iter
           (fun (u1, u2) ->
