@@ -71,6 +71,7 @@ module IrreversibleFormat = struct
     | Dmove of move_control * MID.t
           * path_c * boundary * path_c * boundary
           * subtree_key option * int option * int option * int option
+          * bool(*potential_dup*)
 
     | Dchange of move_control * path_c * boundary * 'tree tree_t
 
@@ -100,7 +101,7 @@ module IrreversibleFormat = struct
 	sprintf "Dinsert(%s,\n%s)" (attrs_to_string l) tree#initial_to_string
 
     | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to,
-            key_opt, adj_opt, depth_opt, shift_opt) ->
+            key_opt, adj_opt, depth_opt, shift_opt, dup) ->
         let l =
           [ "mctl",       move_control_to_string mctl;
             "mid",        MID.to_string mid;
@@ -112,6 +113,7 @@ module IrreversibleFormat = struct
             "adj_opt",    int_opt_to_string adj_opt;
             "depth_opt",  int_opt_to_string depth_opt;
             "shift_opt",  int_opt_to_string shift_opt;
+            "potential_dup", string_of_bool dup;
           ]
         in
         sprintf "Dmove(%s)" (attrs_to_string l)
@@ -180,9 +182,10 @@ module IrreversibleFormat = struct
             let depth_opt = get_iattr_opt xnode depth_attr in
             let shift_opt = get_iattr_opt xnode shift_attr in
             let mctl = get_mctl_attr xnode in
+            let dup = get_dup_attr xnode in
             Dmove(mctl, mid,
                   path_from, paths_from, path_to, paths_to,
-                  key_opt, adj_opt, depth_opt, shift_opt)
+                  key_opt, adj_opt, depth_opt, shift_opt, dup)
 
 	  else if name = chg_tag then
 	    let path = path_of_string (get_attr xnode path_attr) in
@@ -301,7 +304,7 @@ module IrreversibleFormat = struct
           | Ddelete(path, paths) -> begin
               interpreter#reg_deleted path paths (Some (gen_del_stid_key()))
           end
-          | Dmove(mctl, mid, path_from, paths_from, _, _, _, _, _, _) when mctl <> MinsertOnly -> begin
+          | Dmove(mctl, mid, path_from, paths_from, _, _, _, _, _, _, _) when mctl <> MinsertOnly -> begin
               let nd = interpreter#acc path_from#path in
               movs := (nd, ed)::!movs;
               Hashtbl.add mov_tbl mid ed
@@ -316,7 +319,7 @@ module IrreversibleFormat = struct
       List.iter
         (fun (_, ed) ->
           match ed with
-          | Dmove(mctl, mid, path_from, paths_from, _, _, _, _, _, _) when mctl <> MinsertOnly -> begin
+          | Dmove(mctl, mid, path_from, paths_from, _, _, _, _, _, _, _) when mctl <> MinsertOnly -> begin
               interpreter#reg_deleted path_from paths_from (Some (key_of_mid mid));
           end
           | _ -> ()
@@ -338,7 +341,7 @@ module IrreversibleFormat = struct
                         DEBUG_MSG "mid=%a" MID.ps mid;
                         let _rp' = ref Path.root in
                         match Hashtbl.find mov_tbl mid with
-                        | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
+                        | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _, _) as mov when begin
                             let _ = mov in
                             DEBUG_MSG "checking %s" (edit_to_string mov);
                             path_to#parent_path <> path_from#path &&
@@ -366,7 +369,7 @@ module IrreversibleFormat = struct
                 else
                   ed
             end
-            | Dmove(mctl0, mid0, path_from0, paths_from0, path, [], None, None, None, None) -> begin
+            | Dmove(mctl0, mid0, path_from0, paths_from0, path, [], None, None, None, None, dup) -> begin
                 if (*path#offset <> 0.0 && *)not path#stay && path#upstream = 0 && path#key_opt = None then begin
                   try
                     let _ppath, elem = Path.split path#path in
@@ -378,7 +381,7 @@ module IrreversibleFormat = struct
                         DEBUG_MSG "mid=%a" MID.ps mid;
                         let _rp' = ref Path.root in
                         match Hashtbl.find mov_tbl mid with
-                        | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _) as mov when begin
+                        | Dmove(mctl, mid, path_from, paths_from, path_to, (*[]*)_, _, _, _, _, _) as mov when begin
                             let _ = mov in
                             path_to#parent_path <> path_from#path &&
                             let _ = _rp' := Path.remove_head path_from#path _ppath in
@@ -392,7 +395,7 @@ module IrreversibleFormat = struct
                           let path' = new path_c _path' in
                           let depth_opt' = Some depth' in
                           let ed' =
-                            Dmove(mctl0, mid0, path_from0, paths_from0, path', [], key_opt', None, depth_opt', None)
+                            Dmove(mctl0, mid0, path_from0, paths_from0, path', [], key_opt', None, depth_opt', None, dup)
                           in
                           DEBUG_MSG "%s" (edit_to_string ed);
                           DEBUG_MSG " -> %s" (edit_to_string ed');
@@ -418,10 +421,10 @@ module IrreversibleFormat = struct
               interpreter#reg_subtree ~key_opt ~adj_opt ~depth_opt ~shift_opt ~dup stid subtree path paths
 
           | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to,
-                  key_opt, adj_opt, depth_opt, shift_opt) -> begin
+                  key_opt, adj_opt, depth_opt, shift_opt, dup) -> begin
                     if mctl <> MdeleteOnly then
                       interpreter#reg_moved_subtree
-                        ~key_opt ~adj_opt ~depth_opt ~shift_opt
+                        ~key_opt ~adj_opt ~depth_opt ~shift_opt ~dup
                         mid path_from paths_from path_to paths_to;
                   end
           | _ -> ()
@@ -435,7 +438,7 @@ module IrreversibleFormat = struct
           | Ddelete(path, paths) ->
               interpreter#reg_parent path paths
 
-          | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to, _, _, _, _) ->
+          | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to, _, _, _, _, _) ->
               interpreter#reg_parent path_from paths_from
 
           | _ -> ()
@@ -458,7 +461,7 @@ module IrreversibleFormat = struct
                         key_opt adj_opt depth_opt shift_opt
 
           | Dmove(mctl, mid, path_from, paths_from, path_to, paths_to,
-                  key_opt, adj_opt, depth_opt, shift_opt)
+                  key_opt, adj_opt, depth_opt, shift_opt, dup)
             ->
               DEBUG_MSG "<** %s **>" (edit_to_string ed);
               interpreter#interpret_move ~mctl

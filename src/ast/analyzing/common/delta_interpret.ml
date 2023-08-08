@@ -215,9 +215,10 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
   val op_tbl = Hashtbl.create 0 (* uid -> mutation list *)
 
+  val mutable dup_list = []
+
   (* stid -> subtree *)
   val subtree_tbl = (Hashtbl.create 0 : (subtree_id, 'tree) Hashtbl.t)
-  val mutable dup_list = []
 
   (* mid -> subtree *)
   val copied_subtree_tbl = (Hashtbl.create 0 : (MID.t, 'tree) Hashtbl.t)
@@ -5607,7 +5608,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     Hashtbl.add subtree_tbl stid subtree;
     Hashtbl.add path_tbl subtree#root path;
     if dup then
-      dup_list <- stid :: dup_list;
+      dup_list <- (key_of_stid stid) :: dup_list;
     begin
       match key_opt with
       | Some k -> Hashtbl.add path_key_tbl subtree#root k
@@ -5661,11 +5662,15 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       ?(adj_opt=(None : int option))
       ?(depth_opt=(None : int option))
       ?(shift_opt=(None : int option))
+      ?(dup=false)
       mid
       (path_from : path_c) (paths_from : boundary)
       (path_to : path_c) (paths_to : boundary)
       =
-    DEBUG_MSG "mid=%a path_from=%s" MID.ps mid path_from#to_string;
+    DEBUG_MSG "mid=%a path_from=%s dup=%B" MID.ps mid path_from#to_string dup;
+
+    if dup then
+      dup_list <- (key_of_mid mid) :: dup_list;
 
     let is_staying =
       Path.is_prefix path_from#path path_to#path
@@ -6439,10 +6444,16 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         Exit -> !idx
     in
     let ptbl = Hashtbl.create 0 in
-    let check_stid stid =
-      DEBUG_MSG "stid=\"%s\"" (stid_to_str stid);
+    let check_key key =
+      let key_str = key_to_string key in
+      DEBUG_MSG "key=\"%s\"" key_str;
       try
-        let subtree = Hashtbl.find subtree_tbl stid in
+        let subtree =
+          match key with
+          | K_stid stid -> Hashtbl.find subtree_tbl stid
+          | K_mid mid -> Hashtbl.find copied_subtree_tbl mid
+          | _ -> raise Not_found
+        in
         let rt = subtree#root in
         DEBUG_MSG "rt=%s" rt#initial_to_string;
         try
@@ -6480,9 +6491,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             | Exit -> true
             | Abort -> false
           in
-          DEBUG_MSG "stid=\"%s\": to_be_pruned=%B" (stid_to_str stid) to_be_pruned;
+          DEBUG_MSG "key=\"%s\": to_be_pruned=%B" key_str to_be_pruned;
           if to_be_pruned then begin
-            WARN_MSG "stid=\"%s\" is to be pruned" (stid_to_str stid);
+            WARN_MSG "key=\"%s\" is to be pruned" key_str;
             try
               let posl = Hashtbl.find ptbl parent in
               Hashtbl.replace ptbl parent (pos::posl)
@@ -6492,9 +6503,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         with
           _ -> ()
       with
-        Not_found -> WARN_MSG "not found: %s" (stid_to_str stid);
+        Not_found -> WARN_MSG "not found: %s" key_str;
     in
-    List.iter check_stid dup_list;
+    List.iter check_key dup_list;
     Hashtbl.iter
       (fun parent posl ->
         parent#prune_initial_children posl
