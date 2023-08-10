@@ -4006,7 +4006,7 @@ let is_classname_pattern_expr = function
       -> true
   | _ -> false
 
-let scope_creating lab =
+let is_scope_creating lab =
   is_compilationunit lab ||
   is_class lab ||
   is_interface lab ||

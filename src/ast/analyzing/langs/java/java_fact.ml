@@ -150,7 +150,7 @@ class extractor options cache_path tree = object (self)
 
 
   method scanner_body_before_subscan nd lab entity =
-    if L.scope_creating lab then
+    if L.is_scope_creating lab then
       stack#push nd;
 
     if L.is_packagedeclaration lab then
@@ -158,7 +158,7 @@ class extractor options cache_path tree = object (self)
 
 
   method scanner_body_after_subscan nd lab entity =
-    if L.scope_creating lab then
+    if L.is_scope_creating lab then
       stack#pop;
 
     if node_filter options nd then begin

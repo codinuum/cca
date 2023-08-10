@@ -10025,19 +10025,36 @@ module Edit = struct
 
         let delta_info_flag = true in
 
+        let is_def nd = Binding.is_def nd#data#binding in
+
         let info_add, paths_info_add, dump_info =
           if delta_info_flag && info_file_name <> "" then begin
+            let scope_nodes = Xset.create 0 in
             let info_tbl = Hashtbl.create 0 in (* apath -> syn_cat * line_num * column_num *)
-            let add ?(path="") nd =
+            let add ?(add_scope_path=true) ?(path="") nd =
               let ap =
                 if path = "" then
                   Path.to_string nd#apath
                 else
                   path
               in
-              let ndata = nd#data in
-              let ln, cn = ndata#src_loc.Loc.start_line, ndata#src_loc.Loc.start_char in
-              Hashtbl.add info_tbl ap (ndata#elem_name_for_delta, ln, cn)
+              if not (Hashtbl.mem info_tbl ap) then begin
+                let ndata = nd#data in
+                let ln, cn = ndata#src_loc.Loc.start_line, ndata#src_loc.Loc.start_char in
+                let scope_path_opt =
+                  if add_scope_path && is_def nd then begin
+                    try
+                      let sn = ndata#scope_node in
+                      Xset.add scope_nodes sn;
+                      Some (Path.to_string sn#apath)
+                    with
+                      _ -> None
+                  end
+                  else
+                    None
+                in
+                Hashtbl.add info_tbl ap (ndata, ln, cn, scope_path_opt)
+              end
             in
             let paths_add anc path pathl tid tree rt =
               let len = List.length pathl in
@@ -10056,16 +10073,25 @@ module Edit = struct
               else
                 ()
             in
+            let add_defs nd =
+              let moveon n = not n#data#is_scope_creating in
+              preorder_scan_whole_initial_subtree ~moveon nd
+                (fun n ->
+                  if is_def n then
+                    add ~add_scope_path:false n
+                )
+            in
             let dump () =
+              Xset.iter add_defs scope_nodes;
               let l =
                 Hashtbl.fold
-                  (fun ap (name, ln, cn) l ->
-                    (ap, name, ln, cn)::l
+                  (fun ap (name, ln, cn, scope_path_opt) l ->
+                    (ap, name, ln, cn, scope_path_opt)::l
                   ) info_tbl []
               in
               let sorted =
                 List.fast_sort
-                  (fun (_, _, ln0, cn0) (_, _, ln1, cn1) -> compare (ln0, cn0) (ln1, cn1))
+                  (fun (_, _, ln0, cn0, _) (_, _, ln1, cn1, _) -> compare (ln0, cn0) (ln1, cn1))
                   l
               in
               let dest = Xchannel.Destination.of_file info_file_name in
@@ -10073,10 +10099,22 @@ module Edit = struct
               Xchannel.fprintf info_ch "{";
               let _ =
                 List.fold_left
-                  (fun comma (ap, name, ln, cn) ->
+                  (fun comma (ap, ndata, ln, cn, scope_path_opt) ->
+                    let name = ndata#elem_name_for_delta in
+                    let aname_ =
+                      try
+                        sprintf ",\"aname\":\"%s\"" ndata#get_name
+                      with
+                        _ -> ""
+                    in
+                    let scope_path_ =
+                      match scope_path_opt with
+                      | Some p -> sprintf ",\"scope_path\":\"%s\"" p
+                      | None -> ""
+                    in
                     Xchannel.fprintf info_ch
-                      "%s\"%s\":{\"name\":\"%s\",\"line\":%d,\"column\":%d}"
-                      comma ap name ln cn;
+                      "%s\"%s\":{\"name\":\"%s\"%s,\"line\":%d,\"column\":%d%s}"
+                      comma ap name aname_ ln cn scope_path_;
                     ","
                   ) "" sorted
               in
@@ -10086,7 +10124,7 @@ module Edit = struct
             add, paths_add, dump
           end
           else
-            (fun ?(path="") _ -> ()), (fun _ _ _ _ _ _ -> ()), (fun () -> ())
+            (fun ?(add_scope_path=true) ?(path="") _ -> ()), (fun _ _ _ _ _ _ -> ()), (fun () -> ())
         in
 
         let fact_for_delta = options#fact_for_delta_flag in
@@ -10141,11 +10179,11 @@ module Edit = struct
 	  match ed with
 	  | Delete(nd1, excluded1) -> begin
               info_add nd1;
-              let pnd = nd1#initial_parent in
-              info_add pnd;
+              let pnd1 = nd1#initial_parent in
+              info_add pnd1;
               begin
                 try
-                  info_add pnd#initial_parent;
+                  info_add pnd1#initial_parent;
                 with _ -> ()
               end;
 
@@ -10269,7 +10307,8 @@ module Edit = struct
 
                 let check_path_to_ () =
                   check_path_to ncond mcond
-                    tree2 self#is_stable2 self#is_stable1 nmap1 nmap2 nd1 path2 excepted_paths2 stid_key
+                    tree2 self#is_stable2 self#is_stable1 nmap1 nmap2
+                    nd1 path2 excepted_paths2 stid_key
                 in
                 begin
                   (*try
@@ -10282,7 +10321,8 @@ module Edit = struct
 
                 DEBUG_MSG "anc2to_tbl: %s -> %a" (key_to_string stid_key) nps anc2;
                 Hashtbl.add anc2to_tbl stid_key (anc2, (path2, excepted_paths2));
-                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl stid_key anc2 path2 excepted_paths2 nd1;
+                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl
+                  stid_key anc2 path2 excepted_paths2 nd1;
 
                 if path2#upstream > 0 then begin
                   DEBUG_MSG "upstream_key: %s" (key_to_string stid_key);
@@ -10388,7 +10428,8 @@ module Edit = struct
 
               let check_path_to_ () =
                 check_path_to ncond mcond
-                  tree1 self#is_stable1 self#is_stable2 nmap2 nmap1 nd2 path1 excepted_paths1 stid_key
+                  tree1 self#is_stable1 self#is_stable2 nmap2 nmap1
+                  nd2 path1 excepted_paths1 stid_key
               in
               begin
                 (*try
@@ -10401,7 +10442,8 @@ module Edit = struct
 
               DEBUG_MSG "anc1to_tbl: %s -> %a" (key_to_string stid_key) nps anc1;
               Hashtbl.add anc1to_tbl stid_key (anc1, (path1, excepted_paths1));
-              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl stid_key anc1 path1 excepted_paths1 nd2;
+              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl
+                stid_key anc1 path1 excepted_paths1 nd2;
 
               if path1#upstream > 0 then begin
                 DEBUG_MSG "upstream_key: %s" (key_to_string stid_key);
@@ -10629,7 +10671,8 @@ module Edit = struct
 
               DEBUG_MSG "anc1to_tbl: %s -> %a" (key_to_string mid_key) nps anc1to;
               Hashtbl.add anc1to_tbl mid_key (anc1to, (path1to, excepted_paths1to));
-              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl mid_key anc1to path1to excepted_paths1to nd2;
+              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl
+                mid_key anc1to path1to excepted_paths1to nd2;
 
               if path1to#upstream > 0 then begin
                 DEBUG_MSG "upstream_key: %s" (key_to_string mid_key);
@@ -10642,7 +10685,8 @@ module Edit = struct
               self#reg_parent_key1 excepted_paths1to mid_key;
 
               Hashtbl.add movins_tbl mid
-                (anc1to, path1to, excepted_paths1to, simple1, key_opt1, adj_opt1, depth_opt1, shift_opt1);
+                (anc1to, path1to, excepted_paths1to, simple1,
+                 key_opt1, adj_opt1, depth_opt1, shift_opt1);
 
               if irreversible_flag then begin
                 reg_edit_parent edit_parent_tbl1 key_opt1 (fun () -> key_of_mid mid);
@@ -10654,11 +10698,11 @@ module Edit = struct
           end
           | Move(mid, _, nd1, excluded1, nd2, excluded2) -> begin
               info_add nd1;
-              let pnd = nd1#initial_parent in
-              info_add pnd;
+              let pnd1 = nd1#initial_parent in
+              info_add pnd1;
               begin
                 try
-                  info_add pnd#initial_parent;
+                  info_add pnd1#initial_parent;
                 with _ -> ()
               end;
 
@@ -10698,7 +10742,9 @@ module Edit = struct
                   tree2 nd2 self#is_stable2 excluded2 remote_stable_nds2
               in*)
 
-              let anc1to, path1to, excepted_paths1to, simple1, key_opt1, adj_opt1, depth_opt1, shift_opt1 =
+              let anc1to, path1to, excepted_paths1to, simple1,
+                key_opt1, adj_opt1, depth_opt1, shift_opt1
+                  =
                 try
                   Hashtbl.find movins_tbl mid
                 with _ -> assert false
@@ -10987,10 +11033,13 @@ module Edit = struct
                           let is_simple_ins x =
                             let b =
                               Xset.mem simple_ins_roots2 x ||
-                              let top_nodes = self#get_top_nodes nd2 x anc1to path1to excepted_paths1to in
+                              let top_nodes =
+                                self#get_top_nodes nd2 x anc1to path1to excepted_paths1to
+                              in
                               let k_opt = self#find_key_opt x#uid in
                               List.exists (fun p -> p#key_opt = k_opt) excepted_paths1to ||
-                              self#_is_simple_ins tree1 self#is_stable2 is_stable2_ nmap2 ~top_nodes x
+                              self#_is_simple_ins tree1 self#is_stable2 is_stable2_ nmap2
+                                ~top_nodes x
                             in
                             DEBUG_MSG "%a -> %B" nps x b;
                             b
@@ -11014,23 +11063,39 @@ module Edit = struct
                                       | None -> true
                                   end
                                   | None -> true) &&
-                                  (not (self#is_stable2 x) ||
-                                  self#is_excluded_tn self#is_stable2 nmap2 nd2 x n2 anc1to path1to excepted_paths1to) &&
-                                  (self#is_stable2 x ||
-                                  (match get_p_descendants self#is_stable2 x with
-                                  | [] -> false
-                                  | [s2] ->
-                                      let top_nodes = self#get_top_nodes nd2 x anc1to path1to excepted_paths1to in
-                                      let s1 = nmap2 s2 in
-                                      List.exists (fun tn -> is_ancestor tn s1) top_nodes
-                                  | _ -> true) &&
-                                  not (is_simple_ins x) &&
-                                  try not (self#is_ancestor_key1 (self#find_key x#initial_parent#uid) (self#find_key x#uid)) with _ -> true)
+                                  (
+                                   not (self#is_stable2 x) ||
+                                   self#is_excluded_tn self#is_stable2 nmap2
+                                     nd2 x n2 anc1to path1to excepted_paths1to
+                                  ) &&
+                                  (
+                                   self#is_stable2 x ||
+                                   (match get_p_descendants self#is_stable2 x with
+                                   | [] -> false
+                                   | [s2] ->
+                                       let top_nodes =
+                                         self#get_top_nodes nd2 x anc1to path1to excepted_paths1to
+                                       in
+                                       let s1 = nmap2 s2 in
+                                       List.exists (fun tn -> is_ancestor tn s1) top_nodes
+                                   | _ -> true
+                                   ) &&
+                                   not (is_simple_ins x) &&
+                                   try
+                                     not
+                                       (self#is_ancestor_key1
+                                          (self#find_key x#initial_parent#uid)
+                                          (self#find_key x#uid))
+                                   with _ -> true
+                                  )
                             (*else if self#paths_to_have_frac_ofs excepted_paths1to then
                               fun _ x -> is_excluded x*)
                             else
                               let group_heads =
-                                Hashtbl.fold (fun _ nl l -> try (List.hd (List.rev nl))::l with _ -> l) group_tbl []
+                                Hashtbl.fold
+                                  (fun _ nl l ->
+                                    try (List.hd (List.rev nl))::l with _ -> l
+                                  ) group_tbl []
                               in
                               fun _ x ->
                                 let b =
@@ -11042,9 +11107,12 @@ module Edit = struct
                                   get_p_descendants ~moveon is_stable2_ x <> [] &&
                                   try
                                     not
-                                      (self#is_ancestor_key1 (self#find_key x#initial_parent#uid) (self#find_key x#uid))
+                                      (self#is_ancestor_key1
+                                         (self#find_key x#initial_parent#uid)
+                                         (self#find_key x#uid))
                                   with _ -> true) &&
-                                  self#is_excluded_tn self#is_stable2 nmap2 nd2 x n2 anc1to path1to excepted_paths1to
+                                  self#is_excluded_tn self#is_stable2 nmap2
+                                    nd2 x n2 anc1to path1to excepted_paths1to
                                 in
                                 DEBUG_MSG "b=%B x=%a n2=%a" b nps x nps n2;
                                 b
@@ -11085,7 +11153,8 @@ module Edit = struct
                           else
                             None
                         in
-                        self#get_parent_key_opt ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc1to)
+                        self#get_parent_key_opt
+                          ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc1to)
                           self#is_stable1 self#is_stable2 tree1 tree2
                           uidmapping#find uidmapping#inv_find n1
                     in
@@ -11153,7 +11222,8 @@ module Edit = struct
                 in
                 let check_path_to_ () =
                   check_path_to ncond mcond
-                    tree1 self#is_stable1 self#is_stable2 nmap2 nmap1 nd2 path1to excepted_paths1to mid_key
+                    tree1 self#is_stable1 self#is_stable2 nmap2 nmap1
+                    nd2 path1to excepted_paths1to mid_key
                 in
                 begin
                   (*try
@@ -11249,7 +11319,8 @@ module Edit = struct
                                           List.exists
                                             (fun sx2 ->
                                               let sx1 = nmap2 sx2 in
-                                              sx1#initial_parent != anc1to && not (is_ancestor c sx1)
+                                              sx1#initial_parent != anc1to &&
+                                              not (is_ancestor c sx1)
                                             ) (get_p_descendants self#is_stable2 r2)
                                         then begin
                                           DEBUG_MSG "found: %a (k=%s)" nps s02 (key_to_string k0);
@@ -11450,7 +11521,8 @@ module Edit = struct
                           else
                             None
                         in
-                        self#get_parent_key_opt ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc2to)
+                        self#get_parent_key_opt
+                          ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc2to)
                           self#is_stable2 self#is_stable1 tree2 tree1
                           uidmapping#inv_find uidmapping#find n2
                       in
@@ -11499,7 +11571,8 @@ module Edit = struct
                   in
                   let check_path_to_ () =
                     check_path_to ncond mcond
-                      tree2 self#is_stable2 self#is_stable1 nmap1 nmap2 nd1 path2to excepted_paths2to mid_key
+                      tree2 self#is_stable2 self#is_stable1 nmap1 nmap2
+                      nd1 path2to excepted_paths2to mid_key
                   in
                   begin
                     (*try
@@ -11513,7 +11586,8 @@ module Edit = struct
 
                 DEBUG_MSG "anc2to_tb;: %s -> %a" (key_to_string mid_key) nps anc2to;
                 Hashtbl.add anc2to_tbl mid_key (anc2to, (path2to, excepted_paths2to));
-                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl mid_key anc2to path2to excepted_paths2to nd1;
+                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl
+                  mid_key anc2to path2to excepted_paths2to nd1;
 
                 if path2to#upstream > 0 then begin
                   DEBUG_MSG "upstream_key: %s" (key_to_string mid_key);

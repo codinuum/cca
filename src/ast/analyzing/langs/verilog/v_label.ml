@@ -2110,6 +2110,9 @@ let is_expr = function
 let is_op = function (* not yet *)
   | _ -> false
 
+let is_scope_creating = function (* not yet *)
+  | _ -> false
+
 let is_stmt = function
   | Stmt _ -> true
   | _ -> false

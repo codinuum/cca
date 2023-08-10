@@ -160,6 +160,9 @@ let is_real_literal lab = false (* not yet *)
 let is_statement lab = false (* not yet *)
 let is_op lab = false (* not yet *)
 
+let is_scope_creating lab = false (* not yet *)
+
+
 let to_string { elem_name=elem; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns; } =
   let attrs_s =
     String.concat ""

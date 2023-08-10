@@ -1401,6 +1401,9 @@ let is_op = function
       -> true
   | _ -> false
 
+let is_scope_creating = function (* not yet *)
+  | _ -> false
+
 (* for fact extraction *)
 
 let get_category lab =

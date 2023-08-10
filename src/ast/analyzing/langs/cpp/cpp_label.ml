@@ -1800,6 +1800,9 @@ let is_op = function
       -> true
   | _ -> false
 
+let is_scope_creating = function (* not yet *)
+  | _ -> false
+
 let is_pp_branch = function
   | PpIf _
   | PpIfdef _

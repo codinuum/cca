@@ -312,14 +312,21 @@ class visitor bid_gen tree = object (self)
 
   val stack = new Sourcecode.stack
 
+  method set_scope_node nd =
+    try
+      let n = stack#top.Sourcecode.f_scope_node in
+      nd#data#set_scope_node n
+    with
+      Not_found -> ()
+
   method scanner_body_before_subscan nd =
     let lab = getlab nd in
-    if L.scope_creating lab then
+    if L.is_scope_creating lab then
       stack#push nd
 
   method scanner_body_after_subscan nd =
     let lab = getlab nd in
-    if L.scope_creating lab then
+    if L.is_scope_creating lab then
       stack#pop;
 
     if L.is_parameter lab then begin
@@ -327,6 +334,7 @@ class visitor bid_gen tree = object (self)
       let bid = bid_gen#gen in
       DEBUG_MSG "DEF(param): %s (bid=%a) %s" name BID.ps bid nd#to_string;
       nd#data#set_binding (Binding.make_unknown_def bid true);
+      self#set_scope_node nd;
       stack#register name nd
     end;
 
@@ -335,6 +343,7 @@ class visitor bid_gen tree = object (self)
       let bid = bid_gen#gen in
       DEBUG_MSG "DEF(for_header): %s (bid=%a) %s" name BID.ps bid nd#to_string;
       nd#data#set_binding (Binding.make_unknown_def bid true);
+      self#set_scope_node nd;
       stack#register name nd
     end;
 
@@ -344,6 +353,7 @@ class visitor bid_gen tree = object (self)
         let bid = bid_gen#gen in
         DEBUG_MSG "DEF(decl): %s (bid=%a) %s" name BID.ps bid nd#to_string;
         nd#data#set_binding (Binding.make_unknown_def bid true);
+        self#set_scope_node nd;
         stack#register name nd
       end
     end;

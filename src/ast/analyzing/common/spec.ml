@@ -71,6 +71,8 @@ class type node_data_t = object ('self)
   method is_statement      : bool
   method is_op             : bool
 
+  method is_scope_creating : bool
+
   method move_disallowed : bool
   method is_common       : bool
 
@@ -80,8 +82,12 @@ class type node_data_t = object ('self)
 
   method orig_lab_opt  : Obj.t option
 
+  method binding : Binding.t
   method set_binding : Binding.t -> unit
   method add_binding : Binding.t -> unit
+
+  method scope_node : 'self Otree.node2
+  method set_scope_node : 'self Otree.node2 -> unit
 
   method successors    : ('self Otree.node2) Xset.t
   method add_successor : ('self Otree.node2) -> unit
@@ -397,6 +403,8 @@ module type LABEL_T = sig
 
   val is_statement       : t -> bool
   val is_op              : t -> bool
+
+  val is_scope_creating : t -> bool
 
   val to_tag             : ?strip:bool -> t -> string * (string * string) list
 

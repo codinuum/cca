@@ -2155,6 +2155,9 @@ let is_op = function
     -> true
   | _ -> false
 
+let is_scope_creating = function (* not yet *)
+  | _ -> false
+
 let is_compatible ?(weak=false) _ _ = false
 
 let is_order_insensitive = function
