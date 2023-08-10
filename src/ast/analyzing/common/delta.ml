@@ -10031,7 +10031,7 @@ module Edit = struct
           if delta_info_flag && info_file_name <> "" then begin
             let scope_nodes = Xset.create 0 in
             let info_tbl = Hashtbl.create 0 in (* apath -> syn_cat * line_num * column_num *)
-            let add ?(add_scope_path=true) ?(path="") nd =
+            let add ?(add_scope_node=true) ?(path="") nd =
               let ap =
                 if path = "" then
                   Path.to_string nd#apath
@@ -10042,10 +10042,11 @@ module Edit = struct
                 let ndata = nd#data in
                 let ln, cn = ndata#src_loc.Loc.start_line, ndata#src_loc.Loc.start_char in
                 let scope_path_opt =
-                  if add_scope_path && is_def nd then begin
+                  if is_def nd then begin
                     try
                       let sn = ndata#scope_node in
-                      Xset.add scope_nodes sn;
+                      if add_scope_node then
+                        Xset.add scope_nodes sn;
                       Some (Path.to_string sn#apath)
                     with
                       _ -> None
@@ -10074,11 +10075,11 @@ module Edit = struct
                 ()
             in
             let add_defs nd =
-              let moveon n = not n#data#is_scope_creating in
+              let moveon n = true in
               preorder_scan_whole_initial_subtree ~moveon nd
                 (fun n ->
-                  if is_def n then
-                    add ~add_scope_path:false n
+                  if is_def n || n#data#is_scope_creating then
+                    add ~add_scope_node:false n
                 )
             in
             let dump () =
@@ -10124,7 +10125,7 @@ module Edit = struct
             add, paths_add, dump
           end
           else
-            (fun ?(add_scope_path=true) ?(path="") _ -> ()), (fun _ _ _ _ _ _ -> ()), (fun () -> ())
+            (fun ?(add_scope_node=true) ?(path="") _ -> ()), (fun _ _ _ _ _ _ -> ()), (fun () -> ())
         in
 
         let fact_for_delta = options#fact_for_delta_flag in
