@@ -968,11 +968,11 @@ record_declaration_head:
       let rh0, ts_opt = rh1 in
       end_typeparameter_scope ts_opt;
       let ms_opt, id = rh0 in
-      begin
+      (*begin (* ??? *)
         match ms_opt with
         | Some ms when has_user_defined_annotation ms -> env#set_has_super()
         | _ -> ()
-      end;
+      end;*)
       mkrh $startofs $endofs ms_opt id ts_opt h i_opt
     }
 ;
@@ -1026,11 +1026,11 @@ class_declaration_head:
       let ch0, ts_opt = ch1 in
       end_typeparameter_scope ts_opt;
       let ms_opt, id = ch0 in
-      begin
+      (*begin (* ??? *)
         match ms_opt with
         | Some ms when has_user_defined_annotation ms -> env#set_has_super()
         | _ -> ()
-      end;
+      end;*)
       mkch $startofs $endofs ms_opt id ts_opt s_opt i_opt p_opt
     }
 ;

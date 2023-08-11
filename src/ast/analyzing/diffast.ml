@@ -86,7 +86,8 @@ let set_dump_src_flag() =
 
 let set_dump_delta_flag () =
   options#set_dump_delta_flag;
-  options#set_java_anon_ctor_body_flag
+  options#set_java_anon_ctor_body_flag;
+  options#set_flatten_if_flag
 
 let set_dump_delta_out s =
   options#set_dump_delta_out s;
@@ -284,9 +285,15 @@ let speclist =
    "-scan-huge-exprs", Arg.Unit (fun () -> options#clear_ignore_huge_exprs_flag),
                        sprintf "\t\tdo not ignore huge exprs (default:%s)"
                        (if options#ignore_huge_exprs_flag then "ignore" else "scan");
-   "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
-                         sprintf "N\t\thuge array size threshold (default: %d)"
-                         options#huge_array_threshold;
+   "-huge-expr-thresh", Arg.Int options#set_huge_expr_threshold,
+                        sprintf "N\t\thuge expr size threshold (default: %d)"
+                        options#huge_expr_threshold;
+   (*"-flatten-if", Arg.Unit (fun () -> options#set_flatten_if_flag),
+                  sprintf "\t\tflatten if-statement (default:%s)"
+                  (if options#flatten_if_flag then "true" else "false");
+   "-deep-if-thresh", Arg.Int options#set_deep_if_threshold,
+                      sprintf "N\t\tdeep nested if-statement threshold (default: %d)"
+                      options#deep_if_threshold;*)
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
                                  sprintf "N\tmoderate num of children threshold (default: %d)"
                                  options#moderate_nchildren_threshold;

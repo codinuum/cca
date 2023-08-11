@@ -10104,7 +10104,8 @@ module Edit = struct
                     let name = ndata#elem_name_for_delta in
                     let aname_ =
                       try
-                        sprintf ",\"aname\":\"%s\"" ndata#get_name
+                        sprintf ",\"aname\":\"%s\""
+                          (try ndata#get_orig_name with _ -> ndata#get_name)
                       with
                         _ -> ""
                     in

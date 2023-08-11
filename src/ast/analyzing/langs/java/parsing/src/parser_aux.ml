@@ -676,7 +676,7 @@ class env = object (self)
   method set_has_super() =
     try
       match self#current_frame#kind with
-      | FKclass(_, x) -> x := true
+      | FKclass(_, x) -> DEBUG_MSG "@"; x := true
       | _ -> ()
     with _ -> ()
 

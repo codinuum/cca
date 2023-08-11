@@ -68,6 +68,7 @@ class type node_data_t = object ('self)
   method is_string_literal : bool
   method is_int_literal    : bool
   method is_real_literal   : bool
+  method is_literal        : bool
   method is_statement      : bool
   method is_op             : bool
 

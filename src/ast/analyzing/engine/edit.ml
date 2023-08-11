@@ -938,6 +938,7 @@ let adjust_renames
         let bi1 = get_bid nd1 in
         DEBUG_MSG "bi1=%a" BID.ps bi1;
         let non_rename1 = non_rename non_rename_bid_tbl1 bi1 in
+        DEBUG_MSG "non_rename1=%B" non_rename1;
         try
           let bi1' = Hashtbl.find rename_tbl1 bi1 in
           DEBUG_MSG "bi1'=%a" BID.ps bi1';
@@ -952,6 +953,7 @@ let adjust_renames
         let bi2 = get_bid nd2 in
         DEBUG_MSG "bi2=%a" BID.ps bi2;
         let non_rename2 = non_rename non_rename_bid_tbl2 bi2 in
+        DEBUG_MSG "non_rename2=%B" non_rename2;
         try
           let bi2' = Hashtbl.find rename_tbl2 bi2 in
           DEBUG_MSG "bi2'=%a" BID.ps bi2';
@@ -980,13 +982,18 @@ let adjust_renames
               (match bi2'_opt with Some bi2' -> bi1 <> bi2' | None -> false)
             )*), false
       end
+      | Some _, None when nd2#data#is_literal -> false, false
+      | None, Some _ when nd1#data#is_literal -> false, false
+
       | Some bi1, None ->
           DEBUG_MSG "bi1=%a bi2=None" BID.ps bi1;
-          context_cond_ && (non_rename1 || (match bi1'_opt with Some _ -> true | None -> false)), non_rename1
+          context_cond_ &&
+          (non_rename1 || (match bi1'_opt with Some _ -> true | None -> false)), non_rename1
 
       | None, Some bi2 ->
           DEBUG_MSG "bi1=None bi2=%a" BID.ps bi2;
-          context_cond_ && (non_rename2 || (match bi2'_opt with Some _ -> true | None -> false)), non_rename2
+          context_cond_ &&
+          (non_rename2 || (match bi2'_opt with Some _ -> true | None -> false)), non_rename2
 
       | None, None ->
           false, false

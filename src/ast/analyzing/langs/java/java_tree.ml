@@ -329,6 +329,10 @@ class visitor bid_gen tree = object (self)
     if L.is_scope_creating lab then
       stack#pop;
 
+    if L.is_import_single lab then begin
+      nd#data#set_scope_node tree#root
+    end;
+
     if L.is_parameter lab then begin
       let name = L.get_name lab in
       let bid = bid_gen#gen in
@@ -348,7 +352,7 @@ class visitor bid_gen tree = object (self)
     end;
 
     if L.is_variabledeclarator lab then begin
-      if L.is_local_variabledeclarator lab then begin
+      if true || L.is_local_variabledeclarator lab then begin
         let name = L.get_name lab in
         let bid = bid_gen#gen in
         DEBUG_MSG "DEF(decl): %s (bid=%a) %s" name BID.ps bid nd#to_string;
@@ -1593,7 +1597,7 @@ class translator options =
             (* assumes a type name starts with a capital letter *)
             name_to_node (fun x -> L.Primary.AmbiguousName x) name
           end
-          else begin
+          else(* if options#fact_flag then*) begin
             let mknd ?(children=[]) =
               name_to_node ~children (fun x -> L.Primary.AmbiguousName x)
             in
@@ -1606,6 +1610,9 @@ class translator options =
             in
             doit name
           end
+          (*else begin
+            name_to_node (fun x -> L.Primary.AmbiguousName x) name
+          end*)
         end
         else
           name_to_node (fun x -> L.Primary.Name x) name
