@@ -2047,34 +2047,38 @@ class ['node_t, 'tree_t] c
           in
 
           BEGIN_DEBUG
-            DEBUG_MSG
-            "anc_sim_almost_same: %B (thresh=%f)" anc_sim_almost_same ancestors_similarity_ratio_thresh;
+            DEBUG_MSG "anc_sim_almost_same: %B (thresh=%f)"
+              anc_sim_almost_same ancestors_similarity_ratio_thresh;
             DEBUG_MSG "all_single: %B" all_single;
             DEBUG_MSG "all_double: %B" all_double;
           END_DEBUG;
 
           let _is_plausible nd1 nd2 =
             let b =
-             (self#has_weak_non_trivial_value nd1 && nd2#data#is_named_orig && not nd2#data#is_string_literal &&
-             let v = nd1#data#get_value in
-             let nm = nd2#data#get_name in
-             DEBUG_MSG "v=%s nm=%s" v nm;
-             let count = ref 0 in
-             try
-               uidmapping#iter
-                 (fun u1 u2 ->
-                   let n1 = tree1#search_node_by_uid u1 in
-                   let n2 = tree2#search_node_by_uid u2 in
-                   if try n1#data#get_value = v && n2#data#get_name = nm with _ -> false then begin
-                     incr count;
-                     if !count > 1 then
-                       raise Exit
-                   end
-                 );
-               false
-             with
-               Exit -> true) ||
-            (nd1#data#is_named_orig && not nd1#data#is_string_literal && self#has_weak_non_trivial_value nd2 &&
+             (self#has_weak_non_trivial_value nd1 &&
+              nd2#data#is_named_orig &&
+              not nd2#data#is_string_literal &&
+              let v = nd1#data#get_value in
+              let nm = nd2#data#get_name in
+              DEBUG_MSG "v=%s nm=%s" v nm;
+              let count = ref 0 in
+              try
+                uidmapping#iter
+                  (fun u1 u2 ->
+                    let n1 = tree1#search_node_by_uid u1 in
+                    let n2 = tree2#search_node_by_uid u2 in
+                    if try n1#data#get_value = v && n2#data#get_name = nm with _ -> false then begin
+                      incr count;
+                      if !count > 1 then
+                        raise Exit
+                    end
+                  );
+                false
+              with
+                Exit -> true) ||
+            (nd1#data#is_named_orig &&
+             not nd1#data#is_string_literal &&
+             self#has_weak_non_trivial_value nd2 &&
              let nm = nd1#data#get_name in
              let v = nd2#data#get_value in
              DEBUG_MSG "nm=%s v=%s" nm v;
@@ -2112,14 +2116,36 @@ class ['node_t, 'tree_t] c
             DEBUG_MSG "%a-%a -> %B" nups nd1 nups nd2 b;
             b
           in
+          let has_same_subtree nd1 nd2 =
+            DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+            let b =
+              let nc = nd1#initial_nchildren in
+              nc = 2 &&
+              nd2#initial_nchildren = nc &&
+              try
+                for i = nc - 1 downto 0 do
+                  let cnd1 = nd1#initial_children.(i) in
+                  let cnd2 = nd2#initial_children.(i) in
+                  if cnd1#data#subtree_equals cnd2#data then
+                    raise Exit
+                done;
+                false
+              with
+                Exit -> true
+            in
+            DEBUG_MSG "%a-%a -> %B" nups nd1 nups nd2 b;
+            b
+          in
 
           if
             ancsim_old = 1.0 && subtree_sim_old = 1.0 && ancsim_new < 1.0 && subtree_sim_new < 1.0 ||
             anc_sim_almost_same && subtree_sim_old = 1.0 && subtree_sim_new < 1.0 && chk_for_old() ||
             is_plausible nd1old nd2old && not (is_plausible nd1new nd2new) ||
             tid_eq nd1old nd2old && not (tid_eq nd1new nd2new) ||
+            has_same_subtree nd1old nd2old && not (has_same_subtree nd1new nd2new) ||
             prefer_sim && subtree_sim_old > subtree_sim_new
-            (* || (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
+      (* ||
+        (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
@@ -2133,6 +2159,7 @@ class ['node_t, 'tree_t] c
             anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new() ||
             is_plausible nd1new nd2new && not (is_plausible nd1old nd2old) ||
             tid_eq nd1new nd2new && not (tid_eq nd1old nd2old) ||
+            has_same_subtree nd1new nd2new && not (has_same_subtree nd1old nd2old) ||
             prefer_sim && subtree_sim_new > subtree_sim_old
             (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin
