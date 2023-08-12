@@ -86,8 +86,7 @@ let set_dump_src_flag() =
 
 let set_dump_delta_flag () =
   options#set_dump_delta_flag;
-  options#set_java_anon_ctor_body_flag;
-  options#set_flatten_if_flag
+  options#set_java_anon_ctor_body_flag
 
 let set_dump_delta_out s =
   options#set_dump_delta_out s;
@@ -290,10 +289,10 @@ let speclist =
                         options#huge_expr_threshold;
    (*"-flatten-if", Arg.Unit (fun () -> options#set_flatten_if_flag),
                   sprintf "\t\tflatten if-statement (default:%s)"
-                  (if options#flatten_if_flag then "true" else "false");
+                  (if options#flatten_if_flag then "true" else "false");*)
    "-deep-if-thresh", Arg.Int options#set_deep_if_threshold,
                       sprintf "N\t\tdeep nested if-statement threshold (default: %d)"
-                      options#deep_if_threshold;*)
+                      options#deep_if_threshold;
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
                                  sprintf "N\tmoderate num of children threshold (default: %d)"
                                  options#moderate_nchildren_threshold;

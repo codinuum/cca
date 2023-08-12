@@ -294,7 +294,7 @@ class c = object (self)
   method huge_expr_threshold = huge_expr_threshold
   method set_huge_expr_threshold x = huge_expr_threshold <- x
 
-  val mutable flatten_if_flag = false
+  val mutable flatten_if_flag = true
   method flatten_if_flag = flatten_if_flag
   method set_flatten_if_flag = flatten_if_flag <- true
   method clear_flatten_if_flag = flatten_if_flag <- false
