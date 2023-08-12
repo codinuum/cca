@@ -2061,6 +2061,7 @@ module F (Label : Spec.LABEL_T) = struct
       ?(no_moves=false)
       ?(last=false)
       ?(is_move=(fun n1 n2 -> false))
+      ?(extend_move=(fun n1 n2 -> failwith "extend_move"))
       ?(downward=false)
       ?(glue_filt=(fun _ _ -> true : UID.t -> UID.t -> bool))
       ?(use_binding_info=false)
@@ -2314,9 +2315,21 @@ module F (Label : Spec.LABEL_T) = struct
         DEBUG_MSG "mapped pair: %a-%a" ups u1 ups u2
 
       else if
-        no_moves && (is_move nd1 nd2) &&
-        (not (are_parents_mapped nd1 nd2) || nd1#initial_nchildren > 0 || nd2#initial_nchildren > 0)
+        no_moves && (is_move nd1 nd2)
         (* && (not last || nd1#initial_nchildren > 0 && nd2#initial_nchildren > 0)*)
+          &&
+        let b =
+          are_parents_mapped nd1 nd2 && nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0
+        in
+        if b then begin
+          try
+            extend_move nd1 nd2;
+            false
+          with
+            _ -> true
+        end
+        else
+          true
       then
         DEBUG_MSG "move: %a-%a" ups u1 ups u2
 
@@ -3586,7 +3599,8 @@ module F (Label : Spec.LABEL_T) = struct
                           else
                           let b = ref false in
                           let dnc = ref None in
-                          cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
+                          cenv#compare_mappings uidmapping
+                            ~override ~bonus_self:true ~bonus_parent:true
                             n1 n1' (fun d _ _ -> dnc := d)
                             n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
                             (fun d _ _ ->
@@ -3635,7 +3649,8 @@ module F (Label : Spec.LABEL_T) = struct
                         else
                           let b = ref false in
                           let dnc = ref None in
-                          cenv#compare_mappings uidmapping ~override ~bonus_self:true ~bonus_parent:true
+                          cenv#compare_mappings uidmapping
+                            ~override ~bonus_self:true ~bonus_parent:true
                             n2' n2 (fun d _ _ -> dnc := d)
                             n1 n2 ~ncrossing_new:ncross ~adjacency_new:score
                             (fun d _ _ ->
@@ -7643,6 +7658,21 @@ end;
   (********** fix up edit operations **********)
   let fixup_edits options lang cenv tree1 tree2 pruned edits uidmapping pre_uidmapping =
 
+    let extend_move n1 n2 =
+      try
+        let pn1 = n1#initial_parent in
+        let pn2 = n2#initial_parent in
+        match edits#find_mov12 pn1#uid pn2#uid with
+        | Edit.Move(mid, k, _, _) -> begin
+            let mov = Edit._make_move !mid !k (n1#uid, mkinfo n1) (n2#uid, mkinfo n2) in
+            DEBUG_MSG "generated: %s" (Edit.to_string mov);
+            edits#add_edit mov
+        end
+        | _ -> assert false
+      with
+        _ -> failwith "extend_move"
+    in
+
     let use_binding_info = lang#elaborate_edits <> None in
     let rely_on_binding_info = use_binding_info in
 
@@ -7819,7 +7849,8 @@ end;
               b
             in
             glue_deletes_and_inserts options cenv tree1 tree2
-              ~override:true ~is_move ~downward:true ~no_moves:true ~use_binding_info ~rely_on_binding_info
+              ~override:true ~is_move ~downward:true ~no_moves:true ~extend_move
+              ~use_binding_info ~rely_on_binding_info
               uidmapping (new UIDmapping.c cenv)
           in
           removed_pairs, added_pairs
@@ -8816,6 +8847,7 @@ end;
           glue_deletes_and_inserts options cenv tree1 tree2
             ~no_mapping_override:true
             ~no_moves:true
+            ~extend_move
             ~last:true
             ~is_move
             ~glue_filt
