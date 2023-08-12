@@ -2286,7 +2286,17 @@ module F (Label : Spec.LABEL_T) = struct
       DEBUG_MSG "%a-%a -> (%d,%d)" ups u1 ups u2 (fst s) (snd s);
       s
     in
-
+    let are_parents_mapped nd1 nd2 =
+      try
+        let pnd1 = nd1#initial_parent in
+        let pnd2 = nd2#initial_parent in
+        tree2#search_node_by_uid (uidmapping#find pnd1#uid) == pnd2 &&
+        let ppnd1 = pnd1#initial_parent in
+        let ppnd2 = pnd2#initial_parent in
+        tree2#search_node_by_uid (uidmapping#find ppnd1#uid) == ppnd2
+      with
+        _ -> false
+    in
 
     tree1#init; tree2#init;
 
@@ -2304,8 +2314,9 @@ module F (Label : Spec.LABEL_T) = struct
         DEBUG_MSG "mapped pair: %a-%a" ups u1 ups u2
 
       else if
-        no_moves && (is_move nd1 nd2)(* &&
-        (not last || nd1#initial_nchildren > 0 && nd2#initial_nchildren > 0)*)
+        no_moves && (is_move nd1 nd2) &&
+        (not (are_parents_mapped nd1 nd2) || nd1#initial_nchildren > 0 || nd2#initial_nchildren > 0)
+        (* && (not last || nd1#initial_nchildren > 0 && nd2#initial_nchildren > 0)*)
       then
         DEBUG_MSG "move: %a-%a" ups u1 ups u2
 
@@ -2465,83 +2476,107 @@ module F (Label : Spec.LABEL_T) = struct
                 DEBUG_MSG "\tuidmapping: %a(%d/%d) -> %a(%d/%d)"
                   nups n1 nmapped1 nnodes1
                   nups n2 nmapped2 nnodes2;
-                END_DEBUG;
+            END_DEBUG;
 
+            let has_same_subtree nd1 nd2 =
+              DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+              let b =
+                let nc = nd1#initial_nchildren in
+                nc = 2 &&
+                nd2#initial_nchildren = nc &&
+                try
+                  for i = nc - 1 downto 0 do
+                    let cnd1 = nd1#initial_children.(i) in
+                    let cnd2 = nd2#initial_children.(i) in
+                    if cnd1#data#subtree_equals cnd2#data then
+                      raise Exit
+                  done;
+                  false
+                with
+                  Exit -> true
+              in
+              DEBUG_MSG "%a-%a -> %B" nups nd1 nups nd2 b;
+              b
+            in
 
-                let label_match_score = cenv#eval_label_match pnd1 pnd2 in
+            let label_match_score = cenv#eval_label_match pnd1 pnd2 in
 
-                let anc_sim = cenv#get_ancestors_similarity pnd1 pnd2 in
+            let anc_sim = cenv#get_ancestors_similarity pnd1 pnd2 in
 
-                let continue, is_cand =
-                  match already_mapped with
-                  | None -> true, true
-                  | Some (n1, n2) ->
-                      let lms = cenv#eval_label_match n1 n2 in
-                      let asim = cenv#get_ancestors_similarity n1 n2 in
+            let continue, is_cand =
+              match already_mapped with
+              | None -> true, true
+              | Some (n1, n2) ->
+                  let lms = cenv#eval_label_match n1 n2 in
+                  let asim = cenv#get_ancestors_similarity n1 n2 in
 
-                      DEBUG_MSG "label match score: %d --> %d" lms label_match_score;
-                      DEBUG_MSG "ancestors similarity: %f --> %f" asim anc_sim;
+                  DEBUG_MSG "label match score: %d --> %d" lms label_match_score;
+                  DEBUG_MSG "ancestors similarity: %f --> %f" asim anc_sim;
 
-                      let lcond =
-                        if override then
-                          lms <= label_match_score
-                        else
-                          lms < label_match_score
-                      in
-                      let acond =
-                        if override then
-                          asim <= anc_sim
-                        else
-                          asim < anc_sim
-                      in
-                      let ccond = tree1#is_initial_ancestor pnd1 n1 || tree2#is_initial_ancestor pnd2 n2 in
-                      let cont, cand = (lcond || acond || ccond), (lcond || ccond) in
-                      if not cont && not cand then
-                        let b =
-                          lms = label_match_score && asim = 1.0 && anc_sim < 1.0 &&
-                          n1#data#is_op && n2#data#is_op && pnd1#data#is_op && pnd2#data#is_op &&
-                          cenv#check_op_mappings_m uidmapping n1 n2 pnd1 pnd2
-                        in
-                        if b then
-                          DEBUG_MSG "!!!!!!!! %a - %a" nps pnd1 nps pnd2;
-                        b, b
-                      else
-                        cont, cand
-                in (* let continue, is_cand *)
-
-                DEBUG_MSG "continue=%B is_cand=%B" continue is_cand;
-
-                if continue then begin
-
-                  DEBUG_MSG "\tglue cand (scan_up): %a-%a" ups puid1 ups puid2;
-
-                  let bonus, is_ok =
-                    if pnd1#data#equals pnd2#data then
-                      calc_bonus pnd1 pnd2, true
+                  let lcond =
+                    if override then
+                      lms <= label_match_score
                     else
-                      label_match_score, relabel_allowed pnd1 pnd2
+                      lms < label_match_score
                   in
-                  if is_ok then begin
-
-                    if is_cand || reflex then begin
-                      DEBUG_MSG "base score: %d, bonus: %d" score_up bonus;
-
-                      let score = score_up + bonus in
-                      add_cand "scan_up" pnd1 pnd2 puid1 puid2 score
-                    end;
-
-                    scan_up (score_up, score_down) puid1 puid2;
-
-                    if not options#simple_glue_flag && is_cand then
-(*            let scoring = get_scoring uid1 uid2 in *)
-                      scan_down (* scoring *) (score_up, score_down) puid1 puid2 (* cf. ieee1394_transactions.c 481L packet -> 481L packet *)
-                  end
+                  let acond =
+                    if override then
+                      asim <= anc_sim
+                    else
+                      asim < anc_sim
+                  in
+                  let ccond =
+                    tree1#is_initial_ancestor pnd1 n1 || tree2#is_initial_ancestor pnd2 n2 ||
+                    has_same_subtree n1 n2
+                  in
+                  let cont, cand = (lcond || acond || ccond), (lcond || ccond) in
+                  if not cont && not cand then
+                    let b =
+                      lms = label_match_score && asim = 1.0 && anc_sim < 1.0 &&
+                      n1#data#is_op && n2#data#is_op && pnd1#data#is_op && pnd2#data#is_op &&
+                      cenv#check_op_mappings_m uidmapping n1 n2 pnd1 pnd2
+                    in
+                    if b then
+                      DEBUG_MSG "!!!!!!!! %a - %a" nps pnd1 nps pnd2;
+                    b, b
                   else
-(*            check_upper_boundary (score_up, score_down) puid1 puid2 *)
-                    if not options#simple_glue_flag then
-                    check_until_upper_boundary (score_up, score_down) pnd1 pnd2
+                    cont, cand
+            in (* let continue, is_cand *)
 
-                end (* of if continue *)
+            DEBUG_MSG "continue=%B is_cand=%B" continue is_cand;
+
+            if continue then begin
+
+              DEBUG_MSG "\tglue cand (scan_up): %a-%a" ups puid1 ups puid2;
+
+              let bonus, is_ok =
+                if pnd1#data#equals pnd2#data then
+                  calc_bonus pnd1 pnd2, true
+                else
+                  label_match_score, relabel_allowed pnd1 pnd2
+              in
+              if is_ok then begin
+
+                if is_cand || reflex then begin
+                  DEBUG_MSG "base score: %d, bonus: %d" score_up bonus;
+
+                  let score = score_up + bonus in
+                  add_cand "scan_up" pnd1 pnd2 puid1 puid2 score
+                end;
+
+                scan_up (score_up, score_down) puid1 puid2;
+
+                if not options#simple_glue_flag && is_cand then
+(*            let scoring = get_scoring uid1 uid2 in *)
+                  scan_down (* scoring *) (score_up, score_down) puid1 puid2
+                  (* cf. ieee1394_transactions.c 481L packet -> 481L packet *)
+              end
+              else
+(*            check_upper_boundary (score_up, score_down) puid1 puid2 *)
+                if not options#simple_glue_flag then
+                  check_until_upper_boundary (score_up, score_down) pnd1 pnd2
+
+            end (* of if continue *)
 
           end (* of if not (is_bad_pair puid1 puid2) *)
 
