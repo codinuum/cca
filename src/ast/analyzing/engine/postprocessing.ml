@@ -2301,6 +2301,19 @@ module F (Label : Spec.LABEL_T) = struct
 
     tree1#init; tree2#init;
 
+    let reg_deferred_op, do_deferred_op =
+      let deferred_op_tbl = Hashtbl.create 0 in
+      let reg upair f = Hashtbl.add deferred_op_tbl upair f in
+      let do_ upair =
+        try
+          let f = Hashtbl.find deferred_op_tbl upair in
+          f()
+        with
+          _ -> ()
+      in
+      reg, do_
+    in
+
     let cands = ref ([] : ((UID.t * UID.t) * int ref) list) in
 
     let add_cand context nd1 nd2 u1 u2 score =
@@ -2323,7 +2336,7 @@ module F (Label : Spec.LABEL_T) = struct
         in
         if b then begin
           try
-            extend_move nd1 nd2;
+            reg_deferred_op (nd1#uid, nd2#uid) (extend_move nd1 nd2);
             false
           with
             _ -> true
@@ -2926,7 +2939,8 @@ module F (Label : Spec.LABEL_T) = struct
 
           if !no_cands_found then begin
             let matches, extra_matches, relabels =
-              Treediff.match_trees cenv ~root_check:false ~semantic:true subtree1 subtree2 uidmapping ref_uidmapping
+              Treediff.match_trees cenv
+                ~root_check:false ~semantic:true subtree1 subtree2 uidmapping ref_uidmapping
             in
             let relabels =
               List.filter
@@ -4471,6 +4485,7 @@ module F (Label : Spec.LABEL_T) = struct
                 end
               ) !to_be_removed;
             ignore (uidmapping#add_unsettled uid1 uid2);
+            do_deferred_op (uid1, uid2);
 
             (*removed_pairs := !to_be_removed @ !removed_pairs;*)
             added_pairs := (uid1, uid2) :: !added_pairs;
@@ -7664,9 +7679,10 @@ end;
         let pn2 = n2#initial_parent in
         match edits#find_mov12 pn1#uid pn2#uid with
         | Edit.Move(mid, k, _, _) -> begin
-            let mov = Edit._make_move !mid !k (n1#uid, mkinfo n1) (n2#uid, mkinfo n2) in
-            DEBUG_MSG "generated: %s" (Edit.to_string mov);
-            edits#add_edit mov
+            fun () ->
+              let mov = Edit._make_move !mid !k (n1#uid, mkinfo n1) (n2#uid, mkinfo n2) in
+              DEBUG_MSG "generated move: %s" (Edit.to_string mov);
+              edits#add_edit mov
         end
         | _ -> assert false
       with
