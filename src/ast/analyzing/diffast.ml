@@ -290,9 +290,9 @@ let speclist =
    (*"-flatten-if", Arg.Unit (fun () -> options#set_flatten_if_flag),
                   sprintf "\t\tflatten if-statement (default:%s)"
                   (if options#flatten_if_flag then "true" else "false");*)
-   "-deep-if-thresh", Arg.Int options#set_deep_if_threshold,
+   (*"-deep-if-thresh", Arg.Int options#set_deep_if_threshold,
                       sprintf "N\t\tdeep nested if-statement threshold (default: %d)"
-                      options#deep_if_threshold;
+                      options#deep_if_threshold;*)
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
                                  sprintf "N\tmoderate num of children threshold (default: %d)"
                                  options#moderate_nchildren_threshold;

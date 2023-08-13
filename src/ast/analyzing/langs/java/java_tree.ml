@@ -192,12 +192,24 @@ let set_control_flow body =
             let c1 = children.(1) in
             add_succ1 c1;
             set_succ label_env loop_env nexts c1;
-            try
-              let c2 = children.(2) in
-              add_succ1 c2;
-              set_succ label_env loop_env nexts c2
-            with
-            | _ -> add_succ nexts
+            for i = 2 to Array.length children - 1 do
+              let ci = children.(i) in
+              add_succ1 ci;
+              set_succ label_env loop_env nexts ci
+            done;
+            add_succ nexts
+        end
+        | L.Statement.ElseIf _ -> begin
+            let c1 = children.(1) in
+            add_succ1 c1;
+            set_succ label_env loop_env nexts c1;
+            add_succ nexts
+        end
+        | L.Statement.Else -> begin
+            let c = children.(0) in
+            add_succ1 c;
+            set_succ label_env loop_env nexts c;
+            add_succ nexts
         end
         | L.Statement.Switch -> begin
             Array.iter
@@ -1999,7 +2011,8 @@ class translator options =
     else
       s_
 
-  method of_statement ?(block_context="block") s =
+  method of_statement ?(extra_locs=None) ?(block_context="block") s =
+    (*DEBUG_MSG "block_context=\"%s\" s.s_loc=%s" block_context (Astloc.to_string s.Ast.s_loc);*)
     let nd =
       match s.Ast.s_desc with
       | Ast.Sblock block   -> self#of_block ~tid:(self#__mktid "block"(*block_context*)) block
@@ -2062,6 +2075,13 @@ class translator options =
           self#mknode lab [e_; s_] (* order sensitive s -> e *)
 
       | Ast.SifThenElse(e, s1, s2) -> begin
+
+          if block_context = "if" then begin
+            match extra_locs with
+            | Some q -> Queue.add s.Ast.s_extra_loc q
+            | None -> ()
+          end;
+
           let rec get_depth x =
             match x.Ast.s_desc with
             | Ast.SifThenElse(_, _, s) -> 1 + get_depth s
@@ -2071,7 +2091,8 @@ class translator options =
           let flatten_if =
             if options#flatten_if_flag && block_context <> "if" then begin
               let d = get_depth s2 in
-              let b = d > options#deep_if_threshold in
+              let b = true in
+              (*let b = d > options#deep_if_threshold in*)
               DEBUG_MSG "flatten_if=%B (depth=%d)" b d;
               b
             end
@@ -2084,14 +2105,48 @@ class translator options =
           (*let tid = L.null_tid in*)
           let lab = L.Statement (L.Statement.If tid) in
           let s1_ = self#of_statement ~block_context:"if" s1 in
-          let s2_ = self#of_statement ~block_context:"if" s2 in
+          let extra_locs =
+            if flatten_if then
+              let q = Queue.create() in
+              Queue.add s.Ast.s_extra_loc q;
+              Some q
+            else
+              extra_locs
+          in
+          let s2_ = self#of_statement ~extra_locs ~block_context:"if" s2 in
           let s1_ = self#normalize_block_stmt s1_ in
           let s2_ = self#normalize_block_stmt s2_ in
           let nd = self#mknode lab [e_; s1_; s2_] in (* order sensitive s2 -> s1 -> e *)
 
+          BEGIN_DEBUG
+            if flatten_if then
+              match extra_locs with
+              | Some q -> begin
+                  Queue.iter
+                    (fun extra_loc ->
+                      DEBUG_MSG "extra_loc: %s"
+                        (match extra_loc with
+                        | Some loc -> Astloc.to_string ~short:true loc
+                        | None -> "None"
+                        )
+                    ) q
+              end
+              | None -> ()
+          END_DEBUG;
+
           if flatten_if then begin
             let elseif_count = ref 0 in
             let else_count = ref 0 in
+            let take_loc =
+              match extra_locs with
+              | Some q -> begin
+                  fun () ->
+                    match Queue.take q with
+                    | Some loc -> conv_loc loc
+                    | None -> raise Not_found
+              end
+              | None -> fun () -> assert false
+            in
             let rec flatten ?(is_top=true) nd0 =
               let lab0 = getlab nd0 in
               let nchildren0 = nd0#nchildren in
@@ -2100,13 +2155,22 @@ class translator options =
                   if nchildren0 = 3 then
                     let next = nd0#children.(2) in
                     if L.is_if (getlab next) then begin
-                      nd0#del_rightmost_child();
+                      (*nd0#del_rightmost_child();
                       let loc_ = Loc._merge nd0#data#src_loc nd0#children.(1)#data#src_loc in
-                      nd0#data#set_loc loc_;
+                      nd0#data#set_loc loc_;*)
                       nd0 :: (flatten ~is_top:false next)
                     end
-                    else
-                      assert false
+                    else begin
+                      let nd_ = self#mknode (L.Statement (L.Statement.Else)) [next] in
+                      let loc_ =
+                        match s.Ast.s_extra_loc with
+                        | Some loc -> Loc._merge (conv_loc loc) next#data#src_loc
+                        | None -> next#data#src_loc
+                      in
+                      nd_#data#set_loc loc_;
+                      incr else_count;
+                      [nd0; nd_]
+                    end
                   else
                     assert false
                 else
@@ -2120,22 +2184,40 @@ class translator options =
                   in
                   if nchildren0 = 3 then begin
                     let next = nd0#children.(2) in
-                    let loc_ = Loc._merge nd0#data#src_loc nd0#children.(1)#data#src_loc in
-                    let nd_ = self#mknode lab_ (Array.to_list (Array.sub nd0#children 0 2)) in
+                    let loc_ =
+                      try
+                        Loc._merge (take_loc()) nd0#children.(1)#data#src_loc
+                      with
+                        _ -> Loc._merge nd0#data#src_loc nd0#children.(1)#data#src_loc
+                    in
+                    DEBUG_MSG "loc_=%s" (Loc.to_string loc_);
+                    let nd_ = self#_mknode lab_ (Array.sub nd0#children 0 2) in
                     nd_#data#set_loc loc_;
                     incr elseif_count;
                     if L.is_if (getlab next) then
                       nd_ :: (flatten ~is_top:false next)
                     else begin
                       let nd__ = self#mknode (L.Statement (L.Statement.Else)) [next] in
-                      nd__#data#set_loc next#data#src_loc;
+                      let loc__ =
+                        try
+                          Loc._merge (take_loc()) next#data#src_loc
+                        with
+                          _ -> next#data#src_loc
+                      in
+                      nd__#data#set_loc loc__;
                       incr else_count;
                       [nd_; nd__]
                     end
                   end
                   else begin
-                    let nd_ = self#mknode lab_ (Array.to_list nd0#children) in
-                    nd_#data#set_loc nd0#data#src_loc;
+                    let nd_ = self#_mknode lab_ nd0#children in
+                    let loc_ =
+                      try
+                        Loc._merge (take_loc()) nd0#data#src_loc
+                      with
+                        _ -> nd0#data#src_loc;
+                    in
+                    nd_#data#set_loc loc_;
                     incr elseif_count;
                     [nd_]
                   end
@@ -2143,8 +2225,18 @@ class translator options =
                   assert false
             in
             let children = flatten nd in
-            let ordinal_tbl_opt = Some (new ordinal_tbl [1; !elseif_count; !else_count]) in
-            self#mknode ~ordinal_tbl_opt (L.Statement (L.Statement.FlattenedIf tid)) children
+            match children with
+            | nd0::rest -> begin
+                DEBUG_MSG "%s" nd0#to_string;
+                let ca0 = nd0#children in
+                (*DEBUG_MSG "%d children found" (Array.length ca0);*)
+                let children' = ca0.(0)::ca0.(1)::rest in
+                let ordinal_tbl_opt = Some (new ordinal_tbl [1; 1; !elseif_count; !else_count]) in
+                self#mknode ~ordinal_tbl_opt (L.Statement (L.Statement.If tid)) children'
+            end
+            | _ -> assert false
+            (*let ordinal_tbl_opt = Some (new ordinal_tbl [1; !elseif_count; !else_count]) in
+            self#mknode ~ordinal_tbl_opt (L.Statement (L.Statement.FlattenedIf tid)) children*)
           end
           else
             nd
@@ -3199,6 +3291,7 @@ let of_compilation_unit options cu =
   let tree =
     new c options compilation_unit_node true
   in
+  DEBUG_MSG "T:\n%s" tree#to_string;
   tree#set_true_parent_tbl trans#true_parent_tbl;
   tree#set_true_children_tbl trans#true_children_tbl;
   tree#collapse;

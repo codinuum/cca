@@ -2022,13 +2022,23 @@ if_then_statement:
 ;
 
 if_then_else_statement:
-| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if ELSE s1=statement 
-     { mkstmt $startofs $endofs (SifThenElse(e, s0, s1)) }
+| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if x=ELSE s1=statement
+    { 
+      let _ = x in
+      let eso = $startofs(x) in
+      let eeo = $endofs(x) in
+      mkstmt ~eso ~eeo $startofs $endofs (SifThenElse(e, s0, s1))
+    }
 ;
 
 if_then_else_statement_no_short_if:
-| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if ELSE s1=statement_no_short_if 
-    { mkstmt $startofs $endofs (SifThenElse(e, s0, s1)) }
+| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if x=ELSE s1=statement_no_short_if
+    { 
+      let _ = x in
+      let eso = $startofs(x) in
+      let eeo = $endofs(x) in
+      mkstmt ~eso ~eeo $startofs $endofs (SifThenElse(e, s0, s1))
+    }
 (*
 | IF LPAREN e=expression RPAREN er=error                 ELSE s=statement_no_short_if 
     { 

@@ -852,23 +852,30 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           else begin
             pr_nth_child 1;
             if nchildren > 2 then begin
-              let else_part = children.(2) in
-              spc ~blk_style 1; pr_string "else";
-              let else_lab = getlab else_part in
-              if L.is_block else_lab || L.is_if else_lab then
-                pad 1
-              else
-                pr_break 1 pb#indent;
-              pr_node ~fail_on_error else_part
+              pr_selected ~fail_on_error ~head:pad1 ~sep:pad1 L.is_elseif children;
+              pr_selected ~fail_on_error ~head:pad1 L.is_else children;
+
+              let else_part = children.(nchildren - 1) in
+              let lab = getlab else_part in
+              if not (L.is_elseif lab || L.is_else lab) then begin
+                spc ~blk_style 1; pr_string "else";
+                let else_lab = getlab else_part in
+                if L.is_block else_lab || L.is_if else_lab then
+                  pad 1
+                else
+                  pr_break 1 pb#indent;
+                pr_node ~fail_on_error else_part
+              end
+
             end
           end
 
-      | L.Statement.FlattenedIf _ ->
+      (*| L.Statement.FlattenedIf _ ->
           if nchildren > 0 then begin
             pb#open_vbox pb#indent;
             pb#pr_a (fun () -> pr_string " ") (pr_node ~fail_on_error) children;
             pb#close_box()
-          end
+          end*)
 
       | L.Statement.ElseIf _ ->
           pr_string "else if ("; pr_nth_child 0; pr_rparen();

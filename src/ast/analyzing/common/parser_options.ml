@@ -299,7 +299,7 @@ class c = object (self)
   method set_flatten_if_flag = flatten_if_flag <- true
   method clear_flatten_if_flag = flatten_if_flag <- false
 
-  val mutable deep_if_threshold = 64
+  val mutable deep_if_threshold = 0
   method deep_if_threshold = deep_if_threshold
   method set_deep_if_threshold x = deep_if_threshold <- x
 

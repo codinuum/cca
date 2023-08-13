@@ -1818,12 +1818,16 @@ module F (Stat : STATE_T) = struct
 
   let mkmods so eo ms = { ms_modifiers=ms; ms_loc=(get_loc so eo) }
   let mkaop so eo d = { ao_desc=d; ao_loc=(get_loc so eo) }
-  let mkstmt so eo d = { s_desc=d; s_loc=(get_loc so eo) }
+  let mkstmt ?(eso=(-1)) ?(eeo=(-1)) so eo d = {
+    s_desc=d;
+    s_loc=(get_loc so eo);
+    s_extra_loc=(if eso >= 0 && eeo >= 0 then Some (get_loc eso eeo) else None)
+  }
   let mkerrstmt so eo s =
     let loc = get_loc so eo in
     env#missed_regions#add loc;
     if env#keep_going_flag then
-      { s_desc=Serror s; s_loc=loc }
+      { s_desc=Serror s; s_loc=loc; s_extra_loc=None }
     else
       parse_error_loc loc "syntax error: %s" s
 

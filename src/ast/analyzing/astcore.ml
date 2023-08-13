@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -137,29 +137,29 @@ class virtual base_c options = object (self)
     let l = ref [] in
     Hashtbl.iter
       (fun nd nds ->
-	let sz = (* nodes originated from macros excluded *)
-	  List.fold_left
-	    (fun s n ->
-	      if n#data#not_frommacro then s + 1 else s
-	    ) 0 nds
-	in
-	let gids = List.map (fun n -> n#gindex) nds in
-	let frag = GIDfragment.from_list gids in
-	let ndat = nd#data in
-	l := [(match mode with M_ORIGIN -> "ORIGIN" | M_ENDING -> "ENDING");
-	      (match mode with M_ORIGIN -> ndat#origin | M_ENDING -> ndat#ending);
-	      Loc.to_string ndat#src_loc;
-	      string_of_int sz;
-	      ndat#label;
-	      frag#to_string;
-	    ]::!l
+        let sz = (* nodes originated from macros excluded *)
+          List.fold_left
+            (fun s n ->
+              if n#data#not_frommacro then s + 1 else s
+            ) 0 nds
+        in
+        let gids = List.map (fun n -> n#gindex) nds in
+        let frag = GIDfragment.from_list gids in
+        let ndat = nd#data in
+        l := [(match mode with M_ORIGIN -> "ORIGIN" | M_ENDING -> "ENDING");
+              (match mode with M_ORIGIN -> ndat#origin | M_ENDING -> ndat#ending);
+              Loc.to_string ndat#src_loc;
+              string_of_int sz;
+              ndat#label;
+              frag#to_string;
+            ]::!l
       ) nds_tbl;
     let get_sz line = int_of_string (List.nth line 3) in
     let csv =
       List.fast_sort
-	(fun x y ->
-	  Stdlib.compare (get_sz y) (get_sz x)
-	) !l
+        (fun x y ->
+          Stdlib.compare (get_sz y) (get_sz x)
+        ) !l
     in
     Csv.save path csv
 
@@ -245,8 +245,8 @@ class virtual base_c options = object (self)
     else begin
       let info_paths = self#search_cache_for_info cache_path in
       if
-	info_paths <> [] &&
-	not
+        info_paths <> [] &&
+        not
           (
            options#dump_ast_flag ||
            (*options#dump_src_flag ||*)
@@ -268,7 +268,7 @@ class virtual base_c options = object (self)
         self#handle_file_versions ~lock:false fact_store cache_path proj_root file
           (version :: versions);
 
-	let info = SF.scan_info info_paths in
+        let info = SF.scan_info info_paths in
 
         if show_info then
           SF.show_info info;
@@ -277,15 +277,15 @@ class virtual base_c options = object (self)
 
       end
       else begin (* not processed || dump_ast || dump_src || dump_origin || clear_cache *)
-	let _ = Cache.prepare_cache_dir options cache_path in
-	let tree = self#__parse_file ~proj_root ~version file in
+        let _ = Cache.prepare_cache_dir options cache_path in
+        let tree = self#__parse_file ~proj_root ~version file in
 
         if options#recover_orig_ast_flag then
           tree#recover_true_children ~initial_only:true ();
 
         if options#dump_dot_flag then begin
-	  let fname_dot = file#basename^".dot" in
-	  let dot = tree#to_dot_initial (*file#basename*) [] in
+          let fname_dot = file#basename^".dot" in
+          let dot = tree#to_dot_initial (*file#basename*) [] in
           Xfile.dump fname_dot
             (fun ch ->
               let buf = Buffer.create 0 in
@@ -294,21 +294,21 @@ class virtual base_c options = object (self)
               Buffer.add_string buf "}";
               Buffer.output_buffer ch buf
             );
-	  self#verbose_msg "AST (in DOT) saved in \"%s\"" fname_dot
+          self#verbose_msg "AST (in DOT) saved in \"%s\"" fname_dot
         end;
 
-	if options#dump_ast_flag then begin
-	  let fname_astml = file#fullpath^Astml.extension in
+        if options#dump_ast_flag then begin
+          let fname_astml = file#fullpath^Astml.extension in
           match Misc.find_file_name_with_exts fname_astml Sastml.extensions with
           | Some fn -> Xprint.warning "already exists: \"%s\"" fn
           | None ->
-	      tree#dump_astml ~comp:options#ast_compression fname_astml;
-	      self#verbose_msg "AST (in ASTML) saved in \"%s\"" fname_astml
+              tree#dump_astml ~comp:options#ast_compression fname_astml;
+              self#verbose_msg "AST (in ASTML) saved in \"%s\"" fname_astml
         end;
 
-	S._dump_source cache_path tree;
-	S._dump_parser cache_path tree;
-	SF.dump_info cache_path tree;
+        S._dump_source cache_path tree;
+        S._dump_parser cache_path tree;
+        SF.dump_info cache_path tree;
 
         self#handle_file_versions ~lock:false fact_store cache_path proj_root file
           (version :: versions);
@@ -316,8 +316,8 @@ class virtual base_c options = object (self)
         let info = SF.get_tree_info tree in
 
         if show_info then begin
-	  SF.dump_info_ch info stdout;
-	  flush stdout
+          SF.dump_info_ch info stdout;
+          flush stdout
         end;
 
         info
@@ -356,13 +356,13 @@ class virtual base_c options = object (self)
     else
       let proj_root =
         try
-	  options#fact_proj_roots.(0)
+          options#fact_proj_roots.(0)
         with
         | _ -> ""
       in
       let version =
         try
-	  options#fact_versions.(0)
+          options#fact_versions.(0)
         with
         | _ -> Entity.unknown_version
       in

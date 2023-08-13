@@ -541,14 +541,22 @@ module Tree (L : Spec.LABEL_T) = struct
     end (* of class Sourcecode.node_data *)
 
 
-  let mknode options
+  let _mknode options
       ?(annot=L.null_annotation)
       ?(ordinal_tbl_opt=None)
       ?(orig_lab_opt=None)
       lab nodes
       =
     Otree.create_node2 options#uid_generator
-      (new node_data options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab) (Array.of_list nodes)
+      (new node_data options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab) nodes
+
+  let mknode options
+      ?(annot=L.null_annotation)
+      ?(ordinal_tbl_opt=None)
+      ?(orig_lab_opt=None)
+      lab nodes
+      =
+    _mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab (Array.of_list nodes)
 
   let mklnode options ?(annot=L.null_annotation) ?(orig_lab_opt=None) lab nodes =
     mknode options ~annot ~ordinal_tbl_opt:(Some null_ordinal_tbl) ~orig_lab_opt lab nodes
@@ -584,6 +592,14 @@ module Tree (L : Spec.LABEL_T) = struct
         lab nodes
         =
       mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab nodes
+
+    method private _mknode
+        ?(annot=L.null_annotation)
+        ?(ordinal_tbl_opt=None)
+        ?(orig_lab_opt=None)
+        lab nodes
+        =
+      _mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab nodes
 
     method private mklnode ?(annot=L.null_annotation) ?(orig_lab_opt=None) lab nodes =
       mklnode options ~annot ~orig_lab_opt lab nodes

@@ -674,6 +674,7 @@ and block = { b_block_statements : block_statement list; b_loc : loc; }
 
 and statement = { s_desc  : statement_desc;
 		  s_loc   : loc;
+                  s_extra_loc : loc option;
 		}
 and statement_desc =
   | Sblock of block
