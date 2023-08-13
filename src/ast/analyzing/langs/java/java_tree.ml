@@ -2091,7 +2091,7 @@ class translator options =
           let flatten_if =
             if options#flatten_if_flag && block_context <> "if" then begin
               let d = get_depth s2 in
-              let b = true in
+              let b = d >= 0 in
               (*let b = d > options#deep_if_threshold in*)
               DEBUG_MSG "flatten_if=%B (depth=%d)" b d;
               b
