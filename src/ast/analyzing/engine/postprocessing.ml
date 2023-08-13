@@ -3464,6 +3464,109 @@ module F (Label : Spec.LABEL_T) = struct
               (fun (n1, n2) ->
                 let u1, u2 = n1#uid, n2#uid in
 
+                let get d sorted ca n =
+                  try
+                    if sorted then
+                      let pos, found =
+                        Array.fold_left
+                          (fun ((i, found) as a) c ->
+                            if found then
+                              a
+                            else if c == n then
+                              i + d, true
+                            else
+                              i + 1, found
+                          ) (0, false) ca
+                      in
+                      if found then begin
+                        let sib = ca.(pos) in
+                        DEBUG_MSG "%a: (%d) -> %a" nups n d nups sib;
+                        Some sib
+                      end
+                      else
+                        None
+                    else
+                      Some ca.(n#initial_pos + d)
+                  with
+                    _ -> None
+                in
+                let get_left = get (-1) in
+                let get_right = get 1 in
+                let is_mapped ?(weak=false) n1_opt n2_opt =
+                  let b =
+                    match n1_opt, n2_opt with
+                    | None, None -> weak
+                    | Some n1, Some n2 -> uidmapping#find n1#uid = n2#uid
+                    | _ -> false
+                  in
+                  BEGIN_DEBUG
+                    let n_opt_to_str = function
+                      | Some n -> UID.to_string n#uid
+                      | None -> "None"
+                    in
+                    if b then
+                      DEBUG_MSG "mapped: %s -> %s" (n_opt_to_str n1_opt) (n_opt_to_str n2_opt);
+                  END_DEBUG;
+                  b
+                in
+                let is_stable n1 n2 =
+                  DEBUG_MSG "%a-%a" ups n1#uid ups n2#uid;
+                  let cond0 =
+                    try
+                      let ca1 = n1#initial_parent#initial_children in
+                      let ca2 = n2#initial_parent#initial_children in
+                      let left = is_mapped (get_left false ca1 n1) (get_left false ca2 n2) in
+                      let right = is_mapped (get_right false ca1 n1) (get_right false ca2 n2) in
+                      DEBUG_MSG "left=%B right=%B" left right;
+                      left && right || (left || right) && n1#data#equals n2#data
+                    with _ -> false
+                  in
+                  DEBUG_MSG "cond0=%B" cond0;
+                  let cond1 () =
+                    let b =
+                      n1#data#eq n2#data &&
+                      try
+                        let p1 = n1#initial_parent in
+                        let p2 = n2#initial_parent in
+                        p1#data#eq p2#data &&
+                        p1#initial_nchildren > 1 && p2#initial_nchildren > 1 &&
+                        is_mapped (Some p1) (Some p2) &&
+                        let ca1 = Array.copy p1#initial_children in
+                        let ca2 = Array.copy p2#initial_children in
+
+                        BEGIN_DEBUG
+                          let a2s ca =
+                            Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca)
+                          in
+                          DEBUG_MSG "ca1: [%s]" (a2s ca1);
+                          DEBUG_MSG "ca2: [%s]" (a2s ca2)
+                        END_DEBUG;
+
+                        List.iter
+                            (Array.fast_sort (fun x1 x2 -> compare x1#data#label x2#data#label))
+                            [ca1; ca2];
+
+                        BEGIN_DEBUG
+                          let a2s ca =
+                            Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca)
+                          in
+                          DEBUG_MSG "ca1: -> [%s]" (a2s ca1);
+                          DEBUG_MSG "ca2: -> [%s]" (a2s ca2)
+                        END_DEBUG;
+
+                        is_mapped ~weak:true (get_left true ca1 n1) (get_left true ca2 n2) &&
+                        is_mapped ~weak:true (get_right true ca1 n1) (get_right true ca2 n2)
+                      with _ -> false
+                    in
+                    if b then
+                      DEBUG_MSG "!!!!!!!! %B" b;
+                    b
+                  in
+                  let b = cond0 || cond1() in
+                  DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
+                  b
+                in
+
                 if hardoverride then begin
                   DEBUG_MSG "hardoverride";
                   Some (n1, n2, true)
@@ -3471,112 +3574,46 @@ module F (Label : Spec.LABEL_T) = struct
                 else if
                   n1#data#is_order_insensitive && n2#data#is_order_insensitive &&
                   n1#initial_nchildren = 0 && n2#initial_nchildren = 0 &&
-                  let get d sorted ca n =
-                    try
-                      if sorted then
-                        let pos, found =
-                          Array.fold_left
-                            (fun ((i, found) as a) c ->
-                              if found then
-                                a
-                              else if c == n then
-                                i + d, true
-                              else
-                                i + 1, found
-                            ) (0, false) ca
-                        in
-                        if found then begin
-                          let sib = ca.(pos) in
-                          DEBUG_MSG "%a: (%d) -> %a" nups n d nups sib;
-                          Some sib
-                        end
-                        else
-                          None
-                      else
-                        Some ca.(n#initial_pos + d)
-                    with
-                      _ -> None
-                  in
-                  let get_left = get (-1) in
-                  let get_right = get 1 in
-                  let is_mapped ?(weak=false) n1_opt n2_opt =
-                    let b =
-                      match n1_opt, n2_opt with
-                      | None, None -> weak
-                      | Some n1, Some n2 -> uidmapping#find n1#uid = n2#uid
-                      | _ -> false
-                    in
-                    BEGIN_DEBUG
-                      let n_opt_to_str = function
-                        | Some n -> UID.to_string n#uid
-                        | None -> "None"
-                      in
-                      if b then
-                        DEBUG_MSG "mapped: %s -> %s" (n_opt_to_str n1_opt) (n_opt_to_str n2_opt);
-                    END_DEBUG;
-                    b
-                  in
-                  let is_stable n1 n2 =
-                    DEBUG_MSG "%a-%a" ups n1#uid ups n2#uid;
-                    let cond0 =
-                      try
-                        let ca1 = n1#initial_parent#initial_children in
-                        let ca2 = n2#initial_parent#initial_children in
-                        let left = is_mapped (get_left false ca1 n1) (get_left false ca2 n2) in
-                        let right = is_mapped (get_right false ca1 n1) (get_right false ca2 n2) in
-                        DEBUG_MSG "left=%B right=%B" left right;
-                        left && right || (left || right) && n1#data#equals n2#data
-                      with _ -> false
-                    in
-                    DEBUG_MSG "cond0=%B" cond0;
-                    let cond1 () =
-                      let b =
-                        n1#data#eq n2#data &&
-                        try
-                          let p1 = n1#initial_parent in
-                          let p2 = n2#initial_parent in
-                          p1#data#eq p2#data &&
-                          p1#initial_nchildren > 1 && p2#initial_nchildren > 1 &&
-                          is_mapped (Some p1) (Some p2) &&
-                          let ca1 = Array.copy p1#initial_children in
-                          let ca2 = Array.copy p2#initial_children in
-
-                          BEGIN_DEBUG
-                            let a2s ca =
-                              Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca)
-                            in
-                            DEBUG_MSG "ca1: [%s]" (a2s ca1);
-                            DEBUG_MSG "ca2: [%s]" (a2s ca2)
-                          END_DEBUG;
-
-                          List.iter
-                            (Array.fast_sort (fun x1 x2 -> compare x1#data#label x2#data#label))
-                            [ca1; ca2];
-
-                          BEGIN_DEBUG
-                            let a2s ca =
-                              Xlist.to_string (fun x -> x#data#label) "; " (Array.to_list ca)
-                            in
-                            DEBUG_MSG "ca1: -> [%s]" (a2s ca1);
-                            DEBUG_MSG "ca2: -> [%s]" (a2s ca2)
-                          END_DEBUG;
-
-                          is_mapped ~weak:true (get_left true ca1 n1) (get_left true ca2 n2) &&
-                          is_mapped ~weak:true (get_right true ca1 n1) (get_right true ca2 n2)
-                        with _ -> false
-                      in
-                      if b then
-                        DEBUG_MSG "!!!!!!!! %B" b;
-                      b
-                    in
-                    let b = cond0 || cond1() in
-                    DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
-                    b
-                  in
                   not (is_stable n1 n2)
                 then begin
                   DEBUG_MSG "not so good mapping: %a-%a" ups u1 ups u2;
-                  None
+                  if n1#initial_nchildren > 0 || n2#initial_nchildren > 0 then
+                    None
+                  else
+                  try
+                    match cenv#multiple_node_matches#find n1#data#_label with
+                    | [], _ | _, [] -> None
+                    | [x1], ns2 when x1 == n1 -> begin
+                        List.fold_left
+                          (fun opt x2 ->
+                            match opt with
+                            | None ->
+                                if x2 != n2 && is_stable x1 x2 then begin
+                                  DEBUG_MSG "better mapping found: %a-%a" nps x1 nps x2;
+                                  Some (x1, x2, true)
+                                end
+                                else
+                                  None
+                            | x -> x
+                          ) None ns2
+                    end
+                    | ns1, [x2] when x2 == n2 -> begin
+                        List.fold_left
+                          (fun opt x1 ->
+                            match opt with
+                            | None ->
+                                if x1 != n1 && is_stable x1 x2 then begin
+                                  DEBUG_MSG "better mapping found: %a-%a" nps x1 nps x2;
+                                  Some (x1, x2, true)
+                                end
+                                else
+                                  None
+                            | x -> x
+                          ) None ns1
+                    end
+                    | _ -> None
+                  with
+                    _ -> None
                 end
                 else begin
                   let score = ref (-1.0) in
