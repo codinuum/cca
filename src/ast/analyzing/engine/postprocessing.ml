@@ -2707,7 +2707,7 @@ module F (Label : Spec.LABEL_T) = struct
 
             BEGIN_DEBUG
               let f = function
-                | None -> "none"
+                | None -> "None"
                 | Some (n1, n2) -> sprintf "%a-%a" ups n1#uid ups n2#uid
               in
               DEBUG_MSG "cand1: %s" (f !cand1);

@@ -1946,6 +1946,7 @@ type t = (* Label *)
   | ArrayInitializer
   | Modifiers of kind
   | FieldDeclaration of (name * dims) list
+  | VariableDeclaration
   | Method of name * signature
   | Super
   | Qualifier of name
@@ -2091,6 +2092,7 @@ let rec to_string = function
   | ArrayInitializer                        -> "ArrayInitializer"
   | Modifiers k                             -> sprintf "Modifiers(%s)" (kind_to_string k)
   | FieldDeclaration vdids                  -> sprintf "FieldDeclaration(%s)" (vdids_to_string vdids)
+  | VariableDeclaration                     -> "VariableDeclaration"
   | Method(name, msig)                      -> sprintf "Method(%s%s)" name msig
   | Super                                   -> "Super"
   | Qualifier q                             -> sprintf "Qualifier(%s)" q
@@ -2177,6 +2179,9 @@ let anonymize ?(more=false) = function
   | ConstructorBody(name, msig) when more -> ConstructorBody("", "")
   | Method(name, msig) when more          -> Method("", "")
   | MethodBody(name, msig) when more      -> MethodBody("", "")
+
+  | LocalVariableDeclaration _ when more -> VariableDeclaration
+  | FieldDeclaration _ when more         -> VariableDeclaration
 
   | Type ty                        -> Type (Type.anonymize ty)
   | Primary p                      -> Primary (Primary.anonymize ~more p)
@@ -2346,6 +2351,7 @@ let rec to_simple_string = function
   | ArrayInitializer            -> "<array-init>"
   | Modifiers _                 -> "<mods>"
   | FieldDeclaration vdids      -> "<fdecl>"
+  | VariableDeclaration         -> "<vdecl>"
   | Method(name, msig)          -> name
   | Super                       -> "super"
   | Qualifier q                 -> q
@@ -2551,6 +2557,8 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Permits -> mkstr 119
   | TypeName name -> combo 120 [name]
 
+  | VariableDeclaration -> mkstr 121
+
 let sig_attr_name = "___signature"
 
 let to_tag ?(strip=false) l =
@@ -2625,6 +2633,7 @@ let to_tag ?(strip=false) l =
     | Modifiers _ when strip      -> "Modifiers", []
     | Modifiers k                 -> "Modifiers", kind_to_attrs k
     | FieldDeclaration vdids      -> "FieldDeclaration", [(*vdids_attr_name*)"name",vdids_to_string vdids]
+    | VariableDeclaration         -> "VariableDeclaration", []
     | Method(name, msig)          -> "MethodDeclaration", ["name",xmlenc name;sig_attr_name,xmlenc msig]
     | MethodBody _ when strip     -> "MethodBody", []
     | MethodBody(name, msig)      -> "MethodBody", ["name",xmlenc name;sig_attr_name,xmlenc msig]
@@ -2848,6 +2857,7 @@ let to_char lab =
     | Provides name -> 123
     | Permits -> 124
     | TypeName name -> 125
+    | VariableDeclaration -> 126
   in
   char_pool.(to_index lab)
 

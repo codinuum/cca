@@ -2143,6 +2143,8 @@ class ['node_t, 'tree_t] c
             is_plausible nd1old nd2old && not (is_plausible nd1new nd2new) ||
             tid_eq nd1old nd2old && not (tid_eq nd1new nd2new) ||
             has_same_subtree nd1old nd2old && not (has_same_subtree nd1new nd2new) ||
+            uidmapping#is_stable_pair nd1old#uid nd2old#uid
+              && not (uidmapping#is_stable_pair nd1new#uid nd2new#uid) ||
             prefer_sim && subtree_sim_old > subtree_sim_new
       (* ||
         (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
@@ -2160,6 +2162,8 @@ class ['node_t, 'tree_t] c
             is_plausible nd1new nd2new && not (is_plausible nd1old nd2old) ||
             tid_eq nd1new nd2new && not (tid_eq nd1old nd2old) ||
             has_same_subtree nd1new nd2new && not (has_same_subtree nd1old nd2old) ||
+            uidmapping#is_stable_pair nd1new#uid nd2new#uid
+              && not (uidmapping#is_stable_pair nd1old#uid nd2old#uid) ||
             prefer_sim && subtree_sim_new > subtree_sim_old
             (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
           then begin

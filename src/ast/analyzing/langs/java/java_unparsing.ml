@@ -627,6 +627,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
         L.is_variabledeclarator children;
       pb#close_box()
 
+  | L.VariableDeclaration -> ()
+
   | L.EmptyDeclaration -> pr_semicolon()
 
   | L.Primary p -> pr_primary ~fail_on_error ~prec p children
