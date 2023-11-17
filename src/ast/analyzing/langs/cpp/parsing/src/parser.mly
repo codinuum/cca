@@ -433,6 +433,8 @@ let check_macro_body ?(name="") sp ep (tl : Token.t list) tl_obj =
 
   | [RBRACKET,_,_] -> [mkleaf sp ep L.ClosingBracket], false
 
+  | [LBRACKET,_,_;RBRACKET,_,_] -> [mkleaf sp ep L.OpeningBracket;mkleaf sp ep L.ClosingBracket], false
+
   | [RBRACKET,_,ep0;COMMA,sp1,_] -> [mkleaf sp ep0 L.ClosingBracket;mkleaf sp1 ep L.Comma], false
 
   | [RBRACKET,_,ep0;SEMICOLON _,sp1,_] -> [mkleaf sp ep0 L.ClosingBracket;mkleaf sp1 ep L.Semicolon], false
@@ -1643,6 +1645,17 @@ pp_stmt_elif_group_broken:
       mknode ~pvec $startpos $endpos (_pp_elif_group pi) (pi::[e])
     }
 | pi=pp_elif sl=statement_seq
+    p=postfix_expression LPAREN el=expression_list COMMA_BROKEN
+    { 
+      env#pstat#close_paren ~pseudo:true ();
+      let pvec = [1; List.length el] in
+      p#add_suffix "(";
+      (Xlist.last el)#add_suffix ",";
+      let e_ = mknode ~pvec $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
+      let pvec = [1; List.length sl; 1] in
+      mknode ~pvec $startpos $endpos (_pp_elif_group pi) (pi::sl@[e_])
+    }
+| pi=pp_elif sl=statement_seq
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN b=broken_expr
     { 
       env#pstat#close_paren ~pseudo:true ();
@@ -1788,6 +1801,17 @@ pp_stmt_else_group_broken:
       let e = mknode ~pvec:[1; 1] $startpos(l) $endpos ao [l; e_] in
       let pvec = [1; 0; 1] in
       mknode ~pvec $startpos $endpos (_pp_else_group pi) (pi::[e])
+    }
+| pi=pp_else sl=statement_seq
+    p=postfix_expression LPAREN el=expression_list COMMA_BROKEN
+    { 
+      env#pstat#close_paren ~pseudo:true ();
+      let pvec = [1; List.length el] in
+      p#add_suffix "(";
+      (Xlist.last el)#add_suffix ",";
+      let e_ = mknode ~pvec $startpos(p) $endpos L.PostfixExpressionFunCall (p::el) in
+      let pvec = [1; List.length sl; 1] in
+      mknode ~pvec $startpos $endpos (_pp_else_group pi) (pi::sl@[e_])
     }
 | pi=pp_else sl=statement_seq
     p=postfix_expression LPAREN el=expression_list COMMA_BROKEN b=broken_expr

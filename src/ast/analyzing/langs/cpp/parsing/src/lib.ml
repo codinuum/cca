@@ -3311,6 +3311,16 @@ class parser_c = object (self)
                       (fun item ->
                         flag := false;
                         match item with
+                        | sn, I.X (I.N N_pp_stmt_if_group_broken), _, _, _
+                        | sn, I.X (I.N N_pp_stmt_elif_group_broken), _, _, _
+                        | sn, I.X (I.N N_pp_stmt_else_group_broken), _, _, _ when begin
+                            match x with
+                            | I.X (I.N N_decl_OR_expr) -> true
+                            | _ -> false
+                        end -> begin
+                          ctx_start_of_stmt sn;
+                          raise Exit
+                        end
                         | sn, I.X (I.N N_compound_statement), _, _, _ -> begin
                             ctx_start_of_stmt sn;
                             raise Exit
