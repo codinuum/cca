@@ -918,6 +918,14 @@ odd_stmt:
       let c_ = mknode $startpos(c) $endpos L.CaseLabel [e] in
       mknode $startpos $endpos L.LABELS (ll @ [c_])
     }
+| l=literal cln=COLON ll=label_seq c=CASE e=constant_expression
+    { 
+      ignore cln;
+      ignore c;
+      let l_ = mknode $startpos $endpos(cln) L.CaseLabel [l] in
+      let c_ = mknode $startpos(c) $endpos L.CaseLabel [e] in
+      mknode $startpos $endpos L.LABELS (l_ :: ll @ [c_])
+    }
 | CASE e=constant_expression
     { mknode $startpos $endpos L.CaseLabel [e] }
 | ll=label_seq s=_odd_stmt
