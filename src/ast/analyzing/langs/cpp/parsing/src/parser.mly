@@ -195,6 +195,50 @@ let rawtok_to_lab rt =
   | OBJC_CLASS    -> L.ObjcClass
   | _ -> failwith "rawtok_to_lab"
 
+let count_macro_param_occurrences kind (tl : Token.t list) =
+  let spec =
+    match kind with
+    | Ast.L.FunctionLike spec -> spec
+    | _ -> invalid_arg "count_macro_param_occurrences"
+  in
+  let pl = spec.Ast.L.fm_params in
+  let npl = List.length pl in
+  let tbl = Hashtbl.create npl in
+  List.iter (fun p -> Hashtbl.add tbl p 0) pl;
+  let plv = ref 0 in
+  let blv = ref 0 in
+  let last_rt = ref T.EOF in
+  let out rt = last_rt := rt in
+  List.iter
+    (fun (rt, _, _) ->
+      match (rt : T.token) with
+      | TY_LPAREN | LPAREN -> incr plv; out rt
+      | RPAREN -> decr plv; out rt
+      | LBRACE -> incr blv; out rt
+      | RBRACE -> decr blv; out rt
+      | IDENT x -> begin
+          begin
+            try
+              let c = Hashtbl.find tbl x in
+              Hashtbl.replace tbl x (c + 1)
+            with Not_found ->
+              let yl = Str.split (Str.regexp "##") x in
+              List.iter
+                (fun y ->
+                  try
+                    let c = Hashtbl.find tbl y in
+                    Hashtbl.replace tbl y (c + 1)
+                  with Not_found -> ()
+                ) yl
+          end;
+          out rt
+      end
+      | _ -> out rt
+    ) tl;
+  let cl = List.map (fun p -> Hashtbl.find tbl p) pl in
+  spec.Ast.L.fm_param_occur_count <- cl;
+  cl
+
 let check_macro_body ?(name="") sp ep (tl : Token.t list) tl_obj =
   match tl with
   | [] -> [], false
@@ -12243,14 +12287,14 @@ _pp_param_list:
 | l=_pp_param_list COMMA i=IDENT { l @ [i] }
 ;
 pp_param_list:
-|          { Ast.L.FunctionLike([], "") }
-| ELLIPSIS { Ast.L.FunctionLike([], "__VA_ARGS__") }
-| il=_pp_param_list                { Ast.L.FunctionLike(il, "") }
-| il=_pp_param_list COMMA ELLIPSIS { Ast.L.FunctionLike(il, "__VA_ARGS__") }
+|          { Ast.L.make_func_like [] "" }
+| ELLIPSIS { Ast.L.make_func_like [] "__VA_ARGS__" }
+| il=_pp_param_list                { Ast.L.make_func_like il "" }
+| il=_pp_param_list COMMA ELLIPSIS { Ast.L.make_func_like il "__VA_ARGS__" }
 | il=_pp_param_list ELLIPSIS
     { 
       let il_, va = Xlist.partition_at_last il in
-      Ast.L.FunctionLike(il_, va)
+      Ast.L.make_func_like il_ va
     }
 ;
 
@@ -12286,10 +12330,11 @@ pp_define:
       nd
     }
 | p=_pp_define NEWLINE { reloc $startpos $endpos p }
-| (*PP_DEFINE i=IDENT PP_LPAREN*)i=macro_fun_head mk=pp_param_list RPAREN tl_opt=ioption(token_seq) NEWLINE
+| i=macro_fun_head mk=pp_param_list RPAREN tl_opt=ioption(token_seq) NEWLINE
     { 
       let tl_ = list_opt_to_list tl_opt in
       let tl__obj = Obj.repr tl_ in
+      let _ = count_macro_param_occurrences mk tl_ in
       (*let tnd = mkleaf $startpos(tl_opt) $endpos(tl_opt) (L.TokenSeq tl__obj) in*)
       let tndl, pending =
         check_macro_body $startpos(tl_opt) $endpos(tl_opt) tl_ (*tl__obj*)(Token.seq_to_repr tl_)

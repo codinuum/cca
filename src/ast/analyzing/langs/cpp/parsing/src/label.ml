@@ -25,25 +25,44 @@ let lang_prefix = Astml.cpp_prefix
 
 let np () n = if n = "" then "" else "("^n^")"
 
+type function_like_macro_spec = {
+    fm_params : string list;
+    fm_va : string;
+    mutable fm_param_occur_count : int list;
+  }
+
 type macro_kind =
   | ObjectLike
-  | FunctionLike of string list * string (* parameter_list * va_args *)
+  | FunctionLike of function_like_macro_spec
   | MK_DUMMY
 
+let make_func_like pl va =
+  FunctionLike
+    { fm_params=pl;
+      fm_va=va;
+      fm_param_occur_count=[];
+    }
+
 let macro_kind_to_string = function
-  | ObjectLike -> ""
-  | FunctionLike(sl, s) ->
-      sprintf "(%s%s)" (String.concat "," sl) (if s = "" then "" else sprintf ",%s..." s)
+  | ObjectLike -> "OBJ"
+  | FunctionLike {fm_params=sl;fm_va=s;fm_param_occur_count=cl;} ->
+      sprintf "FUNC(%s%s; occur:%s)"
+        (String.concat "," sl)
+        (if s = "" then "" else sprintf ",%s..." s)
+        (String.concat "," (List.map string_of_int cl))
   | MK_DUMMY -> "MK_DUMMY"
 
 let macro_kind_to_rep = function
   | ObjectLike -> ""
-  | FunctionLike(sl, s) -> (String.concat ", " sl)^(if s = "" then "" else "...")
+  | FunctionLike {fm_params=sl;fm_va=s;} ->
+      (String.concat ", " sl)^(if s = "" then "" else "...")
   | MK_DUMMY -> "MK_DUMMY"
 
 let macro_kind_to_attrs = function
   | ObjectLike -> []
-  | FunctionLike(sl, s) -> ["params",(String.concat "," sl);"va_args",s]
+  | FunctionLike {fm_params=sl;fm_va=s;fm_param_occur_count=cl} ->
+      ["params",(String.concat "," sl);"va_args",s;
+       (*"param_occurrences",(String.concat "," (List.map string_of_int cl))*)]
   | MK_DUMMY -> []
 
 type t =

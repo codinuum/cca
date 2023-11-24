@@ -21,6 +21,7 @@ module Aux = Parser_aux
 module PB  = Parserlib_base
 module T   = Tokens_
 module C   = Context
+module L   = Label
 
 open Compat
 
@@ -1615,6 +1616,9 @@ class type c_t = object
         ?check_semicolon:bool -> unit -> int * T.token list list
   method peek_rawtoken_up_to_rbracket :
       ?from:int -> ?lv_ofs:int -> ?filt:(T.token -> bool) -> unit -> int * T.token list
+
+  method reg_macro_spec : string -> (int * int * T.token) -> unit
+  method find_macro_spec : string -> int * int * T.token
 
   method reg_ident_conv : string -> T.token -> unit
   method find_ident_conv : string -> T.token
@@ -12776,6 +12780,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
                         | _ -> false
                     end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP|PTR_HAT) @"; mk (T.IDENT_V s)
 
+                    | CONSTEXPR | CONSTEVAL | CONSTINIT | FRIEND when begin
+                        (context == TOP || context == MEM) && prev_rawtoken2 == RBRACE &&
+                        match self#peek_rawtoken() with
+                        | SEMICOLON _ | LBRACKET | TY_LPAREN | LBRACE -> true
+                        | _ -> false
+                    end -> DEBUG_MSG "(CONSTEXPR|CONSTEVAL|CONSTINIT|FRIEND) @"; mk (T.IDENT_V s)
+
                     | CONST | ATTR_MACRO _ when env#at_type_paren && begin
                         match prev_rawtoken2 with
                         | PTR_STAR | PTR_AMP | PTR_AMP_AMP | PTR_HAT -> begin
@@ -17432,9 +17443,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     match prev_rawtoken4 with
                     | IDENT_V _ -> true
                     | IDENT _ when context == NEW -> true
-                    | TY_TEMPL_GT -> true
+                    | TY_TEMPL_GT | AUTO -> true
                     | _ -> false
                 end
+                | COMMA -> true
                 | _ -> false
             end
             | _ when env#new_flag -> true
@@ -17548,7 +17560,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | BOOL_LITERAL _ | NULLPTR | PP_STRINGIZED _
             | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _ | USER_STR_LITERAL _
             | USER_CHAR_LITERAL _ | MINUS | DOT | LBRACKET | LBRACE when begin
-                not (env#end_of_params_flag && env#is_inline_asm_function (env#get_function_name())) &&
+                not
+                  (env#end_of_params_flag &&
+                   env#is_inline_asm_function (env#get_function_name())
+                  ) &&
                 let filt = function
                   | T.SEMICOLON _ -> true
                   | _ -> false
@@ -19266,114 +19281,197 @@ let conv_token (env : Aux.env) scanner (token : token) =
       DEBUG_MSG "@";
       match context, sub_context with
       | STMT, START_OF_STMT _ -> begin
-          (*let sub_cond = ref false in*)
-          let rec check_body lv macro_kind tok_list_obj =
-            match (macro_kind : Label.macro_kind) with
-            | MK_DUMMY -> false
-            | ObjectLike -> begin
-                let tok_list = (Obj.obj tok_list_obj : token list) in
-                let plv, blv, last_rt =
-                  List.fold_left
-                    (fun (plv, blv, _) ((rt : T.token), _, _) ->
-                      DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
-                      match rt with
-                      | TY_LPAREN -> (plv + 1, blv, rt)
-                      | RPAREN -> (plv - 1, blv, rt)
-                      | LBRACE -> (plv, blv + 1, rt)
-                      | RBRACE -> (plv, blv - 1, rt)
-                      (*| IDENT x when lv = 0 -> begin be careful! ex. sqlite3.c
-                          begin
-                            try
-                              let _, mkind, tl_obj = env#find_pending_macro x in
-                              DEBUG_MSG "%s: macro found" x;
-                              let b = check_body (lv+1) mkind tl_obj in
-                              sub_cond := b
-                            with _ -> ()
-                          end;
-                          (plv, blv, rt)
-                      end*)
-                      | _ -> (plv, blv, rt)
-                    ) (0, 0, T.EOF) tok_list
-                in
-                DEBUG_MSG "plv=%d blv=%d last_rt=%s" plv blv (Token.rawtoken_to_string last_rt);
-                let b0 = blv > 0 in
-                let b1 = blv < 0 in
-                if b0 then begin
-                  let t = mk T.LBRACE in
-                  for i = 1 to blv do
-                    self#prepend_token t
-                  done
-                end
-                else if b1 then begin
-                  let t = mk T.RBRACE in
-                  for i = 1 to -blv do
-                    self#prepend_token t
-                  done
-                end;
-                b0 || b1 || last_rt == COLON
-            end
-            | FunctionLike _ -> begin
-                let tok_list = (Obj.obj tok_list_obj : token list) in
-                let plv, blv, last_rt =
-                  List.fold_left
-                    (fun (plv, blv, _) ((rt : T.token), _, _) ->
-                      DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
-                      match rt with
-                      | TY_LPAREN -> (plv + 1, blv, rt)
-                      | RPAREN -> (plv - 1, blv, rt)
-                      | LBRACE -> (plv, blv + 1, rt)
-                      | RBRACE -> (plv, blv - 1, rt)
-                      (*| IDENT x when lv = 0 -> begin
-                          begin
-                            try
-                              let _, mkind, tl_obj = env#find_pending_macro x in
-                              DEBUG_MSG "%s: macro found" x;
-                              let b = check_body (lv+1) mkind tl_obj in
-                              sub_cond := b
-                            with _ -> ()
-                          end;
-                          (plv, blv, rt)
-                      end*)
-                      | _ -> (plv, blv, rt)
-                    ) (0, 0, T.EOF) tok_list
-                in
-                DEBUG_MSG "plv=%d blv=%d last_rt=%s" plv blv (Token.rawtoken_to_string last_rt);
-                let b0 = blv > 0 in
-                let b1 = blv < 0 in
-                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                let tl = ref [] in
-                if b0 then begin
-                  let t = mk T.LBRACE in
-                  for i = 1 to blv do
-                    tl := t :: !tl
-                  done;
-                  insert_after_nth_token nth !tl
-                end
-                else if b1 then begin
-                  let t = mk T.RBRACE in
-                  for i = 1 to -blv do
-                    tl := t :: !tl
-                  done;
-                  insert_after_nth_token nth !tl
-                end;
-                b0 || b1 || last_rt == COLON
-            end
+
+          let shift_ident xl =
+            List.map
+              (function
+                | T.IDENT y, _, _ when List.mem y xl -> T.IDENT_ y
+                | rt, _, _ -> rt
+              )
           in
-          (*(match self#peek_rawtoken() with
-            | TY_LPAREN -> begin
-                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                match self#peek_nth_rawtoken (nth+1) with
-                | SEMICOLON _ -> false
-                | _ -> true
+          let rec check_func_like_macro name spec al tl =
+            let pl = spec.L.fm_params in
+            let cl = spec.L.fm_param_occur_count in
+            let tbl = Hashtbl.create 0 in
+            let al = List.rev al in
+            let _plv = ref 0 in
+            let _blv = ref 0 in
+            List.iteri
+              (fun i p ->
+                let ai = List.rev (List.nth al i) in
+                let ci = List.nth cl i in
+                DEBUG_MSG "%d: %s -> %s (%d times)" i p
+                  (String.concat ";" (List.map Token.rawtoken_to_string ai)) ci;
+                let plv0, blv0, last_rt0 = check_tokens ai in
+                _plv := !_plv + plv0 * ci;
+                _blv := !_blv + blv0 * ci;
+                Hashtbl.add tbl p last_rt0
+              ) pl;
+            let plv1, blv1, last_rt1 = check_tokens ~name tl in
+            let plv = plv1 + !_plv in
+            let blv = blv1 + !_blv in
+            let last_rt =
+              match last_rt1 with
+              | T.IDENT x -> begin
+                  try
+                    Hashtbl.find tbl x
+                  with
+                    Not_found -> last_rt1
+              end
+              | _ -> last_rt1
+            in
+            plv, blv, last_rt
+
+          and check_tokens ?(name="") tl =
+            try
+              self#find_macro_spec name
+            with
+              Not_found ->
+            let inq = (new Xqueue.c : T.token Xqueue.c) in
+            List.iter inq#add tl;
+            let plv = ref 0 in
+            let blv = ref 0 in
+            let last_rt = ref T.EOF in
+            let out rt = last_rt := rt in
+            try
+              while true do
+                let rt = inq#take in
+                DEBUG_MSG "[plv=%d,blv=%d] %s" !plv !blv (Token.rawtoken_to_string rt);
+                match rt with
+                | TY_LPAREN -> incr plv; out rt
+                | RPAREN -> decr plv; out rt
+                | LBRACE -> incr blv; out rt
+                | RBRACE -> decr blv; out rt
+                | IDENT x -> begin
+                    DEBUG_MSG "x=%s" x;
+                    try
+                      let _, kind, tl_obj = env#find_pending_macro x in
+                      DEBUG_MSG "%s: macro found %s" x (L.macro_kind_to_string kind);
+                      let tl = shift_ident [x] (Obj.obj tl_obj : token list) in
+                      match kind with
+                      | MK_DUMMY -> out rt
+                      | ObjectLike -> begin
+                          let plv0, blv0, last_rt0 = check_tokens ~name:x tl in
+                          plv := !plv + plv0;
+                          blv := !blv + blv0;
+                          last_rt := last_rt0
+                      end
+                      | FunctionLike spec -> begin
+                          let rt = inq#peek in
+                          match rt with
+                          | TY_LPAREN | LPAREN -> begin
+                              let al = read_args inq in
+                              let plv0, blv0, last_rt0 = check_func_like_macro x spec al tl in
+                              plv := !plv + plv0;
+                              blv := !blv + blv0;
+                              last_rt := last_rt0
+                          end
+                          | _ -> out rt
+                      end
+                    with _ -> out rt
+                end
+                | _ -> out rt
+              done;
+              assert false
+            with
+              Xqueue.Empty ->
+                let spec = !plv, !blv, !last_rt in
+                if name <> "" then
+                  self#reg_macro_spec name spec;
+                spec
+
+          and read_args inq =
+            let arg_list = ref [] in
+            let arg = ref [] in
+            let add_tok rt = arg := rt :: !arg in
+            let add_arg x = arg_list := x :: !arg_list in
+            let plv0 = ref 0 in
+            try
+              begin
+                let rt = inq#take in
+                match rt with
+                | TY_LPAREN | LPAREN -> incr plv0
+                | _ -> assert false
+              end;
+              while true do
+                let rt = inq#take in
+                DEBUG_MSG "%d: %s" !plv0 (Token.rawtoken_to_string rt);
+                match rt with
+                | TY_LPAREN | LPAREN -> incr plv0; add_tok rt
+                | RPAREN when !plv0 = 1 -> add_arg !arg; raise Exit
+                | RPAREN -> decr plv0; add_tok rt
+                | COMMA when !plv0 = 1 -> add_arg !arg; arg := []
+                | _ -> add_tok rt
+              done;
+              []
+            with
+              Exit -> !arg_list
+          in
+          let check x =
+            let _, macro_kind, tok_list_obj = env#find_pending_macro x in
+            DEBUG_MSG "%s: macro found %s" s (L.macro_kind_to_string macro_kind);
+            let tl = shift_ident [x] (Obj.obj tok_list_obj : token list) in
+            match macro_kind with
+            | ObjectLike -> begin
+                let plv, blv, last_rt = check_tokens ~name:x tl in
+                let add_lbraces () =
+                  let t = mk T.LBRACE in
+                  for i = 1 to blv do
+                    self#prepend_token t
+                  done
+                in
+                let add_rbraces () =
+                  let t = mk T.RBRACE in
+                  for i = 1 to -blv do
+                    self#prepend_token t
+                  done
+                in
+                let b0 = blv > 0 in
+                let b1 = blv < 0 in
+                if b0 then
+                  add_lbraces()
+                else if b1 then
+                  add_rbraces();
+                b0 || b1 || last_rt == COLON
             end
-            | _ -> true) &&*)
+            | FunctionLike spec -> begin
+                match self#peek_rawtoken() with
+                | TY_LPAREN -> begin
+                    let nth, al = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                    let plv, blv, last_rt = check_func_like_macro x spec al tl in
+                    let add_lbraces () =
+                      let tl = ref [] in
+                      let t = mk T.LBRACE in
+                      for i = 1 to blv do
+                        tl := t :: !tl
+                      done;
+                      insert_after_nth_token nth !tl
+                    in
+                    let add_rbraces () =
+                      let tl = ref [] in
+                      let t = mk T.RBRACE in
+                      for i = 1 to -blv do
+                        tl := t :: !tl
+                      done;
+                      insert_after_nth_token nth !tl
+                    in
+                    let b0 = blv > 0 in
+                    let b1 = blv < 0 in
+                    if b0 then
+                      add_lbraces()
+                    else if b1 then
+                      add_rbraces();
+                    b0 || b1 || last_rt == COLON
+                end
+                | _ -> false
+            end
+            | MK_DUMMY -> false
+          in
+
           try
             if env#is_malformed_macro s then
               raise Not_found;
-            let _, macro_kind, tok_list_obj = env#find_pending_macro s in
-            DEBUG_MSG "%s: macro found" s;
-            let b = check_body 0 macro_kind tok_list_obj in
-            (*!sub_cond || *)b
+            check s
           with
             _ -> false
       end
@@ -20174,12 +20272,14 @@ let conv_token (env : Aux.env) scanner (token : token) =
               match self#peek_nth_rawtoken (nth+1) with
               | RBRACKET -> true
               | _ -> false
-          end -> DEBUG_MSG "@"; mk T.ATTR_LBRACKET
+          end -> DEBUG_MSG "@ LBRACKET"; mk T.ATTR_LBRACKET
+
           | EQ when begin
               match self#peek_nth_rawtoken 2 with
               | RBRACKET | COMMA -> true
               | _ -> false
-          end -> DEBUG_MSG "@"; mk T.LAM_LBRACKET
+          end -> DEBUG_MSG "@ EQ"; mk T.LAM_LBRACKET
+
           | PTR_STAR when begin
               match self#peek_nth_rawtoken 2 with
               | THIS -> begin
@@ -20193,7 +20293,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   | _ -> false
               end
               | _ -> false
-          end -> DEBUG_MSG "@"; mk T.LAM_LBRACKET
+          end -> DEBUG_MSG "@ PTR_STAR"; mk T.LAM_LBRACKET
 
           | PTR_AMP when begin
               match prev_rawtoken with
@@ -20207,7 +20307,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   end
                   | IDENT _ | COMMA -> true
                   | _ -> false
-          end -> DEBUG_MSG "@"; mk T.LAM_LBRACKET
+          end -> DEBUG_MSG "@ PTR_AMP"; mk T.LAM_LBRACKET
 
           | RBRACKET when begin
               match prev_rawtoken with
@@ -20217,12 +20317,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   match self#peek_nth_rawtoken 2 with
                   | TY_LPAREN | LBRACE | TEMPL_LT -> true
                   | _ -> false
-          end -> DEBUG_MSG "@"; mk T.LAM_LBRACKET
+          end -> DEBUG_MSG "@ RBRACKET"; mk T.LAM_LBRACKET
 
           | IDENT _ | THIS when begin
               context != NEW &&
               match prev_rawtoken with
               | OPERATOR | NEW | DELETE | IDENT_V _ | IDENT _ | RBRACKET -> false
+              | TYPE_MACRO _ | AUTO | TY_TEMPL_GT -> false
               | RPAREN -> env#end_of_cast_type_flag
               | _ ->
                   match self#peek_nth_rawtoken 2 with
@@ -20239,10 +20340,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       | _ -> false
                   end
                   | _ -> false
-          end -> DEBUG_MSG "@"; mk T.LAM_LBRACKET
+          end -> DEBUG_MSG "@ (IDENT|THIS)"; mk T.LAM_LBRACKET
 
           | _ -> begin
-              DEBUG_MSG "@";
+              DEBUG_MSG "@ *";
               begin
                 match self#peek_rawtoken() with
                 | EOF -> self#prepend_token (mk T.RBRACKET)
@@ -24511,7 +24612,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
           match _rawtok with
           | PP_IF_S | PP_IFDEF_S | PP_IFNDEF_S -> begin
               env#set_cond_sub_info Pinfo.PP_STR;
-              env#set_pp_top_label (Label.StringLiteral "");
+              env#set_pp_top_label (L.StringLiteral "");
           end
           | _ -> ()
         end;
@@ -26219,6 +26320,15 @@ module F (Stat : Aux.STATE_T) = struct
     val ident_conv_tbl = Hashtbl.create 0
 
     val macro_fun_set = Xset.create 0
+
+    val macro_spec_tbl = Hashtbl.create 0 (* name -> plv * blv * last_rt *)
+    method reg_macro_spec name (plv, blv, last_rt as spec) =
+      DEBUG_MSG "%s -> (%d, %d, %s)" name plv blv (Token.rawtoken_to_string last_rt);
+      Hashtbl.add macro_spec_tbl name spec
+    method find_macro_spec name =
+      let (plv, blv, last_rt as spec) = Hashtbl.find macro_spec_tbl name in
+      DEBUG_MSG "found: %s -> (%d, %d, %s)" name plv blv (Token.rawtoken_to_string last_rt);
+      spec
 
     val token_seq = new Token_seq.c
     method token_seq = token_seq

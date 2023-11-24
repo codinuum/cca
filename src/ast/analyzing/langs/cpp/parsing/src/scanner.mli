@@ -87,6 +87,9 @@ class type c_t = object
   method peek_rawtoken_up_to_rbracket :
       ?from:int -> ?lv_ofs:int -> ?filt:(T.token -> bool) -> unit -> int * T.token list
 
+  method reg_macro_spec : string -> (int * int * T.token) -> unit
+  method find_macro_spec : string -> int * int * T.token
+
   method reg_ident_conv : string -> T.token -> unit
   method find_ident_conv : string -> T.token
 

@@ -21,6 +21,7 @@ module Aux = Parser_aux
 module PB = Parserlib_base
 module C = Context
 module T = Tokens_
+module L = Label
 
 let printf = Printf.printf
 let fprintf = Printf.fprintf
@@ -1679,7 +1680,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_idtor_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
-                env#set_pp_top_label Label.InitDeclarator;
+                env#set_pp_top_label L.InitDeclarator;
                 scanner#ctx_top();
                 scanner#ctx_ini();
                 raise Exit
@@ -1968,21 +1969,21 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_pp_str_if_group), _, I.X (I.T T_STR_LITERAL) -> begin
-                env#set_pp_top_label (Label.StringLiteral "");
+                env#set_pp_top_label (L.StringLiteral "");
                 raise Exit
             end
             | I.X (I.N N_pp_str_elif_group), _, I.X (I.T T_STR_LITERAL) -> begin
-                env#set_pp_top_label (Label.StringLiteral "");
+                env#set_pp_top_label (L.StringLiteral "");
                 raise Exit
             end
             | I.X (I.N N_pp_str_else_group), _, I.X (I.T T_STR_LITERAL) -> begin
-                env#set_pp_top_label (Label.StringLiteral "");
+                env#set_pp_top_label (L.StringLiteral "");
                 raise Exit
             end
             | I.X (I.N N_pp_str_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
-                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | StringLiteral _ -> env#set_pp_top_label (L.StringLiteral ";");
                   | _ -> ()
                 end;
                 raise Exit
@@ -1990,7 +1991,7 @@ class parser_c = object (self)
             | I.X (I.N N_pp_str_elif_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
-                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | StringLiteral _ -> env#set_pp_top_label (L.StringLiteral ";");
                   | _ -> ()
                 end;
                 raise Exit
@@ -1998,13 +1999,13 @@ class parser_c = object (self)
             | I.X (I.N N_pp_str_else_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
-                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | StringLiteral _ -> env#set_pp_top_label (L.StringLiteral ";");
                   | _ -> ()
                 end;
                 raise Exit
             end
             | I.X (I.N N_pp_lor_if_group), _, I.X (I.T T_SEMICOLON) -> begin
-                env#set_pp_top_label (Label.LogicalOrExpression ";");
+                env#set_pp_top_label (L.LogicalOrExpression ";");
                 raise Exit
             end
             | I.X (I.N N_op_macro_call), _ , I.X (I.T T_LPAREN) -> begin
@@ -4990,7 +4991,7 @@ class parser_c = object (self)
 
             let params =
               match macro_kind with
-              | FunctionLike(il, _) -> il
+              | FunctionLike {L.fm_params=il;} -> il
               | ObjectLike -> []
               | _ -> assert false
             in
@@ -4998,8 +4999,8 @@ class parser_c = object (self)
               let mnd =
                 let lab =
                   match macro_kind with
-                  | ObjectLike -> Label.ObjectLikeMacro
-                  | FunctionLike _ -> Label.FunctionLikeMacro macro_kind
+                  | ObjectLike -> L.ObjectLikeMacro
+                  | FunctionLike _ -> L.FunctionLikeMacro macro_kind
                   | _ -> assert false
                 in
                 new Ast.node ~lloc:(nd#lloc) ~children:[nd] lab

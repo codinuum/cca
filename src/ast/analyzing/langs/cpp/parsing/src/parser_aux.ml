@@ -3319,7 +3319,7 @@ class env = object (self)
     Hashtbl.find resolved_macro_tbl name
 
   method register_pending_macro name parent_nd macro_kind tok_lst =
-    DEBUG_MSG "%s (%s)" name (L.macro_kind_to_string macro_kind);
+    DEBUG_MSG "%s: %s" name (L.macro_kind_to_string macro_kind);
     Hashtbl.add pending_macro_tbl name (parent_nd, macro_kind, tok_lst)
 
   method iter_pending_macro f =
