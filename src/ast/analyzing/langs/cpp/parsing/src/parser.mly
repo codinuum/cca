@@ -289,6 +289,11 @@ let check_macro_body ?(name="") sp ep (tl : Token.t list) tl_obj =
       [nd], false
   end
 
+  | [IDENT i,_,ep0;INT_LITERAL x,sp1,_] -> begin
+      let nd = mkleaf sp1 ep (L.IntegerLiteral x) in
+      [mknode sp ep (L.OperatorMacro i) [nd]], false
+  end
+
   | [IDENT i,s0,e0;rt,s1,e1] when begin
       match rt with
       |EQ|PLUS_EQ|MINUS_EQ|STAR_EQ|SLASH_EQ|PERC_EQ|LT_LT_EQ|GT_GT_EQ|AMP_EQ _|HAT_EQ _|BAR_EQ _ -> true
