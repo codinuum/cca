@@ -2388,7 +2388,7 @@ let of_elem_data =
     | _ -> begin
         let params = Str.split comma_pat (find_attr attrs "params") in
         let va_args = find_attr attrs "va_args" in
-        FunctionLike(params, va_args)
+        make_func_like params va_args
     end
   in
 
