@@ -59,10 +59,27 @@ let paren_kind_to_string = function
   | PK_FOLD   -> "PK_FOLD"
   | PK_BRACKET -> "PK_BRACKET"
 
+type templ_param_arg_context = {
+    mutable tpac_expr_flag : bool;
+  }
+
+let make_templ_param_arg_context () = { tpac_expr_flag=false }
+
+let templ_param_arg_context_to_string {
+  tpac_expr_flag=e;
+} =
+  let sl = ref [] in
+  if e then
+    sl := "expr" :: !sl;
+  if !sl = [] then
+    ""
+  else
+    ":" ^ String.concat ";" !sl
+
 type bracket_kind =
   | BK_PAREN of paren_kind
-  | BK_TEMPL_PARAM
-  | BK_TEMPL_ARG
+  | BK_TEMPL_PARAM of templ_param_arg_context
+  | BK_TEMPL_ARG of templ_param_arg_context
   | BK_SUBSCR
   | BK_LAM_INTR
   | BK_ATTR
@@ -70,11 +87,15 @@ type bracket_kind =
   | BK_BRACE
   | BK_CLASS_BRACE
   | BK_INI_BRACE
+  | BK_REQ_BRACE
+
+let make_templ_param () = BK_TEMPL_PARAM (make_templ_param_arg_context())
+let make_templ_arg () = BK_TEMPL_ARG (make_templ_param_arg_context())
 
 let bracket_kind_to_string = function
   | BK_PAREN pk    -> "BK_PAREN:"^(paren_kind_to_string pk)
-  | BK_TEMPL_PARAM -> "BK_TEMPL_PARAM"
-  | BK_TEMPL_ARG   -> "BK_TEMPL_ARG"
+  | BK_TEMPL_PARAM c -> "BK_TEMPL_PARAM"^(templ_param_arg_context_to_string c)
+  | BK_TEMPL_ARG c   -> "BK_TEMPL_ARG"^(templ_param_arg_context_to_string c)
   | BK_SUBSCR      -> "BK_SUBSCR"
   | BK_LAM_INTR    -> "BK_LAM_INTR"
   | BK_ATTR        -> "BK_ATTR"
@@ -82,6 +103,7 @@ let bracket_kind_to_string = function
   | BK_BRACE       -> "BK_BRACE"
   | BK_CLASS_BRACE -> "BK_CLASS_BRACE"
   | BK_INI_BRACE   -> "BK_INI_BRACE"
+  | BK_REQ_BRACE   -> "BK_REQ_BRACE"
 
 type parsing_mode =
   | M_NORMAL
@@ -113,6 +135,25 @@ let parsing_mode_to_string = function
 
 type odd_brace_lv_t = { o_lv : int; mutable o_ini_lv : int }
 let odd_brace_lv_to_string { o_lv=lv; o_ini_lv=ilv } = sprintf "%d(%d)" lv ilv
+
+let stack_2nd stack =
+  let count = ref 0 in
+  let y = ref (Stack.top stack) in
+  begin
+    try
+      Stack.iter
+        (fun x ->
+          incr count;
+          if !count = 2 then begin
+            y := x;
+            raise Exit
+          end
+        ) stack;
+      raise Not_found
+    with
+      Exit -> ()
+  end;
+  !y
 
 class pstat = object (self)
   val mutable for_flag = false
@@ -149,6 +190,7 @@ class pstat = object (self)
   val mutable stmts_flag = false
   val mutable end_of_templ_head_flag = false
   val mutable end_of_params_flag = false
+  val mutable end_of_req_params_flag = false
   val mutable decl_stmt_block_flag = false
   val mutable lambda_dtor_flag = false
   val mutable lambda_intro_flag = false
@@ -194,13 +236,17 @@ class pstat = object (self)
   val mutable mock_qualifier_flag = false
   val mutable end_of_str_section_flag = false
   val mutable new_flag = false
+  val mutable concept_flag = false
+  val mutable requires_clause_flag = false
 
   val bracket_stack_stack = Stack.create()
 
   val paren_stack = Stack.create()
   val brace_stack = Stack.create()
+
   val templ_param_arg_stack = (Stack.create() : int Stack.t)
   val pp_if_section_stack = (Stack.create() : I.pp_if_section_info Stack.t)
+  val pp_group_rel_brace_level_stack = (Stack.create() : int ref Stack.t)
   val top_stmts_stack = (Stack.create() : int Stack.t)
   val templ_arg_stack = (Stack.create() : bool Stack.t)
   val odd_brace_lv_stack = (Stack.create() : odd_brace_lv_t Stack.t)
@@ -213,7 +259,6 @@ class pstat = object (self)
   val mutable _pp_if_section_level = 0
   val mutable pp_paren_level = 0
   val mutable objc_message_expr_level = 0
-  val mutable pp_group_rel_brace_level = 0
 
   val mutable brace_level_marker = 0
   val mutable brace_level_marker_flag = false
@@ -222,7 +267,8 @@ class pstat = object (self)
   val mutable last_pp_if_section_info = I.dummy_info
 
   initializer
-    Stack.push (Stack.create() : bracket_kind Stack.t) bracket_stack_stack
+    Stack.push (Stack.create() : bracket_kind Stack.t) bracket_stack_stack;
+    Stack.push (ref 0) pp_group_rel_brace_level_stack
 
   method reset () =
     for_flag <- false;
@@ -259,6 +305,7 @@ class pstat = object (self)
     stmts_flag <- false;
     end_of_templ_head_flag <- false;
     end_of_params_flag <- false;
+    end_of_req_params_flag <- false;
     decl_stmt_block_flag <- false;
     lambda_dtor_flag <- false;
     lambda_intro_flag <- false;
@@ -304,12 +351,16 @@ class pstat = object (self)
     mock_qualifier_flag <- false;
     end_of_str_section_flag <- false;
     new_flag <- false;
+    concept_flag <- false;
+    requires_clause_flag <- false;
     Stack.clear bracket_stack_stack;
     Stack.push (Stack.create() : bracket_kind Stack.t) bracket_stack_stack;
     Stack.clear paren_stack;
     Stack.clear brace_stack;
     Stack.clear templ_param_arg_stack;
     Stack.clear pp_if_section_stack;
+    Stack.clear pp_group_rel_brace_level_stack;
+    Stack.push (ref 0) pp_group_rel_brace_level_stack;
     Stack.clear top_stmts_stack;
     Stack.clear templ_arg_stack;
     Stack.clear odd_brace_lv_stack;
@@ -320,7 +371,6 @@ class pstat = object (self)
     pp_paren_level <- 0;
     _pp_if_section_level <- 0;
     objc_message_expr_level <- 0;
-    pp_group_rel_brace_level <- 0;
     brace_level_marker <- 0;
     brace_level_marker_flag <- false;
     canceled_brace_level_marker <- 0
@@ -338,7 +388,7 @@ class pstat = object (self)
       "pp_paren_lv", self#pp_paren_level;
       "_pp_if_section_lv", self#_pp_if_section_level;
       "objc_message_expr_lv", objc_message_expr_level;
-      "pp_group_rel_brace_lv", pp_group_rel_brace_level;
+      "pp_group_rel_brace_lv", self#pp_group_rel_brace_level;
     ]
     in
     sprintf "{%s}"
@@ -353,6 +403,7 @@ class pstat = object (self)
                   brace_stack = Stack.copy brace_stack;
                   templ_param_arg_stack = Stack.copy templ_param_arg_stack;
                   pp_if_section_stack = Stack.copy pp_if_section_stack;
+                  pp_group_rel_brace_level_stack = Stack.copy pp_group_rel_brace_level_stack;
                   top_stmts_stack = Stack.copy top_stmts_stack;
                   templ_arg_stack = Stack.copy templ_arg_stack;
                   odd_brace_lv_stack = Stack.copy odd_brace_lv_stack;
@@ -392,22 +443,27 @@ class pstat = object (self)
     DEBUG_MSG "@";
     canceled_brace_level_marker <- 0
 
-  method pp_group_rel_brace_level = pp_group_rel_brace_level
+  method pp_group_rel_brace_level_stack = pp_group_rel_brace_level_stack
+
+  method pp_group_rel_brace_level =
+    try
+      !(Stack.top pp_group_rel_brace_level_stack)
+    with _ -> 0
 
   method reset_pp_group_rel_brace_level () =
-    pp_group_rel_brace_level <- 0
+    (Stack.top pp_group_rel_brace_level_stack) := 0
 
   method incr_pp_group_rel_brace_level () =
-    let lv = pp_group_rel_brace_level in
+    let lv = self#pp_group_rel_brace_level in
     let lv1 = lv + 1 in
     DEBUG_MSG "lv=%d -> %d" lv lv1;
-    pp_group_rel_brace_level <- lv1
+    (Stack.top pp_group_rel_brace_level_stack) := lv1
 
   method decr_pp_group_rel_brace_level () =
-    let lv = pp_group_rel_brace_level in
+    let lv = self#pp_group_rel_brace_level in
     let lv1 = lv - 1 in
     DEBUG_MSG "lv=%d -> %d" lv lv1;
-    pp_group_rel_brace_level <- lv1
+    (Stack.top pp_group_rel_brace_level_stack) := lv1
 
   method enter_templ_arg is_type =
     DEBUG_MSG "entering templ_arg (is_type=%B)" is_type;
@@ -534,6 +590,18 @@ class pstat = object (self)
     end
 
   method end_of_params_flag = end_of_params_flag
+
+  method set_end_of_req_params_flag () =
+    DEBUG_MSG "end_of_req_params_flag set";
+    end_of_req_params_flag <- true
+
+  method clear_end_of_req_params_flag () =
+    if end_of_req_params_flag then begin
+      DEBUG_MSG "end_of_req_params_flag cleared";
+      end_of_req_params_flag <- false
+    end
+
+  method end_of_req_params_flag = end_of_req_params_flag
 
   method set_decl_stmt_block_flag () =
     DEBUG_MSG "decl_stmt_block_flag set";
@@ -1161,6 +1229,34 @@ class pstat = object (self)
 
   method new_flag = new_flag
 
+  method set_concept_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "concept_flag set";
+      concept_flag <- true
+    end
+
+  method clear_concept_flag () =
+    if concept_flag then begin
+      DEBUG_MSG "concept_flag cleared";
+      concept_flag <- false
+    end
+
+  method concept_flag = concept_flag
+
+  method set_requires_clause_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "requires_clause_flag set";
+      requires_clause_flag <- true
+    end
+
+  method clear_requires_clause_flag () =
+    if requires_clause_flag then begin
+      DEBUG_MSG "requires_clause_flag cleared";
+      requires_clause_flag <- false
+    end
+
+  method requires_clause_flag = requires_clause_flag
+
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
     sizeof_ty_flag <- true
@@ -1413,12 +1509,18 @@ class pstat = object (self)
     let info = I.make_pp_if_section_info ln c sc brace_lv paren_lv templ_param_arg_lv cond in
     DEBUG_MSG "entering pp_if_section %s" (I.pp_if_section_info_to_string info);
     Stack.push info pp_if_section_stack;
+    Stack.push (ref 0) pp_group_rel_brace_level_stack;
     self#enter_pp_group()
 
   method exit_pp_if_section ?(odd=false) () =
     DEBUG_MSG "exiting pp_if_section (odd=%B)..." odd;
     let info = Stack.pop pp_if_section_stack in
     last_pp_if_section_info <- info;
+    let _ =
+      try
+        Stack.pop pp_group_rel_brace_level_stack
+      with _ -> ref 0
+    in
     if odd && self#pp_odd_if_section_level > 0 then
       (Stack.top odd_brace_lv_stack).o_ini_lv <- info.i_brace_level;
     DEBUG_MSG "pp_if_section exited %s" (I.pp_if_section_info_to_string info);
@@ -1889,6 +1991,8 @@ class pstat = object (self)
 
   method bracket_stack_top = Stack.top self#bracket_stack
 
+  method bracket_stack_2nd = stack_2nd self#bracket_stack
+
   method bracket_stack_to_string =
     let buf = Buffer.create 0 in
     Stack.iter
@@ -1939,6 +2043,15 @@ class pstat = object (self)
     if not pseudo then
       self#_close_bracket()
 
+  method paren_stack_to_string =
+    let buf = Buffer.create 0 in
+    Stack.iter
+      (fun pk ->
+        Buffer.add_string buf (paren_kind_to_string pk);
+        Buffer.add_string buf "\n"
+      ) paren_stack;
+    Buffer.contents buf
+
   method paren_level = Stack.length paren_stack
   method paren_stack_top = Stack.top paren_stack
 
@@ -1962,6 +2075,14 @@ class pstat = object (self)
     try
       match self#bracket_stack_top with
       | BK_BRACE -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_req_brace =
+    try
+      match self#bracket_stack_top with
+      | BK_REQ_BRACE -> true
       | _ -> false
     with
       _ -> false
@@ -2001,7 +2122,15 @@ class pstat = object (self)
   method at_templ_arg =
     try
       match self#bracket_stack_top with
-      | BK_TEMPL_ARG -> true
+      | BK_TEMPL_ARG _ -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_templ_arg_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_TEMPL_ARG _ -> true
       | _ -> false
     with
       _ -> false
@@ -2009,7 +2138,23 @@ class pstat = object (self)
   method at_templ_param =
     try
       match self#bracket_stack_top with
-      | BK_TEMPL_PARAM -> true
+      | BK_TEMPL_PARAM _ -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_templ_param_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_TEMPL_PARAM _ -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_templ_param_arg_expr_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_TEMPL_PARAM c | BK_TEMPL_ARG c when c.tpac_expr_flag -> true
       | _ -> false
     with
       _ -> false
@@ -2027,6 +2172,22 @@ class pstat = object (self)
     try
       match Stack.top paren_stack with
       | PK_ARG -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_arg_paren_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_PAREN PK_ARG -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_macro_arg_paren_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_PAREN PK_MACRO -> true
       | _ -> false
     with
       _ -> false
@@ -2051,11 +2212,35 @@ class pstat = object (self)
     with
       _ -> false
 
+  method at_type_paren_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_PAREN (PK_TYPE _) -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method was_at_type_paren =
+    try
+      match stack_2nd paren_stack with
+      | PK_TYPE _ -> true
+      | _ -> false
+    with
+      _ -> false
+
   method at_fold_paren =
     self#_at_paren &&
     try
       match Stack.top paren_stack with
       | PK_FOLD -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_fold_paren_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_PAREN PK_FOLD -> true
       | _ -> false
     with
       _ -> false
@@ -2074,6 +2259,14 @@ class pstat = object (self)
     try
       match Stack.top paren_stack with
       | PK_NORMAL -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_paren_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_PAREN PK_NORMAL -> true
       | _ -> false
     with
       _ -> false
@@ -2260,7 +2453,6 @@ class dummy_pstat = object (self)
   method canceled_brace_level_marker = 0
   method set_canceled_brace_level_marker lv = ()
   method reset_canceled_brace_level_marker () = ()
-  method pp_group_rel_brace_level = 0
   method reset_pp_group_rel_brace_level () = ()
   method incr_pp_group_rel_brace_level () = ()
   method decr_pp_group_rel_brace_level () = ()
@@ -2296,6 +2488,9 @@ class dummy_pstat = object (self)
   method set_end_of_params_flag () = ()
   method clear_end_of_params_flag () = ()
   method end_of_params_flag = false
+  method set_end_of_req_params_flag () = ()
+  method clear_end_of_req_params_flag () = ()
+  method end_of_req_params_flag = false
   method set_decl_stmt_block_flag () = ()
   method clear_decl_stmt_block_flag () = ()
   method decl_stmt_block_flag = false
@@ -2451,6 +2646,12 @@ class dummy_pstat = object (self)
   method set_new_flag () = ()
   method clear_new_flag () = ()
   method new_flag = false
+  method set_concept_flag () = ()
+  method clear_concept_flag () = ()
+  method concept_flag = false
+  method set_requires_clause_flag () = ()
+  method clear_requires_clause_flag () = ()
+  method requires_clause_flag = false
   method enter_sizeof_ty () = ()
   method exit_sizeof_ty () = ()
   method sizeof_ty_flag = false
@@ -2515,6 +2716,7 @@ class dummy_pstat = object (self)
   method enter_pp_if_section ln c sc cond = ()
   method exit_pp_if_section ?(odd=false) () = ()
   method pp_if_section_stack = Stack.create()
+  method pp_group_rel_brace_level_stack = Stack.create()
   method pp_if_section_level = 0
   method pp_if_section_top_info = assert false
   method last_pp_if_section_info = assert false
@@ -2599,11 +2801,16 @@ class dummy_pstat = object (self)
   method paren_level = 0
   method paren_stack_top = PK_NORMAL
   method at_arg_paren = false
+  method at_arg_paren_2 = false
   method _arg_paren_flag = false
   method at_type_paren = false
+  method at_type_paren_2 = false
   method at_fold_paren = false
+  method at_fold_paren_2 = false
   method at_macro_arg_paren = false
+  method at_macro_arg_paren_2 = false
   method at_paren = false
+  method at_paren_2 = false
   method at_bracket = false
   method change_paren_kind pk = ()
   method get_paren_stack () = Stack.create()
@@ -2895,18 +3102,27 @@ class env = object (self)
   method at_ini_brace = pstat#at_ini_brace
   method at_class_brace = pstat#at_class_brace
   method at_brace = pstat#at_brace
+  method at_req_brace = pstat#at_req_brace
   method at_objc_msg = pstat#at_objc_msg
   method at_attr = pstat#at_attr
   method at_lam_intr = pstat#at_lam_intr
   method at_subscr = pstat#at_subscr
   method at_templ_arg = pstat#at_templ_arg
+  method at_templ_arg_2 = pstat#at_templ_arg_2
   method at_templ_param = pstat#at_templ_param
+  method at_templ_param_2 = pstat#at_templ_param_2
+  method at_templ_param_arg_expr_2 = pstat#at_templ_param_arg_expr_2
   method at_arg_paren = pstat#at_arg_paren
+  method at_arg_paren_2 = pstat#at_arg_paren_2
   method _arg_paren_flag = pstat#_arg_paren_flag
   method at_type_paren = pstat#at_type_paren
+  method at_type_paren_2 = pstat#at_type_paren_2
   method at_fold_paren = pstat#at_fold_paren
+  method at_fold_paren_2 = pstat#at_fold_paren_2
   method at_paren = pstat#at_paren
+  method at_paren_2 = pstat#at_paren_2
   method at_macro_arg_paren = pstat#at_macro_arg_paren
+  method at_macro_arg_paren_2 = pstat#at_macro_arg_paren_2
   method at_bracket = pstat#at_bracket
   method enter_templ_param_arg = pstat#enter_templ_param_arg
   method exit_templ_param_arg = pstat#exit_templ_param_arg
@@ -3496,6 +3712,10 @@ class env = object (self)
   method clear_end_of_params_flag = pstat#clear_end_of_params_flag
   method end_of_params_flag = pstat#end_of_params_flag
 
+  method set_end_of_req_params_flag = pstat#set_end_of_req_params_flag
+  method clear_end_of_req_params_flag = pstat#clear_end_of_req_params_flag
+  method end_of_req_params_flag = pstat#end_of_req_params_flag
+
   method set_decl_stmt_block_flag = pstat#set_decl_stmt_block_flag
   method clear_decl_stmt_block_flag = pstat#clear_decl_stmt_block_flag
   method decl_stmt_block_flag = pstat#decl_stmt_block_flag
@@ -3694,6 +3914,14 @@ class env = object (self)
   method set_new_flag = pstat#set_new_flag
   method clear_new_flag = pstat#clear_new_flag
   method new_flag = pstat#new_flag
+
+  method set_concept_flag = pstat#set_concept_flag
+  method clear_concept_flag = pstat#clear_concept_flag
+  method concept_flag = pstat#concept_flag
+
+  method set_requires_clause_flag = pstat#set_requires_clause_flag
+  method clear_requires_clause_flag = pstat#clear_requires_clause_flag
+  method requires_clause_flag = pstat#requires_clause_flag
 
   method set_alias_flag = pstat#set_alias_flag
   method clear_alias_flag = pstat#clear_alias_flag
@@ -3978,7 +4206,14 @@ class env = object (self)
 
   method set_expr_flag () =
     DEBUG_MSG "expr_flag set";
-    expr_flag <- true
+    expr_flag <- true;
+    try
+      match self#pstat#bracket_stack_top with
+      | BK_TEMPL_PARAM c | BK_TEMPL_ARG c -> c.tpac_expr_flag <- true
+      | _ -> ()
+    with
+      _ -> ()
+
 
   method clear_expr_flag () =
     if expr_flag then begin

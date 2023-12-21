@@ -1485,8 +1485,13 @@ and qn_wrap_of_mem_declarator (nd : node) =
   | PpDefine _ -> "", fun x -> x
   | _ -> invalid_arg "Cpp.Ast.qn_wrap_of_mem_declarator"
 
-and qn_wrap_of_declarator (nd : node) =
-  DEBUG_MSG "%s" (L.to_string nd#label);
+and qn_wrap_of_declarator ?(ty_opt=None) (nd : node) =
+  BEGIN_DEBUG
+    DEBUG_MSG "%s" (L.to_string nd#label);
+    match ty_opt with
+    | Some ty -> DEBUG_MSG "%s" (I.Type.to_string ty);
+    | None -> ()
+  END_DEBUG;
   match nd#label with
   | DummyDtor -> "", fun x -> x
   | DtorMacro i -> mk_macro_id i, fun x -> x
@@ -1657,13 +1662,25 @@ and qn_wrap_of_declarator (nd : node) =
         | [x] -> pointer_op_of_node x
         | _ -> assert false
       in
-      match nd#nth_children 2 with
-      | [] -> "", Type.make_pointer_type op
-      | [n] -> begin
-          let i, w = qn_wrap_of_declarator n in
-          i, fun x -> w (Type.make_pointer_type op (w x))
+      match ty_opt with
+      | Some ty -> begin
+          match nd#nth_children 2 with
+          | [] -> "", let x = Type.make_pointer_type op ty in fun _ -> x
+          | [n] -> begin
+              let i, w = qn_wrap_of_declarator ~ty_opt n in
+              i, let x = Type.make_pointer_type op (w ty) in fun _ -> w x
+          end
+          | _ -> assert false
       end
-      | _ -> assert false
+      | None -> begin
+          match nd#nth_children 2 with
+          | [] -> "", Type.make_pointer_type op
+          | [n] -> begin
+              let i, w = qn_wrap_of_declarator n in
+              i, fun x -> w (Type.make_pointer_type op (w x))
+          end
+          | _ -> assert false
+      end
   end
   | NewDeclaratorPtr | ConversionDeclarator | AbstractPackDeclarator -> begin
       let op = pointer_op_of_node (nd#nth_child 0) in
@@ -1831,7 +1848,7 @@ and qn_type_list_of_param_decl (nd : node) =
       let sty = simple_type_of_decl_spec_seq (nd#nth_children 1) in
       let qn, wrap =
         match nd#nth_children 2 with
-        | [n] -> qn_wrap_of_declarator n
+        | [n] -> qn_wrap_of_declarator ~ty_opt:(Some sty) n
         | _ -> "", fun x -> x
       in
       [nd, qn, wrap sty]
@@ -1886,7 +1903,9 @@ and type_spec_of_node ?(ns="") (nd : node) =
         | [n0] -> ns^(encode_nested_name_spec n0)
         | _ -> assert false
       in
-      I.TypeSpec.Simple (prefix^uqn)
+      let fqn = prefix^uqn in
+      DEBUG_MSG "fqn=%s" fqn;
+      I.TypeSpec.Simple fqn
   end
   | DecltypeSpecifier                -> I.TypeSpec.Decltype (encode_decltype nd)
   | PlaceholderTypeSpecifierAuto     -> I.TypeSpec.Placeholder I.PlaceholderType.Auto
@@ -1959,6 +1978,7 @@ and simple_type_of_class_head (nd : node) =
       List.flatten (List.map simple_type_of_class_head chs)
 
 and simple_type_of_decl_spec_seq (nds : node list) =
+  DEBUG_MSG "nds=[%s]" (String.concat "; " (List.map (fun n -> L.to_string n#label) nds));
   match nds with
   | [n] when begin
       match n#label with
@@ -2044,6 +2064,7 @@ and simple_type_of_decl_spec_seq (nds : node list) =
         | _ -> ts
       ) [] nds
   in
+  DEBUG_MSG "ts=[%s]" (String.concat "; " (List.map I.TypeSpec.to_string ts));
   let encoded = I.TypeSpec.encode ts in
   Type.make_simple_type ds ts encoded
 

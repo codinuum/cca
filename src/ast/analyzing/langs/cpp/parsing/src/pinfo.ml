@@ -1140,6 +1140,10 @@ module Name = struct
           match kind with
           | Member mspec -> mspec#is_public
           | _ -> false
+        method is_fparam =
+          match kind with
+          | FParam _ -> true
+          | _ -> false
         method ident = ident
         method kind = kind
 

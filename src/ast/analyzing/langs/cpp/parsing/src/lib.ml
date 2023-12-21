@@ -772,6 +772,7 @@ class parser_c = object (self)
       | N_list_pp_a_elif_group_ -> "list(pp_a_elif_group)"
       | N_list_pp_aexpr_elif_group_ -> "list(pp_aexpr_elif_group)"
       | N_list_pp_aexpr_elif_group_closing_ -> "list(pp_aexpr_elif_group)"
+      | N_list_pp_args_elif_group_close_open_ -> "list(pp_args_elif_group_close_open)"
       | N_list_pp_args_elif_group_closing_ -> "list(pp_args_elif_group_closing)"
       | N_list_pp_attr_elif_group_ -> "list(pp_attr_elif_group)"
       | N_list_pp_base_clause_elif_group_ -> "list(pp_base_clause_elif_group)"
@@ -1000,9 +1001,13 @@ class parser_c = object (self)
       | N_pp_aexpr_if_group_closing -> "pp_aexpr_if_group_closing"
       | N_pp_aexpr_if_section_closing -> "pp_aexpr_if_section_closing"
 
+      | N_pp_args_elif_group_close_open -> "pp_args_elif_group_close_open"
       | N_pp_args_elif_group_closing -> "pp_args_elif_group_closing"
+      | N_pp_args_else_group_close_open -> "pp_args_else_group_close_open"
       | N_pp_args_else_group_closing -> "pp_args_else_group_closing"
+      | N_pp_args_if_group_close_open -> "pp_args_if_group_close_open"
       | N_pp_args_if_group_closing -> "pp_args_if_group_closing"
+      | N_pp_args_if_section_close_open -> "pp_args_if_section_close_open"
       | N_pp_args_if_section_closing -> "pp_args_if_section_closing"
       | N_pp_attr_elif_group -> "pp_attr_elif_group"
       | N_pp_attr_else_group -> "pp_attr_else_group"
@@ -1552,9 +1557,41 @@ class parser_c = object (self)
                 env#set_new_flag();
                 raise Exit
             end
+            | I.X (I.N N_concept_definition), _, I.X (I.T T_CONCEPT) -> begin
+                env#set_concept_flag();
+                raise Exit
+            end
+            | I.X (I.N N_concept_definition), _, I.X (I.T T_SEMICOLON) -> begin
+                env#clear_concept_flag();
+                raise Exit
+            end
             | I.X (I.N N_new_placement), _, I.X (I.T T_RPAREN) -> begin
                 scanner#ctx_new();
                 scanner#ctx_ini();
+                raise Exit
+            end
+            | I.X (I.N N_logical_and_expression), _, I.X (I.T T_AMP_AMP) -> begin
+                env#set_expr_flag();
+                raise Exit
+            end
+            | I.X (I.N N_type_requirement), _, I.X (I.T T_SEMICOLON) -> begin
+                env#exit_typename();
+                raise Exit
+            end
+            | I.X (I.N N_requires_clause), _, I.X (I.T T_REQUIRES) -> begin
+                env#set_requires_clause_flag();
+                raise Exit
+            end
+            | I.X (I.N N_requirement_body), _, I.X (I.T T_RBRACE) -> begin
+                iter_items ~ith:5 menv_
+                  (function
+                    | _, I.X (I.N N_template_head), _, I.X (I.T T_TEMPL_GT), _ -> begin
+                        scanner#ctx_top();
+                        scanner#ctx_ini();
+                        raise Exit
+                    end
+                    | _ -> ()
+                  );
                 raise Exit
             end
             | _ -> ()
@@ -1604,20 +1641,28 @@ class parser_c = object (self)
                   );
                 raise Exit
             end
-            | I.X (I.N N_simple_type_specifier), _ , x when begin
+            (*| I.X (I.N N_simple_type_specifier), _ , x when begin
                 match x with
                 | I.X (I.T T_CHAR) | I.X (I.T T_CHAR8_T) | I.X (I.T T_CHAR16_T)
                 | I.X (I.T T_CHAR32_T) | I.X (I.T T_WCHAR_T) | I.X (I.T T_BOOL)
                 | I.X (I.T T_SHORT) | I.X (I.T T_INT) | I.X (I.T T_LONG)
-                | I.X (I.T T_SIGNED) | I.X (I.T T_UNSIGNED) | I.X (I.T T_IDENT)
+                | I.X (I.T T_SIGNED) | I.X (I.T T_UNSIGNED)
                 | I.X (I.T T_FLOAT) | I.X (I.T T_DOUBLE) | I.X (I.T T_VOID) -> true
+                | I.X (I.T T_IDENT) -> true
                 | _ -> false
             end -> begin
               iter_items_w ~from_ith:4 ~to_ith:7 menv_
                 (function
-                  | sn, I.X (I.N N_unary_expression), _, _, _ -> begin
+                  | sn, I.X (I.N N_unary_expression), xl, _, _ -> begin
+                      match xl with
+                      | I.X (I.T T_SIZEOF)::I.X (I.T T_TY_LPAREN)::_ -> raise Exit
+                      | I.X (I.N N_postfix_expression)::_ -> raise Exit
+                      | _ ->
                       if
-                        scanner#peek_rawtoken() != TY_TEMPL_GT ||
+                        (match scanner#peek_rawtoken() with
+                        | TY_TEMPL_GT -> false
+                        | GT_GT when env#templ_param_arg_level > 1 -> false
+                        | _ -> true) ||
                         match scanner#peek_nth_rawtoken 2 with
                         | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
                             match scanner#peek_nth_rawtoken 3 with
@@ -1636,7 +1681,7 @@ class parser_c = object (self)
                   | _ -> ()
                 );
               raise Exit
-            end
+            end*)
             | I.X (I.N N__namespace_alias_definition), _, I.X (I.T T_EQ) -> begin
                 env#set_ns_alias_flag();
                 raise Exit
@@ -1818,6 +1863,10 @@ class parser_c = object (self)
                 env#set_end_of_id_macro_call_flag();
                 raise Exit
             end
+            | I.X (I.N N_requirement_parameter_list), _, I.X (I.T T_RPAREN) -> begin
+                env#set_end_of_req_params_flag();
+                raise Exit
+            end
             | I.X (I.N N_noexcept_specifier), _, I.X (I.T T_LPAREN) -> begin
                 env#enter_noexcept();
                 raise Exit
@@ -1854,6 +1903,10 @@ class parser_c = object (self)
             end
             | I.X (I.N N_fold_expression), _, I.X (I.T T_RPAREN) -> begin
                 scanner#pop_context();
+                raise Exit
+            end
+            | I.X (I.N N_unary_operator), _, I.X (I.T T_EXCLAM) -> begin
+                env#set_expr_flag();
                 raise Exit
             end
             | I.X (I.N N_unary_expression), I.X (I.T T_SIZEOF)::_, I.X (I.T T_RPAREN) -> begin
@@ -4020,6 +4073,7 @@ class parser_c = object (self)
                   List.length (get_items _menv) = 1 ||
                   (*DEPRECATED!scanner#sub_context == END_OF_TY_SPEC ||*)
                   begin
+                    env#pstat#was_at_type_paren ||
                     try
                       iter_items_w ~from_ith:1 ~to_ith:2 menv_
                         (function
@@ -4311,7 +4365,7 @@ class parser_c = object (self)
                 end
                 | _ -> begin
                     begin
-                      iter_items_w ~from_ith:5 ~to_ith:5 menv_
+                      iter_items_w ~from_ith:5 ~to_ith:6 menv_
                         (function
                           | sn, I.X (I.N N_odd_else_stmt), _, I.X (I.T T_ELSE), _ -> begin
                               scanner#enter_block();
@@ -4598,6 +4652,7 @@ class parser_c = object (self)
             DEBUG_MSG "%s <- %s\n"
               (xsymbol_to_string lhs) (Xlist.to_string xsymbol_to_string " " rhs);
             match lhs with
+            | I.X (I.N N_requires_clause)        -> env#clear_requires_clause_flag()
             | I.X (I.N N_declarator)             -> scanner#ctx_end_of_dtor(); env#clear_class_name_flag()
             | I.X (I.N N_id_expression)          -> scanner#ctx_end_of_id_expr()
             | I.X (I.N N_new_expression)         -> env#clear_new_flag()
@@ -4768,6 +4823,7 @@ class parser_c = object (self)
             | I.X (I.N N_gnu_attribute) -> env#clear_attr_flag()
             | I.X (I.N N_restricted_postfix_expr) -> env#clear_mem_acc_flag()
             | I.X (I.N N_class_name) -> env#clear_class_name_flag()
+            | I.X (I.N N_requirement_parameter_list) -> env#clear_end_of_req_params_flag()
             | _ -> ()
           end;
           let ckpt = I.resume ckpt in

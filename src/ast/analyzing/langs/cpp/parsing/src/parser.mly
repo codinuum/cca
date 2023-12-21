@@ -193,6 +193,7 @@ let rawtok_to_lab rt =
   | PP_LINE       -> L.PpLine(0, "")
   | EXPORT        -> L.Identifier "export"
   | OBJC_CLASS    -> L.ObjcClass
+  | STATIC_ASSERT -> L.Static_assertDeclaration
   | _ -> failwith "rawtok_to_lab"
 
 let count_macro_param_occurrences kind (tl : Token.t list) =
@@ -6023,6 +6024,23 @@ pp_func_head_if_group_broken:
       _reloc $startpos(f) $endpos f;
       mknode $startpos $endpos (pp_if_group()) [p; f]
     }
+| p=pp_ifx t=template_head f=func_head c_opt=ioption(ctor_initializer) l=LBRACE sl_opt=statement_seq_opt
+    { 
+      ignore l;
+      let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
+      let b_ =
+        match c_opt with
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
+      in
+      f#relab (L.FunctionDefinition qn);
+      f#add_children_r [b_];
+      f#set_pvec (f#pvec @ [1]);
+      _reloc $startpos(f) $endpos f;
+      let t_ = mknode ~pvec:[1; 1] $startpos(t) $endpos L.TemplateDeclaration [t; f] in
+      mknode $startpos $endpos (pp_if_group()) [p; t_]
+    }
 | p=pp_ifx_d pl=pp_control_line+ f=func_head c_opt=ioption(ctor_initializer)
     l=LBRACE mid_brace_open sl_opt=statement_seq_opt
     { 
@@ -6099,6 +6117,26 @@ pp_func_head_elif_group_broken:
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
       mknode $startpos $endpos (_pp_elif_group p) [p; f]
+    }
+| p=pp_elif t=template_head f=func_head c_opt=ioption(ctor_initializer) l=LBRACE sl_opt=statement_seq_opt
+    { 
+      env#stack#exit_template();
+      env#pstat#close_brace();
+      env#close_in_body_brace();
+      ignore l;
+      let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
+      let b_ =
+        match c_opt with
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
+      in
+      f#relab (L.FunctionDefinition qn);
+      f#add_children_r [b_];
+      f#set_pvec (f#pvec @ [1]);
+      _reloc $startpos(f) $endpos f;
+      let t_ = mknode ~pvec:[1; 1] $startpos(t) $endpos L.TemplateDeclaration [t; f] in
+      mknode $startpos $endpos (_pp_elif_group p) [p; t_]
     }
 (*| p=pp_elif pl=pp_control_line+ f=func_head c_opt=ioption(ctor_initializer)
     l=LBRACE sl_opt=statement_seq_opt
@@ -6179,6 +6217,26 @@ pp_func_head_else_group_broken:
       f#set_pvec (f#pvec @ [1]);
       _reloc $startpos(f) $endpos f;
       mknode $startpos $endpos (_pp_else_group p) [p; f]
+    }
+| p=pp_else t=template_head f=func_head c_opt=ioption(ctor_initializer) l=LBRACE sl_opt=statement_seq_opt
+    { 
+      env#stack#exit_template();
+      env#pstat#close_brace();
+      env#close_in_body_brace();
+      ignore l;
+      let c_ = mknode $startpos(l) $endpos L.CompoundStatement (list_opt_to_list sl_opt) in
+      let qn = f#get_name in
+      let b_ =
+        match c_opt with
+        | Some c -> mknode ~pvec:[1; 1] $startpos(c_opt) $endpos (L.FunctionBody qn) [c; c_]
+        | None -> mknode ~pvec:[0; 1] $startpos(l) $endpos (L.FunctionBody qn) [c_]
+      in
+      f#relab (L.FunctionDefinition qn);
+      f#add_children_r [b_];
+      f#set_pvec (f#pvec @ [1]);
+      _reloc $startpos(f) $endpos f;
+      let t_ = mknode ~pvec:[1; 1] $startpos(t) $endpos L.TemplateDeclaration [t; f] in
+      mknode $startpos $endpos (_pp_else_group p) [p; t_]
     }
 (*| p=pp_else pl=pp_control_line+ f=func_head c_opt=ioption(ctor_initializer)
     l=LBRACE sl_opt=statement_seq_opt
@@ -7277,6 +7335,15 @@ postfix_expression:
       mknode ~pvec $startpos $endpos L.PostfixExpressionFunCall (p::el@[pp])
     }
 
+| p=postfix_expression LPAREN el_opt=expression_list_opt pp=pp_args_if_section_close_open RPAREN
+    { 
+      let el = list_opt_to_list el_opt in
+      let pvec = [1; (List.length el) + 1] in
+      p#add_suffix "(";
+      pp#add_suffix ")";
+      mknode ~pvec $startpos $endpos L.PostfixExpressionFunCall (p::el@[pp])
+    }
+
 | p=pp_p_if_section LPAREN el_opt=expression_list_opt RPAREN
     { 
       let el = list_opt_to_list el_opt in
@@ -7571,6 +7638,68 @@ pp_args_else_group_closing:
     { 
       let pvec = [1; List.length el; List.length sl] in
       mknode ~pvec $startpos $endpos (_pp_else_group p) (p::el@sl)
+    }
+;
+
+pp_args_if_section_close_open:
+| p=pp_args_if_group_close_open
+    pl=pp_args_elif_group_close_open*
+    p_opt=ioption(pp_args_else_group_close_open)
+    pe=pp_endif
+    { 
+      let pl1 = opt_to_list p_opt in
+      let pvec = [1; List.length pl; List.length pl1; 1] in
+      let pp_if_cond = get_pp_if_cond pe in
+      relab_if_group p pp_if_cond;
+      mknode ~pvec $startpos $endpos (L.PpIfSection(0, pp_if_cond)) (p :: pl @ pl1 @ [pe])
+    }
+;
+pp_args_if_group_close_open:
+| p=pp_ifx_close_open RPAREN DOT t_opt=ioption(template) i=id_expression LPAREN el_opt=expression_list_opt
+    { 
+      let tl = opt_to_list t_opt in
+      let e_ = mknode ~pvec:[0; List.length tl; 1] $startpos $endpos L.PostfixExpressionDot (tl @ [i]) in
+      let el = list_opt_to_list el_opt in
+      if el_opt <> None then begin
+        e_#add_suffix "(";
+        (Xlist.last el)#add_suffix ")"
+      end
+      else
+        e_#add_suffix "()";
+      let c_ = mknode ~pvec:[1; List.length el] $startpos $endpos L.PostfixExpressionFunCall (e_::el) in
+      mknode ~pvec:[1; 1] $startpos $endpos (pp_if_group()) [p; c_]
+    }
+;
+pp_args_elif_group_close_open:
+| p=pp_elif RPAREN DOT t_opt=ioption(template) i=id_expression LPAREN el_opt=expression_list_opt
+    { 
+      let tl = opt_to_list t_opt in
+      let e_ = mknode ~pvec:[0; List.length tl; 1] $startpos $endpos L.PostfixExpressionDot (tl @ [i]) in
+      let el = list_opt_to_list el_opt in
+      if el_opt <> None then begin
+        e_#add_suffix "(";
+        (Xlist.last el)#add_suffix ")"
+      end
+      else
+        e_#add_suffix "()";
+      let c_ = mknode ~pvec:[1; List.length el] $startpos $endpos L.PostfixExpressionFunCall (e_::el) in
+      mknode ~pvec:[1; 1] $startpos $endpos (_pp_elif_group p) [p; c_]
+    }
+;
+pp_args_else_group_close_open:
+| p=pp_else RPAREN DOT t_opt=ioption(template) i=id_expression LPAREN el_opt=expression_list_opt
+    { 
+      let tl = opt_to_list t_opt in
+      let e_ = mknode ~pvec:[0; List.length tl; 1] $startpos $endpos L.PostfixExpressionDot (tl @ [i]) in
+      let el = list_opt_to_list el_opt in
+      if el_opt <> None then begin
+        e_#add_suffix "(";
+        (Xlist.last el)#add_suffix ")"
+      end
+      else
+        e_#add_suffix "()";
+      let c_ = mknode ~pvec:[1; List.length el] $startpos $endpos L.PostfixExpressionFunCall (e_::el) in
+      mknode ~pvec:[1; 1] $startpos $endpos (_pp_else_group p) [p; c_]
     }
 ;
 
@@ -9795,6 +9924,8 @@ template_parameter_list:
 | tl=template_parameter_list COMMA t=template_parameter { (Xlist.last tl)#add_suffix ","; tl @ [t] }
 | tl=template_parameter_list COMMA t=templ_param_macro_call { (Xlist.last tl)#add_suffix ","; tl @ [t] }
 | tl=template_parameter_list COMMA t=pp_templ_param_if_section { (Xlist.last tl)#add_suffix ","; tl @ [t] }
+| tl=template_parameter_list COMMA t0=pp_templ_param_if_section t1=template_parameter
+    { (Xlist.last tl)#add_suffix ","; tl @ [t0; t1] }
 | tl=template_parameter_list t=templ_param_macro_call { tl @ [t] }
 | t=templ_param_macro_call { [t] }
 | t=templ_param_macro_call tp=template_parameter { [t; tp] }
@@ -9812,19 +9943,19 @@ pp_templ_param_if_section:
     }
 ;
 pp_templ_param_if_group:
-| pi=pp_ifx tl=template_parameter_list
+| pi=pp_ifx tl=template_parameter_list ioption(COMMA)
     { 
       mknode ~pvec:[1; List.length tl] $startpos $endpos (pp_if_group()) (pi::tl)
     }
 ;
 pp_templ_param_elif_group:
-| pi=pp_elif tl=template_parameter_list
+| pi=pp_elif tl=template_parameter_list ioption(COMMA)
     { 
       mknode ~pvec:[1; List.length tl] $startpos $endpos (_pp_elif_group pi) (pi::tl)
     }
 ;
 pp_templ_param_else_group:
-| pi=pp_else tl=template_parameter_list
+| pi=pp_else tl=template_parameter_list ioption(COMMA)
     { 
       mknode ~pvec:[1; List.length tl] $startpos $endpos (_pp_else_group pi) (pi::tl)
     }
@@ -12400,6 +12531,7 @@ pp_control_line:
 | PP_ERROR               NEWLINE { mkleaf $startpos $endpos (L.PpError "") }
 | PP_ERROR  tl=token_seq NEWLINE
     { mkleaf $startpos $endpos (L.PpError (Token.seq_to_repr tl)) }
+| PP_PRAGMA              NEWLINE { mkleaf $startpos $endpos (L.PpPragma "") }
 | PP_PRAGMA tl=token_seq NEWLINE
     { 
       let lab =
@@ -12944,7 +13076,7 @@ token:
 | ATTR_LBRACKET { mktok $startpos $endpos T.ATTR_LBRACKET }
 | RBRACKET      { mktok $startpos $endpos T.RBRACKET }
 (*| TEMPL_LT      { mktok $startpos $endpos T.TEMPL_LT }*)
-| TEMPL_GT      { mktok $startpos $endpos T.TEMPL_GT }
+(*| TEMPL_GT      { mktok $startpos $endpos T.TEMPL_GT }*)
 (*| TY_TEMPL_GT   { mktok $startpos $endpos T.TY_TEMPL_GT }*)
 | BEGIN_ASM     { mktok $startpos $endpos T.BEGIN_ASM }
 | END_ASM       { mktok $startpos $endpos T.END_ASM }
@@ -13249,7 +13381,7 @@ token_no_paren:
 | LT                    { mktok $startpos $endpos T.LT }
 | TEMPL_LT              { mktok $startpos $endpos T.TEMPL_LT }
 | GT                    { mktok $startpos $endpos T.GT }
-(*| TEMPL_GT              { mktok $startpos $endpos T.TEMPL_GT }*)
+| TEMPL_GT              { mktok $startpos $endpos T.TEMPL_GT }
 | TY_TEMPL_GT           { mktok $startpos $endpos T.TY_TEMPL_GT }
 | LT_EQ                 { mktok $startpos $endpos T.LT_EQ }
 | GT_EQ                 { mktok $startpos $endpos T.GT_EQ }
