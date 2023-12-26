@@ -4964,7 +4964,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
             match self#peek_nth_rawtoken (nth+1) with
             | COLON_COLON -> true
             | HEAD_COLON_COLON -> begin
-                conv_nth_token (function T.HEAD_COLON_COLON,s,e -> T.COLON_COLON,s,e | x -> x) (nth+1);
+                conv_nth_token
+                  (function T.HEAD_COLON_COLON,s,e -> T.COLON_COLON,s,e | x -> x) (nth+1);
                 true
             end
             | _ -> false
@@ -6224,7 +6225,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   | IDENT _ when begin
                       match self#peek_nth_rawtoken (nth+3) with
                       | SEMICOLON _ -> begin
-                          conv_nth_token (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) (nth+2);
+                          conv_nth_token
+                            (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) (nth+2);
                           true
                       end
                       | _ -> false
@@ -6522,7 +6524,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     end
                     | EQ when begin
                         match self#peek_nth_rawtoken (nth+2) with
-                        | DELETE | DEFAULT | INT_LITERAL _ when context == TOP || context == MEM -> false
+                        | DELETE | DEFAULT | INT_LITERAL _ when context == TOP || context == MEM
+                          -> false
                         | _ -> true
                     end -> true
                     | IDENT _ when begin
@@ -6535,7 +6538,23 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | _ -> false
             end
             | _ -> false
-        end -> DEBUG_MSG "* @"; mk (T.IDENT_IM s)
+        end -> DEBUG_MSG "(CHAR|...) @"; mk (T.IDENT_IM s)
+
+        | _ when begin
+            match context, sub_context with
+            | (TOP | MEM), END_OF_TY_SPEC -> begin
+                self#peek_rawtoken() == TY_LPAREN &&
+                match prev_rawtoken with
+                | NEWLINE -> begin
+                    let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 None in
+                    match self#peek_nth_rawtoken (nth+1) with
+                    | TY_LPAREN -> true
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> DEBUG_MSG "NEWLINE @"; mk (T.IDENT_IM s)
 
         | EQ when env#ty_param_key_flag -> DEBUG_MSG "EQ @"; token
 
