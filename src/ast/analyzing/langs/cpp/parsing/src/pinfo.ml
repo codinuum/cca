@@ -1036,6 +1036,7 @@ module Name = struct
     type kind =
       | Namespace of (unit -> unit)
       | UsingDecl
+      | UsingEnumDecl
       | Template of kind
       | TypeParam of param_spec
       | Param of Type.t_
@@ -1059,6 +1060,7 @@ module Name = struct
     let rec kind_to_string = function
       | Namespace _  -> "Namespace"
       | UsingDecl    -> "UsingDecl"
+      | UsingEnumDecl -> "UsingEnumDecl"
       | Template k   -> sprintf "Template:%s" (kind_to_string k)
       | TypeParam s  -> sprintf "TypeParam:%s" (param_spec_to_string s)
       | Param ty     -> sprintf "Param:%s" (Type.to_string_ ty)

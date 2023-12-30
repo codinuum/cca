@@ -1037,6 +1037,33 @@ and qn_of_using_declarator (nd : node) =
   | PackExpansion -> qn_of_using_declarator (nd#nth_child 0)
   | _ -> invalid_arg "Cpp.Ast.qn_of_using_declarator"
 
+and qn_list_of_using_enum_declaration (nd : node) =
+  DEBUG_MSG "%s" (L.to_string nd#label);
+  match nd#label with
+  | UsingEnumDeclaration -> List.map qn_of_using_enum_declarator nd#children
+  | _ -> invalid_arg "Cpp.Ast.qn_list_of_using_enum_declaration"
+
+and qn_of_using_enum_declarator (nd : node) =
+  DEBUG_MSG "%s" (L.to_string nd#label);
+  match nd#label with
+  | UsingEnumDeclarator -> begin
+      match nd#nth_children 0 with
+      | [] -> begin
+          match nd#nth_children 1 with
+          | [n] -> "", uqn_of_unqualified_id n
+          | _ -> assert false
+      end
+      | [n] -> begin
+          let p = encode_nested_name_spec n in
+          match nd#nth_children 1 with
+          | [n] -> p, uqn_of_unqualified_id n
+          | _ -> assert false
+      end
+      | _ -> assert false
+  end
+  | PackExpansion -> qn_of_using_enum_declarator (nd#nth_child 0)
+  | _ -> invalid_arg "Cpp.Ast.qn_of_using_enum_declarator"
+
 and qn_of_qualified_id (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
@@ -1162,16 +1189,24 @@ and alt_base_specs_list_of_node ns (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
   | PpIfSection _ -> begin
-      let ifg = fst (base_specs_of_base_clause ns ((nd#nth_child 0)#nth_child 1)) in
+      let ifg =
+        try
+          [fst (base_specs_of_base_clause ns ((nd#nth_child 0)#nth_child 1))]
+        with _ -> []
+      in
       let elifg =
-        List.map
-          (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 1)
+        try
+          List.map
+            (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 1)
+        with _ -> []
       in
       let elsg =
-        List.map
-          (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 2)
+        try
+          List.map
+            (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 2)
+        with _ -> []
       in
-      ifg :: elifg @ elsg
+      ifg @ elifg @ elsg
   end
   | _ -> invalid_arg "Cpp.Ast.alt_base_specs_list_of_node"
 

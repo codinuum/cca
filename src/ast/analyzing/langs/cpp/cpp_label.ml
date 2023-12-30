@@ -831,6 +831,11 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | InitEndMacroInvocation i -> combo2 678 [i]
   | LiteralMacroArgument s -> combo2 679 [s]
 
+  | UsingEnumDeclaration -> mkstr2 680
+  | UsingEnumDeclarator -> mkstr2 681
+  | RefMacro i -> combo2 682 [i]
+  | RefMacroInvocation i -> combo2 683 [i]
+
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier

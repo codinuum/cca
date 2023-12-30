@@ -130,6 +130,7 @@ type t =
   | AsmDefinition of string           (* BlockDeclaration *)
   | NamespaceAliasDefinition of ident (* BlockDeclaration *)
   | UsingDeclaration                  (* BlockDeclaration *)
+  | UsingEnumDeclaration              (* BlockDeclaration *)
   | UsingDirective of ident           (* BlockDeclaration *)
   | Static_assertDeclaration          (* BlockDeclaration *)
   | AliasDeclaration of ident         (* BlockDeclaration *)
@@ -693,6 +694,7 @@ type t =
   | ConversionDeclarator
   | ConversionTypeId
   | UsingDeclarator
+  | UsingEnumDeclarator
   | TypeConstraint of name
   | TypeId
   | DecltypeSpecifier
@@ -728,6 +730,8 @@ type t =
   | AccessSpecMacro of ident
   | CvMacro of ident
   | CvMacroInvocation of ident
+  | RefMacro of ident
+  | RefMacroInvocation of ident
   | OpeningBrace
   | ClosingBrace
   | OpeningBracket
@@ -914,6 +918,7 @@ let to_string = function
   | AsmDefinition s               -> sprintf "AsmDefinition(%s)" s
   | NamespaceAliasDefinition i    -> "NamespaceAliasDefinition:"^i
   | UsingDeclaration              -> "UsingDeclaration"
+  | UsingEnumDeclaration          -> "UsingEnumDeclaration"
   | UsingDirective i              -> "UsingDirective:"^i
   | Static_assertDeclaration      -> "Static_assertDeclaration"
   | AliasDeclaration i            -> "AliasDeclaration:"^i
@@ -1456,6 +1461,7 @@ let to_string = function
   | ConversionTypeId               -> "ConversionTypeId"
   | Typename                       -> "Typename"
   | UsingDeclarator                -> "UsingDeclarator"
+  | UsingEnumDeclarator            -> "UsingEnumDeclarator"
   | TypeConstraint n               -> "TypeConstraint:"^n
   | TypeId                         -> "TypeId"
   | DecltypeSpecifier              -> "DecltypeSpecifier"
@@ -1496,6 +1502,8 @@ let to_string = function
   | AccessSpecMacro i              -> "AccessSpecMacro:"^i
   | CvMacro i                      -> "CvMacro:"^i
   | CvMacroInvocation i            -> "CvMacroInvocation:"^i
+  | RefMacro i                     -> "RefMacro:"^i
+  | RefMacroInvocation i           -> "RefMacroInvocation:"^i
   | OpeningBrace                   -> "OpeningBrace"
   | ClosingBrace                   -> "ClosingBrace"
   | OpeningBracket                 -> "OpeningBracket"
@@ -1684,6 +1692,7 @@ let to_simple_string = function
   | AsmDefinition s               -> sprintf "asm(%s)" s
   | NamespaceAliasDefinition i    -> sprintf "namespace %s =" i
   | UsingDeclaration              -> "using"
+  | UsingEnumDeclaration          -> "using enum"
   | UsingDirective i              -> "using namespace "^i
   | Static_assertDeclaration      -> "static_assert"
   | AliasDeclaration i            -> "using "^i
@@ -2231,6 +2240,7 @@ let to_simple_string = function
   | ConversionDeclarator           -> "<conversion-dDeclarator>"
   | ConversionTypeId               -> "<conversion-type-id>"
   | UsingDeclarator                -> "<using-declarator>"
+  | UsingEnumDeclarator            -> "<using-enum-declarator>"
   | TypeConstraint n               -> sprintf "<type-constraint:%s>" n
   | TypeId                         -> "<type-id>"
   | DecltypeSpecifier              -> "decltype()"
@@ -2272,6 +2282,8 @@ let to_simple_string = function
   | AccessSpecMacro i              -> i
   | CvMacro i                      -> i
   | CvMacroInvocation i            -> i
+  | RefMacro i                     -> i
+  | RefMacroInvocation i           -> i
   | OpeningBrace                   -> "{"
   | ClosingBrace                   -> "}"
   | OpeningBracket                 -> "["
@@ -2461,6 +2473,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | AsmDefinition s               -> "AsmDefinition", ["asm",s]
   | NamespaceAliasDefinition i    -> "NamespaceAliasDefinition", ["ident",i]
   | UsingDeclaration              -> "UsingDeclaration", []
+  | UsingEnumDeclaration          -> "UsingEnumDeclaration", []
   | UsingDirective i              -> "UsingDirective", ["ident",i]
   | Static_assertDeclaration      -> "Static_assertDeclaration", []
   | AliasDeclaration i            -> "AliasDeclaration", ["ident",i]
@@ -3022,6 +3035,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ConversionTypeId               -> "ConversionTypeId", []
   | Typename                       -> "Typename", []
   | UsingDeclarator                -> "UsingDeclarator", []
+  | UsingEnumDeclarator            -> "UsingEnumDeclarator", []
   | TypeConstraint n               -> "TypeConstraint", ["name",n]
   | TypeId                         -> "TypeId", []
   | DecltypeSpecifier              -> "DecltypeSpecifier", []
@@ -3062,6 +3076,8 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | AccessSpecMacro i              -> "AccessSpecMacro", ["ident",i]
   | CvMacro i                      -> "CvMacro", ["ident",i]
   | CvMacroInvocation i            -> "CvMacroInvocation", ["ident",i]
+  | RefMacro i                     -> "RefMacro", ["ident",i]
+  | RefMacroInvocation i           -> "RefMacroInvocation", ["ident",i]
   | OpeningBrace                   -> "OpeningBrace", []
   | ClosingBrace                   -> "ClosingBrace", []
   | OpeningBracket                 -> "OpeningBracket", []
@@ -3262,6 +3278,8 @@ let get_name : t -> string = function
   | AccessSpecMacro n
   | CvMacro n
   | CvMacroInvocation n
+  | RefMacro n
+  | RefMacroInvocation n
   | LiteralMacroInvocation n
   | NoexceptSpecifierMacro n
   | AttributeMacroInvocation n

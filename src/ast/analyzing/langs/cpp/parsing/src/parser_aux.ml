@@ -194,6 +194,7 @@ class pstat = object (self)
   val mutable decl_stmt_block_flag = false
   val mutable lambda_dtor_flag = false
   val mutable lambda_intro_flag = false
+  val mutable end_of_lambda_templ_flag = false
   val mutable ctor_init_flag = false
   val mutable asm_shader_flag = false
   val mutable dsl_flag = false
@@ -309,6 +310,7 @@ class pstat = object (self)
     decl_stmt_block_flag <- false;
     lambda_dtor_flag <- false;
     lambda_intro_flag <- false;
+    end_of_lambda_templ_flag <- false;
     ctor_init_flag <- false;
     asm_shader_flag <- false;
     dsl_flag <- false;
@@ -518,6 +520,18 @@ class pstat = object (self)
     end
 
   method end_of_old_param_decl_flag = end_of_old_param_decl_flag
+
+  method set_end_of_lambda_templ_flag () =
+    DEBUG_MSG "end_of_lambda_templ_flag set";
+    end_of_lambda_templ_flag <- true
+
+  method clear_end_of_lambda_templ_flag () =
+    if end_of_lambda_templ_flag then begin
+      DEBUG_MSG "end_of_lambda_templ_flag cleared";
+      end_of_lambda_templ_flag <- false
+    end
+
+  method end_of_lambda_templ_flag = end_of_lambda_templ_flag
 
   method set_old_param_decl_flag () =
     DEBUG_MSG "old_param_decl_flag set";
@@ -3215,6 +3229,16 @@ class env = object (self)
         frm#register u spec
       ) (Ast.qn_list_of_using_declaration nd)
 
+  method register_using_enum_decls nd =
+    DEBUG_MSG "nd=%s" (L.to_string nd#label);
+    let frm = stack#top in
+    let lod = nd#loc in
+    List.iter
+      (fun (p, u) ->
+        let spec = new N.Spec.c ~prefix:p lod u N.Spec.UsingEnumDecl in
+        frm#register u spec
+      ) (Ast.qn_list_of_using_enum_declaration nd)
+
   method register_type_param nd =
     DEBUG_MSG "nd=%s" (L.to_string nd#label);
     let i, tp_spec = Ast.ident_type_param_spec_of_type_param nd in
@@ -3687,6 +3711,10 @@ class env = object (self)
   method set_end_of_old_param_decl_flag = pstat#set_end_of_old_param_decl_flag
   method clear_end_of_old_param_decl_flag = pstat#clear_end_of_old_param_decl_flag
   method end_of_old_param_decl_flag = pstat#end_of_old_param_decl_flag
+
+  method set_end_of_lambda_templ_flag = pstat#set_end_of_lambda_templ_flag
+  method clear_end_of_lambda_templ_flag = pstat#clear_end_of_lambda_templ_flag
+  method end_of_lambda_templ_flag = pstat#end_of_lambda_templ_flag
 
   method set_old_param_decl_flag = pstat#set_old_param_decl_flag
   method clear_old_param_decl_flag = pstat#clear_old_param_decl_flag

@@ -471,6 +471,7 @@ class parser_c = object (self)
       | T_QUEST -> "QUEST"
       | T_RBRACE -> "RBRACE"
       | T_RBRACKET -> "RBRACKET"
+      | T_REF_MACRO -> "REF_MACRO"
       | T_REGISTER -> "REGISTER"
       | T_REINTERPRET_CAST -> "REINTERPRET_CAST"
       | T_REQUIRES -> "REQUIRES"
@@ -589,6 +590,7 @@ class parser_c = object (self)
       | N__static_assert_declaration -> "_static_assert_declaration"
       | N__type_specifier_seq -> "_type_specifier_seq"
       | N__using_declaration -> "_using_declaration"
+      | N__using_enum_declaration -> "_using_enum_declaration"
       | N__using_directive -> "_using_directive"
       | N_abstract_declarator -> "abstract_declarator"
       | N_abstract_pack_declarator -> "abstract_pack_declarator"
@@ -806,6 +808,7 @@ class parser_c = object (self)
       | N_list_pp_idtor_elif_group_ -> "list(pp_idtor_elif_group)"
       | N_list_pp_ifstmt_elif_group_closing_ -> "list(pp_ifstmt_elif_group_closing)"
       | N_list_pp_init_elif_group_ -> "list(pp_init_elif_group)"
+      | N_list_pp_init_elif_group_closing_ -> "list(pp_init_elif_group_closing)"
       | N_list_pp_ior_elif_group_ -> "list(pp_ior_elif_group)"
       | N_list_pp_lambda_head_elif_group_broken_ -> "list(pp_lambda_head_elif_group_broken)"
       | N_list_pp_land_elif_group_ -> "list(pp_land_elif_group)"
@@ -895,6 +898,7 @@ class parser_c = object (self)
       | N_nonempty_list_gnu_asm_token_ -> "nonempty_list(gnu_asm_token)"
       | N_nonempty_list_header_name_token_ -> "nonempty_list(header_name_token)"
       | N_nonempty_list_multiplicative_unit_ -> "nonempty_list(multiplicative_unit)"
+      | N_nonempty_list_namespace_definition_ -> "nonempty_list(namespace_definition)"
       | N_nonempty_list_objc_catch_clause_ -> "nonempty_list(objc_catch_clause)"
       | N_nonempty_list_objc_instance_var_decl_ -> "nonempty_list(objc_instance_var_decl)"
       | N_nonempty_list_objc_keyword_arg_ -> "nonempty_list(objc_keyword_arg)"
@@ -1156,9 +1160,13 @@ class parser_c = object (self)
       | N_pp_ifx_shift -> "pp_ifx_shift"
       | N_pp_ifx_x -> "pp_ifx_x"
       | N_pp_init_elif_group -> "pp_init_elif_group"
+      | N_pp_init_elif_group_closing -> "pp_init_elif_group_closing"
       | N_pp_init_else_group -> "pp_init_else_group"
+      | N_pp_init_else_group_closing -> "pp_init_else_group_closing"
       | N_pp_init_if_group -> "pp_init_if_group"
+      | N_pp_init_if_group_closing -> "pp_init_if_group_closing"
       | N_pp_init_if_section -> "pp_init_if_section"
+      | N_pp_init_if_section_closing -> "pp_init_if_section_closing"
       | N_pp_ior_elif_group -> "pp_ior_elif_group"
       | N_pp_ior_else_group -> "pp_ior_else_group"
       | N_pp_ior_if_group -> "pp_ior_if_group"
@@ -1361,7 +1369,9 @@ class parser_c = object (self)
       | N_unnamed_namespace_definition_head -> "unnamed_namespace_definition_head"
       | N_unqualified_id -> "unqualified_id"
       | N_using_declaration -> "using_declaration"
+      | N_using_enum_declaration -> "using_enum_declaration"
       | N_using_declarator -> "using_declarator"
+      | N_using_enum_declarator -> "using_enum_declarator"
       | N_using_declarator_list -> "using_declarator_list"
       | N_virt_specifier -> "virt_specifier"
       | N_virt_specifier_seq -> "virt_specifier_seq"
@@ -1594,6 +1604,18 @@ class parser_c = object (self)
                   );
                 raise Exit
             end
+            | I.X (I.N N_attribute_specifier), _ , I.X (I.T T_ATTR_LBRACKET) -> begin
+                scanner#push_context();
+                scanner#push_sub_context();
+                raise Exit
+            end
+            | I.X (I.N N_attribute_specifier), _ , I.X (I.T T_RBRACKET) when i = 5 -> begin
+                env#clear_attr_flag();
+                scanner#pop_context();
+                scanner#pop_sub_context();
+                raise Exit
+            end
+
             | _ -> ()
           in
           let _proc_shift1 (_, l, rs, r, i) =
@@ -1616,10 +1638,6 @@ class parser_c = object (self)
             end*)
             | I.X (I.N N_attribute_token), _ , _ -> begin
                 env#set_attr_flag();
-                raise Exit
-            end
-            | I.X (I.N N_attribute_specifier), _ , I.X (I.T T_RBRACKET) -> begin
-                env#clear_attr_flag();
                 raise Exit
             end
             | I.X (I.N N_unqualified_id), _ , I.X (I.T T_IDENT_V) -> begin
@@ -2965,6 +2983,10 @@ class parser_c = object (self)
                 env#clear_linkage_spec_flag();
                 raise Exit
             end
+            | I.X (I.N N__lambda_expression), _, I.X (I.T T_TEMPL_GT) -> begin
+                env#set_end_of_lambda_templ_flag();
+                raise Exit
+            end
             | I.X (I.N N_compound_statement), _, I.X (I.T T_LBRACE) -> begin
                 DEBUG_MSG "@";
                 env#clear_virtual_func_flag();
@@ -3283,9 +3305,14 @@ class parser_c = object (self)
                   | I.X (I.N N_cast_key), I.X (I.T T_TEMPL_LT) -> env#enter_templ_arg false
                   | I.X (I.N N_cast_key), I.X (I.T T_TEMPL_GT) -> env#exit_templ_arg()
                   | I.X (I.N N_postfix_expression), I.X (I.T T_RPAREN) -> env#set_expr_flag()
+
                   | I.X (I.T T_TY_LPAREN), I.X (I.T T_TY_LPAREN) when begin
-                      not env#sizeof_ty_flag && scanner#prev_rawtoken2 != T.SIZEOF
+                      not env#sizeof_ty_flag &&
+                      match scanner#prev_rawtoken2 with
+                      | SIZEOF -> false
+                      | _ -> true
                   end -> env#set_cast_head_flag()
+
                   | I.X (I.T T_TY_LPAREN), I.X (I.T T_RPAREN) -> begin
                       scanner#ctx_expr();
                       if env#cast_head_flag then begin
@@ -4305,6 +4332,19 @@ class parser_c = object (self)
                 raise Exit
             end
 
+            | I.X (I.N N_pp_init_if_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_init_elif_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_init_else_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+
             | I.X (I.N N_pp_cond_tl_if_group), rhs, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
                 raise Exit
@@ -4671,6 +4711,7 @@ class parser_c = object (self)
             | I.X (I.N N__using_directive)       -> env#clear_using_ns_flag()
             | I.X (I.N N__asm_declaration)       -> env#exit_asm()
             (*| I.X (I.N N_enum_head)              -> env#exit_enum_head()*)
+            | I.X (I.N N__lambda_expression)     -> env#clear_end_of_lambda_templ_flag()
             | I.X (I.N N_lambda_expression)      -> scanner#pop_context()
             | I.X (I.N N_lambda_declarator)      -> env#clear_lambda_dtor_flag()
             | I.X (I.N N_alignment_specifier)    -> env#exit_alignas()
@@ -4824,6 +4865,9 @@ class parser_c = object (self)
             | I.X (I.N N_restricted_postfix_expr) -> env#clear_mem_acc_flag()
             | I.X (I.N N_class_name) -> env#clear_class_name_flag()
             | I.X (I.N N_requirement_parameter_list) -> env#clear_end_of_req_params_flag()
+            | I.X (I.N N_braced_init_list) when
+                Xlist.last rhs = I.X (I.N N_pp_init_if_section_closing)
+              -> env#exit_braced_init()
             | _ -> ()
           end;
           let ckpt = I.resume ckpt in

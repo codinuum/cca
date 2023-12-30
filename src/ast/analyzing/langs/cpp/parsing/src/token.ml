@@ -75,6 +75,7 @@ let rawtoken_to_string = function
   | CC_MACRO s           -> sprintf "CC_MACRO:%s" s
   | LAM_MACRO s          -> sprintf "LAM_MACRO:%s" s
   | CV_MACRO s           -> sprintf "CV_MACRO:%s" s
+  | REF_MACRO s          -> sprintf "REF_MACRO:%s" s
   | NOEXCEPT_MACRO s     -> sprintf "NOEXCEPT_MACRO:%s" s
   | NS_MACRO s           -> sprintf "NS_MACRO:%s" s
   | EMPTY_MACRO s        -> sprintf "EMPTY_MACRO:%s" s
@@ -557,6 +558,7 @@ let rawtoken_to_repr = function
   | CC_MACRO s           -> s
   | LAM_MACRO s          -> s
   | CV_MACRO s           -> s
+  | REF_MACRO s           -> s
   | NOEXCEPT_MACRO s     -> s
   | NS_MACRO s           -> s
   | EMPTY_MACRO s        -> s
