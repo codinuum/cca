@@ -49,81 +49,81 @@ let is_capital_ident =
 
 let is_type_name = (* mostly behave like type_name *)
   let l = [
-    "int8_t";
-    "int16_t";
-    "int32_t";
-    "int64_t";
-    "uint8_t";
-    "uint16_t";
-    "uint32_t";
-    "uint64_t";
-    "uintptr_t";
-    "ptrdiff_t";
-    "size_t";
-    (*"string";*)
-    "u8string";
-    "u16string";
-    "u32string";
-    "wstring";
+    "CK_ATTRIBUTE";
+    "CK_C_GetFunctionList";
     "DWORD";
-    (*"BOOL";*)
-    "HANDLE";
-    "PRBool";
-    (*"UInt32";
-    "UInt64";*)
-    "nsresult";
-    "z_stream";
-    "evutil_socket_t";
-    "ev_intptr_t";
-    "FT_UInt32";
+    "EGLint";
     "FT_Module_Constructor";
     "FT_Module_Destructor";
     "FT_Module_Requester";
-    "GLenum";
-    "GLsizei";
-    "GLfloat";
-    "GLboolean";
-    "GLshort";
-    "GLsync";
-    "GLubyte";
+    "FT_UInt32";
     "GLbitfield";
+    "GLboolean";
+    "GLenum";
+    "GLfixed";
+    "GLfloat";
     "GLint";
     "GLintptr";
+    "GLshort";
+    "GLsizei";
+    "GLsync";
+    "GLubyte";
     "GLuint";
-    "GLfixed";
-    (*"EGLDisplay";*)
-    "EGLint";
-    "PyObject";
-    "opus_int";
-    "opus_int8";
-    "opus_int16";
-    "opus_int32";
-    "opus_int64";
-    "opus_uint";
-    "opus_uint8";
-    "opus_uint16";
-    "opus_uint32";
-    "opus_uint64";
-    "opus_val16";
-    "opus_val32";
-    "CK_ATTRIBUTE";
-    "CK_C_GetFunctionList";
-    "YY_BUFFER_STATE";
+    "HANDLE";
     "OPJ_BOOL";
+    "OPJ_BYTE";
     "OPJ_CHAR";
     "OPJ_FLOAT32";
     "OPJ_FLOAT64";
-    "OPJ_BYTE";
-    "OPJ_INT8";
-    "OPJ_UINT8";
     "OPJ_INT16";
-    "OPJ_UINT16";
     "OPJ_INT32";
-    "OPJ_UINT32";
     "OPJ_INT64";
-    "OPJ_UINT64";
+    "OPJ_INT8";
     "OPJ_OFF_T";
     "OPJ_SIZE_T";
+    "OPJ_UINT16";
+    "OPJ_UINT32";
+    "OPJ_UINT64";
+    "OPJ_UINT8";
+    "PRBool";
+    "PyObject";
+    "YY_BUFFER_STATE";
+    "ev_intptr_t";
+    "evutil_socket_t";
+    "int16_t";
+    "int32_t";
+    "int64_t";
+    "int8_t";
+    "nsresult";
+    "opus_int";
+    "opus_int16";
+    "opus_int32";
+    "opus_int64";
+    "opus_int8";
+    "opus_uint";
+    "opus_uint16";
+    "opus_uint32";
+    "opus_uint64";
+    "opus_uint8";
+    "opus_val16";
+    "opus_val32";
+    "ptrdiff_t";
+    "size_t";
+    "u16string";
+    "u32string";
+    "u8string";
+    "uint16_t";
+    "uint32_t";
+    "uint64_t";
+    "uint8_t";
+    "uintptr_t";
+    "wstring";
+    "z_stream";
+    (*"BOOL";*)
+    (*"EGLDisplay";*)
+    (*"UInt32";*)
+    (*"UInt64";*)
+    (*"string";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -131,8 +131,8 @@ let is_type_name = (* mostly behave like type_name *)
 
 let is_templ_name =
   let l = [
-    "conditional_t";
-    (*"type_identity_t";
+    (*"conditional_t";
+    "type_identity_t";
     "aligned_storage_t";
     "aligned_union_t";
     "remove_cvref_t";
@@ -152,10 +152,10 @@ let is_templ_name =
 
 let is_val_name =
   let l = [
-    "DOGLCD_SCK";
+    (*"DOGLCD_SCK";
     "DOGLCD_MOSI";
     "DOGLCD_CS";
-    "DOGLCD_A0";
+    "DOGLCD_A0";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -179,27 +179,67 @@ let is_init_end_macro_ident =
 
 let is_attr_macro =
   let l = [
-    "__devinitdata";
-    "__in";
-    "__init";
-    "__initdata";
-    "__ref";
-    "__refdata";
-    "__user";
+    "ABSL_ATTRIBUTE_ALWAYS_INLINE";
+    "ABSL_ATTRIBUTE_LIFETIME_BOUND";
+    "ABSL_CONST_INIT";
+    "ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES";
+    "ABSL_NO_THREAD_SAFETY_ANALYSIS";
+    "ABSL_PER_THREAD_TLS_KEYWORD";
+    "CDM_CLASS_API";
+    "CF_NOESCAPE";
+    "CMSAMPLEBUFFERCALL_NOESCAPE";
+    "COMPILE_ASSERT_UNUSED_ATTRIBUTE";
     "COM_Outptr_";
-    "COM_Outptr_result_maybenull_";
     "COM_Outptr_opt_";
     "COM_Outptr_opt_result_maybenull_";
+    "COM_Outptr_result_maybenull_";
+    "CONTENT_EXPORT";
+    "CPPGC_UNUSED";
     "CV_EXPORTS";
     "CV_EXPORTS_W_SIMPLE";
     "GAPI_EXPORTS";
+    "GTEST_API_";
+    "GTEST_ATTRIBUTE_UNUSED_";
+    "HB_UNUSED";
+    "ISC_ATTR_RETURNS_NONNULL";
+    "JNICALL";
+    "JNIEXPORT";
+    "JSONCPP_TEMPLATE_DELETE";
     "LIBPROTOBUF_EXPORT";
+    "MOZ_ALLOW_TEMPORARY";
+    "MOZ_ASAN_BLACKLIST";
+    "MOZ_CAN_RUN_SCRIPT";
+    "MOZ_CAN_RUN_SCRIPT_BOUNDARY";
+    "MOZ_NON_PARAM";
+    "MOZ_NON_TEMPORARY_CLASS";
+    "MOZ_RAII";
+    "MOZ_STACK_CLASS";
+    "MOZ_STATIC_ASSERT_UNUSED_ATTRIBUTE";
+    "MOZ_TRIVIAL_CTOR_DTOR";
+    "NO_RETURN_DUE_TO_ASSERT";
+    "NO_RETURN_DUE_TO_CRASH";
+    "NS_DESIGNATED_INITIALIZER";
+    "NS_NOESCAPE";
+    "NS_REFINED_FOR_SWIFT";
+    "NS_RELEASES_ARGUMENT";
+    "NS_SWIFT_NOTHROW";
+    "SK_RESTRICT";
+    "V8_WARN_UNUSED_RESULT";
+    "WINBASEAPI";
+    "WTF_COPY_FUNCTION_POINTER_QUALIFIER";
+    "WTF_DISPOSE_FUNCTION_POINTER_QUALIFIER";
+    "WTF_EXPORT";
+    "WTF_EXPORT_DECLARATION";
+    "WTF_INVOKE_FUNCTION_POINTER_QUALIFIER";
+    "_Check_return_";
     "_In_";
-    "_In_z_";
     "_In_opt_";
+    "_In_z_";
     "_Inout_";
-    "_Inout_z_";
     "_Inout_opt_";
+    "_Inout_z_";
+    "_Nonnull";
+    "_Nullable";
     "_Out_";
     "_Out_opt_";
     "_Outptr_";
@@ -215,63 +255,23 @@ let is_attr_macro =
     "_Outref_";
     "_Outref_result_maybenull_";
     "_Outref_result_nullonfailure_";
+    "_Post_equals_last_error_";
     "_Result_nullonfailure_";
     "_Result_zeroonfailure_";
-    "_Nullable";
-    "_Nonnull";
-    "GTEST_API_";
-    "MOZ_STACK_CLASS";
-    "MOZ_ASAN_BLACKLIST";
-    "MOZ_CAN_RUN_SCRIPT";
-    "MOZ_CAN_RUN_SCRIPT_BOUNDARY";
-    "MOZ_RAII";
-    "MOZ_TRIVIAL_CTOR_DTOR";
-    "MOZ_NON_PARAM";
-    "MOZ_NON_TEMPORARY_CLASS";
-    "MOZ_ALLOW_TEMPORARY";
-    "MOZ_STATIC_ASSERT_UNUSED_ATTRIBUTE";
-    "JSONCPP_TEMPLATE_DELETE";
-    "CDM_CLASS_API";
-    "HB_UNUSED";
-    "SK_RESTRICT";
-    "WINBASEAPI";
-    "COMPILE_ASSERT_UNUSED_ATTRIBUTE";
-    "_Check_return_";
-    "_Post_equals_last_error_";
-    "NS_SWIFT_NOTHROW";
-    "NS_REFINED_FOR_SWIFT";
+    "__devinitdata";
+    "__in";
+    "__init";
+    "__initdata";
+    "__ref";
+    "__refdata";
+    "__user";
     "weak_function";
-    (*"__vector";*)
-    "CONTENT_EXPORT";
-    "CPPGC_UNUSED";
-    "V8_WARN_UNUSED_RESULT";
-    "ISC_ATTR_RETURNS_NONNULL";
-    "NS_NOESCAPE";
-    "NS_DESIGNATED_INITIALIZER";
-    "NS_RELEASES_ARGUMENT";
-    "CF_NOESCAPE";
-    "CMSAMPLEBUFFERCALL_NOESCAPE";
-    "ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES";
-    "ABSL_ATTRIBUTE_ALWAYS_INLINE";
-    "ABSL_ATTRIBUTE_LIFETIME_BOUND";
-    "ABSL_CONST_INIT";
-    "ABSL_PER_THREAD_TLS_KEYWORD";
-    (*"__bridge";
-    "__bridge_retained";
-    "__bridge_transfer";*)
-    "WTF_COPY_FUNCTION_POINTER_QUALIFIER";
-    "WTF_INVOKE_FUNCTION_POINTER_QUALIFIER";
-    "WTF_DISPOSE_FUNCTION_POINTER_QUALIFIER";
-    "WTF_EXPORT_DECLARATION";
-    (*"WTF_EXPORT_PRIVATE";*)
-    "WTF_EXPORT";
     (*"WEBCORE_EXPORT";*)
-    "GTEST_ATTRIBUTE_UNUSED_";
-    "JNIEXPORT";
-    "JNICALL";
-    "NO_RETURN_DUE_TO_ASSERT";
-    "NO_RETURN_DUE_TO_CRASH";
-    "ABSL_NO_THREAD_SAFETY_ANALYSIS";
+    (*"WTF_EXPORT_PRIVATE";*)
+    (*"__bridge";*)
+    (*"__bridge_retained";*)
+    (*"__bridge_transfer";*)
+    (*"__vector";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -279,16 +279,58 @@ let is_attr_macro =
 
 let is_attr_macro_ident =
   let l = [
-    "_In_range_";
-    "_Out_range_";
-    "_Ret_range_";
+    "ABSL_ATTRIBUTE_SECTION_VARIABLE";
+    "ABSL_GUARDED_BY";
+    "ABSL_INTERNAL_UNIQUE_SMALL_NAME";
+    "ABSL_PT_GUARDED_BY";
+    "API_AVAILABLE";
+    "API_UNAVAILABLE";
+    "DWRITE_DECLARE_INTERFACE";
+    "EXPORT_TEMPLATE_DEFINE";
+    "GTEST_LOCK_EXCLUDED_";
+    "GUARDED_BY_CONTEXT";
+    "HB_PRINTF_FUNC";
+    "ISC_ATTR_DEALLOCATOR_IDX";
+    "ISC_ATTR_MALLOC_DEALLOCATOR_IDX";
+    "JSC_API_AVAILABLE";
+    "MOZ_FORMAT_PRINTF";
+    "MOZ_UNSAFE_REF";
+    "MSGPACK_DEPRECATED";
+    "NS_AVAILABLE_MAC";
+    "NS_DEPRECATED";
+    "NS_FORMAT_ARGUMENT";
+    "NS_SWIFT_NAME";
+    "NS_SWIFT_UNAVAILABLE";
+    "PROTOBUF_SECTION_VARIABLE";
+    "PT_GUARDED_BY";
+    "RTC_ACCESS_ON";
+    "RTC_ACQUIRED_AFTER";
+    "RTC_ACQUIRED_BEFORE";
+    "RTC_ASSERT_EXCLUSIVE_LOCK";
+    "RTC_EXPORT_TEMPLATE_DEFINE";
+    "RTC_GUARDED_BY";
+    "RTC_LOCKS_EXCLUDED";
+    "RTC_NO_SANITIZE";
+    "RTC_PT_GUARDED_BY";
+    "U8G_FONT_SECTION";
+    "U8G_SECTION";
+    "V8_DEPRECATE_SOON";
+    "WEBKIT_AVAILABLE_MAC";
+    "WEBKIT_DEPRECATED_FOR";
+    "WEBKIT_DEPRECATED_MAC";
+    "WK_API_AVAILABLE";
+    "WK_API_DEPRECATED";
+    "WK_API_DEPRECATED_WITH_REPLACEMENT";
+    "WTF_ATTRIBUTE_PRINTF";
+    "WTF_GUARDED_BY_CAPABILITY";
+    "WTF_GUARDED_BY_LOCK";
+    "WTF_REQUIRES_LOCK";
+    "XXH_ALIGN";
     "_Deref_in_range_";
-    "_Deref_out_range_";
     "_Deref_inout_range_";
+    "_Deref_out_range_";
     "_Field_range_";
-    "_Pre_equal_to_";
-    "_Post_equal_to_";
-    "_Struct_size_bytes_";
+    "_In_range_";
     "_In_reads_";
     "_In_reads_bytes_";
     "_In_reads_or_z_";
@@ -296,12 +338,13 @@ let is_attr_macro_ident =
     "_In_reads_to_ptr_z_";
     "_In_reads_z_";
     "_Inout_updates_";
-    "_Inout_updates_to_";
+    "_Inout_updates_all_";
     "_Inout_updates_bytes_";
     "_Inout_updates_bytes_all_";
     "_Inout_updates_bytes_to_";
-    "_Inout_updates_all_";
+    "_Inout_updates_to_";
     "_Inout_updates_z_";
+    "_Out_range_";
     "_Out_writes_";
     "_Out_writes_all_";
     "_Out_writes_bytes_";
@@ -311,14 +354,14 @@ let is_attr_macro_ident =
     "_Out_writes_to_ptr_";
     "_Out_writes_to_ptr_z_";
     "_Out_writes_z_";
-    "_Outptr_result_buffer_";
-    "_Outptr_result_buffer_to_";
-    "_Outptr_result_bytebuffer_";
-    "_Outptr_result_bytebuffer_to_";
     "_Outptr_opt_result_buffer_";
     "_Outptr_opt_result_buffer_to_";
     "_Outptr_opt_result_bytebuffer_";
     "_Outptr_opt_result_bytebuffer_to_";
+    "_Outptr_result_buffer_";
+    "_Outptr_result_buffer_to_";
+    "_Outptr_result_bytebuffer_";
+    "_Outptr_result_bytebuffer_to_";
     "_Outref_result_buffer_";
     "_Outref_result_buffer_all_";
     "_Outref_result_buffer_all_maybenull_";
@@ -331,58 +374,15 @@ let is_attr_macro_ident =
     "_Outref_result_bytebuffer_maybenull_";
     "_Outref_result_bytebuffer_to_";
     "_Outref_result_bytebuffer_to_maybenull_";
-    "MOZ_FORMAT_PRINTF";
-    "MOZ_UNSAFE_REF";
-    "NS_AVAILABLE_MAC";
-    "RTC_GUARDED_BY";
-    "RTC_ACQUIRED_AFTER";
-    "RTC_ACQUIRED_BEFORE";
-    "RTC_PT_GUARDED_BY";
-    "RTC_ACCESS_ON";
-    "RTC_NO_SANITIZE";
-    "RTC_ASSERT_EXCLUSIVE_LOCK";
-    "OSVR_CPP_ONLY";
-    "XXH_ALIGN";
-    "GTEST_LOCK_EXCLUDED_";
-    "HB_PRINTF_FUNC";
+    "_Post_equal_to_";
+    "_Pre_equal_to_";
     "_Releases_exclusive_lock_";
-    "DWRITE_DECLARE_INTERFACE";
-    "MSGPACK_DEPRECATED";
-    "PROTOBUF_SECTION_VARIABLE";
-    "NS_SWIFT_NAME";
-    "NS_SWIFT_UNAVAILABLE";
-    (*"VR_OUT_STRING";*)
-    "U8G_SECTION";
-    "U8G_FONT_SECTION";
-    "API_AVAILABLE";
-    "API_UNAVAILABLE";
-    "GUARDED_BY_CONTEXT";
-    "PT_GUARDED_BY";
-    "V8_DEPRECATE_SOON";
-    "EXPORT_TEMPLATE_DEFINE";
-    "ISC_ATTR_MALLOC_DEALLOCATOR_IDX";
-    "ISC_ATTR_DEALLOCATOR_IDX";
-    "WEBKIT_AVAILABLE_MAC";
-    "WEBKIT_DEPRECATED_MAC";
-    "WEBKIT_DEPRECATED_FOR";
-    "WK_API_AVAILABLE";
-    "WK_API_DEPRECATED";
-    "WK_API_DEPRECATED_WITH_REPLACEMENT";
-    "NS_DEPRECATED";
-    "JSC_API_AVAILABLE";
-    "ABSL_GUARDED_BY";
-    "ABSL_PT_GUARDED_BY";
-    "WTF_REQUIRES_LOCK";
-    "WTF_GUARDED_BY_LOCK";
-    "WTF_GUARDED_BY_CAPABILITY";
-    "WTF_ATTRIBUTE_PRINTF";
-    "RTC_LOCKS_EXCLUDED";
+    "_Ret_range_";
+    "_Struct_size_bytes_";
     "__inout_ecount_full";
     "__ptrauth";
-    "ABSL_INTERNAL_UNIQUE_SMALL_NAME";
-    "ABSL_ATTRIBUTE_SECTION_VARIABLE";
-    "NS_FORMAT_ARGUMENT";
-    "RTC_EXPORT_TEMPLATE_DEFINE";
+    (*"OSVR_CPP_ONLY";*)
+    (*"VR_OUT_STRING";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -416,9 +416,9 @@ let is_cast_head_macro =
 
 let is_func_head_macro =
   let l = [
-    "MKDIR_PROTOTYPE";
-    "HAL_TEMP_TIMER_ISR";
     "HAL_STEP_TIMER_ISR";
+    "HAL_TEMP_TIMER_ISR";
+    "MKDIR_PROTOTYPE";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -426,22 +426,22 @@ let is_func_head_macro =
 
 let is_decl_spec_macro =
   let l = [
-    "__inline";
+    "CONSTEXPR_WITH_MSVC_INITIALIZER_LIST_WORKAROUND";
+    "HB_EXTERN";
     "JS_FRIEND_API";
     "JS_PUBLIC_API";
-    "HB_EXTERN";
     "LSS_INLINE";
-    (*"INLINE";*)
-    "__host__";
+    "PAS_ALWAYS_INLINE";
+    "PNG_EXTERN";
     "__device__";
     "__forceinline__";
-    (*"V8_EXPORT_PRIVATE";
-    "V8_NODISCARD";*)
-    "PNG_EXTERN";
-    (*"PNGAPI";*)
-    "CONSTEXPR_WITH_MSVC_INITIALIZER_LIST_WORKAROUND";
-    "PAS_ALWAYS_INLINE";
+    "__host__";
+    "__inline";
     "mig_external";
+    (*"INLINE";*)
+    (*"PNGAPI";*)
+    (*"V8_EXPORT_PRIVATE";*)
+    (*"V8_NODISCARD";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -449,16 +449,16 @@ let is_decl_spec_macro =
 
 let is_decl_spec_macro_ident =
   let l = [
-    "__declspec";
+    "CVAPI";
+    "CV_DECL_ALIGNED";
+    "HB_DEPRECATED_FOR";
+    "JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL";
+    "JSC_DECLARE_JIT_OPERATION_WITH_ATTRIBUTES";
     "MOZ_THREAD_LOCAL";
     "SK_STDMETHODIMP_";
     "STDMETHODIMP_";
-    "HB_DEPRECATED_FOR";
-    "CV_DECL_ALIGNED";
-    "CVAPI";
-    "JSC_DECLARE_JIT_OPERATION_WITHOUT_WTF_INTERNAL";
-    "JSC_DECLARE_JIT_OPERATION_WITH_ATTRIBUTES";
     "WTF_VTBL_FUNCPTR_PTRAUTH";
+    "__declspec";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -466,11 +466,11 @@ let is_decl_spec_macro_ident =
 
 let is_param_decl_macro =
   let l = [
-    "MOZ_GUARD_OBJECT_NOTIFIER_PARAM";
-    "sqlite3ParserCTX_PDECL";
-    "sqlite3Fts5ParserCTX_PDECL";
-    "STATE_PARAM";
     "CRT0_DUMMIES";
+    "MOZ_GUARD_OBJECT_NOTIFIER_PARAM";
+    "STATE_PARAM";
+    "sqlite3Fts5ParserCTX_PDECL";
+    "sqlite3ParserCTX_PDECL";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -510,8 +510,8 @@ let is_params_body_macro =
 
 let is_params_body_macro_ident =
   let l = [
-    "STYLE_SET_FUNCTION";
     "STYLE_GET_FUNCTION";
+    "STYLE_SET_FUNCTION";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -519,9 +519,9 @@ let is_params_body_macro_ident =
 
 let is_arg_macro =
   let l = [
+    "COLOR_IDS";
     "MSGPACK_PP_SEQ_TO_LIST_A_ID";
     (*"MOZ_GUARD_OBJECT_NOTIFIER_PARAM_TO_PARENT";*)
-    "COLOR_IDS";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -529,14 +529,14 @@ let is_arg_macro =
 
 let is_arg_macro_ident =
   let l = [
-    "SkDEBUGPARAMS";
-    "PATH_OPS_DEBUG_T_SECT_PARAMS";
-    "T1_FIELD_CALLBACK";
-    "MSGPACK_PP_LPAREN";
     "MSGPACK_PP_COMMA";
+    "MSGPACK_PP_LPAREN";
     "NR_ADD_STUN_ATTRIBUTE";
+    "PATH_OPS_DEBUG_T_SECT_PARAMS";
     "PyObject_HEAD_INIT";
+    "SkDEBUGPARAMS";
     "XDISPLAY";
+    (*"T1_FIELD_CALLBACK";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -544,8 +544,8 @@ let is_arg_macro_ident =
 
 let is_args_macro =
   let l = [
-    (*"MSGPACK_PP_SEQ_BINARY_TRANSFORM_A";
-    "MSGPACK_PP_SEQ_BINARY_TRANSFORM_B";*)
+    (*"MSGPACK_PP_SEQ_BINARY_TRANSFORM_A";*)
+    (*"MSGPACK_PP_SEQ_BINARY_TRANSFORM_B";*)
     (*"__VA_ARGS__";*)
   ] in
   let names = Xset.create 0 in
@@ -554,8 +554,8 @@ let is_args_macro =
 
 let is_args_macro_ident =
   let l = [
-    "MSGPACK_DEFINE_MAP_IMPL";
     "ISO_SUBSPACE_INIT";
+    "MSGPACK_DEFINE_MAP_IMPL";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -564,27 +564,27 @@ let is_args_macro_ident =
 
 let is_cc_macro =
   let l = [
-    "WINAPI";
     "APIENTRY";
-    (*"CALLBACK";*)
-    "GLAPIENTRY";
-    "NS_STDCALL";
-    "CV_STDCALL";
     "CL_API_CALL";
     "CL_API_ENTRY";
     "CL_CALLBACK";
-    "PTRFASTCALL";
-    "ITTAPI";
+    "CV_STDCALL";
+    "GLAPIENTRY";
     "GR_GL_FUNCTION_TYPE";
-    "U_CALLCONV_FPTR";
     "HOOK_CALL";
+    "ITTAPI";
+    "NS_STDCALL";
+    "PTRFASTCALL";
+    "U_CALLCONV_FPTR";
+    "WINAPI";
     "_Optlink";
-    "__stdcall";
     "__RPC_API";
+    "__RPC_ENTRY";
     "__RPC_FAR";
     "__RPC_STUB";
     "__RPC_USER";
-    "__RPC_ENTRY";
+    "__stdcall";
+    (*"CALLBACK";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -592,10 +592,10 @@ let is_cc_macro =
 
 let is_ptr_macro =
   let l = [
-    "GL_APIENTRYP";
-    "EGLAPIENTRYP";
-    "PNGCBAPI";
     "APIENTRYP";
+    "EGLAPIENTRYP";
+    "GL_APIENTRYP";
+    "PNGCBAPI";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -603,10 +603,10 @@ let is_ptr_macro =
 
 let is_virt_spec_macro =
   let l = [
-    "Q_DECL_OVERRIDE";
-    "MOZ_MUST_OVERRIDE";
     "CV_FINAL";
     "CV_OVERRIDE";
+    "MOZ_MUST_OVERRIDE";
+    "Q_DECL_OVERRIDE";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -623,33 +623,33 @@ let is_virt_spec_macro_ident =
 
 let is_type_macro_ident =
   let l = [
-    "__typeof__";
-    "__typeof";
     "BOOST_TYPEOF";
-    (*"LOCAL";*)
-    (*"GLOBAL";*)
-    (*"EXTERN";*)(* also used as obj macro *)
-    "FT_LOCAL";
-    "FT_LOCAL_ARRAY";
-    "FT_EXPORT";
-    "FT_EXPORT_VAR";
-    "FT_BASE_DEF";
-    "HT_HEAD";
-    "NSPR_API";
+    "EXPORT_CDECL";
     "EXPORT_XPCOM_API";
     "ElfW";
-    "NP_EXPORT";
-    "EXPORT_CDECL";
-    "TAILQ_HEAD";
-    "STAILQ_HEAD";
-    "GMOCK_RESULT_";
+    "FT_BASE_DEF";
+    "FT_EXPORT";
+    "FT_EXPORT_VAR";
+    "FT_LOCAL";
+    "FT_LOCAL_ARRAY";
     "GMOCK_ARG_";
     "GMOCK_MATCHER_";
-    "SK_WHEN";
-    "msgpack_unpack_struct";
-    "STACK_OF";
+    "GMOCK_RESULT_";
+    "HT_HEAD";
     "LHASH_OF";
+    "NP_EXPORT";
+    "NSPR_API";
+    "SK_WHEN";
+    "STACK_OF";
+    "STAILQ_HEAD";
+    "TAILQ_HEAD";
     "VOLATILE";
+    "__typeof";
+    "__typeof__";
+    "msgpack_unpack_struct";
+    (*"EXTERN";*)(* also used as obj macro *)
+    (*"GLOBAL";*)
+    (*"LOCAL";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -657,22 +657,22 @@ let is_type_macro_ident =
 
 let is_expr_macro_ident =
   let l = [
-    "offsetof";
-    "va_arg";
-    "evutil_offsetof";
-    "evutil_timercmp";
-    "MOZ_FOR_EACH_SEPARATED"; (* also used as param_decl *)
-    (*"MOZ_LOG";*)
-    (*"PKIX_ERRORENTRY";*)
-    "UPCASE_TABLE_OF";
-    "ASN1_SIMPLE";
     "ASN1_OPT";
-    (*"EXPECT_EQ";*)
-    (*"EXPECT_TRUE";*)
+    "ASN1_SIMPLE";
+    "MOZ_FOR_EACH_SEPARATED"; (* also used as param_decl *)
+    "UPCASE_TABLE_OF";
     "_COMPILER_STRINGIZE";
+    "__has_trivial_assign";
     "__has_trivial_constructor";
     "__has_trivial_destructor";
-    "__has_trivial_assign";
+    "evutil_offsetof";
+    "evutil_timercmp";
+    "offsetof";
+    "va_arg";
+    (*"EXPECT_EQ";*)
+    (*"EXPECT_TRUE";*)
+    (*"MOZ_LOG";*)
+    (*"PKIX_ERRORENTRY";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -688,14 +688,9 @@ let is_braced_init_macro_ident =
 
 let is_class_head_macro_ident =
   let l = [
-    "DECL_INTERFACE";
-    "CODER_INTERFACE";
-    "STREAM_INTERFACE";
-    "STREAM_INTERFACE_SUB";
     "ARCHIVE_INTERFACE";
-    "PASSWORD_INTERFACE";
-    "MIDL_INTERFACE";
-    "PARAM_TEST_CASE";
+    "CODER_INTERFACE";
+    "DECL_INTERFACE";
     "GAPI_FLUID_KERNEL";
     "GAPI_GPU_KERNEL";
     "GAPI_OCV_KERNEL";
@@ -705,6 +700,11 @@ let is_class_head_macro_ident =
     "G_API_OP";
     "G_TYPED_KERNEL";
     "G_TYPED_KERNEL_M";
+    "MIDL_INTERFACE";
+    "PARAM_TEST_CASE";
+    "PASSWORD_INTERFACE";
+    "STREAM_INTERFACE";
+    "STREAM_INTERFACE_SUB";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -712,47 +712,47 @@ let is_class_head_macro_ident =
 
 let is_decl_stmt_macro_ident =
   let l = [
-    "MOZ_ALIGNED_DECL";
-    "MOZ_FOR_EACH"; (* also used as expr *)
-    "JS_FOR_EACH_TRACEKIND"; (* also used as expr *)
-    "DECLARE_ALIGNED";
-    "PNG_UNUSED";
-    "PNG_FUNCTION";
-    "SIMD_ALIGNED";
-    "LSS_BODY";
-    "GTEST_DISABLE_MSC_WARNINGS_PUSH_";
-    "GTEST_DISABLE_MSC_WARNINGS_POP_";
-    "IMPL_IUNKNOWN_QUERY_IFACE_AMBIGIOUS";
-    "IMPL_IUNKNOWN_QUERY_IFACE";
     "COPY_REQUEST_COMMON";
     "COPY_REQUEST_STATE";
-    "RINOK_THREAD";
-    (*"__pragma";*)
-    (*"_Pragma";*)
-    "G_API_NET";
-    "PERF_TEST_P";
-    "OCL_PERF_TEST_P";
+    "DECLARE_ALIGNED";
     "FOR_EACH_FRAME";
-    "MAC_DECLARE";
-    "LULZBOT_ADJUST_Z_HOMING_CURRENT";
-    "TYPED_ARRAYS";
-    "RAB_GSAB_TYPED_ARRAYS";
-    "SSSE3_INSTRUCTION_LIST";
-    "SSSE3_UNOP_INSTRUCTION_LIST";
-    "SSE4_INSTRUCTION_LIST";
-    "SSE4_UNOP_INSTRUCTION_LIST";
-    "SSE4_2_INSTRUCTION_LIST";
-    "JS_SIMPLE_BINOP_LIST";
+    "GIT_PATH_FUNC";
+    "GTEST_DISABLE_MSC_WARNINGS_POP_";
+    "GTEST_DISABLE_MSC_WARNINGS_PUSH_";
+    "G_API_NET";
+    "IGNORE_WARNINGS_BEGIN";
+    "IMPL_IUNKNOWN_QUERY_IFACE";
+    "IMPL_IUNKNOWN_QUERY_IFACE_AMBIGIOUS";
     "JS_CONTEXT_OP_LIST";
+    "JS_FOR_EACH_TRACEKIND"; (* also used as expr *)
     "JS_OBJECT_OP_LIST";
     "JS_OTHER_OP_LIST";
-    "SIMPLIFIED_NUMBER_BINOP_LIST";
-    "GIT_PATH_FUNC";
-    "IGNORE_WARNINGS_BEGIN";
-    "XEXT_GENERATE_FIND_DISPLAY";
-    "XEXT_GENERATE_CLOSE_DISPLAY";
+    "JS_SIMPLE_BINOP_LIST";
+    "LSS_BODY";
+    "LULZBOT_ADJUST_Z_HOMING_CURRENT";
+    "MAC_DECLARE";
+    "MOZ_ALIGNED_DECL";
+    "MOZ_FOR_EACH"; (* also used as expr *)
+    "OCL_PERF_TEST_P";
     "PAS_IGNORE_WARNINGS_BEGIN";
+    "PERF_TEST_P";
+    "PNG_FUNCTION";
+    "PNG_UNUSED";
+    "RAB_GSAB_TYPED_ARRAYS";
+    "RINOK_THREAD";
+    "SIMD_ALIGNED";
+    "SIMPLIFIED_NUMBER_BINOP_LIST";
     "SLAB_FREE_LIST_DECLARE";
+    "SSE4_2_INSTRUCTION_LIST";
+    "SSE4_INSTRUCTION_LIST";
+    "SSE4_UNOP_INSTRUCTION_LIST";
+    "SSSE3_INSTRUCTION_LIST";
+    "SSSE3_UNOP_INSTRUCTION_LIST";
+    "TYPED_ARRAYS";
+    "XEXT_GENERATE_CLOSE_DISPLAY";
+    "XEXT_GENERATE_FIND_DISPLAY";
+    (*"_Pragma";*)
+    (*"__pragma";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -785,29 +785,31 @@ let is_id_or_ty_macro_ident =
 
 let is_ident_macro_ident =
   let l = [
-    "STDMETHOD";
-    "STDMETHOD_";
-    "GTEST_TEST_CLASS_NAME_";
-    "GTEST_CASE_NAMESPACE_";
-    "GTEST_FLAG";
-    "GMOCK_ACTION_CLASS_";
-    "IFACEMETHOD";
-    "LSS_NAME";
-    "ITT_VERSIONIZE";
-    "ITTNOTIFY_NAME";
+    "BENCHMARK_F";
     "BIND_NAME_CONCAT";
     "CK_PKCS11_FUNCTION_INFO";
-    "NS_NPAPIPLUGIN_CALLBACK";
-    "NS_CYCLE_COLLECTION_CLASSNAME";
-    "ZYAN_MACRO_CONCAT_EXPAND";
-    "msgpack_unpack_func";
-    "DEFUN"; "DEFUN2"; "DEAFUN";
+    "DEAFUN";
+    "DEFUN";
+    "DEFUN2";
     "EXFUN";
-    "MULTI_CLASS_RUNNER_NAME_";
-    "BENCHMARK_F";
-    "PERFETTO_UID";
-    "_COMPILER_CONCAT";
+    "GMOCK_ACTION_CLASS_";
+    "GTEST_CASE_NAMESPACE_";
+    "GTEST_FLAG";
+    "GTEST_TEST_CLASS_NAME_";
+    "IFACEMETHOD";
+    "ITTNOTIFY_NAME";
+    "ITT_VERSIONIZE";
     "JSC_DEFINE_JIT_OPERATION_WITH_ATTRIBUTES";
+    "LSS_NAME";
+    "MULTI_CLASS_RUNNER_NAME_";
+    "NS_CYCLE_COLLECTION_CLASSNAME";
+    "NS_NPAPIPLUGIN_CALLBACK";
+    "PERFETTO_UID";
+    "STDMETHOD";
+    "STDMETHOD_";
+    "ZYAN_MACRO_CONCAT_EXPAND";
+    "_COMPILER_CONCAT";
+    "msgpack_unpack_func";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -815,17 +817,17 @@ let is_ident_macro_ident =
 
 let is_str_macro =
   let l = [
+    "ANTIALIASING_TEX_COORD_DIRECTIVE";
+    "BLUR_CONSTANTS";
+    "CV_VERSION_STATUS";
+    "GTEST_PATH_SEP_";
+    "OES_EGL_IMAGE_EXTERNAL_DIRECTIVE";
+    "ROUNDED_RECT_CONSTANTS";
+    "TEXTURE_SPACE_MATRIX_PRECISION_DIRECTIVE";
+    "XPCOM_FILE_PATH_SEPARATOR";
     "__DATE__";
     "__FILE__";
     "__TIME__";
-    "GTEST_PATH_SEP_";
-    "XPCOM_FILE_PATH_SEPARATOR";
-    "CV_VERSION_STATUS";
-    "TEXTURE_SPACE_MATRIX_PRECISION_DIRECTIVE";
-    "ANTIALIASING_TEX_COORD_DIRECTIVE";
-    "BLUR_CONSTANTS";
-    "ROUNDED_RECT_CONSTANTS";
-    "OES_EGL_IMAGE_EXTERNAL_DIRECTIVE";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -833,32 +835,33 @@ let is_str_macro =
 
 let is_stmt_macro =
   let l = [
-    "YY_BREAK"; "YY_RULE_SETUP";
-    "MOZILLA_PKIX_MAP_LIST";
-    "MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM";
-    "FT_BEGIN_STMNT";
-    "FT_END_STMNT";
-    "PROFILE_CALL";
-    "BEFORE_CALL";
     "AFTER_CALL";
+    "BEFORE_CALL";
     "COPY_REQUEST_IDENTITY";
-    "FLOATING_POINT_SET_PRECISION";
-    "FLOATING_POINT_SET_EXCEPTIONS";
+    "CRITICAL_SECTION_END";
+    "CRITICAL_SECTION_START";
     "FLOATING_POINT_RESTORE_EXCEPTIONS";
     "FLOATING_POINT_RESTORE_PRECISION";
-    "sqlite3ParserARG_STORE";
-    "sqlite3ParserCTX_STORE";
-    "sqlite3Fts5ParserARG_FETCH";
-    "sqlite3Fts5ParserCTX_FETCH";
-    "sqlite3Fts5ParserARG_STORE";
-    "sqlite3Fts5ParserCTX_STORE";
+    "FLOATING_POINT_SET_EXCEPTIONS";
+    "FLOATING_POINT_SET_PRECISION";
+    "FT_BEGIN_STMNT";
+    "FT_END_STMNT";
     "LULZBOT_BACKLASH_MEASUREMENT";
-    "CRITICAL_SECTION_START";
-    "CRITICAL_SECTION_END";
+    "LULZBOT_MOTOR_INIT_E";
     "LULZBOT_MOTOR_INIT_XY";
     "LULZBOT_MOTOR_INIT_Z";
-    "LULZBOT_MOTOR_INIT_E";
     "LULZBOT_SENSORLESS_HOMING_Z_INIT";
+    "MOZILLA_PKIX_MAP_LIST";
+    "MOZILLA_PKIX_UNREACHABLE_DEFAULT_ENUM";
+    "PROFILE_CALL";
+    "YY_BREAK";
+    "YY_RULE_SETUP";
+    (*"sqlite3Fts5ParserARG_FETCH";*)
+    (*"sqlite3Fts5ParserARG_STORE";*)
+    (*"sqlite3Fts5ParserCTX_FETCH";*)
+    (*"sqlite3Fts5ParserCTX_STORE";*)
+    (*"sqlite3ParserARG_STORE";*)
+    (*"sqlite3ParserCTX_STORE";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -866,10 +869,10 @@ let is_stmt_macro =
 
 let is_stmt_macro_ident =
   let l = [
-    (*"TYPED_ARRAYS";*)
-    (*"RAB_GSAB_TYPED_ARRAYS";*)
-    "GTEST_TEST_THROW_CATCH_STD_EXCEPTION_";
     "GTEST_TEST_NO_THROW_CATCH_STD_EXCEPTION_";
+    "GTEST_TEST_THROW_CATCH_STD_EXCEPTION_";
+    (*"RAB_GSAB_TYPED_ARRAYS";*)
+    (*"TYPED_ARRAYS";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -887,9 +890,9 @@ let is_pragma_macro =
 
 let is_pragma_macro_ident =
   let l = [
-    "__pragma";
-    "_Pragma";
     "OPENSSL_MSVC_PRAGMA";
+    "_Pragma";
+    "__pragma";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -897,85 +900,82 @@ let is_pragma_macro_ident =
 
 let is_decl_macro =
   let l = [
-    "U_NAMESPACE_BEGIN"; "U_NAMESPACE_END";
-    "U_NAMESPACE_USE";
-    "U_CDECL_BEGIN"; "U_CDECL_END";
+    "ABSL_INTERNAL_BEGIN_EXTERN_C"; "ABSL_INTERNAL_END_EXTERN_C";
+    "ABSL_NAMESPACE_BEGIN"; "ABSL_NAMESPACE_END";
+    "ALLOW_COMMA_BEGIN"; "ALLOW_COMMA_END";
+    "ALLOW_UNUSED_PARAMETERS_BEGIN"; "ALLOW_UNUSED_PARAMETERS_END";
+    "ANGLE_DISABLE_DESTRUCTOR_OVERRIDE_WARNING";
+    "ANGLE_DISABLE_EXTRA_SEMI_STMT_WARNING";
+    "ANGLE_DISABLE_EXTRA_SEMI_WARNING";
+    "ANGLE_DISABLE_SUGGEST_OVERRIDE_WARNINGS";
+    "ANGLE_REENABLE_DESTRUCTOR_OVERRIDE_WARNING";
+    "ANGLE_REENABLE_EXTRA_SEMI_STMT_WARNING";
+    "ANGLE_REENABLE_EXTRA_SEMI_WARNING";
+    "ANGLE_REENABLE_SUGGEST_OVERRIDE_WARNINGS";
+    "B3_SPECIALIZE_VALUE_FOR_FINAL_SIZE_FIXED_CHILDREN";
+    "B3_SPECIALIZE_VALUE_FOR_NON_VARARGS_CHILDREN";
+    "BSSL_NAMESPACE_BEGIN"; "BSSL_NAMESPACE_END";
     "CAIRO_BEGIN_DECLS"; "CAIRO_END_DECLS";
+    "CV_CPU_OPTIMIZATION_HAL_NAMESPACE_BEGIN"; "CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END";
+    "CV__DNN_INLINE_NS_BEGIN"; "CV__DNN_INLINE_NS_END";
+    "DECL_IUNKNOWN_INHERITED";
+    "DLL_BLOCKLIST_DEFINITIONS_BEGIN"; "DLL_BLOCKLIST_DEFINITIONS_END";
+    "END_METADATA";
+    "END_VIEW_BUILDER";
+    "EXPECT_DEATH_INIT";
+    "FT_BEGIN_HEADER"; "FT_END_HEADER";
+    "FT_MODERR_START_LIST";
     "HB_BEGIN_DECLS"; "HB_END_DECLS";
-    "PR_BEGIN_EXTERN_C"; "PR_END_EXTERN_C";
+    "IEX_INTERNAL_NAMESPACE_HEADER_ENTER"; "IEX_INTERNAL_NAMESPACE_HEADER_EXIT";
+    "IGNORE_WARNINGS_END";
+    "IMATH_INTERNAL_NAMESPACE_HEADER_ENTER"; "IMATH_INTERNAL_NAMESPACE_HEADER_EXIT";
+    "ISC_LANG_BEGINDECLS"; "ISC_LANG_ENDDECLS";
+    "ISC_TEST_LIST_START"; "ISC_TEST_LIST_END";
+    "ISC_TEST_MAIN";
+    "KEEP_CAST_FRIENDLY";
+    "KEEP_CLASSES_FRIENDLY";
+    "LULZBOT_EXECUTE_IMMEDIATE_IMPL";
+    "LULZBOT_G29_WITH_RETRY_IMPL";
     "MOZ_BEGIN_EXTERN_C"; "MOZ_END_EXTERN_C";
     "MOZ_BEGIN_STD_NAMESPACE"; "MOZ_END_STD_NAMESPACE";
     "MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER";
-    "NS_ELEMENT_INTERFACE_TABLE_TO_MAP_SEGUE";
-    "NS_ASSUME_NONNULL_BEGIN";
-    "FT_BEGIN_HEADER"; "FT_END_HEADER";
-    "YY_DECL"; "YY_MALLOC_DECL";
-    "QUERY_ENTRY_ISetCompressCodecsInfo";
-    "MY_QUERYINTERFACE_BEGIN"; "MY_QUERYINTERFACE_END";
     "MY_ADDREF_RELEASE";
+    "MY_QUERYINTERFACE_BEGIN"; "MY_QUERYINTERFACE_END";
     "MY_UNKNOWN_IMP";
-    "DECL_IUNKNOWN_INHERITED";
+    "NEVER_READ_ONLY_SPACE";
+    "NS_ASSUME_NONNULL_BEGIN"; "NS_ASSUME_NONNULL_END";
+    "NS_ELEMENT_INTERFACE_TABLE_TO_MAP_SEGUE";
     "NUMERIC_CONVERSION_METHOD_END";
-    "REGISTER_CODECS_VAR";
-    "REGISTER_CODEC_VAR";
     "OSVR_EXTERN_C_BEGIN"; "OSVR_EXTERN_C_END";
     "OT_TABLE_START"; "OT_TABLE_END";
-    "DLL_BLOCKLIST_DEFINITIONS_BEGIN"; "DLL_BLOCKLIST_DEFINITIONS_END";
-    "KEEP_CLASSES_FRIENDLY";
-    "KEEP_CAST_FRIENDLY";
-    "sqlite3ParserARG_SDECL";
-    "sqlite3ParserCTX_SDECL";
-    "sqlite3Fts5ParserARG_SDECL";
-    "sqlite3Fts5ParserCTX_SDECL";
-    "SQLITE_EXTENSION_INIT1";
-    "STATE_PARAM_DECL";
-    "TRIVIAL_NEW_WRAPPERS";
-    "TRIVIAL_NEW_WRAPPERS_WITH_ALLOC";
-    "TEST_INIT";
-    "EXPECT_DEATH_INIT";
+    "PAS_BEGIN_EXTERN_C"; "PAS_END_EXTERN_C";
+    "PAS_IGNORE_WARNINGS_END";
+    "PR_BEGIN_EXTERN_C"; "PR_END_EXTERN_C";
+    "QUERY_ENTRY_ISetCompressCodecsInfo";
+    "REGISTER_CODECS_VAR";
+    "REGISTER_CODEC_VAR";
     "REQUEST_HEADER_FIELDS";
     "REQUEST_IDENTITY_FIELDS";
     "REQUEST_STATE_FIELDS";
     "REQUEST_TRAILER_FIELDS";
-    "FT_MODERR_START_LIST";
-    "CV_CPU_OPTIMIZATION_HAL_NAMESPACE_BEGIN"; "CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END";
-    "CV__DNN_INLINE_NS_BEGIN"; "CV__DNN_INLINE_NS_END";
-    "IMATH_INTERNAL_NAMESPACE_HEADER_ENTER"; "IMATH_INTERNAL_NAMESPACE_HEADER_EXIT";
-    "IEX_INTERNAL_NAMESPACE_HEADER_ENTER"; "IEX_INTERNAL_NAMESPACE_HEADER_EXIT";
-    "va_dcl";
-    "LULZBOT_G29_WITH_RETRY_IMPL";
-    "LULZBOT_EXECUTE_IMMEDIATE_IMPL";
     "SCREEN_TABLE";
-    "END_METADATA";
-    "END_VIEW_BUILDER";
-    "NEVER_READ_ONLY_SPACE";
-    "ISC_LANG_BEGINDECLS";
-    "ISC_LANG_ENDDECLS";
-    "ISC_TEST_LIST_START"; "ISC_TEST_LIST_END";
-    "ISC_TEST_MAIN";
-    "ABSL_NAMESPACE_BEGIN"; "ABSL_NAMESPACE_END";
-    "BSSL_NAMESPACE_BEGIN"; "BSSL_NAMESPACE_END";
-    "ALLOW_UNUSED_PARAMETERS_BEGIN"; "ALLOW_UNUSED_PARAMETERS_END";
-    "IGNORE_WARNINGS_END";
-    "ALLOW_COMMA_BEGIN"; "ALLOW_COMMA_END";
-    (*"ALLOW_DEPRECATED_DECLARATIONS_BEGIN"; "ALLOW_DEPRECATED_DECLARATIONS_END";*)
-    "NS_ASSUME_NONNULL_BEGIN"; "NS_ASSUME_NONNULL_END";
+    "SQLITE_EXTENSION_INIT1";
+    "STATE_PARAM_DECL";
+    "TEST_INIT";
+    "TRIVIAL_NEW_WRAPPERS";
+    "TRIVIAL_NEW_WRAPPERS_WITH_ALLOC";
+    "U_CDECL_BEGIN"; "U_CDECL_END";
+    "U_NAMESPACE_BEGIN"; "U_NAMESPACE_END";
+    "U_NAMESPACE_USE";
     "WTF_EXTERN_C_BEGIN"; "WTF_EXTERN_C_END";
-    "ANGLE_DISABLE_EXTRA_SEMI_WARNING";
-    "ANGLE_DISABLE_EXTRA_SEMI_STMT_WARNING";
-    "ANGLE_DISABLE_DESTRUCTOR_OVERRIDE_WARNING";
-    "ANGLE_DISABLE_SUGGEST_OVERRIDE_WARNINGS";
-    "ANGLE_REENABLE_SUGGEST_OVERRIDE_WARNINGS";
-    "ANGLE_REENABLE_DESTRUCTOR_OVERRIDE_WARNING";
-    "ANGLE_REENABLE_EXTRA_SEMI_STMT_WARNING";
-    "ANGLE_REENABLE_EXTRA_SEMI_WARNING";
-    "B3_SPECIALIZE_VALUE_FOR_FINAL_SIZE_FIXED_CHILDREN";
-    "ABSL_INTERNAL_BEGIN_EXTERN_C";
-    "ABSL_INTERNAL_END_EXTERN_C";
-    "B3_SPECIALIZE_VALUE_FOR_NON_VARARGS_CHILDREN";
-    "B3_SPECIALIZE_VALUE_FOR_FINAL_SIZE_FIXED_CHILDREN";
-    "PAS_BEGIN_EXTERN_C"; "PAS_END_EXTERN_C";
-    "PAS_IGNORE_WARNINGS_END";
+    "YY_DECL";
+    "YY_MALLOC_DECL";
+    "sqlite3Fts5ParserARG_SDECL";
+    "sqlite3Fts5ParserCTX_SDECL";
+    "sqlite3ParserARG_SDECL";
+    "sqlite3ParserCTX_SDECL";
+    "va_dcl";
+    (*"ALLOW_DEPRECATED_DECLARATIONS_BEGIN"; "ALLOW_DEPRECATED_DECLARATIONS_END";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -983,80 +983,80 @@ let is_decl_macro =
 
 let is_decl_macro_ident =
   let l = [
-    "JS_DECLARE_NEW_METHODS";
-    "MOZ_DEFINE_MALLOC_SIZE_OF";
-    "MOZ_COUNTED_DTOR_VIRTUAL";
-    "MOZ_COUNTED_DTOR";
-    "NS_IMETHODIMP_TO_ERRORRESULT";
-    "NS_FORWARD_SAFE_NSIURISETTERS_RET";
-    "PS_GET";
-    "PS_GET_AND_SET";
-    "PS_GET_LOCKLESS";
-    "NUMERIC_CONVERSION_METHOD_BEGIN";
-    "MY_UNKNOWN_IMP2";
-    "MY_QUERYINTERFACE_ENTRY_UNKNOWN";
-    "FORBID_STRING_OPS_AString";
-    "FORBID_STRING_OPS_UString";
-    "FORBID_STRING_OPS_2";
-    "CV_CONTOUR_FIELDS";
-    "BEGIN_METADATA";
-    "BEGIN_VIEW_BUILDER";
-    "DEFINE_VIEW_BUILDER";
+    "ASN1_ITEM_TEMPLATE";
+    "ASN1_ITEM_TEMPLATE_END";
+    "ASN1_SEQUENCE";
+    "ASN1_SEQUENCE_END";
     "BEGIN_CATEGORY_MAP"; "END_CATEGORY_MAP";
     "BEGIN_COM_MAP"; "END_COM_MAP";
+    "BEGIN_METADATA";
+    "BEGIN_MSG_MAP_EX"; "END_MSG_MAP";
+    "BEGIN_PROXY_MAP"; "END_PROXY_MAP";
     "BEGIN_SINK_MAP"; "END_SINK_MAP";
-    "DECLARE_PROTECT_FINAL_CONSTRUCT";
-    "DECLARE_WND_CLASS_EX";
-    "IN_PROC_BROWSER_TEST_F";
+    "BEGIN_VIEW_BUILDER";
+    "BYPASS_PROXY_CONSTMETHOD0";
     "COM_INTERFACE_ENTRY";
     "COM_INTERFACE_ENTRY_CHAIN";
-    "BEGIN_MSG_MAP_EX"; "END_MSG_MAP";
+    "CV_CONTOUR_FIELDS";
+    "DECLARE_ASN1_FUNCTIONS";
+    "DECLARE_DESCRIPTOR";
+    "DECLARE_PEM_rw";
+    "DECLARE_PROTECT_FINAL_CONSTRUCT";
+    "DECLARE_WND_CLASS_EX";
+    "DECL_ACCESSORS";
+    "DECL_BOOLEAN_ACCESSORS";
     "DECL_CAST";
-    "DECL_VERIFIER";
+    "DECL_GETTER";
+    "DECL_INT_ACCESSORS";
     "DECL_PRIMITIVE_ACCESSORS";
     "DECL_PRIMITIVE_GETTER";
     "DECL_PRINTER";
-    "DECL_ACCESSORS";
-    "DECL_BOOLEAN_ACCESSORS";
-    "DECL_INT_ACCESSORS";
-    "DECL_GETTER";
-    "DECLARE_DESCRIPTOR";
+    "DECL_VERIFIER";
+    "DEFINE_BSS_GET";
+    "DEFINE_CONST_STACK_OF";
     "DEFINE_FIELD_OFFSET_CONSTANTS";
     "DEFINE_PARAMETERS_NO_CONTEXT_VARARGS";
     "DEFINE_PARAMETER_TYPES";
+    "DEFINE_SPECIAL_STACK_OF";
+    "DEFINE_STACK_OF";
     "DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS";
     "DEFINE_TORQUE_GENERATED_PROPERTY_DESCRIPTOR_OBJECT_FLAGS";
     "DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS";
     "DEFINE_TORQUE_GENERATED_VARIABLE_PROPERTIES";
-    "DEFINE_BSS_GET";
+    "DEFINE_VIEW_BUILDER";
+    "DEFINE_VISIT_CHILDREN_WITH_MODIFIER";
     "DISALLOW_NEW_AND_DELETE";
-    "THREAD_LOCAL_TOP_ADDRESS";
-    "ISC_TEST_ENTRY";
-    "ISC_TEST_ENTRY_CUSTOM";
-    "IMPLEMENT_ASN1_FUNCTIONS";
+    "FORBID_STRING_OPS_2";
+    "FORBID_STRING_OPS_AString";
+    "FORBID_STRING_OPS_UString";
     "IMPLEMENT_ASN1_DUP_FUNCTION";
     "IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname";
-    "ASN1_SEQUENCE";
-    "ASN1_SEQUENCE_END";
-    "ASN1_ITEM_TEMPLATE";
-    "ASN1_ITEM_TEMPLATE_END";
-    (*"IGNORE_WARNINGS_BEGIN";*)
-    "DEFINE_VISIT_CHILDREN_WITH_MODIFIER";
-    "DECLARE_ASN1_FUNCTIONS";
-    "DEFINE_CONST_STACK_OF";
-    "DEFINE_SPECIAL_STACK_OF";
-    "DEFINE_STACK_OF";
-    "DECLARE_PEM_rw";
-    "BEGIN_PROXY_MAP"; "END_PROXY_MAP";
-    "PROXY_PRIMARY_THREAD_DESTRUCTOR";
-    "BYPASS_PROXY_CONSTMETHOD0";
+    "IMPLEMENT_ASN1_FUNCTIONS";
+    "IN_PROC_BROWSER_TEST_F";
+    "ISC_TEST_ENTRY";
+    "ISC_TEST_ENTRY_CUSTOM";
+    "JS_DECLARE_NEW_METHODS";
+    "MOZ_COUNTED_DTOR";
+    "MOZ_COUNTED_DTOR_VIRTUAL";
+    "MOZ_DEFINE_MALLOC_SIZE_OF";
+    "MY_QUERYINTERFACE_ENTRY_UNKNOWN";
+    "MY_UNKNOWN_IMP2";
+    "NS_FORWARD_SAFE_NSIURISETTERS_RET";
+    "NS_IMETHODIMP_TO_ERRORRESULT";
+    "NUMERIC_CONVERSION_METHOD_BEGIN";
     "PROXY_CONSTMETHOD0";
-    "PROXY_SECONDARY_CONSTMETHOD0";
     "PROXY_METHOD0";
     "PROXY_METHOD1";
+    "PROXY_PRIMARY_THREAD_DESTRUCTOR";
+    "PROXY_SECONDARY_CONSTMETHOD0";
     "PROXY_SECONDARY_METHOD1";
-    (*"ABSL_FLAG";*)
+    "PS_GET";
+    "PS_GET_AND_SET";
+    "PS_GET_LOCKLESS";
+    "THREAD_LOCAL_TOP_ADDRESS";
     "WTF_MAKE_ISO_ALLOCATED_EXPORT";
+    (*"ABSL_FLAG";*)
+    (*"IGNORE_WARNINGS_BEGIN";*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -1065,9 +1065,9 @@ let is_decl_macro_ident =
 let is_block_head_macro =
   let l = [
     "IMPL_IUNKNOWN_QUERY_HEAD";
+    "MAC_BEGIN";
     "STARTOP";
     "STRONG_GLENUM_BEGIN";
-    "MAC_BEGIN";
     "V8_CRDTP_BEGIN_DESERIALIZER";
     "V8_CRDTP_BEGIN_SERIALIZER";
   ] in
@@ -1077,12 +1077,12 @@ let is_block_head_macro =
 
 let is_block_end_macro =
   let l = [
+    "ENDOP";
     "IMPL_IUNKNOWN_QUERY_TAIL";
     "IMPL_IUNKNOWN_QUERY_TAIL_AGGREGATED";
     "IMPL_IUNKNOWN_QUERY_TAIL_INHERITED";
-    "ENDOP";
-    "STRONG_GLENUM_END";
     "MAC_END";
+    "STRONG_GLENUM_END";
     "V8_CRDTP_END_DESERIALIZER";
     "V8_CRDTP_END_SERIALIZER";
   ] in
@@ -1124,9 +1124,9 @@ let is_rparen_macro =
 
 let is_delim_macro =
   let l = [
+    "MAC_SEP";
     "MOZ_NSTARRAY_COMMA";
     "SK_CALLABLE_TRAITS__COMMA";
-    "MAC_SEP";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -1134,9 +1134,9 @@ let is_delim_macro =
 
 let is_shader_kw =
   let l = [
-    "cbuffer";
-    "Texture2D";
     "BlendState";
+    "Texture2D";
+    "cbuffer";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -1144,11 +1144,10 @@ let is_shader_kw =
 
 let is_asm_kw =
   let l = [
-    "push";
     "pop";
+    "push";
     "sub";
     "subs";
-    "";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -1213,27 +1212,27 @@ let is_qt_decl_macro_func = function
 
 let is_val_templ =
   let l = [
-    "std::is_void__v";
-    "std::is_null_pointer_v";
-    "std::is_integral_v";
-    "std::is_floating_point_v";
-    "std::is_array_v";
-    "std::is_pointer_v";
-    "std::is_lvalue_reference_v";
-    "std::is_rvalue_reference_v";
-    "std::is_member_object_pointer_v";
-    "std::is_member_function_pointer_v";
-    "std::is_enum_v";
-    "std::is_union_v";
-    "std::is_class_v";
-    "std::is_function_v";
-    "std::is_reference_v";
     "std::is_arithmetic_v";
-    "std::is_fundamental_v";
-    "std::is_object_v";
-    "std::is_scalar_v";
+    "std::is_array_v";
+    "std::is_class_v";
     "std::is_compound_v";
+    "std::is_enum_v";
+    "std::is_floating_point_v";
+    "std::is_function_v";
+    "std::is_fundamental_v";
+    "std::is_integral_v";
+    "std::is_lvalue_reference_v";
+    "std::is_member_function_pointer_v";
+    "std::is_member_object_pointer_v";
     "std::is_member_pointer_v";
+    "std::is_null_pointer_v";
+    "std::is_object_v";
+    "std::is_pointer_v";
+    "std::is_reference_v";
+    "std::is_rvalue_reference_v";
+    "std::is_scalar_v";
+    "std::is_union_v";
+    "std::is_void__v";
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -1242,24 +1241,24 @@ let is_val_templ =
 
 let levels_to_str e =
   let l = [
-    "_pp_if_section_lv",    e#_pp_if_section_level;
-    "brace_lv",             e#brace_level;
-    "pp_group_rel_brace_lv", e#pstat#pp_group_rel_brace_level;
-    "brace_lv_marker",      e#pstat#brace_level_marker;
+    "_pp_if_section_lv",        e#_pp_if_section_level;
+    "brace_lv",                 e#brace_level;
+    "brace_lv_marker",          e#pstat#brace_level_marker;
+    "braced_init_lv",           e#braced_init_level;
+    "bracket_lv",               e#bracket_level;
     "canceled_brace_lv_marker", e#pstat#canceled_brace_level_marker;
-    "braced_init_lv",       e#braced_init_level;
-    "bracket_lv",           e#bracket_level;
-    "in_body_brace_lv",     e#in_body_brace_level;
-    "macro_arg_lv",         e#macro_arg_level;
-    "objc_message_expr_lv", e#objc_message_expr_level;
-    "odd_brace_lv",         e#odd_brace_level;
-    "paren_lv",             e#paren_level;
-    "rel_paren_lv",         e#rel_paren_level;
-    "pp_if_section_lv",     e#pp_if_section_level;
-    "pp_paren_lv",          e#pp_paren_level;
-    "templ_head_lv",        e#templ_head_level;
-    "templ_param_arg_lv",   e#templ_param_arg_level;
-    "typename_lv",          e#typename_level;
+    "in_body_brace_lv",         e#in_body_brace_level;
+    "macro_arg_lv",             e#macro_arg_level;
+    "objc_message_expr_lv",     e#objc_message_expr_level;
+    "odd_brace_lv",             e#odd_brace_level;
+    "paren_lv",                 e#paren_level;
+    "pp_group_rel_brace_lv",    e#pstat#pp_group_rel_brace_level;
+    "pp_if_section_lv",         e#pp_if_section_level;
+    "pp_paren_lv",              e#pp_paren_level;
+    "rel_paren_lv",             e#rel_paren_level;
+    "templ_head_lv",            e#templ_head_level;
+    "templ_param_arg_lv",       e#templ_param_arg_level;
+    "typename_lv",              e#typename_level;
   ]
   in
   String.concat " "
@@ -1269,139 +1268,139 @@ let levels_to_str e =
        ) (List.filter (fun (k, v) -> v <> 0) l))
 
 let flags_to_str e =
-  let l =
-    ["pp_line"                    , e#pp_line_flag;
-     "pp_if"                      , e#pp_if_flag;
-     "pp_ifdef"                   , e#pp_ifdef_flag;
-     "pp_ifx_d"                   , e#pp_ifx_d_flag;
-     "pp_define"                  , e#pp_define_flag;
-     "pp_define_body"             , e#pp_define_body_flag;
-     "pp_func_body_odd"           , e#pp_func_body_odd_flag;
-     "pp_if_section"              , e#pp_if_section_flag;
-     "pp_odd"                     , e#pp_odd_flag;
-     "pp_elif"                    , e#pp_elif_flag;
-     "pp_else"                    , e#pp_else_flag;
-     "pp_params"                  , e#pp_params_flag;
-     "alias"                      , e#alias_flag;
-     "alignas"                    , e#alignas_flag;
-     "alignof"                    , e#alignof_flag;
-     "_arg_paren"                 , e#_arg_paren_flag;
-     "at_arg_paren"               , e#at_arg_paren;
-     "at_arg_paren_2"             , e#at_arg_paren_2;
-     "at_fold_paren"              , e#at_fold_paren;
-     "at_macro_arg_paren"         , e#at_macro_arg_paren;
-     "at_macro_arg_paren_2"       , e#at_macro_arg_paren_2;
-     "at_paren"                   , e#at_paren;
-     "at_paren_2"                 , e#at_paren_2;
-     "at_type_paren"              , e#at_type_paren;
-     "at_type_paren_2"            , e#at_type_paren_2;
-     "at_bracket"                 , e#at_bracket;
-     "at_ini_brace"               , e#at_ini_brace;
-     "at_class_brace"             , e#at_class_brace;
-     "at_brace"                   , e#at_brace;
-     "at_objc_msg"                , e#at_objc_msg;
-     "at_attr"                    , e#at_attr;
-     "at_lam_intr"                , e#at_lam_intr;
-     "at_subscr"                  , e#at_subscr;
-     "at_templ_arg"               , e#at_templ_arg;
-     "at_templ_arg_2"             , e#at_templ_arg_2;
-     "at_templ_param"             , e#at_templ_param;
-     "at_templ_param_2"           , e#at_templ_param_2;
-     "at_templ_param_arg_expr_2"  , e#at_templ_param_arg_expr_2;
-     "asm"                        , e#asm_flag;
-     "asm_block"                  , e#asm_block_flag;
-     "asm_shader"                 , e#asm_shader_flag;
-     "attr"                       , e#attr_flag;
-     "base_clause"                , e#base_clause_flag;
-     "body_head"                  , e#body_head_flag;
-     "braced_asm"                 , e#braced_asm_flag;
-     "braced_init"                , e#braced_init_flag;
-     "brace_lv_marker"            , e#pstat#brace_level_marker_flag;
-     "cast_key"                   , e#cast_key_flag;
-     "cast_head"                  , e#cast_head_flag;
-     "class_name"                 , e#class_name_flag;
-     "const_flag"                 , e#const_flag;
-     "conv_func_id"               , e#conv_func_id_flag;
-     "ctor_init"                  , e#ctor_init_flag;
-     "decltype"                   , e#decltype_flag;
-     "dsl"                        , e#dsl_flag;
-     "dtor"                       , e#dtor_flag;
-     "dtor_if_section"            , e#dtor_if_section_flag;
-     "decl_stmt_block"            , e#decl_stmt_block_flag;
-     "end_of_attr_macro_call"     , e#end_of_attr_macro_call_flag;
-     "end_of_type_macro_call"     , e#end_of_type_macro_call_flag;
-     "end_of_broken_decl_section" , e#end_of_broken_decl_section_flag;
-     "end_of_cast_type"           , e#end_of_cast_type_flag;
-     "end_of_class_spec"          , e#end_of_class_spec_flag;
-     "end_of_decltype"            , e#end_of_decltype_flag;
-     "end_of_enum_spec"           , e#end_of_enum_spec_flag;
-     "end_of_handler_head"        , e#end_of_handler_head_flag;
-     "end_of_id_macro_call"       , e#end_of_id_macro_call_flag;
-     "end_of_if_head"             , e#end_of_if_head_flag;
-     "end_of_label"               , e#end_of_label_flag;
-     "end_of_literal_macro_call"  , e#end_of_literal_macro_call_flag;
-     "end_of_noptr_dtor_paren"    , e#end_of_noptr_dtor_paren_flag;
-     "end_of_objc_meth_sel"       , e#end_of_objc_meth_sel_flag;
-     "end_of_objc_meth_type"      , e#end_of_objc_meth_type_flag;
-     "end_of_objc_property_attrs_decl", e#end_of_objc_property_attrs_decl_flag;
-     "end_of_objc_protocol_ref_list", e#end_of_objc_protocol_ref_list_flag;
-     "end_of_params"              , e#end_of_params_flag;
-     "end_of_req_params"          , e#end_of_req_params_flag;
-     "end_of_templ_head"          , e#end_of_templ_head_flag;
-     "end_of_mem_initialier"      , e#end_of_mem_initializer_flag;
-     "end_of_str_section"         , e#end_of_str_section_flag;
-     "end_of_lambda_templ"        , e#end_of_lambda_templ_flag;
-     "enum_head"                  , e#enum_head_flag;
-     "exec_config"                , e#exec_config_flag;
-     "expr"                       , e#expr_flag;
-     "for"                        , e#for_flag;
-     "for_range_init"             , e#for_range_init_flag;
-     "in_body_brace"              , e#in_body_brace_flag;
-     "init"                       , e#init_flag;
-     "lambda_dtor"                , e#lambda_dtor_flag;
-     "lambda_intro"               , e#lambda_intro_flag;
-     "last_ty_templ_id"           , e#last_ty_templ_id_flag;
-     "linkage_spec"               , e#linkage_spec_flag;
-     "condition"                  , e#condition_flag;
-     "mem_acc"                    , e#mem_acc_flag;
-     "macro_arg"                  , e#macro_arg_flag;
-     "ns_alias"                   , e#ns_alias_flag;
-     "in_objc_message_expr"       , e#in_objc_message_expr;
-     "noexcept"                   , e#noexcept_flag;
-     "objc_block"                 , e#objc_block_flag;
-     "objc_class_interface"       , e#objc_class_interface_flag;
-     "objc_protocol_decl"         , e#objc_protocol_decl_flag;
-     "objc_class"                 , e#objc_class_flag;
-     "objc_cat"                   , e#objc_cat_flag;
-     "objc_protocol_ref"          , e#objc_protocol_ref_flag;
-     "objc_sel"                   , e#objc_sel_flag;
-     "objc_meth_sel"              , e#objc_meth_sel_flag;
-     "objc_meth_decl"             , e#objc_meth_decl_flag;
-     "objc_superclass"            , e#objc_superclass_flag;
-     "old_param_decl"             , e#old_param_decl_flag;
-     "param_head"                 , e#param_head_flag;
-     "sizeof_ty"                  , e#sizeof_ty_flag;
-     "start_of_func_body"         , e#start_of_func_body_flag;
-     "stmts"                      , e#stmts_flag;
-     "str"                        , e#str_flag;
-     "templ_arg"                  , e#templ_arg_flag;
-     "templ_head"                 , e#templ_head_flag;
-     "top_stmts"                  , e#top_stmts_flag;
-     "trailing_retty"             , e#trailing_retty_flag;
-     "ty_param"                   , e#ty_param_flag;
-     "ty_param_key"               , e#ty_param_key_flag;
-     "ty_param_rhs"               , e#ty_param_rhs_flag;
-     "ty_templ_id"                , e#ty_templ_id_flag;
-     "typedef"                    , e#typedef_flag;
-     "typename"                   , e#typename_flag;
-     "using"                      , e#using_flag;
-     "using_ns"                   , e#using_ns_flag;
-     "value"                      , e#value_flag;
-     "virtual_func"               , e#virtual_func_flag;
-     "mock_qualifier"             , e#mock_qualifier_flag;
-     "new"                        , e#new_flag;
-     "concept"                    , e#concept_flag;
-     "requires_clause"            , e#requires_clause_flag;
+  let l = [
+    "_arg_paren",                      e#_arg_paren_flag;
+    "alias",                           e#alias_flag;
+    "alignas",                         e#alignas_flag;
+    "alignof",                         e#alignof_flag;
+    "asm",                             e#asm_flag;
+    "asm_block",                       e#asm_block_flag;
+    "asm_shader",                      e#asm_shader_flag;
+    "at_arg_paren",                    e#at_arg_paren;
+    "at_arg_paren_2",                  e#at_arg_paren_2;
+    "at_attr",                         e#at_attr;
+    "at_brace",                        e#at_brace;
+    "at_bracket",                      e#at_bracket;
+    "at_class_brace",                  e#at_class_brace;
+    "at_fold_paren",                   e#at_fold_paren;
+    "at_ini_brace",                    e#at_ini_brace;
+    "at_lam_intr",                     e#at_lam_intr;
+    "at_macro_arg_paren",              e#at_macro_arg_paren;
+    "at_macro_arg_paren_2",            e#at_macro_arg_paren_2;
+    "at_objc_msg",                     e#at_objc_msg;
+    "at_paren",                        e#at_paren;
+    "at_paren_2",                      e#at_paren_2;
+    "at_subscr",                       e#at_subscr;
+    "at_templ_arg",                    e#at_templ_arg;
+    "at_templ_arg_2",                  e#at_templ_arg_2;
+    "at_templ_param",                  e#at_templ_param;
+    "at_templ_param_2",                e#at_templ_param_2;
+    "at_templ_param_arg_expr_2",       e#at_templ_param_arg_expr_2;
+    "at_type_paren",                   e#at_type_paren;
+    "at_type_paren_2",                 e#at_type_paren_2;
+    "attr",                            e#attr_flag;
+    "base_clause",                     e#base_clause_flag;
+    "body_head",                       e#body_head_flag;
+    "brace_lv_marker",                 e#pstat#brace_level_marker_flag;
+    "braced_asm",                      e#braced_asm_flag;
+    "braced_init",                     e#braced_init_flag;
+    "cast_head",                       e#cast_head_flag;
+    "cast_key",                        e#cast_key_flag;
+    "class_name",                      e#class_name_flag;
+    "concept",                         e#concept_flag;
+    "condition",                       e#condition_flag;
+    "const_flag",                      e#const_flag;
+    "conv_func_id",                    e#conv_func_id_flag;
+    "ctor_init",                       e#ctor_init_flag;
+    "decl_stmt_block",                 e#decl_stmt_block_flag;
+    "decltype",                        e#decltype_flag;
+    "dsl",                             e#dsl_flag;
+    "dtor",                            e#dtor_flag;
+    "dtor_if_section",                 e#dtor_if_section_flag;
+    "end_of_attr_macro_call",          e#end_of_attr_macro_call_flag;
+    "end_of_broken_decl_section",      e#end_of_broken_decl_section_flag;
+    "end_of_cast_type",                e#end_of_cast_type_flag;
+    "end_of_class_spec",               e#end_of_class_spec_flag;
+    "end_of_decltype",                 e#end_of_decltype_flag;
+    "end_of_enum_spec",                e#end_of_enum_spec_flag;
+    "end_of_handler_head",             e#end_of_handler_head_flag;
+    "end_of_id_macro_call",            e#end_of_id_macro_call_flag;
+    "end_of_if_head",                  e#end_of_if_head_flag;
+    "end_of_label",                    e#end_of_label_flag;
+    "end_of_lambda_templ",             e#end_of_lambda_templ_flag;
+    "end_of_literal_macro_call",       e#end_of_literal_macro_call_flag;
+    "end_of_mem_initialier",           e#end_of_mem_initializer_flag;
+    "end_of_noptr_dtor_paren",         e#end_of_noptr_dtor_paren_flag;
+    "end_of_objc_meth_sel",            e#end_of_objc_meth_sel_flag;
+    "end_of_objc_meth_type",           e#end_of_objc_meth_type_flag;
+    "end_of_objc_property_attrs_decl", e#end_of_objc_property_attrs_decl_flag;
+    "end_of_objc_protocol_ref_list",   e#end_of_objc_protocol_ref_list_flag;
+    "end_of_params",                   e#end_of_params_flag;
+    "end_of_req_params",               e#end_of_req_params_flag;
+    "end_of_str_section",              e#end_of_str_section_flag;
+    "end_of_templ_head",               e#end_of_templ_head_flag;
+    "end_of_type_macro_call",          e#end_of_type_macro_call_flag;
+    "enum_head",                       e#enum_head_flag;
+    "exec_config",                     e#exec_config_flag;
+    "expr",                            e#expr_flag;
+    "for",                             e#for_flag;
+    "for_range_init",                  e#for_range_init_flag;
+    "in_body_brace",                   e#in_body_brace_flag;
+    "in_objc_message_expr",            e#in_objc_message_expr;
+    "init",                            e#init_flag;
+    "lambda_dtor",                     e#lambda_dtor_flag;
+    "lambda_intro",                    e#lambda_intro_flag;
+    "last_ty_templ_id",                e#last_ty_templ_id_flag;
+    "linkage_spec",                    e#linkage_spec_flag;
+    "macro_arg",                       e#macro_arg_flag;
+    "mem_acc",                         e#mem_acc_flag;
+    "mock_qualifier",                  e#mock_qualifier_flag;
+    "new",                             e#new_flag;
+    "noexcept",                        e#noexcept_flag;
+    "ns_alias",                        e#ns_alias_flag;
+    "objc_block",                      e#objc_block_flag;
+    "objc_cat",                        e#objc_cat_flag;
+    "objc_class",                      e#objc_class_flag;
+    "objc_class_interface",            e#objc_class_interface_flag;
+    "objc_meth_decl",                  e#objc_meth_decl_flag;
+    "objc_meth_sel",                   e#objc_meth_sel_flag;
+    "objc_protocol_decl",              e#objc_protocol_decl_flag;
+    "objc_protocol_ref",               e#objc_protocol_ref_flag;
+    "objc_sel",                        e#objc_sel_flag;
+    "objc_superclass",                 e#objc_superclass_flag;
+    "old_param_decl",                  e#old_param_decl_flag;
+    "param_head",                      e#param_head_flag;
+    "pp_define",                       e#pp_define_flag;
+    "pp_define_body",                  e#pp_define_body_flag;
+    "pp_elif",                         e#pp_elif_flag;
+    "pp_else",                         e#pp_else_flag;
+    "pp_func_body_odd",                e#pp_func_body_odd_flag;
+    "pp_if",                           e#pp_if_flag;
+    "pp_if_section",                   e#pp_if_section_flag;
+    "pp_ifdef",                        e#pp_ifdef_flag;
+    "pp_ifx_d",                        e#pp_ifx_d_flag;
+    "pp_line",                         e#pp_line_flag;
+    "pp_odd",                          e#pp_odd_flag;
+    "pp_params",                       e#pp_params_flag;
+    "requires_clause",                 e#requires_clause_flag;
+    "sizeof_ty",                       e#sizeof_ty_flag;
+    "start_of_func_body",              e#start_of_func_body_flag;
+    "stmts",                           e#stmts_flag;
+    "str",                             e#str_flag;
+    "templ_arg",                       e#templ_arg_flag;
+    "templ_head",                      e#templ_head_flag;
+    "top_stmts",                       e#top_stmts_flag;
+    "trailing_retty",                  e#trailing_retty_flag;
+    "ty_param",                        e#ty_param_flag;
+    "ty_param_key",                    e#ty_param_key_flag;
+    "ty_param_rhs",                    e#ty_param_rhs_flag;
+    "ty_templ_id",                     e#ty_templ_id_flag;
+    "typedef",                         e#typedef_flag;
+    "typename",                        e#typename_flag;
+    "using",                           e#using_flag;
+    "using_ns",                        e#using_ns_flag;
+    "value",                           e#value_flag;
+    "virtual_func",                    e#virtual_func_flag;
    ] in
   String.concat "" (List.map (fun (k, v) -> "["^k^"]") (List.filter (fun (k, v) -> v) l))
 
