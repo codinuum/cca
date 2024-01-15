@@ -311,4 +311,4 @@ let _ =
   | Triple.Proj_root_not_set          -> Xprint.error "project root not set"; exit 1
 *)
 
-  | e -> Xprint.error ~head:"[EXCEPTION]" "%s" (Printexc.to_string e); exit 1
+  (*| e -> Xprint.error ~head:"[EXCEPTION]" "%s" (Printexc.to_string e); exit 1*)

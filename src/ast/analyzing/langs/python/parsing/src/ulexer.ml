@@ -126,7 +126,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "not",      NOT;
         "or",       OR;
         "pass",     PASS;
-        "print",    PRINT;
+        (*"print",    PRINT;*)
         "raise",    RAISE;
         "return",   RETURN;
         "try",      TRY;
@@ -232,7 +232,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let regexp line_join = '\\' line_terminator
 
-  let regexp letter = ['A'-'Z' 'a'-'z']
+  let regexp letter = ['A'-'Z' 'a'-'z' 128-255 880-1023 1024-1279 2304-2431 4352-4607 43360-43391 44032-55215 55216-55295]
   let regexp digit = ['0'-'9']
   let regexp identifier = (letter | '_') (letter | digit | '_')*
 
@@ -602,6 +602,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
       in
       peek [] 1
 
+    method peek_nth_rawtoken nth =
+      let _, rt = self#peek_nth nth in
+      rt
+
     method shadow_queue = shadow_queue
     method reset_shadow_queue = shadow_queue#clear
     method shadow_contents = token_queue_to_string shadow_queue
@@ -699,12 +703,28 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | None -> failwith "Ulexer.scanner#_get_token"
 
     method get_token () =
+
       let token = self#_get_token() in
 
       let rawtok, stp, edp = Token.decompose token in
 
+      let is_print_stmt =
+        match rawtok with
+        | NAMEx "print" when self#peek_nth_rawtoken 1 != LPAREN -> true
+        | _ -> false
+      in
+      BEGIN_DEBUG
+        if is_print_stmt then
+          DEBUG_MSG "is_print_stmt=true"
+      END_DEBUG;
+
       let token, rawtok =
-        if env#keep_going_flag && stp <> Lexing.dummy_pos && edp <> Lexing.dummy_pos then begin
+        if is_print_stmt then begin
+          let _, s, e = Token.decompose token in
+          let t = Token.create PRINT s e in
+          t, PRINT
+        end
+        else if env#keep_going_flag && stp <> Lexing.dummy_pos && edp <> Lexing.dummy_pos then begin
           match rawtok with
           | RPAREN when env#paren_level = 0 -> begin
               let loc = loc_of_poss stp edp in

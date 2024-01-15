@@ -582,6 +582,7 @@ module Primary = struct
     | Slicing
     | Call of tie_id
     | Await
+    | Ellipsis
 
   let to_string = function
     | Name name    -> sprintf "Name:%s" name
@@ -599,6 +600,7 @@ module Primary = struct
     | Slicing      -> "Slicing"
     | Call tid     -> "Call:" ^ (tid_to_string tid)
     | Await        -> "Await"
+    | Ellipsis     -> "Ellipsis"
 
   let anonymize ?(more=false) = function
     | Name name   -> Name ""
@@ -623,6 +625,7 @@ module Primary = struct
     | Slicing      -> mkstr 12
     | Call tid     -> combo 13 [tid_to_string tid]
     | Await        -> mkstr 14
+    | Ellipsis     -> mkstr 15
 
   let to_tag prim =
     let name, attrs =
@@ -642,6 +645,7 @@ module Primary = struct
       | Slicing      -> "Slicing", []
       | Call tid     -> "Call", mktidattr tid
       | Await        -> "Await", []
+      | Ellipsis     -> "Ellipsis", []
     in
     name, attrs
 
@@ -745,19 +749,26 @@ and primary_desc_to_string = function
   | Ast.Pparen expr           -> sprintf "Pparen(%s)" (expr_to_string expr)
   | Ast.Ptuple exprs          -> "Ptuple" ^ (exprs_to_string exprs)
   | Ast.Pyield exprs          -> "Pyield" ^ (exprs_to_string exprs)
-  | Ast.PcompT(expr, compfor) -> sprintf "PcompT(%s,%s)" (expr_to_string expr) (compfor_to_string compfor)
-  | Ast.PcompL(expr, compfor) -> sprintf "PcompL(%s,%s)" (expr_to_string expr) (compfor_to_string compfor)
+  | Ast.PcompT(expr, compfor) ->
+      sprintf "PcompT(%s,%s)" (expr_to_string expr) (compfor_to_string compfor)
+  | Ast.PcompL(expr, compfor) ->
+      sprintf "PcompL(%s,%s)" (expr_to_string expr) (compfor_to_string compfor)
   | Ast.Plist exprs -> "Plist" ^ (exprs_to_string exprs)
   | Ast.Plistnull -> "Plistnull"
   | Ast.Pdictorset dictorsetmaker -> "Pdictorset" ^ (dictorsetmaker_to_string dictorsetmaker)
   | Ast.Pdictnull -> "Pdictnull"
   | Ast.Pstrconv exprs -> "Pstrconv" ^ (exprs_to_string exprs)
-  | Ast.Pattrref(prim, name) -> sprintf "Pattrref(%s,%s)" (primary_to_string prim) (name_to_string name)
-  | Ast.Psubscript(prim, exprs) -> sprintf "Psubscript(%s,%s)" (primary_to_string prim) (exprs_to_string exprs)
+  | Ast.Pattrref(prim, name) ->
+      sprintf "Pattrref(%s,%s)" (primary_to_string prim) (name_to_string name)
+  | Ast.Psubscript(prim, exprs) ->
+      sprintf "Psubscript(%s,%s)" (primary_to_string prim) (exprs_to_string exprs)
   | Ast.Pslice(prim, sliceitems) ->
-      sprintf "Pslice(%s,[%s])" (primary_to_string prim) (Xlist.to_string sliceitem_to_string ";" sliceitems)
-  | Ast.Pcall(prim, arglist) -> sprintf "Pcall(%s,%s)" (primary_to_string prim) (arglist_to_string arglist)
+      sprintf "Pslice(%s,[%s])"
+        (primary_to_string prim) (Xlist.to_string sliceitem_to_string ";" sliceitems)
+  | Ast.Pcall(prim, arglist) ->
+      sprintf "Pcall(%s,%s)" (primary_to_string prim) (arglist_to_string arglist)
   | Ast.Pawait prim -> sprintf "Pawait(%s)" (primary_to_string prim)
+  | Ast.Pellipsis -> sprintf "Ellipsis"
 
 and expr_to_string expr =
   match expr.Ast.expr_desc with
@@ -819,10 +830,14 @@ and parameters_to_string (_, vargs) =
   ")"
 
 and vararg_to_string = function
-  | Ast.VAarg(fpdef, expr_opt) -> (fpdef_to_string fpdef) ^ "," ^ (opt_to_string expr_to_string expr_opt)
-  | Ast.VAargs(_, None)     -> "*"
-  | Ast.VAargs(_, (Some n)) -> "*" ^ (name_to_string n)
-  | Ast.VAkwargs(_, n)      -> "**" ^ (name_to_string n)
+  | Ast.VAarg(fpdef, expr_opt) ->
+      (fpdef_to_string fpdef) ^ "," ^ (opt_to_string expr_to_string expr_opt)
+  | Ast.VAargs(_, None, expr_opt) ->
+      "*" ^ "," ^ (opt_to_string expr_to_string expr_opt)
+  | Ast.VAargs(_, Some n, expr_opt) ->
+      "*" ^ (name_to_string n) ^ "," ^ (opt_to_string expr_to_string expr_opt)
+  | Ast.VAkwargs(_, n, expr_opt) ->
+      "**" ^ (name_to_string n) ^ "," ^ (opt_to_string expr_to_string expr_opt)
 
 and vargs_to_string vargs = "[" ^ (Xlist.to_string vararg_to_string ";" vargs) ^ "]"
 
@@ -893,7 +908,7 @@ and sliceitem_to_string = function
       (opt_to_string expr_to_string expr_opt1) ^ "," ^
       (opt_to_string expr_to_string expr_opt2) ^ "," ^
       (opt_to_string expr_to_string expr_opt3) ^ ")"
-  | Ast.SIellipsis _ -> "SIellipsis"
+  (*| Ast.SIellipsis _ -> "SIellipsis"*)
 
 and arglist_to_string (_, args) = sprintf "(%s)" (Xlist.to_string argument_to_string "," args)
 
@@ -909,23 +924,22 @@ and argument_to_string = function
   | Aargs(_, expr) -> "*"^(expr_to_string expr)
   | Akwargs(_, expr) -> "**"^(expr_to_string expr)
 
-let of_statement stmt =
-  Statement
-    (match stmt with
-    | Ast.Ssimple _                        -> Statement.Simple
-    | Ast.Sif _                            -> Statement.If
-    | Ast.Swhile _                         -> Statement.While
-    | Ast.Sfor _                           -> Statement.For
-    | Ast.Stry _                           -> Statement.Try
-    | Ast.Stryfin _                        -> Statement.Try
-    | Ast.Swith _                          -> Statement.With
-    | Ast.Sasync _                         -> Statement.Async
-    | Ast.Sasync_funcdef(_, name, _, _, _) -> Statement.AsyncFuncDef (conv_name name)
-    | Ast.Sfuncdef(_, name, _, _, _)       -> Statement.FuncDef (conv_name name)
-    | Ast.Sclassdef(_, name, _, _)         -> Statement.ClassDef (conv_name name)
-    | Ast.Serror                           -> Statement.ERROR
-    | Ast.Smarker m                        -> Statement.MARKER m
-    )
+let _of_statement = function
+  | Ast.Ssimple _                        -> Statement.Simple
+  | Ast.Sif _                            -> Statement.If
+  | Ast.Swhile _                         -> Statement.While
+  | Ast.Sfor _                           -> Statement.For
+  | Ast.Stry _                           -> Statement.Try
+  | Ast.Stryfin _                        -> Statement.Try
+  | Ast.Swith _                          -> Statement.With
+  | Ast.Sasync _                         -> Statement.Async
+  | Ast.Sasync_funcdef(_, name, _, _, _) -> Statement.AsyncFuncDef (conv_name name)
+  | Ast.Sfuncdef(_, name, _, _, _)       -> Statement.FuncDef (conv_name name)
+  | Ast.Sclassdef(_, name, _, _)         -> Statement.ClassDef (conv_name name)
+  | Ast.Serror                           -> Statement.ERROR
+  | Ast.Smarker m                        -> Statement.MARKER m
+
+let of_statement stmt = Statement (_of_statement stmt)
 
 let tid_of_import name_as_names =
   let dottedname_as_names_to_string dname_as_names =
@@ -1004,28 +1018,27 @@ let tid_of_primary prim =
     (Digest.to_hex (Digest.string (primary_to_string prim)))
     ""
 
-let of_primary p =
-  Primary
-    (match p with
-    | Ast.Pname name      -> Primary.Name (conv_name name)
-    | Ast.Pliteral lit    -> Primary.Literal (Literal.of_literal lit)
-    | Ast.Pparen _        -> Primary.Paren
-    | Ast.Ptuple _        -> Primary.Tuple
-    | Ast.Pyield _        -> Primary.Yield
-    | Ast.PcompT _        -> Primary.Test
-    | Ast.PcompL _        -> Primary.ListFor
-    | Ast.Plist _         -> Primary.List
-    | Ast.Plistnull       -> Primary.List
-    | Ast.Pdictorset _    -> Primary.Dict
-    | Ast.Pdictnull       -> Primary.Dict
-    | Ast.Pstrconv _      -> Primary.StringConv
-    | Ast.Pattrref _      -> Primary.AttrRef
-    | Ast.Psubscript _    -> Primary.Subscription
-    | Ast.Pslice _        -> Primary.Slicing
-    | Ast.Pcall (prim, _) -> Primary.Call (tid_of_primary prim)
-    | Ast.Pawait _        -> Primary.Await
-    )
+let _of_primary = function
+  | Ast.Pname name      -> Primary.Name (conv_name name)
+  | Ast.Pliteral lit    -> Primary.Literal (Literal.of_literal lit)
+  | Ast.Pparen _        -> Primary.Paren
+  | Ast.Ptuple _        -> Primary.Tuple
+  | Ast.Pyield _        -> Primary.Yield
+  | Ast.PcompT _        -> Primary.Test
+  | Ast.PcompL _        -> Primary.ListFor
+  | Ast.Plist _         -> Primary.List
+  | Ast.Plistnull       -> Primary.List
+  | Ast.Pdictorset _    -> Primary.Dict
+  | Ast.Pdictnull       -> Primary.Dict
+  | Ast.Pstrconv _      -> Primary.StringConv
+  | Ast.Pattrref _      -> Primary.AttrRef
+  | Ast.Psubscript _    -> Primary.Subscription
+  | Ast.Pslice _        -> Primary.Slicing
+  | Ast.Pcall (prim, _) -> Primary.Call (tid_of_primary prim)
+  | Ast.Pawait _        -> Primary.Await
+  | Ast.Pellipsis       -> Primary.Ellipsis
 
+let of_primary p = Primary (_of_primary p)
 
 let rec to_string = function
   | Dummy                 -> "Dummy"

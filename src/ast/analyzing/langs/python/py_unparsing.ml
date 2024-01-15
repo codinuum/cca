@@ -244,10 +244,18 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
       | L.Primary.Test         -> pr_string "("; pr_nth_child 0; pad1(); pr_nth_child 1; pr_string ")"
       | L.Primary.List         -> pr_string "["; pr_comma_children(); pr_string "]"
       | L.Primary.ListFor -> begin
-          pr_string "["; pr_nth_child 0; pad1(); pr_nth_child 1; pr_nth_children ~head:pad1 2; pr_string "]"
+          pr_string "[";
+          pr_nth_child 0;
+          pad1();
+          pr_nth_child 1;
+          pr_nth_children ~head:pad1 2;
+          pr_string "]"
       end
       | L.Primary.Dict -> begin
-          pr_string "{"; pr_nth_children ~sep:pr_comma 0; pr_nth_children ~head:pad1 1; pr_string "}"
+          pr_string "{";
+          pr_nth_children ~sep:pr_comma 0;
+          pr_nth_children ~head:pad1 1;
+          pr_string "}"
       end
       | L.Primary.StringConv   -> pr_string "`"; pr_comma_children(); pr_string "`"
       | L.Primary.AttrRef      -> pr_nth_child 0; pr_dot(); pr_nth_child 1
@@ -255,6 +263,7 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
       | L.Primary.Slicing      -> pr_nth_child 0; pr_string "["; pr_nth_children 1; pr_string "]"
       | L.Primary.Call _       -> pr_nth_child 0; pr_string "("; pr_nth_children 1; pr_string ")"
       | L.Primary.Await        -> pr_string "await "; pr_nth_child 0
+      | L.Primary.Ellipsis     -> pr_string "..."
   end
   | L.UnaryOperator uo      -> pr_uop uo; pr_nth_child 0
   | L.BinaryOperator bo     -> pr_nth_child 0; pr_bop bo; pr_nth_child 1

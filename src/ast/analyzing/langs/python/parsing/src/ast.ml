@@ -102,10 +102,13 @@ and parameters = loc * vararg list
 
 and vararg =
 | VAarg of fpdef * expr option
-| VAargs of loc * name option
-| VAkwargs of loc * name
+| VAargs of loc * name option * expr option
+| VAkwargs of loc * name * expr option
 
-and fpdef = Fname of name | Flist of loc * fpdef list | Ftyped of loc * name * expr
+and fpdef =
+| Fname of name
+| Flist of loc * fpdef list
+| Ftyped of loc * name * expr
 
 and decorator = loc * dottedname * arglist
 
@@ -144,6 +147,7 @@ and primary_desc =
   | Pslice of primary * sliceitem list
   | Pcall of primary * arglist
   | Pawait of primary
+  | Pellipsis
 
 and trailer =
   | TRattrref of name
@@ -184,7 +188,7 @@ and sliceitem =
   | SIexpr of expr
   | SI2 of loc * expr option * expr option
   | SI3 of loc * expr option * expr option * expr option
-  | SIellipsis of loc
+  (*| SIellipsis of loc*)
 
 and arglist = loc * argument list
 

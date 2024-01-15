@@ -141,15 +141,17 @@ typedargslist:
 | v=typedargs_ COMMA { get_loc $startofs $endofs, v }
 ;
 typedargs_:
-|                typedarg {      [$1] }
+|                  typedarg {      [$1] }
 | typedargs_ COMMA typedarg { $1 @ [$3] }
 ;
 typedarg:
 | tfpdef          { VAarg ($1, None) }
 | tfpdef EQ test  { VAarg ($1, Some $3) }
-| STAR            { VAargs(get_loc $startofs $endofs, None) }
-| STAR name       { VAargs(get_loc $startofs $endofs, (Some $2)) }
-| STAR_STAR name  { VAkwargs(get_loc $startofs $endofs, $2) }
+| STAR            { VAargs(get_loc $startofs $endofs, None, None) }
+| STAR name       { VAargs(get_loc $startofs $endofs, Some $2, None) }
+| STAR_STAR name  { VAkwargs(get_loc $startofs $endofs, $2, None) }
+| STAR name COLON test      { VAargs(get_loc $startofs $endofs, Some $2, Some $4) }
+| STAR_STAR name COLON test { VAkwargs(get_loc $startofs $endofs, $2, Some $4) }
 ;
 
 varargslist:
@@ -163,9 +165,9 @@ varargs_:
 vararg:
 | fpdef          { VAarg ($1, None) }
 | fpdef EQ test  { VAarg ($1, Some $3) }
-| STAR           { VAargs(get_loc $startofs $endofs, None) }
-| STAR name      { VAargs(get_loc $startofs $endofs, (Some $2)) }
-| STAR_STAR name { VAkwargs(get_loc $startofs $endofs, $2) }
+| STAR           { VAargs(get_loc $startofs $endofs, None, None) }
+| STAR name      { VAargs(get_loc $startofs $endofs, Some $2, None) }
+| STAR_STAR name { VAkwargs(get_loc $startofs $endofs, $2, None) }
 ;
 
 tfpdef:
@@ -664,6 +666,7 @@ atom:
 | BACKQUOTE testlist1 BACKQUOTE { Pstrconv $2 }
 | name { Pname $1 }
 | literal { Pliteral $1 }
+| ELLIPSIS { Pellipsis }
 ;
 literal:
 | INTEGER     { Linteger $1 }
@@ -740,7 +743,7 @@ subscripts:
 
 subscript:
 (*| DOT DOT DOT { SIellipsis(get_loc $startofs $endofs) }*)
-| ELLIPSIS { SIellipsis(get_loc $startofs $endofs) }
+(*| ELLIPSIS { SIellipsis(get_loc $startofs $endofs) }*)
 | test { SIexpr $1 }
 
 |      COLON      { SI2(get_loc $startofs $endofs, None, None) }

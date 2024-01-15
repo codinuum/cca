@@ -95,7 +95,8 @@ class parser_c = object (self)
         | _ :: tl -> menv_backup_objs := List.rev tl
         | _ -> ()
       end;
-      menv_backup_objs := (sn, scanner#copy_shadow_queue, scanner#copy_shadow_q, _menv) :: !menv_backup_objs;
+      menv_backup_objs :=
+        (sn, scanner#copy_shadow_queue, scanner#copy_shadow_q, _menv) :: !menv_backup_objs;
       DEBUG_MSG "\n%s"
         (String.concat "\n"
            (List.map
@@ -120,7 +121,7 @@ class parser_c = object (self)
       let sl, sc = pos_mgr#get_position so in
       let eo = edp.Lexing.pos_cnum in
       let el, ec = pos_mgr#get_position eo in
-      Common.fail_to_parse
+      fail_to_parse
         ~head:(Printf.sprintf "[%s:%dL,%dC-%dL,%dC]" env#current_filename sl sc el ec)
         "syntax error"
     in

@@ -173,7 +173,8 @@ class translator options = object (self)
 	    (((self#of_suite suite)::(self#of_excepts excepts))
 	     @ (of_opt self#of_else else_opt) @ (of_opt self#of_finally fin_opt))
 
-      | Ast.Stryfin(suite1, fin) -> mkstmtnode ~pvec:[1; 0; 0; 1] [self#of_suite suite1; self#of_finally fin]
+      | Ast.Stryfin(suite1, fin) ->
+          mkstmtnode ~pvec:[1; 0; 0; 1] [self#of_suite suite1; self#of_finally fin]
 
       | Ast.Swith(withitems, suite) ->
 	  mkstmtnode ~pvec:[List.length withitems; 1]
@@ -207,7 +208,9 @@ class translator options = object (self)
                 nd::c, 1
             end
             | loc, _ -> begin
-                let nd = self#mknd L.Inheritance (self#of_named_arglist (L.conv_name name) arglist) in
+                let nd =
+                  self#mknd L.Inheritance (self#of_named_arglist (L.conv_name name) arglist)
+                in
                 set_loc nd loc;
                 nd::c, 1
             end
@@ -470,9 +473,34 @@ class translator options = object (self)
         end
         | None -> self#of_fpdef fpdef
     end
-    | Ast.VAargs(loc, None)     -> let nd = self#mknd ~pvec:[0] L.Star [] in set_loc nd loc; nd
-    | Ast.VAargs(loc, (Some n)) -> let nd = self#mknd ~pvec:[1] L.Star [self#of_name n] in set_loc nd loc; nd
-    | Ast.VAkwargs(loc, n)      -> let nd = self#mknd L.StarStar [self#of_name n] in set_loc nd loc; nd
+    | Ast.VAargs(loc, None, None) -> begin
+        let nd = self#mknd ~pvec:[0] L.Star [] in
+        set_loc nd loc;
+        nd
+    end
+    | Ast.VAargs(loc, None, _) -> assert false
+    | Ast.VAargs(loc, Some name, None) -> begin
+        let nd = self#mknd ~pvec:[1] L.Star [self#of_name name] in
+        set_loc nd loc;
+        nd
+    end
+    | Ast.VAargs(loc, Some name, Some expr) -> begin
+        let tpd = self#mknd L.TypedParamDef [self#of_name name; self#of_expr expr] in
+        let nd = self#mknd ~pvec:[1] L.Star [tpd] in
+        set_loc nd loc;
+        nd
+    end
+    | Ast.VAkwargs(loc, name, None) -> begin
+        let nd = self#mknd L.StarStar [self#of_name name] in
+        set_loc nd loc;
+        nd
+    end
+    | Ast.VAkwargs(loc, name, Some expr) -> begin
+        let tpd = self#mknd L.TypedParamDef [self#of_name name; self#of_expr expr] in
+        let nd = self#mknd L.StarStar [tpd] in
+        set_loc nd loc;
+        nd
+    end
 
   method of_named_parameters name (loc, dparams) =
     match dparams with
@@ -575,6 +603,7 @@ class translator options = object (self)
           self#mknd ~pvec lab ((self#of_primary prim)::ans)
       end
       | Ast.Pawait prim -> mkprimnode [self#of_primary prim]
+      | Ast.Pellipsis -> self#mkleaf lab
     in
     nd
 
@@ -646,10 +675,10 @@ class translator options = object (self)
         set_loc nd loc;
         nd
     end
-    | Ast.SIellipsis loc ->
+    (*| Ast.SIellipsis loc ->
 	let nd = self#mkleaf L.Ellipsis in
 	set_loc nd loc;
-	nd
+	nd*)
 
   method of_arglist tid (loc, args) =
     match args with

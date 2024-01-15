@@ -350,9 +350,20 @@ and pr_vararg = function
       pr_fpdef fpdef;
       pr_opt (fun expr -> pr_equal(); pr_expr expr) expr_opt
   end
-  | VAargs(_, None)     -> pr_string "*"
-  | VAargs(_, (Some n)) -> pr_string "*"; pr_name n
-  | VAkwargs(_, n)      -> pr_string "**"; pr_name n
+  | VAargs(_, None, expr_opt) -> begin
+      pr_string "*";
+      pr_opt (fun expr -> pr_colon(); pr_expr expr) expr_opt
+  end
+  | VAargs(_, Some n, expr_opt) -> begin
+      pr_string "*";
+      pr_name n;
+      pr_opt (fun expr -> pr_colon(); pr_expr expr) expr_opt
+  end
+  | VAkwargs(_, n, expr_opt) -> begin
+      pr_string "**";
+      pr_name n;
+      pr_opt (fun expr -> pr_colon(); pr_expr expr) expr_opt
+  end
 
 and pr_parameters (_, vargs) = pr_list pr_vararg pr_comma vargs
 
@@ -448,6 +459,7 @@ and _pr_primary = function
       pr_string ")"
 
   | Pawait prim -> pr_string "await "; pr_primary prim
+  | Pellipsis -> pr_string "..."
 
 and pr_literal = function
   | Linteger str -> pr_string str
@@ -516,7 +528,7 @@ and pr_sliceitem = function
       pr_colon();
       pr_expr_opt expr_opt3
 
-  | SIellipsis _ -> pr_string "..."
+  (*| SIellipsis _ -> pr_string "..."*)
 
 and pr_arglist (_, args) = pr_list pr_argument pr_comma args
 
