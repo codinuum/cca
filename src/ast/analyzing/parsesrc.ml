@@ -42,6 +42,14 @@ let set_dump_compressed_ast_flags() =
   set_dump_ast_flags();
   options#set_compress_ast_flag
 
+let set_dump_src_out s =
+  options#set_dump_src_out s;
+  options#set_dump_src_flag;
+  options#set_no_collapse_flag
+
+let set_dump_src_flag() =
+  options#set_dump_src_flag;
+  options#set_no_collapse_flag
 
 let set_fact_enc_FDLC() =
   options#set_fact_enc Entity.FDLC
@@ -113,6 +121,8 @@ let speclist =
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\tdump AST";
    "-dump:ast:compress", Arg.Unit set_dump_compressed_ast_flags, "\tdump compressed AST";
+   "-dump:src", Arg.Unit set_dump_src_flag, "\t\tdump unparsed AST";
+   "-dump:src:out", Arg.String set_dump_src_out, "FILE\tdump unparsed AST into file";
 
 (* cache *)
    "-cache", Arg.String options#set_cache_dir_base,

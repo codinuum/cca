@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -96,17 +96,17 @@ class parser_c = object (self)
         | _ -> ()
       end;
       menv_backup_objs :=
-        (sn, scanner#copy_shadow_queue, scanner#copy_shadow_q, _menv) :: !menv_backup_objs;
+        (sn, scanner#copy_shadow_queue, (*scanner#copy_shadow_q, *)_menv) :: !menv_backup_objs;
       DEBUG_MSG "\n%s"
         (String.concat "\n"
            (List.map
-              (fun (sn, scq, soq, _) ->
+              (fun (sn, scq, (*soq, *)_) ->
                 Printf.sprintf "%d: ^%s$ --- ^%s$"
-                  sn (U.token_queue_to_string scq) (U.outline_queue_to_string soq)
+                  sn (U.token_queue_to_string scq) (U.outline_queue_to_string scq(*soq*))
               ) !menv_backup_objs)
         );
       scanner#reset_shadow_queue;
-      scanner#reset_shadow_q
+      (*scanner#reset_shadow_q*)
     in
     let poss_of_menv _menv =
       match I.get 0 _menv with
@@ -257,7 +257,6 @@ class parser_c = object (self)
                 error_state := -1;
                 rollback_record <- []
           end;
-
           DEBUG_MSG "[AboutToReduce] %d" (I.current_state_number _menv);
           begin
             let lhs = I.lhs prod in
@@ -271,12 +270,17 @@ class parser_c = object (self)
       | I.HandlingError _menv -> begin
           let sn = I.current_state_number _menv in
           DEBUG_MSG "[HandlingError] %d" sn;
-          if keep_going_flag then begin
+
+          let last_token = Obj.obj env#last_token in
+          let last_rawtoken = Token.to_rawtoken last_token in
+          DEBUG_MSG "last_rawtoken=%s" (Token.rawtoken_to_string last_rawtoken);
+
+          if keep_going_flag && last_rawtoken != T.EOF then begin
             DEBUG_MSG "error_state=%d" !error_state;
             let to_be_popped =
               !error_state > -1 &&
               match !menv_backup_objs with
-              | (sn0, _, _, menv0)::tl -> begin
+              | (sn0, _, (*_, *)menv0)::tl -> begin
                   try
                     iter_items menv0
                       (function
@@ -291,10 +295,10 @@ class parser_c = object (self)
             DEBUG_MSG "to_be_popped=%B" to_be_popped;
             if to_be_popped then begin
               match !menv_backup_objs with
-              | (_, scq, soq, _)::tl -> begin
+              | (_, scq, (*soq, *)_)::tl -> begin
                   menv_backup_objs := tl;
                   scanner#prepend_shadow_queue scq;
-                  scanner#prepend_shadow_q soq;
+                  (*scanner#prepend_shadow_q soq;*)
               end
               | _ -> ()
             end;
@@ -302,9 +306,9 @@ class parser_c = object (self)
             let loc = U.loc_of_poss stp edp in
             let e = scanner#shadow_outline in
             let err = scanner#shadow_contents in
-            scanner#reset_shadow_q;
+            (*scanner#reset_shadow_q;*)
             scanner#reset_shadow_queue;
-            DEBUG_MSG "shadow_q: %s" e;
+            DEBUG_MSG "shadow_queue(outline): %s" e;
             DEBUG_MSG "shadow_queue: %s" err;
             DEBUG_MSG "shift_flag=%B" env#shift_flag;
             begin
@@ -319,12 +323,9 @@ class parser_c = object (self)
             Aux.warning_loc loc "syntax error: %s" err;
 
             begin
-              let last_token = Obj.obj env#last_token in
-              let last_rawtoken = Token.to_rawtoken last_token in
-              DEBUG_MSG "last_rawtoken=%s" (Token.rawtoken_to_string last_rawtoken);
               let to_be_prepended =
                 match !menv_backup_objs with
-                | (sn0, scq0, soq0, menv0)::tl -> begin
+                | (sn0, scq0, (*soq0, *)menv0)::tl -> begin
                     try
                       let rt = Token.to_rawtoken scq0#peek in
                       DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
@@ -347,7 +348,7 @@ class parser_c = object (self)
             error_state := sn;
             let menv =
               match !menv_backup_objs with
-              | (sn0, scq0, soq0, menv0)::tl -> begin
+              | (sn0, scq0, (*soq0, *)menv0)::tl -> begin
                   DEBUG_MSG "saved state: %d: %s" sn0 (U.token_queue_to_string scq0);
                   let rrec = (sn, rawtok) in
                   DEBUG_MSG "rrec=(%d,%s)" sn (Token.rawtoken_to_string rawtok);

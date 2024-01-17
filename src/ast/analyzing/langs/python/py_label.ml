@@ -62,6 +62,9 @@ module Literal =
       | ImagNumber of string
       | String of string
       | CatString of string
+      | None_
+      | True
+      | False
 
     let to_string = function
       | Integer str     -> sprintf "Integer:%s" str
@@ -70,6 +73,9 @@ module Literal =
       | ImagNumber str  -> sprintf "ImagNumber:%s" str
       | String str      -> sprintf "String:%s" str
       | CatString str   -> sprintf "CatString:%s" str
+      | None_ -> "None_"
+      | True -> "True"
+      | False -> "False"
 
     let to_simple_string = function
       | Integer str
@@ -78,6 +84,9 @@ module Literal =
       | ImagNumber str
       | String str
       | CatString str -> str
+      | None_ -> "None"
+      | True -> "True"
+      | False -> "False"
 
     let anonymize = function
       | Integer str     -> Integer ""
@@ -86,6 +95,7 @@ module Literal =
       | ImagNumber str  -> ImagNumber ""
       | String str      -> String ""
       | CatString str   -> CatString ""
+      | x -> x
 
     let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
@@ -95,6 +105,9 @@ module Literal =
       | ImagNumber str  -> combo 3 [str]
       | String str      -> combo 4 [str]
       | CatString str   -> combo 5 [str]
+      | None_ -> mkstr 6
+      | True -> mkstr 7
+      | False -> mkstr 8
 
     let pystr_to_string = function
       | Ast.PSshort(_, s) | Ast.PSlong(_, s) -> s
@@ -123,6 +136,9 @@ module Literal =
           in
           CatString s_
       end
+      | Ast.Lnone -> None_
+      | Ast.Ltrue -> True
+      | Ast.Lfalse -> False
 
     let to_tag lit =
       let name, attrs =
@@ -133,6 +149,9 @@ module Literal =
         | ImagNumber str  -> "ImagNumberLiteral", ["value",XML.encode_string str]
         | String str      -> "StringLiteral", ["value",XML.encode_string str]
         | CatString str   -> "CatStringLiteral", ["value",XML.encode_string str]
+        | None_ -> "None_", []
+        | True -> "True", []
+        | False -> "False", []
       in
       name, attrs
 
@@ -716,6 +735,7 @@ type t = (* Label *)
   | WithItem
   | StarStar
   | Star
+  | Slash
   | Named
   | ReturnAnnotation
   | Dots of int
@@ -740,6 +760,9 @@ let literal_to_string = function
            | Ast.PSshort(_, s) -> "PSshort:" ^ s
          ) ";" pystrs) ^
       "]"
+  | Ast.Lnone -> "Lnone"
+  | Ast.Ltrue -> "Ltrue"
+  | Ast.Lfalse -> "Lfalse"
 
 let rec primary_to_string prim = primary_desc_to_string prim.Ast.prim_desc
 
@@ -838,6 +861,7 @@ and vararg_to_string = function
       "*" ^ (name_to_string n) ^ "," ^ (opt_to_string expr_to_string expr_opt)
   | Ast.VAkwargs(_, n, expr_opt) ->
       "**" ^ (name_to_string n) ^ "," ^ (opt_to_string expr_to_string expr_opt)
+  | Ast.VAsep _ -> "/"
 
 and vargs_to_string vargs = "[" ^ (Xlist.to_string vararg_to_string ";" vargs) ^ "]"
 
@@ -936,6 +960,7 @@ let _of_statement = function
   | Ast.Sasync_funcdef(_, name, _, _, _) -> Statement.AsyncFuncDef (conv_name name)
   | Ast.Sfuncdef(_, name, _, _, _)       -> Statement.FuncDef (conv_name name)
   | Ast.Sclassdef(_, name, _, _)         -> Statement.ClassDef (conv_name name)
+  | Ast.Smatch _                         -> failwith "not yet"
   | Ast.Serror                           -> Statement.ERROR
   | Ast.Smarker m                        -> Statement.MARKER m
 
@@ -1094,6 +1119,7 @@ let rec to_string = function
   | WithItem              -> "WithItem"
   | StarStar              -> "StarStar"
   | Star                  -> "Star"
+  | Slash                 -> "Slash"
   | Named                 -> "Named"
   | ReturnAnnotation      -> "ReturnAnnotation"
   | Dots i                -> sprintf "Dots:%d" i
@@ -1182,17 +1208,18 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | WithItem     -> mkstr 52
   | StarStar     -> mkstr 53
   | Star         -> mkstr 54
-  | Named        -> mkstr 55
-  | ReturnAnnotation -> mkstr 56
-  | TypedParamDef    -> mkstr 57
-  | Dots i           -> combo 58 [string_of_int i]
-  | CompArgument          -> mkstr 59
-  | AssignArgument        -> mkstr 60
-  | AsyncGenFor           -> mkstr 63
-  | Yield                 -> mkstr 65
-  | Stride                -> mkstr 66
+  | Slash        -> mkstr 55
+  | Named        -> mkstr 56
+  | ReturnAnnotation -> mkstr 57
+  | TypedParamDef    -> mkstr 58
+  | Dots i           -> combo 59 [string_of_int i]
+  | CompArgument          -> mkstr 60
+  | AssignArgument        -> mkstr 61
+  | AsyncGenFor           -> mkstr 62
+  | Yield                 -> mkstr 63
+  | Stride                -> mkstr 64
 
-  | ERROR -> mkstr 67
+  | ERROR -> mkstr 65
 
 let to_tag ?(strip=false) l =
   let name, attrs =
@@ -1249,6 +1276,7 @@ let to_tag ?(strip=false) l =
     | WithItem              -> "WithItem", []
     | StarStar              -> "StarStar", []
     | Star                  -> "Star", []
+    | Slash                 -> "Slash", []
     | Named                 -> "Named", []
     | ReturnAnnotation      -> "ReturnAnnotation", []
     | Dots i                -> "Dots", ["ndots",string_of_int i]
@@ -1297,6 +1325,7 @@ let is_named = function
   | Decorators _
   | Primary (Primary.Name _)
     -> true
+  | Primary (Primary.Literal (Literal.String s|Literal.CatString s)) when s <> "" -> true
   | Statement stmt -> Statement.is_named stmt
   | _ -> false
 
@@ -1307,6 +1336,7 @@ let is_named_orig = function
   | DottedName _
   | Primary (Primary.Name _)
     -> true
+  | Primary (Primary.Literal (Literal.String s|Literal.CatString s)) when s <> "" -> true
   | Statement stmt -> Statement.is_named_orig stmt
   | _ -> false
 
@@ -1619,6 +1649,7 @@ let of_elem_data =
     "WithItem",           (fun a -> WithItem);
     "StarStar",           (fun a -> StarStar);
     "Star",               (fun a -> Star);
+    "Slash",              (fun a -> Slash);
     "Named",              (fun a -> Named);
     "ReturnAnnotation",   (fun a -> ReturnAnnotation);
     "Dots",               (fun a -> Dots(find_int a "ndots"));

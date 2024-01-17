@@ -73,6 +73,9 @@ let _merge loc0 loc1 =
 let lines loc =
   loc.end_line - loc.start_line + 1
 
+let to_offsets loc =
+  loc.start_offset, loc.end_offset
+
 let is_contained loc loc0 =
   if loc.start_offset < 0 || loc0.start_offset < 0 then
     false (* unknown location *)

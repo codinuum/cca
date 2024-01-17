@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ and statement_desc =
   | Sasync_funcdef of decorator list * name * parameters * expr option * suite
   | Sfuncdef of decorator list * name * parameters * expr option * suite
   | Sclassdef of decorator list * name * arglist * suite
+  | Smatch of subject_expr * case_block list
   | Serror
   | Smarker of string
 
@@ -104,6 +105,7 @@ and vararg =
 | VAarg of fpdef * expr option
 | VAargs of loc * name option * expr option
 | VAkwargs of loc * name * expr option
+| VAsep of loc
 
 and fpdef =
 | Fname of name
@@ -161,6 +163,9 @@ and literal =
   | Lfloatnumber of string
   | Limagnumber of string
   | Lstring of pystring list
+  | Lnone
+  | Ltrue
+  | Lfalse
 
 and pystring = PSlong of loc * string | PSshort of loc * string
 
@@ -228,6 +233,52 @@ and bop =
   | Bis | BisNot | Bin | BnotIn
 
 and uop = Upositive | Unegative | Ucomplement | Unot
+
+and subject_expr =
+| SEstar of loc * expr * expr list
+| SEnamed of loc * expr
+
+and guard = loc * expr
+
+and complex_number =
+| CNplus of loc * literal_expr * string
+| CNminus of loc * literal_expr * string
+
+and literal_expr =
+| LEsigned of loc * literal
+| LEsignedMinus of loc * literal
+| LEcmplxPlus of loc * literal_expr * string
+| LEcmplxMinus of loc * literal_expr * string
+| LEstrings of loc * pystring list
+| LEnone of loc
+| LEtrue of loc
+| LEfalse of loc
+
+and key =
+| Kliteral of loc * literal_expr
+| Kattr of loc * name list
+
+and pattern =
+| PAas of loc * pattern * pattern
+| PAor of loc * pattern list
+| PAcapture of name
+| PAliteral of literal_expr
+| PAwildcard of loc
+| PAvalue of loc * name list
+| PAgroup of loc * pattern
+| PAseqB of loc * pattern option
+| PAseqP of loc * pattern option
+| PAseqOpen of loc * pattern * pattern option
+| PAseqMaybe of loc * pattern list
+| PAstar of loc * pattern
+| PAdblStar of loc * pattern
+| PAmap of loc * pattern list * pattern option
+| PAkeyValue of loc * key * pattern
+| PAkeyword of loc * name * pattern
+| PAclass of loc * name list * pattern list * pattern list
+
+and case_block = loc * pattern * guard option * suite
+
 
 
 class c (fileinput : fileinput) = object (self)

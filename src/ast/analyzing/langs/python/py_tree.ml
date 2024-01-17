@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -62,9 +62,33 @@ end
 let of_xnode options =
   Tree.of_xnode ~tree_creator:(fun options nd -> new c options nd true) options
 
+let is_docstring nd =
+  let b =
+    match Py_unparsing.getlab nd with
+    | L.Statement L.Statement.Simple when nd#initial_nchildren = 1 -> begin
+        let ss_ = nd#initial_children.(0) in
+        match Py_unparsing.getlab ss_ with
+        | L.SimpleStatement L.SimpleStatement.Expr when ss_#initial_nchildren = 1 -> begin
+            let e_ = ss_#initial_children.(0) in
+            match Py_unparsing.getlab e_ with
+            | L.Primary (L.Primary.Literal (L.Literal.String _)) -> true
+            | _ -> false
+        end
+        | _ -> false
+    end
+    | L.Primary (L.Primary.Literal (L.Literal.String _)) -> true
+    | _ -> false
+  in
+  DEBUG_MSG "%s -> %B" nd#to_string b;
+  b
 
 class translator options = object (self)
   inherit node_maker options as super
+
+  val mutable ignored_regions = []
+
+  method ignored_regions = ignored_regions
+  method add_ignored_region loc = ignored_regions <- (Loc.to_offsets loc) :: ignored_regions
 
   method mknd ?(annot=L.null_annotation) ?(pvec=[]) lab nodes =
   let ordinal_tbl_opt =
@@ -87,20 +111,20 @@ class translator options = object (self)
   method of_opt_lab_l : 'a . L.t -> ('a -> node_t list) -> 'a option -> node_t list =
     fun lab of_x ->
       function
-	| None -> []
-	| Some x ->
-	    let xnds = of_x x in
-	    let nd = self#mknd lab xnds in
-	    let loc =
-	      match xnds with
-	      | [n] -> n#data#src_loc
-	      | [] -> assert false
-	      | n::_ ->
-		  let last = Xlist.last xnds in
-		  Loc.merge n#data#src_loc last#data#src_loc
-	    in
-	    nd#data#set_loc loc;
-	    [nd]
+        | None -> []
+        | Some x ->
+            let xnds = of_x x in
+            let nd = self#mknd lab xnds in
+            let loc =
+              match xnds with
+              | [n] -> n#data#src_loc
+              | [] -> assert false
+              | n::_ ->
+                  let last = Xlist.last xnds in
+                  Loc.merge n#data#src_loc last#data#src_loc
+            in
+            nd#data#set_loc loc;
+            [nd]
 *)
   method of_name (loc, name) =
     let nd = self#mkleaf (L.Name name) in
@@ -143,63 +167,67 @@ class translator options = object (self)
     nd
 
   method of_statement stmt =
+    DEBUG_MSG "@ %s" (Ast.Loc.to_string stmt.Ast.stmt_loc);
     let stmtd = stmt.Ast.stmt_desc in
     let mkstmtnode ?(pvec=[]) = self#mknd ~pvec (L.of_statement stmtd) in
     let nd =
       match stmtd with
-      | Ast.Ssimple sstmts ->
-	  (match sstmts with
-	  | [sstmt] -> self#of_simplestmt sstmt
-	  | _ -> mkstmtnode (List.map self#of_simplestmt sstmts))
-
-      | Ast.Sif(expr, suite, elifs, else_opt) ->
-       	  mkstmtnode ~pvec:[1; 1; List.length elifs; opt_length else_opt]
-	    ([self#of_expr expr; self#of_suite suite]
-	     @ (self#of_elifs elifs) @ (of_opt self#of_else else_opt))
-
-      | Ast.Swhile(expr, suite, else_opt) ->
-	  mkstmtnode ~pvec:[1; 1; opt_length else_opt]
-	    ([self#of_expr expr; self#of_suite suite] @ (of_opt self#of_else else_opt))
-
-      | Ast.Sfor(targs, exprs, suite, else_opt) ->
-	  mkstmtnode ~pvec:[1; List.length exprs; 1; opt_length else_opt ]
-	    (
-	     (self#of_targs L.Targets targs)::(self#of_exprs L.In exprs)::
+      | Ast.Ssimple sstmts -> begin
+          (match sstmts with
+          | [sstmt] -> self#of_simplestmt sstmt
+          | _ -> mkstmtnode (List.map self#of_simplestmt sstmts))
+      end
+      | Ast.Sif(expr, suite, elifs, else_opt) -> begin
+          mkstmtnode ~pvec:[1; 1; List.length elifs; opt_length else_opt]
+            ([self#of_expr expr; self#of_suite suite]
+             @ (self#of_elifs elifs) @ (of_opt self#of_else else_opt))
+      end
+      | Ast.Swhile(expr, suite, else_opt) -> begin
+          mkstmtnode ~pvec:[1; 1; opt_length else_opt]
+            ([self#of_expr expr; self#of_suite suite] @ (of_opt self#of_else else_opt))
+      end
+      | Ast.Sfor(targs, exprs, suite, else_opt) -> begin
+          mkstmtnode ~pvec:[1; List.length exprs; 1; opt_length else_opt ]
+            (
+             (self#of_targs L.Targets targs)::(self#of_exprs L.In exprs)::
              (self#of_suite suite)::(of_opt self#of_else else_opt)
-	    )
-
-      | Ast.Stry(suite, excepts, else_opt, fin_opt) ->
-	  mkstmtnode ~pvec:[1; List.length excepts; opt_length else_opt; opt_length fin_opt]
-	    (((self#of_suite suite)::(self#of_excepts excepts))
-	     @ (of_opt self#of_else else_opt) @ (of_opt self#of_finally fin_opt))
-
-      | Ast.Stryfin(suite1, fin) ->
+            )
+      end
+      | Ast.Stry(suite, excepts, else_opt, fin_opt) -> begin
+          mkstmtnode ~pvec:[1; List.length excepts; opt_length else_opt; opt_length fin_opt]
+            (((self#of_suite suite)::(self#of_excepts excepts))
+             @ (of_opt self#of_else else_opt) @ (of_opt self#of_finally fin_opt))
+      end
+      | Ast.Stryfin(suite1, fin) -> begin
           mkstmtnode ~pvec:[1; 0; 0; 1] [self#of_suite suite1; self#of_finally fin]
-
-      | Ast.Swith(withitems, suite) ->
-	  mkstmtnode ~pvec:[List.length withitems; 1]
-	    ((List.map self#of_withitem withitems) @ [self#of_suite suite])
-
-      | Ast.Sasync_funcdef(decos, name, params, retann_opt, suite) ->
+      end
+      | Ast.Swith(withitems, suite) -> begin
+          mkstmtnode ~pvec:[List.length withitems; 1]
+            ((List.map self#of_withitem withitems) @ [self#of_suite suite])
+      end
+      | Ast.Sasync_funcdef(decos, name, params, retann_opt, suite) -> begin
           let ndecos = if decos = [] then 0 else 1 in
           let psnds = self#of_named_parameters (L.conv_name name) params in
-	  mkstmtnode ~pvec:[ndecos; 1; List.length psnds; opt_length retann_opt; 1]
-	    ((self#of_decorators name decos) @ [self#of_name name] @ psnds @
+          let check_docstring_flag = options#python_ignore_docstring_flag in
+          mkstmtnode ~pvec:[ndecos; 1; List.length psnds; opt_length retann_opt; 1]
+            ((self#of_decorators name decos) @ [self#of_name name] @ psnds @
              (self#of_opt_lab L.ReturnAnnotation self#of_expr retann_opt) @
-	     [self#of_named_suite name suite])
-
-      | Ast.Sfuncdef(decos, name, params, retann_opt, suite) ->
+             [self#of_named_suite ~check_docstring_flag name suite])
+      end
+      | Ast.Sfuncdef(decos, name, params, retann_opt, suite) -> begin
           let ndecos = if decos = [] then 0 else 1 in
           let psnds = self#of_named_parameters (L.conv_name name) params in
-	  mkstmtnode ~pvec:[ndecos; 1; List.length psnds; opt_length retann_opt; 1]
-	    ((self#of_decorators name decos) @ [self#of_name name] @ psnds @
+          let check_docstring_flag = options#python_ignore_docstring_flag in
+          mkstmtnode ~pvec:[ndecos; 1; List.length psnds; opt_length retann_opt; 1]
+            ((self#of_decorators name decos) @ [self#of_name name] @ psnds @
              (self#of_opt_lab L.ReturnAnnotation self#of_expr retann_opt) @
-	     [self#of_named_suite name suite])
-
-      | Ast.Sclassdef(decos, name, arglist, suite) ->
+             [self#of_named_suite ~check_docstring_flag name suite])
+      end
+      | Ast.Sclassdef(decos, name, arglist, suite) -> begin
           let ndecos = if decos = [] then 0 else 1 in
-	  let c = [self#of_named_suite name suite] in
-	  let c, na =
+          let check_docstring_flag = options#python_ignore_docstring_flag in
+          let c = [self#of_named_suite ~check_docstring_flag name suite] in
+          let c, na =
             match arglist with
             | loc, [] when loc = Ast.Loc.dummy -> c, 0
             | loc, [] -> begin
@@ -214,15 +242,19 @@ class translator options = object (self)
                 set_loc nd loc;
                 nd::c, 1
             end
-	  in
-	  let c = (self#of_decorators name decos) @ ((self#of_name name)::c) in
-	  mkstmtnode ~pvec:[ndecos; 1; na; 1] c
+          in
+          let c = (self#of_decorators name decos) @ ((self#of_name name)::c) in
+          mkstmtnode ~pvec:[ndecos; 1; na; 1] c
+      end
+      | Ast.Sasync stmt -> begin
+          mkstmtnode [self#of_statement stmt]
+      end
+      | Ast.Smatch _ -> begin
+          failwith "not yet"
+      end
 
-      | Ast.Sasync stmt -> mkstmtnode [self#of_statement stmt]
-
-      | Ast.Serror -> mkstmtnode [self#of_statement stmt]
-
-      | Ast.Smarker m -> mkstmtnode [self#of_statement stmt]
+      | Ast.Serror -> mkstmtnode []
+      | Ast.Smarker m -> mkstmtnode []
     in
     set_loc nd stmt.Ast.stmt_loc;
     nd
@@ -249,7 +281,7 @@ class translator options = object (self)
       let children = exprs in
       let nd = self#mknd ~pvec lab children in
       let loc =
-	Loc._merge (first children)#data#src_loc (last children)#data#src_loc
+        Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
       nd#data#set_loc loc;
       nd
@@ -261,7 +293,7 @@ class translator options = object (self)
       let children = List.map self#of_expr exprs in
       let nd = self#mknd ~pvec lab children in
       let loc =
-	Loc._merge (first children)#data#src_loc (last children)#data#src_loc
+        Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
       nd#data#set_loc loc;
       nd
@@ -288,25 +320,26 @@ class translator options = object (self)
     else
       let children = List.map self#of_decorator decos in
       let loc =
-	Loc._merge (first children)#data#src_loc (last children)#data#src_loc
+        Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
       let nd = self#mknd (L.Decorators (L.conv_name name)) children in
       nd#data#set_loc loc;
       [nd]
 
   method of_simplestmt sstmt =
+    (*DEBUG_MSG "@ %s" (Ast.Loc.to_string sstmt.Ast.sstmt_loc);*)
     let sstmtd = sstmt.Ast.sstmt_desc in
     let lab = L.of_simplestmt sstmtd in
     let mksstmtnode ?(pvec=[]) = self#mknd ~pvec lab in
     let nd =
       match sstmtd with
-      | Ast.SSexpr exprs ->
-	  (match exprs with
-	  | [expr] -> self#of_expr expr
-	  | _ -> self#of_exprs (L.of_simplestmt sstmtd) exprs)
-
-      | Ast.SSassign(testlist_list, testlist) ->
-	  let targs_list =
+      | Ast.SSexpr exprs -> begin
+          (match exprs with
+          | [expr] -> self#of_expr expr
+          | _ -> self#of_exprs (L.of_simplestmt sstmtd) exprs)
+      end
+      | Ast.SSassign(testlist_list, testlist) -> begin
+          let targs_list =
             List.map
               (fun tl ->
                 if tl.Ast.yield then
@@ -315,17 +348,17 @@ class translator options = object (self)
                   List.map self#of_expr tl.Ast.list
               ) testlist_list
           in
-	  let exprs =
+          let exprs =
             if testlist.Ast.yield then
               [self#of_exprs L.Yield testlist.Ast.list]
             else
               List.map self#of_expr testlist.Ast.list
           in
-	  mksstmtnode ~pvec:[List.length targs_list; List.length exprs]
-	    ((List.map (fun targs -> self#_of_targs L.LHS targs) targs_list) @
-	     [self#_of_exprs L.RHS exprs])
-
-      | Ast.SSaugassign(targs, augop, testlist) ->
+          mksstmtnode ~pvec:[List.length targs_list; List.length exprs]
+            ((List.map (fun targs -> self#_of_targs L.LHS targs) targs_list) @
+             [self#_of_exprs L.RHS exprs])
+      end
+      | Ast.SSaugassign(targs, augop, testlist) -> begin
           let exprs =
             if testlist.Ast.yield then
               [self#of_exprs L.Yield testlist.Ast.list]
@@ -334,8 +367,8 @@ class translator options = object (self)
           in
           mksstmtnode ~pvec:[1; List.length exprs]
             [self#of_targs L.LHS targs; self#_of_exprs L.RHS exprs]
-
-      | Ast.SSannassign(targs, expr, testlist_opt) ->
+      end
+      | Ast.SSannassign(targs, expr, testlist_opt) -> begin
           let exprs =
             match testlist_opt with
             | Some testlist when testlist.Ast.yield -> [self#of_exprs L.Yield testlist.Ast.list]
@@ -343,13 +376,16 @@ class translator options = object (self)
             | None -> []
           in
           let pvec = [1; 1; List.length exprs] in
-          mksstmtnode ~pvec [self#of_targs L.LHS targs; self#of_expr expr; self#_of_exprs L.RHS exprs]
-
+          let children =
+            [self#of_targs L.LHS targs; self#of_expr expr; self#_of_exprs L.RHS exprs]
+          in
+          mksstmtnode ~pvec children
+      end
       | Ast.SSprint exprs -> self#of_exprs lab exprs
-      | Ast.SSprintchevron(expr, exprs) ->
-	  mksstmtnode
-	    ([self#mknd L.Chevron [self#of_expr expr]] @ (List.map self#of_expr exprs))
-
+      | Ast.SSprintchevron(expr, exprs) -> begin
+          mksstmtnode
+            ([self#mknd L.Chevron [self#of_expr expr]] @ (List.map self#of_expr exprs))
+      end
       | Ast.SSdel targs                   -> self#of_targs lab targs
       | Ast.SSpass                        -> self#mkleaf lab
       | Ast.SSbreak                       -> self#mkleaf lab
@@ -361,9 +397,9 @@ class translator options = object (self)
       | Ast.SSraisefrom(expr1, expr2)     -> self#of_exprs lab [expr1; expr2]
       | Ast.SSraise3(expr1, expr2, expr3) -> self#of_exprs lab [expr1; expr2; expr3]
       | Ast.SSyield exprs                 -> self#of_exprs lab exprs
-      | Ast.SSimport dottedname_as_names ->
+      | Ast.SSimport dottedname_as_names -> begin
           mksstmtnode (List.map self#of_dottedname_as_name dottedname_as_names)
-
+      end
       | Ast.SSfrom(dots_opt, dottedname_opt, name_as_names) -> begin
           let nds = List.map self#of_name_as_name name_as_names in
           let children, nfrom =
@@ -386,24 +422,24 @@ class translator options = object (self)
           mksstmtnode ~pvec:[nfrom; List.length nds] children
       end
       | Ast.SSglobal names -> begin
-	  mksstmtnode
-	    (List.map
-	       (fun name ->
-		 let n = self#mkleaf (L.Name (L.conv_name name)) in
-		 set_loc n (L.loc_of_name name);
-		 n
-	       )
-	       names)
+          mksstmtnode
+            (List.map
+               (fun name ->
+                 let n = self#mkleaf (L.Name (L.conv_name name)) in
+                 set_loc n (L.loc_of_name name);
+                 n
+               )
+               names)
       end
       | Ast.SSnonlocal names -> begin
-	  mksstmtnode
-	    (List.map
-	       (fun name ->
-		 let n = self#mkleaf (L.Name (L.conv_name name)) in
-		 set_loc n (L.loc_of_name name);
-		 n
-	       )
-	       names)
+          mksstmtnode
+            (List.map
+               (fun name ->
+                 let n = self#mkleaf (L.Name (L.conv_name name)) in
+                 set_loc n (L.loc_of_name name);
+                 n
+               )
+               names)
       end
       | Ast.SSexec expr -> self#of_exprs ~pvec:[1; 0; 0] lab [expr]
       | Ast.SSexec2(expr1, expr2) -> self#of_exprs ~pvec:[1; 1; 0] lab [expr1; expr2]
@@ -425,29 +461,46 @@ class translator options = object (self)
     match name_opt with
     | None -> dname_nd
     | Some name ->
-	self#mknd L.As [dname_nd; self#mkleaf (L.Name (L.conv_name name))]
+        self#mknd L.As [dname_nd; self#mkleaf (L.Name (L.conv_name name))]
 
   method of_name_as_name (name, name_opt) =
     let name_nd = self#of_name name in
     match name_opt with
     | None -> name_nd
     | Some name ->
-	self#mknd L.As [name_nd; self#mkleaf (L.Name (L.conv_name name))]
+        self#mknd L.As [name_nd; self#mkleaf (L.Name (L.conv_name name))]
 
   method of_except_clause = function
     | Ast.EX loc -> conv_loc loc, []
     | Ast.EX1(loc, expr) -> conv_loc loc, [self#of_expr expr]
     | Ast.EX2(loc, expr, targ) -> conv_loc loc, [self#of_expr expr; self#of_targ targ]
 
-  method of_suite (loc, stmts) =
-    let nd = self#mknd L.Suite (List.map self#of_statement stmts) in
+  method of_suite ?(check_docstring_flag=false) (loc, stmts) =
+    let nl = List.map self#of_statement stmts in
+    let children =
+      if check_docstring_flag then
+        match nl with
+        | n :: tl when is_docstring n -> self#add_ignored_region n#data#src_loc; tl
+        | _ -> nl
+      else
+        nl
+    in
+    let nd = self#mknd L.Suite children in
     set_loc nd loc;
     nd
 
-  method of_named_suite name (loc, stmts) =
+  method of_named_suite ?(check_docstring_flag=false) name (loc, stmts) =
+    let nl = List.map self#of_statement stmts in
+    let children =
+      if check_docstring_flag then
+        match nl with
+        | n :: tl when is_docstring n -> self#add_ignored_region n#data#src_loc; tl
+        | _ -> nl
+      else
+        nl
+    in
     let nd =
-      self#mknd (L.NamedSuite (L.conv_name name))
-	(List.map self#of_statement stmts)
+      self#mknd (L.NamedSuite (L.conv_name name)) children
     in
     set_loc nd loc;
     nd
@@ -456,10 +509,10 @@ class translator options = object (self)
     match dparams with
     | [] -> []
     | _ ->
-	let children = List.map self#of_vararg dparams in
-	let nd = self#mknd L.Parameters children in
-	set_loc nd loc;
-	[nd]
+        let children = List.map self#of_vararg dparams in
+        let nd = self#mknd L.Parameters children in
+        set_loc nd loc;
+        [nd]
 
   method of_vararg = function
     | Ast.VAarg(fpdef, expr_opt) -> begin
@@ -501,15 +554,20 @@ class translator options = object (self)
         set_loc nd loc;
         nd
     end
+    | Ast.VAsep loc -> begin
+        let nd = self#mkleaf L.Slash in
+        set_loc nd loc;
+        nd
+    end
 
   method of_named_parameters name (loc, dparams) =
     match dparams with
     | [] -> []
     | _ ->
-	let children = List.map self#of_vararg dparams in
-	let nd = self#mknd (L.NamedParameters name) children in
-	set_loc nd loc;
-	[nd]
+        let children = List.map self#of_vararg dparams in
+        let nd = self#mknd (L.NamedParameters name) children in
+        set_loc nd loc;
+        [nd]
 
   method of_fpdef = function
     | Ast.Fname name -> self#of_name name
@@ -519,10 +577,10 @@ class translator options = object (self)
         nd
     end
     | Ast.Flist(loc, fpdefs) -> begin
-	let children = List.map self#of_fpdef fpdefs in
-	let nd = self#mknd L.ListParamDef children in
-	set_loc nd loc;
-	nd
+        let children = List.map self#of_fpdef fpdefs in
+        let nd = self#mknd L.ListParamDef children in
+        set_loc nd loc;
+        nd
     end
 
   method of_decorator (loc, dname, arglist) =
@@ -536,13 +594,14 @@ class translator options = object (self)
   method of_expr expr =
     let nd =
       match expr.Ast.expr_desc with
-      | Ast.Eprimary prim              -> self#of_primary prim
-      | Ast.Epower(prim, expr)         -> self#mknd L.Power [self#of_primary prim; self#of_expr expr]
-      | Ast.Ebop(expr1, bop, expr2)    -> self#of_exprs (L.of_bop bop) [expr1; expr2]
-      | Ast.Euop(uop, expr)            -> self#of_exprs (L.of_uop uop) [expr]
-      | Ast.Elambda(params, expr)      ->
+      | Ast.Eprimary prim           -> self#of_primary prim
+      | Ast.Epower(prim, expr)      -> self#mknd L.Power [self#of_primary prim; self#of_expr expr]
+      | Ast.Ebop(expr1, bop, expr2) -> self#of_exprs (L.of_bop bop) [expr1; expr2]
+      | Ast.Euop(uop, expr)         -> self#of_exprs (L.of_uop uop) [expr]
+      | Ast.Elambda(params, expr) -> begin
           let pnds = self#of_parameters params in
           self#mknd ~pvec:[List.length pnds; 1] L.Lambda (pnds @ [self#of_expr expr])
+      end
       | Ast.Econd(expr1, expr2, expr3) -> self#of_exprs L.Test [expr1; expr2; expr3]
       | Ast.Estar expr                 -> self#of_exprs ~pvec:[1] L.Star [expr]
       | Ast.Enamed(expr1, expr2)       -> self#of_exprs L.Named [expr1; expr2]
@@ -563,7 +622,7 @@ class translator options = object (self)
 
       | Ast.Pliteral lit -> begin
           let pystr_to_node = function
-	    | Ast.PSshort(lc, s) | Ast.PSlong(lc, s) ->
+            | Ast.PSshort(lc, s) | Ast.PSlong(lc, s) ->
                 let n = self#mkleaf (L.Primary (L.Primary.Literal (L.Literal.String s))) in
                 set_loc n lc;
                 n
@@ -646,7 +705,7 @@ class translator options = object (self)
     nd
 
   method of_dictorsetmaker = function
-    | Ast.DSMdict key_datums       -> [List.length key_datums; 0], List.map self#of_dictelem key_datums
+    | Ast.DSMdict delems           -> [List.length delems; 0], List.map self#of_dictelem delems
     | Ast.DSMdictC(delem, compfor) -> [1; 1], [self#of_dictelem delem; self#of_compfor compfor]
     | Ast.DSMset es                -> [List.length es; 0], List.map self#of_expr es
     | Ast.DSMsetC(e, compfor)      -> [1; 1], [self#of_expr e; self#of_compfor compfor]
@@ -676,9 +735,9 @@ class translator options = object (self)
         nd
     end
     (*| Ast.SIellipsis loc ->
-	let nd = self#mkleaf L.Ellipsis in
-	set_loc nd loc;
-	nd*)
+        let nd = self#mkleaf L.Ellipsis in
+        set_loc nd loc;
+        nd*)
 
   method of_arglist tid (loc, args) =
     match args with
@@ -699,10 +758,10 @@ class translator options = object (self)
         [nd]
     end
     | _ -> begin
-	let children = List.map self#of_argument args in
-	let nd = self#mknd (L.NamedArguments name) children in
-	set_loc nd loc;
-	[nd]
+        let children = List.map self#of_argument args in
+        let nd = self#mknd (L.NamedArguments name) children in
+        set_loc nd loc;
+        [nd]
     end
 
   method of_argument = function
@@ -767,18 +826,26 @@ end (* of class Python.Tree.translator *)
 let of_fileinput options fname =
   let trans = new translator options in function (* toplevel convert function *)
     | Ast.Fileinput(loc, stmts) ->
-	let children = List.map trans#of_statement stmts in
-	let nd = mknode options (L.FileInput "") children in
-	set_loc nd loc;
-	let tree = new c options nd true in
-	tree#collapse;
-	tree#init;
-	tree
+        let nl = List.map trans#of_statement stmts in
+        let children =
+          if options#python_ignore_docstring_flag then
+            match nl with
+            | n :: tl when is_docstring n -> trans#add_ignored_region n#data#src_loc; tl
+            | _ -> nl
+          else
+            nl
+        in
+        let nd = mknode options (L.FileInput "") children in
+        set_loc nd loc;
+        let tree = new c options nd true in
+        tree#collapse;
+        tree#init;
+        tree, trans#ignored_regions
 
 let of_ast options fname ast =
-  let tree = of_fileinput options fname ast#fileinput in
+  let tree, ignored_regions = of_fileinput options fname ast#fileinput in
   tree#set_misparsed_regions ast#missed_regions;
   tree#set_misparsed_LOC ast#missed_LOC;
   tree#set_total_LOC ast#lines_read;
-  tree#set_ignored_regions (ast#comment_regions @ ast#ignored_regions);
+  tree#set_ignored_regions (ast#comment_regions @ ast#ignored_regions @ ignored_regions);
   tree

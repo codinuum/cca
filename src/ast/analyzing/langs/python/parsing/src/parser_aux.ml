@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ class env = object (self)
 
   val mutable keep_going_flag = true
   val mutable shift_flag = false
-  val mutable last_token = Obj.repr ()
+  val mutable last_token_opt = (None : Obj.t option)
   val mutable paren_level = 0
   val mutable brace_level = 0
   val mutable bracket_level = 0
@@ -48,8 +48,11 @@ class env = object (self)
     DEBUG_MSG "clear";
     shift_flag <- false
 
-  method last_token = last_token
-  method set_last_token o = last_token <- o
+  method last_token =
+    match last_token_opt with
+    | Some o -> o
+    | None -> raise Not_found
+  method set_last_token o = last_token_opt <- Some o
 
   method reset_paren_level () = paren_level <- 0;
   method paren_level = paren_level

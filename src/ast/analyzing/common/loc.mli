@@ -29,6 +29,7 @@ val ghost : t
 val make : ?fname:string -> int -> int -> int -> int -> int -> int -> t
 val _merge : t -> t -> t
 val lines : t -> int
+val to_offsets : t -> int * int
 val is_contained : t -> t -> bool
 val merge : t -> t -> t
 val extend_end : t -> int -> t

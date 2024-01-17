@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ let rec pr_list pr sep = function
   | [x] -> pr x
   | h::t -> pr h; sep(); pr_list pr sep t
 
-let pr_opt pr = function None -> () | Some x -> pr x
+let pr_opt ?(pr_head=fun () -> ()) pr = function None -> () | Some x -> pr_head(); pr x
 
 let pr_indent level = pr_string (String.make (level * !indent_unit) ' ')
 
@@ -172,8 +172,89 @@ and pr_statement level stmt =
       pr_colon();
       pr_suite level suite
 
+  | Smatch(subj, case_blocks) ->
+      pr_indent level;
+      pr_string "match ";
+      pr_subject_expr subj;
+      pr_colon();
+      let level' = level + 1 in
+      pr_newline();
+      pr_list (pr_case_block level') pr_null case_blocks
+
   | Serror -> pr_indent level; pr_string "ERROR"; pr_newline()
   | Smarker m -> pr_string m; pr_newline()
+
+and pr_subject_expr = function
+  | SEstar(_, e, el) -> pr_expr e; pr_comma(); pr_list pr_expr pr_comma el
+  | SEnamed(_, e) -> pr_expr e
+
+and pr_case_block level case_block =
+  let _, pat, guard_opt, suite = case_block in
+  pr_indent level;
+  pr_string "case ";
+  pr_pattern pat;
+  pr_opt pr_guard guard_opt;
+  pr_colon();
+  pr_suite level suite
+
+and pr_pattern = function
+  | PAas(_, p0, p1) -> pr_pattern p0; pr_string " as "; pr_pattern p1
+  | PAor(_, pl) -> pr_list pr_pattern (fun () -> pr_string " | ") pl
+  | PAcapture n -> pr_name n
+  | PAliteral le -> pr_literal_expr le
+  | PAwildcard _ -> pr_string "_"
+  | PAvalue(_, nl) -> pr_dottedname nl
+  | PAgroup(_, p) -> pr_string "("; pr_pattern p; pr_string ")"
+  | PAseqB(_, p_opt) -> pr_string "["; pr_opt pr_pattern p_opt; pr_string "]"
+  | PAseqP(_, p_opt) -> pr_string "("; pr_opt pr_pattern p_opt; pr_string ")"
+  | PAseqOpen(_, p, p_opt) -> pr_pattern p; pr_comma(); pr_opt pr_pattern p_opt
+  | PAseqMaybe(_, pl) -> pr_list pr_pattern pr_comma pl
+  | PAstar(_, p) -> pr_string "*"; pr_pattern p
+  | PAdblStar(_, p) -> pr_string "**"; pr_pattern p
+  | PAmap(_, pl, p_opt) -> begin
+      pr_string "{";
+      pr_list pr_pattern pr_comma pl;
+      pr_opt ~pr_head:pr_comma pr_pattern p_opt;
+      pr_string "}"
+  end
+  | PAkeyValue(_, k, p) -> pr_key k; pr_colon(); pr_pattern p
+  | PAkeyword(_, n, p) -> pr_name n; pr_equal(); pr_pattern p
+  | PAclass(_, nl, pl0, pl1) ->
+      pr_dottedname nl;
+      pr_string "(";
+      pr_list pr_pattern pr_comma pl0;
+      begin
+        match pl0 with
+        | [] -> ()
+        | _ -> pr_comma()
+      end;
+      pr_list pr_pattern pr_comma pl1;
+      pr_string ")"
+
+and pr_literal_expr = function
+  | LEsigned(_, l) -> pr_literal l
+  | LEsignedMinus(_, l) -> pr_string "-"; pr_literal l
+  | LEcmplxPlus(_, le, s) -> pr_literal_expr le; pr_string "+"; pr_string s
+  | LEcmplxMinus(_, le, s) -> pr_literal_expr le; pr_string "-"; pr_string s
+  | LEstrings(_, sl) -> begin
+      pr_list
+        (function
+          | PSlong(_, s) -> pr_string s
+          | PSshort(_, s) -> pr_string s
+        ) pr_space sl
+  end
+  | LEnone _ -> pr_string "None"
+  | LEtrue _ -> pr_string "True"
+  | LEfalse _ -> pr_string "False"
+
+and pr_key = function
+  | Kliteral(_, le) -> pr_literal_expr le
+  | Kattr(_, nl) -> pr_dottedname nl
+
+and pr_guard (_, e) =
+  pr_string "if ";
+  pr_expr e
+
 
 and pr_with_item (expr, targ_opt) =
   pr_expr expr;
@@ -364,6 +445,7 @@ and pr_vararg = function
       pr_name n;
       pr_opt (fun expr -> pr_colon(); pr_expr expr) expr_opt
   end
+  | VAsep _ -> pr_string "/"
 
 and pr_parameters (_, vargs) = pr_list pr_vararg pr_comma vargs
 
@@ -472,6 +554,9 @@ and pr_literal = function
           | PSlong(_, s) -> pr_string s
           | PSshort(_, s) -> pr_string s
         ) pr_space pystrs
+  | Lnone -> pr_string "None"
+  | Ltrue -> pr_string "True"
+  | Lfalse -> pr_string "False"
 
 and pr_target x = pr_expr x
 

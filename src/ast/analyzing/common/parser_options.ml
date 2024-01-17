@@ -138,9 +138,10 @@ class c = object (self)
 
   (* output *)
   val mutable dump_ast_flag    = false
-
   val mutable compress_ast_flag = false
   val mutable ast_compression   = Compression.none
+  val mutable dump_src_flag    = false
+  val mutable dump_src_out     = ""
 
   (* mode *)
   val mutable recursive_flag       = false
@@ -314,6 +315,7 @@ class c = object (self)
 
   (* Python *)
   val mutable python_with_stmt_disabled_flag = false
+  val mutable python_ignore_docstring_flag = true
 
   (* Fortran *)
   val mutable fortran_max_line_length = -1
@@ -368,6 +370,12 @@ class c = object (self)
 
   method ast_compression = ast_compression
 
+  method dump_src_flag = dump_src_flag
+  method set_dump_src_flag = dump_src_flag <- true
+  method clear_dump_src_flag = dump_src_flag <- false
+
+  method dump_src_out = dump_src_out
+  method set_dump_src_out s = dump_src_out <- s
 
   (* mode *)
   method recursive_flag = recursive_flag
@@ -389,6 +397,10 @@ class c = object (self)
   method python_with_stmt_disabled_flag = python_with_stmt_disabled_flag
   method set_python_with_stmt_disabled_flag = python_with_stmt_disabled_flag <- true
   method clear_python_with_stmt_disabled_flag = python_with_stmt_disabled_flag <- false
+
+  method python_ignore_docstring_flag = python_ignore_docstring_flag
+  method set_python_ignore_docstring_flag = python_ignore_docstring_flag <- true
+  method clear_python_ignore_docstring_flag = python_ignore_docstring_flag <- false
 
   (* Fortran *)
   method fortran_max_line_length = fortran_max_line_length

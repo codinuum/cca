@@ -306,6 +306,19 @@ class virtual base_c options = object (self)
               self#verbose_msg "AST (in ASTML) saved in \"%s\"" fname_astml
         end;
 
+        if options#dump_src_flag then begin
+          let opening = options#dump_src_out <> "" in
+          let ch =
+            if opening then
+              open_out options#dump_src_out
+            else
+              Stdlib.stdout
+          in
+          tree#unparse_ch (OC.of_pervasives ch);
+          if opening then
+            close_out ch
+        end;
+
         S._dump_source cache_path tree;
         S._dump_parser cache_path tree;
         SF.dump_info cache_path tree;

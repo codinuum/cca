@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -101,7 +101,9 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   let pr_bop bop = pr_string (L.BinaryOperator.to_simple_string bop) in
   let pr_aop aop = pr_string (L.AssignmentOperator.to_simple_string aop) in
 
-  let pr_children ?(head=pr_none) ?(sep=pr_none) ?(level=level) () = pr_a ~head sep (pr_node_ ~level) children in
+  let pr_children ?(head=pr_none) ?(sep=pr_none) ?(level=level) () =
+    pr_a ~head sep (pr_node_ ~level) children
+  in
   let pr_space_children ?(head=pr_none) () = pr_a ~head pad1 pr_node_ children in
   let pr_comma_children ?(head=pr_none) () = pr_a ~head pr_comma pr_node_ children in
 
@@ -151,7 +153,8 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
           pr_nth_children ~head:pr_newline_indent_ 2
       end
       | L.Statement.For -> begin
-          pr_string "for "; pr_nth_children ~sep:pr_comma 0; pr_string " in "; pr_nth_children ~sep:pr_comma 1;
+          pr_string "for ";
+          pr_nth_children ~sep:pr_comma 0; pr_string " in "; pr_nth_children ~sep:pr_comma 1;
           pr_colon();
           pr_suite 2;
           pr_nth_children ~head:pr_newline_indent_ 3
@@ -192,7 +195,8 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   | L.SimpleStatement sstmt -> begin
       match sstmt with
       | L.SimpleStatement.Expr       -> pr_comma_children()
-      | L.SimpleStatement.Assign aop -> pr_nth_children ~sep:pr_comma 0; pr_aop aop; pr_nth_children ~sep:pr_comma 1
+      | L.SimpleStatement.Assign aop ->
+          pr_nth_children ~sep:pr_comma 0; pr_aop aop; pr_nth_children ~sep:pr_comma 1
       | L.SimpleStatement.Print      -> pr_string "print"; pr_spc() ; pr_comma_children()
       | L.SimpleStatement.Del        -> pr_string "del "; pr_comma_children()
       | L.SimpleStatement.Pass       -> pr_string "pass"
@@ -220,7 +224,8 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
           pr_nth_children ~sep:pr_comma 0; pr_colon(); pr_nth_children 1;
           pr_nth_children ~head:pad1 ~sep:pr_comma 2
       end
-      | L.SimpleStatement.RaiseFrom -> pr_string "raise "; pr_nth_child 0; pr_string " from "; pr_nth_child 1
+      | L.SimpleStatement.RaiseFrom ->
+          pr_string "raise "; pr_nth_child 0; pr_string " from "; pr_nth_child 1
       | L.SimpleStatement.Nonlocal -> pr_string "nonlocal "; pr_comma_children()
       | L.SimpleStatement.ERROR -> pr_string "ERROR"
   end
@@ -241,7 +246,8 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
       | L.Primary.Paren        -> pr_string "("; pr_nth_child 0; pr_string ")"
       | L.Primary.Tuple        -> pr_string "("; pr_comma_children(); pr_string ")"
       | L.Primary.Yield        -> pr_string "yield "; pr_comma_children()
-      | L.Primary.Test         -> pr_string "("; pr_nth_child 0; pad1(); pr_nth_child 1; pr_string ")"
+      | L.Primary.Test         ->
+          pr_string "("; pr_nth_child 0; pad1(); pr_nth_child 1; pr_string ")"
       | L.Primary.List         -> pr_string "["; pr_comma_children(); pr_string "]"
       | L.Primary.ListFor -> begin
           pr_string "[";
@@ -268,7 +274,8 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   | L.UnaryOperator uo      -> pr_uop uo; pr_nth_child 0
   | L.BinaryOperator bo     -> pr_nth_child 0; pr_bop bo; pr_nth_child 1
   | L.Lambda                -> pr_string "lambda "; pr_nth_children 0; pr_colon(); pr_nth_children 1
-  | L.Test                  -> pr_nth_child 0; pr_string " if "; pr_nth_child 1; pr_string " else "; pr_nth_child 2
+  | L.Test                  ->
+      pr_nth_child 0; pr_string " if "; pr_nth_child 1; pr_string " else "; pr_nth_child 2
   | L.Power                 -> pr_nth_child 0; pr_string "**"; pr_nth_child 1
   | L.From                  -> pr_string "from "; pr_nth_child 0
   | L.Named                 -> pr_nth_child 0; pr_string ":="; pr_nth_child 1
@@ -301,7 +308,8 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   | L.Parameters            -> pr_comma_children()
   | L.NamedParameters n     -> pr_comma_children()
   | L.Decorators n          -> pr_children ~sep:pr_newline_indent_ ()
-  | L.Decorator n           -> pr_string "@"; pr_string n; pr_nth_children ~head:pr_lparen ~tail:pr_rparen 0
+  | L.Decorator n           ->
+      pr_string "@"; pr_string n; pr_nth_children ~head:pr_lparen ~tail:pr_rparen 0
   | L.In                    -> pr_comma_children()
   | L.LHS                   -> pr_comma_children()
   | L.RHS                   -> pr_comma_children()
@@ -316,6 +324,7 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   | L.Argument              -> pr_nth_child 0; pr_nth_children ~head:pr_eq 1
   | L.CompArgument          -> pr_nth_child 0; pad1(); pr_nth_child 1
   | L.AssignArgument        -> pr_nth_child 0; pr_string ":="; pr_nth_child 1
+  | L.Slash                 -> pr_string "/"
   | L.Star                  -> pr_string "*"; pr_nth_children 0
   | L.StarStar              -> pr_string "**"; pr_nth_child 0
   | L.GenFor -> begin
@@ -355,6 +364,7 @@ let unparse ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) t =
     pr_string (Printf.sprintf "# error_symbol=\"%s\"" error_symbol); pr_cut();
   end;
   pr_node ~fail_on_error t;
+  pr_newline();
   pb#close_box();
   pr_flush();
 
