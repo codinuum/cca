@@ -3,7 +3,7 @@
 '''
   A Virtuoso driver
 
-  Copyright 2012-2021 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -137,12 +137,12 @@ class ODBCDriver(object):
 
 
 def exec_cmd(cmd):
-    logger.debug('cmd: "%s"' % cmd)
+    logger.debug(f'cmd: "{cmd}"')
     return proc.system(cmd, quiet=True)
 
 
 def exec_cmd_n(cmd, n, logdir=os.curdir):
-    logger.debug('cmd: "%s"' % cmd)
+    logger.debug(f'cmd: "{cmd}"')
 
     ps = []
     out_tbl = {}
@@ -178,14 +178,18 @@ class base(object):
                  dbdir=DB_DIR,
                  port=DEFAULT_PORT,
                  daemonize=False,
-                 pw=VIRTUOSO_PW):
+                 pw=VIRTUOSO_PW,
+                 logdir=None):
 
         # prog_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
         # logger_name = prog_name+'.'+__name__
 
-        self.log_dir = os.curdir
-        if daemonize:
-            self.log_dir = LOG_DIR
+        if logdir is None:
+            self.log_dir = os.curdir
+            if daemonize:
+                self.log_dir = LOG_DIR
+        else:
+            self.log_dir = logdir
 
         self._driver = None
         self._dbdir = dbdir
@@ -222,7 +226,7 @@ class base(object):
         mt = os.path.getmtime(self._db_file)
         nt = time.time()
         b = (nt - mt) > thresh
-        logger.debug('%s' % b)
+        logger.debug(f'{b}')
         return b
 
     def get_driver(self, reuse=True):
@@ -233,19 +237,19 @@ class base(object):
         return self._driver
 
     def exec_cmd_ini(self, _cmd):
-        cmd = '%s EXEC="%s"' % (self._isql_cmd_ini, _cmd)
+        cmd = f'{self._isql_cmd_ini} EXEC="{_cmd}"'
         rc = exec_cmd(cmd)
         sleep()
         return rc
 
     def exec_cmd(self, _cmd):
-        cmd = '%s EXEC="%s"' % (self._isql_cmd, _cmd)
+        cmd = f'{self._isql_cmd} EXEC="{_cmd}"'
         rc = exec_cmd(cmd)
         sleep()
         return rc
 
     def exec_cmd_n(self, _cmd, n):
-        cmd = '%s EXEC="%s"' % (self._isql_cmd, _cmd)
+        cmd = f'{self._isql_cmd} EXEC="{_cmd}"'
         rc = exec_cmd_n(cmd, n, logdir=self.log_dir)
         sleep()
         return rc
@@ -253,16 +257,15 @@ class base(object):
     def kill_server(self):
         pid = self.get_pid()
         if pid:
-            cmd = 'kill %s' % pid
-            logger.info('killing virtuoso (PID=%s)...' % pid)
+            cmd = f'kill {pid}'
+            logger.info(f'killing virtuoso (PID={pid})...')
             exec_cmd(cmd)
             sleep()
         else:
             logger.warning('cannot obtain PID (virtuoso not running?)')
 
     def start_server(self):
-        cmd = '%s -c %s +wait' % (SERVER_CMD,
-                                  os.path.join(self._dbdir, 'virtuoso.ini'))
+        cmd = f'{SERVER_CMD} -c {os.path.join(self._dbdir, "virtuoso.ini")} +wait'
         return exec_cmd(cmd)
 
     def shutdown_server(self):
@@ -270,7 +273,7 @@ class base(object):
 
     def set_password(self, pw):
         self._pw = pw
-        return self.exec_cmd_ini('set password dba %s' % pw)
+        return self.exec_cmd_ini(f'set password dba {pw}')
 
     def restart_server(self):
         self.shutdown_server()
@@ -284,14 +287,14 @@ class base(object):
         return self.exec_cmd('checkpoint_interval(-1)')
 
     def rdfs_rule_set(self, name, graph_uri, remove=0):
-        cmd = 'rdfs_rule_set(\'%s\', \'%s\', %d)' % (name, graph_uri, remove)
+        cmd = f'rdfs_rule_set(\'{name}\', \'{graph_uri}\', {remove})'
         return self.exec_cmd(cmd)
 
     def remove_rdfs_rule_set(self, name, graph_uri):
         self.rdfs_rule_set(name, graph_uri, remove=1)
 
     def clear_graph(self, graph_uri):
-        cmd = 'sparql clear graph <%s>' % graph_uri
+        cmd = f'sparql clear graph <{graph_uri}>'
         self.exec_cmd(cmd)
 
 
@@ -305,7 +308,7 @@ class Loader(base):
         else:
             self.exec_cmd('delete from DB.DBA.load_list')
 
-            cmds = ['ld_dir_all(\'%s\', \'*%s\', \'%s\')' % (d, ext, graph_uri) for ext in exts]
+            cmds = [f'ld_dir_all(\'{d}\', \'*{ext}\', \'{graph_uri}\')' for ext in exts]
             rc = 0
             for cmd in cmds:
                 rc = self.exec_cmd(cmd)
@@ -329,11 +332,11 @@ class Loader(base):
         if nfiles % (maxfiles * nprocs) > 0:
             n += 1
 
-        logger.info('{} files are divided into {} parts'.format(nfiles, n))
+        logger.info(f'{nfiles} files are divided into {n} parts')
 
         rc = -1
 
-        cmd = 'rdf_loader_run(max_files=>%d)' % maxfiles
+        cmd = f'rdf_loader_run(max_files=>{maxfiles})'
 
         if nprocs > 1:
             proc = (lambda cmd: self.exec_cmd_n(cmd, nprocs))
@@ -345,7 +348,7 @@ class Loader(base):
         st = time.time()
 
         for i in range(n):
-            logger.info('*** PART %d/%d ***' % (i+1, n))
+            logger.info(f'*** PART {i+1}/{n} ***')
 
             if i % RESTART_INTERVAL == 0 and i != 0:
                 logger.info('restarting server...')
@@ -366,6 +369,6 @@ class Loader(base):
 
 class Dumper(base):
     def dump(self, graph_uri, dprefix):
-        dump_cmd = 'dump_one_graph(\'%s\', \'%s\')' % (graph_uri, dprefix)
+        dump_cmd = f'dump_one_graph(\'{graph_uri}\', \'{dprefix}\')'
         rc = self.exec_cmd(dump_cmd)
         return rc

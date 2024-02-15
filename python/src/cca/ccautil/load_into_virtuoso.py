@@ -4,7 +4,7 @@
 '''
   A fact loader
 
-  Copyright 2012-2021 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
   limitations under the License.
 '''
 
-import os.path
+import os
 import sys
 import logging
 
@@ -38,11 +38,11 @@ logger = logging.getLogger()
 
 
 def load(proj_id, db_dir, fact_dir, exts, port=VIRTUOSO_PORT, pw=VIRTUOSO_PW,
-         nprocs=1, maxfiles=DEFAULT_MAX_FILES):
+         nprocs=1, maxfiles=DEFAULT_MAX_FILES, logdir=os.curdir):
 
     graph_uri = GRAPH_URI_BASE+proj_id
 
-    loader = virtuoso.Loader(db_dir, daemonize=False, pw=pw, port=port)
+    loader = virtuoso.Loader(db_dir, daemonize=False, pw=pw, port=port, logdir=logdir)
 
     rc = loader.disable_checkpoint()
     if rc != 0:
