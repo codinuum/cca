@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -247,7 +247,7 @@ module F (Label : Spec.LABEL_T) = struct
     BEGIN_DEBUG
       DEBUG_MSG "Mapping:\n";
       Otreediff.Mapping.iter
-	(fun i j -> DEBUG_MSG "%a -- %a\n" nups (tree1#get i) nups (tree2#get j))
+	(fun i j -> DEBUG_MSG "%a -- %a" nups (tree1#get i) nups (tree2#get j))
 	mapping
     END_DEBUG;
 

@@ -25,6 +25,7 @@ class parser_c = object (self)
   inherit [T.token, Ast.c] PB.sb_c (new Aux.env) as super
 
   val mutable keep_going_flag = false
+  val mutable ignore_comment_flag = false
 
   val mutable parser_main = fun _ -> Obj.magic ()
   val mutable scanner     = Obj.magic ()
@@ -39,9 +40,14 @@ class parser_c = object (self)
     keep_going_flag <- b;
     env#_set_keep_going_flag b
 
+  method _set_ignore_comment_flag b =
+    ignore_comment_flag <- b;
+    env#_set_ignore_comment_flag b
+
   method parser_init =
     scanner#init;
-    env#_set_keep_going_flag keep_going_flag
+    env#_set_keep_going_flag keep_going_flag;
+    env#_set_ignore_comment_flag ignore_comment_flag
 
   method _parse = _parse()
 
@@ -57,6 +63,10 @@ class parser_c = object (self)
       ast#set_comment_LOC env#comment_regions#get_LOC;
       ast#set_missed_regions env#missed_regions#get_offsets;
       ast#set_missed_LOC env#missed_regions#get_LOC;
+      ast#set_blank_regions (env#blank_regions#get_offsets);
+      ast#set_blank_LOC (env#blank_regions#get_LOC);
+
+      ast#set_comment_tbl env#comment_tbl;
 (*
       ast#set_ignored_regions (env#ignored_regions#get_offsets);
       ast#set_ignored_LOC (env#ignored_regions#get_LOC);
@@ -72,6 +82,7 @@ class parser_c = object (self)
 
   initializer
     env#_set_keep_going_flag keep_going_flag;
+    env#_set_ignore_comment_flag ignore_comment_flag;
     let module S = struct
       let env      = env
     end

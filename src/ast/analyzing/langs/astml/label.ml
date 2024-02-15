@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -158,6 +158,8 @@ let is_string_literal { elem_name=name; elem_attrs=attrs; } =
 let is_int_literal lab = false (* not yet *)
 let is_real_literal lab = false (* not yet *)
 let is_statement lab = false (* not yet *)
+let is_block lab = false (* not yet *)
+let is_primary lab = false (* not yet *)
 let is_op lab = false (* not yet *)
 
 let is_scope_creating lab = false (* not yet *)
@@ -669,8 +671,6 @@ let anonymize_attrs attrs =
       Astml.is_anonymization_resistant_attr la
     ) attrs
 
-
-
 let anonymize ?(more=false) { elem_name=e; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns } =
   { elem_name=e;
     elem_attrs=anonymize_attrs attrs;
@@ -678,6 +678,7 @@ let anonymize ?(more=false) { elem_name=e; elem_attrs=attrs; elem_parser=p; elem
     elem_ast_ns=ns
   }
 
+let strip lab = lab (* not yet *)
 
 let check_attrs attrs elem_attrs =
   List.for_all
@@ -830,7 +831,7 @@ let get_ident_use lab = "" (* not yet *)
 
 let get_category lab = to_string (anonymize lab)
 
-let get_name { elem_attrs=attrs; } =
+let get_name ?(strip=false) { elem_attrs=attrs; } =
   let rec doit = function
     | [] -> raise Not_found
     | (a, v)::rest ->

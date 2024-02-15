@@ -302,7 +302,7 @@ and pr_smallstmt sstmt =
       pr_equal();
       pr_testlist testlist
   end
-  | SSannassign(targs, expr, testlist_opt) -> begin
+  | SSannassign(targs, (_, expr), testlist_opt) -> begin
       pr_targs targs;
       pr_colon();
       pr_space();
@@ -501,6 +501,7 @@ and pr_primary prim = _pr_primary prim.prim_desc
 and _pr_primary = function
   | Pname name   -> pr_name name
   | Pliteral lit -> pr_literal lit
+  | Pexpr expr   -> pr_expr expr
   | Pparen expr  -> pr_string "("; pr_expr expr; pr_string ")"
   | Ptuple []    -> pr_string "()"
   | Ptuple exprs -> pr_exprs exprs

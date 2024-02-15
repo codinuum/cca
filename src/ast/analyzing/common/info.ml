@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -70,6 +70,11 @@ let get_uid info =
 let get_loc info = info.i_loc
 let get_size info = info.i_size
 let set_size info sz = info.i_size <- sz
+
+let get_id_loc info =
+  let nd = get_node info in
+  let loc = nd#data#id_loc in
+  loc
 
 let is_included info0 info =
   (get_loc info).Loc.start_offset <= (get_loc info0).Loc.start_offset &&

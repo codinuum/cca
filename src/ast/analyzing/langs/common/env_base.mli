@@ -21,6 +21,7 @@ class ['b] c : object
   method add_extra_source_file : Storage.file -> unit
   method add_lines_read : int -> unit
   method add_search_path : string -> unit
+  method blank_regions : Regions.c
   method clear_keep_going_flag : unit
   method clear_lines_read : unit
   method clear_verbose_flag : unit

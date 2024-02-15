@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -144,8 +144,10 @@ end
 type dims = int (* dimension *)
 
 let vdid_to_string (n, d) = n ^ "[" ^ (string_of_int d)
-
 let vdids_to_string = Xlist.to_string vdid_to_string ";"
+
+(*!20240205!*)let vdid_to_name (n, _) = n
+let vdids_to_name = Xlist.to_string vdid_to_name ";"
 
 let rec conv_name ?(resolve=true) n =
   match n.Ast.n_desc with
@@ -328,6 +330,10 @@ module Type = struct
       | Void               -> "Void"
     in
     "Type." ^ (conv ty)
+
+  and strip = function
+    | Array(lab, dim) -> Array(strip lab, 0)
+    | ty              -> ty
 
   and anonymize = function
     | ClassOrInterface n -> ClassOrInterface ""
@@ -888,6 +894,27 @@ module BinaryOperator = struct
     in
     name, []
 
+  let anonymize3 = function
+      | Mul
+      | Div
+      | Mod
+      | Add
+      | Sub -> Add
+      | ShiftL
+      | ShiftR
+      | ShiftRU -> ShiftL
+      | Eq
+      | Neq
+      | Lt
+      | Gt
+      | Le
+      | Ge -> Eq
+      | BitAnd
+      | BitOr
+      | BitXor -> BitAnd
+      | And
+      | Or -> And
+
 end (* of module BinaryOperator *)
 
 
@@ -1164,6 +1191,11 @@ module Primary = struct
     in
     "Primary." ^ str
 
+  let strip = function
+    | ArrayCreationDims _ -> ArrayCreationDims 0
+    | Paren tid           -> Paren null_tid
+    | prim                -> prim
+
   let anonymize ?(more=false) = function
     | Name name                              -> Name ""
     | Literal lit                            -> Literal (Literal.anonymize lit)
@@ -1188,7 +1220,7 @@ module Primary = struct
     | TypeSuperMethodReference(name, ident)  -> TypeSuperMethodReference("", "")
     | TypeNewMethodReference name            -> TypeNewMethodReference ""
     | AmbiguousName name                     -> AmbiguousName ""
-    | pri                                    -> pri
+    | prim                                   -> prim
 
   let anonymize2 = function
     | FieldAccess _
@@ -1385,13 +1417,16 @@ module Expression = struct
     in
     "Expression." ^ str
 
+  let strip = function
+    | Primary p                   -> Primary (Primary.strip p)
+    | AssignmentOperator(ao, tid) -> AssignmentOperator(ao, null_tid)
+    | expr                        -> expr
+
   let anonymize ?(more=false) = function
     | Primary p                   -> Primary (Primary.anonymize ~more p)
     (*| AssignmentOperator(ao, tid) when more -> AssignmentOperator(AssignmentOperator.Eq, anonymize_tid ~more tid)*)
     | AssignmentOperator(ao, tid) -> AssignmentOperator(ao, anonymize_tid ~more tid)
     | expr                        -> expr
-
-
 
   let to_simple_string = function
     | Cond                  -> "<?:>"
@@ -1592,6 +1627,13 @@ module Statement = struct
       | Else            -> "Else"
     in
     "Statement." ^ str
+
+  let strip = function
+    | Expression(se, tid)   -> Expression(Expression.strip se, null_tid)
+    | If tid                -> If null_tid
+    (*| FlattenedIf tid       -> FlattenedIf null_tid*)
+    | ElseIf tid            -> ElseIf null_tid
+    | stmt                  -> stmt
 
   let anonymize ?(more=false) = function
     (*| ForEnhanced when more -> For*)
@@ -2037,7 +2079,7 @@ type t = (* Label *)
   | SRLdefault
 
 
-let rec to_string = function
+let to_string = function
 (*    Dummy -> "Dummy" *)
   | Error s                                 -> sprintf "Error(%s)" s
   | Type ty                                 -> Type.to_string ty
@@ -2173,6 +2215,34 @@ let rec to_string = function
   | Provides name -> sprintf "Provides(%s)" name
   | TypeName name -> sprintf "TypeName(%s)" name
 
+let strip = function (* strip non-name attributes from label *)
+  | Type ty      -> Type (Type.strip ty)
+  | Primary p    -> Primary (Primary.strip p)
+  | Expression e -> Expression (Expression.strip e)
+  | Statement s  -> Statement (Statement.strip s)
+
+  | Constructor(name, _)     -> Constructor(name, "")
+  | ConstructorBody(name, _) -> ConstructorBody(name, "")
+  | Method(name, _)          -> Method(name, "")
+  | MethodBody(name, _)      -> MethodBody(name, "")
+
+  | Block _       -> Block null_tid
+  | CatchClause _ -> CatchClause null_tid
+  | ForInit _     -> ForInit null_tid
+  | ForCond _     -> ForCond null_tid
+  | ForUpdate _   -> ForUpdate null_tid
+
+  | LocalVariableDeclaration(_, l) -> LocalVariableDeclaration(true, List.map (fun (n, _) -> n, 0) l)
+  | FieldDeclaration l             -> FieldDeclaration (List.map (fun (n, _) -> n, 0) l)
+  | VariableDeclarator(name, _, _) -> VariableDeclarator(name, 0, true)
+
+  | TypeArguments(_, name)  -> TypeArguments(1, name)
+  | Parameter(name, _, _)   -> Parameter(name, 0, false)
+  | CatchParameter(name, _) -> CatchParameter(name, 0)
+  | ForHeader(name, _)      -> ForHeader(name, 0)
+
+  | lab -> lab
+
 
 let anonymize ?(more=false) = function
   | Constructor(name, msig) when more     -> Constructor("", "")
@@ -2262,7 +2332,11 @@ let anonymize ?(more=false) = function
   | Provides _ -> Provides ""
   | TypeName _ -> TypeName ""
 
-  | lab                            -> lab
+  | Aspect _ -> Aspect ""
+  | Pointcut _ -> Pointcut ""
+  | DeclareMessage _ -> DeclareMessage ""
+
+  | lab -> lab
 
 
 let anonymize2 = function
@@ -2287,6 +2361,8 @@ let anonymize3 = function
   (*| Type _                      -> Type (Type.Void)*)
   (*| Primary (Primary.Literal _) -> Primary (Primary.Literal Literal.Null)*)
   (*| Statement Statement.ForEnhanced -> Statement Statement.For*)
+  (*| Expression (Expression.BinaryOperator bop) ->
+      Expression (Expression.BinaryOperator (BinaryOperator.anonymize3 bop))*)
 
   | Statement Statement.Expression(Expression.Primary p, _) when begin
       match p with
@@ -2296,7 +2372,8 @@ let anonymize3 = function
       | ClassSuperMethodInvocation _
       | TypeMethodInvocation _ -> true
       | _ -> false
-  end -> Statement (Statement.Expression(Expression.Primary(Primary.SimpleMethodInvocation ""), null_tid))
+  end ->
+    Statement (Statement.Expression(Expression.Primary(Primary.SimpleMethodInvocation ""), null_tid))
 
   | lab -> anonymize ~more:true lab
 
@@ -3031,6 +3108,21 @@ let is_compatible ?(weak=false) lab1 lab2 =
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
+
+  | Statement (Statement.Expression(Expression.Primary _p, _)), Primary p
+  | Primary p, Statement (Statement.Expression(Expression.Primary _p, _)) -> begin
+      match p with
+      | Primary.InstanceCreation _
+      | Primary.QualifiedInstanceCreation _
+      | Primary.NameQualifiedInstanceCreation _
+      | Primary.PrimaryMethodInvocation _
+      | Primary.SimpleMethodInvocation _
+      | Primary.SuperMethodInvocation _
+      | Primary.ClassSuperMethodInvocation _
+      | Primary.TypeMethodInvocation _ -> _p = p
+      | _ -> false
+  end
+
   | ClassBody _, InterfaceBody _ | InterfaceBody _, ClassBody _ when weak -> true (* invalid when dumping delta *)
   | ClassBody _, EnumBody _ | EnumBody _, ClassBody _ when weak -> true
   | EnumBody _, InterfaceBody _ | InterfaceBody _, EnumBody _ when weak -> true
@@ -3720,7 +3812,8 @@ let is_instancecreation = function
 
 
 let is_assignment = function
-  | Expression (Expression.AssignmentOperator _) -> true
+  | Expression (Expression.AssignmentOperator _)
+  | Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
   | _ -> false
 
 let is_qualifier = function
@@ -3755,7 +3848,8 @@ let is_op = function
     Expression.UnaryOperator _ |
     Expression.BinaryOperator _ |
     Expression.Instanceof |
-    Expression.AssignmentOperator _)
+    Expression.AssignmentOperator _ |
+    Expression.Cast)
       -> true
   | _ -> false
 
@@ -4050,9 +4144,13 @@ let get_dims = function
       -> dims
   | _ -> failwith "Java_label.get_dims: no dimensions"
 
-let get_name lab =
+let get_name ?(strip=false) lab =
   let n =
     match lab with
+    | LocalVariableDeclaration(_, vdids) when strip -> vdids_to_name vdids
+    | FieldDeclaration vdids             when strip -> vdids_to_name vdids
+
+
     | Type ty -> Type.get_name ty
     | Primary prim -> Primary.get_name prim
     | Expression expr -> Expression.get_name expr
@@ -4097,7 +4195,6 @@ let get_name lab =
       -> name
 
     | LocalVariableDeclaration(_, vdids) -> vdids_to_string vdids
-
     | FieldDeclaration vdids -> vdids_to_string vdids
 
     | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]

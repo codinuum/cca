@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2023 Chiba Institude of Technology
+   Copyright 2018-2024 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1923,6 +1923,8 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | SubroutineStmtHead n -> combo2 265 [n]
 
   | ProcName n -> combo2 266 [n]
+
+let strip lab = lab (* not yet *)
 
 let anonymize2 = anonymize ~more:true
 

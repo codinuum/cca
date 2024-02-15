@@ -22,6 +22,7 @@
 
 
 module L = Py_label
+module BID = Binding.ID
 
 let sprintf = Printf.sprintf
 
@@ -29,7 +30,7 @@ let first l =
   try List.hd l with _ -> assert false
 
 let last l =
-  try List.hd(List.rev l) with _ -> assert false
+  try List.hd (List.rev l) with _ -> assert false
 
 let conv_loc = L.conv_loc
 
@@ -44,6 +45,8 @@ let loc_of_name (loc, name) = loc
 let opt_length = function
   | Some _ -> 1
   | None -> 0
+
+let getlab = Py_unparsing.getlab
 
 
 module Tree = Sourcecode.Tree(L)
@@ -64,13 +67,13 @@ let of_xnode options =
 
 let is_docstring nd =
   let b =
-    match Py_unparsing.getlab nd with
-    | L.Statement L.Statement.Simple when nd#initial_nchildren = 1 -> begin
-        let ss_ = nd#initial_children.(0) in
-        match Py_unparsing.getlab ss_ with
-        | L.SimpleStatement L.SimpleStatement.Expr when ss_#initial_nchildren = 1 -> begin
-            let e_ = ss_#initial_children.(0) in
-            match Py_unparsing.getlab e_ with
+    match getlab nd with
+    | L.Statement L.Statement.Simple when nd#nchildren = 1 -> begin
+        let ss_ = nd#children.(0) in
+        match getlab ss_ with
+        | L.SimpleStatement L.SimpleStatement.Expr when ss_#nchildren = 1 -> begin
+            let e_ = ss_#children.(0) in
+            match getlab e_ with
             | L.Primary (L.Primary.Literal (L.Literal.String _)) -> true
             | _ -> false
         end
@@ -82,10 +85,137 @@ let is_docstring nd =
   DEBUG_MSG "%s -> %B" nd#to_string b;
   b
 
-class translator options = object (self)
+let rec name_of_fpdef = function
+  | Ast.Fname(_, n) -> n
+  | Ast.Flist(_, l) -> String.concat ";" (List.map name_of_fpdef l)
+  | Ast.Ftyped(_, (_, n), _) -> n
+
+
+class visitor bid_gen tree = object (self)
+  inherit Sourcecode.visitor tree
+
+  val stack = new Sourcecode.stack
+
+  method set_scope_node nd =
+    try
+      let n = stack#top.Sourcecode.f_scope_node in
+      nd#data#set_scope_node n
+    with
+      Not_found -> ()
+
+  method scanner_body_before_subscan nd =
+    let lab = getlab nd in
+    if L.is_scope_creating lab then
+      stack#push nd
+
+  method scanner_body_after_subscan nd =
+    let lab = getlab nd in
+    if L.is_scope_creating lab then
+      stack#pop;
+
+    let get_nl nd =
+      let nl = ref [] in
+      tree#fast_scan_whole_initial_subtree nd
+        (fun n ->
+          let lab = getlab n in
+          if L.is_name lab then begin
+            nl := n :: !nl
+          end
+        );
+      !nl
+    in
+
+    let is_param, lhsl =
+      if L.is_param lab then
+        true, try get_nl nd#initial_children.(0) with _ -> []
+      else if
+        L._is_name lab && L.get_name lab <> "self" &&
+        try
+          match (getlab nd#initial_parent) with
+          | L.Parameters | L.NamedParameters _ -> true
+          | _ -> false
+        with _ -> false
+      then
+        true, [nd]
+      else
+        false, []
+    in
+    if is_param then begin
+      List.iter
+        (fun n ->
+          DEBUG_MSG "n=%s" n#data#to_string;
+          let name = L.get_name (getlab n) in
+          let bid = bid_gen#gen in
+          DEBUG_MSG "DEF(param): %s (bid=%a) %s" name BID.ps bid n#to_string;
+          n#data#set_binding (Binding.make_unknown_def bid true);
+          self#set_scope_node n;
+          stack#register name n;
+        ) lhsl;
+      (*let rhsl =
+        try
+          get_nl nd#initial_children.(1)
+        with _ -> []
+      in
+      List.iter
+        (fun n ->
+          DEBUG_MSG "n=%s" n#data#to_string;
+          try
+            let name = L.get_name (getlab n) in
+            let binder_nd = stack#lookup name in
+            let bid = Binding.get_bid binder_nd#data#binding in
+            DEBUG_MSG "    USE: %s (bid=%a) %s" name BID.ps bid n#to_string;
+            n#data#set_binding (Binding.make_use bid)
+          with
+            Not_found -> ()
+        ) rhsl*)
+    end;
+
+    if L.is_assign lab then begin
+      List.iter
+        (fun n ->
+          DEBUG_MSG "n=%s" n#data#to_string;
+          let name = L.get_name (getlab n) in
+          let bid = bid_gen#gen in
+          DEBUG_MSG "DEF(assign): %s (bid=%a) %s" name BID.ps bid n#to_string;
+          n#data#set_binding (Binding.make_unknown_def bid true);
+          self#set_scope_node n;
+          stack#register name n
+        ) (try get_nl nd#initial_children.(0) with _ -> [])
+    end;
+
+    if L.is_primaryname lab then begin
+      let name = L.get_name lab in
+      try
+        let binder_nd = stack#lookup name in
+        let bid = Binding.get_bid binder_nd#data#binding in
+        DEBUG_MSG "    USE: %s (bid=%a) %s" name BID.ps bid nd#to_string;
+        nd#data#set_binding (Binding.make_use bid)
+      with
+        Not_found -> ()
+    end
+  (* end of method scanner_body_after_subscan *)
+
+end (* of class Tree.visitor *)
+
+
+class translator options comment_tbl =
+  let bid_gen = new BID.generator in
+  object (self)
   inherit node_maker options as super
 
   val mutable ignored_regions = []
+
+  val comment_node_cand_tbl = Hashtbl.create 0
+  val unchecked_comment_line_nums = Xset.create 0
+
+  initializer
+    Hashtbl.iter (fun ln _ -> Xset.add unchecked_comment_line_nums ln) comment_tbl
+
+  method set_bindings (tree : Spec.tree_t) =
+    let visitor = new visitor bid_gen tree in
+    visitor#visit_all
+
+  method comment_node_cand_tbl = comment_node_cand_tbl
 
   method ignored_regions = ignored_regions
   method add_ignored_region loc = ignored_regions <- (Loc.to_offsets loc) :: ignored_regions
@@ -98,6 +228,79 @@ class translator options = object (self)
   in
   super#mknode ~annot ~ordinal_tbl_opt lab nodes
 
+  method _set_loc nd loc =
+    DEBUG_MSG "%s(%d) [%s]" nd#data#label nd#nchildren (Loc.to_string loc);
+    let sl = loc.Loc.start_line in
+    let el = loc.Loc.end_line in
+    if sl = el then begin
+      DEBUG_MSG "sl=el=%d" sl;
+      Xset.remove unchecked_comment_line_nums sl;
+      try
+        let c = Hashtbl.find comment_tbl sl in
+        DEBUG_MSG "-> %s" c.Ast.c_comment;
+        let csc = c.Ast.c_loc.Astloc.start_char in
+        if nd#data#src_loc.Loc.end_char < csc then begin
+          try
+            let n0, _ = Hashtbl.find comment_node_cand_tbl sl in
+            let ec0 = n0#data#src_loc.Loc.end_char in
+            if loc.Loc.end_char > ec0 then
+              Hashtbl.replace comment_node_cand_tbl sl (nd, None)
+          with
+            Not_found -> Hashtbl.add comment_node_cand_tbl sl (nd, None)
+        end
+      with
+        _ -> ()
+    end
+    else begin
+      DEBUG_MSG "sl=%d el=%d" sl el;
+      for ln = sl to el do
+        if Xset.mem unchecked_comment_line_nums ln then begin
+          DEBUG_MSG "ln=%d" ln;
+          begin
+            try
+              let c = Hashtbl.find comment_tbl ln in
+              DEBUG_MSG "-> %s" c.Ast.c_comment;
+              let _ = c in
+              let pos_opt =
+                if L.is_sequence (getlab nd) then begin
+                  DEBUG_MSG "@";
+                  let pos = ref 0 in
+                  begin
+                    let has_child_flag = ref false in
+                    try
+                      Array.iteri
+                        (fun i cnd ->
+                          has_child_flag := true;
+                          DEBUG_MSG "[%d] %s" i cnd#data#to_string;
+                          let csl = cnd#data#src_loc.Loc.start_line in
+                          pos := i;
+                          if csl > ln then begin
+                            DEBUG_MSG "%s -> %d" nd#data#to_string i;
+                            raise Exit
+                          end
+                        ) nd#children;
+                      if !has_child_flag then
+                        incr pos
+                    with
+                      Exit -> ()
+                  end;
+                  Some !pos
+                end
+                else
+                  None
+              in
+              Hashtbl.add comment_node_cand_tbl ln (nd, pos_opt);
+            with
+              Not_found -> ()
+          end;
+          Xset.remove unchecked_comment_line_nums ln
+        end
+      done
+    end;
+    nd#data#set_loc loc
+
+  method set_loc nd astloc = self#_set_loc nd (conv_loc astloc)
+
   method of_opt_lab : 'a . L.t -> ('a -> node_t) -> 'a option -> node_t list =
     fun lab of_x ->
       function
@@ -105,7 +308,7 @@ class translator options = object (self)
         | Some x ->
             let xnd = of_x x in
             let nd = self#mknd lab [xnd] in
-            nd#data#set_loc xnd#data#src_loc;
+            self#_set_loc nd xnd#data#src_loc;
             [nd]
 (*
   method of_opt_lab_l : 'a . L.t -> ('a -> node_t list) -> 'a option -> node_t list =
@@ -123,12 +326,12 @@ class translator options = object (self)
                   let last = Xlist.last xnds in
                   Loc.merge n#data#src_loc last#data#src_loc
             in
-            nd#data#set_loc loc;
+            self#_set_loc nd loc;
             [nd]
 *)
   method of_name (loc, name) =
     let nd = self#mkleaf (L.Name name) in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_dottedname dname =
@@ -138,9 +341,12 @@ class translator options = object (self)
       | [l, n] -> l
       | (l, n)::t -> Ast.Loc.merge l (loc_of_name (last dname))
     in
-    let nd = self#mkleaf (L.DottedName (L.dottedname_to_string dname)) in
-    (*let nd = self#mknd L.DottedName (List.map self#of_name dname) in*)
-    set_loc nd loc;
+    (*let nd = self#mkleaf (L.DottedName (L.dottedname_to_string dname)) in*)
+    let nd =
+      self#mknd (L.DottedName (L.dottedname_to_string dname))
+        (List.map self#of_name dname)
+    in
+    self#set_loc nd loc;
     nd
 
 
@@ -151,19 +357,19 @@ class translator options = object (self)
 
   method of_elif (loc, expr, suite) =
     let nd = self#of_expr_suite L.Elif (expr, suite) in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_elifs elifs = List.map self#of_elif elifs
 
   method of_else (loc, suite) =
     let nd = self#mknd L.Else [self#of_suite suite] in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_finally (loc, suite) =
     let nd = self#mknd L.Finally [self#of_suite suite] in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_statement stmt =
@@ -232,14 +438,14 @@ class translator options = object (self)
             | loc, [] when loc = Ast.Loc.dummy -> c, 0
             | loc, [] -> begin
                 let nd = self#mkleaf L.Inheritance in
-                set_loc nd loc;
+                self#set_loc nd loc;
                 nd::c, 1
             end
             | loc, _ -> begin
                 let nd =
                   self#mknd L.Inheritance (self#of_named_arglist (L.conv_name name) arglist)
                 in
-                set_loc nd loc;
+                self#set_loc nd loc;
                 nd::c, 1
             end
           in
@@ -256,16 +462,17 @@ class translator options = object (self)
       | Ast.Serror -> mkstmtnode []
       | Ast.Smarker m -> mkstmtnode []
     in
-    set_loc nd stmt.Ast.stmt_loc;
+    self#set_loc nd stmt.Ast.stmt_loc;
     nd
 
   method of_withitem (expr, targ_opt) =
     let expr_nd = self#of_expr expr in
     match targ_opt with
     | Some targ -> begin
-        let nd = self#mknd ~pvec:[1; 1] L.WithItem[expr_nd; self#of_targ targ] in
-        let loc = Loc.merge expr_nd#data#src_loc nd#data#src_loc in
-        nd#data#set_loc loc;
+        let targ_nd = self#of_targ targ in
+        let nd = self#mknd ~pvec:[1; 1] L.WithItem[expr_nd; targ_nd] in
+        let loc = Loc.merge expr_nd#data#src_loc targ_nd#data#src_loc in
+        self#_set_loc nd loc;
         nd
     end
     | None -> expr_nd
@@ -283,7 +490,7 @@ class translator options = object (self)
       let loc =
         Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
-      nd#data#set_loc loc;
+      self#_set_loc nd loc;
       nd
 
   method of_exprs ?(pvec=[]) lab exprs =
@@ -295,7 +502,7 @@ class translator options = object (self)
       let loc =
         Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
-      nd#data#set_loc loc;
+      self#_set_loc nd loc;
       nd
 
   method of_except (except_clause, suite) =
@@ -310,7 +517,7 @@ class translator options = object (self)
       | _ -> [1; 1; 1]
     in
     let nd = self#mknd ~pvec L.Except children in
-    nd#data#set_loc loc;
+    self#_set_loc nd loc;
     nd
 
   method of_excepts es = List.map self#of_except es
@@ -323,11 +530,11 @@ class translator options = object (self)
         Loc._merge (first children)#data#src_loc (last children)#data#src_loc
       in
       let nd = self#mknd (L.Decorators (L.conv_name name)) children in
-      nd#data#set_loc loc;
+      self#_set_loc nd loc;
       [nd]
 
   method of_simplestmt sstmt =
-    (*DEBUG_MSG "@ %s" (Ast.Loc.to_string sstmt.Ast.sstmt_loc);*)
+    DEBUG_MSG "@ %s" (Ast.Loc.to_string sstmt.Ast.sstmt_loc);
     let sstmtd = sstmt.Ast.sstmt_desc in
     let lab = L.of_simplestmt sstmtd in
     let mksstmtnode ?(pvec=[]) = self#mknd ~pvec lab in
@@ -343,43 +550,73 @@ class translator options = object (self)
             List.map
               (fun tl ->
                 if tl.Ast.yield then
-                  [self#of_exprs L.Yield tl.Ast.list]
+                  self#of_exprs L.Yield tl.Ast.list
                 else
-                  List.map self#of_expr tl.Ast.list
+                  match tl.Ast.list with
+                  | [x] -> self#of_expr x
+                  | xl -> self#of_exprs (L.Primary L.Primary.Tuple) xl
               ) testlist_list
           in
+          let lhs_nds =
+            match targs_list with
+            | [] -> []
+            | [x] -> [x]
+            | xl -> [self#_of_exprs L.LHS xl]
+          in
           let exprs =
             if testlist.Ast.yield then
               [self#of_exprs L.Yield testlist.Ast.list]
             else
               List.map self#of_expr testlist.Ast.list
           in
-          mksstmtnode ~pvec:[List.length targs_list; List.length exprs]
-            ((List.map (fun targs -> self#_of_targs L.LHS targs) targs_list) @
-             [self#_of_exprs L.RHS exprs])
+          let rhs_nds =
+            match exprs with
+            | [] -> []
+            | [x] -> [x]
+            | _ -> [self#_of_exprs (L.Primary L.Primary.Tuple) exprs]
+          in
+          let pvec = [List.length lhs_nds; 0; List.length rhs_nds] in
+          mksstmtnode ~pvec (lhs_nds @ rhs_nds)
       end
       | Ast.SSaugassign(targs, augop, testlist) -> begin
-          let exprs =
+          let lhs_nds =
+            match targs with
+            | [] -> []
+            | [x] -> [self#of_expr x]
+            | _ -> [self#of_targs (L.Primary L.Primary.Tuple) targs]
+          in
+          let rhs_nds =
             if testlist.Ast.yield then
               [self#of_exprs L.Yield testlist.Ast.list]
             else
-              List.map self#of_expr testlist.Ast.list
+              [self#of_exprs (L.Primary L.Primary.Tuple) testlist.Ast.list]
           in
-          mksstmtnode ~pvec:[1; List.length exprs]
-            [self#of_targs L.LHS targs; self#_of_exprs L.RHS exprs]
+          let pvec = [List.length lhs_nds; 0; List.length rhs_nds] in
+          mksstmtnode ~pvec (lhs_nds @ rhs_nds)
       end
-      | Ast.SSannassign(targs, expr, testlist_opt) -> begin
+      | Ast.SSannassign(targs, (aloc, expr), testlist_opt) -> begin
+          let lhs_nds =
+            match targs with
+            | [] -> []
+            | [x] -> [self#of_expr x]
+            | _ -> [self#of_targs (L.Primary L.Primary.Tuple) targs]
+          in
           let exprs =
             match testlist_opt with
             | Some testlist when testlist.Ast.yield -> [self#of_exprs L.Yield testlist.Ast.list]
             | Some testlist -> List.map self#of_expr testlist.Ast.list
             | None -> []
           in
-          let pvec = [1; 1; List.length exprs] in
-          let children =
-            [self#of_targs L.LHS targs; self#of_expr expr; self#_of_exprs L.RHS exprs]
+          let rhs_nds =
+            match exprs with
+            | [] -> []
+            | [x] -> [x]
+            | _ -> [self#_of_exprs (L.Primary L.Primary.Tuple) exprs]
           in
-          mksstmtnode ~pvec children
+          let pvec = [List.length lhs_nds; 1; List.length rhs_nds] in
+          let ann_nd = self#mknd L.Annotation [self#of_expr expr] in
+          let _ = set_loc ann_nd aloc in
+          mksstmtnode ~pvec (lhs_nds @ [ann_nd] @ rhs_nds)
       end
       | Ast.SSprint exprs -> self#of_exprs lab exprs
       | Ast.SSprintchevron(expr, exprs) -> begin
@@ -426,7 +663,7 @@ class translator options = object (self)
             (List.map
                (fun name ->
                  let n = self#mkleaf (L.Name (L.conv_name name)) in
-                 set_loc n (L.loc_of_name name);
+                 self#set_loc n (L.loc_of_name name);
                  n
                )
                names)
@@ -436,7 +673,7 @@ class translator options = object (self)
             (List.map
                (fun name ->
                  let n = self#mkleaf (L.Name (L.conv_name name)) in
-                 set_loc n (L.loc_of_name name);
+                 self#set_loc n (L.loc_of_name name);
                  n
                )
                names)
@@ -448,12 +685,12 @@ class translator options = object (self)
       | Ast.SSassert2(expr1, expr2) -> self#of_exprs lab [expr1; expr2]
       | Ast.SSerror -> mksstmtnode []
     in
-    set_loc nd sstmt.Ast.sstmt_loc;
+    self#set_loc nd sstmt.Ast.sstmt_loc;
     nd
 
   method of_dots (loc, ndots) =
     let nd = self#mkleaf (L.Dots ndots) in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_dottedname_as_name (dname, name_opt) =
@@ -486,7 +723,7 @@ class translator options = object (self)
         nl
     in
     let nd = self#mknd L.Suite children in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_named_suite ?(check_docstring_flag=false) name (loc, stmts) =
@@ -499,20 +736,24 @@ class translator options = object (self)
       else
         nl
     in
-    let nd =
-      self#mknd (L.NamedSuite (L.conv_name name)) children
-    in
-    set_loc nd loc;
+    let nd = self#mknd (L.NamedSuite (L.conv_name name)) children in
+    self#set_loc nd loc;
     nd
 
   method of_parameters (loc, dparams) =
     match dparams with
-    | [] -> []
-    | _ ->
+    | [] when loc = Ast.Loc.dummy -> []
+    | [] -> begin
+        let nd = self#mkleaf L.Parameters in
+        self#set_loc nd loc;
+        [nd]
+    end
+    | _ -> begin
         let children = List.map self#of_vararg dparams in
         let nd = self#mknd L.Parameters children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         [nd]
+    end
 
   method of_vararg = function
     | Ast.VAarg(fpdef, expr_opt) -> begin
@@ -520,66 +761,80 @@ class translator options = object (self)
         | Some expr -> begin
             let children = [self#of_fpdef fpdef; self#of_expr expr] in
             let loc = Loc._merge (first children)#data#src_loc (last children)#data#src_loc in
-            let nd = self#mknd ~pvec:[1; 1] L.ParamDef children in
-            nd#data#set_loc loc;
+            let nd =
+              self#mknd ~pvec:[1; 1] (L.ParamDef (name_of_fpdef fpdef)) children
+            in
+            self#_set_loc nd loc;
             nd
         end
         | None -> self#of_fpdef fpdef
     end
     | Ast.VAargs(loc, None, None) -> begin
         let nd = self#mknd ~pvec:[0] L.Star [] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Ast.VAargs(loc, None, _) -> assert false
     | Ast.VAargs(loc, Some name, None) -> begin
         let nd = self#mknd ~pvec:[1] L.Star [self#of_name name] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Ast.VAargs(loc, Some name, Some expr) -> begin
-        let tpd = self#mknd L.TypedParamDef [self#of_name name; self#of_expr expr] in
+        let tpd =
+          self#mknd (L.TypedParamDef (snd name)) [self#of_name name; self#of_expr expr]
+        in
         let nd = self#mknd ~pvec:[1] L.Star [tpd] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Ast.VAkwargs(loc, name, None) -> begin
         let nd = self#mknd L.StarStar [self#of_name name] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Ast.VAkwargs(loc, name, Some expr) -> begin
-        let tpd = self#mknd L.TypedParamDef [self#of_name name; self#of_expr expr] in
+        let tpd =
+          self#mknd (L.TypedParamDef (snd name)) [self#of_name name; self#of_expr expr]
+        in
         let nd = self#mknd L.StarStar [tpd] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Ast.VAsep loc -> begin
         let nd = self#mkleaf L.Slash in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
 
   method of_named_parameters name (loc, dparams) =
     match dparams with
-    | [] -> []
-    | _ ->
+    | [] when loc = Ast.Loc.dummy -> []
+    | [] -> begin
+        let nd = self#mkleaf (L.NamedParameters name) in
+        self#set_loc nd loc;
+        [nd]
+    end
+    | _ -> begin
         let children = List.map self#of_vararg dparams in
         let nd = self#mknd (L.NamedParameters name) children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         [nd]
+    end
 
   method of_fpdef = function
     | Ast.Fname name -> self#of_name name
     | Ast.Ftyped(loc, name, expr) -> begin
-        let nd = self#mknd L.TypedParamDef [self#of_name name; self#of_expr expr] in
-        set_loc nd loc;
+        let nd =
+          self#mknd (L.TypedParamDef (snd name)) [self#of_name name; self#of_expr expr]
+        in
+        self#set_loc nd loc;
         nd
     end
     | Ast.Flist(loc, fpdefs) -> begin
         let children = List.map self#of_fpdef fpdefs in
         let nd = self#mknd L.ListParamDef children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
 
@@ -587,7 +842,7 @@ class translator options = object (self)
     let dname_str = L.dottedname_to_string dname in
     let children = self#of_named_arglist dname_str arglist in
     let nd = self#mknd ~pvec:[List.length children] (L.Decorator dname_str) children in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
 
@@ -609,7 +864,7 @@ class translator options = object (self)
       | Ast.Earg(expr1, expr2)         -> self#of_exprs L.Argument [expr1; expr2]
       | Ast.Eerror                     -> self#of_exprs L.ERROR []
     in
-    set_loc nd expr.Ast.expr_loc;
+    self#set_loc nd expr.Ast.expr_loc;
     nd
 
 
@@ -624,7 +879,7 @@ class translator options = object (self)
           let pystr_to_node = function
             | Ast.PSshort(lc, s) | Ast.PSlong(lc, s) ->
                 let n = self#mkleaf (L.Primary (L.Primary.Literal (L.Literal.String s))) in
-                set_loc n lc;
+                self#set_loc n lc;
                 n
           in
           match lit with
@@ -632,6 +887,7 @@ class translator options = object (self)
           | Ast.Lstring pystrs   -> mkprimnode (List.map pystr_to_node pystrs)
           | _                    -> self#mkleaf lab
       end
+      | Ast.Pexpr expr                -> self#of_expr expr
       | Ast.Pparen expr               -> self#of_exprs lab [expr]
       | Ast.Ptuple exprs              -> self#of_exprs lab exprs
       | Ast.Pyield exprs              -> self#of_exprs lab exprs
@@ -669,7 +925,7 @@ class translator options = object (self)
   method of_primary prim =
     let primd = prim.Ast.prim_desc in
     let nd = self#of_primary_desc primd in
-    set_loc nd prim.Ast.prim_loc;
+    self#set_loc nd prim.Ast.prim_loc;
     nd
 
   method of_targ t = self#of_expr t
@@ -682,13 +938,13 @@ class translator options = object (self)
     in
     let pvec = [1; 1; opt_length listiter_opt] in
     let nd = self#mknd ~pvec (L.Primary L.Primary.ListFor) children in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_listif (loc, expr, listiter_opt) =
     let children = (self#of_expr expr)::(of_opt self#of_listiter listiter_opt) in
     let nd = self#mknd ~pvec:[1; opt_length listiter_opt] L.ListIf children in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_listiter = function
@@ -701,7 +957,7 @@ class translator options = object (self)
       | DEkeyValue(e1, e2) -> self#of_exprs L.KeyDatum [e1; e2]
       | DEstarStar e -> self#of_exprs L.StarStar [e]
     in
-    set_loc nd delem.Ast.delem_loc;
+    self#set_loc nd delem.Ast.delem_loc;
     nd
 
   method of_dictorsetmaker = function
@@ -720,7 +976,7 @@ class translator options = object (self)
         in
         let pvec = [opt_length expr1_opt; opt_length expr2_opt; 0] in
         let nd = self#mknd ~pvec L.SliceItem children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Ast.SI3(loc, expr1_opt, expr2_opt, expr3_opt) -> begin
@@ -731,21 +987,26 @@ class translator options = object (self)
         in
         let pvec = [opt_length expr1_opt; opt_length expr2_opt; 1] in
         let nd = self#mknd ~pvec L.SliceItem children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     (*| Ast.SIellipsis loc ->
         let nd = self#mkleaf L.Ellipsis in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd*)
 
   method of_arglist tid (loc, args) =
     match args with
-    | [] -> []
+    | [] when loc = Ast.Loc.dummy -> []
+    | [] -> begin
+        let nd = self#mkleaf (L.Arguments tid) in
+        self#set_loc nd loc;
+        [nd]
+    end
     | _ -> begin
         let children = List.map self#of_argument args in
         let nd = self#mknd (L.Arguments tid) children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         [nd]
     end
 
@@ -754,13 +1015,13 @@ class translator options = object (self)
     | [] when loc = Ast.Loc.dummy -> []
     | [] -> begin
         let nd = self#mkleaf (L.NamedArguments name) in
-        set_loc nd loc;
+        self#set_loc nd loc;
         [nd]
     end
     | _ -> begin
         let children = List.map self#of_argument args in
         let nd = self#mknd (L.NamedArguments name) children in
-        set_loc nd loc;
+        self#set_loc nd loc;
         [nd]
     end
 
@@ -769,29 +1030,29 @@ class translator options = object (self)
         match expr_opt with
         | Some e -> begin
             let nd = self#mknd ~pvec:[1; 1] L.Argument [self#of_expr expr; self#of_expr e] in
-            set_loc nd loc;
+            self#set_loc nd loc;
             nd
         end
         | None -> self#of_expr expr
     end
     | Acomp(loc, expr, compfor) -> begin
         let nd = self#mknd L.CompArgument [self#of_expr expr; self#of_compfor compfor] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Aassign(loc, expr1, expr2) -> begin
         let nd = self#mknd L.AssignArgument [self#of_expr expr1; self#of_expr expr2] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Aargs(loc, expr) -> begin
         let nd = self#mknd ~pvec:[1] L.Star [self#of_expr expr] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
     | Akwargs(loc, expr) -> begin
         let nd = self#mknd L.StarStar [self#of_expr expr] in
-        set_loc nd loc;
+        self#set_loc nd loc;
         nd
     end
 
@@ -802,7 +1063,7 @@ class translator options = object (self)
   method of_compif (loc, expr, compiter_opt) =
     let children = (self#of_expr expr)::(of_opt self#of_compiter compiter_opt) in
     let nd = self#mknd L.GenIf children in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
   method of_compfor (loc, (exprs, expr, compiter_opt), async) =
@@ -817,14 +1078,14 @@ class translator options = object (self)
         L.GenFor
     in
     let nd = self#mknd ~pvec:[1; 1; opt_length compiter_opt] lab children in
-    set_loc nd loc;
+    self#set_loc nd loc;
     nd
 
 end (* of class Python.Tree.translator *)
 
 
-let of_fileinput options fname =
-  let trans = new translator options in function (* toplevel convert function *)
+let of_fileinput options comment_tbl fname =
+  let trans = new translator options comment_tbl in function (* toplevel convert function *)
     | Ast.Fileinput(loc, stmts) ->
         let nl = List.map trans#of_statement stmts in
         let children =
@@ -836,16 +1097,69 @@ let of_fileinput options fname =
             nl
         in
         let nd = mknode options (L.FileInput "") children in
-        set_loc nd loc;
+        trans#set_loc nd loc;
+
+        if not options#python_ignore_comment_flag then begin
+          let lnl =
+            List.fast_sort Stdlib.compare (Hashtbl.fold (fun ln _ l -> ln::l) comment_tbl [])
+          in
+          BEGIN_DEBUG
+            DEBUG_MSG "comments:";
+            List.iter
+              (fun ln ->
+                let c = Hashtbl.find comment_tbl ln in
+                DEBUG_MSG "%d: [%s]" ln c.Ast.c_comment
+              ) lnl;
+            DEBUG_MSG "comment node candidates:";
+          END_DEBUG;
+          List.iter
+            (fun ln ->
+              try
+                let cand, pos_opt = Hashtbl.find trans#comment_node_cand_tbl ln in
+                match pos_opt with
+                | Some pos -> begin
+                    try
+                      let c = Hashtbl.find comment_tbl ln in
+                      let comment = c.Ast.c_comment in
+                      DEBUG_MSG "%d -> %s pos=%d [%s]" ln cand#data#to_string pos comment;
+                      let cn = mkleaf options (L.Comment comment) in
+                      set_loc cn c.Ast.c_loc;
+                      cand#add_child pos cn
+                    with
+                      Not_found -> DEBUG_MSG "%d -> %s pos=%d" ln cand#data#to_string pos;
+                end
+                | None -> begin
+                    try
+                      let c = Hashtbl.find comment_tbl ln in
+                      let comment = c.Ast.c_comment in
+                      DEBUG_MSG "%d -> %s [%s]" ln cand#data#to_string comment;
+                      let cn = mkleaf options (L.Comment comment) in
+                      set_loc cn c.Ast.c_loc;
+                      cand#add_child_rightmost cn
+                    with
+                      Not_found -> DEBUG_MSG "%d -> %s" ln cand#data#to_string;
+                end
+              with
+                Not_found -> DEBUG_MSG "%d ->" ln
+            ) (List.rev lnl)
+        end;
+
         let tree = new c options nd true in
+        DEBUG_MSG "\n%s" tree#to_string;
         tree#collapse;
+        trans#set_bindings tree;
         tree#init;
         tree, trans#ignored_regions
 
 let of_ast options fname ast =
-  let tree, ignored_regions = of_fileinput options fname ast#fileinput in
+  let tree, ignored_regions =
+    of_fileinput options ast#comment_tbl fname ast#fileinput
+  in
   tree#set_misparsed_regions ast#missed_regions;
   tree#set_misparsed_LOC ast#missed_LOC;
   tree#set_total_LOC ast#lines_read;
-  tree#set_ignored_regions (ast#comment_regions @ ast#ignored_regions @ ignored_regions);
+  let ignored_regions =
+    ignored_regions @ ast#blank_regions @ ast#ignored_regions @ ast#comment_regions
+  in
+  tree#set_ignored_regions ignored_regions;
   tree

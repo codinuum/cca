@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -51,6 +51,8 @@ class type node_data_t = object ('self)
   method is_phantom      : bool
   method is_special      : bool
 
+  method stripped_label    : string
+
   method anonymized_label  : string
   method more_anonymized_label : string
   method anonymized2_label : string
@@ -70,6 +72,8 @@ class type node_data_t = object ('self)
   method is_real_literal   : bool
   method is_literal        : bool
   method is_statement      : bool
+  method is_block          : bool
+  method is_primary        : bool
   method is_op             : bool
 
   method is_scope_creating : bool
@@ -93,8 +97,11 @@ class type node_data_t = object ('self)
   method successors    : ('self Otree.node2) Xset.t
   method add_successor : ('self Otree.node2) -> unit
 
+  method has_ordinal : bool
   method get_ordinal : int -> int
   method add_to_ordinal_list : int list -> unit
+
+  method id_loc : Loc.t
 
   (* for searchast *)
   method char              : char
@@ -382,13 +389,15 @@ module type LABEL_T = sig
   val is_partition       : t -> bool
   val is_sequence        : t -> bool
 
+  val strip              : t -> t
+
   val anonymize          : ?more:bool -> t -> t
   val anonymize2         : t -> t
   val anonymize3         : t -> t
   val get_ident_use      : t -> string
 
   val get_category       : t -> string
-  val get_name           : t -> string
+  val get_name           : ?strip:bool -> t -> string
   val get_value          : t -> string
   val has_value          : t -> bool
   val has_non_trivial_value : t -> bool
@@ -403,6 +412,8 @@ module type LABEL_T = sig
   val is_real_literal    : t -> bool
 
   val is_statement       : t -> bool
+  val is_block           : t -> bool
+  val is_primary         : t -> bool
   val is_op              : t -> bool
 
   val is_scope_creating : t -> bool

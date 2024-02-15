@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,17 +22,15 @@
 
 open Printf
 
+module Loc = Astloc
+
+type loc = Loc.t
 
 type identifier = string
 
 type simple_name = identifier
 
 type dims = int (* dimension *)
-
-module Loc = Astloc
-
-type loc = Loc.t
-
 
 
 type identifier_attribute =
@@ -300,7 +298,7 @@ and wildcard = annotation list * wildcard_bounds option
 
 and type_arguments = { tas_type_arguments : type_argument list; tas_loc : loc; }
 
-and variable_declarator_id = identifier * annot_dim list
+and variable_declarator_id = (loc * identifier) * annot_dim list
 
 and throws = { th_exceptions : javatype list;
 	       th_loc        : loc;
@@ -372,6 +370,7 @@ and variable_declarators = variable_declarator list
 and class_declaration_head = {
     ch_modifiers       : modifiers option;
     ch_identifier      : identifier;
+    ch_identifier_loc  : loc;
     ch_type_parameters : type_parameters option;
     ch_extends_class   : extends_class option;
     ch_implements      : implements option;
@@ -382,6 +381,7 @@ and class_declaration_head = {
 and record_declaration_head = {
     rh_modifiers       : modifiers option;
     rh_identifier      : identifier;
+    rh_identifier_loc  : loc;
     rh_type_parameters : type_parameters option;
     rh_record_header   : formal_parameter list;
     rh_implements      : implements option;
@@ -539,6 +539,7 @@ and method_header = { mh_modifiers       : modifiers option;
                       mh_annotations     : annotation list;
 		      mh_return_type     : javatype;
 		      mh_name            : identifier;
+		      mh_name_loc        : loc;
 		      mh_parameters_loc  : loc;
 		      mh_parameters      : formal_parameter list;
 		      mh_dims            : annot_dim list;

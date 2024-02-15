@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1436,6 +1436,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       END_DEBUG;
 
       let excludes' = (filter iginfos info !excludes) @ !excludes in
+
       let segs = Info.segment (info, (Info.sort_infos excludes')) in
 
       DEBUG_MSG "result=%s" (segments_to_string segs);
@@ -1475,11 +1476,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               output_string ch (formatters#insert st ed segs)
 
           | Relabel(movrel, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
+              let n1 = Info.get_node info1 in
+              let n2 = Info.get_node info2 in
               let ok =
                 !movrel ||
                 not minimal ||
-                let n1 = Info.get_node info1 in
-                let n2 = Info.get_node info2 in
                 n1#data#is_named_orig && n2#data#is_named_orig ||
                 (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
                 (not (n1#data#is_compatible_with ?weak:(Some true) n2#data) &&
@@ -1490,13 +1491,35 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                  | _ -> false
               in
               if ok then begin
-                let loc1 = Info.get_loc info1 in
-                let loc2 = Info.get_loc info2 in
-                let st1, ed1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
-                let st2, ed2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
-                let segs1 = get_segments iginfos1 info1 excludes1 in
-                let segs2 = get_segments iginfos2 info2 excludes2 in
-                output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
+                if !movrel || n1#data#anonymized_label <> n2#data#anonymized_label then
+                  let loc1 = Info.get_loc info1 in
+                  let loc2 = Info.get_loc info2 in
+                  let segs1 = get_segments iginfos1 info1 excludes1 in
+                  let segs2 = get_segments iginfos2 info2 excludes2 in
+                  let st1, ed1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
+                  let st2, ed2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
+                  output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
+                else
+                  let loc1, loc2, id_only =
+                    let loc1 = Info.get_id_loc info1 in
+                    let loc2 = Info.get_id_loc info2 in
+                    if loc1 != Loc.dummy && loc2 != Loc.dummy then
+                      loc1, loc2, true
+                    else
+                      Info.get_loc info1, Info.get_loc info2, false
+                  in
+                  if loc1 != Loc.ghost && loc2 != Loc.ghost then
+                    let st1, ed1 as seg1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
+                    let st2, ed2 as seg2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
+                    let segs1, segs2 =
+                      if id_only then
+                        [seg1], [seg2]
+                      else
+                        let segs1 = get_segments iginfos1 info1 excludes1 in
+                        let segs2 = get_segments iginfos2 info2 excludes2 in
+                        segs1, segs2
+                    in
+                    output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
               end
 
           | Move(mid, _, (_, info1, _), (_, info2, _)) as mov ->

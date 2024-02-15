@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020-2023 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -836,6 +836,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | RefMacro i -> combo2 682 [i]
   | RefMacroInvocation i -> combo2 683 [i]
 
+let strip lab = lab (* not yet *)
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -2267,6 +2268,12 @@ let is_initializer = function
   | EqualInitializer
   | BracedInitList
   | ParenthesizedInitList
+    -> true
+  | _ -> false
+
+let is_block = function
+  | CompoundStatement
+  | TryBlock
     -> true
   | _ -> false
 

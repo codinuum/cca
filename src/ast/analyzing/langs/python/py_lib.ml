@@ -23,6 +23,34 @@ module DF        = Delta_format.Format
 let extract_change options tree1 tree2 uidmapping edits =
   [], [], [], (Xset.create 0) (* not yet *)
 
+let elaborate_edits
+    options
+    (cenv : (Tree.node_t, Tree.c) Comparison.c)
+    uidmapping
+    edits
+    =
+  let mkfilt = Edit.mkfilt Fact.getlab in
+  let is_assign = mkfilt Label.is_assign in
+  let is_attrref = mkfilt Label.is_attrref in
+  let is_param = mkfilt Label.is_param in
+  let is_name = mkfilt Label.is_name in
+
+  let filters = [|
+    is_assign;
+    is_attrref;
+    is_param;
+    is_name;
+  |]
+  in
+  let max_count = 2 in
+  let handle_weak = not options#dump_delta_flag in
+  let count = ref 0 in
+  let modified = ref true in
+  while !modified && !count < max_count do
+    incr count;
+    DEBUG_MSG "%d-th execution of rename adjustment" !count;
+    modified := Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters;
+  done
 
 class tree_patcher options tree_factory = object
   inherit Lang.tree_patcher
@@ -40,5 +68,6 @@ let _ =
        ~make_tree_builder:(new tree_builder)
        ~extract_change:extract_change
        ~extract_fact:extract_fact
+       ~elaborate_edits:(Some elaborate_edits)
        ~make_tree_patcher:(new tree_patcher)
     )

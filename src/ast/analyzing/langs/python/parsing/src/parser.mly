@@ -85,20 +85,12 @@ open Stat
 (********** Rules **********)
 
 %inline
-clist(X):
-| l=separated_nonempty_list(COMMA, X) { l }
-;
-%inline
 olist(X):
 | l=separated_nonempty_list(PIPE, X) { l }
 ;
-%inline
-dlist(X):
-| l=separated_nonempty_list(DOT, X) { l }
-;
 
 main:
-| f=file_input EOF { Fileinput(get_loc $startofs $endofs, f) }
+| f=file_input EOF { Fileinput(get_loc (*$startofs*)0 $endofs, f) }
 |              EOF { Fileinput(get_loc $startofs $endofs, []) }
 ;
 
@@ -113,7 +105,7 @@ file_input_:
 ;
 
 decorator:
-| AT d=dotted_name NEWLINE { get_loc $startofs $endofs(d), d, emptyarglist }
+| AT d=dotted_name NEWLINE { get_loc $startofs $endofs(d), d, emptyarglist() }
 | AT d=dotted_name lp=LPAREN rp=RPAREN NEWLINE
     { 
       ignore lp;
@@ -168,43 +160,41 @@ name:
 ;
 
 parameters:
-| LPAREN                 RPAREN { emptytypedargslist }
-| LPAREN t=typedargslist RPAREN { t }
+| LPAREN                 RPAREN { emptytypedargslist ~loc:(get_loc $startofs $endofs) () }
+| LPAREN t=typedargslist RPAREN { chg_loc t (get_loc $startofs $endofs) }
 ;
 
 typedargslist:
-| v=typedargs_       { get_loc $startofs $endofs, v }
-| v=typedargs_ COMMA { get_loc $startofs $endofs, v }
+| v=typedargs_ COMMA? { get_loc $startofs $endofs, (List.rev v) }
 ;
 typedargs_:
-|                     t=typedarg {      [t] }
-| tl=typedargs_ COMMA t=typedarg { tl @ [t] }
+|                     t=typedarg { [t] }
+| tl=typedargs_ COMMA t=typedarg { t :: tl }
 ;
 typedarg:
 | t=tfpdef           { VAarg (t, None) }
 | t=tfpdef EQ e=test { VAarg (t, Some e) }
-| STAR              { VAargs(get_loc $startofs $endofs, None, None) }
-| STAR n=name       { VAargs(get_loc $startofs $endofs, Some n, None) }
-| STAR_STAR n=name  { VAkwargs(get_loc $startofs $endofs, n, None) }
-| STAR n=name COLON t=test      { VAargs(get_loc $startofs $endofs, Some n, Some t) }
+| STAR                     { VAargs(get_loc $startofs $endofs, None, None) }
+| STAR n=name              { VAargs(get_loc $startofs $endofs, Some n, None) }
+| STAR n=name COLON t=test { VAargs(get_loc $startofs $endofs, Some n, Some t) }
+| STAR_STAR n=name              { VAkwargs(get_loc $startofs $endofs, n, None) }
 | STAR_STAR n=name COLON t=test { VAkwargs(get_loc $startofs $endofs, n, Some t) }
 | SLASH { VAsep (get_loc $startofs $endofs) }
 ;
 
 varargslist:
-| v=varargs_       { get_loc $startofs $endofs, v }
-| v=varargs_ COMMA { get_loc $startofs $endofs, v }
+| v=varargs_ COMMA? { get_loc $startofs $endofs, (List.rev v) }
 ;
 varargs_:
-|                   v=vararg {      [v] }
-| vl=varargs_ COMMA v=vararg { vl @ [v] }
+|                   v=vararg { [v] }
+| vl=varargs_ COMMA v=vararg { v :: vl }
 ;
 vararg:
 | f=fpdef           { VAarg (f, None) }
 | f=fpdef EQ t=test { VAarg (f, Some t) }
-| STAR             { VAargs(get_loc $startofs $endofs, None, None) }
-| STAR n=name      { VAargs(get_loc $startofs $endofs, Some n, None) }
-| STAR_STAR n=name { VAkwargs(get_loc $startofs $endofs, n, None) }
+| STAR              { VAargs(get_loc $startofs $endofs, None, None) }
+| STAR n=name       { VAargs(get_loc $startofs $endofs, Some n, None) }
+| STAR_STAR n=name  { VAkwargs(get_loc $startofs $endofs, n, None) }
 ;
 
 tfpdef:
@@ -229,7 +219,7 @@ fpdefs:
 stmt:
 | s=simple_stmt   { s }
 | c=compound_stmt { c }
-| ERROR { mkerrstmt $startofs $endofs }
+| ERROR    { mkerrstmt $startofs $endofs }
 | m=MARKER { mkmarkerstmt $startofs $endofs m }
 ;
 
@@ -261,9 +251,12 @@ small_stmt_:
 | a=assert_stmt   { a }
 ;
 
+annot:
+| COLON t=test { get_loc $startofs $endofs, t }
+;
 annassign:
-| COLON t=test                             { t, None }
-| COLON t=test EQ y=testlist_or_yield_expr { t, Some y }
+| a=annot                             { a, None }
+| a=annot EQ y=testlist_or_yield_expr { a, Some y }
 ;
 
 expr_stmt:
@@ -271,12 +264,12 @@ expr_stmt:
 | t=testlist_star_expr a=annassign { SSannassign(t.list, fst a, snd a) }
 | t=testlist_star_expr a=augassign y=testlist_or_yield_expr { SSaugassign(t.list, a, y) }
 | t=testlist_star_expr e=eq_testlists
-    {
-     match e with
-     | last :: a -> SSassign(t :: (List.rev a), last)
-     | _ ->
-         parse_error $startofs $endofs "syntax error";
-         SSerror
+    { 
+      match e with
+      | last :: a -> SSassign(t :: (List.rev a), last)
+      | _ ->
+          parse_error $startofs $endofs "syntax error";
+          SSerror
     }
 ;
 
@@ -771,7 +764,7 @@ except_clause:
 
 suite:
 | s=simple_stmt { get_loc $startofs $endofs, [s] }
-| NEWLINE INDENT s=stmts DEDENT { get_loc $startofs(s) $endofs(s), s }
+| NEWLINE INDENT s=stmts DEDENT { get_loc $startofs $endofs, s }
 | NEWLINE INDENT         DEDENT { get_loc $startofs $endofs, [] } (* empty suite *)
 ;
 stmts:
@@ -785,7 +778,7 @@ old_test:
 ;
 
 old_lambdef:
-| LAMBDA               COLON o=old_test { Elambda(emptyvarargslist, o) }
+| LAMBDA               COLON o=old_test { Elambda(emptyvarargslist(), o) }
 | LAMBDA v=varargslist COLON o=old_test { Elambda(v, o) }
 ;
 
@@ -910,13 +903,18 @@ _primary:
 
 atom:
 | LPAREN                    RPAREN { Ptuple [] }
-| LPAREN y=yield_expr       RPAREN { Pparen (mkprimexpr $startofs(y) $endofs(y) (Pyield y.list)) }
-| LPAREN t=testlist_comp    RPAREN { Pparen (mkprimexpr $startofs(t) $endofs(t) t) }
+| LPAREN y=yield_expr       RPAREN { Pyield y.list }
+| LPAREN t=testlist_comp    RPAREN
+    { 
+      match t with
+      | Pexpr _ -> Pparen (mkprimexpr $startofs(t) $endofs(t) t)
+      | _ -> t
+    }
 | LBRACKET                  RBRACKET { Plistnull }
 | LBRACKET tc=testlist_comp RBRACKET
     { 
       match tc with
-      | Pparen t -> Plist [t]
+      | Pparen t | Pexpr t -> Plist [t]
       | Ptuple l -> Plist l
       | PcompT(x, y) -> PcompL(x, y)
       | _ -> assert false
@@ -956,11 +954,11 @@ testlist_comp:
         Pyield t.list
       else
         if t.comma then
-          match t.list with
-          | [t0] -> Pparen t0
-          | _ -> Ptuple t.list
-        else
           Ptuple t.list
+        else
+          match t.list with
+          | [t0] -> Pexpr t0
+          | _ -> Ptuple t.list
     }
 ;
 %inline
@@ -970,13 +968,13 @@ test_:
 ;
 
 lambdef:
-| LAMBDA               COLON t=test { Elambda(emptyvarargslist, t) }
+| LAMBDA               COLON t=test { Elambda(emptyvarargslist(), t) }
 | LAMBDA v=varargslist COLON t=test { Elambda(v, t) }
 ;
 
 trailer:
-| LPAREN           RPAREN { TRcall emptyarglist }
-| LPAREN a=arglist RPAREN { TRcall a }
+| LPAREN           RPAREN { TRcall (emptyarglist ~loc:(get_loc $startofs $endofs) ()) }
+| LPAREN a=arglist RPAREN { TRcall (chg_loc a (get_loc $startofs $endofs)) }
 | LBRACKET                 RBRACKET { TRsubscript [] }
 | LBRACKET s=subscriptlist RBRACKET
     { 
@@ -996,8 +994,7 @@ trailer:
 ;
 
 subscriptlist:
-| s=subscripts       { List.rev s }
-| s=subscripts COMMA { List.rev s }
+| s=subscripts COMMA? { List.rev s }
 ;
 subscripts:
 |                     s=subscript { [s] }
@@ -1026,12 +1023,11 @@ sliceop:
 ;
 
 exprlist:
-| e=exprs       { e }
-| e=exprs COMMA { e }
+| e=_exprs COMMA? { List.rev e }
 ;
-exprs:
-|                e=expr_ { [e] }
-| el=exprs COMMA e=expr_ { el @ [e] }
+_exprs:
+|                 e=expr_ { [e] }
+| el=_exprs COMMA e=expr_ { e :: el }
 ;
 %inline
 expr_:
@@ -1040,16 +1036,16 @@ expr_:
 ;
 
 testlist:
-| t=testlist1       { mktestlist t false false }
-| t=testlist1 COMMA { mktestlist t true false }
+| t=testlist1       { mktestlist t }
+| t=testlist1 COMMA { mktestlist ~comma:true t }
 ;
 testlist_star_expr:
-| t=testlist1_star_expr       { mktestlist t false false }
-| t=testlist1_star_expr COMMA { mktestlist t true false }
+| t=testlist1_star_expr       { mktestlist t }
+| t=testlist1_star_expr COMMA { mktestlist ~comma:true t }
 ;
 testlist_:
-| t=testlist1_       { mktestlist t false false }
-| t=testlist1_ COMMA { mktestlist t true false }
+| t=testlist1_       { mktestlist t }
+| t=testlist1_ COMMA { mktestlist ~comma:true t }
 ;
 
 dictorsetmaker:
@@ -1076,7 +1072,7 @@ test_star_expr:
 ;
 
 classdef:
-| CLASS n=name                               COLON s=suite { Sclassdef([], n, emptyarglist, s) }
+| CLASS n=name                               COLON s=suite { Sclassdef([], n, emptyarglist(), s) }
 | CLASS n=name lp=LPAREN           rp=RPAREN COLON s=suite
     { 
       ignore lp;
@@ -1149,9 +1145,9 @@ testlist1_:
 ;
 
 yield_expr:
-| YIELD                      { mktestlist [] false true }
+| YIELD                      { mktestlist ~yield:true [] }
 | YIELD t=testlist_star_expr { t.yield<-true; t }
-| YIELD FROM t=test          { mktestlist [mkexpr $startofs $endofs (Efrom t)] false true }
+| YIELD FROM t=test          { mktestlist ~yield:true [mkexpr $startofs $endofs (Efrom t)] }
 ;
 
 

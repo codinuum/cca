@@ -14,6 +14,8 @@
    limitations under the License.
 *)
 class c : object
+  method blank_LOC : int
+  method blank_regions : (int * int) list
   method comment_LOC : int
   method comment_regions : (int * int) list
   method file_name : string
@@ -22,6 +24,8 @@ class c : object
   method lines_read : int
   method missed_LOC : int
   method missed_regions : (int * int) list
+  method set_blank_LOC : int -> unit
+  method set_blank_regions : (int * int) list -> unit
   method set_comment_LOC : int -> unit
   method set_comment_regions : (int * int) list -> unit
   method set_file_name : string -> unit

@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020-2023 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -3200,7 +3200,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | LiteralMacroArgument s -> "LiteralMacroArgument", ["code",s]
 
 
-let get_name : t -> string = function
+let get_name ?(strip=false) = function
   | DELIM_MACRO n
   | DELIM_MACRO_ n
   | PpDefine n

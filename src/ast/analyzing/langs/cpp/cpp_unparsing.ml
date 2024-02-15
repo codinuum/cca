@@ -79,7 +79,7 @@ let has_orig_lab nd =
   | None -> false
 
 
-let get_nth_children = Tree._get_logical_nth_child
+let get_nth_children = Sourcecode._get_logical_nth_child
 
 
 let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =

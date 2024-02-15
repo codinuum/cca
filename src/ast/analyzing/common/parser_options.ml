@@ -315,7 +315,8 @@ class c = object (self)
 
   (* Python *)
   val mutable python_with_stmt_disabled_flag = false
-  val mutable python_ignore_docstring_flag = true
+  val mutable python_ignore_docstring_flag = false
+  val mutable python_ignore_comment_flag = false
 
   (* Fortran *)
   val mutable fortran_max_line_length = -1
@@ -401,6 +402,10 @@ class c = object (self)
   method python_ignore_docstring_flag = python_ignore_docstring_flag
   method set_python_ignore_docstring_flag = python_ignore_docstring_flag <- true
   method clear_python_ignore_docstring_flag = python_ignore_docstring_flag <- false
+
+  method python_ignore_comment_flag = python_ignore_comment_flag
+  method set_python_ignore_comment_flag = python_ignore_comment_flag <- true
+  method clear_python_ignore_comment_flag = python_ignore_comment_flag <- false
 
   (* Fortran *)
   method fortran_max_line_length = fortran_max_line_length

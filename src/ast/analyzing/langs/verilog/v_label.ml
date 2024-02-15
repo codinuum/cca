@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -792,6 +792,8 @@ let annotation_to_string = function
 include Label
 
 let f x = CompilerDirective.anonymize x
+
+let strip lab = lab (* not yet *)
 
 let anonymize ?(more=false) = function
     | CompilerDirective cd                     -> CompilerDirective (CompilerDirective.anonymize cd)
@@ -1722,7 +1724,7 @@ let get_category lab =
   name
 
 
-let get_name lab =
+let get_name ?(strip=false) lab =
   let n =
     match lab with
     | CompilerDirective cd     -> CompilerDirective.get_name cd
@@ -2118,6 +2120,9 @@ let is_stmt = function
   | _ -> false
 
 let is_statement = is_stmt
+
+let is_primary _ = false (* not yet *)
+let is_block _ = false (* not yet *)
 
 let is_pp_define = function
   | CompilerDirective (CompilerDirective.Define _) -> true

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -19,6 +19,10 @@
 
 module B = Binding
 module BID = B.ID
+
+let nsps = Misc.nsps
+let nups = Misc.nups
+let nugsps = Misc.nugsps
 
 type node_t = Spec.node_t
 type tree_t = Spec.tree_t
@@ -486,7 +490,7 @@ let get_bid nd = B.get_bid nd#data#binding
 let get_bid_opt nd = B.get_bid_opt nd#data#binding
 
 
-let collect_use_renames ?(filt=fun _ _ -> true) uidmapping edits is_possible_rename =
+let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possible_rename =
 
   let freq_tbl = Hashtbl.create 0 in
   let bonus_tbl = Hashtbl.create 0 in
@@ -494,9 +498,17 @@ let collect_use_renames ?(filt=fun _ _ -> true) uidmapping edits is_possible_ren
   let _use_rename_tbl1 = Hashtbl.create 0 in
   let _use_rename_tbl2 = Hashtbl.create 0 in
 
+  let free_freq_tbl = Hashtbl.create 0 in
+  let free_bonus_tbl = Hashtbl.create 0 in
+
+  let _free_rename_tbl1 = Hashtbl.create 0 in
+  let _free_rename_tbl2 = Hashtbl.create 0 in
+
+  let get_orig_name n = try n#data#get_orig_name with _ -> n#data#get_name in
+
   let add_use_rename node1 node2 bid1 bid2 =
-    let name1 = node1#data#get_name in
-    let name2 = node2#data#get_name in
+    let name1 = node1#data#get_name(*get_orig_name node1*) in
+    let name2 = node2#data#get_name(*get_orig_name node2*) in
     DEBUG_MSG "adding %a -> %a (\"%s\" -> \"%s\")" BID.ps bid1 BID.ps bid2 name1 name2;
     let add tbl bi1 bi2 =
       try
@@ -539,22 +551,95 @@ let collect_use_renames ?(filt=fun _ _ -> true) uidmapping edits is_possible_ren
     end
   in
 
+  let add_free_rename node1 node2 =
+    let name1 = get_orig_name node1 in
+    let name2 = get_orig_name node2 in
+    DEBUG_MSG "adding \"%s\" -> \"%s\"" name1 name2;
+    let add tbl nm1 nm2 =
+      try
+        let nms = Hashtbl.find tbl nm1 in
+        if not (List.mem nm2 nms) then
+          Hashtbl.replace tbl nm1 (nm2::nms)
+      with
+        Not_found -> Hashtbl.add tbl nm1 [nm2]
+    in
+    if is_possible_rename node1 node2 BID.dummy BID.dummy then begin
+      add _free_rename_tbl1 name1 name2;
+      add _free_rename_tbl2 name2 name1;
+      DEBUG_MSG "added";
+      let k = name1, name2 in
+      if
+        not node1#data#is_order_insensitive && not node2#data#is_order_insensitive &&
+        try
+          let pnd1 = node1#initial_parent in
+          let pnd2 = node2#initial_parent in
+          not pnd1#data#is_order_insensitive && not pnd2#data#is_order_insensitive &&
+          uidmapping#find pnd1#uid = pnd2#uid &&
+          let ppnd1 = pnd1#initial_parent in
+          let ppnd2 = pnd2#initial_parent in
+          not ppnd1#data#is_order_insensitive && not ppnd2#data#is_order_insensitive &&
+          uidmapping#find ppnd1#uid = ppnd2#uid
+        with
+          _ -> false
+      then
+        Hashtbl.replace free_bonus_tbl k 1;
+      try
+        let freq = Hashtbl.find free_freq_tbl k in
+        Hashtbl.replace free_freq_tbl k (freq + 1)
+      with
+        Not_found -> Hashtbl.add free_freq_tbl k 1
+    end
+    else begin
+      DEBUG_MSG "not added";
+    end
+  in
+
   edits#iter_relabels
     (function
       | Relabel(_, (u1, info1, ex1), (u2, info2, ex2)) as rel -> begin
           let _ = rel in
           DEBUG_MSG "checking %s" (Editop.to_string rel);
-
           let nd1 = Info.get_node info1 in
           let nd2 = Info.get_node info2 in
-          if filt nd1 nd2 && is_use nd1 && is_use nd2 then
-            try
-              add_use_rename nd1 nd2 (get_bid nd1) (get_bid nd2)
-            with
-              Not_found -> assert false
+          if filt nd1 nd2 then begin
+            if is_use nd1 && is_use nd2 then begin
+              try
+                add_use_rename nd1 nd2 (get_bid nd1) (get_bid nd2)
+              with
+                Not_found -> assert false
+            end
+            else if
+              not (is_def nd1) && not (is_def nd2) &&
+              nd1#data#is_named_orig && nd2#data#is_named_orig
+            then begin
+              try
+                add_free_rename nd1 nd2
+              with Not_found -> ()
+            end
+          end
       end
       | _ -> assert false
     );
+  (*!20240205!uidmapping#iter
+    (fun u1 u2 ->
+      DEBUG_MSG "checking %a-%a" UID.ps u1 UID.ps u2;
+      let nd1 = cenv#tree1#search_node_by_uid u1 in
+      let nd2 = cenv#tree2#search_node_by_uid u2 in
+      if filt nd1 nd2 then begin
+        if is_use nd1 && is_use nd2 then begin
+          try
+            add_use_rename nd1 nd2 (get_bid nd1) (get_bid nd2)
+          with
+            Not_found -> assert false
+        end
+        else if
+          not (is_def nd1) && not (is_def nd2) &&
+          nd1#data#is_named_orig && nd2#data#is_named_orig
+        then begin
+          add_free_rename nd1 nd2
+        end
+      end
+    );*)
 
   Hashtbl.iter
     (fun (bi1, bi2 as k) bonus ->
@@ -566,15 +651,70 @@ let collect_use_renames ?(filt=fun _ _ -> true) uidmapping edits is_possible_ren
         Not_found -> ()
     ) bonus_tbl;
 
+  Hashtbl.iter
+    (fun (nm1, nm2 as k) bonus ->
+      try
+        let c = Hashtbl.find free_freq_tbl k in
+        DEBUG_MSG "adding bonus: (\"%s\",\"%s\") -> %d+%d" nm1 nm2 c bonus;
+        Hashtbl.replace free_freq_tbl k (c + bonus)
+      with
+        Not_found -> ()
+    ) free_bonus_tbl;
+
   BEGIN_DEBUG
     DEBUG_MSG "* use rename freq.:";
     Hashtbl.iter
       (fun (bi1, bi2) (freq, nm1, nm2) ->
         DEBUG_MSG " (%a, %a) -> %3d (\"%s\" -> \"%s\")" BID.ps bi1 BID.ps bi2 freq nm1 nm2
-      ) freq_tbl
+      ) freq_tbl;
+    DEBUG_MSG "* free rename freq.:";
+    Hashtbl.iter
+      (fun (nm1, nm2) freq ->
+        DEBUG_MSG "(\"%s\"->\"%s\") -> %d" nm1 nm2 freq
+      ) free_freq_tbl
   END_DEBUG;
 
-  freq_tbl, _use_rename_tbl1, _use_rename_tbl2
+  freq_tbl, _use_rename_tbl1, _use_rename_tbl2, free_freq_tbl, _free_rename_tbl1, _free_rename_tbl2
+
+exception Abort
+
+let is_uniq_child pnd nd =
+  let b =
+    try
+      let pos = Sourcecode.get_logical_pos ?strict:(Some true) nd in
+      match Sourcecode.get_logical_nth_child pnd pos with
+      | [|_|] -> true
+      | _ -> false
+    with _ ->
+      pnd#initial_nchildren = 1
+  in
+  DEBUG_MSG "%a -> %B" UID.ps nd#uid b;
+  b
+
+let has_uniq_path rt nd =
+  let b =
+    try
+      let prev = ref nd in
+      nd#iter_initial_ancestor_nodes
+        (fun n ->
+          if not (is_uniq_child n !prev) then
+            raise Abort;
+          if n == rt then
+            raise Exit;
+          prev := n
+        );
+      true
+    with
+    | Abort -> false
+    | Exit -> true
+  in
+  (*DEBUG_MSG "%a (rt=%a) -> %B" nd#uid rt#uid b*)
+  b
+
+let has_uniq_paths rt1 rt2 n1 n2 =
+  let b = has_uniq_path rt1 n1 && has_uniq_path rt2 n2 in
+  DEBUG_MSG "(%a-%a) %a-%a -> %B" UID.ps rt1#uid UID.ps rt2#uid UID.ps n1#uid UID.ps n2#uid b;
+  b
 
 
 (* adjust_renames assumes that edit seq. contains correct renames of USEs *)
@@ -643,12 +783,16 @@ let adjust_renames
     );
 
   let non_rename tbl bi =
-    try
-      match Hashtbl.find tbl bi with
-      | true, true -> true
-      | _ -> false
-    with
-      Not_found -> false
+    let b =
+      try
+        match Hashtbl.find tbl bi with
+        | true, true -> true
+        | _ -> false
+      with
+        Not_found -> false
+    in
+    DEBUG_MSG "%a -> %B" BID.ps bi b;
+    b
   in
 
   (* non-rename can be rename e.g. fortran: variable-name -> array-element *)
@@ -688,14 +832,18 @@ let adjust_renames
         DEBUG_MSG "%B" b;
         b
       in
-      let parent_mapped_and_eq() =
+      let parent_mapped() =
         let b =
           try
             let p1 = node1#initial_parent in
             let p2 = node2#initial_parent in
-            p1#initial_nchildren == 1 && p2#initial_nchildren == 1 &&
-            uidmapping#find p1#uid == p2#uid &&
-            p1#data#eq p2#data
+            let pu1 = p1#uid in
+            let pu2 = p2#uid in
+            uidmapping#find pu1 == pu2 &&
+            let p1_eq_p2 = p1#data#eq p2#data in
+            p1_eq_p2 && has_uniq_paths p1 p2 node1 node2 ||
+            not p1_eq_p2 && p1#data#is_named && p2#data#is_named &&
+            not (edits#mem_mov12 pu1 pu2)
           with
             _ -> false
         in
@@ -707,7 +855,9 @@ let adjust_renames
           context_cond &&
           (non_rename non_rename_bid_tbl1 bi1 || non_rename non_rename_bid_tbl2 bi2)
         in
-        not has_conflict || same_name() || parent_mapped_and_eq()
+        if has_conflict then
+          DEBUG_MSG "%a-%a: conflicts with exactly matched pair" BID.ps bi1 BID.ps bi2;
+        not has_conflict || same_name() || parent_mapped()
       in
       if not b then
         DEBUG_MSG "%a-%a: conflicts with exactly matched pair" BID.ps bi1 BID.ps bi2;
@@ -716,22 +866,57 @@ let adjust_renames
       false
   in
 
-  (* collect use renames *)
-  let freq_tbl, _use_rename_tbl1, _use_rename_tbl2 =
+  let has_nearest_mapped_ancestor_upto_boundary n1 n2 =
+    DEBUG_MSG "%a-%a" nups n1 nups n2;
+    let moveon_ n = not n#data#is_boundary && (n#data#is_named || n#data#is_primary) in
+    let find_anc = Sourcecode.find_nearest_mapped_ancestor_node ~moveon_ in
+    let b =
+      try
+        let an1 = find_anc uidmapping#mem_dom n1 in
+        let an2 = find_anc uidmapping#mem_cod n2 in
+        let au1' = uidmapping#find an1#uid in
+        DEBUG_MSG "%a->%a" nups an1 UID.ps au1';
+        au1' = an2#uid &&
+        (
+         (try n1#initial_parent == an1 with _ -> false) ||
+         (try n2#initial_parent == an2 with _ -> false)
+        )
+        (*&&
+        (an1#data#eq an2#data(* || an1#data#_stripped_label = an2#data#_stripped_label*))*)
+      with _ -> false
+    in
+    DEBUG_MSG "%B" b;
+    b
+  in
+
+  (* collect use/free renames *)
+  let freq_tbl, _use_rename_tbl1, _use_rename_tbl2,
+    free_freq_tbl, _free_rename_tbl1, _free_rename_tbl2
+      =
     let filt n1 n2 =
       let b =
-        (try uidmapping#find n1#initial_parent#uid = n2#initial_parent#uid with _ -> false)(* ||
-        Array.exists
-          (fun c1 ->
-            try
-              (search_node_by_uid (uidmapping#find c1#uid))#initial_parent == n2
-            with _ -> false
-          ) n1#initial_children*)
+        (
+         try
+           let u1' = uidmapping#find n1#initial_parent#uid in
+           u1' = n2#initial_parent#uid ||
+           n1#data#_anonymized_label = n2#data#_anonymized_label &&
+           u1' = n2#initial_parent#initial_parent#uid
+         with _ -> false
+        ) ||
+        n1#data#_anonymized_label = n2#data#_anonymized_label &&
+        (
+         (try
+           let u2' = uidmapping#inv_find n2#initial_parent#uid in
+           u2' = n1#initial_parent#initial_parent#uid
+          with _ -> false
+         ) ||
+         has_nearest_mapped_ancestor_upto_boundary n1 n2
+        )
       in
       DEBUG_MSG "%a-%a: %B" UID.ps n1#uid UID.ps n2#uid b;
       b
     in
-    collect_use_renames ~filt uidmapping edits is_possible_rename
+    collect_use_renames ~filt cenv uidmapping edits is_possible_rename
   in
   let get_freq bi1 bi2 =
     let freq, _, _ = Hashtbl.find freq_tbl (bi1, bi2) in
@@ -774,58 +959,94 @@ let adjust_renames
 
       match selected with
       | []   -> assert false
-      | [bi2] ->
-          if max_freq > 1 || handle_weak then
-            selected_renames1 := (bi1, bi2) :: !selected_renames1;
-          if max_freq = 1 && handle_weak then
-            weak_selected_renames1 := (bi1, bi2) :: !weak_selected_renames1;
+      | [bi2] -> begin
+          if handle_weak || max_freq > 1 then begin
+            DEBUG_MSG "added";
+            selected_renames1 := (bi1, bi2) :: !selected_renames1
+          end;
+          if handle_weak && max_freq = 1 then begin
+            DEBUG_MSG "added (weak)";
+            weak_selected_renames1 := (bi1, bi2) :: !weak_selected_renames1
+          end;
           List.iter
             (fun bi ->
               if bi != bi2 then
                 Hashtbl.add loser_tbl (bi1, bi) true
             ) bs
-      | _    ->
-          conflicting_bids2 := bs @ !conflicting_bids2
-
+      end
+      | _ -> conflicting_bids2 := bs @ !conflicting_bids2
     ) _use_rename_tbl1;
 
   Hashtbl.iter
     (fun bi2 bs ->
-      DEBUG_MSG "* selecting from: [%s] -> %a" (Xlist.to_string BID.to_string ";" bs) BID.ps bi2;
+      DEBUG_MSG "* selecting from: [%s] <- %a" (Xlist.to_string BID.to_string ";" bs) BID.ps bi2;
       let max_freq = List.fold_left (fun max bi1 -> sel_freq max bi1 bi2) 0 bs in
       DEBUG_MSG "  max freq.: %d" max_freq;
 
       let selected =
         List.filter (fun bi1 -> max_freq = get_freq bi1 bi2) bs
       in
-      DEBUG_MSG "  selected: [%s] -> %a" (Xlist.to_string BID.to_string ";" selected) BID.ps bi2;
+      DEBUG_MSG "  selected: [%s] <- %a" (Xlist.to_string BID.to_string ";" selected) BID.ps bi2;
 
       match selected with
       | []   -> assert false
-      | [bi1] ->
-          if max_freq > 1 || handle_weak then
-            selected_renames2 := (bi1, bi2) :: !selected_renames2;
-          if max_freq = 1 && handle_weak then
-            weak_selected_renames2 := (bi1, bi2) :: !weak_selected_renames2;
+      | [bi1] -> begin
+          if handle_weak || max_freq > 1 then begin
+            DEBUG_MSG "added";
+            selected_renames2 := (bi1, bi2) :: !selected_renames2
+          end;
+          if handle_weak && max_freq = 1 then begin
+            DEBUG_MSG "added (weak)";
+            weak_selected_renames2 := (bi1, bi2) :: !weak_selected_renames2
+          end;
           List.iter
             (fun bi ->
               if bi != bi1 then
                 Hashtbl.add loser_tbl (bi, bi2) true
             ) bs
-      | _    ->
-          conflicting_bids1 := bs @ !conflicting_bids1
-
+      end
+      | _ -> conflicting_bids1 := bs @ !conflicting_bids1
     ) _use_rename_tbl2;
 
   DEBUG_MSG "  conflicting_bids1: %s" (Xlist.to_string BID.to_string ";" !conflicting_bids1);
   DEBUG_MSG "  conflicting_bids2: %s" (Xlist.to_string BID.to_string ";" !conflicting_bids2);
 
+  let tree1 = cenv#tree1 in
+  let tree2 = cenv#tree2 in
+
   let selected_renames =
     List.filter
-      (fun (bi1, bi2) ->
-        (not (Hashtbl.mem loser_tbl (bi1, bi2))) &&
-        (not (List.mem bi1 !conflicting_bids1)) &&
-        (not (List.mem bi2 !conflicting_bids2))
+      (fun ((bi1, bi2) as bp) ->
+        let no_conflicts1 = not (List.mem bi1 !conflicting_bids1) in
+        let no_conflicts2 = not (List.mem bi2 !conflicting_bids2) in
+        begin
+         try
+           let freq, nm1, nm2 = Hashtbl.find freq_tbl bp in
+           DEBUG_MSG "%a-%a \"%s\"-\"%s\" %d" BID.ps bi1 BID.ps bi2 nm1 nm2 freq;
+           if freq > 1 && (no_conflicts1 || no_conflicts2) then begin
+             cenv#add_rename_pat (nm1, nm2);
+             List.iter
+               (fun bi1_ ->
+                 try
+                   let nm1_ = tree1#find_name_for_bid bi1_ in
+                   DEBUG_MSG "bi1_=%a nm1_=\"%s\"" BID.ps bi1_ nm1_;
+                   cenv#add_rename_pat (nm1_, nm2)
+                 with
+                   _ -> ()
+               ) (tree1#find_mapped_bids bi1);
+             List.iter
+               (fun bi2_ ->
+                 try
+                   let nm2_ = tree2#find_name_for_bid bi2_ in
+                   DEBUG_MSG "bi2_=%a nm2_=\"%s\"" BID.ps bi2_ nm2_;
+                   cenv#add_rename_pat (nm1, nm2_)
+                 with
+                   _ -> ()
+               ) (tree2#find_mapped_bids bi2)
+           end
+          with _ -> ()
+        end;
+        not (Hashtbl.mem loser_tbl (bi1, bi2)) && no_conflicts1 && no_conflicts2
       ) (Xlist.union !selected_renames1 !selected_renames2)
   in
 
@@ -837,18 +1058,172 @@ let adjust_renames
     List.split weak_selected_renames
   in
 
+  (* select free renames *)
+  let selected_free_renames1 = ref [] in
+  let selected_free_renames2 = ref [] in
+
+  (*let weak_selected_free_renames1 = ref [] in
+  let weak_selected_free_renames2 = ref [] in*)
+
+  let conflicting_nms1 = ref [] in
+  let conflicting_nms2 = ref [] in
+
+  let free_loser_tbl = Hashtbl.create 0 in
+
+  let get_free_freq nm1 nm2 =
+    let freq = Hashtbl.find free_freq_tbl (nm1, nm2) in
+    freq
+  in
+
+  let sel_free_freq max bi1 bi2 =
+    try
+      let freq = get_free_freq bi1 bi2 in
+      if freq > max then
+        freq
+      else
+        max
+    with
+      Not_found -> assert false
+  in
+
+  Hashtbl.iter
+    (fun nm1 nms ->
+      DEBUG_MSG "* selecting from: %s -> [%s]" nm1 (Xlist.to_string (fun x -> x) ";" nms);
+      let max_freq = List.fold_left (fun max nm2 -> sel_free_freq max nm1 nm2) 0 nms in
+      DEBUG_MSG "  max freq.: %d" max_freq;
+      let selected = List.filter (fun nm2 -> max_freq = get_free_freq nm1 nm2) nms in
+      DEBUG_MSG "  selected: %s -> [%s]" nm1 (Xlist.to_string (fun x -> x) ";" selected);
+      match selected with
+      | []   -> assert false
+      | [nm2] -> begin
+          if handle_weak || max_freq > 1 then
+            selected_free_renames1 := (nm1, nm2) :: !selected_free_renames1;
+          (*if handle_weak && max_freq = 1 then
+            weak_selected_free_renames1 := (nm1, nm2) :: !weak_selected_free_renames1;*)
+          List.iter
+            (fun nm ->
+              if nm != nm2 then
+                Hashtbl.add free_loser_tbl (nm1, nm) true
+            ) nms
+      end
+      | _ -> conflicting_nms2 := nms @ !conflicting_nms2
+    ) _free_rename_tbl1;
+
+  Hashtbl.iter
+    (fun nm2 nms ->
+      DEBUG_MSG "* selecting from: [%s] <- %s" (Xlist.to_string (fun x -> x) ";" nms) nm2;
+      let max_freq = List.fold_left (fun max nm1 -> sel_free_freq max nm1 nm2) 0 nms in
+      DEBUG_MSG "  max freq.: %d" max_freq;
+      let selected = List.filter (fun nm1 -> max_freq = get_free_freq nm1 nm2) nms in
+      DEBUG_MSG "  selected: [%s] <- %s" (Xlist.to_string (fun x -> x) ";" selected) nm2;
+      match selected with
+      | []   -> assert false
+      | [nm1] -> begin
+          if max_freq > 1 || handle_weak then
+            selected_free_renames2 := (nm1, nm2) :: !selected_free_renames2;
+          (*if max_freq = 1 && handle_weak then
+            weak_selected_free_renames2 := (nm1, nm2) :: !weak_selected_free_renames2;*)
+          List.iter
+            (fun nm ->
+              if nm != nm1 then
+                Hashtbl.add free_loser_tbl (nm, nm2) true
+            ) nms
+      end
+      | _ -> conflicting_nms1 := nms @ !conflicting_nms1
+    ) _free_rename_tbl2;
+
+  DEBUG_MSG "  conflicting_nms1: %s" (Xlist.to_string (fun x -> x) ";" !conflicting_nms1);
+  DEBUG_MSG "  conflicting_nms2: %s" (Xlist.to_string (fun x -> x) ";" !conflicting_nms2);
+
+  let selected_free_renames =
+    List.filter
+      (fun ((nm1, nm2) as nmp) ->
+        let no_conflicts1 = not (List.mem nm1 !conflicting_nms1) in
+        let no_conflicts2 = not (List.mem nm2 !conflicting_nms2) in
+        begin
+         try
+           let freq = Hashtbl.find free_freq_tbl nmp in
+           DEBUG_MSG "\"%s\"-\"%s\" %d" nm1 nm2 freq;
+           if (freq > 1 || nm1 = nm2) && (no_conflicts1 || no_conflicts2) then
+             cenv#add_rename_pat nmp
+          with _ -> ()
+        end;
+        not (Hashtbl.mem free_loser_tbl nmp) && no_conflicts1 && no_conflicts2
+      ) (Xlist.union !selected_free_renames1 !selected_free_renames2)
+  in
+
+  (*let weak_selected_free_renames =
+    Xlist.intersection selected_free_renames
+      (Xlist.union !weak_selected_free_renames1 !weak_selected_free_renames2)
+  in*)
+
   BEGIN_DEBUG
     DEBUG_MSG "* selected use renames:";
     List.iter
       (fun (bi1, bi2) ->
         DEBUG_MSG " %a -> %a" BID.ps bi1 BID.ps bi2
       ) selected_renames;
-    DEBUG_MSG "* weak selected use renames:";
+    DEBUG_MSG "* weakly selected use renames:";
     List.iter
       (fun (bi1, bi2) ->
         DEBUG_MSG " %a -> %a" BID.ps bi1 BID.ps bi2
-      ) weak_selected_renames
+      ) weak_selected_renames;
+    DEBUG_MSG "* selected free renames:";
+    List.iter
+      (fun (nm1, nm2) ->
+        DEBUG_MSG " \"%s\" -> \"%s\"" nm1 nm2
+      ) selected_free_renames;
+    (*DEBUG_MSG "* weakly selected free renames:";
+    List.iter
+      (fun (nm1, nm2) ->
+        DEBUG_MSG " \"%s\" -> \"%s\"" nm1 nm2
+      ) weak_selected_free_renames*)
   END_DEBUG;
+
+  begin
+    DEBUG_MSG "checking rename patterns...";
+    let rename_pat_tbl = Hashtbl.create 0 in
+    List.iter
+      (fun l ->
+        List.iter
+          (fun bp ->
+            try
+              let freq, nm1, nm2 = Hashtbl.find freq_tbl bp in
+              let nmp = nm1, nm2 in
+              try
+                let c = Hashtbl.find rename_pat_tbl nmp in
+                Hashtbl.replace rename_pat_tbl nmp (c+freq)
+              with
+                Not_found -> Hashtbl.add rename_pat_tbl nmp freq
+            with
+              _ -> ()
+          ) l
+      ) [selected_renames(*; weak_selected_renames*)];
+    List.iter
+      (fun l ->
+        List.iter
+          (fun nmp ->
+            try
+              let freq = Hashtbl.find free_freq_tbl nmp in
+              try
+                let c = Hashtbl.find rename_pat_tbl nmp in
+                Hashtbl.replace rename_pat_tbl nmp (c+freq)
+              with
+                Not_found -> Hashtbl.add rename_pat_tbl nmp freq
+            with
+              _ -> ()
+          ) l
+      ) [selected_free_renames(*; weak_selected_free_renames*)];
+    Hashtbl.iter
+      (fun ((nm1, nm2) as nmp) c ->
+        DEBUG_MSG "\"%s\"->\"%s\" %d" nm1 nm2 c;
+        if c > 1 then
+          cenv#add_rename_pat nmp
+      ) rename_pat_tbl;
+    DEBUG_MSG "done."
+  end;
+
+  cenv#finalize_rename_pat();
 
   let rename_tbl1 = Hashtbl.create 0 in
   let rename_tbl2 = Hashtbl.create 0 in
@@ -923,7 +1298,7 @@ let adjust_renames
     let pnd1 = nd1#initial_parent in
     let pnd2 = nd2#initial_parent in
     let context_cond = try uidmapping#find pnd1#uid = pnd2#uid with _ -> false in
-    DEBUG_MSG "%a-%a context_cond=%B" UID.ps nd1#uid UID.ps nd2#uid context_cond;
+    DEBUG_MSG "%a-%a context_cond=%B" nups nd1 nups nd2 context_cond;
     (*let is_stable = not (edits#mem_mov12 nd1#uid nd2#uid) in
     DEBUG_MSG "%a-%a is_stable=%B" UID.ps nd1#uid UID.ps nd2#uid is_stable;*)
 
@@ -998,7 +1373,7 @@ let adjust_renames
       | None, None ->
           false, false
     in
-    DEBUG_MSG "b=%B by_non_renames=%B" b by_non_renames;
+    DEBUG_MSG "%a-%a: b=%B by_non_renames=%B" nups nd1 nups nd2 b by_non_renames;
     b, by_non_renames
   in (* is_incompatible *)
 
@@ -1041,7 +1416,8 @@ let adjust_renames
           let nd2 = Info.get_node info2 in
           let incompat, by_non_renames = is_incompatible nd1 nd2 in
           if incompat then begin
-            DEBUG_MSG "incompatible relabel%s: %s" (if by_non_renames then "[by non-renames]" else "") (Editop.to_string rel);
+            DEBUG_MSG "incompatible relabel%s: %s"
+              (if by_non_renames then "[by non-renames]" else "") (Editop.to_string rel);
             let is_good = is_good_relabel nd1 nd2 in
             if is_good then begin
               if
@@ -1131,16 +1507,20 @@ let adjust_renames
       | Insert(_, _, info, ex) -> check check_tbl2 info
       | _ -> assert false
     );
+  edits#iter_relabels
+    (function
+      | Relabel(_, (_, info1, _), (_, info2, _)) -> begin
+          check check_tbl1 info1;
+          check check_tbl2 info2
+      end
+      | _ -> assert false
+    );
 
   BEGIN_DEBUG
     DEBUG_MSG "cands pair table:";
-    let cs2s cs =
-      Xlist.to_string (fun n -> Printf.sprintf "%a(%a)" UID.ps n#uid GI.ps n#gindex) ";" cs
-    in
     Hashtbl.iter
       (fun (bid1, bid2) (cands1, cands2) ->
-        DEBUG_MSG "  (%a,%a) [%s]-[%s]" BID.ps bid1 BID.ps bid2
-          (cs2s cands1) (cs2s cands2)
+        DEBUG_MSG "  (%a,%a) [%a]-[%a]" BID.ps bid1 BID.ps bid2 nugsps cands1 nugsps cands2
       ) cands_pair_tbl
   END_DEBUG;
 
@@ -1191,7 +1571,16 @@ let adjust_renames
       (List.fast_sort
          (fun (n1, _) (n2, _) -> Stdlib.compare n1#gindex n2#gindex)
          !compatible_pairs);
+     Hashtbl.iter (fun b1 b2 -> DEBUG_MSG "rename_tbl1: %a->%a" BID.ps b1 BID.ps b2) rename_tbl1;
+     Hashtbl.iter (fun b2 b1 -> DEBUG_MSG "rename_tbl2: %a<-%a" BID.ps b1 BID.ps b2) rename_tbl2
   END_DEBUG;
+
+  (*DEBUG_MSG "* generating compatible edits...";
+  let nrels =
+    generate_compatible_edits options cenv tree1 tree2 uidmapping edits
+      !compatible_pairs is_incompatible
+  in
+  DEBUG_MSG "* %d relabels generated." nrels;*)
 
   DEBUG_MSG "* locking relabels...";
 
@@ -1203,22 +1592,81 @@ let adjust_renames
 
           DEBUG_MSG "relabel %a-%a (%a-%a)" UID.ps u1 UID.ps u2 GI.ps nd1#gindex GI.ps nd2#gindex;
 
-          if (is_use nd1 && is_use nd2) || (is_def nd1 && is_def nd2) then begin
+          let is_final () =
+            let b =
+              (try
+                match cenv#multiple_node_matches#find nd1#data#_label with
+                | [_], [_] -> true
+                | ns11, ns12 -> DEBUG_MSG "ns11=[%a] ns12=[%a]" nsps ns11 nsps ns12; false
+              with
+                _ -> true) &&
+              (try
+                match cenv#multiple_node_matches#find nd2#data#_label with
+                | [_], [_] -> true
+                | ns21, ns22 -> DEBUG_MSG "ns21=[%a] ns22=[%a]" nsps ns21 nsps ns22; false
+              with
+                _ -> true)
+            in
+            DEBUG_MSG "%B" b;
+            b
+          in
+
+          let use_flag = is_use nd1 && is_use nd2 in
+          let def_flag = is_def nd1 && is_def nd2 in
+
+          DEBUG_MSG "use_flag=%B def_flag=%B" use_flag def_flag;
+
+          if use_flag || def_flag then begin
             let bid1 = get_bid nd1 in
             let bid2 = get_bid nd2 in
-
-            DEBUG_MSG "  %a -> %a" BID.ps bid1 BID.ps bid2;
+            DEBUG_MSG "%s vs %s" (B.to_string nd1#data#binding) (B.to_string nd2#data#binding);
             try
               let bid1' = Hashtbl.find rename_tbl1 bid1 in
-              let lock =
-                bid1' = bid2 &&
-                (match Hashtbl.find cands_pair_tbl (bid1, bid2) with
-                | [x], [y] -> true
-                | _ -> false
-                )
+              let lock, final =
+                if bid1' = bid2 then
+                  match Hashtbl.find cands_pair_tbl (bid1, bid2) with
+                  | [], _ | _, [] -> false, false
+                  | [n1], [n2] -> begin
+                      DEBUG_MSG "nds1=[%a] nds2=[%a]" nups n1 nups n2;
+                      if
+                        use_flag && is_use n1 && is_use n2 ||
+                        def_flag && is_def n1 && is_def n2
+                      then
+                        true, is_final()
+                      else
+                        false, false
+                  end
+                  | nds1, nds2 -> begin
+                      DEBUG_MSG "nds1=[%a] nds2=[%a]" nsps nds1 nsps nds2;
+                      let b =
+                        is_final() &&
+                        if use_flag then
+                          let uses1 = List.filter is_use nds1 in
+                          let uses2 = List.filter is_use nds2 in
+                          DEBUG_MSG "uses1=[%a] uses2=[%a]" nsps uses1 nsps uses2;
+                          match uses1, uses2 with
+                          | [_], [_] -> true
+                          | _ -> false
+                        else if def_flag then
+                          let defs1 = List.filter is_def nds1 in
+                          let defs2 = List.filter is_def nds2 in
+                          DEBUG_MSG "defs1=[%a] defs2=[%a]" nsps defs1 nsps defs2;
+                          match defs1, defs2 with
+                          | [_], [_] -> true
+                          | _ -> false
+                        else
+                          false
+                      in
+                      b, b
+                  end
+                else
+                  false, false
               in
+              DEBUG_MSG "lock=%B final=%B" lock final;
               if lock then begin
-                lock_mapping tree1 tree2 uidmapping nd1 nd2
+                lock_mapping tree1 tree2 uidmapping nd1 nd2;
+                if final then
+                  uidmapping#finalize_mapping nd1#uid nd2#uid
               end
             with
               Not_found -> ()
@@ -1229,12 +1677,11 @@ let adjust_renames
     );
 
   DEBUG_MSG "* generating compatible edits...";
-
   let nrels =
-    generate_compatible_edits options cenv tree1 tree2 uidmapping edits !compatible_pairs is_incompatible
+    generate_compatible_edits options cenv tree1 tree2 uidmapping edits
+      !compatible_pairs is_incompatible
   in
   DEBUG_MSG "* %d relabels generated." nrels;
-
 (*
   let rename_tbl1 = Hashtbl.create 0 in
   let rename_tbl2 = Hashtbl.create 0 in
@@ -1261,23 +1708,35 @@ let adjust_renames
       let bi1_opt = try Some (get_bid n1) with Not_found -> None in
       let bi2_opt = try Some (get_bid n2) with Not_found -> None in
       match bi1_opt, bi2_opt with
-      | Some bi1, Some bi2 ->
+      | Some bi1, Some bi2 -> begin
           DEBUG_MSG "bi1=%a bi2=%a" BID.ps bi1 BID.ps bi2;
-          if Hashtbl.mem rename_tbl1 bi1 then
-            Hashtbl.find rename_tbl1 bi1 = bi2
-          else if strict then
-            false
+          if Hashtbl.mem rename_tbl1 bi1 then begin
+            let bi1' = Hashtbl.find rename_tbl1 bi1 in
+            DEBUG_MSG "%a->%a" BID.ps bi1 BID.ps bi1';
+            bi1' = bi2 ||
+            (not strict || not (Hashtbl.mem rename_tbl2 bi2)) && is_possible_rename n1 n2 bi1 bi2
+          end
+          else if Hashtbl.mem rename_tbl2 bi2 then begin
+            let bi2' = Hashtbl.find rename_tbl2 bi2 in
+            DEBUG_MSG "%a<-%a" BID.ps bi2' BID.ps bi2;
+            bi2' = bi1 ||
+            (not strict || not (Hashtbl.mem rename_tbl1 bi1)) && is_possible_rename n1 n2 bi1 bi2
+          end
           else
             is_possible_rename n1 n2 bi1 bi2
-
-      | Some bi1, None ->
+      end
+      | Some bi1, None -> begin
           DEBUG_MSG "bi1=%a" BID.ps bi1;
-          (*not strict || !!!NG!!!*)not (non_rename non_rename_bid_tbl1 bi1) && not (Hashtbl.mem rename_tbl1 bi1)
-
-      | None, Some bi2 ->
+          (*not strict || !!!NG!!!*)
+          not (non_rename non_rename_bid_tbl1 bi1) && not (Hashtbl.mem rename_tbl1 bi1) ||
+          is_possible_rename n1 n2 bi1 BID.dummy
+      end
+      | None, Some bi2 -> begin
           DEBUG_MSG "bi2=%a" BID.ps bi2;
-          (*not strict || !!!NG!!!*)not (non_rename non_rename_bid_tbl2 bi2) && not (Hashtbl.mem rename_tbl2 bi2)
-
+          (*not strict || !!!NG!!!*)
+          not (non_rename non_rename_bid_tbl2 bi2) && not (Hashtbl.mem rename_tbl2 bi2) ||
+          is_possible_rename n1 n2 BID.dummy bi2
+      end
       | None, None -> true
     );
 

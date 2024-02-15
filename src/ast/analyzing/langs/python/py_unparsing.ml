@@ -54,7 +54,7 @@ let getlab nd =
   | Some o -> (Obj.obj o : L.t)
   | None -> (Obj.obj nd#data#_label : L.t)
 
-let get_nth_children = Tree._get_logical_nth_child
+let get_nth_children = Sourcecode._get_logical_nth_child
 
 let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   let pr_node_ = pr_node ~fail_on_error in
@@ -194,15 +194,18 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   end
   | L.SimpleStatement sstmt -> begin
       match sstmt with
-      | L.SimpleStatement.Expr       -> pr_comma_children()
-      | L.SimpleStatement.Assign aop ->
-          pr_nth_children ~sep:pr_comma 0; pr_aop aop; pr_nth_children ~sep:pr_comma 1
-      | L.SimpleStatement.Print      -> pr_string "print"; pr_spc() ; pr_comma_children()
-      | L.SimpleStatement.Del        -> pr_string "del "; pr_comma_children()
-      | L.SimpleStatement.Pass       -> pr_string "pass"
-      | L.SimpleStatement.Break      -> pr_string "break"
-      | L.SimpleStatement.Continue   -> pr_string "continue"
-      | L.SimpleStatement.Return     -> pr_string "return"; pr_comma_children ~head:pad1 ()
+      | L.SimpleStatement.Expr -> pr_comma_children()
+      | L.SimpleStatement.Assign aop -> begin
+          pr_nth_children ~sep:pr_comma 0;
+          pr_nth_children ~head:pr_colon 1;
+          pr_nth_children ~head:(fun () -> pr_aop aop) ~sep:pr_comma 2
+      end
+      | L.SimpleStatement.Print    -> pr_string "print"; pr_spc() ; pr_comma_children()
+      | L.SimpleStatement.Del      -> pr_string "del "; pr_comma_children()
+      | L.SimpleStatement.Pass     -> pr_string "pass"
+      | L.SimpleStatement.Break    -> pr_string "break"
+      | L.SimpleStatement.Continue -> pr_string "continue"
+      | L.SimpleStatement.Return   -> pr_string "return"; pr_comma_children ~head:pad1 ()
       | L.SimpleStatement.Raise when nchildren = 0 -> pr_string "raise";
       | L.SimpleStatement.Raise  -> pr_string "raise "; pr_comma_children()
       | L.SimpleStatement.Yield  -> pr_string "yield "; pr_comma_children()
@@ -220,10 +223,6 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
           pr_nth_children ~head:pr_comma 2
       end
       | L.SimpleStatement.Assert -> pr_string "assert "; pr_comma_children()
-      | L.SimpleStatement.AnnAssign -> begin
-          pr_nth_children ~sep:pr_comma 0; pr_colon(); pr_nth_children 1;
-          pr_nth_children ~head:pad1 ~sep:pr_comma 2
-      end
       | L.SimpleStatement.RaiseFrom ->
           pr_string "raise "; pr_nth_child 0; pr_string " from "; pr_nth_child 1
       | L.SimpleStatement.Nonlocal -> pr_string "nonlocal "; pr_comma_children()
@@ -264,7 +263,7 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
           pr_string "}"
       end
       | L.Primary.StringConv   -> pr_string "`"; pr_comma_children(); pr_string "`"
-      | L.Primary.AttrRef      -> pr_nth_child 0; pr_dot(); pr_nth_child 1
+      | L.Primary.AttrRef _    -> pr_nth_child 0; pr_dot(); pr_nth_child 1
       | L.Primary.Subscription -> pr_nth_child 0; pr_string "["; pr_nth_children 1; pr_string "]"
       | L.Primary.Slicing      -> pr_nth_child 0; pr_string "["; pr_nth_children 1; pr_string "]"
       | L.Primary.Call _       -> pr_nth_child 0; pr_string "("; pr_nth_children 1; pr_string ")"
@@ -318,6 +317,7 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   | L.KeyDatum              -> pr_nth_child 0; pr_colon(); pr_nth_child 1
   | L.SliceItem             -> pr_nth_children 0; pr_colon(); pr_nth_children 1; pr_nth_children 2
   | L.Stride                -> pr_colon(); pr_nth_children 0
+  | L.Annotation            -> pr_colon(); pr_nth_children 0
   | L.Ellipsis              -> pr_string "..."
   | L.Arguments tid         -> pr_comma_children()
   | L.NamedArguments n      -> pr_comma_children()
@@ -341,12 +341,14 @@ let rec pr_node ?(fail_on_error=true) ?(level=0) node =
   | L.Inheritance           -> pr_string "("; pr_comma_children(); pr_string ")"
   | L.Chevron               -> pr_string ">>"; pr_nth_child 0
   | L.Yield                 -> pr_string "yield "; pr_comma_children()
-  | L.ParamDef              -> pr_nth_child 0; pr_eq(); pr_nth_children 1
+  | L.ParamDef _            -> pr_nth_child 0; pr_eq(); pr_nth_children 1
   | L.ListParamDef          -> pr_comma_children()
-  | L.TypedParamDef         -> pr_nth_child 0; pr_colon(); pr_nth_child 1
+  | L.TypedParamDef _       -> pr_nth_child 0; pr_colon(); pr_nth_child 1
   | L.WithItem              -> pr_nth_child 0; pr_nth_children ~head:(fun () -> pr_string " as ") 1
   | L.ReturnAnnotation      -> pr_string "->"; pr_nth_child 0
   | L.Dots i                -> pr_string (String.make i '.')
+
+  | L.Comment c             -> pr_string c
 
 
 let unparse ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) t =

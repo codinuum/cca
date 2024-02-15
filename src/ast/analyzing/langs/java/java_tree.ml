@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -145,6 +145,8 @@ let vdid_to_id vdid =
   with
     Not_found -> vdid
 
+let strip_vdid (id, d) = vdid_to_id id, d
+
 let set_control_flow body =
 
   let find_target env x = List.assoc x env in
@@ -219,7 +221,7 @@ let set_control_flow body =
               ) (children.(1))#initial_children
         end
         | L.Statement.For -> begin
-            let c3 = (Tree.get_logical_nth_child nd 3).(0) in
+            let c3 = (Sourcecode.get_logical_nth_child nd 3).(0) in
             add_succ1 c3;
             set_succ label_env ((Some c3, c3::nexts)::loop_env) nexts c3
         end
@@ -291,7 +293,7 @@ let set_control_flow body =
         handle_block children nchildren
     end
     | L.SwitchBlockStatementGroup -> begin
-        let children = Tree.get_logical_nth_child nd 1 in
+        let children = Sourcecode.get_logical_nth_child nd 1 in
         let nchildren = Array.length children in
         handle_block children nchildren
     end
@@ -380,7 +382,21 @@ class visitor bid_gen tree = object (self)
         let binder_nd = stack#lookup name in
         let bid = Binding.get_bid binder_nd#data#binding in
         DEBUG_MSG "    USE: %s (bid=%a) %s" name BID.ps bid nd#to_string;
-        nd#data#set_binding (Binding.make_use bid)
+        nd#data#set_binding (Binding.make_use bid);
+        if nd#initial_pos = 1 then begin
+          try
+            let pnd = nd#initial_parent in
+            if L.is_assignment (getlab pnd) then begin
+              let lhs = pnd#initial_children.(0) in
+              let lhs_name = lhs#data#get_name in
+              let lhs_bid = Binding.get_bid lhs#data#binding in
+              DEBUG_MSG "LHS: %s %a<-%a" lhs_name BID.ps lhs_bid BID.ps bid;
+              tree#add_to_bid_map bid lhs_bid;
+              tree#add_to_bid_tbl bid name;
+              tree#add_to_bid_tbl lhs_bid lhs_name
+            end
+          with _ -> ()
+        end
       with
         Not_found -> ()
     end;
@@ -764,7 +780,7 @@ class translator options =
 
 
   method param_to_tystr ?(resolve=true) param =
-    (if param.Ast.fp_variable_arity then "[" else "")^
+    (*(if param.Ast.fp_variable_arity then "[" else "")^*)
     (P.type_to_short_string ~resolve
        (snd param.Ast.fp_variable_declarator_id) param.Ast.fp_type)
 
@@ -792,7 +808,7 @@ class translator options =
         set_loc nd param.Ast.fp_loc;
         nd
     | _ -> begin
-        let name, dims = param.Ast.fp_variable_declarator_id in
+        let (_, name), dims = param.Ast.fp_variable_declarator_id in
         let mods = param.Ast.fp_modifiers in
         let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
         let dims_have_annot = Ast.annot_exists dims in
@@ -819,7 +835,7 @@ class translator options =
     end
 
   method of_for_header param =
-    let name, dims = param.Ast.fp_variable_declarator_id in
+    let (_, name), dims = param.Ast.fp_variable_declarator_id in
     let mods = param.Ast.fp_modifiers in
     let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
     let ordinal_tbl_opt =
@@ -1049,11 +1065,13 @@ class translator options =
       else
         None*)
     in
+    let id_loc = conv_loc header.Ast.mh_name_loc in
     let nd =
       self#mknode
         ~annot:(L.make_annotation msig)
         ~orig_lab_opt
         ~ordinal_tbl_opt
+        ~id_loc
         (L.Method(ident, msig)) children
     in
     let loc =
@@ -1114,21 +1132,27 @@ class translator options =
 
   method of_variable_declarator vd =
     let loc = conv_loc vd.Ast.vd_loc in
-    let name, dims = vd.Ast.vd_variable_declarator_id in
+    let (iloc, name), dims = vd.Ast.vd_variable_declarator_id in
     let children =
       match vd.Ast.vd_variable_initializer with
       | None -> []
       | Some init -> [self#of_variable_initializer init]
     in
     let ordinal_tbl_opt = Some (new ordinal_tbl [List.length children]) in
+    let id_loc =
+      if iloc == Ast.Loc.dummy then
+        Loc.dummy
+      else
+        conv_loc iloc
+    in
     let nd =
-      self#mknode ~ordinal_tbl_opt
+      self#mknode ~ordinal_tbl_opt ~id_loc
         (L.VariableDeclarator(name, List.length dims, !(vd.Ast.vd_is_local))) children
     in
     nd#data#set_loc loc;
     nd
 
-  method vdids_to_str vdids = String.concat ";" (List.map (fun (id, _) -> id) vdids)
+  method vdids_to_str vdids = String.concat ";" (List.map (fun ((_, id), _) -> id) vdids)
 
   method of_local_variable_declaration ?(remove_final=false) ~is_stmt lvd =
     let mods = lvd.Ast.lvd_modifiers in
@@ -1138,13 +1162,15 @@ class translator options =
       let _mklvdecl ghost vd vdnd =
         let ty_leaf = self#of_javatype [] lvd.Ast.lvd_type in
         let vdid = vd.Ast.vd_variable_declarator_id in
-        let vdid_id, vdid_dims = vdid in
+        let (_, vdid_id), vdid_dims = vdid in
         let vdid_ = vdid_id, List.length vdid_dims in
+        let orig_lab_opt = Some (L.LocalVariableDeclaration(is_stmt, [strip_vdid vdid_])) in
         let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdid_id) mods in
         let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; 1]) in
         let children = mod_nodes @ [ty_leaf; vdnd] in
         let nd =
-          self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, [vdid_])) children
+          self#mknode ~orig_lab_opt ~ordinal_tbl_opt
+            (L.LocalVariableDeclaration(is_stmt, [vdid_])) children
         in
         if ghost then begin
           nd#data#set_loc Loc.ghost;
@@ -1172,16 +1198,17 @@ class translator options =
       let vdids_ =
         List.map
           (fun vd ->
-            let vdid_id, vdid_dims = vd.Ast.vd_variable_declarator_id in
+            let (_, vdid_id), vdid_dims = vd.Ast.vd_variable_declarator_id in
             vdid_id, List.length vdid_dims
           ) vdtors
       in
       let vdids_str = self#vdids_to_str vdids in
+      let orig_lab_opt = Some (L.LocalVariableDeclaration (is_stmt, List.map strip_vdid vdids_)) in
       let mod_nodes = self#of_modifiers_opt ~remove_final (L.Klocal vdids_str) mods in
       let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors]) in
       let ty_leaf = self#of_javatype [] lvd.Ast.lvd_type in
       let nd =
-        self#mknode ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, vdids_))
+        self#mknode ~orig_lab_opt ~ordinal_tbl_opt (L.LocalVariableDeclaration(is_stmt, vdids_))
           (mod_nodes @
            [ty_leaf] @
            (List.map self#of_variable_declarator vdtors))
@@ -1935,7 +1962,7 @@ class translator options =
     nd
 
   method of_catch_parameter param =
-    let name, dims = param.Ast.cfp_variable_declarator_id in
+    let (_, name), dims = param.Ast.cfp_variable_declarator_id in
     let mods = param.Ast.cfp_modifiers in
     let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
     let type_nodes = List.map (self#of_javatype []) param.Ast.cfp_type_list in
@@ -2360,12 +2387,16 @@ class translator options =
       let _mkfdecl ghost vd vdnd =
         let ty_leaf = self#of_javatype [] fd.Ast.fd_type in
         let vdid = vd.Ast.vd_variable_declarator_id in
-        let vdid_id, vdid_dims = vdid in
+        let (_, vdid_id), vdid_dims = vdid in
         let vdid_ = vdid_id, List.length vdid_dims in
+        let orig_lab_opt = Some (L.FieldDeclaration [strip_vdid vdid_]) in
         let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_id) mods in
         let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; 1]) in
         let children = mod_nodes @ [ty_leaf; vdnd] in
-        let nd = self#mknode ~ordinal_tbl_opt (L.FieldDeclaration [vdid_]) children in
+        let id_loc = Loc.ghost in
+        let nd =
+          self#mknode ~orig_lab_opt ~ordinal_tbl_opt ~id_loc (L.FieldDeclaration [vdid_]) children
+        in
         if ghost then begin
           nd#data#set_loc Loc.ghost;
           List.iter set_ghost_rec mod_nodes;
@@ -2392,16 +2423,18 @@ class translator options =
       let vdids_ =
         List.map
           (fun vd ->
-            let vdid_id, vdid_dims = vd.Ast.vd_variable_declarator_id in
+            let (_, vdid_id), vdid_dims = vd.Ast.vd_variable_declarator_id in
             vdid_id, List.length vdid_dims
           ) vdtors
       in
       let vdid_str = self#vdids_to_str vdids in
+      let orig_lab_opt = Some (L.FieldDeclaration (List.map strip_vdid vdids_)) in
       let mod_nodes = self#of_modifiers_opt ~interface_field (L.Kfield vdid_str) mods in
       let ordinal_tbl_opt = Some (new ordinal_tbl [List.length mod_nodes; 1; List.length vdtors]) in
       let ty_leaf = self#of_javatype [] fd.Ast.fd_type in
+      let id_loc = Loc.ghost in
       let nd =
-        self#mknode ~ordinal_tbl_opt (L.FieldDeclaration vdids_)
+        self#mknode ~orig_lab_opt ~ordinal_tbl_opt ~id_loc (L.FieldDeclaration vdids_)
           (mod_nodes @
            [ty_leaf] @
            (List.map self#of_variable_declarator vdtors))
@@ -2975,9 +3008,10 @@ class translator options =
            ]
           in
           let ident = h.Ast.ch_identifier in
+          let id_loc = conv_loc h.Ast.ch_identifier_loc in
           let specifier_node = self#of_class_declaration_head ~interface (L.Kclass ident) otbl h in
           let children = specifier_node @ [self#of_class_body ident body] in
-          self#mknode (L.Class ident) children
+          self#mknode ~id_loc (L.Class ident) children
 
       | Ast.CDenum(h, body) ->
           let otbl =
@@ -2987,6 +3021,7 @@ class translator options =
            ]
           in
           let ident = h.Ast.ch_identifier in
+          let id_loc = conv_loc h.Ast.ch_identifier_loc in
           let body_node = self#of_enum_body ident body in
           let enum =
             Array.for_all
@@ -3008,7 +3043,7 @@ class translator options =
             self#of_class_declaration_head ~interface ~enum ~nested_enum (L.Kenum ident) otbl h
           in
           let children = specifier_node @ [body_node] in
-          self#mknode (L.Enum ident) children
+          self#mknode ~id_loc (L.Enum ident) children
 
       | Ast.CDrecord(h, body) ->
           let otbl =
@@ -3019,9 +3054,10 @@ class translator options =
            ]
           in
           let ident = h.Ast.rh_identifier in
+          let id_loc = conv_loc h.Ast.rh_identifier_loc in
           let specifier_node = self#of_record_declaration_head ~interface (L.Krecord ident) otbl h in
           let children = specifier_node @ [self#of_record_body ident body] in
-          self#mknode (L.Record ident) children
+          self#mknode ~id_loc (L.Record ident) children
 
       | Ast.CDaspect(h, body) ->
           let otbl =
@@ -3031,9 +3067,10 @@ class translator options =
            ]
           in
           let ident = h.Ast.ch_identifier in
+          let id_loc = conv_loc h.Ast.ch_identifier_loc in
           let specifier_node = self#of_class_declaration_head ~interface (L.Kaspect ident) otbl h in
           let children = specifier_node @ [self#of_aspect_body ident body] in
-          self#mknode (L.Aspect ident) children
+          self#mknode ~id_loc (L.Aspect ident) children
     in
     set_loc nd cd.Ast.cd_loc;
     nd
@@ -3294,8 +3331,8 @@ let of_compilation_unit options cu =
   DEBUG_MSG "T:\n%s" tree#to_string;
   tree#set_true_parent_tbl trans#true_parent_tbl;
   tree#set_true_children_tbl trans#true_children_tbl;
-  tree#collapse;
   trans#set_bindings tree;
+  tree#collapse;
   tree
 
 let of_ast options ast =

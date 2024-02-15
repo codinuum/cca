@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ let sprintf = Printf.sprintf
 
 type node_t = Spec.node_t
 
+let nups = Misc.nups
+
 
 let in_subtree_mutually tree nd1 nd2 =
     let gi1, gi2 = nd1#gindex, nd2#gindex in
@@ -36,15 +38,20 @@ let in_subtree_mutually tree nd1 nd2 =
 
 
 let is_crossing nd1 nd2 n1 n2 =
-  (nd1#gindex - n1#gindex) * (nd2#gindex - n2#gindex) < 0
-
+  let b = (nd1#gindex - n1#gindex) * (nd2#gindex - n2#gindex) < 0 in
+  DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd1 nups nd2 nups n1 nups n2 b;
+  b
 
 
 let _is_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
   let in_subtree_mutually1 = in_subtree_mutually tree1 nd11 nd21 in
   let in_subtree_mutually2 = in_subtree_mutually tree2 nd12 nd22 in
-   (in_subtree_mutually1 && not in_subtree_mutually2) ||
-   (not in_subtree_mutually1 && in_subtree_mutually2)
+  let b =
+    (in_subtree_mutually1 && not in_subtree_mutually2) ||
+    (not in_subtree_mutually1 && in_subtree_mutually2)
+  in
+  DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd11 nups nd12 nups nd21 nups nd22 b;
+  b
 
 
 let is_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
@@ -412,9 +419,29 @@ class ['node_t] c cenv = object (self : 'self)
 
   val mutable locked_mappings = (Xset.create 0 : (UID.t * UID.t) Xset.t)
 
-  method lock_mapping u1 u2 = Xset.add locked_mappings (u1, u2)
-  method is_locked_mapping u1 u2 = Xset.mem locked_mappings (u1, u2)
+  method lock_mapping u1 u2 =
+    DEBUG_MSG "%a-%a" UID.ps u1 UID.ps u2;
+    Xset.add locked_mappings (u1, u2)
 
+  method is_locked_mapping u1 u2 =
+    let b = Xset.mem locked_mappings (u1, u2) in
+    DEBUG_MSG "%a-%a -> %B" UID.ps u1 UID.ps u2 b;
+    b
+
+  val mutable final_mappings = (Xset.create 0 : (UID.t * UID.t) Xset.t)
+
+  method finalize_mapping u1 u2 =
+    DEBUG_MSG "%a-%a" UID.ps u1 UID.ps u2;
+    Xset.add final_mappings (u1, u2)
+
+  method is_final_mapping u1 u2 =
+    let b = Xset.mem final_mappings (u1, u2) in
+    DEBUG_MSG "%a-%a -> %B" UID.ps u1 UID.ps u2 b;
+    b
+
+  (*method show_locked_mappings () =
+    DEBUG_MSG "locked mappings:";
+    Xset.iter (fun (u1, u2) -> DEBUG_MSG "%a-%a" UID.ps u1 UID.ps u2) locked_mappings*)
 
   val mutable stable_pairs = (Hashtbl.create 0: (UID.t, UID.t) Hashtbl.t)
   method stable_pairs = stable_pairs

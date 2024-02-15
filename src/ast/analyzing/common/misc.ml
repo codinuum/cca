@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -349,6 +349,7 @@ let ngps () = node_to_g_string
 let nugps () = node_to_ug_string
 let nsps () = nodes_to_us_string
 let ngsps () = nodes_to_gs_string
+let nugsps () = nodes_to_ugs_string
 let usps () = us_to_string
 let gsps () = gs_to_string
 let locps () = node_to_loc_string
@@ -412,14 +413,13 @@ let rec get_p_descendants ?(moveon=fun x -> true) pred nd =
 let has_p_descendant ?(moveon=fun x -> true) pred nd =
   let rec _has_p_descendant ?(moveon=fun x -> true) pred nd =
     if moveon nd then
-      List.iter
+      Array.iter
         (fun n ->
           if pred n then
             raise Exit
           else
             _has_p_descendant ~moveon pred n
-        )
-        (Array.to_list nd#initial_children)
+        ) nd#initial_children
   in
   try
     _has_p_descendant ~moveon pred nd;

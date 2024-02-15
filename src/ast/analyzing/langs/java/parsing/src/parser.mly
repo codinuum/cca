@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -946,7 +946,7 @@ record_declaration_head0:
       let fqn = mkfqn_cls id in
       register_identifier_as_class fqn id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      m_opt, id
+      m_opt, i
     }
 ;
 record_declaration_head1:
@@ -967,13 +967,13 @@ record_declaration_head:
     { 
       let rh0, ts_opt = rh1 in
       end_typeparameter_scope ts_opt;
-      let ms_opt, id = rh0 in
+      let ms_opt, (id_loc, id) = rh0 in
       (*begin (* ??? *)
         match ms_opt with
         | Some ms when has_user_defined_annotation ms -> env#set_has_super()
         | _ -> ()
       end;*)
-      mkrh $startofs $endofs ms_opt id ts_opt h i_opt
+      mkrh $startofs $endofs ms_opt id id_loc ts_opt h i_opt
     }
 ;
 record_declaration:
@@ -1014,7 +1014,7 @@ class_declaration_head0:
       let fqn = mkfqn_cls id in
       register_identifier_as_class fqn id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      m_opt, id
+      m_opt, i
     }
 ;
 class_declaration_head1:
@@ -1025,13 +1025,13 @@ class_declaration_head:
     { 
       let ch0, ts_opt = ch1 in
       end_typeparameter_scope ts_opt;
-      let ms_opt, id = ch0 in
+      let ms_opt, (id_loc, id) = ch0 in
       (*begin (* ??? *)
         match ms_opt with
         | Some ms when has_user_defined_annotation ms -> env#set_has_super()
         | _ -> ()
       end;*)
-      mkch $startofs $endofs ms_opt id ts_opt s_opt i_opt p_opt
+      mkch $startofs $endofs ms_opt id id_loc ts_opt s_opt i_opt p_opt
     }
 ;
 class_declaration:
@@ -1135,7 +1135,7 @@ enum_declaration_head0:
         (fun () ->
           register_identifier_as_class (mkfqn_cls id) id;
           begin_scope ~kind:(FKclass(id, ref false)) ();
-          m_opt, id
+          m_opt, i
         )
         (fun () -> parse_error $symbolstartofs $endofs "'enum' declaration is available since JLS3")
     }
@@ -1143,8 +1143,8 @@ enum_declaration_head0:
 enum_declaration_head:
 | eh0=enum_declaration_head0 i_opt=interfaces_opt
     { 
-      let ms, id = eh0 in
-      mkch $startofs $endofs ms id None None i_opt None
+      let ms, (id_loc, id) = eh0 in
+      mkch $startofs $endofs ms id id_loc None None i_opt None
     }
 ;
 enum_declaration:
@@ -1226,7 +1226,7 @@ field_declaration:
       in
       List.iter 
         (fun vd ->
-          let id, _ = vd.vd_variable_declarator_id in
+          let (_, id), _ = vd.vd_variable_declarator_id in
           register_identifier_as_field ~is_static id t;
           (*env#register_identifier ~qualify:true id IAfield;*)
           vd.vd_is_local := false;
@@ -1242,14 +1242,14 @@ aspect_declaration_head0:
       let _, id = i in
       register_identifier_as_class (mkfqn_cls id) id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      m_opt, id
+      m_opt, i
     }
 ;
 aspect_declaration_head:
 | ah0=aspect_declaration_head0 s_opt=super_opt i_opt=interfaces_opt
     { 
-      let ms, id = ah0 in
-      mkch $startofs $endofs ms id None s_opt i_opt None
+      let ms, (id_loc, id) = ah0 in
+      mkch $startofs $endofs ms id id_loc None s_opt i_opt None
     }
 ;
 aspect_declaration:
@@ -1373,13 +1373,13 @@ variable_declarator:
 ;
 
 variable_declarator_id: 
-| i=identifier { let _, id = i in id, [] }
+| i=identifier { i, [] }
 | v=variable_declarator_id a=annotations0 LBRACKET RBRACKET
     { 
       let thunk () =
         let d = mkad $startofs(a) $endofs a in
-        let id, dl = v in
-        id, (dl@[d])
+        let i, dl = v in
+        i, (dl@[d])
       in
       if List.length a > 0 then
         check_JLS_level 8 thunk
@@ -1457,7 +1457,7 @@ method_declarator_head:
       let _, id = i in
       register_identifier_as_method id; 
       begin_scope ~kind:(FKmethod(id, ref false)) ();
-      id, lp
+      i, lp
     }
 ;
 
@@ -1479,7 +1479,7 @@ method_declarator:
                (TclassOrInterface([TSname([], mkname $startofs(i) $endofs(i)
                                             (Nsimple(ref NAunknown, (snd i))))]))
            in
-           let f = [mkfp (fst i) None t ("_", []) false] in
+           let f = [mkfp (fst i) None t ((Loc.dummy, "_"), []) false] in
            (id, params_loc, f), []
          end
          else
@@ -1509,7 +1509,7 @@ receiver_parameter:
         | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
         | Some _ -> get_loc $symbolstartofs $endofs
       in
-      mkfp ~receiver:(Some "") loc a t ("", []) false
+      mkfp ~receiver:(Some "") loc a t ((Loc.dummy, ""), []) false
     }
 | a=variable_modifiers_opt t=unann_type i=identifier DOT THIS
     { 
@@ -1519,7 +1519,7 @@ receiver_parameter:
         | Some _ -> get_loc $symbolstartofs $endofs
       in
       let receiver = Some (let _, id = i in id) in
-      mkfp ~receiver loc a t ("", []) false
+      mkfp ~receiver loc a t ((Loc.dummy, ""), []) false
     }
 ;
 
@@ -1540,7 +1540,7 @@ formal_parameter:
         | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
         | Some _ -> get_loc $symbolstartofs $endofs
       in
-      let id, _ = d in
+      let (_, id), _ = d in
       register_identifier_as_parameter id t;
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
       let rec chk_vararg = function
@@ -1564,7 +1564,7 @@ formal_parameter:
         | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
         | Some _ -> get_loc $symbolstartofs $endofs
       in
-      let id, _ = d in
+      let (_, id), _ = d in
       register_identifier_as_parameter id t;
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
       mkfp loc v t d true 
@@ -1934,7 +1934,7 @@ local_variable_declaration:
     { 
        List.iter
        (fun vd ->
-         let id, _ = vd.vd_variable_declarator_id in
+         let (_, id), _ = vd.vd_variable_declarator_id in
          register_identifier_as_variable id t;
          vd.vd_is_local := true;
        ) v;
@@ -2142,7 +2142,7 @@ for_statement_head:
 javatype_vdid:
 | j=unann_type d=variable_declarator_id
     { 
-      let id, _ = d in
+      let (_, id), _ = d in
       register_identifier_as_variable id j;
       mkfp (get_loc $startofs $endofs) None j d false
     }
@@ -2313,7 +2313,7 @@ catch_formal_parameter:
         | None -> Loc.merge (List.hd tl).ty_loc (get_loc $symbolstartofs $endofs)
         | Some _ -> get_loc $symbolstartofs $endofs
       in
-      let id, _ = d in
+      let (_, id), _ = d in
       List.iter (register_identifier_as_parameter id) tl;
       mkcfp loc ms_opt tl d
     }
@@ -2980,7 +2980,7 @@ pattern:
       check_JLS_level 14
         (fun () ->
           let vd = mkvd $startofs(v) $endofs v None in
-          let id, _ = vd.vd_variable_declarator_id in
+          let (_, id), _ = vd.vd_variable_declarator_id in
           register_identifier_as_variable id t;
           vd.vd_is_local := true;
           mklvd $symbolstartofs $endofs None t [vd]
@@ -2994,7 +2994,7 @@ pattern:
         (fun () ->
           let m = mkmod $startofs $endofs(f) Mfinal in
           let vd = mkvd $startofs(v) $endofs v None in
-          let id, _ = vd.vd_variable_declarator_id in
+          let (_, id), _ = vd.vd_variable_declarator_id in
           register_identifier_as_variable id t;
           vd.vd_is_local := true;
           mklvd $startofs $endofs (Some (mkmods $startofs $endofs(f) [m])) t [vd]

@@ -69,7 +69,7 @@ let apply_child is_xxx f children =
         f nd
     ) children
 
-let get_nth_children = _get_logical_nth_child
+let get_nth_children = Sourcecode._get_logical_nth_child
 
 let set_control_flow label_tbl body =
 

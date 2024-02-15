@@ -32,6 +32,7 @@ class ['src] c = object (self)
   val comment_regions = new Regions.c
   val missed_regions  = new Regions.c
   val ignored_regions = new Regions.c
+  val blank_regions   = new Regions.c
 
   val mutable enter_source_callback = fun src -> Ulexing.from_utf8_string ""
 
@@ -230,7 +231,8 @@ class ['src] c = object (self)
     self#clear_lines_read;
     comment_regions#clear;
     missed_regions#clear;
-    ignored_regions#clear
+    ignored_regions#clear;
+    blank_regions#clear
 
   method lines_read = lines_read
   method clear_lines_read = lines_read <- 0;
@@ -269,6 +271,7 @@ class ['src] c = object (self)
   method comment_regions = comment_regions
   method missed_regions  = missed_regions
   method ignored_regions = ignored_regions
+  method blank_regions = blank_regions
 
   method set_enter_source_callback f = enter_source_callback <- f
 

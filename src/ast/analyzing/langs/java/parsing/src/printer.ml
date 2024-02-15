@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -698,7 +698,7 @@ and pr_variable_initializer vi =
 
 and pr_array_initializer ai = pr_list pr_comma pr_variable_initializer ai
 
-and pr_variable_declarator_id (id, dims) = pr_id id; pr_annot_dims dims
+and pr_variable_declarator_id ((_, id), dims) = pr_id id; pr_annot_dims dims
 
 and pr_variable_declarator vd =
   pr_variable_declarator_id vd.vd_variable_declarator_id;

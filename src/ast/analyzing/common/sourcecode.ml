@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ module GI  = GIndex
 module MID = Moveid
 module C   = Compression
 module SB  = Spec_base
+module BID = Binding.ID
 
 let sprintf = Printf.sprintf
 
@@ -130,6 +131,32 @@ let is_ghost_node nd = nd#data#src_loc = Loc.ghost
 
 let dec_attrs = List.map (fun (a, v) -> a, (XML._decode_string v))
 
+let get_logical_pos ?(strict=false) nd =
+  let pnd = nd#initial_parent in
+  if strict && not pnd#data#has_ordinal then
+    raise Not_found;
+  let pos = pnd#data#get_ordinal nd#initial_pos in
+  DEBUG_MSG "%a -> %d" UID.ps nd#uid pos;
+  pos
+
+let _get_logical_nth_child nd nth =
+  let l = ref [] in
+  Array.iteri
+    (fun i x ->
+      if (nd#data#get_ordinal i) = nth then
+        l := x :: !l
+    ) nd#children;
+  Array.of_list (List.rev !l)
+
+let get_logical_nth_child nd nth =
+  let l = ref [] in
+  Array.iteri
+    (fun i x ->
+      if (nd#data#get_ordinal i) = nth then
+        l := x :: !l
+    ) nd#initial_children;
+  Array.of_list (List.rev !l)
+
 module Tree (L : Spec.LABEL_T) = struct
 
   let of_elem_data name attrs =
@@ -176,11 +203,13 @@ module Tree (L : Spec.LABEL_T) = struct
 
   let null_ordinal_tbl = new ordinal_tbl []
 
+
   class node_data
       options
       ?(annot=L.null_annotation)
       ?(ordinal_tbl_opt=(None : ordinal_tbl option))
       ?(orig_lab_opt=(None : L.t option))
+      ?(id_loc=Loc.dummy)
       (lab : L.t)
       =
     let is_named      = L.is_named lab in
@@ -206,6 +235,13 @@ module Tree (L : Spec.LABEL_T) = struct
       val mutable source_fid = ""
       method set_source_fid x = source_fid <- x
       method source_fid = source_fid
+
+      method id_loc = id_loc
+
+      method has_ordinal =
+        match ordinal_tbl_opt with
+        | None -> false
+        | Some tbl -> true
 
       method get_ordinal nth =
         match ordinal_tbl_opt with
@@ -337,10 +373,14 @@ module Tree (L : Spec.LABEL_T) = struct
         L.relabel_allowed (lab, (Obj.obj ndat#_label : L.t))
 
       method is_compatible_with ?(weak=false) (ndat : 'self) =
-        L.is_compatible ~weak lab (Obj.obj ndat#_label : L.t) ||
-        match orig_lab_opt, ndat#orig_lab_opt with
-        | Some l1, Some o2 -> L.is_compatible ~weak l1 (Obj.obj o2)
-        | _ -> false
+        let b =
+          L.is_compatible ~weak lab (Obj.obj ndat#_label : L.t) ||
+          match orig_lab_opt, ndat#orig_lab_opt with
+          | Some l1, Some o2 -> L.is_compatible ~weak l1 (Obj.obj o2)
+          | _ -> false
+        in
+        DEBUG_MSG "%s-%s -> %B" label ndat#label b;
+        b
 
       method is_order_insensitive = L.is_order_insensitive lab
 
@@ -348,9 +388,28 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method is_common = L.is_common lab
 
+      method _stripped_label = Obj.repr (L.strip lab)
+
+      method _stripped_orig_label =
+        Obj.repr
+          (L.strip
+           (match orig_lab_opt with
+           | Some o -> o
+           | None -> lab)
+          )
+
       method _anonymized_label = Obj.repr (L.anonymize lab)
 
       (*method _more_anonymized_label = Obj.repr (L.anonymize ~more:true lab)*)
+
+      val mutable stripped_label = None
+      method stripped_label =
+        match stripped_label with
+        | None ->
+            let slab = L.to_string (L.strip lab) in
+            stripped_label <- Some slab;
+            slab
+        | Some slab -> slab
 
       val mutable anonymized_label = None
       method anonymized_label =
@@ -477,6 +536,7 @@ module Tree (L : Spec.LABEL_T) = struct
         match orig_lab_opt with
         | Some o -> L.get_name o
         | None -> self#get_name
+      method get_stripped_name = L.get_name ~strip:true lab
 
       method get_value = L.get_value lab
       method has_value = L.has_value lab
@@ -490,6 +550,8 @@ module Tree (L : Spec.LABEL_T) = struct
         L.is_string_literal lab || L.is_int_literal lab || L.is_real_literal lab
 
       method is_statement = L.is_statement lab
+      method is_block = L.is_block lab
+      method is_primary = L.is_primary lab
       method is_op = L.is_op lab
 
       method is_scope_creating = L.is_scope_creating lab
@@ -545,43 +607,32 @@ module Tree (L : Spec.LABEL_T) = struct
       ?(annot=L.null_annotation)
       ?(ordinal_tbl_opt=None)
       ?(orig_lab_opt=None)
+      ?(id_loc=Loc.dummy)
       lab nodes
       =
     Otree.create_node2 options#uid_generator
-      (new node_data options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab) nodes
+      (new node_data options ~annot ~ordinal_tbl_opt ~orig_lab_opt ~id_loc lab) nodes
 
   let mknode options
       ?(annot=L.null_annotation)
       ?(ordinal_tbl_opt=None)
       ?(orig_lab_opt=None)
+      ?(id_loc=Loc.dummy)
       lab nodes
       =
-    _mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab (Array.of_list nodes)
+    _mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt ~id_loc lab (Array.of_list nodes)
 
-  let mklnode options ?(annot=L.null_annotation) ?(orig_lab_opt=None) lab nodes =
-    mknode options ~annot ~ordinal_tbl_opt:(Some null_ordinal_tbl) ~orig_lab_opt lab nodes
+  let mklnode options
+      ?(annot=L.null_annotation)
+      ?(orig_lab_opt=None)
+      ?(id_loc=Loc.dummy)
+      lab nodes
+      =
+    mknode options ~annot ~ordinal_tbl_opt:(Some null_ordinal_tbl) ~orig_lab_opt ~id_loc lab nodes
 
-  let mkleaf options ?(annot=L.null_annotation) ?(orig_lab_opt=None) lab =
+  let mkleaf options ?(annot=L.null_annotation) ?(orig_lab_opt=None) ?(id_loc=Loc.dummy) lab =
     Otree.create_node2 options#uid_generator
-      (new node_data options ~annot ~orig_lab_opt lab) [||]
-
-  let _get_logical_nth_child nd nth =
-    let l = ref [] in
-    Array.iteri
-      (fun i x ->
-        if (nd#data#get_ordinal i) = nth then
-          l := x :: !l
-      ) nd#children;
-    Array.of_list (List.rev !l)
-
-  let get_logical_nth_child nd nth =
-    let l = ref [] in
-    Array.iteri
-      (fun i x ->
-        if (nd#data#get_ordinal i) = nth then
-          l := x :: !l
-      ) nd#initial_children;
-    Array.of_list (List.rev !l)
+      (new node_data options ~annot ~orig_lab_opt ~id_loc lab) [||]
 
 
   class node_maker options = object (self)
@@ -589,23 +640,35 @@ module Tree (L : Spec.LABEL_T) = struct
         ?(annot=L.null_annotation)
         ?(ordinal_tbl_opt=None)
         ?(orig_lab_opt=None)
+        ?(id_loc=Loc.dummy)
         lab nodes
         =
-      mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab nodes
+      mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt ~id_loc lab nodes
 
     method private _mknode
         ?(annot=L.null_annotation)
         ?(ordinal_tbl_opt=None)
         ?(orig_lab_opt=None)
+        ?(id_loc=Loc.dummy)
         lab nodes
         =
-      _mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt lab nodes
+      _mknode options ~annot ~ordinal_tbl_opt ~orig_lab_opt ~id_loc lab nodes
 
-    method private mklnode ?(annot=L.null_annotation) ?(orig_lab_opt=None) lab nodes =
-      mklnode options ~annot ~orig_lab_opt lab nodes
+    method private mklnode
+        ?(annot=L.null_annotation)
+        ?(orig_lab_opt=None)
+        ?(id_loc=Loc.dummy)
+        lab nodes
+        =
+      mklnode options ~annot ~orig_lab_opt ~id_loc lab nodes
 
-    method private mkleaf ?(annot=L.null_annotation) ?(orig_lab_opt=None) lab =
-      mkleaf options ~annot ~orig_lab_opt lab
+    method private mkleaf
+        ?(annot=L.null_annotation)
+        ?(orig_lab_opt=None)
+        ?(id_loc=Loc.dummy)
+        lab
+        =
+      mkleaf options ~annot ~orig_lab_opt ~id_loc lab
   end
 
 
@@ -657,6 +720,39 @@ module Tree (L : Spec.LABEL_T) = struct
       let d = st#digest in
       nd#data#_set_digest d;
       d
+
+    val bid_map = (Hashtbl.create 0 : (BID.t, BID.t list) Hashtbl.t)
+    method add_to_bid_map bid0 bid1 =
+      DEBUG_MSG "%a->%a" BID.ps bid0 BID.ps bid1;
+      try
+        let bidl = Hashtbl.find bid_map bid0 in
+        if not (List.mem bid1 bidl) then
+          Hashtbl.replace bid_map bid0 (bid1::bidl)
+      with
+        Not_found -> Hashtbl.add bid_map bid0 [bid1]
+    method find_mapped_bids bid =
+      let bids = Xset.create 0 in
+      let rec find b =
+        try
+          let bl = Hashtbl.find bid_map b in
+          List.iter
+            (fun b ->
+              if not (Xset.mem bids b) then begin
+                Xset.add bids b;
+                find b
+              end
+            ) bl
+        with
+          Not_found -> ()
+      in
+      find bid;
+      let bidl = Xset.to_list bids in
+      DEBUG_MSG "%a -> [%s]" BID.ps bid (String.concat ";" (List.map BID.to_string bidl));
+      bidl
+
+    val bid_tbl = (Hashtbl.create 0 : (BID.t, string) Hashtbl.t)
+    method add_to_bid_tbl bid name = Hashtbl.add bid_tbl bid name
+    method find_name_for_bid bid = Hashtbl.find bid_tbl bid
 
     val mutable true_parent_tbl = (Hashtbl.create 0 : (UID.t, node_t) Hashtbl.t)
     method set_true_parent_tbl tbl = true_parent_tbl <- tbl
@@ -1964,14 +2060,16 @@ let scan_ancestors ?(moveon=fun x -> true) nd f =
   with
     Otreediff.Otree.Parent_not_found _ -> ()
 
-let find_nearest_p_ancestor_node pred nd =
+let find_nearest_p_ancestor_node ?(moveon_=fun x -> true) pred nd =
   let rec scan n =
     try
       let pn = n#initial_parent in
       if pred pn then
         pn
-      else
+      else if moveon_ pn then
         scan pn
+      else
+        raise Not_found
     with
       Otreediff.Otree.Parent_not_found _ -> raise Not_found
   in
@@ -1979,14 +2077,16 @@ let find_nearest_p_ancestor_node pred nd =
   DEBUG_MSG "%a --> %a" UID.ps nd#uid UID.ps a#uid;
   a
 
-let find_nearest_mapped_ancestor_node is_mapped nd =
+let find_nearest_mapped_ancestor_node ?(moveon_=fun x -> true) is_mapped nd =
   let rec scan n =
     try
       let pn = n#initial_parent in
       if is_mapped pn#uid then
         pn
-      else
+      else if moveon_ pn then
         scan pn
+      else
+        raise Not_found
     with
       Otreediff.Otree.Parent_not_found _ -> raise Not_found
   in

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -71,8 +71,8 @@ module Literal =
       | LongInteger str -> sprintf "LongInteger:%s" str
       | FloatNumber str -> sprintf "FloatNumber:%s" str
       | ImagNumber str  -> sprintf "ImagNumber:%s" str
-      | String str      -> sprintf "String:%s" str
-      | CatString str   -> sprintf "CatString:%s" str
+      | String str      -> sprintf "String(%s)" str
+      | CatString str   -> sprintf "CatString(%s)" str
       | None_ -> "None_"
       | True -> "True"
       | False -> "False"
@@ -444,13 +444,14 @@ module Statement =
           -> n
       | _ -> raise Not_found
 
-    let is_named_orig = is_named
+    let is_named_orig = function
+      | _ -> false
 
     let anonymize = function
-      | FuncDef name  -> FuncDef ""
+      | FuncDef name -> FuncDef ""
       | ClassDef name -> ClassDef ""
       | AsyncFuncDef name -> AsyncFuncDef ""
-      | stmt          -> stmt
+      | stmt -> stmt
 
     let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
@@ -505,7 +506,6 @@ module SimpleStatement =
       | Global
       | Exec
       | Assert
-      | AnnAssign
       | RaiseFrom
       | Nonlocal
       | ERROR
@@ -526,7 +526,6 @@ module SimpleStatement =
       | Global     -> "Global"
       | Exec       -> "Exec"
       | Assert     -> "Assert"
-      | AnnAssign  -> "AnnAssign"
       | RaiseFrom  -> "RaiseFrom"
       | Nonlocal   -> "Nonlocal"
       | ERROR      -> "ERROR"
@@ -547,10 +546,9 @@ module SimpleStatement =
       | Global     -> mkstr 12
       | Exec       -> mkstr 13
       | Assert     -> mkstr 14
-      | AnnAssign  -> mkstr 15
-      | RaiseFrom  -> mkstr 16
-      | Nonlocal   -> mkstr 17
-      | ERROR      -> mkstr 18
+      | RaiseFrom  -> mkstr 15
+      | Nonlocal   -> mkstr 16
+      | ERROR      -> mkstr 17
 
     let anonymize ?(more=false) = function
       | Assign aop -> Assign AssignmentOperator.Eq
@@ -574,7 +572,6 @@ module SimpleStatement =
 	| Global     -> "GlobalStmt", []
 	| Exec       -> "ExecStmt", []
 	| Assert     -> "AssertStmt", []
-        | AnnAssign  -> "AnnAssignStmt", []
         | RaiseFrom  -> "RaiseFromStmt", []
         | Nonlocal   -> "NonlocalStmt", []
         | ERROR      -> "ERROR", []
@@ -596,7 +593,7 @@ module Primary = struct
     | ListFor
     | Dict
     | StringConv
-    | AttrRef
+    | AttrRef of name
     | Subscription
     | Slicing
     | Call of tie_id
@@ -614,18 +611,23 @@ module Primary = struct
     | ListFor      -> "ListFor"
     | Dict         -> "Dict"
     | StringConv   -> "StringConv"
-    | AttrRef      -> "AttrRef"
+    | AttrRef n    -> "AttrRef:" ^ n
     | Subscription -> "Subscription"
     | Slicing      -> "Slicing"
     | Call tid     -> "Call:" ^ (tid_to_string tid)
     | Await        -> "Await"
     | Ellipsis     -> "Ellipsis"
 
+  let strip = function
+    | Call tid     -> Call null_tid
+    | prim         -> prim
+
   let anonymize ?(more=false) = function
-    | Name name   -> Name ""
-    | Literal lit -> Literal (Literal.anonymize lit)
-    | Call tid    -> Call (anonymize_tid ~more tid)
-    | prim        -> prim
+    | Name name    -> Name ""
+    | AttrRef name -> AttrRef ""
+    | Literal lit  -> Literal (Literal.anonymize lit)
+    | Call tid     -> Call (anonymize_tid ~more tid)
+    | prim         -> prim
 
   let to_short_string ?(ignore_identifiers_flag=false) =
     let combo = combo ~ignore_identifiers_flag in function
@@ -639,7 +641,7 @@ module Primary = struct
     | ListFor      -> mkstr 7
     | Dict         -> mkstr 8
     | StringConv   -> mkstr 9
-    | AttrRef      -> mkstr 10
+    | AttrRef n    -> combo 10 [n]
     | Subscription -> mkstr 11
     | Slicing      -> mkstr 12
     | Call tid     -> combo 13 [tid_to_string tid]
@@ -659,7 +661,7 @@ module Primary = struct
       | ListFor      -> "ListForAtom", []
       | Dict         -> "DictAtom", []
       | StringConv   -> "StringConvAtom", []
-      | AttrRef      -> "AttrRef", []
+      | AttrRef n    -> "AttrRef", ["name",n]
       | Subscription -> "Subscription", []
       | Slicing      -> "Slicing", []
       | Call tid     -> "Call", mktidattr tid
@@ -683,6 +685,8 @@ let annotation_to_string = function
 type t = (* Label *)
   | Dummy
   | ERROR
+
+  | Comment of string
 
   | FileInput of name
   | DottedName of string
@@ -729,9 +733,9 @@ type t = (* Label *)
   | Inheritance
   | Chevron
   | From
-  | ParamDef
+  | ParamDef of name
   | ListParamDef
-  | TypedParamDef
+  | TypedParamDef of name
   | WithItem
   | StarStar
   | Star
@@ -740,6 +744,7 @@ type t = (* Label *)
   | ReturnAnnotation
   | Dots of int
   | Stride
+  | Annotation
 
 let opt_to_string to_str = function
   | Some x -> to_str x
@@ -769,6 +774,7 @@ let rec primary_to_string prim = primary_desc_to_string prim.Ast.prim_desc
 and primary_desc_to_string = function
   | Ast.Pname name            -> sprintf "Pname(%s)" (name_to_string name)
   | Ast.Pliteral lit          -> sprintf "Pliteral(%s)" (literal_to_string lit)
+  | Ast.Pexpr expr            -> sprintf "Pexpr(%s)" (expr_to_string expr)
   | Ast.Pparen expr           -> sprintf "Pparen(%s)" (expr_to_string expr)
   | Ast.Ptuple exprs          -> "Ptuple" ^ (exprs_to_string exprs)
   | Ast.Pyield exprs          -> "Pyield" ^ (exprs_to_string exprs)
@@ -1008,6 +1014,7 @@ let of_simplestmt sstmt =
     | Ast.SSexpr _               -> SimpleStatement.Expr
     | Ast.SSassign _             -> SimpleStatement.Assign AssignmentOperator.Eq
     | Ast.SSaugassign(_, aop, _) -> SimpleStatement.Assign (AssignmentOperator.of_aop aop)
+    | Ast.SSannassign _          -> SimpleStatement.Assign AssignmentOperator.Eq
     | Ast.SSprint _              -> SimpleStatement.Print
     | Ast.SSprintchevron _       -> SimpleStatement.Print
     | Ast.SSdel _                -> SimpleStatement.Del
@@ -1028,7 +1035,6 @@ let of_simplestmt sstmt =
     | Ast.SSexec3 _              -> SimpleStatement.Exec
     | Ast.SSassert _             -> SimpleStatement.Assert
     | Ast.SSassert2 _            -> SimpleStatement.Assert
-    | Ast.SSannassign _          -> SimpleStatement.AnnAssign
     | Ast.SSraisefrom _          -> SimpleStatement.RaiseFrom
     | Ast.SSnonlocal _           -> SimpleStatement.Nonlocal
     | Ast.SSerror                -> SimpleStatement.ERROR
@@ -1044,24 +1050,25 @@ let tid_of_primary prim =
     ""
 
 let _of_primary = function
-  | Ast.Pname name      -> Primary.Name (conv_name name)
-  | Ast.Pliteral lit    -> Primary.Literal (Literal.of_literal lit)
-  | Ast.Pparen _        -> Primary.Paren
-  | Ast.Ptuple _        -> Primary.Tuple
-  | Ast.Pyield _        -> Primary.Yield
-  | Ast.PcompT _        -> Primary.Test
-  | Ast.PcompL _        -> Primary.ListFor
-  | Ast.Plist _         -> Primary.List
-  | Ast.Plistnull       -> Primary.List
-  | Ast.Pdictorset _    -> Primary.Dict
-  | Ast.Pdictnull       -> Primary.Dict
-  | Ast.Pstrconv _      -> Primary.StringConv
-  | Ast.Pattrref _      -> Primary.AttrRef
-  | Ast.Psubscript _    -> Primary.Subscription
-  | Ast.Pslice _        -> Primary.Slicing
-  | Ast.Pcall (prim, _) -> Primary.Call (tid_of_primary prim)
-  | Ast.Pawait _        -> Primary.Await
-  | Ast.Pellipsis       -> Primary.Ellipsis
+  | Ast.Pname name          -> Primary.Name (conv_name name)
+  | Ast.Pliteral lit        -> Primary.Literal (Literal.of_literal lit)
+  | Ast.Pexpr _             -> Primary.Paren (* dummy *)
+  | Ast.Pparen _            -> Primary.Paren
+  | Ast.Ptuple _            -> Primary.Tuple
+  | Ast.Pyield _            -> Primary.Yield
+  | Ast.PcompT _            -> Primary.Test
+  | Ast.PcompL _            -> Primary.ListFor
+  | Ast.Plist _             -> Primary.List
+  | Ast.Plistnull           -> Primary.List
+  | Ast.Pdictorset _        -> Primary.Dict
+  | Ast.Pdictnull           -> Primary.Dict
+  | Ast.Pstrconv _          -> Primary.StringConv
+  | Ast.Pattrref(_, (_, n)) -> Primary.AttrRef n
+  | Ast.Psubscript _        -> Primary.Subscription
+  | Ast.Pslice _            -> Primary.Slicing
+  | Ast.Pcall (prim, _)     -> Primary.Call (tid_of_primary prim)
+  | Ast.Pawait _            -> Primary.Await
+  | Ast.Pellipsis           -> Primary.Ellipsis
 
 let of_primary p = Primary (_of_primary p)
 
@@ -1113,9 +1120,9 @@ let rec to_string = function
   | Inheritance           -> "Inheritance"
   | Chevron               -> "Chevron"
   | From                  -> "From"
-  | ParamDef              -> "ParamDef"
+  | ParamDef n            -> sprintf "ParamDef:%s" n
   | ListParamDef          -> "ListParamDef"
-  | TypedParamDef         -> "TypedParamDef"
+  | TypedParamDef n       -> sprintf "TypedParamDef:%s" n
   | WithItem              -> "WithItem"
   | StarStar              -> "StarStar"
   | Star                  -> "Star"
@@ -1124,6 +1131,14 @@ let rec to_string = function
   | ReturnAnnotation      -> "ReturnAnnotation"
   | Dots i                -> sprintf "Dots:%d" i
   | Stride                -> "Stride"
+  | Comment c             -> sprintf "Comment(%s)" c
+  | Annotation            -> "Annotation"
+
+let strip = function
+  | Primary p              -> Primary (Primary.strip p)
+  | Arguments tid          -> Arguments null_tid
+  | Dots i                 -> Dots 0
+  | lab                    -> lab
 
 let anonymize ?(more=false) = function
   | CompArgument
@@ -1143,6 +1158,9 @@ let anonymize ?(more=false) = function
   | Decorator n            -> Decorator ""
   | Decorators n           -> Decorators ""
   | Dots i                 -> Dots 0
+  | Comment c              -> Comment ""
+  | ParamDef n             -> ParamDef ""
+  | TypedParamDef n        -> TypedParamDef ""
   | lab                    -> lab
 
 let anonymize2 = anonymize ~more:true
@@ -1203,7 +1221,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Inheritance -> mkstr 43
   | Chevron     -> mkstr 44
   | From        -> mkstr 45
-  | ParamDef    -> mkstr 48
+  | ParamDef n   -> combo 48 [n]
   | ListParamDef -> mkstr 49
   | WithItem     -> mkstr 52
   | StarStar     -> mkstr 53
@@ -1211,7 +1229,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Slash        -> mkstr 55
   | Named        -> mkstr 56
   | ReturnAnnotation -> mkstr 57
-  | TypedParamDef    -> mkstr 58
+  | TypedParamDef n  -> combo 58 [n]
   | Dots i           -> combo 59 [string_of_int i]
   | CompArgument          -> mkstr 60
   | AssignArgument        -> mkstr 61
@@ -1220,6 +1238,10 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | Stride                -> mkstr 64
 
   | ERROR -> mkstr 65
+
+  | Comment c -> combo 66 [c]
+
+  | Annotation -> mkstr 67
 
 let to_tag ?(strip=false) l =
   let name, attrs =
@@ -1270,9 +1292,9 @@ let to_tag ?(strip=false) l =
     | Inheritance           -> "Inheritance", []
     | Chevron               -> "Chevron", []
     | From                  -> "From", []
-    | ParamDef              -> "ParamDef", []
+    | ParamDef n            -> "ParamDef", ["name",n]
     | ListParamDef          -> "ListParamDef", []
-    | TypedParamDef         -> "TypedParamDef", []
+    | TypedParamDef n       -> "TypedParamDef", ["name",n]
     | WithItem              -> "WithItem", []
     | StarStar              -> "StarStar", []
     | Star                  -> "Star", []
@@ -1283,6 +1305,9 @@ let to_tag ?(strip=false) l =
     | Stride                -> "Stride", []
 
     | FileInput n           -> "FileInput", ["name",n]
+
+    | Comment c             -> "Comment", ["comment",c]
+    | Annotation            -> "Annotation", []
   in
   name, attrs
 
@@ -1323,21 +1348,24 @@ let is_named = function
   | NamedArguments _
   | Decorator _
   | Decorators _
-  | Primary (Primary.Name _)
+  | ParamDef _ | TypedParamDef _
+  | Primary (Primary.Name _ | Primary.AttrRef _)
     -> true
   | Primary (Primary.Literal (Literal.String s|Literal.CatString s)) when s <> "" -> true
   | Statement stmt -> Statement.is_named stmt
+  | Comment _ -> true
   | _ -> false
 
 let is_named_orig = function
   | FileInput _
   | Decorator _
   | Name _
-  | DottedName _
+  (*| DottedName _*)
   | Primary (Primary.Name _)
     -> true
   | Primary (Primary.Literal (Literal.String s|Literal.CatString s)) when s <> "" -> true
   | Statement stmt -> Statement.is_named_orig stmt
+  | Comment _ -> true
   | _ -> false
 
 let is_compatible ?(weak=false) _ _ = false
@@ -1386,6 +1414,9 @@ let is_collapse_target options lab =
       | Lambda
       | Suite
       | NamedSuite _
+      | ParamDef _ | TypedParamDef _
+      | Argument | CompArgument | AssignArgument | Star | StarStar
+      | LHS | Annotation | RHS
 	-> true
       | _ -> false
   in
@@ -1397,7 +1428,8 @@ let is_to_be_notified = function
   | _ -> false
 
 let is_boundary = function
-  | Statement(Statement.FuncDef _|Statement.ClassDef _) -> true
+  | FileInput ""
+  | Statement(Statement.FuncDef _|Statement.AsyncFuncDef _|Statement.ClassDef _) -> true
   | _ -> false
 
 let is_partition = function
@@ -1413,12 +1445,14 @@ let is_sequence = function
       -> true
   | _ -> false
 
+let is_comment = function
+  | Comment _ -> true
+  | _ -> false
 
 let get_ident_use = function
   | Name n -> n
   | Primary (Primary.Name n) -> n
   | _ -> ""
-
 
 let is_string_literal = function
   | Primary (Primary.Literal Literal.String _) -> true
@@ -1438,13 +1472,46 @@ let is_statement = function
     -> true
   | _ -> false
 
+let is_block = function
+  | _ -> false
+
 let is_op = function
   | UnaryOperator _
   | BinaryOperator _
       -> true
   | _ -> false
 
+let is_assign = function
+  | SimpleStatement (SimpleStatement.Assign _) -> true
+  | _ -> false
+
+let is_param = function
+  | ParamDef _ | TypedParamDef _ -> true
+  | _ -> false
+
+let is_attrref = function
+  | Primary (Primary.AttrRef _) -> true
+  | _ -> false
+
+let _is_name = function
+  | Name _ -> true
+  | _ -> false
+
+let is_name = function
+  | Name _ | Primary (Primary.Name _) -> true
+  | _ -> false
+
+let is_primary = function
+  | Primary _ -> true
+  | _ -> false
+
+let is_primaryname = function
+  | Primary (Primary.Name _) -> true
+  | _ -> false
+
 let is_scope_creating = function (* not yet *)
+  | FileInput _
+  | Suite | NamedSuite _ -> true
   | _ -> false
 
 (* for fact extraction *)
@@ -1453,18 +1520,22 @@ let get_category lab =
   let name, _ = to_tag lab in
   name
 
-let get_name = function
+let get_name ?(strip=false) = function
   | FileInput n
   | Name n
   | DottedName n
   | NamedSuite n
   | NamedParameters n
   | NamedArguments n
+  | ParamDef n
+  | TypedParamDef n
   | Decorator n
   | Decorators n
   | Primary (Primary.Name n)
+  | Primary (Primary.AttrRef n)
     -> n
   | Statement stmt -> Statement.get_name stmt
+  | Comment c -> c
   | _ -> raise Not_found
 
 let get_value = function
@@ -1527,7 +1598,7 @@ let of_elem_data =
     "ListForAtom",        (fun a -> mkprim(Primary.ListFor));
     "DictAtom",           (fun a -> mkprim(Primary.Dict));
     "StringConvAtom",     (fun a -> mkprim(Primary.StringConv));
-    "AttrRef",            (fun a -> mkprim(Primary.AttrRef));
+    "AttrRef",            (fun a -> mkprim(Primary.AttrRef(find_name a)));
     "Subscription",       (fun a -> mkprim(Primary.Subscription));
     "Slicing",            (fun a -> mkprim(Primary.Slicing));
     "Call",               (fun a -> mkprim(Primary.Call(find_tid a)));
@@ -1562,7 +1633,6 @@ let of_elem_data =
     "GlobalStmt",         (fun a -> mksstmt(SimpleStatement.Global));
     "ExecStmt",           (fun a -> mksstmt(SimpleStatement.Exec));
     "AssertStmt",         (fun a -> mksstmt(SimpleStatement.Assert));
-    "AnnAssignStmt",      (fun a -> mksstmt(SimpleStatement.AnnAssign));
     "RaiseFromStmt",      (fun a -> mksstmt(SimpleStatement.RaiseFrom));
     "NonlocalStmt",       (fun a -> mksstmt(SimpleStatement.Nonlocal));
 
@@ -1643,9 +1713,9 @@ let of_elem_data =
     "Inheritance",        (fun a -> Inheritance);
     "Chevron",            (fun a -> Chevron);
     "From",               (fun a -> From);
-    "ParamDef",           (fun a -> ParamDef);
+    "ParamDef",           (fun a -> ParamDef(find_name a));
     "ListParamDef",       (fun a -> ListParamDef);
-    "TypedParamDef",      (fun a -> TypedParamDef);
+    "TypedParamDef",      (fun a -> TypedParamDef(find_name a));
     "WithItem",           (fun a -> WithItem);
     "StarStar",           (fun a -> StarStar);
     "Star",               (fun a -> Star);
@@ -1655,6 +1725,8 @@ let of_elem_data =
     "Dots",               (fun a -> Dots(find_int a "ndots"));
     "Stride",             (fun a -> Stride);
     "FileInput",          (fun a -> FileInput(find_name a));
+    "Comment",            (fun a -> Comment(find_attr a "comment"));
+    "Annotation",         (fun a -> Annotation);
   ]
   in
   let tbl = Hashtbl.create (List.length tag_list) in
@@ -1669,4 +1741,3 @@ let of_elem_data =
     | e -> failwith ("Py_label.of_tag: "^(Printexc.to_string e))
   in
   of_elem
-

@@ -33,7 +33,9 @@ type name = loc * string
 
 type dottedname = name list
 
+type comment = { c_loc : Loc.t; c_comment : string; }
 
+let make_comment loc c = { c_loc=loc; c_comment=c; }
 
 type fileinput = Fileinput of loc * statement list
 
@@ -63,7 +65,7 @@ and simplestmt = { sstmt_desc: simplestmt_desc; sstmt_loc: loc }
 and simplestmt_desc =
   | SSexpr of expr list
   | SSassign of testlist list * testlist
-  | SSannassign of target list * expr * testlist option
+  | SSannassign of target list * (loc * expr) * testlist option
   | SSaugassign of target list * augop * testlist
   | SSprint of expr list
   | SSprintchevron of expr * expr list
@@ -134,6 +136,7 @@ and primary = { prim_desc: primary_desc; prim_loc: loc }
 and primary_desc =
   | Pname of name
   | Pliteral of literal
+  | Pexpr of expr
   | Pparen of expr
   | Ptuple of expr list
   | Pyield of expr list
@@ -283,6 +286,11 @@ and case_block = loc * pattern * guard option * suite
 
 class c (fileinput : fileinput) = object (self)
   inherit Ast_base.c
+
+  val mutable comment_tbl = (Hashtbl.create 0 : (int, comment) Hashtbl.t)
+
+  method set_comment_tbl t = comment_tbl <- t
+  method comment_tbl = comment_tbl
 
   method fileinput = fileinput
 

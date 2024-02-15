@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1431,31 +1431,36 @@ module F (Stat : STATE_T) = struct
 				     ec_loc=loc
 				   }
 
-  let mkfp ?(receiver=None) loc ms ty vdid va = { fp_modifiers=ms;
-				                  fp_type=ty;
-				                  fp_variable_declarator_id=vdid;
-				                  fp_variable_arity=va;
-				                  fp_loc=loc;
-                                                  fp_receiver=receiver;
-			                        }
+  let mkfp ?(receiver=None) loc ms ty vdid va =
+    { fp_modifiers=ms;
+      fp_type=ty;
+      fp_variable_declarator_id=vdid;
+      fp_variable_arity=va;
+      fp_loc=loc;
+      fp_receiver=receiver;
+    }
   let _mkargs loc args = { as_arguments=args; as_loc=loc }
   let _mkatmd loc d = { atmd_desc=d; atmd_loc=loc }
   let _mkimd loc d = { imd_desc=d; imd_loc=loc }
-  let _mkch loc ms id ts_opt s_opt i_opt p_opt = { ch_modifiers=ms;
-                                                   ch_identifier=id;
-                                                   ch_type_parameters=ts_opt;
-                                                   ch_extends_class=s_opt;
-                                                   ch_implements=i_opt;
-                                                   ch_permits=p_opt;
-                                                   ch_loc=loc;
-                                                 }
-  let _mkrh loc ms id ts_opt h i_opt = { rh_modifiers=ms;
-                                         rh_identifier=id;
-                                         rh_type_parameters=ts_opt;
-                                         rh_record_header=h;
-                                         rh_implements=i_opt;
-                                         rh_loc=loc;
-                                       }
+  let _mkch loc ms id id_loc ts_opt s_opt i_opt p_opt =
+    { ch_modifiers=ms;
+      ch_identifier=id;
+      ch_identifier_loc=id_loc;
+      ch_type_parameters=ts_opt;
+      ch_extends_class=s_opt;
+      ch_implements=i_opt;
+      ch_permits=p_opt;
+      ch_loc=loc;
+    }
+  let _mkrh loc ms id id_loc ts_opt h i_opt =
+    { rh_modifiers=ms;
+      rh_identifier=id;
+      rh_identifier_loc=id_loc;
+      rh_type_parameters=ts_opt;
+      rh_record_header=h;
+      rh_implements=i_opt;
+      rh_loc=loc;
+    }
   let _mkmodule loc h b = { mod_head=h; mod_body=b; mod_loc=loc }
   let _mkmn loc n = { mn_name=n; mn_loc = loc }
   let _mkmdh loc a o n = { mdh_annotations=a; mdh_open=o; mdh_name=n; mdh_loc=loc }
@@ -1470,17 +1475,19 @@ module F (Stat : STATE_T) = struct
                                               ifh_loc=loc;
                                             }
   let _mkifd loc d = { ifd_desc=d; ifd_loc=loc }
-  let mkmh loc m tp al rt id pl p d t = { mh_modifiers=m;
-				          mh_type_parameters=tp;
-                                          mh_annotations=al;
-				          mh_return_type=rt;
-				          mh_name=id;
-				          mh_parameters_loc=pl;
-				          mh_parameters=p;
-				          mh_dims=d;
-				          mh_throws=t;
-				          mh_loc=loc
-				     }
+  let mkmh loc m tp al rt (id_loc, id) pl p d t =
+    { mh_modifiers=m;
+      mh_type_parameters=tp;
+      mh_annotations=al;
+      mh_return_type=rt;
+      mh_name=id;
+      mh_name_loc=id_loc;
+      mh_parameters_loc=pl;
+      mh_parameters=p;
+      mh_dims=d;
+      mh_throws=t;
+      mh_loc=loc
+    }
   let mkimed loc mh b = { amd_method_header=mh; amd_body=b; amd_loc=loc }
   let mkcnd loc m tp n pl p t b = { cnd_modifiers=m;
 				    cnd_type_parameters=tp;
@@ -2034,11 +2041,12 @@ module F (Stat : STATE_T) = struct
   let mkpe so eo d = { pe_desc=d; pe_loc=(get_loc so eo) }
   let mkcpe so eo d = { cpe_desc=d; cpe_loc=(get_loc so eo) }
 
-  let mkvd so eo vdid vdini = { vd_variable_declarator_id=vdid;
-				vd_variable_initializer=vdini;
-				vd_is_local=(ref true);
-				vd_loc=(get_loc so eo)
-			      }
+  let mkvd so eo vdid vdini =
+    { vd_variable_declarator_id=vdid;
+      vd_variable_initializer=vdini;
+      vd_is_local=(ref true);
+      vd_loc=(get_loc so eo)
+    }
   let mkvi so eo d = { vi_desc=d; vi_loc=(get_loc so eo) }
 
   let mkerrvi so eo s =
@@ -2113,8 +2121,9 @@ module F (Stat : STATE_T) = struct
       parse_error_loc loc "syntax error: %s" s
 
   let mkaa so eo d = { aa_desc=d; aa_loc=(get_loc so eo) }
-  let mkch so eo ms id ts_opt s_opt i_opt p_opt = _mkch (get_loc so eo) ms id ts_opt s_opt i_opt p_opt
-  let mkrh so eo ms id ts_opt h i_opt = _mkrh (get_loc so eo) ms id ts_opt h i_opt
+  let mkch so eo ms id id_loc ts_opt s_opt i_opt p_opt =
+    _mkch (get_loc so eo) ms id id_loc ts_opt s_opt i_opt p_opt
+  let mkrh so eo ms id id_loc ts_opt h i_opt = _mkrh (get_loc so eo) ms id id_loc ts_opt h i_opt
   let mkmodule so eo h b = _mkmodule (get_loc so eo) h b
   let mkmn so eo n = _mkmn (get_loc so eo) n
   let mkmdh so eo a o n = _mkmdh (get_loc so eo) a o n
