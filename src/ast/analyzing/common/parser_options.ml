@@ -282,7 +282,7 @@ class c = object (self)
   method set_ignore_huge_arrays_flag = ignore_huge_arrays_flag <- true
   method clear_ignore_huge_arrays_flag = ignore_huge_arrays_flag <- false
 
-  val mutable huge_array_threshold = 256
+  val mutable huge_array_threshold = 1000
   method huge_array_threshold = huge_array_threshold
   method set_huge_array_threshold x = huge_array_threshold <- x
 

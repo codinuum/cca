@@ -121,6 +121,8 @@ let speclist =
    sprintf "N\tthreshold for algorithm selection (default: %d)" options#match_algo_threshold;
 *)
    "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
+   "-norr", Arg.Unit (fun () -> options#set_no_rename_rectification_flag),
+           "\tdisable rename rectification";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
    "-nocollapse", Arg.Unit (fun () -> options#set_no_collapse_flag), "\tdisable collapsing";

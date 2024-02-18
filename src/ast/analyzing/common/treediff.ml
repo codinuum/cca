@@ -17,61 +17,105 @@ module UID = Otreediff.UID
 
 open Printf
 
-let cost ?(umap_opt=None) ?(check_relabels=false) tree1 tree2 i j =
-  let nd1 = tree1#get i in
-  let nd2 = tree2#get j in
-  if
-    match umap_opt with
-    | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
-    | None -> false
-  then
-    0
-  else if i = 0 && j = 0 then
+let cost ?(umap_opt=None) tree1 tree2 i j =
+  if i = 0 && j = 0 then
     Stdlib.max_int
-  else if i = 0 then (* insert *)
-    let f =
-      if nd2#is_collapsed then
-        nd2#data#weight
-      else
-        1
-    in
-    4 * f
-  else if j = 0 then (* delete *)
-    let f =
-      if nd1#is_collapsed then
-        nd1#data#weight
-      else
-        1
-    in
-    4 * f
   else
-    if nd1#data#eq nd2#data then begin
-      if nd1#path#equals nd2#path then
-        if nd1#data#digest = nd2#data#digest then
-          if nd1#collapse_locked && nd2#collapse_locked then
-            0
-          else if nd1#is_collapsed && nd2#is_collapsed then
-            1
+    let nd1 = tree1#get i in
+    let nd2 = tree2#get j in
+    if
+      match umap_opt with
+      | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
+      | None -> false
+    then
+      0
+    else if i = 0 then (* insert *)
+      let f =
+        if nd2#is_collapsed then
+          nd2#data#weight
+        else
+          1
+      in
+      4 * f
+    else if j = 0 then (* delete *)
+      let f =
+        if nd1#is_collapsed then
+          nd1#data#weight
+        else
+          1
+      in
+      4 * f
+    else
+      if nd1#data#eq nd2#data then begin
+        if nd1#path#equals nd2#path then
+          if nd1#data#digest = nd2#data#digest then
+            if nd1#collapse_locked && nd2#collapse_locked then
+              0
+            else if nd1#is_collapsed && nd2#is_collapsed then
+              1
+            else
+              2
           else
             2
         else
-          2
-      else
-        3
-    end
-    else (* relabel *)
-      if check_relabels then
-        (*!NG!if not (nd1#data#relabel_allowed nd2#data) then 100 else*)
-          if nd1#data#_stripped_label = nd2#data#_stripped_label then
-            3
-          else if try nd1#data#get_name = nd2#data#get_name with _ -> false then
-            4
-          else if nd1#data#_anonymized_label = nd2#data#_anonymized_label then
-            5
-          else
-            6
-      else
+          3
+      end
+      else (* relabel *)
         5
+
+let semi_semantic_cost ?(umap_opt=None) tree1 tree2 i j =
+  if i = 0 && j = 0 then
+    Stdlib.max_int
+  else
+    let nd1 = tree1#get i in
+    let nd2 = tree2#get j in
+    if
+      match umap_opt with
+      | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
+      | None -> false
+    then
+      0
+    else if i = 0 then (* insert *)
+      let f =
+        if nd2#is_collapsed then
+          nd2#data#weight
+        else
+          1
+      in
+      4 * f
+    else if j = 0 then (* delete *)
+      let f =
+        if nd1#is_collapsed then
+          nd1#data#weight
+        else
+          1
+      in
+      4 * f
+    else
+      if nd1#data#eq nd2#data then begin
+        if nd1#path#equals nd2#path then
+          if nd1#data#digest = nd2#data#digest then
+            if nd1#collapse_locked && nd2#collapse_locked then
+              0
+            else if nd1#is_collapsed && nd2#is_collapsed then
+              1
+            else
+              2
+          else
+            2
+        else
+          3
+      end
+      else (* relabel *)
+        (*!NG!if not (nd1#data#relabel_allowed nd2#data) then 100 else*)
+        if nd1#data#_stripped_label = nd2#data#_stripped_label then
+          3
+        else if try nd1#data#get_name = nd2#data#get_name with _ -> false then
+          4
+        else if nd1#data#_anonymized_label = nd2#data#_anonymized_label then
+          5
+        else
+          6
 
 let get_anc_labs_cache = (Hashtbl.create 0 : (UID.t, string) Hashtbl.t)
 let get_anc_labs n =
@@ -102,73 +146,80 @@ let get_anc_labs n =
   end
 
 let semantic_cost ?(umap_opt=None) ?(rely_on_context=false) tree1 tree2 i j =
-  let nd1 = tree1#get i in
-  let nd2 = tree2#get j in
-  if
-    match umap_opt with
-    | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
-    | None -> false
-  then
-    0
-  else if i = 0 && j = 0 then
+  if i = 0 && j = 0 then
     Stdlib.max_int
-  else if i = 0 then (* insert *)
-    let f =
-      if nd2#is_collapsed then
-        nd2#data#weight
-      else
-        1
-    in
-    4 * f
-  else if j = 0 then (* delete *)
-    let f =
-      if nd1#is_collapsed then
-        nd1#data#weight
-      else
-        1
-    in
-    4 * f
   else
-    if nd1#data#eq nd2#data then begin
-      if
-        rely_on_context &&
-        nd1#data#is_named_orig && nd2#data#is_named_orig &&
-        get_anc_labs nd1 = get_anc_labs nd2
-      then
-        0
-      else
-      if nd1#path#equals nd2#path then
-        if nd1#data#digest = nd2#data#digest then
-          if nd1#collapse_locked && nd2#collapse_locked then
-            0
-          else if nd1#is_collapsed && nd2#is_collapsed then
-            1
+    let nd1 = tree1#get i in
+    let nd2 = tree2#get j in
+    if
+      match umap_opt with
+      | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
+      | None -> false
+    then
+      0
+    else if i = 0 then (* insert *)
+      let f =
+        if nd2#is_collapsed then
+          nd2#data#weight
+        else
+          1
+      in
+      4 * f
+    else if j = 0 then (* delete *)
+      let f =
+        if nd1#is_collapsed then
+          nd1#data#weight
+        else
+          1
+      in
+      4 * f
+    else
+      if nd1#data#eq nd2#data then begin
+        if
+          rely_on_context &&
+          nd1#data#is_named_orig && nd2#data#is_named_orig &&
+          get_anc_labs nd1 = get_anc_labs nd2
+        then
+          0
+        else
+          if nd1#path#equals nd2#path then
+            if nd1#data#digest = nd2#data#digest then
+              if nd1#collapse_locked && nd2#collapse_locked then
+                0
+              else if nd1#is_collapsed && nd2#is_collapsed then
+                1
+              else
+                2
+            else
+              2
           else
-            2
+            3
+      end
+      else (* relabel *)
+        if nd1#data#relabel_allowed nd2#data then
+          (*!20240205!if nd1#data#_stripped_label = nd2#data#_stripped_label then
+            3
+            else *)if nd1#data#quasi_eq nd2#data then
+              4
+            else if nd1#data#_anonymized_label = nd2#data#_anonymized_label then
+              5
+            else if nd1#data#_anonymized2_label = nd2#data#_anonymized2_label then
+              6
+            else
+              7
         else
-          2
-      else
-        3
-    end
-    else (* relabel *)
-      if nd1#data#relabel_allowed nd2#data then
-        (*!20240205!if nd1#data#_stripped_label = nd2#data#_stripped_label then
-          3
-        else *)if nd1#data#quasi_eq nd2#data then
-          4
-        else if nd1#data#_anonymized_label = nd2#data#_anonymized_label then
-          5
-        else if nd1#data#_anonymized2_label = nd2#data#_anonymized2_label then
-          6
-        else
-          7
-      else
           100(*Stdlib.max_int*)
 
 let _find w tree1 tree2 = Otreediff.ZS.Int.find w tree1 tree2
 
 let find ?(umap_opt=None) ?(check_relabels=false) tree1 tree2 =
-  _find (cost ~umap_opt ~check_relabels) tree1 tree2
+  let cost_ =
+    if check_relabels then
+      semi_semantic_cost ~umap_opt
+    else
+      cost ~umap_opt
+  in
+  _find cost_ tree1 tree2
 
 let sfind ?(umap_opt=None) ?(rely_on_context=false) tree1 tree2 =
   _find (semantic_cost ~umap_opt ~rely_on_context) tree1 tree2

@@ -48,6 +48,7 @@ class c = object (self)
   val mutable conservative_flag            = true
   val mutable ignore_move_of_unordered_flag = false
   val mutable ignore_non_orig_relabel_flag = false
+  val mutable no_rename_rectification_flag = false
 (* *)
 
   val mutable dump_size_threshold = 16
@@ -94,6 +95,10 @@ class c = object (self)
   method no_relabel_elim_flag = no_relabel_elim_flag
   method set_no_relabel_elim_flag = no_relabel_elim_flag <- true
   method clear_no_relabel_elim_flag = no_relabel_elim_flag <- false
+
+  method no_rename_rectification_flag = no_rename_rectification_flag
+  method set_no_rename_rectification_flag = no_rename_rectification_flag <- true
+  method clear_no_rename_rectification_flag = no_rename_rectification_flag <- false
 
   method no_moves_flag = no_moves_flag
   method set_no_moves_flag = no_moves_flag <- true

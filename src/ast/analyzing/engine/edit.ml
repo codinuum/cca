@@ -617,6 +617,15 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
               with Not_found -> ()
             end
           end
+          else if nd1#data#is_named_orig && nd2#data#is_named_orig then begin
+            match nd1#initial_children, nd2#initial_children with
+            | [|c1|], [|c2|] when cenv#has_uniq_match c1 c2 -> begin
+                let nm1 = Comparison.get_orig_name nd1 in
+                let nm2 = Comparison.get_orig_name nd2 in
+                cenv#add_rename_pat (nm1, nm2)
+            end
+            | _ -> ()
+          end
       end
       | _ -> assert false
     );
@@ -841,7 +850,7 @@ let adjust_renames
             let pu2 = p2#uid in
             uidmapping#find pu1 == pu2 &&
             let p1_eq_p2 = p1#data#eq p2#data in
-            p1_eq_p2 && has_uniq_paths p1 p2 node1 node2 ||
+            p1_eq_p2 && (p1#data#is_sequence || has_uniq_paths p1 p2 node1 node2) ||
             not p1_eq_p2 && p1#data#is_named && p2#data#is_named &&
             not (edits#mem_mov12 pu1 pu2)
           with
@@ -913,7 +922,7 @@ let adjust_renames
          has_nearest_mapped_ancestor_upto_boundary n1 n2
         )
       in
-      DEBUG_MSG "%a-%a: %B" UID.ps n1#uid UID.ps n2#uid b;
+      DEBUG_MSG "%a-%a: %B" nups n1 nups n2 b;
       b
     in
     collect_use_renames ~filt cenv uidmapping edits is_possible_rename

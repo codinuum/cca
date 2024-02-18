@@ -39,7 +39,7 @@ let in_subtree_mutually tree nd1 nd2 =
 
 let is_crossing nd1 nd2 n1 n2 =
   let b = (nd1#gindex - n1#gindex) * (nd2#gindex - n2#gindex) < 0 in
-  DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd1 nups nd2 nups n1 nups n2 b;
+  (*DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd1 nups nd2 nups n1 nups n2 b;*)
   b
 
 
@@ -50,7 +50,7 @@ let _is_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
     (in_subtree_mutually1 && not in_subtree_mutually2) ||
     (not in_subtree_mutually1 && in_subtree_mutually2)
   in
-  DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd11 nups nd12 nups nd21 nups nd22 b;
+  (*DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd11 nups nd12 nups nd21 nups nd22 b;*)
   b
 
 

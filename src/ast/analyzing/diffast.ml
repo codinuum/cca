@@ -261,6 +261,8 @@ let speclist =
    "-lock-match", Arg.Unit (fun () -> options#set_lock_matches_flag), "\t\tlock matched subtrees";
 *)
    "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
+   "-norr", Arg.Unit (fun () -> options#set_no_rename_rectification_flag),
+           "\tdisable rename rectification";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomoves", Arg.Unit (fun () -> options#set_no_moves_flag), "\tdisable move generation";
    "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";

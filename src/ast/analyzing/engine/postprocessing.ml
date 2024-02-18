@@ -1253,7 +1253,10 @@ module F (Label : Spec.LABEL_T) = struct
            let dn' = tree2#search_node_by_uid du' in
            let dn_exists_in_nd2tree = exists_in_subtree dn tree2 nd2 in
 
-           if (not (tree2#initial_subtree_mem nd2 dn')) && dn#data#eq dn'#data && not dn_exists_in_nd2tree then begin
+           if
+             (not (tree2#initial_subtree_mem nd2 dn')) &&
+             dn#data#eq dn'#data && not dn_exists_in_nd2tree
+           then begin
 
              DEBUG_MSG "\todd mapping: %a-%a" ups nd1#uid ups nd2#uid;
 
@@ -1273,7 +1276,10 @@ module F (Label : Spec.LABEL_T) = struct
            let dn' = tree1#search_node_by_uid du' in
            let dn_exists_in_nd1tree = exists_in_subtree dn tree1 nd1 in
 
-           if (not (tree1#initial_subtree_mem nd1 dn')) && dn#data#eq dn'#data && not dn_exists_in_nd1tree then begin
+           if
+             (not (tree1#initial_subtree_mem nd1 dn')) &&
+             dn#data#eq dn'#data && not dn_exists_in_nd1tree
+           then begin
 
              DEBUG_MSG "\todd mapping: %a-%a" ups nd1#uid ups nd2#uid;
 
@@ -1431,6 +1437,7 @@ module F (Label : Spec.LABEL_T) = struct
             Treediff.fast_match_trees otree ntree ref_uidmapping
           else
             let check_relabels =
+              not options#no_rename_rectification_flag &&
               if
                 nd1#data#is_boundary && nd2#data#is_boundary ||
                 nd1#data#is_block && nd2#data#is_block
@@ -1721,7 +1728,10 @@ module F (Label : Spec.LABEL_T) = struct
 
                 with Not_found ->
                   let parent_cond =
-                    (List.assq pnd1 (relabels_checked @ matches_and_extra_matches_)) == pnd2
+                    try
+                      (List.assq pnd1 relabels_checked) == pnd2
+                    with Not_found ->
+                      (List.assq pnd1 matches_and_extra_matches_) == pnd2
                   in
                   (*let parent_cond =
                     let pl = relabels_checked @ matches_and_extra_matches_ in
@@ -1825,8 +1835,11 @@ END_DEBUG;
                     with Not_found -> begin
                       let b =
                         try
-                          (List.assq an1 (relabels_checked @ matches_and_extra_matches_)) == an2
-                        with Not_found -> false
+                          (List.assq an1 relabels_checked) == an2
+                        with Not_found ->
+                          try
+                            (List.assq an1 matches_and_extra_matches_) == an2
+                          with Not_found -> false
                       in
                       DEBUG_MSG "%B" b;
                       b
@@ -4983,7 +4996,7 @@ END_DEBUG;
 *)
     let sync_edits = sync_edits options tree1 tree2 edits in
 
-    if not simple then begin
+    if not simple && not options#no_rename_rectification_flag then begin
       begin
         match lang#elaborate_edits with
         | Some f ->
@@ -6968,6 +6981,13 @@ end;
                     let is_root = nd1 == rt1 &&  nd2 == rt2 in
                     DEBUG_MSG "%a-%a (is_root=%B)" UID.ps uid1 UID.ps uid2 is_root;
                     let b =
+                      (
+                       (*check_parent nd1 nd2 && *)
+                       is_xxx_pair nd1 nd2 ||
+                       (try (*do not remove!!!NG!!!*)
+                         unstable_context_flag && not (is_map nd1#initial_parent nd2#initial_parent)
+                       with _ -> false)
+                      ) &&
                     not (
                     (*cenv#weak_node_eq nd1 nd2 &&*)
                     (
@@ -7119,20 +7139,13 @@ end;
                       edits#is_crossing_with_untouched
                         ?mask:None ?incompatible_only:None ?statement_only:None
                         uidmapping nd1 nd2
-                   ) &&
-                   (
-                    (*check_parent nd1 nd2 && *)
-                    is_xxx_pair nd1 nd2 ||
-                    (try (*do not remove!!!NG!!!*)
-                      unstable_context_flag && not (is_map nd1#initial_parent nd2#initial_parent)
-                    with _ -> false)
                    )
                    in
                    DEBUG_MSG "%a-%a -> %B" nps nd1 nps nd2 b;
                    b
                 end
                 | _ -> assert false
-              ) movl;
+              ) movl
             (*DEBUG_MSG "total=%d" !total;*)
             (*let nmap1 n1 = tree2#search_node_by_uid (uidmapping#find n1#uid) in
             let nmap2 n2 = tree1#search_node_by_uid (uidmapping#inv_find n2#uid) in
@@ -7999,7 +8012,7 @@ end;
             let chk1 c1 =
               try
                 match edits#find_mov1 c1#uid with
-                | (Edit.Move(m, _, _, (_, ci2, _)) as mov) -> begin
+                | Edit.Move(m, _, _, (_, ci2, _)) -> begin
                     DEBUG_MSG "m=%a" MID.ps !m;
                     !m <> !mid ||
                     let c2 = Info.get_node ci2 in

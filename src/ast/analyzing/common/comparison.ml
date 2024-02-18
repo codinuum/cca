@@ -924,6 +924,13 @@ class ['node_t, 'tree_t] c
     let matches = ref [] in
     let nmcount = ref 0 in
 
+    let has_uniq_match =
+      if options#no_rename_rectification_flag then
+        fun _ _ -> false
+      else
+        self#has_uniq_match
+    in
+
     List.iter
       (fun (i, j) ->
         let n1, n2 = a1.(i), a2.(j) in
@@ -932,7 +939,7 @@ class ['node_t, 'tree_t] c
             (*if self#has_uniq_subtree_match n1 n2 then
               1.1
             else *)if n1#data#eq n2#data then
-              if self#has_uniq_match n1 n2 then
+              if has_uniq_match n1 n2 then
                 1.1
               else
                 1.0

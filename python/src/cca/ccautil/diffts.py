@@ -425,6 +425,7 @@ def diffts(diff_cmd, file1, file2,
            aggressive=False,
            ignore_moves_of_unordered=False,
            no_unnamed_node_moves=False,
+           no_rename_rectification=False,
            keep_filtered_temp=False,
            local_cache_name='',
            dump_delta=False,
@@ -529,6 +530,9 @@ def diffts(diff_cmd, file1, file2,
 
         if no_unnamed_node_moves:
             other_opts += ' -no-unnamed-node-moves'
+
+        if no_rename_rectification:
+            other_opts += ' -norr'
 
         if ignore_moves_of_unordered:
             other_opts += ' -ignore-moves-of-unordered'

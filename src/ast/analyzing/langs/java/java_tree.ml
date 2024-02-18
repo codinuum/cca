@@ -25,6 +25,7 @@ module P   = Printer
 module L   = Java_label
 module BID = Binding.ID
 module FB  = Fact_base.F (L)
+module UID = Otreediff.UID
 
 let sprintf = Printf.sprintf
 
@@ -431,6 +432,11 @@ class translator options =
   object (self)
   inherit node_maker options
 
+  val mutable huge_array_list = []
+
+  method huge_array_list = huge_array_list
+  method reg_huge_array orig nd = huge_array_list <- (orig, nd) :: huge_array_list
+
   method set_bindings (tree : Spec.tree_t) =
 
     (* for imports *)
@@ -654,7 +660,7 @@ class translator options =
 
   val true_parent_tbl = Hashtbl.create 0
   method true_parent_tbl = true_parent_tbl
-  method add_true_parent (uid : Otreediff.UID.t) (nd : Spec.node_t) =
+  method add_true_parent (uid : UID.t) (nd : Spec.node_t) =
     Hashtbl.add true_parent_tbl uid nd
 
   val true_children_tbl = Hashtbl.create 0
@@ -1085,7 +1091,7 @@ class translator options =
   method of_variable_initializer vi =
     match vi.Ast.vi_desc with
     | Ast.VIexpression e -> self#of_expression e
-    | Ast.VIarray ai ->
+    | Ast.VIarray ai -> begin
         let ordinal_tbl_opt = Some (new ordinal_tbl [List.length ai]) in
         let nd =
           self#mknode ~ordinal_tbl_opt
@@ -1115,7 +1121,9 @@ class translator options =
               let _ = n#unparse_ch oc in
               let u = Buffer.contents buf in
               let _ = Spec_base.OutChannel.close oc in
-              self#mkleaf (L.HugeArray(sz, u))
+              let nd_ = self#mkleaf (L.HugeArray(sz, u)) in
+              self#reg_huge_array nd nd_;
+              nd_
             end
             else
               nd
@@ -1125,10 +1133,12 @@ class translator options =
         in
         set_loc nd vi.Ast.vi_loc;
         nd
-    | Ast.VIerror s ->
+    end
+    | Ast.VIerror s -> begin
         let nd = self#mkleaf (L.Error s) in
         set_loc nd vi.Ast.vi_loc;
         nd
+    end
 
   method of_variable_declarator vd =
     let loc = conv_loc vd.Ast.vd_loc in
@@ -2760,7 +2770,7 @@ class translator options =
           DEBUG_MSG "ClassBody(%s):" cname;
           List.iteri
             (fun i n ->
-              DEBUG_MSG "%d: (%s)%s" i (Otreediff.UID.to_string n#uid) (L.to_string (getlab n))
+              DEBUG_MSG "%d: (%a)%s" i UID.ps n#uid (L.to_string (getlab n))
             ) children'
         END_DEBUG;
         children'
@@ -3142,7 +3152,7 @@ class translator options =
       DEBUG_MSG "InterfaceBody(%s):" iname;
       List.iteri
         (fun i n ->
-          DEBUG_MSG "%d: (%s)%s" i (Otreediff.UID.to_string n#uid) (L.to_string (getlab n))
+          DEBUG_MSG "%d: (%a)%s" i UID.ps n#uid (L.to_string (getlab n))
         ) children'
     END_DEBUG;
     let nd = self#mklnode (L.InterfaceBody iname) children' in
@@ -3328,11 +3338,16 @@ let of_compilation_unit options cu =
   let tree =
     new c options compilation_unit_node true
   in
+  let n_huge_arrays = List.length trans#huge_array_list in
   DEBUG_MSG "T:\n%s" tree#to_string;
+  DEBUG_MSG "%d huge array(s) found" n_huge_arrays;
   tree#set_true_parent_tbl trans#true_parent_tbl;
   tree#set_true_children_tbl trans#true_children_tbl;
   trans#set_bindings tree;
   tree#collapse;
+  if n_huge_arrays > 0 then begin
+    Xprint.verbose options#verbose_flag "%d huge array(s) found" n_huge_arrays;
+  end;
   tree
 
 let of_ast options ast =
