@@ -4,7 +4,7 @@
 '''
   find_change_patterns.py
 
-  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -318,7 +318,7 @@ locale.setlocale(locale.LC_ALL, LOCALE)
 def format_num(n):
     s = '-'
     if n:
-        s = locale.format('%d', n, grouping=True)
+        s = locale.format_string('%d', n, grouping=True)
     return s
 
 
