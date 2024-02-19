@@ -1531,32 +1531,34 @@ module F (Stat : STATE_T) = struct
 
   let is_local_name n =
     DEBUG_MSG "\"%s\"" (P.name_to_simple_string n);
-    if is_qualified n then begin
-      false
-    end
-    else if env#partial_name_resolution_flag then begin
-      false
-    end
-    else begin
-      let is_local n =
-	let id = rightmost_identifier n in
-	try
-	  let attrs = env#lookup_identifier id in
-          let rec iter = function
-            | [] -> false
-            | (IAfield | IAstatic _)::_ -> false
-            | (IAvariable | IAparameter)::_ -> true
-            | (IAexpression | IAarray)::rest -> iter rest
-            | _ -> false
-          in
-          iter attrs
-	with
-	  Not_found -> false
-      in
-      let b = is_local n in
-      DEBUG_MSG "\"%s\" --> %B" (P.name_to_simple_string n) b;
-      b
-    end
+    let b =
+      if is_qualified n then begin
+        false
+      end
+      else if env#partial_name_resolution_flag then begin
+        false
+      end
+      else begin
+        let is_local n =
+	  let id = rightmost_identifier n in
+	  try
+	    let attrs = env#lookup_identifier id in
+            let rec iter = function
+              | [] -> false
+              | (IAfield | IAstatic _)::_ -> false
+              | (IAvariable | IAparameter)::_ -> true
+              | (IAexpression | IAarray)::rest -> iter rest
+              | _ -> false
+            in
+            iter attrs
+	  with
+	    Not_found -> false
+        in
+        is_local n
+      end
+    in
+    DEBUG_MSG "\"%s\" --> %B" (P.name_to_simple_string n) b;
+    b
 
   let is_implicit_field_name n =
     DEBUG_MSG "\"%s\"" (P.name_to_simple_string n);
@@ -1571,7 +1573,7 @@ module F (Stat : STATE_T) = struct
           let rec iter = function
             | [] -> raise Not_found
             | (IAfield | IAstatic _)::_ -> true
-            | (IAexpression | IAarray)::rest -> iter rest
+            | (IAexpression | IAarray | IAmethod)::rest -> iter rest
             | _ -> false
           in
           iter attrs
@@ -1881,9 +1883,10 @@ module F (Stat : STATE_T) = struct
         a := NAexpression;
         let lab =
           try
-            match env#lookup_identifier i with
-            | IAfield::_ -> PfieldAccess(FAimplicit name)
-            | _ -> Pname name
+            if List.mem IAfield (env#lookup_identifier i) then
+              PfieldAccess(FAimplicit name)
+            else
+              Pname name
           with
             Not_found ->
               a := NAambiguous (env#resolve name);

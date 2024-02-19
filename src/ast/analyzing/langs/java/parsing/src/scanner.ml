@@ -109,7 +109,7 @@ module F (Stat : Aux.STATE_T) = struct
         try
           shadow_queue#iter
             (fun t ->
-              DEBUG_MSG "%s" (Token.to_string env#current_pos_mgr t);
+              (*DEBUG_MSG "%s" (Token.to_string env#current_pos_mgr t);*)
               match Token.decompose t with
               | ERROR _, _, _ -> raise Exit
               | _, stp, edp ->
