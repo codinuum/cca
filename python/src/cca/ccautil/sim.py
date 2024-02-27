@@ -4,7 +4,7 @@
 '''
   sim.py
 
-  Copyright 2012-2021 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ def java_sim(f1, f2):
     toks2 = java.get_tokens(f2)
     matcher = difflib.SequenceMatcher(isjunk=None, a=toks1, b=toks2)
     similarity = matcher.quick_ratio()
+    # similarity = java.compare_files(f1, f2)['sim']
     return similarity
 
 

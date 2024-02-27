@@ -4,7 +4,7 @@
 '''
   srcdiff.py
 
-  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -527,7 +527,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
     logger.info(f'size of pairs: {len(pairs)}')
 
     result = []
-    for (f1, f2) in pairs:
+    for f1, f2 in pairs:
         if f1 in ignore1 or f2 in ignore2:
             continue
 
@@ -663,46 +663,80 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
 
     extra_pairs = []
     if use_sim:
+        sim_thresh2 = 0.9
+        modified1, modified2 = zip(*modified)
         logger.debug('matching removed and added files...')
         li = []
+        li2 = []
         for x in removed:
             logger.debug(f'{x}')
             cs_ = []
             for x_ in added:
                 s = sim.sim(x, x_)
+                logger.debug(f'  {x_} ({s})')
                 if s > sim_thresh:
-                    logger.debug(f'  {x_} ({s})')
                     cs_.append((x_, s))
             if cs_:
                 li.append((x, cs_))
+            else:
+                for x_ in modified2:
+                    s = sim.sim(x, x_)
+                    if s > sim_thresh2:
+                        logger.debug(f'  {x_} ({s}) from mapped files')
+                        cs_.append((x_, s))
+            if cs_:
+                li2.append((x, cs_))
+
         pairs = set()
         pairs0 = set()
+        pairs1 = set()
         for (x, cs_) in li:
             if len(cs_) == 1:
                 pairs.add((x, cs_[0][0]))
             else:
                 pairs0.add((x, max(cs_, key=lambda x: x[1])[0]))
+        for (x, cs_) in li2:
+            if len(cs_) == 1:
+                pairs1.add((x, cs_[0][0]))
+            else:
+                pairs1.add((x, max(cs_, key=lambda x: x[1])[0]))
 
-        l_ = []
+        li_ = []
+        li2_ = []
         for x_ in added:
             logger.debug(f'{x_}')
             cands = []
             for x in removed:
                 s = sim.sim(x, x_)
+                logger.debug(f'  {x} ({s})')
                 if s > sim_thresh:
-                    logger.debug(f'  {x} ({s})')
                     cands.append((x, s))
             if cands:
-                l_.append((cands, x_))
+                li_.append((cands, x_))
+            else:
+                for x in modified1:
+                    s = sim.sim(x, x_)
+                    if s > sim_thresh2:
+                        logger.debug(f'  {x} ({s}) from mapped files')
+                        cands.append((x, s))
+            if cands:
+                li2_.append((cands, x_))
+
         pairs_ = set()
         pairs0_ = set()
-        for (cs, x_) in l_:
+        pairs1_ = set()
+        for (cs, x_) in li_:
             if len(cs) == 1:
                 pairs_.add((cs[0][0], x_))
             else:
                 pairs0_.add((max(cs, key=lambda x: x[1])[0], x_))
+        for (cs, x_) in li2_:
+            if len(cs) == 1:
+                pairs1_.add((cs[0][0], x_))
+            else:
+                pairs1_.add((max(cs, key=lambda x: x[1])[0], x_))
 
-        extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_))
+        extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_) | pairs1 | pairs1_)
 
         logger.info(f'extra pairs (sim_thresh={sim_thresh}):')
         for p in extra_pairs:
@@ -711,8 +745,10 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
     if extra_pairs:
         for p in extra_pairs:
             (x, x_) = p
-            removed.remove(x)
-            added.remove(x_)
+            if x in removed:
+                removed.remove(x)
+            if x_ in added:
+                added.remove(x_)
             modified.append(p)
 
     modified0 = [p[0] for p in modified]
