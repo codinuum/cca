@@ -663,19 +663,29 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
 
     extra_pairs = []
     if use_sim:
+        sim_thresh1 = 0.8
         sim_thresh2 = 0.9
         modified1, modified2 = zip(*modified)
         logger.debug('matching removed and added files...')
         li = []
+        li1 = []
         li2 = []
         for x in removed:
             logger.debug(f'{x}')
             cs_ = []
+            cs1_ = []
             for x_ in added:
                 s = sim.sim(x, x_)
                 logger.debug(f'  {x_} ({s})')
                 if s > sim_thresh:
                     cs_.append((x_, s))
+                else:
+                    s = sim.string_sim(x, x_)
+                    if s > sim_thresh1:
+                        logger.debug(f'  {x_} ({s}) from file names')
+                        cs1_.append((x_, s))
+            if cs1_:
+                li1.append((x, cs1_))
             if cs_:
                 li.append((x, cs_))
             else:
@@ -690,53 +700,75 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
         pairs = set()
         pairs0 = set()
         pairs1 = set()
+        pairs2 = set()
         for (x, cs_) in li:
             if len(cs_) == 1:
                 pairs.add((x, cs_[0][0]))
             else:
                 pairs0.add((x, max(cs_, key=lambda x: x[1])[0]))
-        for (x, cs_) in li2:
+        for (x, cs_) in li1:
             if len(cs_) == 1:
                 pairs1.add((x, cs_[0][0]))
             else:
                 pairs1.add((x, max(cs_, key=lambda x: x[1])[0]))
+        for (x, cs_) in li2:
+            if len(cs_) == 1:
+                pairs2.add((x, cs_[0][0]))
+            else:
+                pairs2.add((x, max(cs_, key=lambda x: x[1])[0]))
 
         li_ = []
+        li1_ = []
         li2_ = []
         for x_ in added:
             logger.debug(f'{x_}')
-            cands = []
+            cs = []
+            cs1 = []
             for x in removed:
                 s = sim.sim(x, x_)
                 logger.debug(f'  {x} ({s})')
                 if s > sim_thresh:
-                    cands.append((x, s))
-            if cands:
-                li_.append((cands, x_))
+                    cs.append((x, s))
+                else:
+                    s = sim.string_sim(x, x_)
+                    if s > sim_thresh1:
+                        logger.debug(f'  {x} ({s}) from file names')
+                        cs1.append((x, s))
+            if cs1:
+                li1_.append((cs1, x_))
+            if cs:
+                li_.append((cs, x_))
             else:
                 for x in modified1:
                     s = sim.sim(x, x_)
                     if s > sim_thresh2:
                         logger.debug(f'  {x} ({s}) from mapped files')
-                        cands.append((x, s))
-            if cands:
-                li2_.append((cands, x_))
+                        cs.append((x, s))
+            if cs:
+                li2_.append((cs, x_))
 
         pairs_ = set()
         pairs0_ = set()
         pairs1_ = set()
+        pairs2_ = set()
         for (cs, x_) in li_:
             if len(cs) == 1:
                 pairs_.add((cs[0][0], x_))
             else:
                 pairs0_.add((max(cs, key=lambda x: x[1])[0], x_))
-        for (cs, x_) in li2_:
+        for (cs, x_) in li1_:
             if len(cs) == 1:
                 pairs1_.add((cs[0][0], x_))
             else:
                 pairs1_.add((max(cs, key=lambda x: x[1])[0], x_))
+        for (cs, x_) in li2_:
+            if len(cs) == 1:
+                pairs2_.add((cs[0][0], x_))
+            else:
+                pairs2_.add((max(cs, key=lambda x: x[1])[0], x_))
 
-        extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_) | pairs1 | pairs1_)
+        extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_) | (pairs1 & pairs1_) |
+                           pairs2 | pairs2_)
 
         logger.info(f'extra pairs (sim_thresh={sim_thresh}):')
         for p in extra_pairs:

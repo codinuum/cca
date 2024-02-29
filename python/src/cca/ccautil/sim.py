@@ -25,6 +25,12 @@ import difflib
 from . import java_token_diff as java
 
 
+def string_sim(s1, s2):
+    matcher = difflib.SequenceMatcher(isjunk=None, a=s1, b=s2)
+    similarity = matcher.ratio()
+    return similarity
+
+
 def line_sim(f1, f2):
     if filecmp.cmp(f1, f2):
         return 0.0
@@ -77,7 +83,7 @@ def main():
         s = sim(args.path1, args.path2, plain=args.plain)
         print(s)
     except IOError as e:
-        print('ERROR: {}'.format(str(e)))
+        print(f'ERROR: {e}')
 
 
 if __name__ == '__main__':
