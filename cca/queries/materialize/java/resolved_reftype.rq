@@ -43,14 +43,14 @@ WHERE {
           java:name ?name ;
           java:unqualifiedName ?uqn .
 
-      ?file1 src:inSourceTree ?src .
-
       FILTER (?name != ?fqn)
 
       FILTER (?fqn = CONCAT(?pkgname, ".", ?name))
 
     } GROUP BY ?TD ?pkgname ?fqn ?src ?uqn ?file0 ?ty ?name ?file1
   }
+
+  ?file1 src:inSourceTree ?src .
 
   ?pkg1 a java:PackageDeclaration ;
         src:parent/src:inFile ?file1 ;
