@@ -142,6 +142,8 @@ class type [ 'node ] tree_t_shared = object ('self)
   method find_mapped_bids          : BID.t -> BID.t list
   method add_to_bid_tbl            : BID.t -> string -> unit
   method find_name_for_bid         : BID.t -> string
+  method add_to_def_bid_tbl        : BID.t -> 'node -> unit
+  method find_def_for_bid          : BID.t -> 'node
   method initial_subtree_to_rep    : 'node -> string
   method initial_to_rep            : string
   method set_source_path           : string -> unit

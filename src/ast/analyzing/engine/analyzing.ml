@@ -18,7 +18,9 @@
 
 
 module UID = Otreediff.UID
+module MID = Moveid
 module GI = Otreediff.GIndex
+module B = Binding
 
 let matched_sibling_ratio_thresh = 0.9
 
@@ -1309,9 +1311,22 @@ module F (Label : Spec.LABEL_T) = struct
         let count = ref 0 in
         ref_uidmapping#iter
           (fun uid1 uid2 ->
-            incr count;
-            DEBUG_MSG "merging %a-%a" ups uid1 ups uid2;
-            ignore (uidmapping#add_unsettled uid1 uid2)
+            let nd1 = tree1#search_node_by_uid uid1 in
+            let nd2 = tree2#search_node_by_uid uid2 in
+            if
+              nd1#data#is_named && not nd1#data#has_value && not (B.is_use nd1#data#binding) &&
+              nd2#data#is_named && not nd2#data#has_value && not (B.is_use nd2#data#binding) &&
+              (
+               (try not (uidmapping#mem_dom (Comparison.get_bn nd1)#uid) with _ -> false) ||
+               (try not (uidmapping#mem_cod (Comparison.get_bn nd2)#uid) with _ -> false)
+              )
+            then
+              DEBUG_MSG "merge canceled: %a-%a" ups uid1 ups uid2
+            else begin
+              incr count;
+              DEBUG_MSG "merging %a-%a" ups uid1 ups uid2;
+              ignore (uidmapping#add_unsettled uid1 uid2)
+            end
           );
         uidmapping#set_stable_pairs ref_uidmapping#stable_pairs;
         DEBUG_MSG "%d pairs from REF-UIDMAPPING MERGED.\n" !count
@@ -1572,11 +1587,11 @@ end;
         edits#dump_delta ~info_file_path tree1 tree2 uidmapping edits_copy delta
       end;
 
-      let orig_edits =
+      let orig_edits, find_mov_gr, find_mov_gr_mems =
         if options#ignore_non_orig_relabel_flag || options#ignore_move_of_unordered_flag then
-          edits#copy
+          edits#copy, Hashtbl.find edits_copy#_mov_gr_tbl, Hashtbl.find edits_copy#_mov_gr_mem_tbl
         else
-          edits
+          edits, (fun _ -> raise Not_found), (fun _ -> raise Not_found)
       in
 
       if options#ignore_non_orig_relabel_flag then begin
@@ -1618,6 +1633,37 @@ end;
 
         DEBUG_MSG "filtering moves...";
 
+        let false_moves = Xset.create 0 in
+        let rec add_false_mid mid =
+          if Xset.mem false_moves mid then
+            ()
+          else begin
+            DEBUG_MSG "%a" MID.ps mid;
+            Xset.add false_moves mid;
+            begin
+              try
+                let mid' = find_mov_gr mid in
+                if not (Xset.mem false_moves mid') then begin
+                  DEBUG_MSG "%a<-%a" MID.ps mid MID.ps mid';
+                  add_false_mid mid'
+                end
+              with _ -> ()
+            end;
+            begin
+              try
+                List.iter
+                  (fun mov ->
+                    let mid' = Edit_base.get_mid mov in
+                    if mid' <> mid && not (Xset.mem false_moves mid') then begin
+                      DEBUG_MSG "%a->%a" MID.ps mid MID.ps mid';
+                      add_false_mid mid'
+                    end
+                  ) (find_mov_gr_mems mid)
+              with _ -> ()
+            end
+          end
+        in
+
         let check_mov_weak nd1 nd2 = function
           | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
               let b =
@@ -1627,9 +1673,12 @@ end;
                 (try (uidmapping#find pnd1#uid) = pnd2#uid with _ -> false) &&
                 match edits#find12 pnd1#uid pnd2#uid with
                 | [] -> true
-                | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
+                | [Editop.Relabel _] ->
+                    pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
                 | _ -> false
               in
+              if b then
+                add_false_mid !mid;
               let _ = mov in
               DEBUG_MSG "%s -> %B" (Edit.to_string mov) b;
               b
@@ -1664,6 +1713,8 @@ end;
                 | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
                 | _ -> false
               in
+              if b then
+                add_false_mid !mid;
               let _ = mov in
               DEBUG_MSG "%s -> %B" (Edit.to_string mov) b;
               b
@@ -1693,7 +1744,10 @@ end;
                         | Relabel(movrel, (u1, i1, _), (u2, i2, _)) -> begin
                             let n1 = Info.get_node i1 in
                             let n2 = Info.get_node i2 in
-                            if tree1#is_initial_ancestor nd1 n1 && tree2#is_initial_ancestor nd2 n2 then
+                            if
+                              nd1 == n1 && nd2 == n2 ||
+                              tree1#is_initial_ancestor nd1 n1 && tree2#is_initial_ancestor nd2 n2
+                            then
                               movrel := false
                         end
                         | _ -> ()
@@ -1705,7 +1759,39 @@ end;
                   true
             end
             | _ -> true
-          )
+          );
+      edits#filter_moves
+        (function
+          | Editop.Move(mid, kind, (uid1, info1, exc1), (uid2, info2, exc2)) as mov -> begin
+              let _ = mov in
+              let nd1 = Info.get_node info1 in
+              let nd2 = Info.get_node info2 in
+              if
+                Xset.mem false_moves !mid
+              then begin
+                DEBUG_MSG "filtered: %s" (Edit.to_string mov);
+                begin
+                  edits#iter_relabels
+                    (function
+                      | Relabel(movrel, (u1, i1, _), (u2, i2, _)) -> begin
+                          let n1 = Info.get_node i1 in
+                          let n2 = Info.get_node i2 in
+                          if
+                            nd1 == n1 && nd2 == n2 ||
+                            tree1#is_initial_ancestor nd1 n1 && tree2#is_initial_ancestor nd2 n2
+                          then
+                            movrel := false
+                      end
+                      | _ -> ()
+                    )
+                end;
+                false
+              end
+              else
+                true
+          end
+          | _ -> true
+        )
       end;
       Xprint.verbose options#verbose_flag "done.";
 
@@ -2663,8 +2749,9 @@ end;
                 (fun n ->
                   n#lock_collapse;
 
-                  DEBUG_MSG "collapsed node locked: %a(%a) (subtree size: %d)" nups n ngps n
-                    (tree#whole_initial_subtree_size n)
+                  DEBUG_MSG "collapsed node locked: %a:%s (subtree size: %d)"
+                    nups n n#data#to_string (tree#whole_initial_subtree_size n)
+
                 ) set
             ) [(tree1, locked1); (tree2, locked2)];
 

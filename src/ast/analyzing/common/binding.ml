@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 (*
  * binding.ml
  *)
+
+module UID = Otreediff.UID
 
 module ID = struct
 
@@ -64,9 +66,9 @@ module ID = struct
 
 end (* of module Binding.ID *)
 
-type use = Used of int | Unknown
+type use_count = Used of int | Unknown
 
-let use_to_string = function
+let use_count_to_string = function
   | Used i  -> Printf.sprintf "Used:%d" i
   | Unknown -> "Unknown"
 
@@ -74,21 +76,24 @@ type is_local = bool
 
 type t =
   | NoBinding
-  | Def of ID.t * use * is_local
-  | Use of ID.t * Loc.t option (* loc of def *)
+  | Def of ID.t * use_count ref * is_local
+  | Use of ID.t * (UID.t * Loc.t) option (* loc of def *)
 
 let to_string = function
-  | NoBinding         -> "NoBinding"
-  | Def(bid, use, is_local) -> Printf.sprintf "Def(%a,%s,%B)" ID.ps bid (use_to_string use) is_local
+  | NoBinding -> "NoBinding"
+  | Def(bid, use_count, is_local) ->
+      Printf.sprintf "Def(%a,%s,%B)" ID.ps bid (use_count_to_string !use_count) is_local
   | Use(bid, loc_opt) ->
       Printf.sprintf "Use(%a%s)" ID.ps bid
-        (match loc_opt with Some loc -> ":"^(Loc.to_string loc) | None -> "")
+        (match loc_opt with
+        | Some (u, loc) -> ":"^(Loc.to_string loc)^(UID.to_string u)
+        | None -> "")
 
-let make_def id u b = Def(id, u, b)
+let make_def id u b = Def(id, ref u, b)
 
-let make_used_def id n b = Def(id, Used n, b)
-let make_unused_def id b = Def(id, Used 0, b)
-let make_unknown_def id b = Def(id, Unknown, b)
+let make_used_def id n b = Def(id, ref (Used n), b)
+let make_unused_def id b = Def(id, ref (Used 0), b)
+let make_unknown_def id b = Def(id, ref Unknown, b)
 
 let make_use ?(loc_opt=None) id = Use(id, loc_opt)
 
@@ -113,11 +118,19 @@ let is_non_local_def = function
   | _ -> false
 
 let is_used_def = function
-  | Def(_, Used n, _) -> n > 0
+  | Def(_, use_count, _) -> begin
+      match !use_count with
+      | Used n -> n > 0
+      | _ -> false
+  end
   | _ -> false
 
 let is_unused_def = function
-  | Def(_, Used 0, _) -> true
+  | Def(_, use_count, _) -> begin
+      match !use_count with
+      | Used 0 -> true
+      | _ -> false
+  end
   | _ -> false
 
 let get_bid = function
@@ -129,9 +142,25 @@ let get_bid_opt = function
   | NoBinding -> None
 
 let get_use_count = function
-  | Def(_, Used n, _) -> n
+  | Def(_, use_count, _) -> begin
+      match !use_count with
+      | Used n -> n
+      | _ -> raise Not_found
+  end
   | _ -> raise Not_found
 
 let get_loc = function
-  | Use(_, Some loc) -> loc
+  | Use(_, Some (_, loc)) -> loc
   | _ -> raise Not_found
+
+let get_uid = function
+  | Use(_, Some (u, _)) -> u
+  | _ -> raise Not_found
+
+let incr_use = function
+  | Def(_, use, _) -> begin
+      match !use with
+      | Used n -> use := Used (n + 1)
+      | Unknown -> use := Used 1
+  end
+  | _ -> ()

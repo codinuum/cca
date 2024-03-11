@@ -394,11 +394,15 @@ class ['node_t] c cenv = object (self : 'self)
   method set_starting_uid_pairs_for_glueing l =
     starting_uid_pairs_for_glueing <- l
 
+  method remove_starting_uid_pairs_for_glueing l =
+    starting_uid_pairs_for_glueing <- Xlist.subtract starting_uid_pairs_for_glueing l
+
   method add_starting_uid_pairs_for_glueing l =
-    starting_uid_pairs_for_glueing <- l @ starting_uid_pairs_for_glueing
+    starting_uid_pairs_for_glueing <- Xlist.union l starting_uid_pairs_for_glueing
 
   method add_starting_uid_pair_for_glueing p =
-    starting_uid_pairs_for_glueing <- p :: starting_uid_pairs_for_glueing
+    if not (List.mem p starting_uid_pairs_for_glueing) then
+      starting_uid_pairs_for_glueing <- p :: starting_uid_pairs_for_glueing
 
   method starting_uid_pairs_for_glueing = starting_uid_pairs_for_glueing
 
@@ -920,6 +924,50 @@ class ['node_t] c cenv = object (self : 'self)
     pr "S";
     Buffer.contents buf
 
+  method get_mapping_list () =
+    let ml = ref [] in
+    self#iter_unsettled
+      (fun u1 u2 -> ml := (u1, u2)::!ml);
+    self#iter_settled
+      (fun u1 u2 -> ml := (u1, u2)::!ml);
+    let sort =
+      List.fast_sort (fun (u, _) (u', _) -> UID.compare u u')
+    in
+    sort !ml
+
+  method get_reduced_mapping_list () =
+    let reduce list =
+      let r, reduced =
+	List.fold_left
+	  (fun (range, l) (u1, u2) ->
+	    match range with
+	    | [] -> [(u1, u2)], l
+
+	    | [(u1', u2')] ->
+		if u1 = UID.succ u1' && u2 = UID.succ u2' then
+		  [(u1', u2'); (u1, u2)], l
+		else
+		  [(u1, u2)], [(u1', u2')]::l
+
+	    | [(u1', u2'); (u1'', u2'')] ->
+		if u1 = UID.succ u1'' && u2 = UID.succ u2'' then
+		  [(u1', u2'); (u1, u2)], l
+		else
+		  [(u1, u2)], [(u1', u2'); (u1'', u2'')]::l
+
+	    | _ -> assert false
+	  ) ([], []) list
+      in
+      List.rev
+	(match r with
+	| [] -> reduced
+	| [p] -> r::reduced
+	| [p1; p2] -> r::reduced
+	| _ -> assert false
+	)
+    in
+    reduce (self#get_mapping_list())
+
   method to_string =
     let l1 = ref [] in
     let l1s = ref [] in
@@ -941,7 +989,7 @@ class ['node_t] c cenv = object (self : 'self)
     let rev = sort !l2 in
 
     let reduce list =
-      let (r, reduced) =
+      let r, reduced =
 	List.fold_left
 	  (fun (range, l) (u1, u2) ->
 	    match range with
@@ -1267,8 +1315,6 @@ class ['node_t] c cenv = object (self : 'self)
 	nd1 nd2
     in
     count
-
-
 
   method iter_p_mapping
       (p : 'node_t -> 'node_t -> 'node_t -> 'node_t -> bool)

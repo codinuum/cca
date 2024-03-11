@@ -260,8 +260,13 @@ let speclist =
 (*
    "-lock-match", Arg.Unit (fun () -> options#set_lock_matches_flag), "\t\tlock matched subtrees";
 *)
-   "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
-   "-norr", Arg.Unit (fun () -> options#set_no_rename_rectification_flag),
+   "-nore", Arg.Unit (fun () -> options#set_no_odd_relabel_elim_flag),
+            "\tdisable odd relabel elimination";
+   "-norr", Arg.Unit (fun () ->
+                       options#set_no_rename_rectification_flag;
+                       options#clear_use_binding_info_flag;
+                       options#set_no_odd_relabel_elim_flag
+                     ),
            "\tdisable rename rectification";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomoves", Arg.Unit (fun () -> options#set_no_moves_flag), "\tdisable move generation";
@@ -313,7 +318,7 @@ let speclist =
    "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
                   "\t\t\taggressively find moves";
    "-ignore-moves-of-unordered", Arg.Unit (fun () -> options#set_ignore_move_of_unordered_flag),
-   "\tignore moves of unordered constructs";
+                                 "\tignore moves of unordered constructs";
 
 (* mode *)
    "-searchonly", Arg.Set_string keyword, "\tKEYWORD\tsearch keyword only";

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
+
+module UID = Otreediff.UID
 
 module ID : sig
   type t = Local of int | Global of string
@@ -37,20 +39,20 @@ module ID : sig
   val ps : unit -> t -> string
 end
 
-type use = Used of int | Unknown
+type use_count = Used of int | Unknown
 
-val use_to_string : use -> string
+val use_count_to_string : use_count -> string
 
 type is_local = bool
 
-type t = NoBinding | Def of ID.t * use * is_local | Use of ID.t * Loc.t option
+type t = NoBinding | Def of ID.t * use_count ref * is_local | Use of ID.t * (UID.t * Loc.t) option
 
 val to_string : t -> string
-val make_def : ID.t -> use -> is_local -> t
+val make_def : ID.t -> use_count -> is_local -> t
 val make_used_def : ID.t -> int -> is_local -> t
 val make_unused_def : ID.t -> is_local -> t
 val make_unknown_def : ID.t -> is_local -> t
-val make_use : ?loc_opt:Loc.t option -> ID.t -> t
+val make_use : ?loc_opt:(UID.t * Loc.t) option -> ID.t -> t
 val is_none : t -> bool
 val is_use : t -> bool
 val is_def : t -> bool
@@ -62,3 +64,5 @@ val get_bid : t -> ID.t
 val get_bid_opt : t -> ID.t option
 val get_use_count : t -> int
 val get_loc : t -> Loc.t
+val get_uid : t -> UID.t
+val incr_use : t -> unit

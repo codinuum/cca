@@ -1841,6 +1841,21 @@ let kind_to_suffix k =
   | Kaspect      -> "A"
   | Kpointcut    -> "/"*)
 
+let anonymize_kind = function
+  | Kclass n       -> Kclass ""
+  | Kinterface n   -> Kinterface ""
+  | Kenum n        -> Kenum ""
+  | Krecord n      -> Krecord ""
+  | Kannotation n  -> Kannotation ""
+  | Kfield n       -> Kfield ""
+  | Kconstructor n -> Kconstructor ""
+  | Kmethod n      -> Kmethod ""
+  | Kparameter n   -> Kparameter ""
+  | Klocal n       -> Klocal ""
+  | Kany           -> Kany
+  | Kaspect n      -> Kaspect ""
+  | Kpointcut n    -> Kpointcut ""
+
 let kind_to_anonymous_string = function
   | Kclass n       -> "Class"
   | Kinterface n   -> "Interface"
@@ -2252,6 +2267,8 @@ let anonymize ?(more=false) = function
 
   | LocalVariableDeclaration _ when more -> VariableDeclaration
   | FieldDeclaration _ when more         -> VariableDeclaration
+  | VariableDeclarator(name, dims, false) when more -> VariableDeclarator("", 0, true)
+  | Modifiers kind when more -> Modifiers Kany
 
   | Type ty                        -> Type (Type.anonymize ty)
   | Primary p                      -> Primary (Primary.anonymize ~more p)
@@ -2278,7 +2295,7 @@ let anonymize ?(more=false) = function
   (*| Method(name, msig)             -> Method("", msig)*)
 
   | LocalVariableDeclaration(b, vdids)      -> LocalVariableDeclaration(b, [])
-  | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, true)
+  | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, islocal)
   | NamedArguments _               -> NamedArguments ""
   | TypeArguments(nth, name)       -> TypeArguments(1, "")
   | Parameters _                   -> Parameters ""
@@ -2286,7 +2303,7 @@ let anonymize ?(more=false) = function
   | ReceiverParameter _            -> ReceiverParameter None
   | TypeParameter _                -> TypeParameter ""
   | TypeParameters _               -> TypeParameters ""
-  | Modifiers _                    -> Modifiers Kany
+  | Modifiers kind                 -> Modifiers (anonymize_kind kind)
   | FieldDeclaration _             -> FieldDeclaration []
   | Qualifier _                    -> Qualifier ""
   | Throws name                    -> Throws ""
@@ -3438,7 +3455,7 @@ let is_boundary = function
   | Module _
   | Class _
   | Interface _
-  | FieldDeclaration _
+  (*| FieldDeclaration _*)
   | Method _
   | Constructor _
   | InstanceInitializer

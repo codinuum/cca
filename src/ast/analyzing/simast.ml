@@ -120,8 +120,13 @@ let speclist =
    "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold,
    sprintf "N\tthreshold for algorithm selection (default: %d)" options#match_algo_threshold;
 *)
-   "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
-   "-norr", Arg.Unit (fun () -> options#set_no_rename_rectification_flag),
+   "-nore", Arg.Unit (fun () -> options#set_no_odd_relabel_elim_flag),
+            "\tdisable odd relabel elimination";
+   "-norr", Arg.Unit (fun () ->
+                       options#set_no_rename_rectification_flag;
+                       options#clear_use_binding_info_flag;
+                       options#set_no_odd_relabel_elim_flag
+                     ),
            "\tdisable rename rectification";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
@@ -136,10 +141,11 @@ let speclist =
                             (if options#ignore_huge_arrays_flag then "ignore" else "scan");
 
    "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
-                           sprintf "N\thuge array size threshold (default: %d)" options#huge_array_threshold;
+                         sprintf "N\thuge array size threshold (default: %d)"
+                           options#huge_array_threshold;
 
    "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
-                               "\tsuppress moves of unnamed nodes";
+                             "\tsuppress moves of unnamed nodes";
 
 (*
 "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,

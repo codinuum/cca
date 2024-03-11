@@ -63,9 +63,9 @@ let get_surrounding_classes_or_interfaces nd =
 let get_uqn name =
   Xlist.last (String.split_on_char '.' name)
 
-let get_fqn package_name nd lab =
-  let name = get_uqn (L.get_name lab) in
-  let get_name n = L.get_name (getlab n) in
+let get_fqn ?(strip=false) package_name nd lab =
+  let name = get_uqn (L.get_name ~strip lab) in
+  let get_name n = L.get_name ~strip (getlab n) in
   let pkg_prefix =
     if package_name = "" then
       ""
@@ -327,6 +327,16 @@ class visitor bid_gen tree = object (self)
 
   val stack = new Sourcecode.stack
 
+  val deferred_tbl = Hashtbl.create 0
+
+  method reg_deferred nd f =
+    Hashtbl.add deferred_tbl nd f
+
+  method apply_deferred nd =
+    try
+      (Hashtbl.find deferred_tbl nd)()
+    with Not_found -> ()
+
   method set_scope_node nd =
     try
       let n = stack#top.Sourcecode.f_scope_node in
@@ -351,29 +361,99 @@ class visitor bid_gen tree = object (self)
     if L.is_parameter lab then begin
       let name = L.get_name lab in
       let bid = bid_gen#gen in
-      DEBUG_MSG "DEF(param): %s (bid=%a) %s" name BID.ps bid nd#to_string;
-      nd#data#set_binding (Binding.make_unknown_def bid true);
-      self#set_scope_node nd;
-      stack#register name nd
+      tree#add_to_bid_tbl bid name;
+      let is_abst =
+        let meth = nd#initial_parent#initial_parent in
+        L.is_method (getlab meth) &&
+        try
+          match Sourcecode.get_logical_nth_child meth 6 with
+          | [||] -> true
+          | _ -> false
+        with _ -> true
+      in
+      DEBUG_MSG "is_abst=%B" is_abst;
+      if is_abst then begin
+        DEBUG_MSG "USE(param): %s (bid=%a) %s" name BID.ps bid nd#to_string;
+        nd#data#set_binding (Binding.make_use bid)
+      end
+      else begin
+        DEBUG_MSG "DEF(param): %s (bid=%a) %s" name BID.ps bid nd#to_string;
+        nd#data#set_binding (Binding.make_unknown_def bid true);
+        self#set_scope_node nd;
+        stack#register name nd
+      end
+    end;
+
+    if L.is_for lab then begin
+      self#apply_deferred nd
     end;
 
     if L.is_forheader lab then begin
       let name = L.get_name lab in
       let bid = bid_gen#gen in
+      tree#add_to_bid_tbl bid name;
       DEBUG_MSG "DEF(for_header): %s (bid=%a) %s" name BID.ps bid nd#to_string;
       nd#data#set_binding (Binding.make_unknown_def bid true);
       self#set_scope_node nd;
-      stack#register name nd
+      stack#register name nd;
+
+      begin
+        try
+          let for_nd = nd#initial_parent in
+          DEBUG_MSG "for: %s" for_nd#data#to_string;
+          let f () =
+            try
+              let expr_nd = for_nd#initial_children.(1) in
+              if L.is_primaryname (getlab expr_nd) then begin
+                let expr_name = expr_nd#data#get_name in
+                let expr_bid = Binding.get_bid expr_nd#data#binding in
+                DEBUG_MSG "EXPR: %s %a<->%a %s" expr_name BID.ps expr_bid BID.ps bid name;
+                tree#add_to_bid_map bid expr_bid;
+                tree#add_to_bid_map expr_bid bid;
+                tree#add_to_bid_tbl expr_bid expr_name
+              end
+            with
+              _ -> ()
+          in
+          self#reg_deferred for_nd f
+        with
+          _ -> ()
+      end
+
     end;
 
     if L.is_variabledeclarator lab then begin
-      if true || L.is_local_variabledeclarator lab then begin
+      if L.is_local_variabledeclarator lab then begin
         let name = L.get_name lab in
-        let bid = bid_gen#gen in
+        let bid, bid_is_generated =
+          try
+            Binding.get_bid nd#data#binding, false
+          with _ -> bid_gen#gen, true
+        in
         DEBUG_MSG "DEF(decl): %s (bid=%a) %s" name BID.ps bid nd#to_string;
-        nd#data#set_binding (Binding.make_unknown_def bid true);
+        if bid_is_generated then begin
+          nd#data#set_binding (Binding.make_unknown_def bid true);
+          tree#add_to_bid_tbl bid name;
+          tree#add_to_def_bid_tbl bid nd
+        end;
         self#set_scope_node nd;
-        stack#register name nd
+        stack#register name nd;
+        self#apply_deferred nd;
+        begin
+          try
+            let expr_nd = nd#initial_children.(0) in
+            let expr_lab = getlab expr_nd in
+            if L.is_primaryname expr_lab || L.is_fieldaccess expr_lab then begin
+              let expr_name = expr_nd#data#get_name in
+              let expr_bid = Binding.get_bid expr_nd#data#binding in
+              DEBUG_MSG "EXPR: %s %a<->%a %s" expr_name BID.ps expr_bid BID.ps bid name;
+              tree#add_to_bid_map bid expr_bid;
+              tree#add_to_bid_map expr_bid bid;
+              tree#add_to_bid_tbl expr_bid expr_name
+            end
+          with
+            _ -> ()
+        end
       end
     end;
 
@@ -382,22 +462,61 @@ class visitor bid_gen tree = object (self)
       try
         let binder_nd = stack#lookup name in
         let bid = Binding.get_bid binder_nd#data#binding in
+        tree#add_to_bid_tbl bid name;
+        Binding.incr_use binder_nd#data#binding;
         DEBUG_MSG "    USE: %s (bid=%a) %s" name BID.ps bid nd#to_string;
-        nd#data#set_binding (Binding.make_use bid);
-        if nd#initial_pos = 1 then begin
+        let loc_opt = Some (binder_nd#uid, binder_nd#data#src_loc) in
+        nd#data#set_binding (Binding.make_use ~loc_opt bid);
+
+        (*begin
+          try
+            let vdtor =
+              Misc.get_p_ancestor (fun x -> L.is_variabledeclarator (getlab x)) nd
+            in
+            DEBUG_MSG "vdtor: %s" vdtor#data#to_string;
+            let f () =
+              try
+                let vname = vdtor#data#get_name in
+                let vbid = Binding.get_bid vdtor#data#binding in
+                DEBUG_MSG "VDTOR: %s %a<-%a %s" vname BID.ps vbid BID.ps bid name;
+                tree#add_to_bid_map bid vbid;
+                (*tree#add_to_bid_map vbid bid;*)
+                tree#add_to_bid_tbl bid name;
+                tree#add_to_bid_tbl vbid vname
+              with _ -> ()
+            in
+            self#reg_deferred vdtor f
+          with
+            _ -> ()
+        end;*)
+        begin
           try
             let pnd = nd#initial_parent in
-            if L.is_assignment (getlab pnd) then begin
-              let lhs = pnd#initial_children.(0) in
-              let lhs_name = lhs#data#get_name in
-              let lhs_bid = Binding.get_bid lhs#data#binding in
-              DEBUG_MSG "LHS: %s %a<-%a" lhs_name BID.ps lhs_bid BID.ps bid;
-              tree#add_to_bid_map bid lhs_bid;
-              tree#add_to_bid_tbl bid name;
-              tree#add_to_bid_tbl lhs_bid lhs_name
-            end
-          with _ -> ()
+            let assign =
+              if nd#initial_pos = 1 && L.is_assignment (getlab pnd) then
+                pnd
+              else
+                raise Not_found
+                (*let a =
+                  Misc.get_p_ancestor
+                    (fun x ->
+                      x#initial_pos = 1 && L.is_assignment (getlab x#initial_parent)
+                    ) pnd
+                in
+                a#initial_parent*)
+            in
+            DEBUG_MSG "assign: %s" assign#data#to_string;
+            let lhs = assign#initial_children.(0) in
+            let lhs_name = lhs#data#get_name in
+            let lhs_bid = Binding.get_bid lhs#data#binding in
+            DEBUG_MSG "LHS: %s %a<->%a" lhs_name BID.ps lhs_bid BID.ps bid;
+            tree#add_to_bid_map bid lhs_bid;
+            tree#add_to_bid_map lhs_bid bid;
+            tree#add_to_bid_tbl lhs_bid lhs_name
+          with
+            _ -> ()
         end
+
       with
         Not_found -> ()
     end;
@@ -498,12 +617,17 @@ class translator options =
       (fun nd ->
         let lab = getlab nd in
         if L.is_fieldaccess lab then begin
-          if is_self_facc nd then
-            add_facc (get_fqn "" nd lab) nd
+          if is_self_facc nd then begin
+            let fqn = get_fqn ~strip:true "" nd lab in
+            DEBUG_MSG "FACC: fqn=%s %s" fqn nd#data#to_string;
+            add_facc fqn nd
+          end
         end
-        else if L.is_field lab then begin
-          add_field (vdid_to_id (get_fqn "" nd lab)) nd
-        end
+        (*else if L.is_field lab then begin
+          let fqn = get_fqn ~strip:true "" nd lab in
+          DEBUG_MSG "FDECL: fqn=%s %s" fqn nd#data#to_string;
+          add_field fqn nd
+        end*)
         (*else if L.is_method lab then begin
           let fqn =
             sprintf "%s#%d" (get_fqn "" nd lab) (count_params (L.get_signature lab))
@@ -516,8 +640,11 @@ class translator options =
         else if L.is_variabledeclarator lab then begin
           if L.is_local_variabledeclarator lab then
             ()
-          else
-            add_field (get_fqn "" nd lab) nd
+          else begin
+            let fqn = get_fqn ~strip:true "" nd lab in
+            DEBUG_MSG "VDTOR: fqn=%s %s" fqn nd#data#to_string;
+            add_field fqn nd
+          end
         end
         else if L.is_import_single lab then begin
           add_import (L.get_name lab) nd
@@ -539,7 +666,8 @@ class translator options =
     Hashtbl.iter
       (fun nm nds ->
         let bid = bid_gen#gen in
-        let ref_bid = Binding.make_use bid in
+        tree#add_to_bid_tbl bid nm;
+        let ref_bnd = Binding.make_use bid in
         DEBUG_MSG "FQN: %s (bid=%a)" nm BID.ps bid;
         let referred = ref 0 in
         begin
@@ -548,46 +676,52 @@ class translator options =
             List.iter
               (fun n ->
                 DEBUG_MSG "    refty: %s" n#to_string;
-                n#data#set_binding ref_bid;
+                n#data#set_binding ref_bnd;
                 incr referred
               ) nds'
           with
             Not_found ->
               DEBUG_MSG "    refty: not found"
         end;
-        let def_bid = Binding.make_used_def bid !referred false in
+        let def_bnd = Binding.make_used_def bid !referred false in
         List.iter
           (fun n ->
             DEBUG_MSG "    import: %s" n#to_string;
-            n#data#set_binding def_bid
+            n#data#set_binding def_bnd;
+            tree#add_to_def_bid_tbl bid n
           ) nds;
       ) importtbl;
 
     Hashtbl.iter
       (fun nm nds ->
-        let bid = bid_gen#gen in
-        let ref_bid = Binding.make_use bid in
-        DEBUG_MSG "FQN: %s (bid=%a)" nm BID.ps bid;
-        let referred = ref 0 in
-        begin
-          try
-            let nds' = Hashtbl.find facctbl nm in
-            List.iter
-              (fun n ->
-                DEBUG_MSG "    facc: %s" n#to_string;
-                n#data#set_binding ref_bid;
-                incr referred
-              ) nds'
-          with
-            Not_found ->
-              DEBUG_MSG "    facc: not found"
-        end;
-        let def_bid = Binding.make_used_def bid !referred false in
-        List.iter
-          (fun n ->
-            DEBUG_MSG "    field: %s" n#to_string;
-            n#data#set_binding def_bid
-          ) nds;
+        match nds with
+        | def_nd::_ -> begin
+            let bid = bid_gen#gen in
+            tree#add_to_bid_tbl bid nm;
+            tree#add_to_def_bid_tbl bid def_nd;
+            let loc_opt = Some (def_nd#uid, def_nd#data#src_loc) in
+            let ref_bnd = Binding.make_use ~loc_opt bid in
+            DEBUG_MSG "FQN: %s (bid=%a)" nm BID.ps bid;
+            let referred = ref 0 in
+            begin
+              try
+                let use_nds' = Hashtbl.find facctbl nm in
+                List.iter
+                  (fun n' ->
+                    DEBUG_MSG "    facc: %s" n'#to_string;
+                    n'#data#set_binding ref_bnd;
+                    incr referred
+                  ) use_nds'
+              with
+                Not_found -> begin
+                  DEBUG_MSG "    facc: not found"
+                end
+            end;
+            let def_bid = Binding.make_used_def bid !referred false in
+            DEBUG_MSG "    field: %s" def_nd#to_string;
+            def_nd#data#set_binding def_bid
+        end
+        | _ -> assert false
       ) fieldtbl;
 
     (*Hashtbl.iter
@@ -595,7 +729,7 @@ class translator options =
         match nds with
         | [_] -> begin
             let bid = bid_gen#gen in
-            let ref_bid = Binding.make_use bid in
+            let ref_bnd = Binding.make_use bid in
             DEBUG_MSG "FQN: %s (bid=%a)" nm BID.ps bid;
             let referred = ref 0 in
             begin
@@ -604,18 +738,18 @@ class translator options =
                 List.iter
                   (fun n ->
                     DEBUG_MSG "    ivk: %s" n#to_string;
-                    n#data#set_binding ref_bid;
+                    n#data#set_binding ref_bnd;
                     incr referred
                   ) nds'
               with
                 Not_found ->
                   DEBUG_MSG "    ivk: not found"
             end;
-            let def_bid = Binding.make_used_def bid !referred false in
+            let def_bnd = Binding.make_used_def bid !referred false in
             List.iter
               (fun n ->
                 DEBUG_MSG "    method: %s" n#to_string;
-                n#data#set_binding def_bid
+                n#data#set_binding def_bnd
               ) nds;
         end
         | _ -> ()
@@ -3343,7 +3477,8 @@ let of_compilation_unit options cu =
   DEBUG_MSG "%d huge array(s) found" n_huge_arrays;
   tree#set_true_parent_tbl trans#true_parent_tbl;
   tree#set_true_children_tbl trans#true_children_tbl;
-  trans#set_bindings tree;
+  if options#use_binding_info_flag then
+    trans#set_bindings tree;
   tree#collapse;
   if n_huge_arrays > 0 then begin
     Xprint.verbose options#verbose_flag "%d huge array(s) found" n_huge_arrays;

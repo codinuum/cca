@@ -137,17 +137,24 @@ class c = object (self)
   val mutable designated_parser = ""
 
   (* output *)
-  val mutable dump_ast_flag    = false
+  val mutable dump_ast_flag = false
   val mutable compress_ast_flag = false
-  val mutable ast_compression   = Compression.none
-  val mutable dump_src_flag    = false
-  val mutable dump_src_out     = ""
+  val mutable ast_compression = Compression.none
+  val mutable dump_src_flag = false
+  val mutable dump_src_out = ""
 
   (* mode *)
-  val mutable recursive_flag       = false
-  val mutable incomplete_info_flag = false
+  val mutable recursive_flag = false
+  method recursive_flag = recursive_flag
+  method set_recursive_flag = recursive_flag <- true
+  method clear_recursive_flag = recursive_flag <- false
 
-  val mutable no_collapse_flag     = false
+  val mutable incomplete_info_flag = false
+  method incomplete_info_flag = incomplete_info_flag
+  method set_incomplete_info_flag = incomplete_info_flag <- true
+  method clear_incomplete_info_flag = incomplete_info_flag <- false
+
+  val mutable no_collapse_flag = false
   method no_collapse_flag = no_collapse_flag
   method set_no_collapse_flag = no_collapse_flag <- true
   method clear_no_collapse_flag = no_collapse_flag <- false
@@ -172,10 +179,10 @@ class c = object (self)
   method set_partial_name_resolution_flag = partial_name_resolution_flag <- true
   method clear_partial_name_resolution_flag = partial_name_resolution_flag <- false
 
-  val mutable java_lang_spec = default_java_lang_spec
-  method java_lang_spec = java_lang_spec
-  method set_java_lang_spec lv = java_lang_spec <- lv
-  method reset_java_lang_spec = java_lang_spec <- default_java_lang_spec
+  val mutable use_binding_info_flag = true
+  method use_binding_info_flag = use_binding_info_flag
+  method set_use_binding_info_flag = use_binding_info_flag <- true
+  method clear_use_binding_info_flag = use_binding_info_flag <- false
 
   (* *)
   val mutable latest_target = ""
@@ -271,7 +278,6 @@ class c = object (self)
   (* configuration *)
   val mutable keep_going_flag = false
 
-
   val mutable ignore_identifiers_flag = false
   method ignore_identifiers_flag = ignore_identifiers_flag
   method set_ignore_identifiers_flag = ignore_identifiers_flag <- true
@@ -312,6 +318,7 @@ class c = object (self)
 
   (* Java *)
   val mutable java_anon_ctor_body_flag = false
+  val mutable java_lang_spec = default_java_lang_spec
 
   (* Python *)
   val mutable python_with_stmt_disabled_flag = false
@@ -378,21 +385,15 @@ class c = object (self)
   method dump_src_out = dump_src_out
   method set_dump_src_out s = dump_src_out <- s
 
-  (* mode *)
-  method recursive_flag = recursive_flag
-  method set_recursive_flag = recursive_flag <- true
-  method clear_recursive_flag = recursive_flag <- false
-
-  method incomplete_info_flag = incomplete_info_flag
-  method set_incomplete_info_flag = incomplete_info_flag <- true
-  method clear_incomplete_info_flag = incomplete_info_flag <- false
-
-
 (* configurations getter/setter *)
   (* Java *)
   method java_anon_ctor_body_flag = java_anon_ctor_body_flag
   method set_java_anon_ctor_body_flag = java_anon_ctor_body_flag <- true
   method clear_java_anon_ctor_body_flag = java_anon_ctor_body_flag <- false
+
+  method java_lang_spec = java_lang_spec
+  method set_java_lang_spec lv = java_lang_spec <- lv
+  method reset_java_lang_spec = java_lang_spec <- default_java_lang_spec
 
   (* Python *)
   method python_with_stmt_disabled_flag = python_with_stmt_disabled_flag

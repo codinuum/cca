@@ -318,8 +318,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   val mutable tables = []
 
-  val mov_gr_tbl = Hashtbl.create 0 (* move id -> group id *)
-  val mov_gr_mem_tbl = Hashtbl.create 0 (* move id -> move list *)
+  val mutable mov_gr_tbl = Hashtbl.create 0 (* move id -> group id *)
+  val mutable mov_gr_mem_tbl = Hashtbl.create 0 (* move id -> move list *)
 
   val mutable list = ([] : ('node_t t) list)
 
@@ -334,6 +334,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method _indivisible_moves = indivisible_moves
   method _set_indivisible_moves s = indivisible_moves <- s
 
+  method _set_mov_gr_tbl tbl = mov_gr_tbl <- tbl
+  method _set_mov_gr_mem_tbl tbl = mov_gr_mem_tbl <- tbl
+
   method add_indivisible_move mid =
     DEBUG_MSG "%a" MID.ps mid;
     Xset.add indivisible_moves mid
@@ -346,6 +349,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let b = Xset.mem indivisible_moves mid in
     DEBUG_MSG "%a -> %B" MID.ps mid b;
     b
+
+  method _mov_gr_tbl = mov_gr_tbl
+  method _mov_gr_mem_tbl = mov_gr_mem_tbl
 
   method find_mov_gr = Hashtbl.find mov_gr_tbl
   method find_mov_gr_mems = Hashtbl.find mov_gr_mem_tbl
@@ -375,6 +381,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     eds#_set_mov1_tbl (Hashtbl.copy self#_mov1_tbl);
     eds#_set_mov2_tbl (Hashtbl.copy self#_mov2_tbl);
     eds#_set_indivisible_moves (Xset.copy self#_indivisible_moves);
+    eds#_set_mov_gr_tbl (Hashtbl.copy self#_mov_gr_tbl);
+    eds#_set_mov_gr_mem_tbl (Hashtbl.copy self#_mov_gr_mem_tbl);
     eds#_init;
     eds
 
@@ -382,6 +390,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     Hashtbl.fold (fun _ e l -> e::l) tbl []
 
   method clear =
+    DEBUG_MSG "@";
     list <- [];
     Hashtbl.clear del_tbl;
     Hashtbl.clear ins_tbl;
@@ -643,6 +652,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method iter_relabels f =
     Hashtbl.iter (fun _ ed -> f ed) rel1_tbl
 
+  method relabel_exists f =
+    try
+      Hashtbl.iter
+        (fun _ ed ->
+          if f ed then
+            raise Exit
+        ) rel1_tbl;
+      false
+    with
+      Exit -> true
 
   method get_ndeletes =
     Hashtbl.length del_tbl
@@ -963,16 +982,22 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         if (List.length movs) > 1 then begin
           List.iter
             (function
-              | Move(m, _, (u1, _, _), (u2, _ ,_)) ->
+              | Move(m, _, (u1, _, _), (u2, _ ,_)) -> begin
                   let m' = mid_gen#gen in
                   DEBUG_MSG "%a (%a-%a) -> %a" MID.ps !m ups u1 ups u2 MID.ps m';
                   if self#is_indivisible_move !m then
                     self#add_indivisible_move m';
                   m := m';
+                  DEBUG_MSG "%a <- %a" MID.ps mid MID.ps m';
                   Hashtbl.add mov_gr_tbl m' mid
+              end
               | _ -> assert false
             ) movs;
-          Hashtbl.add mov_gr_mem_tbl mid (sort_edit_list_topdown movs)
+          let sorted_movs = sort_edit_list_topdown movs in
+          DEBUG_MSG "%a -> [%s]" MID.ps mid
+            (Xlist.to_string MID.to_string ";"
+               (Xlist.uniq (List.fast_sort Stdlib.compare (List.map get_mid sorted_movs))));
+          Hashtbl.add mov_gr_mem_tbl mid sorted_movs
         end
       ) tbl
 

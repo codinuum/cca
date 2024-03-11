@@ -131,6 +131,12 @@ let is_ghost_node nd = nd#data#src_loc = Loc.ghost
 
 let dec_attrs = List.map (fun (a, v) -> a, (XML._decode_string v))
 
+let has_logical_pos nd =
+  try
+    let pnd = nd#initial_parent in
+    pnd#data#has_ordinal
+  with _ -> false
+
 let get_logical_pos ?(strict=false) nd =
   let pnd = nd#initial_parent in
   if strict && not pnd#data#has_ordinal then
@@ -730,6 +736,7 @@ module Tree (L : Spec.LABEL_T) = struct
           Hashtbl.replace bid_map bid0 (bid1::bidl)
       with
         Not_found -> Hashtbl.add bid_map bid0 [bid1]
+
     method find_mapped_bids bid =
       let bids = Xset.create 0 in
       let rec find b =
@@ -751,13 +758,37 @@ module Tree (L : Spec.LABEL_T) = struct
       bidl
 
     val bid_tbl = (Hashtbl.create 0 : (BID.t, string) Hashtbl.t)
-    method add_to_bid_tbl bid name = Hashtbl.add bid_tbl bid name
+
+    method add_to_bid_tbl bid name =
+      let ok =
+        try
+          let nm = Hashtbl.find bid_tbl bid in
+          nm <> name
+        with Not_found -> true
+      in
+      if ok then
+        Hashtbl.add bid_tbl bid name
+
     method find_name_for_bid bid = Hashtbl.find bid_tbl bid
+
+    val def_bid_tbl = (Hashtbl.create 0 : (BID.t, node_t) Hashtbl.t)
+
+    method add_to_def_bid_tbl bid nd =
+      let ok =
+        try
+          let n = Hashtbl.find def_bid_tbl bid in
+          n != nd
+        with Not_found -> true
+      in
+      if ok then
+        Hashtbl.add def_bid_tbl bid nd
+
+    method find_def_for_bid bid = Hashtbl.find def_bid_tbl bid
+
 
     val mutable true_parent_tbl = (Hashtbl.create 0 : (UID.t, node_t) Hashtbl.t)
     method set_true_parent_tbl tbl = true_parent_tbl <- tbl
-    method find_true_parent uid =
-      Hashtbl.find true_parent_tbl uid
+    method find_true_parent uid = Hashtbl.find true_parent_tbl uid
 
     val mutable true_children_tbl = (Hashtbl.create 0 : (node_t, node_t array) Hashtbl.t)
     method set_true_children_tbl tbl = true_children_tbl <- tbl

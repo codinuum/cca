@@ -58,6 +58,7 @@ let p_successor      = mkjres "successor"
 let p_nparams    = mkjres "nParameters"
 let p_nargs      = mkjres "nArguments"
 let p_is_va_meth = mkjres "isVariableArityMethod"
+let p_is_abst    = mkjres "isAbstract"
 
 let p_identifier = mkjres "identifier"
 let p_qualifier  = mkjres "qualifier"
@@ -258,6 +259,18 @@ class extractor options cache_path tree = object (self)
         if !is_va then
           self#add (entity, p_is_va_meth, Triple.l_true);
 
+        begin
+          let is_abst =
+            L.is_method lab &&
+            try
+              match Sourcecode.get_logical_nth_child nd 6 with
+              | [||] -> true
+              | _ -> false
+            with _ -> true
+          in
+          if is_abst then
+            self#add (entity, p_is_abst, Triple.l_true);
+        end;
 
 (*
   stack#register name nd;
