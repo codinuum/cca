@@ -12,11 +12,12 @@ LIB = $(LIB_NAME).cma
 LINKS = ../$(LIB)
 
 UTIL_DIR = $(SRC_DIR)/util
+OTREEDIFF_DIR = $(SRC_DIR)/otreediff
 LANGS_COMMON_DIR = ../../../common
 COMMON_DIR = ../../../../common
 LABELS_DIR = labels
 
-INCLS =  -I $(LABELS_DIR) -I $(UTIL_DIR) -I $(LANGS_COMMON_DIR) -I $(COMMON_DIR)
+INCLS =  -I $(LABELS_DIR) -I $(UTIL_DIR) -I $(LANGS_COMMON_DIR) -I $(COMMON_DIR) -I $(OTREEDIFF_DIR)
 DEP_INCLS = $(INCLS)
 
 COMPFLAGS = $(INCLS)
@@ -78,11 +79,14 @@ COMMON_OBJS = loc.cmo astml.cmo binding.cmo \
 	storage.cmo fs.cmo
 COMMON_OBJS_DEP = $(foreach f,$(COMMON_OBJS),$(COMMON_DIR)/$(f))
 UTIL_OBJS = xset.cmo xstring.cmo xlist.cmo xqueue.cmo xoption.cmo xprint.cmo xfile.cmo \
-	xhash.cmo compression.cmo xchannel.cmo XML.cmo inst.cmo xarray.cmo
+	xhash.cmo compression.cmo xchannel.cmo XML.cmo inst.cmo xarray.cmo weight.cmo
 UTIL_OBJS_DEP = $(foreach f,$(UTIL_OBJS),$(UTIL_DIR)/$(f))
 
-OTHER_OBJS = $(UTIL_OBJS) $(COMMON_OBJS) $(LANGS_COMMON_OBJS)
-OTHER_OBJS_DEP = $(UTIL_OBJS_DEP) $(COMMON_OBJS_DEP) $(LANGS_COMMON_OBJS_DEP)
+OTREEDIFF_LIB = Otreediff.cmo
+OTREEDIFF_OBJS_DEP = $(OTREEDIFF_DIR)/$(OTREEDIFF_LIB)
+
+OTHER_OBJS = $(UTIL_OBJS) $(OTREEDIFF_LIB) $(COMMON_OBJS) $(LANGS_COMMON_OBJS)
+OTHER_OBJS_DEP = $(UTIL_OBJS_DEP) $(OTREEDIFF_OBJS_DEP) $(COMMON_OBJS_DEP) $(LANGS_COMMON_OBJS_DEP)
 
 #OBJS_ = $(filter-out $(ULEXER_OBJ), $(OBJS))
 OBJS_ = $(OBJS) $(_PARSECMD_OBJS)

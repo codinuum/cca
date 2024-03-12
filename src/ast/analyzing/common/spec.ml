@@ -89,6 +89,7 @@ class type node_data_t = object ('self)
 
   method binding : Binding.t
   method set_binding : Binding.t -> unit
+  method set_bindings : Binding.t list -> unit
   method add_binding : Binding.t -> unit
 
   method scope_node : 'self Otree.node2

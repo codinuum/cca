@@ -29,6 +29,7 @@ module B = Binding
 module P = Printer
 module I = Pinfo
 module H = Labels.HeaderFile
+module UID = Otreediff.UID
 
 let sprintf = Printf.sprintf
 
@@ -62,6 +63,43 @@ let rec has_subprogram ast_nd =
   | _ -> List.exists has_subprogram ast_nd#children
 
 
+class visitor conv_uid tree = object (self)
+  inherit Sourcecode.visitor tree
+  method scanner_body_after_subscan nd =
+    begin
+      match nd#data#binding with
+      | B.Use(bid, uid_loc_opt) -> begin
+          DEBUG_MSG "bid=%a" B.ID.ps bid;
+          match uid_loc_opt with
+          | None -> ()
+          | Some (uid, loc) ->
+              let binding_ = B.Use(bid, Some (conv_uid uid, loc)) in
+              nd#data#set_binding binding_
+      end
+      | _ -> ()
+    end;
+    begin
+      let modified_flag = ref false in
+      let bindings_ =
+        List.map
+          (fun binding ->
+            match binding with
+            | B.Use(bid, uid_loc_opt) -> begin
+                DEBUG_MSG "bid=%a" B.ID.ps bid;
+                match uid_loc_opt with
+                | None -> binding
+                | Some (uid, loc) ->
+                    modified_flag := true;
+                    B.Use(bid, Some (conv_uid uid, loc))
+            end
+            | _ -> binding
+          ) nd#data#bindings
+      in
+      if !modified_flag then
+        nd#data#set_bindings bindings_
+    end
+end
+
 let of_ast options ast =
 (*
   let mktid nd =
@@ -76,6 +114,19 @@ let of_ast options ast =
         nd#data#anonymized_label)
   in
 *)
+  let uid_tbl = Hashtbl.create 0 in
+  let reg_node ast_nd nd =
+    (*if List.exists B.is_def (ast_nd#binding :: ast_nd#bindings) then*)
+      Hashtbl.add uid_tbl (UID.of_int (Oo.id ast_nd)) nd#uid
+  in
+  let conv_uid u =
+    try
+      let u' = Hashtbl.find uid_tbl u in
+      DEBUG_MSG "%a -> %a" UID.ps u UID.ps u';
+      u'
+    with Not_found -> assert false
+  in
+
   let utbl = Hashtbl.create 0 in
 
   let proj_root = try options#fact_proj_roots.(0) with _ -> "" in
@@ -139,13 +190,18 @@ let of_ast options ast =
                 match nd1#label with
                 | L.InternalSubprogram _
                 | L.ModuleSubprogram _
-                | (L.PpBranch|L.PpSectionIfdef _|L.PpSectionIfndef _|L.PpSectionIf _) when has_subprogram nd1
+                | (L.PpBranch|L.PpSectionIfdef _|L.PpSectionIfndef _|L.PpSectionIf _) when
+                    has_subprogram nd1
                   -> begin (* to avoid dangling call sites *)
                     match conv ~orig_loc_flag:true nd1 with
                     | Some x -> x :: (conv_children l)
                     | None -> conv_children l
                   end
-                | _ -> (make_include_node options nd1) :: (conv_children l)
+                | _ -> begin
+                    let ind = make_include_node options nd1 in
+                    (*reg_node nd1 ind;*)
+                    ind :: (conv_children l)
+                end
               end
               else begin
                 DEBUG_MSG "nd1=%s" nd1#to_string;
@@ -161,13 +217,18 @@ let of_ast options ast =
             match nd#label with
             | L.InternalSubprogram _
             | L.ModuleSubprogram _
-            | (L.PpBranch|L.PpSectionIfdef _|L.PpSectionIfndef _|L.PpSectionIf _) when has_subprogram nd
+            | (L.PpBranch|L.PpSectionIfdef _|L.PpSectionIfndef _|L.PpSectionIf _) when
+                has_subprogram nd
               -> begin (* to avoid dangling call sites *)
                 match conv ~orig_loc_flag:true nd with
                 | Some x -> [x]
                 | None -> []
               end
-            | _ -> [make_include_node options nd]
+            | _ -> begin
+                let ind = make_include_node options nd in
+                (*reg_node nd ind;*)
+                [ind]
+            end
           end
           else begin
             DEBUG_MSG "nd=%s" nd#to_string;
@@ -235,13 +296,15 @@ let of_ast options ast =
       in
 
       let nd = mknode options ~annot lab children in
-      begin
+      reg_node ast_nd nd;
+
+      if options#use_binding_info_flag then begin
         match binding with
         | B.NoBinding -> ()
         | B.Def(bid, use, _) -> begin
             DEBUG_MSG "bid=%a" B.ID.ps bid;
             let b =
-              match use with
+              match !use with
               | B.Unknown -> begin
                   try
                     B.make_used_def bid (Hashtbl.find utbl bid) true
@@ -263,7 +326,7 @@ let of_ast options ast =
                 Hashtbl.add utbl bid 1
         end
       end;
-      begin
+      if options#use_binding_info_flag then begin
         List.iter
           (fun binding ->
             match binding with
@@ -271,7 +334,7 @@ let of_ast options ast =
             | B.Def(bid, use, _) -> begin
                 DEBUG_MSG "bid=%a" B.ID.ps bid;
                 let b =
-                  match use with
+                  match !use with
                   | B.Unknown -> begin
                       try
                         B.make_used_def bid (Hashtbl.find utbl bid) true
@@ -294,6 +357,7 @@ let of_ast options ast =
             end
           ) bindings
       end;
+
       let loc =
         if orig_loc_flag then
           ast_nd#orig_loc
@@ -313,12 +377,18 @@ let of_ast options ast =
     | Some rn -> rn
     | None -> begin
         try
-          make_include_node options rt
+          let ind = make_include_node options rt in
+          (*reg_node rt ind;*)
+          ind
         with
           Failure _ -> assert false
     end
   in
   let tree = new c options root_node true in
+  if options#use_binding_info_flag then begin
+    let visitor = new visitor conv_uid tree in
+    visitor#visit_all
+  end;
   tree#collapse;
   tree#set_total_LOC ast#lines_read;
   tree#set_ignored_regions (ast#comment_regions @ ast#ignored_regions);

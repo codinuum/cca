@@ -15,6 +15,7 @@ COPY cca /opt/cca/
 RUN set -x && \
     cd /root && \
     apt-get update && \
+    apt-get upgrade -y && \
     env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             gosu \
             vim \
@@ -41,7 +42,7 @@ RUN set -x && \
 
 RUN set -x && \
     cd /root && \
-    git clone https://github.com/mstmhsmt/virtuoso-opensource && \
+    git clone https://github.com/openlink/virtuoso-opensource && \
     cd virtuoso-opensource && \
     ./autogen.sh && \
     env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
@@ -66,9 +67,9 @@ COPY src /root/src/
 RUN set -x && \
     cd /root && \
     opam init -y --disable-sandboxing && \
-    eval $(opam env) && \
+    eval $(opam env --switch=default) && \
     opam switch create 4.14.1 && \
-    eval $(opam env) && \
+    eval $(opam env --switch=4.14.1) && \
     opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
     eval $(opam env) && \
     cd src && \

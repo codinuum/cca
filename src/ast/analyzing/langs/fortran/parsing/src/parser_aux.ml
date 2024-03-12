@@ -1254,12 +1254,14 @@ class env = object (self)
             DEBUG_MSG "type=%s" (I.TypeSpec.to_string tspec);
             let ispec = new N.ImplicitSpec.c tspec in
             let lod = N.Spec.loc_of_decl_implicit node#orig_loc in
+            let iod = Oo.id node in
             let bid = self#genbid lod in
             node#set_binding (B.make_unknown_def bid true);
             ispec#set_letter_spec_list
               (Xlist.filter_map
                  (fun ls -> N.ImplicitSpec.letter_spec_of_label ls#label) lss);
             ispec#set_loc_of_decl lod;
+            ispec#set_id_of_decl iod;
             ispec#set_bid bid;
             Some ispec
         end
@@ -1508,15 +1510,15 @@ module F (Stat : STATE_T) = struct
       =
     DEBUG_MSG "name=\"%s\"" name;
     let is_dummy_node = Ast.is_dummy_node node in
-    let lod =
+    let lod, iod =
       if is_dummy_node then
-        N.Spec.loc_of_decl_unknown
+        N.Spec.loc_of_decl_unknown, -1
       else
-        N.Spec.loc_of_decl_explicit node#orig_loc
+        N.Spec.loc_of_decl_explicit node#orig_loc, Oo.id node
     in
     let bid = env#genbid lod in
 
-    let ospec = N.Spec.mkobj ~loc_of_decl:lod ~bid_opt:(Some bid) () in
+    let ospec = N.Spec.mkobj ~loc_of_decl:lod ~id_of_decl:iod ~bid_opt:(Some bid) () in
 
     begin
       try
@@ -1686,6 +1688,7 @@ module F (Stat : STATE_T) = struct
           end
         in (* a_opt *)
         let lod = N.Spec.loc_of_decl_explicit node#orig_loc in
+        let iod = Oo.id node in
         let bid = env#genbid lod in
         node#set_binding (B.make_unknown_def bid true);
 
@@ -1695,6 +1698,7 @@ module F (Stat : STATE_T) = struct
               let dobj = N.Spec.get_data_object_spec spc in
               dobj#set_type_spec type_spec;
               dobj#set_loc_of_decl lod;
+              dobj#set_id_of_decl iod;
               dobj#set_bid bid;
               begin
                 match a_opt with
@@ -1710,7 +1714,7 @@ module F (Stat : STATE_T) = struct
               spc
           | [] ->
               let spc =
-                N.Spec.mkdobj ~loc_of_decl:lod ~bid_opt:(Some bid) ~type_spec a_opt
+                N.Spec.mkdobj ~loc_of_decl:lod ~id_of_decl:iod ~bid_opt:(Some bid) ~type_spec a_opt
               in
               env#register_name n spc;
               spc
@@ -1725,10 +1729,11 @@ module F (Stat : STATE_T) = struct
     match node#label with
     | L.ProcDecl n -> begin
         let lod = N.Spec.loc_of_decl_explicit node#orig_loc in
+        let iod = Oo.id node in
         let bid = env#genbid lod in
         node#set_binding (B.make_unknown_def bid true);
 
-        let pspec = N.Spec.mkproc ~loc_of_decl:lod ~bid_opt:(Some bid) pi in
+        let pspec = N.Spec.mkproc ~loc_of_decl:lod ~id_of_decl:iod ~bid_opt:(Some bid) pi in
 
         let a = try pspec#attr with Not_found -> assert false in
 
@@ -2103,7 +2108,9 @@ module F (Stat : STATE_T) = struct
                 let ospec = N.Spec.get_object_spec spec in
                 DEBUG_MSG "ospec: %s" ospec#to_string;
                 let lod = N.Spec.loc_of_decl_explicit node#orig_loc in
+                let iod = Oo.id node in
                 ospec#set_loc_of_decl lod;
+                ospec#set_id_of_decl iod;
                 DEBUG_MSG " -> %s" ospec#to_string;
                 DEBUG_MSG "ospec#bid=%a" BID.ps ospec#bid;
                 let bid =

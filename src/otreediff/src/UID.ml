@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -20,23 +20,25 @@
  *
  *)
 
-type t = Int64.t
+module IntX = Int(*Int64*)
 
-let compare = Int64.compare
+type t = IntX.t
 
-let succ = Int64.succ
-let pred = Int64.pred
+let compare = IntX.compare
 
-let to_raw (u : t) = Int64.to_string u
+let succ = IntX.succ
+let pred = IntX.pred
+
+let to_raw (u : t) = IntX.to_string u
 let to_string (u : t) = "#"^(to_raw u)^"U"
 
-let dummy = (0L : t)
+let dummy = (IntX.zero : t)
 
-let unknown = (-1L: t)
+let unknown = (IntX.minus_one : t)
 
 class generator = object
-  val mutable id = (0L : t)
-  method reset = id <- (0L : t)
+  val mutable id = (IntX.zero : t)
+  method reset = id <- (IntX.zero : t)
   method gen =
     id <- succ id;
     (id : t)
@@ -50,3 +52,5 @@ let r ch (u : t) = Stdlib.output_string ch (to_raw u)
 let ps () (u : t) = to_string u
 
 let rs () (u : t) = to_raw u
+
+let of_int i = ((*IntX.of_int *)i : t)

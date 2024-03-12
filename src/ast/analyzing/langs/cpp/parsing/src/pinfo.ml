@@ -1127,7 +1127,7 @@ module Name = struct
 
     class c
         ?(bid_opt=None) ?(prefix="") ?(is_local=false) ?(section_info_opt=None)
-        (lod : Astloc.t) (ident : ident) (_kind : kind)
+        (lod : Astloc.t) (iod : int) (ident : ident) (_kind : kind)
         =
       object (self)
         val mutable kind = _kind
@@ -1137,6 +1137,7 @@ module Name = struct
         method section_info_opt : pp_if_section_info option = section_info_opt
         method prefix = prefix
         method lod = lod
+        method iod = iod
         method is_local = is_local
         method is_public =
           match kind with

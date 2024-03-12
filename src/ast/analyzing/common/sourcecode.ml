@@ -348,6 +348,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       val mutable bindings = []
       method bindings = bindings
+      method set_bindings bs = bindings <- bs
       method add_binding (b : Binding.t) =
         if not (List.mem b bindings) then
           bindings <- b :: bindings

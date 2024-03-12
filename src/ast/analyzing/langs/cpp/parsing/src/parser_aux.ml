@@ -24,8 +24,20 @@ module I = Pinfo
 module N = Pinfo.Name
 module Type = Pinfo.Type
 module C = Context
+module Loc_ = Loc
 
 open Common
+
+let conv_loc
+    { Ast.Loc.filename     = fn;
+      Ast.Loc.start_offset = so;
+      Ast.Loc.end_offset   = eo;
+      Ast.Loc.start_line   = sl;
+      Ast.Loc.start_char   = sc;
+      Ast.Loc.end_line     = el;
+      Ast.Loc.end_char     = ec;
+    } =
+  Loc_.make ~fname:fn so eo sl sc el ec
 
 let mes fmt = _mes "Parser_aux" fmt
 
@@ -3049,7 +3061,10 @@ class env = object (self)
       let spec = self#lookup_obj (prefix^i) in
       match spec#bid_opt with
       | Some bid -> begin
-          let b = B.make_use bid in
+          let loc_opt =
+            Some (Otreediff.UID.of_int spec#iod, conv_loc spec#lod)
+          in
+          let b = B.make_use ~loc_opt bid in
           DEBUG_MSG "%s => %s" i (B.to_string b);
           nd#set_binding b
       end
@@ -3069,7 +3084,10 @@ class env = object (self)
       let spec = self#lookup_type (prefix^i) in
       match spec#bid_opt with
       | Some bid -> begin
-          let b = B.make_use bid in
+          let loc_opt =
+            Some (Otreediff.UID.of_int spec#iod, conv_loc spec#lod)
+          in
+          let b = B.make_use ~loc_opt bid in
           DEBUG_MSG "%s => %s" i (B.to_string b);
           nd#set_binding b
       end
@@ -3202,12 +3220,12 @@ class env = object (self)
 
   method register_macro_obj i (nd : Ast.node) =
     DEBUG_MSG "i=%s" i;
-    let spec = new N.Spec.c nd#loc i N.Spec.MacroObj in
+    let spec = new N.Spec.c nd#loc (Oo.id nd) i N.Spec.MacroObj in
     top_frame#register ~replace:true i spec
 
   method register_macro_fun i (nd : Ast.node) =
     DEBUG_MSG "i=%s" i;
-    let spec = new N.Spec.c nd#loc i N.Spec.MacroFun in
+    let spec = new N.Spec.c nd#loc (Oo.id nd) i N.Spec.MacroFun in
     top_frame#register ~replace:true i spec
 
   method undef_macro i =
@@ -3216,16 +3234,19 @@ class env = object (self)
 
   method register_namespace i (nd : Ast.node) (frm : N.stack_frame) =
     DEBUG_MSG "i=%s" i;
-    let spec = new N.Spec.c nd#loc i (N.Spec.Namespace (self#stack#make_def_adder frm)) in
+    let spec =
+      new N.Spec.c nd#loc (Oo.id nd) i (N.Spec.Namespace (self#stack#make_def_adder frm))
+    in
     frm#register i spec
 
   method register_using_decls nd =
     DEBUG_MSG "nd=%s" (L.to_string nd#label);
     let frm = stack#top in
     let lod = nd#loc in
+    let iod = Oo.id nd in
     List.iter
       (fun (p, u) ->
-        let spec = new N.Spec.c ~prefix:p lod u N.Spec.UsingDecl in
+        let spec = new N.Spec.c ~prefix:p lod iod u N.Spec.UsingDecl in
         frm#register u spec
       ) (Ast.qn_list_of_using_declaration nd)
 
@@ -3233,9 +3254,10 @@ class env = object (self)
     DEBUG_MSG "nd=%s" (L.to_string nd#label);
     let frm = stack#top in
     let lod = nd#loc in
+    let iod = Oo.id nd in
     List.iter
       (fun (p, u) ->
-        let spec = new N.Spec.c ~prefix:p lod u N.Spec.UsingEnumDecl in
+        let spec = new N.Spec.c ~prefix:p lod iod u N.Spec.UsingEnumDecl in
         frm#register u spec
       ) (Ast.qn_list_of_using_enum_declaration nd)
 
@@ -3244,7 +3266,7 @@ class env = object (self)
     let i, tp_spec = Ast.ident_type_param_spec_of_type_param nd in
     let uqn = I.encode_ident i in
     let frm = stack#top in
-    let spec = new N.Spec.c nd#loc uqn (N.Spec.make_typaram tp_spec) in
+    let spec = new N.Spec.c nd#loc (Oo.id nd) uqn (N.Spec.make_typaram tp_spec) in
     nd#set_info (I.from_spec spec);
     frm#register uqn spec
 
@@ -3268,7 +3290,7 @@ class env = object (self)
       | ElaboratedTypeSpecifierEnum i -> i
       | _ -> assert false
     in
-    let spec = new N.Spec.c ~prefix:p nd#loc qn N.Spec.Type in
+    let spec = new N.Spec.c ~prefix:p nd#loc (Oo.id nd) qn N.Spec.Type in
     nd#set_info (I.from_spec spec);
     frm#register qn spec
 
@@ -3291,7 +3313,7 @@ class env = object (self)
         | ClassHeadMsRefClass -> N.Spec.Class s
         | _ -> assert false
       in
-      let spec = new N.Spec.c ~prefix:p nd#loc qn k in
+      let spec = new N.Spec.c ~prefix:p nd#loc (Oo.id nd) qn k in
       nd#set_info (I.from_spec spec);
       frm#register qn spec;
       qn
@@ -3314,7 +3336,7 @@ class env = object (self)
         | EnumHeadEnumMacro i -> N.Spec.EnumMacro(i, s)
         | _ -> assert false
       in
-      let spec = new N.Spec.c ~prefix:p nd#loc qn k in
+      let spec = new N.Spec.c ~prefix:p nd#loc (Oo.id nd) qn k in
       nd#set_info (I.from_spec spec);
       frm#register qn spec;
       qn
@@ -3332,7 +3354,7 @@ class env = object (self)
       | Some _ -> N.Spec.make_member self#access_spec_opt ty
       | None   -> N.Spec.make_function ty
     in
-    let spec = new N.Spec.c ~bid_opt:(Some bid) ~prefix:p nd#loc qn kind in
+    let spec = new N.Spec.c ~bid_opt:(Some bid) ~prefix:p nd#loc (Oo.id nd) qn kind in
     nd#set_info (I.from_spec spec);
     frm#register qn spec;
     qn
@@ -3439,7 +3461,7 @@ class env = object (self)
         if qn <> "" then begin
           let frm = stack#top in
           let bid = self#make_local_bid() in
-          let spec = new N.Spec.c ~bid_opt:(Some bid) n#loc qn (N.Spec.make_fparam ty) in
+          let spec = new N.Spec.c ~bid_opt:(Some bid) n#loc (Oo.id n) qn (N.Spec.make_fparam ty) in
           n#set_info (I.from_spec spec);
           frm#register qn spec;
           (qn, ty)::l
@@ -3455,7 +3477,7 @@ class env = object (self)
         if qn <> "" then begin
           let frm = stack#top in
           let bid = self#make_local_bid() in
-          let spec = new N.Spec.c ~bid_opt:(Some bid) n#loc qn (N.Spec.make_param ty) in
+          let spec = new N.Spec.c ~bid_opt:(Some bid) n#loc (Oo.id n) qn (N.Spec.make_param ty) in
           n#set_info (I.from_spec spec);
           frm#register qn spec
         end
@@ -3468,7 +3490,7 @@ class env = object (self)
       if qn <> "" then begin
         let frm = stack#top in
         let bid = self#make_local_bid() in
-        let spec = new N.Spec.c ~bid_opt:(Some bid) n#loc qn (N.Spec.make_param ty) in
+        let spec = new N.Spec.c ~bid_opt:(Some bid) n#loc (Oo.id n) qn (N.Spec.make_param ty) in
         n#set_info (I.from_spec spec);
         frm#register qn spec
       end
@@ -3483,7 +3505,7 @@ class env = object (self)
     try
       List.iter
         (fun (n, qn, ty) ->
-          let spec = new N.Spec.c ~prefix:p n#loc qn (N.Spec.make_enumerator ty) in
+          let spec = new N.Spec.c ~prefix:p n#loc (Oo.id n) qn (N.Spec.make_enumerator ty) in
           n#set_info (I.from_spec spec);
           frm#register qn spec
         ) (Ast.qn_type_list_of_enumerator scope nd)
@@ -3496,7 +3518,9 @@ class env = object (self)
     let p = stack#get_prefix() in
     List.iter
       (fun (n, qn, ty) ->
-        let spec = new N.Spec.c ~prefix:p n#loc qn (N.Spec.make_member self#access_spec_opt ty) in
+        let spec =
+          new N.Spec.c ~prefix:p n#loc (Oo.id n) qn (N.Spec.make_member self#access_spec_opt ty)
+        in
         n#set_info (I.from_spec spec);
         frm#register qn spec
       ) (Ast.qn_type_list_of_mem_decl nd)
@@ -3531,8 +3555,11 @@ class env = object (self)
           with
             _ -> None
         in
+        let lod = n#loc in
+        let iod = Oo.id n in
         let spec =
-          new N.Spec.c ~bid_opt ~prefix:p ~is_local ~section_info_opt n#loc qn (N.Spec.make_variable ty)
+          new N.Spec.c ~bid_opt ~prefix:p ~is_local ~section_info_opt lod iod qn
+            (N.Spec.make_variable ty)
         in
         n#set_info (I.from_spec spec);
         if is_local then begin
@@ -3546,7 +3573,7 @@ class env = object (self)
     let frm = stack#top in
     let i = nd#get_name in
     if replace || try (frm#find i)#kind != N.Spec.Label with _ -> true then begin
-      let spec = new N.Spec.c nd#loc i N.Spec.Label in
+      let spec = new N.Spec.c nd#loc (Oo.id nd) i N.Spec.Label in
       frm#register ~replace i spec
     end
 

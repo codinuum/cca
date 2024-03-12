@@ -639,9 +639,10 @@ module Name = struct
     end (* of class Pinfo.Name.Spec.full_attr_spec *)
 
 
-    class spec_base ?(loc_of_decl=Lunknown) ?(bid_opt=None) () = object
+    class spec_base ?(loc_of_decl=Lunknown) ?(id_of_decl=(-1)) ?(bid_opt=None) () = object
       val mutable bid_opt = (bid_opt : BID.t option)
       val mutable loc_of_decl = loc_of_decl
+      val mutable id_of_decl = id_of_decl
 
       method bid = match bid_opt with Some bid -> bid | _ -> raise Not_found
       method bid_opt = bid_opt
@@ -662,6 +663,9 @@ module Name = struct
       method set_loc_of_decl_explicit loc =
         loc_of_decl <- loc_of_decl_explicit loc
 
+      method id_of_decl = id_of_decl
+      method set_id_of_decl i = id_of_decl <- i
+
       method to_string =
         "@"^(loc_of_decl_to_string loc_of_decl)^
         (match bid_opt with Some bid -> BID.to_string bid | None -> "")
@@ -669,8 +673,8 @@ module Name = struct
     end (* of class Pinfo.Name.Spec.spec_base *)
 
 
-    class object_spec ?(loc_of_decl=Lunknown) ?(bid_opt=None) () = object
-      inherit spec_base ~loc_of_decl ~bid_opt () as super
+    class object_spec ?(loc_of_decl=Lunknown) ?(id_of_decl=(-1)) ?(bid_opt=None) () = object
+      inherit spec_base ~loc_of_decl ~id_of_decl ~bid_opt () as super
       inherit accessibility_attr_spec as super_attr
 
       method to_string =
@@ -687,12 +691,13 @@ module Name = struct
 
     class data_object_spec
         ?(loc_of_decl=Lunknown)
+        ?(id_of_decl=(-1))
         ?(bid_opt=None)
         ?(type_spec=TypeSpec.Unknown)
         ()
         =
       object
-        inherit spec_base ~loc_of_decl ~bid_opt () as super
+        inherit spec_base ~loc_of_decl ~id_of_decl ~bid_opt () as super
         inherit full_attr_spec as super_attr
 
         val mutable type_spec = type_spec
@@ -707,8 +712,14 @@ module Name = struct
 
       end (* of class Pinfo.Name.Spec.data_object_spec *)
 
-    class procedure_spec ?(loc_of_decl=Lunknown) ?(bid_opt=None) proc_interface = object
-      inherit spec_base ~loc_of_decl ~bid_opt () as super
+    class procedure_spec
+        ?(loc_of_decl=Lunknown)
+        ?(id_of_decl=(-1))
+        ?(bid_opt=None)
+        proc_interface
+        =
+    object
+      inherit spec_base ~loc_of_decl ~id_of_decl ~bid_opt () as super
       inherit full_attr_spec as super_attr
 
       method proc_interface = proc_interface
@@ -1001,14 +1012,25 @@ module Name = struct
       | Object ospec -> ospec#set_loc_of_decl lod
       | _ -> ()
 
-    let mkobj ?(loc_of_decl=Lunknown) ?(bid_opt=None) () =
-      let spec = new object_spec ~loc_of_decl ~bid_opt () in
+    let set_id_of_decl lod = function
+      | DataObject dspec -> dspec#set_id_of_decl lod
+      | DerivedType(_, ospec)
+      | FunctionSubprogram ospec
+      | SubroutineSubprogram ospec
+      | SeparateModuleSubprogram ospec
+      | Generic ospec
+      | NamelistGroup ospec
+      | Object ospec -> ospec#set_id_of_decl lod
+      | _ -> ()
+
+    let mkobj ?(loc_of_decl=Lunknown) ?(id_of_decl=(-1)) ?(bid_opt=None) () =
+      let spec = new object_spec ~loc_of_decl ~id_of_decl ~bid_opt () in
       let a = new Attribute.accessibility in
       spec#set_attr a;
       spec
 
-    let mkproc ?(loc_of_decl=Lunknown) ?(bid_opt=None) pi =
-      let spec = new procedure_spec ~loc_of_decl ~bid_opt pi in
+    let mkproc ?(loc_of_decl=Lunknown) ?(id_of_decl=(-1)) ?(bid_opt=None) pi =
+      let spec = new procedure_spec ~loc_of_decl ~id_of_decl ~bid_opt pi in
       let a = new Attribute.c in
       spec#set_attr a;
       spec
@@ -1026,10 +1048,11 @@ module Name = struct
 
     let mkdobj
         ?(loc_of_decl=Lunknown)
+        ?(id_of_decl=(-1))
         ?(bid_opt=None)
         ?(type_spec=TypeSpec.Unknown)
         attr_opt =
-      let spec = new data_object_spec ~loc_of_decl ~bid_opt ~type_spec () in
+      let spec = new data_object_spec ~loc_of_decl ~id_of_decl ~bid_opt ~type_spec () in
       begin
         match attr_opt with
         | Some a -> spec#set_attr a
@@ -1136,11 +1159,16 @@ module Name = struct
 
       val mutable loc_of_decl = Spec.loc_of_decl_implicit_default
 
+      val mutable id_of_decl = -1
+
       method set_bid bid = bid_opt <- Some bid
       method bid_opt = bid_opt
 
       method loc_of_decl = loc_of_decl
       method set_loc_of_decl lod = loc_of_decl <- lod
+
+      method id_of_decl = id_of_decl
+      method set_id_of_decl iod = id_of_decl <- iod
 
       method type_spec = type_spec
 
@@ -1264,8 +1292,9 @@ module Name = struct
       let ispec = find il in
       let type_spec = ispec#type_spec in
       let loc_of_decl = ispec#loc_of_decl in
+      let id_of_decl = ispec#id_of_decl in
       let bid_opt = ispec#bid_opt in
-      let dobj = Spec.mkdobj ~loc_of_decl ~bid_opt ~type_spec None in
+      let dobj = Spec.mkdobj ~loc_of_decl ~id_of_decl ~bid_opt ~type_spec None in
       DEBUG_MSG "found: %s" (Spec.to_string dobj);
       dobj
 

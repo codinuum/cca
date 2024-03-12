@@ -28,6 +28,7 @@ module L = Cpp_label
 module B = Binding
 module I = Pinfo
 module FB  = Fact_base.F (L)
+module UID = Otreediff.UID
 
 let sprintf = Printf.sprintf
 
@@ -202,6 +203,23 @@ let set_control_flow label_tbl body =
     set_succ [] [] children.(nchildren - 1)
 
 
+class visitor conv_uid tree = object (self)
+  inherit Sourcecode.visitor tree
+  method scanner_body_after_subscan nd =
+    begin
+      match nd#data#binding with
+      | B.Use(bid, uid_loc_opt) -> begin
+          DEBUG_MSG "bid=%a" B.ID.ps bid;
+          match uid_loc_opt with
+          | None -> ()
+          | Some (uid, loc) ->
+              let binding_ = B.Use(bid, Some (conv_uid uid, loc)) in
+              nd#data#set_binding binding_
+      end
+      | _ -> ()
+    end
+end
+
 let of_ast options ast =
 (*
   let mktid nd =
@@ -216,6 +234,20 @@ let of_ast options ast =
         nd#data#anonymized_label)
   in
 *)
+  let uid_tbl = Hashtbl.create 0 in
+  let reg_node ast_nd nd =
+    let uid = UID.of_int (Oo.id ast_nd) in
+    (*if B.is_def ast_nd#binding then*)
+      Hashtbl.add uid_tbl uid nd#uid
+  in
+  let conv_uid u =
+    try
+      let u' = Hashtbl.find uid_tbl u in
+      DEBUG_MSG "%a -> %a" UID.ps u UID.ps u';
+      u'
+    with Not_found -> assert false
+  in
+
   let utbl = Hashtbl.create 0 in
 
   let proj_root = try options#fact_proj_roots.(0) with _ -> "" in
@@ -365,6 +397,7 @@ let of_ast options ast =
         | l -> Some (new ordinal_tbl l)
       in
       let nd = mknode options ~annot ~ordinal_tbl_opt lab children in
+      reg_node ast_nd nd;
 
       let handle_binding binding =
         match binding with
@@ -372,7 +405,7 @@ let of_ast options ast =
         | B.Def(bid, use, _) -> begin
             DEBUG_MSG "bid=%a" B.ID.ps bid;
             let b =
-              match use with
+              match !use with
               | B.Unknown -> begin
                   try
                     B.make_used_def bid (Hashtbl.find utbl bid) true
@@ -394,7 +427,8 @@ let of_ast options ast =
                 Hashtbl.add utbl bid 1
         end
       in
-      handle_binding binding;
+      if options#use_binding_info_flag then
+        handle_binding binding;
 
       let loc =
         if orig_loc_flag then
@@ -413,7 +447,8 @@ let of_ast options ast =
           if sz >= options#huge_array_threshold then begin
             WARN_MSG "huge array found at %s (size=%d)" (Astloc.to_string loc) sz;
             let u =
-              String.concat "," (List.rev (List.rev_map (fun n -> L.to_simple_string (getlab n)) children))
+              String.concat ","
+                (List.rev (List.rev_map (fun n -> L.to_simple_string (getlab n)) children))
             in
             mknode options ~annot (L.HugeArray(sz, u)) []
           end
@@ -478,6 +513,10 @@ let of_ast options ast =
     end
   in
   let tree = new c options root_node true in
+  if options#use_binding_info_flag then begin
+    let visitor = new visitor conv_uid tree in
+    visitor#visit_all
+  end;
   tree#collapse;
   tree#set_total_LOC ast#lines_read;
   tree#set_ignored_regions (ast#comment_regions @ ast#ignored_regions);
