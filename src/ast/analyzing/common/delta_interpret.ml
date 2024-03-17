@@ -819,7 +819,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
       (fun u ms ->
         let ms =
           if chk ms then
-            List.flatten (List.map decompose_prune ms)
+            List.concat_map decompose_prune ms
           else
             ms
         in
@@ -2374,32 +2374,31 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             in
             DEBUG_MSG "xs=[%a]" nsps xs;!!!!!*)
             let l =
-              List.flatten
-                (List.map
-                   (fun x ->
-                     DEBUG_MSG "x=%a" nps x;
-                     if List.memq x ns then begin
-                       if List.memq x fnodes then begin
-                         DEBUG_MSG "n=%a: %a -> []" nps n nps x;
-                         []
-                       end
-                       else begin
-                         let filt x = self#is_insert x && not (self#has_stable_descendant x) in
-                         let xs = List.filter filt (Array.to_list x#initial_children) in
-                         DEBUG_MSG "n=%a: %a -> [%a]" nps n nps x nsps xs;
-                         xs
-                       end
-                     end
-                     else begin
-                       DEBUG_MSG "n=%a: %a" nps n nps x;
-                       [x]
-                     end
-                   ) initial_children)
+              List.concat_map
+                (fun x ->
+                  DEBUG_MSG "x=%a" nps x;
+                  if List.memq x ns then begin
+                    if List.memq x fnodes then begin
+                      DEBUG_MSG "n=%a: %a -> []" nps n nps x;
+                      []
+                    end
+                    else begin
+                      let filt x = self#is_insert x && not (self#has_stable_descendant x) in
+                      let xs = List.filter filt (Array.to_list x#initial_children) in
+                      DEBUG_MSG "n=%a: %a -> [%a]" nps n nps x nsps xs;
+                      xs
+                    end
+                  end
+                  else begin
+                    DEBUG_MSG "n=%a: %a" nps n nps x;
+                    [x]
+                  end
+                ) initial_children
             in
             DEBUG_MSG "n=%a l=[%a]" nps n nsps l;
             l
           in
-          List.flatten (List.map proc1 pl)
+          List.concat_map proc1 pl
         in (* excluded *)
 
         DEBUG_MSG "nd=%a excluded=[%a]" nps nd nsps excluded;
@@ -2452,158 +2451,157 @@ class ['tree] interpreter (tree : 'tree) = object (self)
             DEBUG_MSG "%a -> %B" nps n b;
             b
           in
-          List.flatten
-            (List.map
-               (fun (n, ns) ->
-                 DEBUG_MSG "nd=%a n=%a ns=[%a]" nps nd nps n nsps ns;
-                 if Xset.mem checked_mems n then begin
-                   DEBUG_MSG "%a is already checked" nps n;
-                   []
-                 end
-                 else begin
-                   DEBUG_MSG "deleted_mem: n=%a ns=[%a]" nps n nsps ns;
+          List.concat_map
+            (fun (n, ns) ->
+              DEBUG_MSG "nd=%a n=%a ns=[%a]" nps nd nps n nsps ns;
+              if Xset.mem checked_mems n then begin
+                DEBUG_MSG "%a is already checked" nps n;
+                []
+              end
+              else begin
+                DEBUG_MSG "deleted_mem: n=%a ns=[%a]" nps n nsps ns;
 
-                   if self#is_insert n#initial_parent then begin
-                     DEBUG_MSG "%a turned into the root of another deletion" nps n;
-                     if not (List.memq n !extra_roots) then
-                       extra_roots := n :: !extra_roots
-                   end;
+                if self#is_insert n#initial_parent then begin
+                  DEBUG_MSG "%a turned into the root of another deletion" nps n;
+                  if not (List.memq n !extra_roots) then
+                    extra_roots := n :: !extra_roots
+                end;
 
-                   let cl = Array.to_list n#initial_children in
-                   DEBUG_MSG "cl=[%a]" nsps cl;
-                   let ns0 = List.filter (fun x -> not (List.memq x cl)) ns in
-                   DEBUG_MSG "ns0=[%a]" nsps ns0;
-                   let cut_in n0 =
-                     let b =
-                       self#has_p_descendant (fun x -> List.memq x ns) n0
-                     in
-                     DEBUG_MSG "%a -> %B" nps n0 b;
-                     b
-                   in
-                   let is_quasi_upstream x =
-                     self#get_quasi_upstream_count x > 0 && self#has_parent_key(*_stable*) x
-                   in
-                   let extra_cond =
-                     self#is_insert nd#initial_parent &&
-                     try
-                       List.exists
-                         (fun c ->
-                           not (self#is_forced_upstream c) &&
-                           (self#is_true_stable_node c || self#has_true_stable_descendant c)
-                         ) cl
-                     with
-                       _ -> false
-                   in
-                   DEBUG_MSG "extra_cond=%B" extra_cond;
-                   let filt c =
-                     DEBUG_MSG "c=%a" nps c;
-                     let b =
-                       if not (List.memq c ns) then begin
-                         if
-                           ns0 = [] ||
-                           not (cut_in c) ||
-                           self#is_insert c &&
-                           not (self#is_forced_upstream c) && not (self#has_p_descendant is_quasi_upstream c)
-                         then
-                           true
-                         else begin
-                           let extra_root_added = ref false in
-                           begin
-                             let moveon x = x != nd in
-                             let ns1 = List.filter has_no_upstream_descendant ns0 in
-                             DEBUG_MSG "ns1=[%a]" nsps ns1;
-                             let qu_cond x =
-                               let dl = get_p_descendants self#is_insert x in
-                               DEBUG_MSG "dl=[%a]" nsps dl;
-                               let b =
-                                 List.exists (self#has_p_descendant is_quasi_upstream) dl
-                               in
-                               let b =
-                                 b || self#has_p_descendant is_quasi_upstream x
-                               in
-                               DEBUG_MSG "%a -> %B" nps x b;
-                               b
-                             in
-                             List.iter
-                               (fun n0 ->
-                                 DEBUG_MSG "n0=%a" nps n0;
-                                 scan_ancestors ~moveon n0
-                                   (fun x ->
-                                     DEBUG_MSG "x=%a" nps x;
-                                     if
-                                       x == c &&
-                                       (qu_cond n0 ||
-                                       self#is_insert x &&
-                                       (self#is_forced_upstream c || self#has_p_descendant is_quasi_upstream x ||
-                                       self#has_true_stable_descendant n0 &&
-                                       try
-                                         let a, _ = skip_deleted n in
-                                         self#is_stable a
-                                       with
-                                         _ -> false))
-                                     then begin
-                                       DEBUG_MSG "%a turned into the root of another deletion" nps n0;
-                                       if not (List.memq n0 !extra_roots) then
-                                         extra_roots := n0 :: !extra_roots;
-                                       extra_root_added := true;
-                                       if
-                                         self#has_p_descendant is_quasi_upstream n0
-                                       then begin
-                                         DEBUG_MSG "adding %a" nps n0;
-                                         Xset.add dels_with_root_shifts n0
-                                       end
-                                     end
-                                   )
-                               ) ns1
-                           end;
-                           !extra_root_added ||
-                           extra_cond && c#initial_parent == nd && self#is_forced_upstream c ||
-                           try
-                             let rec check x =
-                               let px = x#initial_parent in
-                               (*self#is_stable px ||
-                               (self#is_insert px &&
-                                match self#find_key_opt px with
-                                | Some pk -> begin
-                                    DEBUG_MSG "pk=%s" (key_to_string pk);
-                                    let pr = (self#find_subtree pk)#root in
-                                    DEBUG_MSG "pr=%a" nps pr;
-                                    if self#is_forced_upstream pr then
-                                     check pr
-                                    else
-                                      false
-                                end
-                                | _ -> false) ||*)
-                               self#is_deleted px &&
-                               let a, _ = skip_deleted x in
-                               DEBUG_MSG "a=%a x=%a" nps a nps x;
-                               self#is_stable a(* ||
-                               match self#find_key_opt a with
-                               | Some k -> begin
-                                   DEBUG_MSG "k=%s" (key_to_string k);
-                                   let r = (self#find_subtree k)#root in
-                                   DEBUG_MSG "r=%a" nps r;
-                                   if self#is_forced_upstream r then
-                                     check r
-                                   else
-                                     false
-                               end
-                               | _ -> false*)
-                             in
-                             check c
-                           with
-                             _ -> false
-                         end
-                       end
-                       else
-                         false
-                     in
-                     DEBUG_MSG "%a -> %B" nps c b;
-                     b
-                   in
-                   List.filter filt cl
-                 end
-               ) mems)
+                let cl = Array.to_list n#initial_children in
+                DEBUG_MSG "cl=[%a]" nsps cl;
+                let ns0 = List.filter (fun x -> not (List.memq x cl)) ns in
+                DEBUG_MSG "ns0=[%a]" nsps ns0;
+                let cut_in n0 =
+                  let b =
+                    self#has_p_descendant (fun x -> List.memq x ns) n0
+                  in
+                  DEBUG_MSG "%a -> %B" nps n0 b;
+                  b
+                in
+                let is_quasi_upstream x =
+                  self#get_quasi_upstream_count x > 0 && self#has_parent_key(*_stable*) x
+                in
+                let extra_cond =
+                  self#is_insert nd#initial_parent &&
+                  try
+                    List.exists
+                      (fun c ->
+                        not (self#is_forced_upstream c) &&
+                        (self#is_true_stable_node c || self#has_true_stable_descendant c)
+                      ) cl
+                  with
+                    _ -> false
+                in
+                DEBUG_MSG "extra_cond=%B" extra_cond;
+                let filt c =
+                  DEBUG_MSG "c=%a" nps c;
+                  let b =
+                    if not (List.memq c ns) then begin
+                      if
+                        ns0 = [] ||
+                        not (cut_in c) ||
+                        self#is_insert c &&
+                        not (self#is_forced_upstream c) && not (self#has_p_descendant is_quasi_upstream c)
+                      then
+                        true
+                      else begin
+                        let extra_root_added = ref false in
+                        begin
+                          let moveon x = x != nd in
+                          let ns1 = List.filter has_no_upstream_descendant ns0 in
+                          DEBUG_MSG "ns1=[%a]" nsps ns1;
+                          let qu_cond x =
+                            let dl = get_p_descendants self#is_insert x in
+                            DEBUG_MSG "dl=[%a]" nsps dl;
+                            let b =
+                              List.exists (self#has_p_descendant is_quasi_upstream) dl
+                            in
+                            let b =
+                              b || self#has_p_descendant is_quasi_upstream x
+                            in
+                            DEBUG_MSG "%a -> %B" nps x b;
+                            b
+                          in
+                          List.iter
+                            (fun n0 ->
+                              DEBUG_MSG "n0=%a" nps n0;
+                              scan_ancestors ~moveon n0
+                                (fun x ->
+                                  DEBUG_MSG "x=%a" nps x;
+                                  if
+                                    x == c &&
+                                    (qu_cond n0 ||
+                                    self#is_insert x &&
+                                    (self#is_forced_upstream c || self#has_p_descendant is_quasi_upstream x ||
+                                    self#has_true_stable_descendant n0 &&
+                                    try
+                                      let a, _ = skip_deleted n in
+                                      self#is_stable a
+                                    with
+                                      _ -> false))
+                                  then begin
+                                    DEBUG_MSG "%a turned into the root of another deletion" nps n0;
+                                    if not (List.memq n0 !extra_roots) then
+                                      extra_roots := n0 :: !extra_roots;
+                                    extra_root_added := true;
+                                    if
+                                      self#has_p_descendant is_quasi_upstream n0
+                                    then begin
+                                      DEBUG_MSG "adding %a" nps n0;
+                                      Xset.add dels_with_root_shifts n0
+                                    end
+                                  end
+                                )
+                            ) ns1
+                        end;
+                        !extra_root_added ||
+                        extra_cond && c#initial_parent == nd && self#is_forced_upstream c ||
+                        try
+                          let rec check x =
+                            let px = x#initial_parent in
+                            (*self#is_stable px ||
+                              (self#is_insert px &&
+                              match self#find_key_opt px with
+                              | Some pk -> begin
+                                DEBUG_MSG "pk=%s" (key_to_string pk);
+                                let pr = (self#find_subtree pk)#root in
+                                DEBUG_MSG "pr=%a" nps pr;
+                                if self#is_forced_upstream pr then
+                                  check pr
+                                else
+                                  false
+                              end
+                              | _ -> false) ||*)
+                            self#is_deleted px &&
+                            let a, _ = skip_deleted x in
+                            DEBUG_MSG "a=%a x=%a" nps a nps x;
+                            self#is_stable a(* ||
+                            match self#find_key_opt a with
+                            | Some k -> begin
+                              DEBUG_MSG "k=%s" (key_to_string k);
+                              let r = (self#find_subtree k)#root in
+                              DEBUG_MSG "r=%a" nps r;
+                              if self#is_forced_upstream r then
+                                check r
+                              else
+                                false
+                            end
+                            | _ -> false*)
+                          in
+                          check c
+                        with
+                          _ -> false
+                      end
+                    end
+                    else
+                      false
+                  in
+                  DEBUG_MSG "%a -> %B" nps c b;
+                  b
+                in
+                List.filter filt cl
+              end
+            ) mems
         in (* other excluded *)
 
         let excluded =
@@ -3582,7 +3580,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
                 if upsds <> [] then begin
                   let l =
-                    Xlist.filter_map
+                    List.filter_map
                       (fun n ->
                         if self#has_parent n && self#has_parent_key n && Xset.mem processed_nodes n then
                           None
@@ -3741,7 +3739,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
                   let nupsds__ =
                     Xlist.uniqq
-                      (Xlist.filter_map
+                      (List.filter_map
                          (fun n ->
                            try
                              let a, pos = skip_deleted ~limit:rt n in
@@ -4075,7 +4073,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                                   with
                                     Not_found -> []
                                 in
-                                Xlist.filter_map
+                                List.filter_map
                                   (function
                                     | Otree.CMprune(p0, nds) when p0 = pos -> begin
                                         DEBUG_MSG "sn=%a p0=%d dir=%d e=%a ins=%a" nps sn p0 dir nps e nps ins;
@@ -4354,8 +4352,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
 
           DEBUG_MSG "%s[%d] nds_=[%s]" indent lv (nodes_to_uids_string nds_);
 
-          List.flatten
-            (List.map (find_excluded_nodes ~lv:(lv+1) rt) nds_)
+          List.concat_map (find_excluded_nodes ~lv:(lv+1) rt) nds_
         with
           Not_found ->
             if lv = 0 then
@@ -4488,49 +4485,47 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           end
         ) ktbl;
       let rec get_nds nd =
-        List.flatten
-          (List.map
-             (fun x ->
-               (*if x == nd then
-                 []
-               else *)if self#is_deleted x then
-                 try get_nds x with
-                   Not_found -> [x]
-                     (*let ds =
-                       (List.filter
-                          (self#is_deleted)
-                          (Array.to_list x#initial_children))
-                     in
-                     if ds = [] then
-                       [x]
-                     else
-                       List.flatten (List.map get_nds ds)*)
-               else if self#is_insert x then begin
-                 DEBUG_MSG "x=%a" nps x;
-                 Xset.add excluded_insert_roots x;
-                 try
-                   let filt x =
-                     self#has_parent_key_stable x ||
-                     self#is_forced_upstream x &&
-                     try self#get_upstream_dest x = K_stable with _ -> false
-                   in
-                   let nds = x::(List.filter filt (get_nds x)) in
-                   DEBUG_MSG "%a: nds=[%a]" nps x nsps nds;
-                   List.iter
-                     (fun x ->
-                       if self#is_forced_upstream x then
-                         self#unforce_upstream x;
-                       if self#is_root_of_upstream_staying_move x then
-                         self#unreg_root_of_upstream_staying_move x
-                     ) nds;
-                   nds
-                 with
-                   Not_found -> [x]
-               end
-               else
-                 [x]
-             ) (Hashtbl.find prune_tbl nd)
-          )
+        List.concat_map
+          (fun x ->
+            (*if x == nd then
+              []
+              else *)if self#is_deleted x then
+                try get_nds x with
+                  Not_found -> [x]
+                      (*let ds =
+                        (List.filter
+                        (self#is_deleted)
+                        (Array.to_list x#initial_children))
+                        in
+                        if ds = [] then
+                        [x]
+                        else
+                        List.flatten (List.map get_nds ds)*)
+              else if self#is_insert x then begin
+                DEBUG_MSG "x=%a" nps x;
+                Xset.add excluded_insert_roots x;
+                try
+                  let filt x =
+                    self#has_parent_key_stable x ||
+                    self#is_forced_upstream x &&
+                    try self#get_upstream_dest x = K_stable with _ -> false
+                  in
+                  let nds = x::(List.filter filt (get_nds x)) in
+                  DEBUG_MSG "%a: nds=[%a]" nps x nsps nds;
+                  List.iter
+                    (fun x ->
+                      if self#is_forced_upstream x then
+                        self#unforce_upstream x;
+                      if self#is_root_of_upstream_staying_move x then
+                        self#unreg_root_of_upstream_staying_move x
+                    ) nds;
+                  nds
+                with
+                  Not_found -> [x]
+              end
+              else
+                [x]
+          ) (Hashtbl.find prune_tbl nd)
       in
       let tbl = Hashtbl.create 0 in
       let got_nds = Xset.create 0 in
@@ -5416,19 +5411,18 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                         let rmap = try Hashtbl.find r_tbl' p0 with _ -> Hashtbl.create 0 in
                         let lmap = try Hashtbl.find l_tbl' p0 with _ -> Hashtbl.create 0 in
                         let nds' =
-                          List.flatten
-                            (List.map
-                               (fun nd ->
-                                 let rl = try Hashtbl.find rmap nd with _ -> [] in
-                                 let ll = try Hashtbl.find lmap nd with _ -> [] in
-                                 if rl <> [] || ll <> [] then begin
-                                   let l = ll @ (nd::rl) in
-                                   DEBUG_MSG "%a -> [%a]" nps nd nsps l;
-                                   l
-                                 end
-                                 else
-                                   [nd]
-                               ) nds)
+                          List.concat_map
+                            (fun nd ->
+                              let rl = try Hashtbl.find rmap nd with _ -> [] in
+                              let ll = try Hashtbl.find lmap nd with _ -> [] in
+                              if rl <> [] || ll <> [] then begin
+                                let l = ll @ (nd::rl) in
+                                DEBUG_MSG "%a -> [%a]" nps nd nsps l;
+                                l
+                              end
+                              else
+                                [nd]
+                            ) nds
                         in
                         Otree.CMprune(p0, nds')
                       end
@@ -5632,7 +5626,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         Hashtbl.add key_tbl n key
       );
 (*
-    let keys = Xlist.filter_map (fun p -> p#key_opt) paths in
+    let keys = List.filter_map (fun p -> p#key_opt) paths in
     DEBUG_MSG "keys=[%s]" (String.concat "," (List.map key_to_string keys));
     begin
       match keys with
@@ -5731,14 +5725,14 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           try
             let pos, nds = Hashtbl.find compo_tbl n in
             Xset.add used n;
-            List.flatten (List.map trace nds)
+            List.concat_map trace nds
           with
             Not_found -> [n]
         in
         List.iter
           (fun (rt, pnd, pos, nds) ->
             if not (Xset.mem used rt) then begin
-              let nds' = List.flatten (List.map trace nds) in
+              let nds' = List.concat_map trace nds in
               DEBUG_MSG "rt=%a pnd=%a pos=%d nds'=[%a]" nps rt nps pnd pos nsps nds';
               if nds' <> [] then begin
                 scan_initial_cluster rt nds' (fun x -> Xset.add finally_deleted_nodes x#uid)
@@ -5779,7 +5773,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
           Hashtbl.add key_tbl n key
       );
 (*
-    let keys = Xlist.filter_map (fun p -> p#key_opt) paths_to in
+    let keys = List.filter_map (fun p -> p#key_opt) paths_to in
     DEBUG_MSG "keys=[%s]" (String.concat "," (List.map key_to_string keys));
     begin
       match keys with
@@ -6175,7 +6169,7 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     let used_keys = ref [] in
 
     let nes =
-      Xlist.filter_map
+      List.filter_map
         (fun (i, path0) ->
           DEBUG_MSG "i=%d path0=%s" i path0#to_string;
           begin

@@ -85,12 +85,13 @@ module F (Label : Spec.LABEL_T) = struct
   let estimate_cost_of_move = Comparison.estimate_cost_of_move
 
 
-  let detect_permutation mid_gen tree1 tree2 pruned edits pmap =
-    let select_compatible_pairs tree1 tree2 pair_nth_weight_list =
+  let detect_permutation mid_gen cenv pruned edits pmap =
+
+    let select_compatible_pairs pair_nth_weight_list =
       let pair_weight_list =
         List.map (fun (n1, n2, _, sz) -> (n1, n2, sz)) pair_nth_weight_list
       in
-      let compat, incompat = UIDmapping.select_compatible_pairs tree1 tree2 pair_weight_list in
+      let compat, incompat = cenv#select_compatible_pairs pair_weight_list in
 
       List.iter
         (fun (n1, n2, _) ->
@@ -103,8 +104,8 @@ module F (Label : Spec.LABEL_T) = struct
 
                 if !k <> Edit.Mpermutation then begin
 
-                  DEBUG_MSG "kind changed: %a: %s -> %s (select_compatible_pairs)"
-                    MID.ps !m (Edit.move_kind_to_string !k) (Edit.move_kind_to_string Edit.Mpermutation);
+                  DEBUG_MSG "kind changed: %a: %s -> %s (select_compatible_pairs)" MID.ps !m
+                    (Edit.move_kind_to_string !k) (Edit.move_kind_to_string Edit.Mpermutation);
 
                   k := Edit.Mpermutation
                 end
@@ -131,7 +132,7 @@ module F (Label : Spec.LABEL_T) = struct
                sprintf "<%a,%a(%dth)(sz:%d)>" ups nd1#uid ups nd2#uid !nth sz)
              "" vs);
 
-        let vs = select_compatible_pairs tree1 tree2 vs in
+        let vs = select_compatible_pairs vs in
 
         let len = List.length vs in
         if len > 1 then begin
@@ -139,7 +140,7 @@ module F (Label : Spec.LABEL_T) = struct
           let sorted1 =
             List.stable_sort
               (fun (n1, _, _, _) (n2, _, _, _) ->
-                left_to_right tree1 n1 n2
+                left_to_right cenv#tree1 n1 n2
               ) vs
           in
           ignore (List.fold_left (fun c (_, _, nth, _) -> nth := c; c + 1) 0 sorted1);
@@ -149,7 +150,7 @@ module F (Label : Spec.LABEL_T) = struct
           let sorted2 =
             List.stable_sort
               (fun (_, n1, _, _) (_, n2, _, _) ->
-                left_to_right tree2 n1 n2) vs
+                left_to_right cenv#tree2 n1 n2) vs
           in
           let a2 = Array.make len 0 in
           ignore (List.fold_left (fun c (_, _, nth, _) -> a2.(c) <- !nth; c + 1) 0 sorted2);
@@ -376,7 +377,9 @@ module F (Label : Spec.LABEL_T) = struct
   (* end of func check_relabel *)
 
 
-  let generate_moves options tree1 tree2 pruned edits uidmapping subtree_matches =
+  let generate_moves options cenv pruned edits uidmapping subtree_matches =
+    let tree1 = cenv#tree1 in
+    let tree2 = cenv#tree2 in
 
     let mid_gen = options#moveid_generator in
 
@@ -438,14 +441,15 @@ module F (Label : Spec.LABEL_T) = struct
 (*
                 (UIDmapping._is_incompatible tree1 tree2 n1 n2 n1' n2') &&
 *)
-                (UIDmapping.is_crossing_or_incompatible tree1 tree2 n1 n2 n1' n2') &&
+                (cenv#is_crossing_or_incompatible n1 n2 n1' n2') &&
 
                 n1' != n1 && n2' != n2
               ) maps
           in
 
           DEBUG_MSG "incompatible maps: [%s]"
-            (Xlist.to_string (fun (n1, n2) -> (UID.to_string n1#uid)^"-"^(UID.to_string n2#uid)) ";" incompat);
+            (Xlist.to_string
+               (fun (n1, n2) -> (UID.to_string n1#uid)^"-"^(UID.to_string n2#uid)) ";" incompat);
 
           if incompat = [] then
             false
@@ -453,9 +457,12 @@ module F (Label : Spec.LABEL_T) = struct
           else
             let cost =
               let incompat' =
-                List.map (fun (n1, n2) -> (n1, n2, estimate_cost_of_move tree1 tree2 uidmapping n1 n2)) incompat
+                List.map
+                  (fun (n1, n2) ->
+                    (n1, n2, estimate_cost_of_move tree1 tree2 uidmapping n1 n2)
+                  ) incompat
               in
-              let incompat'', _ = UIDmapping.select_compatible_pairs tree1 tree2 incompat' in
+              let incompat'', _ = cenv#select_compatible_pairs incompat' in
               List.fold_left (fun sum (n1, n2, sz) -> sum + sz) 0 incompat''
             in
 
@@ -671,7 +678,7 @@ module F (Label : Spec.LABEL_T) = struct
       DEBUG_MSG "detecting permutations...";
     END_DEBUG;
 
-    detect_permutation mid_gen tree1 tree2 pruned extra_edits pmap;
+    detect_permutation mid_gen cenv pruned extra_edits pmap;
 
     DEBUG_MSG "%d edits generated (permutatioin)" (extra_edits#get_nedits - c);
 
@@ -759,7 +766,8 @@ module F (Label : Spec.LABEL_T) = struct
       );
     tbl
 
-  let make_parent_move_tbl tree1 tree2 move_region_tbl edits =
+  let make_parent_move_tbl cenv move_region_tbl edits =
+
     let mem_tbl = make_move_member_tbl edits in
 
     let mem_move_tbl = Hashtbl.create 0 in
@@ -807,7 +815,7 @@ module F (Label : Spec.LABEL_T) = struct
                             let pl = try Hashtbl.find mem_tbl m with _ -> [] in
                             List.for_all
                               (fun (n1, n2) ->
-                                not (UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 n1 n2)
+                                not (cenv#is_crossing_or_incompatible nd1 nd2 n1 n2)
                               ) pl
                           ) ml
                       with
@@ -4678,8 +4686,9 @@ END_DEBUG;
             (fun (u1', u2') ->
               let n1' = tree1#search_node_by_uid u1' in
               let n2' = tree2#search_node_by_uid u2' in
-              if UIDmapping.is_crossing_or_incompatible tree1 tree2 n1 n2 n1' n2' then begin
-                DEBUG_MSG "found: %a-%a [%a]-[%a] %a" nups n1' nups n2' locps n1' locps n2' labps n1';
+              if cenv#is_crossing_or_incompatible n1 n2 n1' n2' then begin
+                DEBUG_MSG "found: %a-%a [%a]-[%a] %a" nups n1' nups n2'
+                  locps n1' locps n2' labps n1';
                 raise Exit
               end
             ) !added_pairs;
@@ -4972,9 +4981,12 @@ END_DEBUG;
       options
       ?(is_mov=fun n1 n2 -> false, None)
       ?(check_conflicts=false)
-      tree1 tree2 edits removed_pairs added_pairs
+      cenv edits removed_pairs added_pairs
       =
     let mid_gen = options#moveid_generator in
+
+    let tree1 = cenv#tree1 in
+    let tree2 = cenv#tree2 in
 
     DEBUG_MSG "* REMOVING EDITS...";
 
@@ -5055,7 +5067,7 @@ END_DEBUG;
         let (n1, n2) as p = a.(i) in
         for j = i + 1 to li do
           let (n1', n2') as p' = a.(j) in
-          let b = UIDmapping.is_crossing_or_incompatible tree1 tree2 n1 n2 n1' n2' in
+          let b = cenv#is_crossing_or_incompatible n1 n2 n1' n2' in
           DEBUG_MSG "conflicts: (%a,%a) vs (%a,%a) --> %B"
             ups n1#uid ups n2#uid ups n1'#uid ups n2'#uid b;
           if b then begin
@@ -5182,7 +5194,7 @@ END_DEBUG;
       options#set_no_glue_flag
     end;
 *)
-    let sync_edits = sync_edits options tree1 tree2 edits in
+    let sync_edits = sync_edits options cenv edits in
 
     if not simple && not options#no_rename_rectification_flag then begin
       begin
@@ -5250,7 +5262,7 @@ end;
 
     end;
 
-    generate_moves options tree1 tree2 pruned edits uidmapping cenv#subtree_matches
+    generate_moves options cenv pruned edits uidmapping cenv#subtree_matches
   (* end of func generate_edits *)
 
 
@@ -5299,18 +5311,17 @@ end;
     in (* end of func filter_para_iso *)
 
     let expand_substances para_iso =
-      List.flatten
-        (List.map
-           (fun nd ->
-             if nd#in_path then begin
-               let s = nd#get_substances in
-               DEBUG_MSG "in_path: %a -> [%s]"
-                 ups nd#uid
-                 (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" s);
-               s
-             end
-             else [nd]
-           ) para_iso)
+      List.concat_map
+        (fun nd ->
+          if nd#in_path then begin
+            let s = nd#get_substances in
+            DEBUG_MSG "in_path: %a -> [%s]"
+              ups nd#uid
+              (Xlist.to_string (fun nd -> UID.to_string nd#uid) ";" s);
+            s
+          end
+          else [nd]
+        ) para_iso
     in
 
     let para_iso1 =
@@ -7732,7 +7743,7 @@ end;
         b
       in
       let survived_pairs_tbl = Hashtbl.create 0 in
-      let is_crossing_or_incompatible = UIDmapping.is_crossing_or_incompatible tree1 tree2 in
+      let is_crossing_or_incompatible = cenv#is_crossing_or_incompatible in
       edits#iter_moves_topdown
         (function
           | Edit.Move(mid, kind, (uid1, info1, ex1), (uid2, info2, ex2)) as mov -> begin
@@ -7843,7 +7854,10 @@ end;
   let make_level_mid nd = MID.MOVE (-(get_level nd))
 
   (* eliminate false moves *)
-  let eliminate_false_moves options tree1 tree2 edits uidmapping =
+  let eliminate_false_moves options cenv edits uidmapping =
+    let tree1 = cenv#tree1 in
+    let tree2 = cenv#tree2 in
+
     DEBUG_MSG "* ELIMINATING FALSE MOVES...\n";
 
     DEBUG_MSG "uidmapping:\n%s\n" uidmapping#to_string;
@@ -8004,7 +8018,7 @@ end;
                       DEBUG_MSG "    mn1=%a mn2=%a" nups mn1 nups mn2;
                       DEBUG_MSG "    %a-%a" ngps mn1 ngps mn2;
                       if
-                        UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 mn1 mn2
+                        cenv#is_crossing_or_incompatible nd1 nd2 mn1 mn2
                       then begin
                         DEBUG_MSG "crossing_or_incompatible: (%a-%a) (%a, %a-%a)"
                           nups nd1 nups nd2 MID.ps m nups mn1 nups mn2;
@@ -8322,7 +8336,7 @@ end;
                     !m <> !mid ||
                     let c2 = Info.get_node ci2 in
                     DEBUG_MSG "c1=%a c2=%a" nups c1 nups c2;
-                    not (UIDmapping.is_crossing_or_incompatible tree1 tree2 c1 c2 n1 n2)
+                    not (cenv#is_crossing_or_incompatible c1 c2 n1 n2)
                 end
                 | _ -> assert false
               with
@@ -8400,7 +8414,7 @@ end;
       DEBUG_MSG "edits:\n%s\n" edits#to_string;
     END_DEBUG;
 
-    eliminate_false_moves options tree1 tree2 edits uidmapping;
+    eliminate_false_moves options cenv edits uidmapping;
 
     BEGIN_DEBUG
       DEBUG_MSG "* AFTER FALSE MOVE ELIMINATION *";
@@ -8413,7 +8427,7 @@ end;
     let _ = eliminate_odd_relabels options tree1 tree2 edits uidmapping in
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-    let parent_move_tbl = make_parent_move_tbl tree1 tree2 move_region_tbl edits in
+    let parent_move_tbl = make_parent_move_tbl cenv move_region_tbl edits in
     let child_move_tbl  = make_child_move_tbl parent_move_tbl in
 
     let suggested_pairs =
@@ -8429,7 +8443,7 @@ end;
     end;
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-    let parent_move_tbl = make_parent_move_tbl tree1 tree2 move_region_tbl edits in
+    let parent_move_tbl = make_parent_move_tbl cenv move_region_tbl edits in
     let child_move_tbl  = make_child_move_tbl parent_move_tbl in
 
     let suggested_pairs0 =
@@ -8592,12 +8606,12 @@ end;
                         if not (edits#mem_mov12 u1 u2) then
                           let n2 = tree2#search_node_by_uid u2 in
                           if
-                            UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 n1 n2
+                            cenv#is_crossing_or_incompatible nd1 nd2 n1 n2
                           then begin
                             List.iter
                               (fun (m, mn1, mn2) ->
                                 let crossing_or_incompat =
-                                  UIDmapping.is_crossing_or_incompatible tree1 tree2 nd1 nd2 mn1 mn2
+                                  cenv#is_crossing_or_incompatible nd1 nd2 mn1 mn2
                                 in
                                 if not crossing_or_incompat then begin
                                   mid_opt := Some !m;
@@ -8620,7 +8634,7 @@ end;
             Exit -> true, !mid_opt
         in (* is_mov *)
 
-        sync_edits options ~is_mov ~check_conflicts:true tree1 tree2 edits removed_pairs added_pairs;
+        sync_edits options ~is_mov ~check_conflicts:true cenv edits removed_pairs added_pairs;
 
       end
 
@@ -8648,7 +8662,7 @@ end;
     DEBUG_MSG "IDENTIFYING RELATIVE PERMUTATIONS...";
 
     let move_region_tbl = make_move_region_tbl tree1 tree2 edits in
-    let parent_move_tbl = make_parent_move_tbl tree1 tree2 move_region_tbl edits in
+    let parent_move_tbl = make_parent_move_tbl cenv move_region_tbl edits in
     let child_move_tbl  = make_child_move_tbl parent_move_tbl in
 
     let _mid_fusion_tbl = Hashtbl.create 0 in
@@ -8676,7 +8690,7 @@ end;
                 let n2 = tree2#search_node_by_gindex g2 in*)
                 DEBUG_MSG "root pair of %a --> %a-%a" MID.ps cmid ups n1#uid ups n2#uid;
                 let is_crossing_or_incompatible =
-                  UIDmapping.is_crossing_or_incompatible tree1 tree2 n1 n2
+                  cenv#is_crossing_or_incompatible n1 n2
                 in
                 try
                   edits#iter_moves
@@ -8715,7 +8729,7 @@ end;
               ) cmids
           in
           let compat, _ =
-            UIDmapping.select_compatible_and_not_crossing_pairs tree1 tree2 pair_weight_list
+            cenv#select_compatible_and_not_crossing_pairs pair_weight_list
           in
 
           List.iter
@@ -8995,7 +9009,7 @@ end;
                 uidmapping (new UIDmapping.c cenv)
             in
             let is_mov n1 n2 = true, Some mid in
-            sync_edits options ~is_mov tree1 tree2 edits removed_pairs added_pairs
+            sync_edits options ~is_mov cenv edits removed_pairs added_pairs
 
           ) movs0
       end;
@@ -9025,7 +9039,7 @@ end;
             ~override:true ~downward:true ~no_moves:false
             uidmapping (new UIDmapping.c cenv)
         in
-        sync_edits options tree1 tree2 edits removed_pairs added_pairs
+        sync_edits options cenv edits removed_pairs added_pairs
       end;
 
       let dels0 = Xset.filter (fun x -> edits#mem_del x#uid) dels0 in
@@ -9564,7 +9578,7 @@ end;
           else
             false, None
         in*)
-        sync_edits(* ~is_mov*) options tree1 tree2 edits rps aps;
+        sync_edits(* ~is_mov*) options cenv edits rps aps;
       end;
 
       if options#no_moves_flag then begin
@@ -9868,7 +9882,7 @@ end;
     let rec trace_link map uid =
       try
         let uids = Hashtbl.find map uid in
-        uid::(List.flatten(List.map (trace_link map) uids))
+        uid::(List.concat_map (trace_link map) uids)
       with Not_found -> [uid]
     in
 

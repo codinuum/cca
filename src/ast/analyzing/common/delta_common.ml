@@ -99,7 +99,7 @@ let _get_attr_opt conv xnode a =
   with
     Attribute_not_found _ -> None
 
-let get_attr_opt xnode a = _get_attr_opt (fun x -> x) xnode a
+let get_attr_opt xnode a = _get_attr_opt Fun.id xnode a
 
 let get_iattr_opt = _get_attr_opt int_of_string
 
@@ -196,24 +196,23 @@ let rev_scan_whole_initial_subtree ?(moveon=(fun x -> true)) nd (f : 'node -> un
 
 let rec get_p_descendants ?(keep_going=false) ?(moveon=fun x -> true) pred nd =
   if moveon nd then
-    List.flatten
-      (List.map
-         (fun n ->
-           (*DEBUG_MSG "n=%a" nps n;*)
-           if pred n then
-             n ::
-             (if keep_going && moveon n then begin
-               let l = get_p_descendants ~moveon pred n in
-               if l <> [] then
-                 DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;
-               l
-             end
-             else
-               [])
-           else
-             get_p_descendants ~moveon pred n
-         )
-         (Array.to_list nd#initial_children))
+    List.concat_map
+      (fun n ->
+        (*DEBUG_MSG "n=%a" nps n;*)
+        if pred n then
+          n ::
+          (if keep_going && moveon n then begin
+            let l = get_p_descendants ~moveon pred n in
+            if l <> [] then
+              DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;
+            l
+          end
+          else
+            [])
+        else
+          get_p_descendants ~moveon pred n
+      )
+      (Array.to_list nd#initial_children)
   else
     []
 

@@ -813,7 +813,7 @@ let match_trees
 
       let relabels_ =
         List.filter
-          (fun (nd1, nd2) -> not (List.mem (nd1, nd2) !bad_relabels))
+          (fun nd1_nd2 -> not (List.mem nd1_nd2 !bad_relabels))
           relabels
       in
 

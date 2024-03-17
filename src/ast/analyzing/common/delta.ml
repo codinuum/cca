@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ module Edit = struct
   exception Parent_not_stable
 
   let flatten_remote_stable_tbl tbl =
-    List.flatten (List.map (fun (n, ns) -> ns) tbl)
+    List.concat_map (fun (n, ns) -> ns) tbl
 
   let rec _get_anc_in mem n =
     if mem n then
@@ -354,9 +354,9 @@ module Edit = struct
     let is_indivisible_move = edits_copy#is_indivisible_move in
     let edit_list =
       (*if options#minimize_delta_flag then
-        Xlist.filter_map (op_of_editop_filt ~more uidmapping edit_seq tree1) edit_seq#content
+        List.filter_map (op_of_editop_filt ~more uidmapping edit_seq tree1) edit_seq#content
       else*)
-        List.flatten (List.map opl_of_editop edit_seq#content)
+        List.concat_map opl_of_editop edit_seq#content
     in
     object (self)
 
@@ -493,7 +493,7 @@ module Edit = struct
                     options#ignore_non_orig_relabel_flag &&
                     (not nd1#data#is_named_orig) && (not nd1#data#has_value) &&
                     (not nd2#data#is_named_orig) && (not nd2#data#has_value) &&
-                    nd1#data#anonymized_label = nd2#data#anonymized_label &&
+                    nd1#data#_anonymized_label = nd2#data#_anonymized_label &&
                     nd1#data#elem_name_for_delta = nd2#data#elem_name_for_delta
                   then begin
                     DEBUG_MSG "filtered: %s" (to_string ed);
@@ -2521,7 +2521,7 @@ module Edit = struct
                     | [x'] -> x' :: l
                     | x'::t -> begin
                         let sg_g =
-                          Xlist.filter_map
+                          List.filter_map
                             (fun n' ->
                               if n' != tn' then
                                 let n = nmap' n' in
@@ -2983,7 +2983,7 @@ module Edit = struct
                                                     acc
                                                 ) None top_nds'
                                       in
-                                      let map = Xlist.filter_map get_grp in
+                                      let map = List.filter_map get_grp in
                                       let lsg = Xlist.uniq (map lss) in
                                       DEBUG_MSG "lsg=[%a]" nsps lsg;
                                       if lsg <> [] then begin
@@ -3001,9 +3001,9 @@ module Edit = struct
                                               else
                                                 None
                                             in
-                                            let lps = Xlist.filter_map filt lss in
+                                            let lps = List.filter_map filt lss in
                                             DEBUG_MSG "lps=[%a]" nsps lps;
-                                            let rps = Xlist.filter_map filt rss in
+                                            let rps = List.filter_map filt rss in
                                             DEBUG_MSG "rps=[%a]" nsps rps;
                                             Xlist.intersectionq lps rps = []
                                         end
@@ -3318,7 +3318,7 @@ module Edit = struct
                   | [h] -> [h]
                   | [] -> []
                 in
-                List.flatten (List.map f !groups_ref)
+                List.concat_map f !groups_ref
               in
               DEBUG_MSG "group_heads: [%a]" nsps group_heads;
 
@@ -4280,56 +4280,55 @@ module Edit = struct
                         ) l;
                       let ancs_with_stable_descs = Xset.create 0 in
                       let _vec =
-                        List.flatten
-                          (List.map
-                             (fun x ->
-                               DEBUG_MSG "x=%a" nps x;
-                               if is_stable x then begin
-                                 DEBUG_MSG "%a is stable" nps x;
-                                 let x' = nmap x in
-                                 try
-                                   let a' = Hashtbl.find atbl x' in
-                                   DEBUG_MSG "atbl: x'=%a -> a'=%a"
-                                     nps x' nps a';
-                                   Xset.add ancs_with_stable_descs a';
-                                   [a']
-                                 with
-                                   Not_found ->
-                                     Xset.add ancs_with_stable_descs x';
-                                     [x']
-                               end
-                               else begin
-                                 let ss = get_p_descendants is_stable x in
-                                 DEBUG_MSG "ss=[%a]" nsps ss;
-                                 if ss = [] then
-                                   [x]
-                                 else
-                                   let ss' = List.map nmap ss in
-                                   DEBUG_MSG "ss'=[%a]" nsps ss';
-                                   List.rev
-                                     (List.fold_left
-                                        (fun l x' ->
-                                          try
-                                            let a' = Hashtbl.find atbl x' in
-                                            DEBUG_MSG "atbl: x'=%a -> a'=%a"
-                                              nps x' nps a';
-                                            Xset.add ancs_with_stable_descs a';
-                                            a' :: l
-                                          with
-                                            Not_found ->
-                                              Xset.add ancs_with_stable_descs x;
-                                              if
-                                                Xarray.exists ((==) x') children'
-                                              then
-                                                List.iter
-                                                  (fun y ->
-                                                    DEBUG_MSG "aatbl: %a -> %a" nps y nps x;
-                                                    Hashtbl.add aatbl y x
-                                                  ) l;
-                                              x :: l
-                                        ) [] ss')
-                               end
-                             ) children)
+                        List.concat_map
+                          (fun x ->
+                            DEBUG_MSG "x=%a" nps x;
+                            if is_stable x then begin
+                              DEBUG_MSG "%a is stable" nps x;
+                              let x' = nmap x in
+                              try
+                                let a' = Hashtbl.find atbl x' in
+                                DEBUG_MSG "atbl: x'=%a -> a'=%a"
+                                  nps x' nps a';
+                                Xset.add ancs_with_stable_descs a';
+                                [a']
+                              with
+                                Not_found ->
+                                  Xset.add ancs_with_stable_descs x';
+                                  [x']
+                            end
+                            else begin
+                              let ss = get_p_descendants is_stable x in
+                              DEBUG_MSG "ss=[%a]" nsps ss;
+                              if ss = [] then
+                                [x]
+                              else
+                                let ss' = List.map nmap ss in
+                                DEBUG_MSG "ss'=[%a]" nsps ss';
+                                List.rev
+                                  (List.fold_left
+                                     (fun l x' ->
+                                       try
+                                         let a' = Hashtbl.find atbl x' in
+                                         DEBUG_MSG "atbl: x'=%a -> a'=%a"
+                                           nps x' nps a';
+                                         Xset.add ancs_with_stable_descs a';
+                                         a' :: l
+                                       with
+                                         Not_found ->
+                                           Xset.add ancs_with_stable_descs x;
+                                           if
+                                             Xarray.exists ((==) x') children'
+                                           then
+                                             List.iter
+                                               (fun y ->
+                                                 DEBUG_MSG "aatbl: %a -> %a" nps y nps x;
+                                                 Hashtbl.add aatbl y x
+                                               ) l;
+                                           x :: l
+                                     ) [] ss')
+                            end
+                          ) children
                       in
                       DEBUG_MSG "_vec=[%a]" nsps _vec;
                       DEBUG_MSG "canceled_stable_nodes=[%a]"
@@ -4486,7 +4485,7 @@ module Edit = struct
                              tbl_add pos_tbl pp pos;
                              let mem = pn#initial_parent in
                              let mps =
-                               Xlist.filter_map
+                               List.filter_map
                                  (fun x ->
                                    if List.memq x excluded then
                                      None
@@ -6733,7 +6732,7 @@ module Edit = struct
               else
                 []
             else
-              List.flatten (List.map find (Array.to_list nd#initial_children))
+              List.concat_map find (Array.to_list nd#initial_children)
           in
           let tbl =
             List.filter
@@ -7765,14 +7764,13 @@ module Edit = struct
                             stid nps rt nsps xs sz;
 
                           let ss =
-                            List.flatten
-                              (List.map
-                                 (fun x ->
-                                   if is_stable x then
-                                     [x]
-                                   else
-                                     get_p_descendants is_stable x
-                                 ) xs)
+                            List.concat_map
+                              (fun x ->
+                                if is_stable x then
+                                  [x]
+                                else
+                                  get_p_descendants is_stable x
+                              ) xs
                           in
                           let ss = List.filter (fun x -> not (self#is_canceled_stable_node x)) ss in
                           DEBUG_MSG "ss=[%a]" nsps ss;
@@ -9999,7 +9997,7 @@ module Edit = struct
 
         let _get_child_staying_moves tbl mid paths =
           Xlist.uniq
-            (Xlist.filter_map
+            (List.filter_map
                (fun p ->
                  match p#key_opt with
                  | Some (K_mid m) -> begin

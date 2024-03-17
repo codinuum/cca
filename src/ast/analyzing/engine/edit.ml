@@ -285,7 +285,7 @@ let match_nodes
           END_DEBUG;
 
           let pairs, _ =
-            UIDmapping.select_p_pairs (fun _ _ _ _ _ _ -> true) tree1 tree2 !pair_weight_list
+            cenv#select_p_pairs (fun _ _ _ _ -> true) !pair_weight_list
           in
           compatible_pairs := (List.map (fun (n1, n2, _) -> n1, n2) pairs) @ !compatible_pairs
     ) tbl;
@@ -1126,10 +1126,10 @@ let adjust_renames
   let boundary_key_to_string = Comparison.boundary_key_to_string in
   ignore boundary_key_to_string;
 
-  let has_use_rename_cache = Hashtbl.create 0 in
+  let has_use_rename_cache = Misc.Tbl2.create() in
   let has_use_rename n1 n2 =
     try
-      let b = Hashtbl.find has_use_rename_cache (n1, n2) in
+      let b = Misc.Tbl2.find has_use_rename_cache n1 n2 in
       DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
       b
     with Not_found ->
@@ -1179,7 +1179,7 @@ let adjust_renames
       with
         _ -> false
     in
-    Hashtbl.add has_use_rename_cache (n1, n2) b;
+    Misc.Tbl2.add has_use_rename_cache n1 n2 b;
     DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
     b
   in
@@ -1370,11 +1370,11 @@ let adjust_renames
 
   Hashtbl.iter
     (fun nm1 nms ->
-      DEBUG_MSG "* selecting from: %s -> [%s]" nm1 (Xlist.to_string (fun x -> x) ";" nms);
+      DEBUG_MSG "* selecting from: %s -> [%s]" nm1 (Xlist.to_string Fun.id ";" nms);
       let max_freq = List.fold_left (fun max nm2 -> sel_free_freq max nm1 nm2) 0 nms in
       DEBUG_MSG "  max freq.: %d" max_freq;
       let selected = List.filter (fun nm2 -> max_freq = get_free_freq nm1 nm2) nms in
-      DEBUG_MSG "  selected: %s -> [%s]" nm1 (Xlist.to_string (fun x -> x) ";" selected);
+      DEBUG_MSG "  selected: %s -> [%s]" nm1 (Xlist.to_string Fun.id ";" selected);
       match selected with
       | []   -> assert false
       | [nm2] -> begin
@@ -1393,11 +1393,11 @@ let adjust_renames
 
   Hashtbl.iter
     (fun nm2 nms ->
-      DEBUG_MSG "* selecting from: [%s] <- %s" (Xlist.to_string (fun x -> x) ";" nms) nm2;
+      DEBUG_MSG "* selecting from: [%s] <- %s" (Xlist.to_string Fun.id ";" nms) nm2;
       let max_freq = List.fold_left (fun max nm1 -> sel_free_freq max nm1 nm2) 0 nms in
       DEBUG_MSG "  max freq.: %d" max_freq;
       let selected = List.filter (fun nm1 -> max_freq = get_free_freq nm1 nm2) nms in
-      DEBUG_MSG "  selected: [%s] <- %s" (Xlist.to_string (fun x -> x) ";" selected) nm2;
+      DEBUG_MSG "  selected: [%s] <- %s" (Xlist.to_string Fun.id ";" selected) nm2;
       match selected with
       | []   -> assert false
       | [nm1] -> begin
@@ -1414,8 +1414,8 @@ let adjust_renames
       | _ -> conflicting_nms1 := nms @ !conflicting_nms1
     ) _free_rename_tbl2;
 
-  DEBUG_MSG "  conflicting_nms1: %s" (Xlist.to_string (fun x -> x) ";" !conflicting_nms1);
-  DEBUG_MSG "  conflicting_nms2: %s" (Xlist.to_string (fun x -> x) ";" !conflicting_nms2);
+  DEBUG_MSG "  conflicting_nms1: %s" (Xlist.to_string Fun.id ";" !conflicting_nms1);
+  DEBUG_MSG "  conflicting_nms2: %s" (Xlist.to_string Fun.id ";" !conflicting_nms2);
 
   let selected_free_renames =
     List.filter
@@ -1886,7 +1886,7 @@ let adjust_renames
           END_DEBUG;
 
           let pairs, _ =
-            UIDmapping.select_p_pairs (fun _ _ _ _ _ _ -> true) tree1 tree2 !pair_weight_list
+            cenv#select_p_pairs (fun _ _ _ _ -> true) !pair_weight_list
           in
           compatible_pairs := (List.map (fun (n1, n2, _) -> n1, n2) pairs) @ !compatible_pairs
       end

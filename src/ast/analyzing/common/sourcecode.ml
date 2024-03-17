@@ -259,14 +259,12 @@ module Tree (L : Spec.LABEL_T) = struct
         | None -> failwith "Sourcecode.node_data#add_to_ordinal_list"
         | Some tbl -> tbl#add_list l
 
-      val mutable lab = lab
+      val(* mutable*) lab = lab
       val mutable orig_lab_opt = orig_lab_opt
 
-      val mutable _label = Obj.repr ()
-      method _label = _label
+      method _label = Obj.repr lab
 
-      val mutable label = ""
-      method label = label
+      method label = L.to_string lab
 
       val mutable rep = ""
       method to_rep = rep
@@ -281,8 +279,6 @@ module Tree (L : Spec.LABEL_T) = struct
       method digest = digest
 
       method private update =
-        label <- L.to_string lab;
-        _label <- Obj.repr lab;
         let ignore_identifiers_flag = options#ignore_identifiers_flag in
         let short_str = L.to_short_string ~ignore_identifiers_flag lab in
         rep <- short_str;
@@ -576,18 +572,24 @@ module Tree (L : Spec.LABEL_T) = struct
         _eq <-
           if options#weak_eq_flag then
             (fun x ->
-              _label = x#_label && self#orig_lab_opt = x#orig_lab_opt ||
+              self#_label = x#_label && self#orig_lab_opt = x#orig_lab_opt
+            ||
               (not self#is_named_orig) && (not self#has_value) &&
               (not x#is_named_orig) && (not x#has_value) &&
-              self#elem_name_for_delta = x#elem_name_for_delta ||
+              self#elem_name_for_delta = x#elem_name_for_delta
+            ||
               (match self#orig_lab_opt, x#orig_lab_opt with
               | Some o1, Some o2 -> o1 = o2
               | Some o1, None -> L.is_compatible ~weak:true (Obj.obj o1) (Obj.obj x#_label)
-              | None, Some o2 -> L.is_compatible ~weak:true (Obj.obj _label) (Obj.obj o2)
-              | _ -> false) ||
+              | None, Some o2 -> L.is_compatible ~weak:true (Obj.obj self#_label) (Obj.obj o2)
+              | _ -> false)
+            ||
               self#is_compatible_with ~weak:true x)
           else
-            (fun x -> _label = x#_label && self#orig_lab_opt = x#orig_lab_opt(*self#orig_to_elem_data_for_eq = x#orig_to_elem_data_for_eq*));
+            (fun x ->
+              self#_label = x#_label && self#orig_lab_opt = x#orig_lab_opt
+              (*self#orig_to_elem_data_for_eq = x#orig_to_elem_data_for_eq*)
+            );
         self#update
 
 
@@ -786,6 +788,11 @@ module Tree (L : Spec.LABEL_T) = struct
 
     method find_def_for_bid bid = Hashtbl.find def_bid_tbl bid
 
+    method in_subtree_mutually nd1 nd2 =
+      let gi1 = nd1#gindex in
+      let gi2 = nd2#gindex in
+      gi2 < gi1 && (self#initial_leftmost nd1)#gindex <= gi2 ||
+      gi1 < gi2 && (self#initial_leftmost nd2)#gindex <= gi1
 
     val mutable true_parent_tbl = (Hashtbl.create 0 : (UID.t, node_t) Hashtbl.t)
     method set_true_parent_tbl tbl = true_parent_tbl <- tbl
@@ -924,7 +931,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let rec doit nd =
         let gi = nd#gindex in
         if GI.is_valid gi then
-          let children = Xlist.filter_map doit (Array.to_list nd#initial_children) in
+          let children = List.filter_map doit (Array.to_list nd#initial_children) in
           let lab = get_lab nd in
           let orig_lab_opt = get_orig_lab_opt nd in
           let new_nd = self#mknode ~orig_lab_opt lab children in
@@ -958,7 +965,7 @@ module Tree (L : Spec.LABEL_T) = struct
       let rec doit n =
         let gi = n#gindex in
         if GI.is_valid gi then
-          let children = Xlist.filter_map doit (Array.to_list n#initial_children) in
+          let children = List.filter_map doit (Array.to_list n#initial_children) in
           let alab =
             if List.mem n#uid uids_left_named then
               get_lab n
@@ -1251,7 +1258,7 @@ module Tree (L : Spec.LABEL_T) = struct
         with
           Failure _ ->
             ERROR_MSG "_get_origin.get: index out of bounds: i=%d row=%s"
-              i (Xlist.to_string (fun x -> x) ", " row);
+              i (Xlist.to_string Fun.id ", " row);
             exit 1
       in
       let origin = get 1 in
@@ -1285,7 +1292,7 @@ module Tree (L : Spec.LABEL_T) = struct
       in
       List.iter
         (fun row ->
-          let row_s = (Xlist.to_string (fun x -> x) ", " row) in
+          let row_s = (Xlist.to_string Fun.id ", " row) in
           DEBUG_MSG "dump_origin: row=(%s)" row_s;
           try
             let (gid, origin, ending) = self#_get_origin row revidx in
@@ -2138,14 +2145,13 @@ let scan_descendants ?(moveon=fun _ -> true) nd f =
 
 let find_nearest_mapped_descendant_nodes is_mapped node =
   let rec get nd =
-    List.flatten
-      (List.map
-         (fun n ->
-           if is_mapped n#uid then
-             [n]
-           else
-             get n
-         ) (Array.to_list nd#initial_children))
+    List.concat_map
+      (fun n ->
+        if is_mapped n#uid then
+          [n]
+        else
+          get n
+      ) (Array.to_list nd#initial_children)
   in
   get node
 

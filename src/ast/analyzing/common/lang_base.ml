@@ -254,7 +254,7 @@ let _setup_options disabled_ps funcs_tbl xfuncs_tbl search options =
     let lang = search options file#get_extension in
     lang#get_cache_key file
   in
-  iter_pname_map (f (fun x -> x));
+  iter_pname_map (f Fun.id);
   iter_xpname_map (f (fun (_, x) -> x));
 
   Xset.iter

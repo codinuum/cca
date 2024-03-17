@@ -35,3 +35,4 @@ val equals : 'a t -> 'a t -> bool
 val map : ('a -> 'b) -> 'a t -> 'b t
 val filter : ('a -> bool) -> 'a t -> 'a t
 val filter_map : ('a -> 'b option) -> 'a t -> 'b t
+val filter_inplace : ('a -> bool) -> 'a t -> unit

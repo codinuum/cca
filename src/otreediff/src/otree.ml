@@ -1704,7 +1704,7 @@ class [ 'node ] otree2 ?(hash=Xhash.MD5) (root : 'node) (is_whole : bool) =
       
     method is_flat =
       not (self#root#is_collapsed) &&
-      List.for_all (fun nd -> nd#is_leaf) (Array.to_list self#root#children)
+      Array.for_all (fun nd -> nd#is_leaf) self#root#children
 
     method equals (tree : 'self) = (* assumes no collapse *)
       let rec scan nds1 nds2 =

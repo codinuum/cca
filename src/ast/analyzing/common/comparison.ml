@@ -517,6 +517,8 @@ let is_non_local_def n = B.is_non_local_def n#data#binding
 exception Elaboration_impossible
 exception Abort
 
+let is_crossing = UIDmapping.is_crossing
+
 
 class ['node_t, 'tree_t] c
     options
@@ -528,6 +530,133 @@ class ['node_t, 'tree_t] c
   val mutable use_adjacency_cache = true
   val mutable use_similarity_cache = true
   val mutable use_mapping_comparison_cache = true
+
+  method _is_incompatible nd11 nd12 nd21 nd22 =
+    UIDmapping._is_incompatible tree1 tree2 nd11 nd12 nd21 nd22
+
+  method is_incompatible nd11 nd12 nd21 nd22 =
+    not (is_crossing nd11 nd12 nd21 nd22) && (self#_is_incompatible nd11 nd12 nd21 nd22)
+
+
+  method is_crossing_or_incompatible nd11 nd12 nd21 nd22 =
+    is_crossing nd11 nd12 nd21 nd22 || self#_is_incompatible nd11 nd12 nd21 nd22
+
+  method select_p_pairs (p : 'node_t -> 'node_t -> 'node_t -> 'node_t -> bool) pair_weight_list =
+    (* returns p pairs and not p pairs *)
+
+    let pair_weight_list =
+      List.fast_sort
+        (fun (n1, _, _) (n2, _, _) -> Stdlib.compare n1#gindex n2#gindex)
+        pair_weight_list
+    in
+
+    DEBUG_MSG "select_p_pairs: [%s]"
+      (Xlist.to_string
+         (fun (n1, n2, w) -> sprintf "(%a-%a,%d)" UID.ps n1#uid UID.ps n2#uid w)
+         ";" pair_weight_list);
+
+    let len = List.length pair_weight_list in
+
+    if len > 1 then begin
+      let a = Array.of_list pair_weight_list in
+      let mat = Array.make_matrix len len false in
+      for i = 0 to len - 2 do
+        let nd11, nd12, _ = a.(i) in
+        for j = i + 1 to len - 1 do
+	  let nd21, nd22, _ = a.(j) in
+	  let b =
+	    if (nd11 == nd21 || nd12 == nd22) then
+	      false
+	    else
+	      p nd11 nd12 nd21 nd22
+	  in
+	  mat.(i).(j) <- b;
+	  mat.(j).(i) <- b
+        done
+      done;
+
+      let nfriends_a = Array.make len 0 in
+      for i = 0 to len - 1 do
+        let c = ref 0 in
+        for j = 0 to len - 1 do
+	  if mat.(i).(j) then
+	    incr c
+        done;
+        nfriends_a.(i) <- !c
+      done;
+
+      let sorted_idxs =
+        List.fast_sort
+	  (fun i j ->
+	    let _, _, wi = a.(i) in
+	    let _, _, wj = a.(j) in
+	    let x = Stdlib.compare wj wi in
+	    if x = 0 then begin
+	      let fi = nfriends_a.(i) in
+	      let fj = nfriends_a.(j) in
+	      Stdlib.compare fj fi
+	    end
+	    else
+	      x
+	  ) (Xlist.range len)
+      in
+
+      let compat_idxs =
+        List.fold_left
+	  (fun l idx ->
+	    if List.for_all (fun i -> mat.(i).(idx)) l then
+	      idx :: l
+	    else
+	      l
+	  ) [] sorted_idxs
+      in
+
+      let incompat_idxs =
+        List.filter (fun i -> not (List.mem i compat_idxs)) (Xlist.range len)
+      in
+
+      let compat = List.map (fun i -> a.(i)) compat_idxs in
+      let incompat = List.map (fun i -> a.(i)) incompat_idxs in
+
+      DEBUG_MSG "select_p_pairs: p pairs: [%s]"
+        (Xlist.to_string
+	   (fun (n1, n2, _) -> sprintf "(%a-%a)" UID.ps n1#uid UID.ps n2#uid)
+	   ";" compat);
+      DEBUG_MSG "select_p_pairs: not p pairs: [%s]"
+        (Xlist.to_string
+	   (fun (n1, n2, _) -> sprintf "(%a-%a)" UID.ps n1#uid UID.ps n2#uid)
+	   ";" incompat);
+
+      compat, incompat
+    end
+    else
+      pair_weight_list, []
+
+  method select_compatible_pairs (pair_weight_list : ('node_t * 'node_t * int) list) =
+    (* returns compat. pairs and incompat. pairs *)
+    self#select_p_pairs
+      (fun n11 n12 n21 n22 ->
+        let b = not (self#is_incompatible n11 n12 n21 n22) in
+
+        DEBUG_MSG "%a-%a - %a-%a --> compatible:%B"
+	  UID.ps n11#uid UID.ps n12#uid UID.ps n21#uid UID.ps n22#uid b;
+
+        b
+      ) pair_weight_list
+
+  method select_compatible_and_not_crossing_pairs pair_weight_list =
+    self#select_p_pairs
+      (fun n11 n12 n21 n22 ->
+        let b =
+	  not (self#is_incompatible n11 n12 n21 n22) && not (is_crossing n11 n12 n21 n22)
+        in
+
+        DEBUG_MSG "%a-%a - %a-%a --> compatible_and_not_crossing:%B"
+	  UID.ps n11#uid UID.ps n12#uid UID.ps n21#uid UID.ps n22#uid b;
+
+        b
+      ) pair_weight_list
+
 
   method get_boundary_key n1 n2 =
     if is_def n1 && is_def n2 then
@@ -607,7 +736,11 @@ class ['node_t, 'tree_t] c
         end
         else
           Hashtbl.replace permutation_hub_tbl key
-            (c, (tree1#initial_leftmost n1)#gindex, n1#gindex, (tree2#initial_leftmost n2)#gindex, n2#gindex)
+            (c,
+             (tree1#initial_leftmost n1)#gindex,
+             n1#gindex,
+             (tree2#initial_leftmost n2)#gindex,
+             n2#gindex)
       ) permutation_hub_tbl;
     List.iter (Hashtbl.remove permutation_hub_tbl) !to_be_removed;
 
@@ -665,9 +798,23 @@ class ['node_t, 'tree_t] c
 
   val mutable cache_path = ""
 
-  val mutable is_possible_rename = ((fun ?(strict=false) n1 n2 -> true) : ?strict:bool -> 'node_t -> 'node_t -> bool)
-  method is_possible_rename = is_possible_rename
-  method set_is_possible_rename f = is_possible_rename <- f
+  val mutable is_possible_rename =
+    ((fun ?(strict=false) n1 n2 -> true) : ?strict:bool -> 'node_t -> 'node_t -> bool)
+
+  val is_possible_rename_cache = (Tbl3.create() : (bool, 'node_t, 'node_t, bool) Tbl3.t)
+
+  method is_possible_rename ?(strict=false) n1 n2 =
+    try
+      Tbl3.find is_possible_rename_cache strict n1 n2
+    with
+      Not_found ->
+        let b = is_possible_rename ~strict n1 n2 in
+        Tbl3.add is_possible_rename_cache strict n1 n2 b;
+        b
+
+  method set_is_possible_rename f =
+    is_possible_rename <- f;
+    Tbl3.clear is_possible_rename_cache
 
   val bad_pairs = (Xset.create 0 : (UID.t * UID.t) Xset.t)
   method bad_pairs = bad_pairs
@@ -681,20 +828,20 @@ class ['node_t, 'tree_t] c
     Xset.mem subtree_matches (n1, n2, sz)
 
   method add_subtree_match ((nd, _, _) as elem) =
-    let lgi, gi = (tree1#initial_leftmost nd)#gindex, nd#gindex in
-    let to_be_removed = ref [] in
+    let lgi = (tree1#initial_leftmost nd)#gindex in
+    let gi = nd#gindex in
     try
-      Xset.iter
-        (fun ((n0, _, _) as e) ->
-          let lgi0, gi0 = (tree1#initial_leftmost n0)#gindex, n0#gindex in
-
+      Xset.filter_inplace
+        (fun (n0, _, _) ->
+          let lgi0 = (tree1#initial_leftmost n0)#gindex in
+          let gi0 = n0#gindex in
           if lgi0 <= lgi && gi < gi0 then
             raise Exit
           else if lgi <= lgi0 && gi0 < gi then
-            to_be_removed := e :: !to_be_removed
-
+            false
+          else
+            true
         ) subtree_matches;
-      List.iter (Xset.remove subtree_matches) !to_be_removed;
       Xset.add subtree_matches elem
     with
       Exit -> ()
@@ -713,22 +860,25 @@ class ['node_t, 'tree_t] c
     | Some mnm -> mnm
     | None -> raise Not_found
 
-  val adjacency_cache = (Hashtbl.create 0 : (UID.t * UID.t, float * ('node_t * 'node_t) list) Hashtbl.t)
+  val adjacency_cache = (Tbl2.create() : (UID.t, UID.t, float * ('node_t * 'node_t) list) Tbl2.t)
+
   val mutable adjacency_cache_hit_count = 0
 
   val mapping_comparison_cache =
-    (Hashtbl.create 0 :
+    (Tbl1.create() :
        (bool * bool * bool * bool
-          * UID.t * UID.t * UID.t * UID.t, bool * int option * float option) Hashtbl.t)
+          * UID.t * UID.t * UID.t * UID.t,
+        bool * int option * float option) Tbl1.t)
+
   val mutable mapping_comparison_cache_hit_count = 0
 
-  val similarity_cache = (Hashtbl.create 0 : (bool * bool * bool * UID.t * UID.t, float) Hashtbl.t)
+  val similarity_cache = (Tbl3.create() : ((bool * bool * bool), UID.t, UID.t, float) Tbl3.t)
   val mutable similarity_cache_hit_count = 0
 
   val use_tbl1 = Hashtbl.create 0 (* bid -> node list *)
   val use_tbl2 = Hashtbl.create 0 (* bid -> node list *)
 
-  val weak_node_eq_cache = (Hashtbl.create 0 : (('node_t * 'node_t), bool) Hashtbl.t)
+  val weak_node_eq_cache = (Tbl2.create() : ('node_t, 'node_t, bool) Tbl2.t)
 
   method private use_tbl_add tbl b n =
     try
@@ -760,18 +910,19 @@ class ['node_t, 'tree_t] c
   method tree2 = tree2
 
   method use_adjacency_cache = use_adjacency_cache
-  method size_of_adjacency_cache = Hashtbl.length adjacency_cache
+  method size_of_adjacency_cache = Tbl2.length adjacency_cache
+
   method adjacency_cache_hit_count = adjacency_cache_hit_count
 
   method use_similarity_cache = use_similarity_cache
-  method size_of_similarity_cache = Hashtbl.length similarity_cache
+  method size_of_similarity_cache = Tbl3.length similarity_cache
   method similarity_cache_hit_count = similarity_cache_hit_count
 
   method use_mapping_comparison_cache = use_mapping_comparison_cache
   method set_use_mapping_comparison_cache = use_mapping_comparison_cache <- true
   method clear_use_mapping_comparison_cache = use_mapping_comparison_cache <- false
 
-  method size_of_mapping_comparison_cache = Hashtbl.length mapping_comparison_cache
+  method size_of_mapping_comparison_cache = Tbl1.length mapping_comparison_cache
   method mapping_comparison_cache_hit_count = mapping_comparison_cache_hit_count
 
   method cache_path = cache_path
@@ -781,16 +932,16 @@ class ['node_t, 'tree_t] c
   method has_trivial_value (nd : 'node_t) = nd#data#has_value && not nd#data#has_non_trivial_value
 
   method weak_node_eq n1 n2 =
-    let k = n1, n2 in
+    (*let k = n1, n2 in*)
     try
-      Hashtbl.find weak_node_eq_cache k
+      Tbl2.find weak_node_eq_cache n1 n2
     with Not_found ->
       let b =
         n1#data#eq n2#data ||
         n1#data#is_compatible_with ?weak:(Some false) n2#data
       in
       DEBUG_MSG "%a-%a -> %B" nps n1 nps n2 b;
-      Hashtbl.add weak_node_eq_cache k b;
+      Tbl2.add weak_node_eq_cache n1 n2 b;
       b
 
   method has_weak_non_trivial_value =
@@ -1279,8 +1430,8 @@ class ['node_t, 'tree_t] c
           raise Not_found;
 
         let score =
-          Hashtbl.find similarity_cache
-            (bonus_named, flat, rename_pat_finalized_flag, rt1#uid, rt2#uid)
+          Tbl3.find similarity_cache
+            (bonus_named, flat, rename_pat_finalized_flag) rt1#uid rt2#uid
         in
 
         similarity_cache_hit_count <- similarity_cache_hit_count + 1;
@@ -1311,8 +1462,8 @@ class ['node_t, 'tree_t] c
             DEBUG_MSG "[subtree match] %a-%a -> %f" nups rt1 nups rt2 s;
 
             if use_similarity_cache then
-              Hashtbl.replace similarity_cache
-                (bonus_named, flat, rename_pat_finalized_flag, rt1#uid, rt2#uid) s;
+              Tbl3.add similarity_cache
+                (bonus_named, flat, rename_pat_finalized_flag) rt1#uid rt2#uid s;
             s
           end
           else begin
@@ -1334,8 +1485,8 @@ class ['node_t, 'tree_t] c
                 DEBUG_MSG "%a-%a -> %f" nups rt1 nups rt2 s;
 
                 if use_similarity_cache then
-                  Hashtbl.replace similarity_cache
-                    (bonus_named, flat, rename_pat_finalized_flag, rt1#uid, rt2#uid) s;
+                  Tbl3.add similarity_cache
+                    (bonus_named, flat, rename_pat_finalized_flag) rt1#uid rt2#uid s;
                 s
           end
     in
@@ -1352,7 +1503,7 @@ class ['node_t, 'tree_t] c
       if not use_adjacency_cache then
         raise Not_found;
 
-      let score, ref_pairs = Hashtbl.find adjacency_cache (uid1, uid2) in
+      let score, ref_pairs = Tbl2.find adjacency_cache uid1 uid2 in
 
       adjacency_cache_hit_count <- adjacency_cache_hit_count + 1;
 
@@ -1782,10 +1933,10 @@ class ['node_t, 'tree_t] c
           use_adjacency_cache &&
           self#can_be_cached nd1 nd2
         then begin
-          let key = uid1, uid2 in
+          (*let key = uid1, uid2 in*)
           (*let prev_score, _ = try Hashtbl.find adjacency_cache key with _ -> 0.0, [] in
           if total_score > prev_score then*)
-            Hashtbl.replace adjacency_cache key (total_score, !ref_pairs)
+          Tbl2.add adjacency_cache uid1 uid2 (total_score, !ref_pairs)
         end;
 
         total_score, !ref_pairs
@@ -2082,7 +2233,7 @@ class ['node_t, 'tree_t] c
           self#can_be_cached nd1old nd2old &&
           self#can_be_cached nd1new nd2new
         then
-          Hashtbl.replace mapping_comparison_cache
+          Tbl1.add mapping_comparison_cache
             (override, bonus_self, bonus_parent, force_prefer_crossing_count,
              nd1old#uid, nd2old#uid, nd1new#uid, nd2new#uid)
             (b, ncd, ncsim)
@@ -2094,7 +2245,7 @@ class ['node_t, 'tree_t] c
           raise Not_found;
 
         let b, ncross_diff, ncross_sim =
-          Hashtbl.find mapping_comparison_cache
+          Tbl1.find mapping_comparison_cache
             (override, bonus_self, bonus_parent, force_prefer_crossing_count,
              nd1old#uid, nd2old#uid, nd1new#uid, nd2new#uid)
         in
@@ -2270,7 +2421,7 @@ class ['node_t, 'tree_t] c
               else
                 _nl
             in
-            DEBUG_MSG "%a -> [%s]" nups nd (Xlist.to_string (fun x -> x) "," nl);
+            DEBUG_MSG "%a -> [%s]" nups nd (Xlist.to_string Fun.id "," nl);
             nl
           in
           let parent_check pivot pnd nd =
@@ -2285,9 +2436,9 @@ class ['node_t, 'tree_t] c
               nd#initial_pos = 1 &&
               let sib = pnd#initial_children.(0) in
               sib#initial_nchildren < 2 &&
-              sib#data#anonymized3_label <> pivot#data#anonymized3_label &&
-              pnd#data#anonymized3_label <> pivot#data#anonymized3_label &&
-              nd#data#anonymized3_label <> pivot#data#anonymized3_label &&
+              sib#data#_anonymized3_label <> pivot#data#_anonymized3_label &&
+              pnd#data#_anonymized3_label <> pivot#data#_anonymized3_label &&
+              nd#data#_anonymized3_label <> pivot#data#_anonymized3_label &&
               Xlist.intersection (get_names sib) (get_names pivot) = []
             in
             BEGIN_DEBUG
@@ -3956,8 +4107,6 @@ class ['node_t, 'tree_t] c
     !removed_pairs, !added_pairs
 
     (* end of method elaborate_uidmapping *)
-
-
 
 end (* of class Comparison.c *)
 

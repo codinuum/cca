@@ -147,6 +147,9 @@ let speclist =
    "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
                              "\tsuppress moves of unnamed nodes";
 
+   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
+                  "\t\t\taggressively find moves";
+
 (*
 "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
 sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;

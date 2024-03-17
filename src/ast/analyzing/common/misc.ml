@@ -132,21 +132,17 @@ let contract tree1 tree2 clusters =
       deferred_cluster := Some cluster
     else begin
       let prune_cands1 = ref
-	  (List.flatten
-	     (List.map
-		(fun tnd ->
-		  tree1#fast_subtree_members tnd#index
-		) topnd_list1
-	     )
+	  (List.concat_map
+	     (fun tnd ->
+	       tree1#fast_subtree_members tnd#index
+	     ) topnd_list1
 	  )
       in
       let prune_cands2 = ref
-	  (List.flatten
-	     (List.map
-		(fun tnd ->
-		  tree2#fast_subtree_members tnd#index
-		) topnd_list2
-	     )
+	  (List.concat_map
+	     (fun tnd ->
+	       tree2#fast_subtree_members tnd#index
+	     ) topnd_list2
 	  )
       in
 
@@ -273,7 +269,7 @@ let conv_subtree_node_pairs tree1 tree2 =
     else
       raise (Invalid_argument "")
   in
-  Xlist.filter_map
+  List.filter_map
     (fun (n1, n2) ->
       try
 	let gi1 = sea tree1 n1 in
@@ -390,23 +386,22 @@ let has_p_ancestor ?(moveon=fun _ -> true) pred nd =
 
 let rec get_p_descendants ?(moveon=fun x -> true) pred nd =
   if moveon nd then
-    List.flatten
-      (List.map
-         (fun n ->
-           if pred n then
-             n ::
-             (if moveon n then begin
-               let l = get_p_descendants ~moveon pred n in
-               (*if l <> [] then
-                 DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;*)
-               l
-             end
-             else
-               [])
-           else
-             get_p_descendants ~moveon pred n
-         )
-         (Array.to_list nd#initial_children))
+    List.concat_map
+      (fun n ->
+        if pred n then
+          n ::
+          (if moveon n then begin
+            let l = get_p_descendants ~moveon pred n in
+            (*if l <> [] then
+              DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;*)
+            l
+          end
+          else
+            [])
+        else
+          get_p_descendants ~moveon pred n
+      )
+      (Array.to_list nd#initial_children)
   else
     []
 
@@ -456,3 +451,164 @@ let inv_assq k l =
   match res_opt with
   | Some x -> x
   | None -> raise Not_found
+
+module Tbl1 = struct
+  type ('a, 'b) t = ('a, 'b) Hashtbl.t
+
+  let create () = (Hashtbl.create 0 : ('a, 'b) t)
+
+  let find tbl k1 = Hashtbl.find tbl k1
+
+  let add tbl k1 v = Hashtbl.replace tbl k1 v
+
+  let clear tbl = Hashtbl.clear tbl
+
+  let length tbl = Hashtbl.length tbl
+end
+
+module Tbl2 = struct
+  type ('a, 'b, 'c) t = ('a, ('b, 'c) Hashtbl.t) Hashtbl.t
+
+  let create () = (Hashtbl.create 0 : ('a, 'b, 'c) t)
+
+  let find tbl k1 k2 = Hashtbl.find (Hashtbl.find tbl k1) k2
+
+  let add tbl k1 k2 v =
+    let tbl1 =
+      try
+        Hashtbl.find tbl k1
+      with
+        Not_found ->
+          let tbl1 = Hashtbl.create 0 in
+          Hashtbl.add tbl k1 tbl1;
+          tbl1
+    in
+    Hashtbl.replace tbl1 k2 v
+
+  let clear tbl = Hashtbl.iter (fun k1 tbl1 -> Hashtbl.clear tbl1) tbl
+
+  let length tbl =
+    let sz = ref 0 in
+    Hashtbl.iter
+      (fun k1 tbl1 ->
+        sz := !sz + Hashtbl.length tbl1
+      ) tbl;
+    !sz
+end
+
+module Tbl3 = struct
+  type ('a, 'b, 'c, 'd) t = ('a, ('b, ('c, 'd) Hashtbl.t) Hashtbl.t) Hashtbl.t
+
+  let create () = (Hashtbl.create 0 : ('a, 'b, 'c, 'd) t)
+
+  let find tbl k1 k2 k3 = Hashtbl.find (Hashtbl.find (Hashtbl.find tbl k1) k2) k3
+
+  let add tbl k1 k2 k3 v =
+    let tbl1 =
+      try
+        Hashtbl.find tbl k1
+      with
+        Not_found ->
+          let tbl1 = Hashtbl.create 0 in
+          Hashtbl.add tbl k1 tbl1;
+          tbl1
+    in
+    let tbl2 =
+      try
+        Hashtbl.find tbl1 k2
+      with
+        Not_found ->
+          let tbl2 = Hashtbl.create 0 in
+          Hashtbl.add tbl1 k2 tbl2;
+          tbl2
+    in
+    Hashtbl.replace tbl2 k3 v
+
+  let clear tbl =
+    Hashtbl.iter
+      (fun k1 tbl1 ->
+        Hashtbl.iter
+          (fun k2 tbl2 ->
+            Hashtbl.clear tbl2
+          ) tbl1;
+        Hashtbl.clear tbl1
+      ) tbl
+
+  let length tbl =
+    let sz = ref 0 in
+    Hashtbl.iter
+      (fun k1 tbl1 ->
+        Hashtbl.iter
+          (fun k2 tbl2 ->
+            sz := !sz + Hashtbl.length tbl2
+          ) tbl1
+      ) tbl;
+    !sz
+end
+
+module Tbl4 = struct
+  type ('a, 'b, 'c, 'd, 'e) t = ('a, ('b, ('c, ('d, 'e) Hashtbl.t) Hashtbl.t) Hashtbl.t) Hashtbl.t
+
+  let create () = (Hashtbl.create 0 : ('a, 'b, 'c, 'd, 'e) t)
+
+  let find tbl k1 k2 k3 k4 =
+    Hashtbl.find (Hashtbl.find (Hashtbl.find (Hashtbl.find tbl k1) k2) k3) k4
+
+  let add tbl k1 k2 k3 k4 v =
+    let tbl1 =
+      try
+        Hashtbl.find tbl k1
+      with
+        Not_found ->
+          let tbl1 = Hashtbl.create 0 in
+          Hashtbl.add tbl k1 tbl1;
+          tbl1
+    in
+    let tbl2 =
+      try
+        Hashtbl.find tbl1 k2
+      with
+        Not_found ->
+          let tbl2 = Hashtbl.create 0 in
+          Hashtbl.add tbl1 k2 tbl2;
+          tbl2
+    in
+    let tbl3 =
+      try
+        Hashtbl.find tbl2 k3
+      with
+        Not_found ->
+          let tbl3 = Hashtbl.create 0 in
+          Hashtbl.add tbl2 k3 tbl3;
+          tbl3
+    in
+    Hashtbl.replace tbl3 k4 v
+
+  let clear tbl =
+    Hashtbl.iter
+      (fun k1 tbl1 ->
+        Hashtbl.iter
+          (fun k2 tbl2 ->
+            Hashtbl.iter
+              (fun k3 tbl3 ->
+                Hashtbl.clear tbl3
+              ) tbl2;
+            Hashtbl.clear tbl2
+          ) tbl1;
+        Hashtbl.clear tbl1
+      ) tbl
+
+  let length tbl =
+    let sz = ref 0 in
+    Hashtbl.iter
+      (fun k1 tbl1 ->
+        Hashtbl.iter
+          (fun k2 tbl2 ->
+            Hashtbl.iter
+              (fun k3 tbl3 ->
+                sz := !sz + Hashtbl.length tbl3
+              ) tbl2
+          ) tbl1
+      ) tbl;
+    !sz
+end

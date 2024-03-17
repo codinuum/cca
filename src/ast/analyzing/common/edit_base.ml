@@ -285,7 +285,7 @@ let tbl_remove tbl k =
 exception Found
 exception Abort
 
-let is_ghost_node nd = nd#data#src_loc = Loc.ghost
+let is_ghost_node nd = nd#data#src_loc == Loc.ghost
 
 class formatters_base
     ~delete ~insert ~relabel ~move ~align
@@ -1134,7 +1134,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     try
       let e1 = Hashtbl.find mov1_tbl uid1 in
       let e2 = Hashtbl.find mov2_tbl uid2 in
-      e1 = e2
+      e1 == e2
     with
       Not_found -> false
 
@@ -1148,7 +1148,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     try
       let e1 = Hashtbl.find rel1_tbl uid1 in
       let e2 = Hashtbl.find rel2_tbl uid2 in
-      e1 = e2
+      e1 == e2
     with
       Not_found -> false
 
@@ -1159,10 +1159,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method sort_topdown =
     list <-
       sort_edit_list_topdown
-        (List.flatten
-           (List.map
-              self#edit_tbl_to_list
-              [del_tbl; ins_tbl; mov1_tbl; rel1_tbl]))
+        (List.concat_map
+           self#edit_tbl_to_list
+           [del_tbl; ins_tbl; mov1_tbl; rel1_tbl])
 
 
   method sync =
@@ -1516,7 +1515,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                  | _ -> false
               in
               if ok then begin
-                if !movrel || n1#data#anonymized_label <> n2#data#anonymized_label then
+                if !movrel || n1#data#_anonymized_label <> n2#data#_anonymized_label then
                   let loc1 = Info.get_loc info1 in
                   let loc2 = Info.get_loc info2 in
                   let segs1 = get_segments iginfos1 info1 excludes1 in
@@ -2455,7 +2454,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       let rec follow u =
         try
           let uids = Hashtbl.find tbl u in
-          List.flatten (List.map follow uids)
+          List.concat_map follow uids
         with Not_found -> [u]
       in
       follow uid
@@ -2555,7 +2554,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       let rec follow u =
         try
           let uids = Hashtbl.find tbl u in
-          List.flatten (List.map follow uids)
+          List.concat_map follow uids
         with Not_found -> [u]
       in
       follow uid
@@ -2851,11 +2850,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method private get_non_ghost_children node =
     let rec get nd =
-      List.flatten
-        (List.map
-           (fun n ->
-             if is_ghost_node n then get n else [n]
-           ) (Array.to_list nd#initial_children))
+      List.concat_map
+        (fun n ->
+          if is_ghost_node n then get n else [n]
+        ) (Array.to_list nd#initial_children)
     in
     get node
 
@@ -3086,7 +3084,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   (not (pnd'#data#is_named_orig && pnd#data#is_named_orig) || pnd'#data#eq pnd#data) &&
                   (
                    pnd'#data#is_named_orig && pnd#data#is_named_orig ||
-                   pnd#data#anonymized_label = pnd'#data#anonymized_label
+                   pnd#data#_anonymized_label = pnd'#data#_anonymized_label
                   )
                 then begin
                   let nd' = pnd'#initial_children.(nd#initial_pos) in
@@ -3952,7 +3950,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     in (* label_find *)
 
     let is_crossing = UIDmapping.is_crossing in
-    let is_incompatible = UIDmapping.is_incompatible tree1 tree2 in
+    (*let is_incompatible = UIDmapping.is_incompatible tree1 tree2 in*)
 
     DEBUG_MSG "-----";
 
@@ -4076,7 +4074,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                           let n' = tree2#search_node_by_uid u' in
                                           if
                                             is_crossing nd1 n2 n n' ||
-                                            is_incompatible nd1 n2 n n'
+                                            cenv#is_incompatible nd1 n2 n n'
                                           then
                                             raise Found
                                       | _ -> ()
@@ -4215,7 +4213,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                           let n' = tree1#search_node_by_uid u' in
                                           if
                                             is_crossing n1 nd2 n' n ||
-                                            is_incompatible n1 nd2 n' n
+                                            cenv#is_incompatible n1 nd2 n' n
                                           then
                                             raise Found
                                       | _ -> ()
@@ -4438,7 +4436,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         in
 
         let cands = (* extract connected pairs *)
-          List.flatten (List.map get_largest_connected_subset cands)
+          List.concat_map get_largest_connected_subset cands
         in
 
         let filtered_cands =
@@ -4469,7 +4467,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                       List.for_all
                         (fun (sn1, sn2) ->
                           (tree1#initial_subtree_mem r1 sn1 || tree2#initial_subtree_mem r2 sn2) ||
-                          (not (UIDmapping.is_incompatible tree1 tree2 sn1 sn2 r1 r2) &&
+                          (not (cenv#is_incompatible sn1 sn2 r1 r2) &&
                            not (UIDmapping.is_crossing sn1 sn2 r1 r2))
                           ) !stable_matches
                     then
@@ -4481,7 +4479,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                       (fun (n1, n2) ->
                         List.for_all
                           (fun (sn1, sn2) ->
-                            (not (UIDmapping.is_incompatible tree1 tree2 sn1 sn2 n1 n2) &&
+                            (not (cenv#is_incompatible sn1 sn2 n1 n2) &&
                              not (UIDmapping.is_crossing sn1 sn2 n1 n2))
                           ) !stable_matches
                       ) cand
@@ -4529,7 +4527,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             in
             let pair_weight_list = List.map get_top_pair_len cands in
             let compat, _ =
-              UIDmapping.select_compatible_and_not_crossing_pairs tree1 tree2 pair_weight_list
+              cenv#select_compatible_and_not_crossing_pairs pair_weight_list
             in
             let selected = List.map (fun (n1, n2, _) -> Hashtbl.find ctbl (n1, n2)) compat in
             Hashtbl.replace cand_tbl (an1, an2) selected
@@ -4698,7 +4696,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       (uidmapping : 'node_t UIDmapping.c)
       nd1 nd2
       =
-    DEBUG_MSG "[incompatible_only=%B][statement_only=%B] %a-%a" incompatible_only statement_only nups nd1 nups nd2;
+    DEBUG_MSG "[incompatible_only=%B][statement_only=%B] %a-%a" incompatible_only statement_only
+      nups nd1 nups nd2;
     let iter =
       if incompatible_only then
         uidmapping#iter_incompatible_mapping
@@ -4711,12 +4710,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 (*
           DEBUG_MSG "checking %a-%a" ups u1 ups u2;
 *)
-          if not (List.mem (u1, u2) mask) && not (self#mem_mov12 u1 u2) then begin
+          if not (self#mem_mov12 u1 u2) && not (List.mem (u1, u2) mask) then begin
             let n1 = uidmapping#search_node_by_uid1 u1 in
             let n2 = uidmapping#search_node_by_uid2 u2 in
             if
-              (not (is_ghost_node n1)) && (not (is_ghost_node n2)) &&
-              (not statement_only || n1#data#is_statement && n2#data#is_statement)
+              (not statement_only || n1#data#is_statement && n2#data#is_statement) &&
+              (not (is_ghost_node n1)) && (not (is_ghost_node n2))
             then begin
               DEBUG_MSG "%a-%a is crossing with %a-%a" nugps nd1 nugps nd2 nugps n1 nugps n2;
               raise Exit

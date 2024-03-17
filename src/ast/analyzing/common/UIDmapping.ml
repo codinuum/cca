@@ -29,23 +29,14 @@ type node_t = Spec.node_t
 
 let nups = Misc.nups
 
-
-let in_subtree_mutually tree nd1 nd2 =
-    let gi1, gi2 = nd1#gindex, nd2#gindex in
-    let lgi1 = (tree#initial_leftmost nd1)#gindex in
-    let lgi2 = (tree#initial_leftmost nd2)#gindex in
-    (lgi1 <= gi2 && gi2 < gi1) || (lgi2 <= gi1 && gi1 < gi2)
-
-
 let is_crossing nd1 nd2 n1 n2 =
   let b = (nd1#gindex - n1#gindex) * (nd2#gindex - n2#gindex) < 0 in
   (*DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd1 nups nd2 nups n1 nups n2 b;*)
   b
 
-
 let _is_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
-  let in_subtree_mutually1 = in_subtree_mutually tree1 nd11 nd21 in
-  let in_subtree_mutually2 = in_subtree_mutually tree2 nd12 nd22 in
+  let in_subtree_mutually1 = tree1#in_subtree_mutually nd11 nd21 in
+  let in_subtree_mutually2 = tree2#in_subtree_mutually nd12 nd22 in
   let b =
     (in_subtree_mutually1 && not in_subtree_mutually2) ||
     (not in_subtree_mutually1 && in_subtree_mutually2)
@@ -53,131 +44,9 @@ let _is_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
   (*DEBUG_MSG "%a-%a vs %a-%a -> %B" nups nd11 nups nd12 nups nd21 nups nd22 b;*)
   b
 
-
 let is_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
   let crossing = is_crossing nd11 nd12 nd21 nd22 in
   (_is_incompatible tree1 tree2 nd11 nd12 nd21 nd22) && (not crossing)
-
-let is_crossing_or_incompatible tree1 tree2 nd11 nd12 nd21 nd22 =
-  is_crossing nd11 nd12 nd21 nd22 || _is_incompatible tree1 tree2 nd11 nd12 nd21 nd22
-
-
-let select_p_pairs p tree1 tree2 pair_weight_list = (* returns p pairs and not p pairs *)
-
-  let pair_weight_list =
-    List.fast_sort
-      (fun (n1, _, _) (n2, _, _) -> Stdlib.compare n1#gindex n2#gindex)
-      pair_weight_list
-  in
-
-  DEBUG_MSG "select_p_pairs: [%s]"
-    (Xlist.to_string
-       (fun (n1, n2, w) -> sprintf "(%a-%a,%d)" UID.ps n1#uid UID.ps n2#uid w)
-       ";" pair_weight_list);
-
-  let len = List.length pair_weight_list in
-
-  if len > 1 then begin
-    let a = Array.of_list pair_weight_list in
-    let mat = Array.make_matrix len len false in
-    for i = 0 to len - 2 do
-      let nd11, nd12, _ = a.(i) in
-      for j = i + 1 to len - 1 do
-	let nd21, nd22, _ = a.(j) in
-	let b =
-	  if (nd11 == nd21 || nd12 == nd22) then
-	    false
-	  else
-	    p tree1 tree2 nd11 nd12 nd21 nd22
-	in
-	mat.(i).(j) <- b;
-	mat.(j).(i) <- b
-      done
-    done;
-
-    let nfriends_a = Array.make len 0 in
-    for i = 0 to len - 1 do
-      let c = ref 0 in
-      for j = 0 to len - 1 do
-	if mat.(i).(j) then
-	  incr c
-      done;
-      nfriends_a.(i) <- !c
-    done;
-
-    let sorted_idxs =
-      List.fast_sort
-	(fun i j ->
-	  let _, _, wi = a.(i) in
-	  let _, _, wj = a.(j) in
-	  let x = Stdlib.compare wj wi in
-	  if x = 0 then begin
-	    let fi = nfriends_a.(i) in
-	    let fj = nfriends_a.(j) in
-	    Stdlib.compare fj fi
-	  end
-	  else
-	    x
-	) (Xlist.range len)
-    in
-
-    let compat_idxs =
-      List.fold_left
-	(fun l idx ->
-	  if List.for_all (fun i -> mat.(i).(idx)) l then
-	    idx :: l
-	  else
-	    l
-	) [] sorted_idxs
-    in
-
-    let incompat_idxs =
-      List.filter (fun i -> not (List.mem i compat_idxs)) (Xlist.range len)
-    in
-
-    let compat = List.map (fun i -> a.(i)) compat_idxs in
-    let incompat = List.map (fun i -> a.(i)) incompat_idxs in
-
-
-    DEBUG_MSG "select_p_pairs: p pairs: [%s]"
-      (Xlist.to_string
-	 (fun (n1, n2, _) -> sprintf "(%a-%a)" UID.ps n1#uid UID.ps n2#uid)
-	 ";" compat);
-    DEBUG_MSG "select_p_pairs: not p pairs: [%s]"
-      (Xlist.to_string
-	 (fun (n1, n2, _) -> sprintf "(%a-%a)" UID.ps n1#uid UID.ps n2#uid)
-	 ";" incompat);
-
-    compat, incompat
-  end
-  else
-    pair_weight_list, []
-
-
-let select_compatible_pairs tree1 tree2 pair_weight_list = (* returns compat. pairs and incompat. pairs *)
-  select_p_pairs
-    (fun t1 t2 n11 n12 n21 n22 ->
-      let b = not (is_incompatible t1 t2 n11 n12 n21 n22) in
-
-      DEBUG_MSG "%a-%a - %a-%a --> compatible:%B"
-	UID.ps n11#uid UID.ps n12#uid UID.ps n21#uid UID.ps n22#uid b;
-
-      b
-    ) tree1 tree2 pair_weight_list
-
-
-let select_compatible_and_not_crossing_pairs tree1 tree2 pair_weight_list =
-  select_p_pairs
-    (fun t1 t2 n11 n12 n21 n22 ->
-      let b =
-	not (is_incompatible t1 t2 n11 n12 n21 n22) && not (is_crossing n11 n12 n21 n22)
-      in
-
-      DEBUG_MSG "%a-%a - %a-%a --> compatible_and_not_crossing:%B"
-	UID.ps n11#uid UID.ps n12#uid UID.ps n21#uid UID.ps n22#uid b;
-
-      b
-    ) tree1 tree2 pair_weight_list
 
 
 let add map1 map1rev map2 map2rev uid1 uid2 =
@@ -190,13 +59,13 @@ let add map1 map1rev map2 map2rev uid1 uid2 =
 
         Hashtbl.replace map1 uid1 uid2;
         Hashtbl.remove map1rev uid1';
-	Hashtbl.remove map2rev uid1';
+        Hashtbl.remove map2rev uid1';
 
         conflict2 := Some uid1';
 
         BEGIN_DEBUG
-	  DEBUG_MSG "conflict: %a-%a" UID.ps uid1 UID.ps uid1';
-	  DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
+          DEBUG_MSG "conflict: %a-%a" UID.ps uid1 UID.ps uid1';
+          DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
         END_DEBUG
 
       end
@@ -204,20 +73,20 @@ let add map1 map1rev map2 map2rev uid1 uid2 =
       Not_found ->
         try
           let uid1' = Hashtbl.find map2 uid1 in
-	  if uid1' <> uid2 then begin
+          if uid1' <> uid2 then begin
 
-	    Hashtbl.replace map2 uid1 uid2;
-	    Hashtbl.remove map2rev uid1';
-	    Hashtbl.remove map1rev uid1';
+            Hashtbl.replace map2 uid1 uid2;
+            Hashtbl.remove map2rev uid1';
+            Hashtbl.remove map1rev uid1';
 
             conflict2 := Some uid1';
 
             BEGIN_DEBUG
-	      DEBUG_MSG "conflict: %a-%a" UID.ps uid1 UID.ps uid1';
-	      DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
+              DEBUG_MSG "conflict: %a-%a" UID.ps uid1 UID.ps uid1';
+              DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
             END_DEBUG
 
-	  end
+          end
     with
       Not_found -> Hashtbl.add map1 uid1 uid2
   end;
@@ -226,36 +95,36 @@ let add map1 map1rev map2 map2rev uid1 uid2 =
       let uid2' = Hashtbl.find map1rev uid2 in
       if uid2' <> uid1 then begin
 
-	Hashtbl.replace map1rev uid2 uid1;
-	Hashtbl.remove map1 uid2';
-	Hashtbl.remove map2 uid2';
+        Hashtbl.replace map1rev uid2 uid1;
+        Hashtbl.remove map1 uid2';
+        Hashtbl.remove map2 uid2';
 
         conflict1 := Some uid2';
 
-	BEGIN_DEBUG
-	  DEBUG_MSG "conflict: %a-%a" UID.ps uid2' UID.ps uid2;
-	  DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
-	END_DEBUG
+        BEGIN_DEBUG
+          DEBUG_MSG "conflict: %a-%a" UID.ps uid2' UID.ps uid2;
+          DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
+        END_DEBUG
 
       end
     with
       Not_found ->
         try
           let uid2' = Hashtbl.find map2rev uid2 in
-	  if uid2' <> uid1 then begin
+          if uid2' <> uid1 then begin
 
-	    Hashtbl.replace map2rev uid2 uid1;
-	    Hashtbl.remove map2 uid2';
-	    Hashtbl.remove map1 uid2';
+            Hashtbl.replace map2rev uid2 uid1;
+            Hashtbl.remove map2 uid2';
+            Hashtbl.remove map1 uid2';
 
             conflict1 := Some uid2';
 
-	    BEGIN_DEBUG
-	      DEBUG_MSG "conflict: %a-%a" UID.ps uid2' UID.ps uid2;
-	      DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
-	    END_DEBUG
+            BEGIN_DEBUG
+              DEBUG_MSG "conflict: %a-%a" UID.ps uid2' UID.ps uid2;
+              DEBUG_MSG "overridden by: %a-%a" UID.ps uid1 UID.ps uid2
+            END_DEBUG
 
-	  end
+          end
     with
       Not_found -> Hashtbl.add map1rev uid2 uid1
   end;
@@ -369,8 +238,8 @@ class ['node_t] c cenv = object (self : 'self)
   method clear_crossing_or_incompatible_matches_count_cache =
     if use_crossing_or_incompatible_matches_count_cache then begin
       size_of_crossing_or_incompatible_matches_count_cache <-
-	size_of_crossing_or_incompatible_matches_count_cache +
-	  (Hashtbl.length crossing_or_incompatible_matches_count_cache);
+        size_of_crossing_or_incompatible_matches_count_cache +
+          (Hashtbl.length crossing_or_incompatible_matches_count_cache);
       Hashtbl.clear crossing_or_incompatible_matches_count_cache;
 
       DEBUG_MSG "crossing_or_incompatible_matches_count_cache cleared"
@@ -461,7 +330,7 @@ class ['node_t] c cenv = object (self : 'self)
     try
       let u1' = Hashtbl.find stable_pairs u1 in
       if u1' <> u2 then
-	Hashtbl.add stable_pairs u1 u2
+        Hashtbl.add stable_pairs u1 u2
     with
       Not_found -> Hashtbl.add stable_pairs u1 u2
 
@@ -514,11 +383,11 @@ class ['node_t] c cenv = object (self : 'self)
     let sorted_dom = List.fast_sort cmp dom in
     List.iter
       (fun u1 ->
-	try
-	  let u2 = self#find u1 in
-	  f u1 u2
-	with
-	  Not_found -> assert false
+        try
+          let u2 = self#find u1 in
+          f u1 u2
+        with
+          Not_found -> assert false
       ) sorted_dom
 
   method iter_sorted cmp f =
@@ -546,14 +415,14 @@ class ['node_t] c cenv = object (self : 'self)
       Hashtbl.find map uid
     with
       Not_found ->
-	Hashtbl.find s_map uid
+        Hashtbl.find s_map uid
 
   method inv_find uid =
     try
       Hashtbl.find rev_map uid
     with
       Not_found ->
-	Hashtbl.find rev_s_map uid
+        Hashtbl.find rev_s_map uid
 
 
   method add_unsettled uid1 uid2 =
@@ -575,7 +444,7 @@ class ['node_t] c cenv = object (self : 'self)
         let c = add s_map rev_s_map map rev_map uid1 uid2 in
 
         if stable then
-	  self#add_stable_pair uid1 uid2; (* MODIFIED-> ADOPTED *)
+          self#add_stable_pair uid1 uid2; (* MODIFIED-> ADOPTED *)
 
         c
       end
@@ -605,13 +474,13 @@ class ['node_t] c cenv = object (self : 'self)
   method merge_no_override (m : 'self) =
     m#iter_settled
       (fun u1 u2 ->
-	if not (self#mem_dom u1 || self#mem_cod u2) then
-	  ignore (self#add_settled ~stable:false u1 u2)
+        if not (self#mem_dom u1 || self#mem_cod u2) then
+          ignore (self#add_settled ~stable:false u1 u2)
       );
     m#iter_unsettled
       (fun u1 u2 ->
-	if not (self#mem_dom u1 || self#mem_cod u2) then
-	  ignore (self#add_unsettled u1 u2)
+        if not (self#mem_dom u1 || self#mem_cod u2) then
+          ignore (self#add_unsettled u1 u2)
       );
     m#iter_settled_roots self#add_settled_roots
 
@@ -653,26 +522,26 @@ class ['node_t] c cenv = object (self : 'self)
       let mem1 = self#mem_dom u1 in
       let mem2 = self#mem_cod u2 in
       if mem1 || mem2 then begin
-	let u1' = try self#find u1 with _ -> u2 in
-	let u2' = try self#inv_find u2 with _ -> u1 in
+        let u1' = try self#find u1 with _ -> u2 in
+        let u2' = try self#inv_find u2 with _ -> u1 in
 
-	if u1' <> u2 || u2' <> u1 then begin (* conflict *)
-	  let n1 = self#search_node_by_uid1 u1 in
-	  let n2 = self#search_node_by_uid2 u2 in
-	  let score = cenv#get_adjacency_score n1 n2 in
+        if u1' <> u2 || u2' <> u1 then begin (* conflict *)
+          let n1 = self#search_node_by_uid1 u1 in
+          let n2 = self#search_node_by_uid2 u2 in
+          let score = cenv#get_adjacency_score n1 n2 in
 
-	  let cond1 =
-	    if mem1 then begin
+          let cond1 =
+            if mem1 then begin
 
-	      DEBUG_MSG "conflict with %a-%a" UID.ps u1 UID.ps u1';
+              DEBUG_MSG "conflict with %a-%a" UID.ps u1 UID.ps u1';
 
-	      let n1' = self#search_node_by_uid2 u1' in
-	      let score' = cenv#get_adjacency_score n1 n1' in
-	      score > score'
-	    end
-	    else
-	      true
-	  in
+              let n1' = self#search_node_by_uid2 u1' in
+              let score' = cenv#get_adjacency_score n1 n1' in
+              score > score'
+            end
+            else
+              true
+          in
           let cond2 =
             if mem2 then begin
 
@@ -703,7 +572,7 @@ class ['node_t] c cenv = object (self : 'self)
 
       end
       else
-	adder u1 u2
+        adder u1 u2
     in
 
     m#iter_settled
@@ -712,22 +581,22 @@ class ['node_t] c cenv = object (self : 'self)
 
     let rec get_settled_roots (uid1, uid2) =
       try
-	let pairs = Hashtbl.find invalidated_settled_root_tbl (uid1, uid2) in
-	List.flatten (List.map get_settled_roots pairs)
+        let pairs = Hashtbl.find invalidated_settled_root_tbl (uid1, uid2) in
+        List.concat_map get_settled_roots pairs
       with
-	Not_found -> [(uid1, uid2)]
+        Not_found -> [(uid1, uid2)]
     in
 
     m#iter_settled_roots
       (fun uid1 uid2 ->
-	let pairs = get_settled_roots (uid1, uid2) in
-	match pairs with
-	| [] -> self#add_settled_roots uid1 uid2
-	| _ ->
-	    List.iter
-	      (fun (u1, u2) ->
-		self#add_settled_roots u1 u2
-	      ) pairs
+        let pairs = get_settled_roots (uid1, uid2) in
+        match pairs with
+        | [] -> self#add_settled_roots uid1 uid2
+        | _ ->
+            List.iter
+              (fun (u1, u2) ->
+                self#add_settled_roots u1 u2
+              ) pairs
       )
 
 
@@ -795,15 +664,15 @@ class ['node_t] c cenv = object (self : 'self)
           let gi1 = nd1#gindex in
           let gi2 = nd2#gindex in
           self#iter_settled_roots
-	    (fun u1 u2 ->
-	      let n1 = self#search_node_by_uid1 u1 in
-	      let n2 = self#search_node_by_uid2 u2 in
-	      if
-                (tree1#initial_leftmost n1)#gindex <= gi1 && gi1 < n1#gindex ||
-                (tree2#initial_leftmost n2)#gindex <= gi2 && gi2 < n2#gindex
+            (fun u1 u2 ->
+              let n1 = self#search_node_by_uid1 u1 in
+              let n2 = self#search_node_by_uid2 u2 in
+              if
+                gi1 < n1#gindex && (tree1#initial_leftmost n1)#gindex <= gi1 ||
+                gi2 < n2#gindex && (tree2#initial_leftmost n2)#gindex <= gi2
               then
-	        Xset.remove settled_roots (u1, u2)
-	    )
+                Xset.remove settled_roots (u1, u2)
+            )
         end;
         (*Hashtbl.remove*)tbl_remove s_map uid1;
         (*Hashtbl.remove*)tbl_remove rev_s_map uid2;
@@ -814,7 +683,7 @@ class ['node_t] c cenv = object (self : 'self)
             try
               let c' = self#search_node_by_uid2 (self#find c#uid) in
               if c'#initial_parent == nd2 then
-	        Xset.add settled_roots (c#uid, c'#uid)
+                Xset.add settled_roots (c#uid, c'#uid)
             with
               _ -> ()
           ) ca1;
@@ -828,20 +697,20 @@ class ['node_t] c cenv = object (self : 'self)
   method filter f =
     Hashtbl.iter
       (fun u1 u2 ->
-	if not (f u1 u2) then begin
-	  Hashtbl.remove map u1;
-	  Hashtbl.remove rev_map u2;
-	  Hashtbl.remove rev_s_map u2
-	end
+        if not (f u1 u2) then begin
+          Hashtbl.remove map u1;
+          Hashtbl.remove rev_map u2;
+          Hashtbl.remove rev_s_map u2
+        end
       ) map;
     Hashtbl.iter
       (fun u1 u2 ->
-	if not (f u1 u2) then begin
-	  Hashtbl.remove s_map u1;
-	  Hashtbl.remove rev_s_map u2;
-	  Hashtbl.remove rev_map u2;
-	  Xset.remove settled_roots (u1, u2);
-	end
+        if not (f u1 u2) then begin
+          Hashtbl.remove s_map u1;
+          Hashtbl.remove rev_s_map u2;
+          Hashtbl.remove rev_map u2;
+          Xset.remove settled_roots (u1, u2);
+        end
       ) s_map
 
   method promote uid1 uid2 =
@@ -913,8 +782,8 @@ class ['node_t] c cenv = object (self : 'self)
     let pr mark =
     List.iter
       (fun (gi1, gi2) ->
-	Buffer.add_string buf
-	  (sprintf "UIDmapping#to_string_gid: %s: %a-%a\n" mark GI.ps gi1 GI.ps gi2)
+        Buffer.add_string buf
+          (sprintf "UIDmapping#to_string_gid: %s: %a-%a\n" mark GI.ps gi1 GI.ps gi2)
       ) (List.fast_sort cmp !gi_pairs)
     in
     self#iter_unsettled add;
@@ -938,33 +807,33 @@ class ['node_t] c cenv = object (self : 'self)
   method get_reduced_mapping_list () =
     let reduce list =
       let r, reduced =
-	List.fold_left
-	  (fun (range, l) (u1, u2) ->
-	    match range with
-	    | [] -> [(u1, u2)], l
+        List.fold_left
+          (fun (range, l) (u1, u2) ->
+            match range with
+            | [] -> [(u1, u2)], l
 
-	    | [(u1', u2')] ->
-		if u1 = UID.succ u1' && u2 = UID.succ u2' then
-		  [(u1', u2'); (u1, u2)], l
-		else
-		  [(u1, u2)], [(u1', u2')]::l
+            | [(u1', u2')] ->
+                if u1 = UID.succ u1' && u2 = UID.succ u2' then
+                  [(u1', u2'); (u1, u2)], l
+                else
+                  [(u1, u2)], [(u1', u2')]::l
 
-	    | [(u1', u2'); (u1'', u2'')] ->
-		if u1 = UID.succ u1'' && u2 = UID.succ u2'' then
-		  [(u1', u2'); (u1, u2)], l
-		else
-		  [(u1, u2)], [(u1', u2'); (u1'', u2'')]::l
+            | [(u1', u2'); (u1'', u2'')] ->
+                if u1 = UID.succ u1'' && u2 = UID.succ u2'' then
+                  [(u1', u2'); (u1, u2)], l
+                else
+                  [(u1, u2)], [(u1', u2'); (u1'', u2'')]::l
 
-	    | _ -> assert false
-	  ) ([], []) list
+            | _ -> assert false
+          ) ([], []) list
       in
       List.rev
-	(match r with
-	| [] -> reduced
-	| [p] -> r::reduced
-	| [p1; p2] -> r::reduced
-	| _ -> assert false
-	)
+        (match r with
+        | [] -> reduced
+        | [p] -> r::reduced
+        | [p1; p2] -> r::reduced
+        | _ -> assert false
+        )
     in
     reduce (self#get_mapping_list())
 
@@ -990,41 +859,41 @@ class ['node_t] c cenv = object (self : 'self)
 
     let reduce list =
       let r, reduced =
-	List.fold_left
-	  (fun (range, l) (u1, u2) ->
-	    match range with
-	    | [] -> [(u1, u2)], l
+        List.fold_left
+          (fun (range, l) (u1, u2) ->
+            match range with
+            | [] -> [(u1, u2)], l
 
-	    | [(u1', u2')] ->
-		if u1 = UID.succ u1' && u2 = UID.succ u2' then
-		  [(u1', u2'); (u1, u2)], l
-		else
-		  [(u1, u2)], [(u1', u2')]::l
+            | [(u1', u2')] ->
+                if u1 = UID.succ u1' && u2 = UID.succ u2' then
+                  [(u1', u2'); (u1, u2)], l
+                else
+                  [(u1, u2)], [(u1', u2')]::l
 
-	    | [(u1', u2'); (u1'', u2'')] ->
-		if u1 = UID.succ u1'' && u2 = UID.succ u2'' then
-		  [(u1', u2'); (u1, u2)], l
-		else
-		  [(u1, u2)], [(u1', u2'); (u1'', u2'')]::l
+            | [(u1', u2'); (u1'', u2'')] ->
+                if u1 = UID.succ u1'' && u2 = UID.succ u2'' then
+                  [(u1', u2'); (u1, u2)], l
+                else
+                  [(u1, u2)], [(u1', u2'); (u1'', u2'')]::l
 
-	    | _ -> assert false
-	  ) ([], []) list
+            | _ -> assert false
+          ) ([], []) list
       in
       List.rev
-	(match r with
-	| [] -> reduced
-	| [p] -> r::reduced
-	| [p1; p2] -> r::reduced
-	| _ -> assert false
-	)
+        (match r with
+        | [] -> reduced
+        | [p] -> r::reduced
+        | [p1; p2] -> r::reduced
+        | _ -> assert false
+        )
     in
 
     let range_to_string = function
       | [u1, u2] ->
-	  sprintf "%a-%a" UID.ps u1 UID.ps u2
+          sprintf "%a-%a" UID.ps u1 UID.ps u2
       | [u1, u2; u1', u2'] ->
-	  sprintf "[%a:%a]-[%a:%a]"
-	    UID.ps u1 UID.ps u1' UID.ps u2 UID.ps u2'
+          sprintf "[%a:%a]-[%a:%a]"
+            UID.ps u1 UID.ps u1' UID.ps u2 UID.ps u2'
       | _ -> assert false
     in
     let sz = List.length !l1 in
@@ -1041,14 +910,14 @@ class ['node_t] c cenv = object (self : 'self)
   method dump fname =
     let list =
       List.fast_sort
-	(fun (u1, u2) (u3, u4) -> compare u1 u3) self#to_list
+        (fun (u1, u2) (u3, u4) -> compare u1 u3) self#to_list
     in
     try
       let ch = open_out fname in
       List.iter
-	(fun (uid1, uid2) ->
-	  fprintf ch "%19a -- %a\n" UID.r uid1 UID.r uid2
-	) list;
+        (fun (uid1, uid2) ->
+          fprintf ch "%19a -- %a\n" UID.r uid1 UID.r uid2
+        ) list;
       close_out ch
     with
       Sys_error s -> WARN_MSG s
@@ -1108,11 +977,11 @@ class ['node_t] c cenv = object (self : 'self)
 
     let list_unsettled =
       List.fast_sort
-	(fun (u1, u2) (u3, u4) -> compare u1 u3) self#to_list_unsettled
+        (fun (u1, u2) (u3, u4) -> compare u1 u3) self#to_list_unsettled
     in
     let list_settled =
       List.fast_sort
-	(fun (u1, u2) (u3, u4) -> compare u1 u3) self#to_list_settled
+        (fun (u1, u2) (u3, u4) -> compare u1 u3) self#to_list_settled
     in
     let get_gid nd =
       let gid = nd#data#gid in
@@ -1121,17 +990,17 @@ class ['node_t] c cenv = object (self : 'self)
     try
       let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
       let f =
-	fun (uid1, uid2) ->
-	  let nd1 = self#search_node_by_uid1 uid1 in
-	  let nd2 = self#search_node_by_uid2 uid2 in
-	  let k = if nd1#data#eq nd2#data then "E" else "R" in
-	  _fprintf ch "%s[%a:%a]%s -- [%a:%a]%s\n" k
-	    UID.ps uid1 GI.ps (get_gid nd1) nd1#data#to_string
-	    UID.ps uid2 GI.ps (get_gid nd2) nd2#data#to_string
+        fun (uid1, uid2) ->
+          let nd1 = self#search_node_by_uid1 uid1 in
+          let nd2 = self#search_node_by_uid2 uid2 in
+          let k = if nd1#data#eq nd2#data then "E" else "R" in
+          _fprintf ch "%s[%a:%a]%s -- [%a:%a]%s\n" k
+            UID.ps uid1 GI.ps (get_gid nd1) nd1#data#to_string
+            UID.ps uid2 GI.ps (get_gid nd2) nd2#data#to_string
       in
       _fprintf ch
-	"%d unsettled entries and %d settled entries\n"
-	(List.length list_unsettled) (List.length list_settled);
+        "%d unsettled entries and %d settled entries\n"
+        (List.length list_unsettled) (List.length list_settled);
       _fprintf ch "*** Unsettled ***\n";
       List.iter f list_unsettled;
       _fprintf ch "*** Settled ***\n";
@@ -1216,20 +1085,20 @@ class ['node_t] c cenv = object (self : 'self)
     let is_ghost_node nd = nd#data#src_loc = Loc.ghost in
     let is_ghost_uid tree uid =
       let nd =
-	try
-	  tree#search_node_by_uid uid
-	with
-	  Not_found -> assert false
+        try
+          tree#search_node_by_uid uid
+        with
+          Not_found -> assert false
       in
       is_ghost_node nd
     in
     let tree1, tree2 = cenv#tree1, cenv#tree2 in
     self#iter
       (fun uid1 uid2 ->
-	if is_ghost_uid tree1 uid1 || is_ghost_uid tree2 uid2 then begin
-	  DEBUG_MSG "cleanup_ghost: %a-%a" UID.ps uid1 UID.ps uid2;
-	  ignore (self#remove uid1 uid2)
-	end
+        if is_ghost_uid tree1 uid1 || is_ghost_uid tree2 uid2 then begin
+          DEBUG_MSG "cleanup_ghost: %a-%a" UID.ps uid1 UID.ps uid2;
+          ignore (self#remove uid1 uid2)
+        end
       )
 
 
@@ -1242,22 +1111,22 @@ class ['node_t] c cenv = object (self : 'self)
     let f ?(settled=false) u1 u2 =
       try
         let tree1, tree2 = cenv#tree1, cenv#tree2 in
-	let n1 = self#search_node_by_uid1 u1 in
-	let n2 = self#search_node_by_uid2 u2 in
-	if p nd1 nd2 n1 n2 then begin
+        let n1 = self#search_node_by_uid1 u1 in
+        let n2 = self#search_node_by_uid2 u2 in
+        if p nd1 nd2 n1 n2 then begin
 (*
           DEBUG_MSG " crossing: %a-%a -> %a-%a"
-	      UID.ps nd1#uid UID.ps nd2#uid UID.ps u1 UID.ps u2;
+              UID.ps nd1#uid UID.ps nd2#uid UID.ps u1 UID.ps u2;
 *)
-	  if settled then
-	    let step = n1#gindex - (tree1#initial_leftmost n1)#gindex + 1 in
-	    count := !count + step
-	  else
-	    incr count
-	end
+          if settled then
+            let step = n1#gindex - (tree1#initial_leftmost n1)#gindex + 1 in
+            count := !count + step
+          else
+            incr count
+        end
       with
-	Not_found ->
-	  WARN_MSG "node not found: %a-%a" UID.ps u1 UID.ps u2
+        Not_found ->
+          WARN_MSG "node not found: %a-%a" UID.ps u1 UID.ps u2
     in
     self#iter_unsettled f;
     self#iter_settled_roots (f ~settled:true);
@@ -1269,50 +1138,48 @@ class ['node_t] c cenv = object (self : 'self)
   method count_crossing_matches nd1 nd2 =
     self#count_p_mapping
       (fun nd1 nd2 n1 n2 ->
-	is_crossing nd1 nd2 n1 n2 && n1#data#eq n2#data
+        is_crossing nd1 nd2 n1 n2 && n1#data#eq n2#data
       )
       nd1 nd2
 
   method count_crossing_or_incompatible_matches nd1 nd2 =
     try
       if not self#use_crossing_or_incompatible_matches_count_cache then
-	raise Not_found;
+        raise Not_found;
 
       let count =
-	Hashtbl.find crossing_or_incompatible_matches_count_cache (nd1, nd2)
+        Hashtbl.find crossing_or_incompatible_matches_count_cache (nd1, nd2)
       in
 
       DEBUG_MSG "cache hit!";
 
       crossing_or_incompatible_matches_count_cache_hit_count <-
-	crossing_or_incompatible_matches_count_cache_hit_count + 1;
+        crossing_or_incompatible_matches_count_cache_hit_count + 1;
 
       count
     with
       Not_found ->
-        let tree1, tree2 = cenv#tree1, cenv#tree2 in
-	let count =
-	  self#count_p_mapping
-	    (fun nd1 nd2 n1 n2 ->
-	      (is_crossing nd1 nd2 n1 n2 || is_incompatible tree1 tree2 nd1 nd2 n1 n2) &&
-	      n1#data#eq n2#data
-	    )
-	    nd1 nd2
-	in
-	if self#use_crossing_or_incompatible_matches_count_cache then
-	  Hashtbl.add crossing_or_incompatible_matches_count_cache (nd1, nd2) count;
+        let count =
+          self#count_p_mapping
+            (fun nd1 nd2 n1 n2 ->
+              (is_crossing nd1 nd2 n1 n2 || cenv#is_incompatible nd1 nd2 n1 n2) &&
+              n1#data#eq n2#data
+            )
+            nd1 nd2
+        in
+        if self#use_crossing_or_incompatible_matches_count_cache then
+          Hashtbl.add crossing_or_incompatible_matches_count_cache (nd1, nd2) count;
 
-	count
+        count
 
   method count_compatible_noncrossing_matches nd1 nd2 =
-    let tree1, tree2 = cenv#tree1, cenv#tree2 in
     let count =
       self#count_p_mapping
-	(fun nd1 nd2 n1 n2 ->
-	  (not (is_crossing nd1 nd2 n1 n2) && not (is_incompatible tree1 tree2 nd1 nd2 n1 n2)) &&
-	  n1#data#eq n2#data
-	)
-	nd1 nd2
+        (fun nd1 nd2 n1 n2 ->
+          (not (is_crossing nd1 nd2 n1 n2) && not (cenv#is_incompatible nd1 nd2 n1 n2)) &&
+          n1#data#eq n2#data
+        )
+        nd1 nd2
     in
     count
 
@@ -1324,29 +1191,27 @@ class ['node_t] c cenv = object (self : 'self)
       =
     self#iter
       (fun u1 u2 ->
-	try
-	  let n1 = self#search_node_by_uid1 u1 in
-	  let n2 = self#search_node_by_uid2 u2 in
-	  if p nd1 nd2 n1 n2 then
-	    f u1 u2
-	with
-	  Not_found ->
-	    WARN_MSG "node not found: %a-%a" UID.ps u1 UID.ps u2
+        try
+          let n1 = self#search_node_by_uid1 u1 in
+          let n2 = self#search_node_by_uid2 u2 in
+          if p nd1 nd2 n1 n2 then
+            f u1 u2
+        with
+          Not_found ->
+            WARN_MSG "node not found: %a-%a" UID.ps u1 UID.ps u2
       )
 
   method iter_crossing_mapping nd1 nd2 f =
     self#iter_p_mapping is_crossing nd1 nd2 f
 
   method iter_incompatible_mapping nd1 nd2 f =
-    let tree1, tree2 = cenv#tree1, cenv#tree2 in
-    self#iter_p_mapping (is_incompatible tree1 tree2) nd1 nd2 f
+    self#iter_p_mapping cenv#is_incompatible nd1 nd2 f
 
   method iter_crossing_or_incompatible_mapping nd1 nd2 f =
-    let tree1, tree2 = cenv#tree1, cenv#tree2 in
     self#iter_p_mapping
       (fun nd1 nd2 n1 n2 ->
-	is_crossing nd1 nd2 n1 n2 ||
-	is_incompatible tree1 tree2 nd1 nd2 n1 n2
+        is_crossing nd1 nd2 n1 n2 ||
+        cenv#is_incompatible nd1 nd2 n1 n2
       )
       nd1 nd2 f
 
@@ -1359,12 +1224,12 @@ class ['node_t] c cenv = object (self : 'self)
     let nds1, nds2 = ref [], ref [] in
     self#iter_settled_roots
       (fun u1 u2 ->
-	let n1 = self#search_node_by_uid1 u1 in
-	let n2 = self#search_node_by_uid2 u2 in
-	if n1#data#is_partition && n1#data#_digest <> None then begin
-	  nds1 := n1 :: !nds1;
-	  nds2 := n2 :: !nds2;
-	end
+        let n1 = self#search_node_by_uid1 u1 in
+        let n2 = self#search_node_by_uid2 u2 in
+        if n1#data#is_partition && n1#data#_digest <> None then begin
+          nds1 := n1 :: !nds1;
+          nds2 := n2 :: !nds2;
+        end
     );
     let a1 = Array.of_list !nds1 in
     let a2 = Array.of_list !nds2 in
@@ -1383,14 +1248,14 @@ class ['node_t] c cenv = object (self : 'self)
     let get_to_be_filtered tree pa =
       let l = ref [] in
       Array.iteri
-	(fun i n ->
-	  let lmn = tree#initial_leftmost n in
-	  try
-	    if lmn#gindex - 1 = pa.(i-1)#gindex then
-	      l := n#uid :: !l
-	  with
-	    _ -> ()
-	) pa;
+        (fun i n ->
+          let lmn = tree#initial_leftmost n in
+          try
+            if lmn#gindex - 1 = pa.(i-1)#gindex then
+              l := n#uid :: !l
+          with
+            _ -> ()
+        ) pa;
       !l
     in
     let tree1, tree2 = cenv#tree1, cenv#tree2 in
@@ -1400,11 +1265,11 @@ class ['node_t] c cenv = object (self : 'self)
     let fp1, fp2 = ref [], ref [] in
     for i = (Array.length pa1) - 1 downto 0 do
       if
-	not (List.memq pa1.(i)#uid to_be_filtered1 &&
-	     List.memq pa2.(i)#uid to_be_filtered2)
+        not (List.memq pa1.(i)#uid to_be_filtered1 &&
+             List.memq pa2.(i)#uid to_be_filtered2)
       then begin
-	fp1 := pa1.(i)#gindex :: !fp1;
-	fp2 := pa2.(i)#gindex :: !fp2
+        fp1 := pa1.(i)#gindex :: !fp1;
+        fp2 := pa2.(i)#gindex :: !fp2
       end
     done;
 
@@ -1413,12 +1278,12 @@ class ['node_t] c cenv = object (self : 'self)
 
     BEGIN_DEBUG
       Array.iteri
-	(fun i gi1 ->
-	  let n1 = tree1#search_node_by_gindex gi1 in
-	  let n2 = tree2#search_node_by_gindex (partition_a2.(i)) in
-	  DEBUG_MSG "partition[%d]: %a-%a %s" i
-	    UID.ps n1#uid UID.ps n2#uid n1#data#label
-	) partition_a1
+        (fun i gi1 ->
+          let n1 = tree1#search_node_by_gindex gi1 in
+          let n2 = tree2#search_node_by_gindex (partition_a2.(i)) in
+          DEBUG_MSG "partition[%d]: %a-%a %s" i
+            UID.ps n1#uid UID.ps n2#uid n1#data#label
+        ) partition_a1
     END_DEBUG
 
 
@@ -1432,29 +1297,29 @@ class ['node_t] c cenv = object (self : 'self)
     Array.iteri (fun i _ -> a.(i) <- ref []) a;
     List.iter
       (fun n ->
-	let g = n#gindex in
+        let g = n#gindex in
 
-	if g < partition_a.(0) then
-	  a.(0) := n :: !(a.(0));
+        if g < partition_a.(0) then
+          a.(0) := n :: !(a.(0));
 
-	if plen > 1 then
-	  for i = 1 to plen - 1 do
-	    if partition_a.(i - 1) < g && g < partition_a.(i) then
-	      a.(i) := n :: !(a.(i))
-	  done;
+        if plen > 1 then
+          for i = 1 to plen - 1 do
+            if partition_a.(i - 1) < g && g < partition_a.(i) then
+              a.(i) := n :: !(a.(i))
+          done;
 
-	if g > partition_a.(plen - 1) then
-	  a.(plen) := n :: !(a.(plen))
+        if g > partition_a.(plen - 1) then
+          a.(plen) := n :: !(a.(plen))
 
       ) nds;
 
     BEGIN_DEBUG
       Array.iteri
-	(fun i ndsr ->
-	  if !ndsr <> [] then
-	    DEBUG_MSG "partition[%d] = [%s]" i
-	      (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !ndsr)
-	) a
+        (fun i ndsr ->
+          if !ndsr <> [] then
+            DEBUG_MSG "partition[%d] = [%s]" i
+              (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !ndsr)
+        ) a
     END_DEBUG;
 
     Array.map (fun lr -> !lr) a
@@ -1469,32 +1334,32 @@ class ['node_t] c cenv = object (self : 'self)
     let tree1, tree2 = cenv#tree1, cenv#tree2 in
     tree1#fast_scan_whole_initial_subtree nd1
       (fun n1 ->
-	let us2 = self#find_stable_pair n1#uid in
-	List.iter
-	  (fun u2 ->
-	    let n2 = tree2#search_node_by_uid u2 in
-	    if tree2#initial_subtree_mem nd2 n2 then
-	      incr score
-	  ) us2;
+        let us2 = self#find_stable_pair n1#uid in
+        List.iter
+          (fun u2 ->
+            let n2 = tree2#search_node_by_uid u2 in
+            if tree2#initial_subtree_mem nd2 n2 then
+              incr score
+          ) us2;
 (*
-	begin
-	  try
-	    let u2 = self#find_settled n1#uid in
-	    let n2 = tree2#search_node_by_uid u2 in
-	    if tree2#initial_subtree_mem nd2 n2 then
-	      incr score
-	  with
-	    Not_found -> ()
-	end;
-	begin
-	  try
-	    let u2 = self#find_unsettled n1#uid in
-	    let n2 = tree2#search_node_by_uid u2 in
-	    if tree2#initial_subtree_mem nd2 n2 then
-	      incr score
-	  with
-	    Not_found -> ()
-	end
+        begin
+          try
+            let u2 = self#find_settled n1#uid in
+            let n2 = tree2#search_node_by_uid u2 in
+            if tree2#initial_subtree_mem nd2 n2 then
+              incr score
+          with
+            Not_found -> ()
+        end;
+        begin
+          try
+            let u2 = self#find_unsettled n1#uid in
+            let n2 = tree2#search_node_by_uid u2 in
+            if tree2#initial_subtree_mem nd2 n2 then
+              incr score
+          with
+            Not_found -> ()
+        end
 *)
       );
     !score
@@ -1516,21 +1381,21 @@ class ['node_t] c cenv = object (self : 'self)
     let ui = ancs1.(i)#uid in
     try
       let u, high_conf =
-	try
-	  let x = self#find ui in
-	  x, true
-	with
-	  Not_found ->
-	    let x = Hashtbl.find extra ui in
-	    DEBUG_MSG "(%a,%a): pivot derived from extra map"
-	      UID.ps nd1#uid UID.ps nd2#uid;
-	    x, false
+        try
+          let x = self#find ui in
+          x, true
+        with
+          Not_found ->
+            let x = Hashtbl.find extra ui in
+            DEBUG_MSG "(%a,%a): pivot derived from extra map"
+              UID.ps nd1#uid UID.ps nd2#uid;
+            x, false
       in
       for j = lai2 downto 0 do
-	if u = ancs2.(j)#uid then
-	  let ni = self#search_node_by_uid1 ui in
-	  let n = self#search_node_by_uid2 u in
-	  _cands := (high_conf, ni, n, i + j) :: !_cands
+        if u = ancs2.(j)#uid then
+          let ni = self#search_node_by_uid1 ui in
+          let n = self#search_node_by_uid2 u in
+          _cands := (high_conf, ni, n, i + j) :: !_cands
       done
     with
       Not_found -> ()
@@ -1546,23 +1411,23 @@ class ['node_t] c cenv = object (self : 'self)
     | [] -> ()
     | (high, n1, n2, p)::rest ->
 
-	DEBUG_MSG "(%a,%a): prox=%d pivot=(%a,%a) (confidence=%s)"
-	  UID.ps nd1#uid UID.ps nd2#uid p UID.ps n1#uid UID.ps n2#uid
-	  (if high then "high" else "low");
+        DEBUG_MSG "(%a,%a): prox=%d pivot=(%a,%a) (confidence=%s)"
+          UID.ps nd1#uid UID.ps nd2#uid p UID.ps n1#uid UID.ps n2#uid
+          (if high then "high" else "low");
 
-	prox#set_primary_prox p;
-	prox#set_primary_pivot (n1, n2);
-	if not high then
-	  prox#lower_confidence;
+        prox#set_primary_prox p;
+        prox#set_primary_pivot (n1, n2);
+        if not high then
+          prox#lower_confidence;
 
-	let rest' =
-	  List.filter (fun (h, _, _, _) -> h = not high) rest
-	in
-	match rest' with
-	| [] -> ()
-	| (_, n1, n2, p)::_ ->
-	    prox#set_secondary_prox p;
-	    prox#set_secondary_pivot (n1, n2)
+        let rest' =
+          List.filter (fun (h, _, _, _) -> h = not high) rest
+        in
+        match rest' with
+        | [] -> ()
+        | (_, n1, n2, p)::_ ->
+            prox#set_secondary_prox p;
+            prox#set_secondary_pivot (n1, n2)
   end;
   prox
   (* end of method get_proximity *)

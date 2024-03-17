@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -39,10 +39,10 @@ module Effect = struct
 
   let get_edits_and_mapping efs =
     let edits, mapping = ref Edit.empty_seq, ref Mapping.empty in
-    List.iter
+    Seq.iter
       (function
-	| Edit ed -> edits := Edit.seq_add ed !edits
-	| Mapping_elem elem -> mapping := Mapping.add elem !mapping
+        | Edit ed -> edits := Edit.seq_add ed !edits
+        | Mapping_elem elem -> mapping := Mapping.add elem !mapping
       ) efs;
     !edits, !mapping
 
@@ -70,7 +70,7 @@ module F (W : Weight.T) = struct
     let li, lj = tree1#leftmost i, tree2#leftmost j in
 
     let forestdist_array =
-      Array.make_matrix (i - li + 2) (j - lj + 2) (W.min, []) 
+      Array.make_matrix (i - li + 2) (j - lj + 2) (W.min, Seq.empty)
     in
 
     let conv ((li, i1, lj, j1) as x) =
@@ -97,92 +97,92 @@ module F (W : Weight.T) = struct
     in
 
     let compute_treedist() =
-      forestdist_array.(0).(0) <- (W.zero, []);
+      forestdist_array.(0).(0) <- (W.zero, Seq.empty);
 
       for i1 = li to i do
-	let n, efs = forestdist (li, i1 - 1, 1, 0) in
-	set_forestdist_array 
-	  (li, i1, 1, 0) (W.plus n (cost i1 0)) ((Effect.delete i1)::efs)
+        let n, efs = forestdist (li, i1 - 1, 1, 0) in
+        set_forestdist_array
+          (li, i1, 1, 0) (W.plus n (cost i1 0)) (Seq.cons (Effect.delete i1) efs)
       done;
 
       for j1 = lj to j do
-	let n, efs = forestdist (1, 0, lj, j1 - 1) in
-	set_forestdist_array 
-	  (1, 0, lj, j1) (W.plus n (cost 0 j1)) ((Effect.insert j1)::efs)
+        let n, efs = forestdist (1, 0, lj, j1 - 1) in
+        set_forestdist_array
+          (1, 0, lj, j1) (W.plus n (cost 0 j1)) (Seq.cons (Effect.insert j1) efs)
       done;
 
       for i1 = li to i do
-	for j1 = lj to j do
-	  let li1, lj1 = tree1#leftmost i1, tree2#leftmost j1 in
+        for j1 = lj to j do
+          let li1, lj1 = tree1#leftmost i1, tree2#leftmost j1 in
 
-	  if li1 = li && lj1 = lj then
-	    let _ = 
-	      minn_do
-		[
-		 (
-		  let c = cost i1 0 in
-		  let n, efs = forestdist (li, i1 - 1, lj, j1) in
-		  (W.plus n c,
-		   (fun () ->
-		     let efs' = (Effect.delete i1)::efs in
-		     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
-		 );
-		 (
-		  let c = cost 0 j1 in
-		  let n, efs = forestdist (li, i1, lj, j1 - 1) in
-		  (W.plus n c,
-		   (fun () -> 
-		     let efs' = (Effect.insert j1)::efs in
-		     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
-		 );
-		 (
-		  let c = cost i1 j1 in
-		  let n, efs = forestdist (li, i1 - 1, lj, j1 - 1) in
-		  (W.plus n c,
-		   (fun () ->
-		     let efs' = (Effect.mapping_elem(i1, j1))::efs in
-		     let efs' = 
-		       if not ((tree1#get i1)#data#equals (tree2#get j1)#data) then 
-			 (Effect.relabel(i1, j1))::efs'
+          if li1 = li && lj1 = lj then
+            let _ =
+              minn_do
+                [
+                 (
+                  let c = cost i1 0 in
+                  let n, efs = forestdist (li, i1 - 1, lj, j1) in
+                  (W.plus n c,
+                   (fun () ->
+                     let efs' = Seq.cons (Effect.delete i1) efs in
+                     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
+                 );
+                 (
+                  let c = cost 0 j1 in
+                  let n, efs = forestdist (li, i1, lj, j1 - 1) in
+                  (W.plus n c,
+                   (fun () ->
+                     let efs' = Seq.cons (Effect.insert j1) efs in
+                     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
+                 );
+                 (
+                  let c = cost i1 j1 in
+                  let n, efs = forestdist (li, i1 - 1, lj, j1 - 1) in
+                  (W.plus n c,
+                   (fun () ->
+                     let efs' = Seq.cons (Effect.mapping_elem(i1, j1)) efs in
+                     let efs' =
+                       if not ((tree1#get i1)#data#equals (tree2#get j1)#data) then
+                         Seq.cons (Effect.relabel(i1, j1)) efs'
                        else
                          efs'
-		     in
-		     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
-		 )
-	       ]
-	    in
-	    treedist_array.(i1 - 1).(j1 - 1) <- (forestdist(li, i1, lj, j1));
-	  else
-	    let _ =
-	      minn_do
-		[
-		 (
-		  let c = cost i1 0 in
-		  let n, efs = forestdist (li, i1 - 1, lj, j1) in
-		  (W.plus n c,
-		   (fun () -> 
-		     let efs' = (Effect.delete i1)::efs in
-		     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
-		 );
-		 (
-		  let c = cost 0 j1 in
-		  let n, efs = forestdist (li, i1, lj, j1 - 1) in
-		  (W.plus n c,
-		   (fun () -> 
-		     let efs' = (Effect.insert j1)::efs in
-		     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
-		 );
-		 (
-		  let n, efs = forestdist (li, li1 - 1, lj, lj1 - 1) in
-		  let n0, efs0 = treedist_array.(i1 - 1).(j1 - 1) in
-		  (W.plus n n0,
-		   (fun () ->
-		     let efs' = efs @ efs0 in
-		     set_forestdist_array (li, i1, lj, j1) (W.plus n n0) efs'))
-		 )
-	       ]
-	    in ()
-	done
+                     in
+                     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
+                 )
+               ]
+            in
+            treedist_array.(i1 - 1).(j1 - 1) <- (forestdist(li, i1, lj, j1));
+          else
+            let _ =
+              minn_do
+                [
+                 (
+                  let c = cost i1 0 in
+                  let n, efs = forestdist (li, i1 - 1, lj, j1) in
+                  (W.plus n c,
+                   (fun () ->
+                     let efs' = Seq.cons (Effect.delete i1) efs in
+                     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
+                 );
+                 (
+                  let c = cost 0 j1 in
+                  let n, efs = forestdist (li, i1, lj, j1 - 1) in
+                  (W.plus n c,
+                   (fun () ->
+                     let efs' = Seq.cons (Effect.insert j1) efs in
+                     set_forestdist_array (li, i1, lj, j1) (W.plus n c) efs'))
+                 );
+                 (
+                  let n, efs = forestdist (li, li1 - 1, lj, lj1 - 1) in
+                  let n0, efs0 = treedist_array.(i1 - 1).(j1 - 1) in
+                  (W.plus n n0,
+                   (fun () ->
+                     let efs' = Seq.append efs efs0 in
+                     set_forestdist_array (li, i1, lj, j1) (W.plus n n0) efs'))
+                 )
+               ]
+            in ()
+        done
       done
     in
     compute_treedist();
@@ -191,11 +191,11 @@ module F (W : Weight.T) = struct
       (
        let buf = Buffer.create 0 in
        for ii = 0 to i - li + 1 do
-	 for jj = 0 to j -lj + 1 do
-	   let n, _ = forestdist_array.(ii).(jj) in
-	   Buffer.add_string buf (Printf.sprintf "%s " (W.to_string n))
-	 done;
-	 Buffer.add_string buf "\n"
+         for jj = 0 to j -lj + 1 do
+           let n, _ = forestdist_array.(ii).(jj) in
+           Buffer.add_string buf (Printf.sprintf "%s " (W.to_string n))
+         done;
+         Buffer.add_string buf "\n"
        done;
        Buffer.contents buf
       );
@@ -211,15 +211,15 @@ module F (W : Weight.T) = struct
     let res = ref [] in
     List.iter 
       (fun (x, y) ->
-	let n, efs = treedist_array.(x - 1).(y - 1) in
-	if n = W.zero then
-	  try
-	    List.iter 
-	      (fun i -> 
-		if (tree1#leftmost i) <= x && x < i then raise Subtree
-	      ) !res;
-	    res := x::!res
-	  with
+        let n, efs = treedist_array.(x - 1).(y - 1) in
+        if n = W.zero then
+          try
+            List.iter
+              (fun i ->
+                if (tree1#leftmost i) <= x && x < i then raise Subtree
+              ) !res;
+            res := x::!res
+          with
             Subtree -> ()
       ) mapping;
 
@@ -234,7 +234,7 @@ module F (W : Weight.T) = struct
     let cost_tbl = Array.make_matrix (tree1#size + 1) (tree2#size + 1) W.zero in
     for i = 0 to tree1#size do
       for j = 0 to tree2#size do
-	cost_tbl.(i).(j) <- (cost_func tree1 tree2 i j)
+        cost_tbl.(i).(j) <- (cost_func tree1 tree2 i j)
       done
     done;
     let cost_func tree1 tree2 i j = cost_tbl.(i).(j) in
@@ -244,14 +244,14 @@ module F (W : Weight.T) = struct
     let nkeyroots1 = List.length keyroots1 in
     let nkeyroots2 = List.length keyroots2 in
 
-    let treedist_array = Array.make_matrix tree1#size tree2#size (W.min, []) in
+    let treedist_array = Array.make_matrix tree1#size tree2#size (W.min, Seq.empty) in
 
     for ii = 1 to nkeyroots1 do
       for jj = 1 to nkeyroots2 do
-	let i = List.nth keyroots1 (ii - 1) in
-	let j = List.nth keyroots2 (jj - 1) in
-	let _, _ = treedist cost_func treedist_array tree1 tree2 i j in
-	()
+        let i = List.nth keyroots1 (ii - 1) in
+        let j = List.nth keyroots2 (jj - 1) in
+        let _, _ = treedist cost_func treedist_array tree1 tree2 i j in
+        ()
       done
     done;
 
@@ -259,11 +259,11 @@ module F (W : Weight.T) = struct
       (
        let buf = Buffer.create 0 in
        for i = 0 to tree1#size - 1 do
-	 for j = 0 to tree2#size - 1 do
-	   let n, efs = treedist_array.(i).(j) in
-	   Buffer.add_string buf (Printf.sprintf "%s " (W.to_string n))
-	 done;
-	 Buffer.add_string buf "\n"
+         for j = 0 to tree2#size - 1 do
+           let n, efs = treedist_array.(i).(j) in
+           Buffer.add_string buf (Printf.sprintf "%s " (W.to_string n))
+         done;
+         Buffer.add_string buf "\n"
        done;
        Buffer.contents buf
       );
@@ -280,4 +280,3 @@ end (* of functor ZS.F *)
 
 module Int = F(Weight.Int)
 module Float = F(Weight.Float)
-

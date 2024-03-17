@@ -136,9 +136,9 @@ module F (Label : Spec.LABEL_T) = struct
     Hashtbl.iter
       (fun pnd nds ->
         if
-          List.for_all
+          Array.for_all
             (fun n -> List.memq n nds)
-            (Array.to_list pnd#children)
+            pnd#children
         then begin
 
           DEBUG_MSG "all children are to be pruned: %a" nups pnd;
@@ -149,9 +149,9 @@ module F (Label : Spec.LABEL_T) = struct
     Hashtbl.iter
       (fun pnd nds ->
         if
-          List.for_all
+          Array.for_all
             (fun n -> List.memq n nds)
-            (Array.to_list pnd#children)
+            pnd#children
         then begin
 
           DEBUG_MSG "all children are to be pruned: %a" nups pnd;

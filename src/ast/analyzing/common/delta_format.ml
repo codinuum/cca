@@ -45,7 +45,7 @@ let _get_attr_opt conv xnode a =
   with
     Attribute_not_found _ -> None
 
-let get_attr_opt xnode a = _get_attr_opt (fun x -> x) xnode a
+let get_attr_opt xnode a = _get_attr_opt Fun.id xnode a
 
 let get_iattr_opt = _get_attr_opt int_of_string
 
