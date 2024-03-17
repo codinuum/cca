@@ -66,10 +66,12 @@ COPY src /root/src/
 
 RUN set -x && \
     cd /root && \
-    opam init -y --disable-sandboxing && \
-    eval $(opam env --switch=default) && \
-    opam switch create 4.14.1 && \
-    eval $(opam env --switch=4.14.1) && \
+    opam init -y --disable-sandboxing --bare && \
+    eval $(opam env) && \
+    opam update && \
+    opam switch create 4.14.2+options && \
+    eval $(opam env --switch=4.14.2+options) && \
+    opam install -y ocaml-option-flambda && \
     opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
     eval $(opam env) && \
     cd src && \
