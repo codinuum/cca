@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020-2023 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -173,7 +173,7 @@ class parser_c = object (self)
       | T_DEFAULT -> "DEFAULT"
       | T_DEFINED -> "DEFINED"
       | T_DELETE -> "DELETE"
-      | T_DELIM_MACRO -> "DELIM_MACROE"
+      | T_DELIM_MACRO -> "DELIM_MACRO"
       | T_DO -> "DO"
       | T_DOT -> "DOT"
       | T_DOT_STAR -> "DOT_STAR"
@@ -1490,17 +1490,17 @@ class parser_c = object (self)
           loop ckpt
       end
       | I.Shifting (_menv, menv_, b) -> begin
-          DEBUG_MSG "\n%a" (pr_menv "shift" 0) menv_;
-          for ith = 1 to 9 do
-            BEGIN_DEBUG
+          BEGIN_DEBUG
+            DEBUG_MSG "\n%a" (pr_menv "shift" 0) menv_;
+            for ith = 1 to 9 do
               match I.get ith menv_ with
               | Some _ -> DEBUG_MSG "\n%a" (pr_menv "shift" ith) menv_
               | _ -> ()
-            END_DEBUG
-          done;
+            done
+          END_DEBUG;
 
           let ctx_start_of_stmt sn =
-            DEBUG_MSG "called";
+            DEBUG_MSG "sn=%d" sn;
             menv_backup_obj := Some menv_;
             scanner#ctx_start_of_stmt sn
           in
@@ -1617,7 +1617,8 @@ class parser_c = object (self)
             end
 
             | _ -> ()
-          in
+          in (* let _proc_shift0 *)
+
           let _proc_shift1 (_, l, rs, r, i) =
             match l, rs, r with
             | I.X (I.N N_nodeclspec_function_definition), _, I.X (I.T T_SEMICOLON) -> begin
@@ -2184,6 +2185,11 @@ class parser_c = object (self)
                 env#exit_asm_block();
                 raise Exit
             end
+            | _ -> ()
+          in (* let _proc_shift1 *)
+
+          let _proc_shift2 (_, l, rs, r, i) =
+            match l, rs, r with
             | I.X (I.N N_additive_expression), _, I.X (I.T _) -> begin
                 if env#templ_param_arg_level = 0 then begin
                   scanner#ctx_expr();
@@ -3167,6 +3173,12 @@ class parser_c = object (self)
                 end;
                 raise Exit
             end
+            | _ -> ()
+
+          in (* let _proc_shift2 *)
+
+          let _proc_shift3 (_, l, rs, r, i) =
+            match l, rs, r with
             | I.X (I.N N_iteration_statement), I.X (I.T T_FOR)::_, I.X (I.T T_COLON) -> begin
                 scanner#ctx_expr();
                 env#set_for_range_init_flag();
@@ -3386,6 +3398,14 @@ class parser_c = object (self)
                             ctx_start_of_stmt sn;
                             raise Exit
                         end
+                        | sn, I.X (I.N N_statement_seq_opt), _, _, _ -> begin
+                            ctx_start_of_stmt sn;
+                            raise Exit
+                        end
+                        | sn, I.X (I.N N__statement_seq), _, _, _ -> begin
+                            ctx_start_of_stmt sn;
+                            raise Exit
+                        end
                         | _ -> ()
                       );
                     iter_items_w ~from_ith:2 ~to_ith:6 menv_
@@ -3598,6 +3618,12 @@ class parser_c = object (self)
                 env#set_end_of_attr_macro_call_flag();
                 raise Exit
             end
+
+            | _ -> ()
+          in (* let _proc_shift3 *)
+
+          let _proc_shift4 (_, l, rs, r, i) =
+            match l, rs, r with
             | I.X (I.N N_gnu_asm_attr), _, I.X (I.T T_RPAREN) -> begin
                 env#set_end_of_attr_macro_call_flag();
                 raise Exit
@@ -4519,14 +4545,15 @@ class parser_c = object (self)
                 end;
                 raise Exit
             end*)
-
             | _ -> ()
-
-          in (* let _proc_shift1 *)
+          in (* let _proc_shift4 *)
 
           let proc_shift x =
             _proc_shift0 x;
-            _proc_shift1 x
+            _proc_shift1 x;
+            _proc_shift2 x;
+            _proc_shift3 x;
+            _proc_shift4 x
           in
 
           let proc_shift_objc (_, l, rs, r, i) =

@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020-2022 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1142,16 +1142,7 @@ let is_shader_kw =
   List.iter (Xset.add names) l;
   fun s -> Xset.mem names s
 
-let is_asm_kw =
-  let l = [
-    "pop";
-    "push";
-    "sub";
-    "subs";
-  ] in
-  let names = Xset.create 0 in
-  List.iter (Xset.add names) l;
-  fun s -> Xset.mem names s
+let is_asm_kw = Aux.is_asm_kw
 
 let is_doxygen_cmd =
   let l = [
@@ -2565,8 +2556,31 @@ let conv_token (env : Aux.env) scanner (token : token) =
       match macro_kind with
       | FunctionLike _ -> begin
           let tok_list = (Obj.obj tok_list_obj : token list) in
+          DEBUG_MSG "[%s]"
+            (String.concat ";" (List.map (fun (rt,_,_) -> Token.rawtoken_to_string rt) tok_list));
           match tok_list with
           | [T.PP_STRINGIZED "#__VA_ARGS__",_,_] -> true
+          | _ -> false
+      end
+      | _ -> false
+    with
+      _ -> false
+    in
+    DEBUG_MSG "%s -> %B" s b;
+    b
+  in
+
+  let is_ident_macro_ident_p s =
+    let b =
+    try
+      let _, macro_kind, tok_list_obj = env#find_pending_macro s in
+      match macro_kind with
+      | FunctionLike _ -> begin
+          let tok_list = (Obj.obj tok_list_obj : token list) in
+          DEBUG_MSG "[%s]"
+            (String.concat ";" (List.map (fun (rt,_,_) -> Token.rawtoken_to_string rt) tok_list));
+          match tok_list with
+          | [T.IDENT _,_,_] -> true
           | _ -> false
       end
       | _ -> false
@@ -19494,6 +19508,18 @@ let conv_token (env : Aux.env) scanner (token : token) =
       else
         mk (T.IDENT_AM s)
   end
+
+  | IDENT s when begin
+      is_ident_macro_ident_p s &&
+      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+      match self#peek_nth_rawtoken (nth+1) with
+      | SEMICOLON _ | EQ -> true
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    mk (T.IDENT_IM s)
+  end
+
   | IDENT s when is_ident_macro_ident s && self#peek_rawtoken() == TY_LPAREN -> begin
       DEBUG_MSG "@";
       if s = "DEFUN" then begin
@@ -19547,6 +19573,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
       end;
       mk (T.IDENT_IM s)
   end
+
   | IDENT s when is_body_macro_ident s && self#peek_rawtoken() == TY_LPAREN -> mk (T.IDENT_BM s)
 
   | IDENT s when Str.string_match google_attr_pat s 0 -> begin
@@ -28910,13 +28937,12 @@ module F (Stat : Aux.STATE_T) = struct
         then begin
           DEBUG_MSG "@";
           let ll =
-            List.flatten
-              (List.map
-                 (function
-                   | [x; y]  -> [[y]; [x]]
-                   | T.NEWLINE::rest -> [[Xlist.last rest]]
-                   | x -> [x]
-                 ) ll)
+            List.concat_map
+              (function
+                | [x; y]  -> [[y]; [x]]
+                | T.NEWLINE::rest -> [[Xlist.last rest]]
+                | x -> [x]
+              ) ll
           in
           let ids =
             List.map
@@ -30751,9 +30777,21 @@ module F (Stat : Aux.STATE_T) = struct
         let mk x = (x, stp, edp) in
         match rawtok with
 
-        | AT when prev_rawtoken == EOF || env#asm_flag -> begin
+        | IDENT _ when begin
+            not env#for_flag &&
+            match prev_rawtoken with
+            | SEMICOLON true -> is_start_of_stmt sub_context
+            | _ -> false
+        end -> begin (* to avoid skipping head statement due to rollback *)
           DEBUG_MSG "@";
+          self#prepend_token token;
+          self#prepend_token (mk (T.SEMICOLON false));
           raise To_be_recovered
+        end
+
+        | AT when prev_rawtoken == EOF || env#asm_flag -> begin
+            DEBUG_MSG "@";
+            raise To_be_recovered
         end
 
         | INT_LITERAL i when begin

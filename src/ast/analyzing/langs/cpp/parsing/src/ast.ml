@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -49,6 +49,16 @@ class node
     val mutable info = info
     val mutable binding = B.NoBinding
     val mutable pvec = pvec
+
+    val mutable id_opt = None
+    method id =
+      match id_opt with
+      | None -> begin
+          let i = Oo.id self in
+          id_opt <- Some i;
+          i
+      end
+      | Some i -> i
 
     val mutable prefix = ""
     method add_prefix s = prefix <- s^prefix
@@ -303,7 +313,7 @@ let node_exists pred (nd : node) =
 let find_nodes pred (nd : node) =
   let rec _find pred (nd : node) =
     DEBUG_MSG "%s" (L.to_string nd#label);
-    let nl = List.flatten (List.map (_find pred) nd#children) in
+    let nl = List.concat_map (_find pred) nd#children in
     if pred nd#label then
       nd::nl
     else
@@ -1223,7 +1233,7 @@ and base_specs_of_base_clause ns (nd : node) =
               | [] -> bss, abssl
               | ys::yss ->
                   ys @ bss,
-                  List.flatten (List.map (fun abss -> List.map (fun ys -> ys @ abss) yss) abssl)
+                  List.concat_map (fun abss -> List.map (fun ys -> ys @ abss) yss) abssl
           end
           | _ -> bss @ [(base_spec_of_node ns x)], abssl
         ) ([], []) nd#children
@@ -2010,7 +2020,7 @@ and simple_type_of_class_head (nd : node) =
         (g (nd#nth_child 0))::
         (List.map g (nd#nth_children 1)) @ (List.map g (nd#nth_children 2))
       in
-      List.flatten (List.map simple_type_of_class_head chs)
+      List.concat_map simple_type_of_class_head chs
 
 and simple_type_of_decl_spec_seq (nds : node list) =
   DEBUG_MSG "nds=[%s]" (String.concat "; " (List.map (fun n -> L.to_string n#label) nds));

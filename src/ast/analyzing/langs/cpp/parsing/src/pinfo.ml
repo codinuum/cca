@@ -779,7 +779,7 @@ module Type = struct
     | ArrayTy(ty, dims) -> get_top_level_type ty
     | PointerTy pty -> get_top_level_type pty.pt_type
     | FunctionTy fty -> get_top_level_type fty.ft_return_type
-    | AltTy ts -> List.flatten (List.map get_top_level_type ts)
+    | AltTy ts -> List.concat_map get_top_level_type ts
 
   let rec _is_type_type = function
     | SimpleTy sty -> simple_ty_has_type_type sty

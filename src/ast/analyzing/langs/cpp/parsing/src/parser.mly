@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020-2022 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@ module NestedNS = Pinfo.Name.NestedNamespace
 open Common
 open Aux
 open Stat
+
+let is_asm_kw = Parser_aux.is_asm_kw
 
 let rec add_to_last n = function
   | [] -> []
@@ -250,6 +252,9 @@ let check_macro_body ?(name="") sp ep (tl : Token.t list) tl_obj =
   end
 
   | (ASM,_,_)::r -> [mkleaf ~pvec:[0; 0] sp ep (L.AsmDefinition "")], false
+
+  | (IDENT x,_,_)::(IDENT y,_,_)::(COMMA,_,_)::_ when is_asm_kw x ->
+      [mkleaf sp ep (L.GnuAsmFragment (Token.seq_to_repr tl))], false
 
   | [IDENT x,_,_;IDENT y,_,_;INT_LITERAL i,_,_] when x = "hint" && y = "#" ->
       [mkleaf sp ep (L.GnuAsmFragment ("hint #"^i))], false
@@ -505,7 +510,10 @@ let check_macro_body ?(name="") sp ep (tl : Token.t list) tl_obj =
   | [rt,_,_] -> begin
       let lab, p =
         try
-          rawtok_to_lab rt, false
+          let lab = rawtok_to_lab rt in
+          match lab with
+          | L.Identifier i when String.contains i '#' -> raise Exit
+          | _ -> lab, false
         with
           _ -> L.TokenSeq tl_obj, true
       in
@@ -1275,8 +1283,18 @@ statement_seq:
 | sl=_statement_seq { List.rev sl }
 ;
 _statement_seq:
-| s=statement { [s] }
-| sl=_statement_seq s=statement { s::sl }
+| s=statement
+    { 
+      match s#label with
+      | L.DummyStmt -> []
+      | _ -> [s]
+    }
+| sl=_statement_seq s=statement
+    { 
+      match s#label with
+      | L.DummyStmt -> sl
+      | _ -> s::sl
+    }
 ;
 
 pp_stmt_if_section:
@@ -2008,9 +2026,13 @@ unlabeled_statement:
 | al_opt=attribute_specifier_seq_opt sc=SEMICOLON
     { 
       let al = list_opt_to_list al_opt in
-      let s = mknode ~pvec:[List.length al; 0] $symbolstartpos $endpos L.ExpressionStatement al in
-      if sc then s#add_suffix ";";
-      s
+      let nal = List.length al in
+      if nal = 0 && not sc then
+        mkleaf $startpos $endpos L.DummyStmt
+      else
+        let s = mknode ~pvec:[nal; 0] $symbolstartpos $endpos L.ExpressionStatement al in
+        if sc then s#add_suffix ";";
+        s
     }
 
 | DUMMY_STMT { mkleaf $startpos $endpos L.DummyStmt }
