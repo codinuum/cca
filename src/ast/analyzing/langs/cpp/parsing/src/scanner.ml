@@ -30782,7 +30782,7 @@ module F (Stat : Aux.STATE_T) = struct
             match prev_rawtoken with
             | SEMICOLON true -> is_start_of_stmt sub_context
             | _ -> false
-        end -> begin (* to avoid skipping head statement due to rollback *)
+        end -> begin (* to avoid missing statements due to rollback *)
           DEBUG_MSG "@";
           self#prepend_token token;
           self#prepend_token (mk (T.SEMICOLON false));

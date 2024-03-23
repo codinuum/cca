@@ -5130,7 +5130,16 @@ class parser_c = object (self)
                   | FunctionLike _ -> L.FunctionLikeMacro macro_kind
                   | _ -> assert false
                 in
-                new Ast.node ~lloc:(nd#lloc) ~children:[nd] lab
+                let children =
+                  match nd#label with
+                  | L.STMTS -> begin
+                      match nd#children with
+                      | [_] -> nd#children
+                      | _ -> [nd]
+                  end
+                  | _ -> [nd]
+                in
+                new Ast.node ~lloc:(nd#lloc) ~children lab
               in
               pnd#set_children [mnd]
             in
@@ -5231,7 +5240,6 @@ class parser_c = object (self)
                   enter_macro name mode;
                   let ckpt = P.Incremental.stmts_sub ini_pos in
                   let nd = loop ckpt in
-                  let _ = nd#remove_leftmost_child in
                   exit_macro();
                   setup_macro_node nd
                 with
