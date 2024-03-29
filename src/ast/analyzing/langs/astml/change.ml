@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ module CCX (L : Label.T) = struct
 
   let get_unit tree nd =
     try
-      let u = tree#get_nearest_containing_unit nd#uid in
+      let u = tree#get_nearest_containing_unit nd in
       u#data#label
     with
       Not_found -> ""

@@ -17,15 +17,28 @@ module UID = Otreediff.UID
 
 open Printf
 
-let cost ?(umap_opt=None) tree1 tree2 i j =
+let nups = Misc.nups
+
+type node_t = Spec.node_t
+
+module Node = struct
+  type t = node_t
+  let equal n1 n2 = n1 == n2
+  let hash n = n#hash(*lnot n#uid*)
+end
+
+module Nodetbl = Hashtbl.Make (Node)
+
+
+let cost ?(nmap_opt=None) tree1 tree2 i j =
   if i = 0 && j = 0 then
     Stdlib.max_int
   else
     let nd1 = tree1#get i in
     let nd2 = tree2#get j in
     if
-      match umap_opt with
-      | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
+      match nmap_opt with
+      | Some nmap -> (try nmap#find nd1 == nd2 with _ -> false)
       | None -> false
     then
       0
@@ -63,15 +76,15 @@ let cost ?(umap_opt=None) tree1 tree2 i j =
       else (* relabel *)
         5
 
-let semi_semantic_cost ?(umap_opt=None) tree1 tree2 i j =
+let semi_semantic_cost ?(nmap_opt=None) tree1 tree2 i j =
   if i = 0 && j = 0 then
     Stdlib.max_int
   else
     let nd1 = tree1#get i in
     let nd2 = tree2#get j in
     if
-      match umap_opt with
-      | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
+      match nmap_opt with
+      | Some nmap -> (try nmap#find nd1 == nd2 with _ -> false)
       | None -> false
     then
       0
@@ -117,11 +130,10 @@ let semi_semantic_cost ?(umap_opt=None) tree1 tree2 i j =
         else
           6
 
-let get_anc_labs_cache = (Hashtbl.create 0 : (UID.t, string) Hashtbl.t)
+let get_anc_labs_cache = (Nodetbl.create 0 : string Nodetbl.t)
 let get_anc_labs n =
-  let u = n#uid in
   try
-    Hashtbl.find get_anc_labs_cache u
+    Nodetbl.find get_anc_labs_cache n
   with Not_found -> begin
     let lab = ref n#data#anonymized_label in
     let rec scan n =
@@ -140,20 +152,20 @@ let get_anc_labs n =
         scan n
       with _ -> ()
     end;
-    DEBUG_MSG "%a: %s -> %s" UID.ps u n#data#label !lab;
-    Hashtbl.add get_anc_labs_cache u !lab;
+    DEBUG_MSG "%a: %s -> %s" nups n n#data#label !lab;
+    Nodetbl.add get_anc_labs_cache n !lab;
     !lab
   end
 
-let semantic_cost ?(umap_opt=None) ?(rely_on_context=false) tree1 tree2 i j =
+let semantic_cost ?(nmap_opt=None) ?(rely_on_context=false) tree1 tree2 i j =
   if i = 0 && j = 0 then
     Stdlib.max_int
   else
     let nd1 = tree1#get i in
     let nd2 = tree2#get j in
     if
-      match umap_opt with
-      | Some umap -> (try umap#find nd1#uid = nd2#uid with _ -> false)
+      match nmap_opt with
+      | Some nmap -> (try nmap#find nd1 == nd2 with _ -> false)
       | None -> false
     then
       0
@@ -212,17 +224,17 @@ let semantic_cost ?(umap_opt=None) ?(rely_on_context=false) tree1 tree2 i j =
 
 let _find w tree1 tree2 = Otreediff.ZS.Int.find w tree1 tree2
 
-let find ?(umap_opt=None) ?(check_relabels=false) tree1 tree2 =
+let find ?(nmap_opt=None) ?(check_relabels=false) tree1 tree2 =
   let cost_ =
     if check_relabels then
-      semi_semantic_cost ~umap_opt
+      semi_semantic_cost ~nmap_opt
     else
-      cost ~umap_opt
+      cost ~nmap_opt
   in
   _find cost_ tree1 tree2
 
-let sfind ?(umap_opt=None) ?(rely_on_context=false) tree1 tree2 =
-  _find (semantic_cost ~umap_opt ~rely_on_context) tree1 tree2
+let sfind ?(nmap_opt=None) ?(rely_on_context=false) tree1 tree2 =
+  _find (semantic_cost ~nmap_opt ~rely_on_context) tree1 tree2
 
 
 
@@ -299,13 +311,13 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
                 | [nd1], [nd2] -> add_cand (nd1, nd2)
                 | nd1::_, [nd2] when nd2#data#is_named_orig -> begin
                     let lab2 = try get_anc_labs nd2 with _ -> "" in
-                    DEBUG_MSG "%a: lab2=%s" UID.ps nd2#uid lab2;
+                    DEBUG_MSG "%a: lab2=%s" nups nd2 lab2;
                     let nds1_ =
                       List.filter
                         (fun n1 ->
                           try
                             let lab1 = get_anc_labs n1 in
-                            DEBUG_MSG "%a: lab1=%s" UID.ps n1#uid lab1;
+                            DEBUG_MSG "%a: lab1=%s" nups n1 lab1;
                             lab1 = lab2
                           with _ -> false
                         ) nds1
@@ -315,18 +327,18 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
                     | _ -> begin
                         DEBUG_MSG "[%s] vs [%a] --> abort"
                           (Xlist.to_string (fun n -> UID.to_string n#uid) ";" nds1_)
-                          UID.ps nd2#uid
+                          nups nd2
                     end
                 end
                 | [nd1], nd2::_ when nd1#data#is_named_orig -> begin
                     let lab1 = try get_anc_labs nd1 with _ -> "" in
-                    DEBUG_MSG "%a: lab1=%s" UID.ps nd1#uid lab1;
+                    DEBUG_MSG "%a: lab1=%s" nups nd1 lab1;
                     let nds2_ =
                       List.filter
                         (fun n2 ->
                           try
                             let lab2 = get_anc_labs n2 in
-                            DEBUG_MSG "%a: lab2=%s" UID.ps n2#uid lab2;
+                            DEBUG_MSG "%a: lab2=%s" nups n2 lab2;
                             lab1 = lab2
                           with _ -> false
                         ) nds2
@@ -335,7 +347,7 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
                     | [nd2] -> add_cand (nd1, nd2)
                     | _ -> begin
                         DEBUG_MSG "[%a] vs [%s] --> abort"
-                          UID.ps nd1#uid
+                          nups nd1
                           (Xlist.to_string (fun n -> UID.to_string n#uid) ";" nds2_)
                     end
                 end
@@ -356,27 +368,25 @@ let find_glue_cands ?(simple=false) tree1 tree2 nodes1 nodes2 matches_tbl =
 
   DEBUG_MSG "cands: [%s]"
     (Xlist.to_string
-       (fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) ";" final_cands);
+       (fun (n1, n2) -> sprintf "%a-%a" nups n1 nups n2) ";" final_cands);
 
   final_cands
 (* end of func find_glue_cands *)
 
 
-let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
+let fast_match_trees tree1 tree2 ref_nmapping = (* fast but inaccurate *)
 
   BEGIN_DEBUG
     DEBUG_MSG "|T1(root=%a)|=%d |T2(root=%a)|=%d"
-    UID.ps tree1#root#uid tree1#size UID.ps tree2#root#uid tree2#size;
+    nups tree1#root tree1#size nups tree2#root tree2#size;
     DEBUG_MSG "T1:\n%s\n" tree1#to_string;
     DEBUG_MSG "T2:\n%s\n" tree2#to_string
   END_DEBUG;
 
   let ref_matches = ref [] in
-  ref_uidmapping#iter
-    (fun u1 u2 ->
+  ref_nmapping#iter
+    (fun n1 n2 ->
       try
-        let n1 = tree1#search_node_by_uid u1 in
-        let n2 = tree2#search_node_by_uid u2 in
         ref_matches := (n1, n2) :: !ref_matches
       with
         Not_found -> ()
@@ -538,8 +548,8 @@ let fast_match_trees tree1 tree2 ref_uidmapping = (* fast but inaccurate *)
     );
 
   (* we want more matches! *)
-  let matches_tbl = Hashtbl.create 0 in
-  List.iter (fun (n1, n2) -> Hashtbl.add matches_tbl n1#uid n2#uid) !matches;
+  let matches_tbl = Nodetbl.create 0 in
+  List.iter (fun (n1, n2) -> Nodetbl.add matches_tbl n1 n2) !matches;
   let extra_matches =
     find_glue_cands tree1 tree2 !deletes !inserts matches_tbl
   in
@@ -564,8 +574,8 @@ let match_trees
     ?(root_check=true)
     ?(semantic=false)
     ?(check_relabels=false)
-    uidmapping
-    ref_uidmapping
+    nmapping
+    ref_nmapping
     =
 
   BEGIN_DEBUG
@@ -577,18 +587,18 @@ let match_trees
   END_DEBUG;
 
   let eds, mapping, _ =
-    let umap_opt =
+    let nmap_opt =
       if partially_mapped then
-        Some uidmapping
+        Some nmapping
       else
         None
     in
     let matcher =
       if semantic || partially_mapped then
         let rely_on_context = partially_mapped in
-        sfind ~umap_opt ~rely_on_context
+        sfind ~nmap_opt ~rely_on_context
       else
-        find ~umap_opt ~check_relabels
+        find ~nmap_opt ~check_relabels
     in
     matcher tree1 tree2
   in
@@ -626,26 +636,24 @@ let match_trees
            (fun (n1, n2) ->
              sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) ";" matches);
 
-      let matches_tbl = Hashtbl.create 0 in
-      List.iter (fun (n1, n2) -> Hashtbl.add matches_tbl n1#uid n2#uid) matches;
+      let matches_tbl = Nodetbl.create 0 in
+      List.iter (fun (n1, n2) -> Nodetbl.add matches_tbl n1 n2) matches;
 
       let relabels = List.map (fun (i, j) -> tree1#get i, tree2#get j) relabels in
       let relabels =
         if partially_mapped then
           List.filter
             (fun (n1, n2) ->
-              let u1 = n1#uid in
-              let u2 = n2#uid in
               BEGIN_DEBUG
                 try
-                  let u2' = uidmapping#inv_find u2 in
-                  DEBUG_MSG "umap: %a<-%a" UID.ps u2' UID.ps u2
+                  let n2' = nmapping#inv_find n2 in
+                  DEBUG_MSG "nmap: %a<-%a" nups n2' nups n2
                 with _ -> ()
               END_DEBUG;
               try
-                let u1' = uidmapping#find u1 in
-                let b =  u1' <> u2 in
-                DEBUG_MSG "umap: %a->%a --> %B" UID.ps u1 UID.ps u1' (not b);
+                let n1' = nmapping#find n1 in
+                let b =  n1' != n2 in
+                DEBUG_MSG "nmap: %a->%a --> %B" nups n1 nups n1' (not b);
                 b
               with _ -> true
             ) relabels
@@ -657,18 +665,16 @@ let match_trees
       BEGIN_DEBUG
         List.iter
           (fun n1 ->
-            let u1 = n1#uid in
             try
-              let u1' = uidmapping#find u1 in
-              DEBUG_MSG "umap: %a->%a" UID.ps u1 UID.ps u1'
+              let n1' = nmapping#find n1 in
+              DEBUG_MSG "nmap: %a->%a" nups n1 nups n1'
             with _ -> ()
           ) deletes;
         List.iter
           (fun n2 ->
-            let u2 = n2#uid in
             try
-              let u2' = uidmapping#inv_find u2 in
-              DEBUG_MSG "umap: %a<-%a" UID.ps u2' UID.ps u2
+              let n2' = nmapping#inv_find n2 in
+              DEBUG_MSG "nmap: %a<-%a" nups n2' nups n2
             with _ -> ()
           ) inserts
       END_DEBUG;
@@ -683,8 +689,7 @@ let match_trees
 
       DEBUG_MSG "extra_matches: [%s]"
         (Xlist.to_string
-           (fun (n1, n2) ->
-             sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid) ";" extra_matches);
+           (fun (n1, n2) -> sprintf "%a-%a" nups n1 nups n2) ";" extra_matches);
 
       (* check conflicts between relabels and extra_matches *)
       let bad_relabels = ref [] in
@@ -702,8 +707,7 @@ let match_trees
         tree1#fast_scan_whole_initial_subtree nd1
           (fun nd ->
             try
-              let u' = uidmapping#find_settled nd#uid in
-              let n' = tree2#search_node_by_uid u' in
+              let n' = nmapping#find_settled nd in
               if tree2#initial_subtree_mem nd2 n' then
                 incr ext
             with
@@ -761,10 +765,10 @@ let match_trees
                   [(nd1, cands2.(0)); (cands1.(0), nd2)]
               in
               DEBUG_MSG "extra_match %a-%a conflicts with relabel(s) %s"
-                UID.ps nd1#uid UID.ps nd2#uid
+                nups nd1 nups nd2
                 (String.concat ", "
                    (List.map
-                      (fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid)
+                      (fun (n1, n2) -> sprintf "%a-%a" nups n1 nups n2)
                       conflicts))
                 END_DEBUG;
 
@@ -781,7 +785,7 @@ let match_trees
               DEBUG_MSG "selected: %s"
                 (String.concat ", "
                    (List.map
-                      (fun (n1, n2) -> sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid)
+                      (fun (n1, n2) -> sprintf "%a-%a" nups n1 nups n2)
                       selected));
 
               List.fold_left
@@ -836,7 +840,7 @@ let match_trees
               more_extra_matches := (nd1, nd1') :: !more_extra_matches;
 
               DEBUG_MSG "%a-%a vs %a-%a: score=%f < score'=%f"
-                UID.ps nd1#uid UID.ps nd2#uid UID.ps nd1#uid UID.ps nd1'#uid !score score'
+                nups nd1 nups nd2 nups nd1 nups nd1' !score score'
 
             end;
             b
@@ -856,7 +860,7 @@ let match_trees
               more_extra_matches := (nd2', nd2) :: !more_extra_matches;
 
               DEBUG_MSG "%a-%a vs %a-%a: score=%f < score'=%f"
-                UID.ps nd1#uid UID.ps nd2#uid UID.ps nd2'#uid UID.ps nd2#uid !score score'
+                nups nd1 nups nd2 nups nd2' nups nd2 !score score'
             end;
             b
           end
@@ -881,7 +885,7 @@ let match_trees
         let to_str m =
           Xlist.to_string
             (fun (n1, n2) ->
-              sprintf "%a-%a" UID.ps n1#uid UID.ps n2#uid
+              sprintf "%a-%a" nups n1 nups n2
             ) ";" m
         in
         DEBUG_MSG "final matches: [%s]" (to_str final_matches);
@@ -895,7 +899,7 @@ let match_trees
     else begin
       DEBUG_MSG "mapping does not contain roots!";
       DEBUG_MSG "using fast_match_trees...";
-      fast_match_trees tree1 tree2 ref_uidmapping
+      fast_match_trees tree1 tree2 ref_nmapping
     end
   in
   res

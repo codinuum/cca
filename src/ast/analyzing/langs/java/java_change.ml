@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@
 
 
 module UID = Otreediff.UID
+
+let nups = Misc.nups
 
 module F (L : Java_label.T) = struct
 
@@ -192,18 +194,18 @@ module F (L : Java_label.T) = struct
     let tbl = Hashtbl.create 0 in
     let add d nd =
       try
-	Hashtbl.replace tbl d (nd::(Hashtbl.find tbl d))
+        Hashtbl.replace tbl d (nd::(Hashtbl.find tbl d))
       with
-	  Not_found -> Hashtbl.add tbl d [nd]
+          Not_found -> Hashtbl.add tbl d [nd]
     in
     let rec doit depth nd =
       if is_stmt nd then begin
-	let new_depth = depth + 1 in
-	add new_depth nd;
-	Array.iter (doit new_depth) nd#children
+        let new_depth = depth + 1 in
+        add new_depth nd;
+        Array.iter (doit new_depth) nd#children
       end
       else
-	Array.iter (doit depth) nd#children
+        Array.iter (doit depth) nd#children
     in
     Array.iter (doit 0) methodbody_nd#children;
 
@@ -211,8 +213,8 @@ module F (L : Java_label.T) = struct
 
     Hashtbl.iter
       (fun d nds ->
-	if d > !maxd then
-	  maxd := d
+        if d > !maxd then
+          maxd := d
       ) tbl;
 
     let nodes = Hashtbl.find tbl !maxd in
@@ -232,12 +234,12 @@ module F (L : Java_label.T) = struct
   let enclosing_methodbody nd =
     let rec doit n =
       try
-	let pnd = n#initial_parent in
-	if is_methodbody pnd then pnd
-	else doit pnd
+        let pnd = n#initial_parent in
+        if is_methodbody pnd then pnd
+        else doit pnd
       with
-	Otreediff.Otree.Parent_not_found _ ->
-	  raise Not_found
+        Otreediff.Otree.Parent_not_found _ ->
+          raise Not_found
     in
     let res = doit nd in
 
@@ -250,13 +252,13 @@ module F (L : Java_label.T) = struct
     let res = ref [] in
     let rec doit n =
       try
-	let p = n#initial_parent in
-	if is_stmt p then
-	  res := p :: !res
-	else
-	  doit p#initial_parent
+        let p = n#initial_parent in
+        if is_stmt p then
+          res := p :: !res
+        else
+          doit p#initial_parent
       with
-	  Otreediff.Otree.Parent_not_found _ -> ()
+          Otreediff.Otree.Parent_not_found _ -> ()
     in
     doit stmt_nd;
     !res
@@ -269,16 +271,16 @@ module F (L : Java_label.T) = struct
       DEBUG_MSG "nd=%s mbnd=%s depth=%d" nd#data#to_string mbnd#data#to_string ndepth;
 
       match nodes with
-	| [] -> false
-	| [n] -> n == nd
-	| _ ->
-	  let tbl = Hashtbl.create 0 in
-	  List.iter
-	    (fun n ->
-	      List.iter (fun a -> Hashtbl.add tbl a true) (stmt_ancestors n);
-	    ) nodes;
+        | [] -> false
+        | [n] -> n == nd
+        | _ ->
+          let tbl = Hashtbl.create 0 in
+          List.iter
+            (fun n ->
+              List.iter (fun a -> Hashtbl.add tbl a true) (stmt_ancestors n);
+            ) nodes;
 
-	  Hashtbl.mem tbl nd
+          Hashtbl.mem tbl nd
 
     with Not_found -> false
 
@@ -288,7 +290,7 @@ module F (L : Java_label.T) = struct
 
   let _get_unit tree nd =
     try
-      let u = tree#get_nearest_containing_unit nd#uid in
+      let u = tree#get_nearest_containing_unit nd in
       u#data#label
     with Not_found -> ""
 
@@ -296,9 +298,9 @@ module F (L : Java_label.T) = struct
     let _unit = _get_unit tree nd in
     try
       if is_arg nd then
-	_unit ^ "." ^ nd#initial_parent#initial_parent#data#label
+        _unit ^ "." ^ nd#initial_parent#initial_parent#data#label
       else
-	_unit
+        _unit
     with _ -> _unit
 
 
@@ -312,22 +314,22 @@ module F (L : Java_label.T) = struct
     let ids = tree#get_ident_use_list nd#gindex in
     let extra =
       if is_whole then
-	if is_param nd || is_vdeclaration nd then
-	  let ty = nd#initial_children.(0) in
-	  if is_type ty then
-	    ":"^ty#data#label
-	  else
-	    ""
-	else
-	  ""
+        if is_param nd || is_vdeclaration nd then
+          let ty = nd#initial_children.(0) in
+          if is_type ty then
+            ":"^ty#data#label
+          else
+            ""
+        else
+          ""
       else
-	""
+        ""
     in
     let extra2 =
       if (* is_whole *) true then
-	subtree_to_str tree nd
+        subtree_to_str tree nd
       else
-	""
+        ""
     in
     nd#data#label^extra^(ids_to_str ids)^extra2
 
@@ -348,17 +350,17 @@ module F (L : Java_label.T) = struct
 
 (* class Change.F.c *)
 
-  class c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2 = object (self)
-    inherit CB.c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2
+  class c options tree1 tree2 nmapping edits get_unit get_desc1 get_desc2 = object (self)
+    inherit CB.c options tree1 tree2 nmapping edits get_unit get_desc1 get_desc2
 
     method mkt_accessibility_increased ?(category=Triple.ghost) = function
       | Cmodified(nd1, nd2) ->
-	  [(self#mkent1 nd1, p_accessibility_increased, self#mkent2 nd2)]
+          [(self#mkent1 nd1, p_accessibility_increased, self#mkent2 nd2)]
       | _ -> []
 
     method mkt_accessibility_decreased ?(category=Triple.ghost) = function
       | Cmodified(nd1, nd2) ->
-	  [(self#mkent1 nd1, p_accessibility_decreased, self#mkent2 nd2)]
+          [(self#mkent1 nd1, p_accessibility_decreased, self#mkent2 nd2)]
       | _ -> []
 
     method mkt_nesting_depth =
@@ -368,21 +370,21 @@ module F (L : Java_label.T) = struct
     method make_implementation_change () =
       let changes = new change_set in
       edits#iter
-	(fun ed ->
-	  match ed with
-	  | E.Move(_, sub, (_, inf1, ex1), (_, inf2, ex2)) ->
-	      let nd1 = I.get_node inf1 in
-	      let nd2 = I.get_node inf2 in
-	      if is_methodbody nd1 && is_methodbody nd2 then begin
-		try
-		  let meth_nd1 = nd1#initial_parent in
-		  let meth_nd2 = nd2#initial_parent in
-		  changes#add (Cmodified(meth_nd1, meth_nd2))
-		with
-		  Otreediff.Otree.Parent_not_found _ -> assert false
-	      end
-	  | _ -> ()
-	);
+        (fun ed ->
+          match ed with
+          | E.Move(_, sub, (info1, ex1), (info2, ex2)) ->
+              let nd1 = I.get_node info1 in
+              let nd2 = I.get_node info2 in
+              if is_methodbody nd1 && is_methodbody nd2 then begin
+                try
+                  let meth_nd1 = nd1#initial_parent in
+                  let meth_nd2 = nd2#initial_parent in
+                  changes#add (Cmodified(meth_nd1, meth_nd2))
+                with
+                  Otreediff.Otree.Parent_not_found _ -> assert false
+              end
+          | _ -> ()
+        );
       changes#get_list
 
 (* low <- private - protected - <none> - public -> high *)
@@ -391,128 +393,122 @@ module F (L : Java_label.T) = struct
 
       if not options#fact_for_changes_basic_flag then begin
 
-	let d_tbl = Hashtbl.create 0 in
-	let i_tbl = Hashtbl.create 0 in
-	let use_cand_tbl = Hashtbl.create 0 in
-	let add1 tbl k v =
-	  try
-	    Hashtbl.replace tbl k (v::(Hashtbl.find tbl k))
-	  with Not_found ->
-	    Hashtbl.add tbl k [v]
-	in
-	edits#iter
-	  (fun ed ->
-	    match ed with
-	    | E.Relabel(_, (uid1, inf1, _), (uid2, inf2, _)) ->
-		let nd1 = I.get_node inf1 in
-		let nd2 = I.get_node inf2 in
-		let c = not (edits#mem_mov12 uid1 uid2) in
-		if (rel_cond nd1 nd2) && c then begin
-		  try
-		    let pp1 = nd1#initial_parent#initial_parent in
-		    let pp2 = nd2#initial_parent#initial_parent in
-		    changes#add (Cmodified(pp1, pp2));
-		    self#set_used ed;
-		  with
-		    Otreediff.Otree.Parent_not_found _ -> assert false
-		end
+        let d_tbl = Hashtbl.create 0 in
+        let i_tbl = Hashtbl.create 0 in
+        let use_cand_tbl = Hashtbl.create 0 in
+        let add1 tbl k v =
+          try
+            Hashtbl.replace tbl k (v::(Hashtbl.find tbl k))
+          with Not_found ->
+            Hashtbl.add tbl k [v]
+        in
+        edits#iter
+          (fun ed ->
+            match ed with
+            | E.Relabel(_, (info1, _), (info2, _)) ->
+                let nd1 = I.get_node info1 in
+                let nd2 = I.get_node info2 in
+                let c = not (edits#mem_mov12 nd1 nd2) in
+                if (rel_cond nd1 nd2) && c then begin
+                  try
+                    let ppnd1 = nd1#initial_parent#initial_parent in
+                    let ppnd2 = nd2#initial_parent#initial_parent in
+                    changes#add (Cmodified(ppnd1, ppnd2));
+                    self#set_used ed;
+                  with
+                    Otreediff.Otree.Parent_not_found _ -> assert false
+                end
 
-	    | E.Delete(_, _, inf, ex) -> begin
-		let nd = I.get_node inf in
-		try
-		  if del_cond nd then begin
-		    let ppid = nd#initial_parent#initial_parent#uid in
-		    add1 d_tbl ppid nd;
-		    add1 use_cand_tbl ppid ed
-		  end;
-		with
-		  Otreediff.Otree.Parent_not_found _ -> assert false
-	    end
+            | E.Delete(_, info, ex) -> begin
+                let nd = I.get_node info in
+                try
+                  if del_cond nd then begin
+                    let ppnd = nd#initial_parent#initial_parent in
+                    add1 d_tbl ppnd nd;
+                    add1 use_cand_tbl ppnd ed
+                  end;
+                with
+                  Otreediff.Otree.Parent_not_found _ -> assert false
+            end
 
-	    | E.Insert(_, _, inf, ex) -> begin
-		let nd = I.get_node inf in
-		try
-		  if ins_cond nd then begin
-		    let ppid = nd#initial_parent#initial_parent#uid in
-		    add1 i_tbl ppid nd;
-		    add1 use_cand_tbl ppid ed
-		  end;
-		with
-		  Otreediff.Otree.Parent_not_found _ -> assert false
-	    end
+            | E.Insert(_, info, ex) -> begin
+                let nd = I.get_node info in
+                try
+                  if ins_cond nd then begin
+                    let ppnd = nd#initial_parent#initial_parent in
+                    add1 i_tbl ppnd nd;
+                    add1 use_cand_tbl ppnd ed
+                  end;
+                with
+                  Otreediff.Otree.Parent_not_found _ -> assert false
+            end
 
-	    | E.Move(_, sub, (_, inf1, ex1), (_, inf2, ex2)) ->
-		if !sub <> E.Mpermutation then begin
-		  let nd1 = I.get_node inf1 in
-		  let nd2 = I.get_node inf2 in
-		  try
-		    if del_cond nd1 then begin
-		      let ppid1 = nd1#initial_parent#initial_parent#uid in
-		      add1 d_tbl ppid1 nd1;
-		      add1 use_cand_tbl ppid1 ed
-		    end;
-		    if ins_cond nd2 then begin
-		      let ppid2 = nd2#initial_parent#initial_parent#uid in
-		      add1 i_tbl ppid2 nd2;
-		      add1 use_cand_tbl ppid2 ed;
-		    end;
-		  with
-		    Otreediff.Otree.Parent_not_found _ -> assert false
-		end
-	  );
+            | E.Move(_, sub, (info1, ex1), (info2, ex2)) ->
+                if !sub <> E.Mpermutation then begin
+                  let nd1 = I.get_node info1 in
+                  let nd2 = I.get_node info2 in
+                  try
+                    if del_cond nd1 then begin
+                      let ppnd1 = nd1#initial_parent#initial_parent in
+                      add1 d_tbl ppnd1 nd1;
+                      add1 use_cand_tbl ppnd1 ed
+                    end;
+                    if ins_cond nd2 then begin
+                      let ppnd2 = nd2#initial_parent#initial_parent in
+                      add1 i_tbl ppnd2 nd2;
+                      add1 use_cand_tbl ppnd2 ed;
+                    end;
+                  with
+                    Otreediff.Otree.Parent_not_found _ -> assert false
+                end
+          );
 
-	Hashtbl.iter
-	  (fun uid nds ->
-	    DEBUG_MSG "checking %a" UID.ps uid;
-	    try
-	      let uid' = uidmapping#find uid in
+        Hashtbl.iter
+          (fun nd nds ->
+            DEBUG_MSG "checking %a" nups nd;
+            try
+              let nd' = nmapping#find nd in
 
-	      DEBUG_MSG " -> %a" UID.ps uid';
+              DEBUG_MSG " -> %a" nups nd';
 
-	      let nds' =
-		try
-		  Hashtbl.find i_tbl uid'
-		with Not_found -> []
-	      in
-	      if not
-		  ((List.exists is_protected nds) &&
-		   (List.exists is_protected nds'))
-	      then begin
-		try
-		  let n1 = tree1#search_node_by_uid uid in
-		  let n2 = tree2#search_node_by_uid uid' in
+              let nds' =
+                try
+                  Hashtbl.find i_tbl nd'
+                with Not_found -> []
+              in
+              if not
+                  ((List.exists is_protected nds) &&
+                   (List.exists is_protected nds'))
+              then begin
+                try
+                  DEBUG_MSG "added %s - %s"
+                    nd#data#to_string nd'#data#to_string;
 
-		  DEBUG_MSG "added %s - %s"
-		    n1#data#to_string n2#data#to_string;
+                  changes#add (Cmodified(nd, nd'));
+                  List.iter self#set_used (Hashtbl.find use_cand_tbl nd)
 
-		  changes#add (Cmodified(n1, n2));
-		  List.iter self#set_used (Hashtbl.find use_cand_tbl uid)
+                with _ -> assert false
+              end
+            with Not_found -> ()
+          ) d_tbl;
 
-		with _ -> assert false
-	      end
-	    with Not_found -> ()
-	  ) d_tbl;
+        Hashtbl.iter
+          (fun nd' nds' ->
+            try
+              let nd = nmapping#inv_find nd' in
+              if not (Hashtbl.mem d_tbl nd) then
+                if not (List.exists is_protected nds') then begin
+                  try
+                    DEBUG_MSG "added %s - %s"
+                      nd#data#to_string nd'#data#to_string;
 
-	Hashtbl.iter
-	  (fun uid' nds' ->
-	    try
-	      let uid = uidmapping#inv_find uid' in
-	      if not (Hashtbl.mem d_tbl uid) then
-		if not (List.exists is_protected nds') then begin
-		  try
-		    let n1 = tree1#search_node_by_uid uid in
-		    let n2 = tree2#search_node_by_uid uid' in
+                    changes#add (Cmodified(nd, nd'));
+                    List.iter self#set_used (Hashtbl.find use_cand_tbl nd')
 
-		    DEBUG_MSG "added %s - %s"
-		      n1#data#to_string n2#data#to_string;
-
-		    changes#add (Cmodified(n1, n2));
-		    List.iter self#set_used (Hashtbl.find use_cand_tbl uid')
-
-		  with _ -> assert false
-		end
-	    with Not_found -> ()
-	  ) i_tbl;
+                  with _ -> assert false
+                end
+            with Not_found -> ()
+          ) i_tbl;
 
       end; (* of if not options#fact_for_changes_basic_flag *)
 
@@ -535,252 +531,252 @@ module F (L : Java_label.T) = struct
       let mkt_odrchg = self#mkt_order_changed ~category:Triple.ghost in
       let mkt_odrchg_c cat = self#mkt_order_changed ~category:cat in
       [
-	"primary name renamed", Slow, (self#make_renaming is_name), mkt_ren;
+        "primary name renamed", Slow, (self#make_renaming is_name), mkt_ren;
 
-	"field access renamed", Slow, (self#make_renaming is_field_acc), mkt_ren;
+        "field access renamed", Slow, (self#make_renaming is_field_acc), mkt_ren;
 
-	"condition expression changed",  Smedium, (self#make_changed_to is_cond), mkt_chgto;
-	"condition expression modified", Smedium, (self#aggregate_changes is_cond), mkt_mod;
+        "condition expression changed",  Smedium, (self#make_changed_to is_cond), mkt_chgto;
+        "condition expression modified", Smedium, (self#aggregate_changes is_cond), mkt_mod;
 
-	"else-part removed",  Smedium, (self#make_delete_st is_else), mkt_del;
-	"else-part added",    Smedium, (self#make_insert_st is_else), mkt_ins;
-	"else-part deleted",  Smedium, (self#make_delete is_else), mkt_del;
-	"else-part inserted", Smedium, (self#make_insert is_else), mkt_ins;
+        "else-part removed",  Smedium, (self#make_delete_st is_else), mkt_del;
+        "else-part added",    Smedium, (self#make_insert_st is_else), mkt_ins;
+        "else-part deleted",  Smedium, (self#make_delete is_else), mkt_del;
+        "else-part inserted", Smedium, (self#make_insert is_else), mkt_ins;
 
-	"method renamed or signature changed", Shigh, (self#make_renaming is_meth), mkt_ren;
+        "method renamed or signature changed", Shigh, (self#make_renaming is_meth), mkt_ren;
 
-	"method removed", Scrucial, (self#make_delete_st is_meth), mkt_del;
-	"method added",   Slow,     (self#make_insert_st is_meth), mkt_ins;
-	"method modified", Slow,    (self#aggregate_changes is_meth), mkt_mod;
+        "method removed", Scrucial, (self#make_delete_st is_meth), mkt_del;
+        "method added",   Slow,     (self#make_insert_st is_meth), mkt_ins;
+        "method modified", Slow,    (self#aggregate_changes is_meth), mkt_mod;
 
-	"class renamed", Shigh,   (self#make_renaming is_class), mkt_ren;
-	"class removed", Smedium, (self#make_delete_st is_class), mkt_del;
-	"class added",   Slow,    (self#make_insert_st is_class), mkt_ins;
+        "class renamed", Shigh,   (self#make_renaming is_class), mkt_ren;
+        "class removed", Smedium, (self#make_delete_st is_class), mkt_del;
+        "class added",   Slow,    (self#make_insert_st is_class), mkt_ins;
 
-	"interface renamed", Shigh,   (self#make_renaming is_interface), mkt_ren;
-	"interface removed", Smedium, (self#make_delete_st is_interface), mkt_del;
-	"interface added",   Slow,    (self#make_insert_st is_interface), mkt_ins;
+        "interface renamed", Shigh,   (self#make_renaming is_interface), mkt_ren;
+        "interface removed", Smedium, (self#make_delete_st is_interface), mkt_del;
+        "interface added",   Slow,    (self#make_insert_st is_interface), mkt_ins;
 
-	"enum renamed", Shigh,   (self#make_renaming is_enum), mkt_ren;
-	"enum removed", Smedium, (self#make_delete_st is_enum), mkt_del;
-	"enum added",   Slow,    (self#make_insert_st is_enum), mkt_ins;
+        "enum renamed", Shigh,   (self#make_renaming is_enum), mkt_ren;
+        "enum removed", Smedium, (self#make_delete_st is_enum), mkt_del;
+        "enum added",   Slow,    (self#make_insert_st is_enum), mkt_ins;
 
-	"parameter removed",       Scrucial, (self#make_delete_st is_param), mkt_del;
-	"parameter added",         Scrucial, (self#make_insert_st is_param), mkt_ins;
-	"parameter order changed", Scrucial, (self#make_order_change is_param), mkt_odrchg;
-	"parameter renamed",       Smedium,  (self#make_renaming is_param), mkt_ren;
-	"parameter type changed",  Scrucial, (self#make_changed_to is_paramty), mkt_chgto;
+        "parameter removed",       Scrucial, (self#make_delete_st is_param), mkt_del;
+        "parameter added",         Scrucial, (self#make_insert_st is_param), mkt_ins;
+        "parameter order changed", Scrucial, (self#make_order_change is_param), mkt_odrchg;
+        "parameter renamed",       Smedium,  (self#make_renaming is_param), mkt_ren;
+        "parameter type changed",  Scrucial, (self#make_changed_to is_paramty), mkt_chgto;
 
-	"type parameter removed",       Scrucial, (self#make_delete_st is_tparam), mkt_del;
-	"type parameter added",         Scrucial, (self#make_insert_st is_tparam), mkt_ins;
-	"type parameter order changed", Scrucial, (self#make_order_change is_tparam), mkt_odrchg;
-	"type parameter renamed",       Smedium,  (self#make_renaming is_tparam), mkt_ren;
+        "type parameter removed",       Scrucial, (self#make_delete_st is_tparam), mkt_del;
+        "type parameter added",         Scrucial, (self#make_insert_st is_tparam), mkt_ins;
+        "type parameter order changed", Scrucial, (self#make_order_change is_tparam), mkt_odrchg;
+        "type parameter renamed",       Smedium,  (self#make_renaming is_tparam), mkt_ren;
 
-	"return type changed", Scrucial, (self#make_changed_to is_retty), mkt_chgto;
+        "return type changed", Scrucial, (self#make_changed_to is_retty), mkt_chgto;
 
-	"return value changed",  Scrucial, (self#make_changed_to is_retval), mkt_chgto;
-	"return value modified", Scrucial, (self#aggregate_changes is_retval), mkt_mod;
+        "return value changed",  Scrucial, (self#make_changed_to is_retval), mkt_chgto;
+        "return value modified", Scrucial, (self#aggregate_changes is_retval), mkt_mod;
 
-	"constructor removed", Scrucial, (self#make_delete_st is_ctor), mkt_del;
-	"constructor added",   Slow,     (self#make_insert_st is_ctor), mkt_ins;
-	"constructor deleted", Scrucial, (self#make_delete is_ctor), mkt_del;
-	"constructor inserted",   Slow,  (self#make_insert is_ctor), mkt_ins;
+        "constructor removed", Scrucial, (self#make_delete_st is_ctor), mkt_del;
+        "constructor added",   Slow,     (self#make_insert_st is_ctor), mkt_ins;
+        "constructor deleted", Scrucial, (self#make_delete is_ctor), mkt_del;
+        "constructor inserted",   Slow,  (self#make_insert is_ctor), mkt_ins;
 
-	"field removed",          Scrucial, (self#make_delete_st is_field), mkt_del;
-	"field added",            Slow,     (self#make_insert_st is_field), mkt_ins;
-	"field type changed",     Scrucial, (self#make_changed_to is_fieldty), mkt_chgto;
-	"field renamed",          Shigh,    (self#make_renaming is_field), mkt_ren;
-	"final modifier added",   Scrucial, (self#make_insert_st is_final), mkt_ins;
-	"final modifier removed", Slow,     (self#make_delete_st is_final), mkt_del;
+        "field removed",          Scrucial, (self#make_delete_st is_field), mkt_del;
+        "field added",            Slow,     (self#make_insert_st is_field), mkt_ins;
+        "field type changed",     Scrucial, (self#make_changed_to is_fieldty), mkt_chgto;
+        "field renamed",          Shigh,    (self#make_renaming is_field), mkt_ren;
+        "final modifier added",   Scrucial, (self#make_insert_st is_final), mkt_ins;
+        "final modifier removed", Slow,     (self#make_delete_st is_final), mkt_del;
 
-	"accessibility increased", Smedium,
-	(self#make_accessibility_change
-	   ~rel_cond:(fun nd1 nd2 ->
-	     (is_private nd1 && (is_protected nd2 || is_public nd2)) ||
-	     (is_protected nd1 && is_public nd2))
-	   ~del_cond:(fun nd -> is_private nd || is_protected nd)
-	   ~ins_cond:is_public
-	),
-	self#mkt_accessibility_increased ~category:Triple.ghost;
+        "accessibility increased", Smedium,
+        (self#make_accessibility_change
+           ~rel_cond:(fun nd1 nd2 ->
+             (is_private nd1 && (is_protected nd2 || is_public nd2)) ||
+             (is_protected nd1 && is_public nd2))
+           ~del_cond:(fun nd -> is_private nd || is_protected nd)
+           ~ins_cond:is_public
+        ),
+        self#mkt_accessibility_increased ~category:Triple.ghost;
 
-	"accessibility decreased", Scrucial,
-	(self#make_accessibility_change
-	   ~rel_cond:(fun nd1 nd2 ->
-	     (is_public nd1 && (is_protected nd2 || is_private nd2)) ||
-	     (is_protected nd1 && is_private nd2))
-	   ~del_cond:is_public
-	   ~ins_cond:(fun nd -> is_protected nd || is_private nd)
-	),
-	self#mkt_accessibility_decreased ~category:Triple.ghost;
+        "accessibility decreased", Scrucial,
+        (self#make_accessibility_change
+           ~rel_cond:(fun nd1 nd2 ->
+             (is_public nd1 && (is_protected nd2 || is_private nd2)) ||
+             (is_protected nd1 && is_private nd2))
+           ~del_cond:is_public
+           ~ins_cond:(fun nd -> is_protected nd || is_private nd)
+        ),
+        self#mkt_accessibility_decreased ~category:Triple.ghost;
 
-	"statement deleted to decrease nesting-depth", Shigh,
-	(self#make_delete (fun n -> is_depth_defining n && is_stmt n)),
-	self#mkt_nesting_depth ~category:Triple.ghost;
+        "statement deleted to decrease nesting-depth", Shigh,
+        (self#make_delete (fun n -> is_depth_defining n && is_stmt n)),
+        self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement removed to decrease nesting-depth", Shigh,
-	(self#make_delete_st (fun n -> is_depth_defining n && is_stmt n)),
-	self#mkt_nesting_depth ~category:Triple.ghost;
+        "statement removed to decrease nesting-depth", Shigh,
+        (self#make_delete_st (fun n -> is_depth_defining n && is_stmt n)),
+        self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement inserted to increase nesting-depth", Shigh,
-	(self#make_insert (fun n -> is_depth_defining n && is_stmt n)),
-	self#mkt_nesting_depth ~category:Triple.ghost;
+        "statement inserted to increase nesting-depth", Shigh,
+        (self#make_insert (fun n -> is_depth_defining n && is_stmt n)),
+        self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement added to increase nesting-depth",   Shigh,
-	(self#make_insert_st (fun n -> is_depth_defining n && is_stmt n)),
-	self#mkt_nesting_depth ~category:Triple.ghost;
+        "statement added to increase nesting-depth",   Shigh,
+        (self#make_insert_st (fun n -> is_depth_defining n && is_stmt n)),
+        self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement moved to increase nesting-depth", Shigh,
-	(self#_make_move
-	   (fun n1 n2 ->
-	     not (is_depth_defining n1) && is_depth_defining n2)
-	   is_stmt
-	),
-	self#mkt_nesting_depth ~category:Triple.ghost;
+        "statement moved to increase nesting-depth", Shigh,
+        (self#_make_move
+           (fun n1 n2 ->
+             not (is_depth_defining n1) && is_depth_defining n2)
+           is_stmt
+        ),
+        self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"statement moved to decrease nesting-depth", Shigh,
-	(self#_make_move
-	   (fun n1 n2 ->
-	     is_depth_defining n1 && not (is_depth_defining n2))
-	   is_stmt
-	),
-	self#mkt_nesting_depth ~category:Triple.ghost;
+        "statement moved to decrease nesting-depth", Shigh,
+        (self#_make_move
+           (fun n1 n2 ->
+             is_depth_defining n1 && not (is_depth_defining n2))
+           is_stmt
+        ),
+        self#mkt_nesting_depth ~category:Triple.ghost;
 
-	"parent class removed", Scrucial, (self#make_delete_st is_extends), mkt_del;
-	"parent class added",   Scrucial, (self#make_insert_st is_extends), mkt_ins;
-	"parent class renamed", Scrucial, (self#make_renaming is_extended), mkt_ren;
+        "parent class removed", Scrucial, (self#make_delete_st is_extends), mkt_del;
+        "parent class added",   Scrucial, (self#make_insert_st is_extends), mkt_ins;
+        "parent class renamed", Scrucial, (self#make_renaming is_extended), mkt_ren;
 
-	"parent interface removed", Scrucial,
-	(self#make_delete_st (fun nd -> is_extendedifs nd || is_extendsifs nd)), mkt_del;
-	"parent interface added", Scrucial,
-	(self#make_insert_st (fun nd -> is_extendedifs nd || is_extendsifs nd)), mkt_ins;
-	"parent interface renamed", Scrucial, (self#make_renaming is_extendedifs), mkt_ren;
-
-
-
-	(* finer-grained changes *)
-
-	"modifier removed", Smedium, (self#make_delete_st is_modifier), mkt_del;
-	"modifier added",   Smedium, (self#make_insert_st is_modifier), mkt_ins;
-	"modifier changed", Smedium, (self#make_changed_to is_modifier), mkt_chgto;
-
-	"method invocation modified",             Slow, (self#aggregate_changes is_methinvok), mkt_mod;
-	"method invocation renamed",              Slow, (self#make_renaming is_methinvok), mkt_ren;
-	"method invocation changed",              Slow, (self#make_changed_to is_methinvok), mkt_chgto;
-	"method invocation removed",              Slow, (self#make_delete_st is_methinvok), mkt_del;
-	"method invocation added",                Slow, (self#make_insert_st is_methinvok), mkt_ins;
-	"method invocation deleted",              Slow, (self#make_delete is_methinvok), mkt_del;
-	"method invocation inserted",             Slow, (self#make_insert is_methinvok), mkt_ins;
-	"qualifier of method invocation renamed", Slow, (self#make_renaming is_qual), mkt_ren;
-	"qualifier of method invocation removed", Slow, (self#make_delete is_qual), mkt_del;
-	"qualifier of method invocation added",   Slow, (self#make_insert is_qual), mkt_ins;
-
-	"block removed",  Smedium, (self#make_delete_st is_block), mkt_del;
-	"block added",    Smedium, (self#make_insert_st is_block), mkt_ins;
-	"block deleted",  Smedium, (self#make_delete is_block), mkt_del;
-	"block inserted", Smedium, (self#make_insert is_block), mkt_ins;
-	"block moved",    Smedium, (self#make_move is_block), mkt_mov;
-
-	"throws-clause removed",                   Smedium, (self#make_delete_st is_throws), mkt_del;
-	"throws-clause added",                     Smedium, (self#make_insert_st is_throws), mkt_ins;
-	"exception type removed in throws-clause", Smedium, (self#make_delete_st is_thty), mkt_del;
-	"exception type added in throws-clause",   Smedium, (self#make_insert_st is_thty), mkt_ins;
-	"exception type renamed in throws-clause", Smedium, (self#make_renaming is_thty), mkt_ren;
-
-	"variable declaration renamed", Slow,    (self#make_renaming is_vdeclarator), mkt_ren;
-	"variable declaration removed", Smedium,
-	(self#make_delete_st (fun nd -> is_vdeclaration nd || is_vdeclarator nd)), mkt_del;
-	"variable declaration added",   Smedium,
-	(self#make_insert_st (fun nd -> is_vdeclaration nd || is_vdeclarator nd)), mkt_ins;
-	"variable type changed",        Slow,    (self#make_changed_to is_varty), mkt_chgto;
-
-	"instance creation changed",  Slow,    (self#make_changed_to is_instcreat), mkt_chgto;
-	"instance creation modified", Slow,    (self#aggregate_changes is_instcreat), mkt_mod;
-	"instance creation removed",  Smedium, (self#make_delete_st is_instcreat), mkt_del;
-	"instance creation added",    Smedium, (self#make_insert_st is_instcreat), mkt_ins;
-
-	"array creation changed",  Slow,    (self#make_changed_to is_acreat), mkt_chgto;
-	"array creation modified", Slow,    (self#aggregate_changes is_acreat), mkt_mod;
-	"array creation removed",  Smedium, (self#make_delete_st is_acreat), mkt_del;
-	"array creation added",    Smedium, (self#make_insert_st is_acreat), mkt_ins;
-
-	"constructor invocation changed",  Slow,    (self#make_changed_to is_ctorinvok), mkt_chgto;
-	"constructor invocation modified", Slow,    (self#aggregate_changes is_ctorinvok), mkt_mod;
-	"constructor invocation removed",  Smedium, (self#make_delete_st is_ctorinvok), mkt_del;
-	"constructor invocation added",    Smedium, (self#make_insert_st is_ctorinvok), mkt_ins;
-
-	"assertion condition changed",  Slow,    (self#make_changed_to is_assertcond), mkt_chgto;
-	"assertion condition modified", Slow,    (self#aggregate_changes is_assertcond), mkt_mod;
-	"assertion removed",            Smedium, (self#make_delete_st is_assert), mkt_del;
-	"assertion added",              Smedium, (self#make_insert_st is_assert), mkt_ins;
-	"assertion message removed",    Slow,    (self#make_delete_st is_assertmes), mkt_del;
-	"assertion message added",      Slow,    (self#make_insert_st is_assertmes), mkt_ins;
-
-	"initialization-part of for-statement changed",  Slow, (self#make_changed_to is_forinit), mkt_chgto;
-	"initialization-part of for-statement modified", Slow, (self#aggregate_changes is_forinit), mkt_mod;
-	"condition-part of for-statement changed",       Slow, (self#make_changed_to is_forcond), mkt_chgto;
-	"condition-part of for-statement modified",      Slow, (self#aggregate_changes is_forcond), mkt_mod;
-	"update-part of for-statement changed",          Slow, (self#make_changed_to is_forupdate), mkt_chgto;
-	"update-part of for-statement modified",         Slow, (self#aggregate_changes is_forupdate), mkt_mod;
-
-	"assignment removed",         Smedium, (self#make_delete_st is_assign), mkt_del;
-	"assignment added",           Smedium, (self#make_insert_st is_assign), mkt_ins;
-	"LHS of assignment changed",  Slow,    (self#make_changed_to is_lhs), mkt_chgto;
-	"LHS of assignment modified", Slow,    (self#aggregate_changes is_lhs), mkt_mod;
-	"RHS of assignment changed",  Slow,    (self#make_changed_to is_rhs), mkt_chgto;
-	"RHS of assignment modified", Slow,    (self#aggregate_changes is_rhs), mkt_mod;
+        "parent interface removed", Scrucial,
+        (self#make_delete_st (fun nd -> is_extendedifs nd || is_extendsifs nd)), mkt_del;
+        "parent interface added", Scrucial,
+        (self#make_insert_st (fun nd -> is_extendedifs nd || is_extendsifs nd)), mkt_ins;
+        "parent interface renamed", Scrucial, (self#make_renaming is_extendedifs), mkt_ren;
 
 
-	"argument removed",       Scrucial, (self#make_delete_st is_arg), mkt_del_c cat_argument;
-	"argument added",         Scrucial, (self#make_insert_st is_arg), mkt_ins_c cat_argument;
-	"argument order changed", Scrucial, (self#make_order_change is_arg), mkt_odrchg_c cat_argument;
-	"argument renamed",       Slow,     (self#make_renaming is_arg), mkt_ren_c cat_argument;
-	"argument changed",       Slow,     (self#make_changed_to is_arg), mkt_chgto_c cat_argument;
-	"argument modified",      Slow,     (self#aggregate_changes is_arg), mkt_mod_c cat_argument;
 
-	"import declaration removed",       Smedium, (self#make_delete_st is_idecl), mkt_del;
-	"import declaration added",         Smedium, (self#make_insert_st is_idecl), mkt_ins;
-	"import declaration renamed",       Smedium, (self#make_renaming is_idecl), mkt_ren;
-	"import declaration order changed", Slow,    (self#make_order_change is_idecl), mkt_odrchg;
+        (* finer-grained changes *)
 
-	"package declaration removed",       Smedium, (self#make_delete_st is_pdecl), mkt_del;
-	"package declaration added",         Smedium, (self#make_insert_st is_pdecl), mkt_ins;
-	"package declaration renamed",       Smedium, (self#make_renaming is_pdecl), mkt_ren;
+        "modifier removed", Smedium, (self#make_delete_st is_modifier), mkt_del;
+        "modifier added",   Smedium, (self#make_insert_st is_modifier), mkt_ins;
+        "modifier changed", Smedium, (self#make_changed_to is_modifier), mkt_chgto;
 
-	"constant changed", Smedium, (self#make_changed_to is_literal), mkt_chgto;
+        "method invocation modified",             Slow, (self#aggregate_changes is_methinvok), mkt_mod;
+        "method invocation renamed",              Slow, (self#make_renaming is_methinvok), mkt_ren;
+        "method invocation changed",              Slow, (self#make_changed_to is_methinvok), mkt_chgto;
+        "method invocation removed",              Slow, (self#make_delete_st is_methinvok), mkt_del;
+        "method invocation added",                Slow, (self#make_insert_st is_methinvok), mkt_ins;
+        "method invocation deleted",              Slow, (self#make_delete is_methinvok), mkt_del;
+        "method invocation inserted",             Slow, (self#make_insert is_methinvok), mkt_ins;
+        "qualifier of method invocation renamed", Slow, (self#make_renaming is_qual), mkt_ren;
+        "qualifier of method invocation removed", Slow, (self#make_delete is_qual), mkt_del;
+        "qualifier of method invocation added",   Slow, (self#make_insert is_qual), mkt_ins;
 
-	"expression removed",  Slow, (self#make_delete_st is_primary_or_expression), mkt_del;
-	"expression added",    Slow, (self#make_insert_st is_primary_or_expression), mkt_ins;
-	"expression moved",    Slow, (self#make_move is_primary_or_expression), mkt_mov;
-	"expression changed",  Slow, (self#make_changed_to is_primary_or_expression), mkt_chgto;
-	"expression modified", Slow, (self#aggregate_changes is_primary_or_expression), mkt_mod;
+        "block removed",  Smedium, (self#make_delete_st is_block), mkt_del;
+        "block added",    Smedium, (self#make_insert_st is_block), mkt_ins;
+        "block deleted",  Smedium, (self#make_delete is_block), mkt_del;
+        "block inserted", Smedium, (self#make_insert is_block), mkt_ins;
+        "block moved",    Smedium, (self#make_move is_block), mkt_mov;
 
-	"unary operator removed", Slow, (self#make_delete is_unaryop), mkt_del;
-	"unary operator added",   Slow, (self#make_insert is_unaryop), mkt_ins;
-	"unary operator changed", Slow, (self#make_changed_to is_unaryop), mkt_chgto;
+        "throws-clause removed",                   Smedium, (self#make_delete_st is_throws), mkt_del;
+        "throws-clause added",                     Smedium, (self#make_insert_st is_throws), mkt_ins;
+        "exception type removed in throws-clause", Smedium, (self#make_delete_st is_thty), mkt_del;
+        "exception type added in throws-clause",   Smedium, (self#make_insert_st is_thty), mkt_ins;
+        "exception type renamed in throws-clause", Smedium, (self#make_renaming is_thty), mkt_ren;
 
-	"binary operator removed", Slow, (self#make_delete is_binaryop), mkt_del;
-	"binary operator added",   Slow, (self#make_insert is_binaryop), mkt_ins;
-	"binary operator changed", Slow, (self#make_changed_to is_binaryop), mkt_chgto;
+        "variable declaration renamed", Slow,    (self#make_renaming is_vdeclarator), mkt_ren;
+        "variable declaration removed", Smedium,
+        (self#make_delete_st (fun nd -> is_vdeclaration nd || is_vdeclarator nd)), mkt_del;
+        "variable declaration added",   Smedium,
+        (self#make_insert_st (fun nd -> is_vdeclaration nd || is_vdeclarator nd)), mkt_ins;
+        "variable type changed",        Slow,    (self#make_changed_to is_varty), mkt_chgto;
 
-	"statement removed",       Smedium, (self#make_delete_st is_stmt), mkt_del;
-	"statement added",         Smedium, (self#make_insert_st is_stmt), mkt_ins;
-	"statement deleted",       Smedium, (self#make_delete is_stmt), mkt_del;
-	"statement inserted",      Smedium, (self#make_insert is_stmt), mkt_ins;
-	"statement order changed", Slow,    (self#make_order_change is_stmt), mkt_odrchg;
-	"statement moved",         Smedium, (self#make_move is_stmt), mkt_mov;
-	"statement changed",       Slow,    (self#make_changed_to is_stmt), mkt_chgto;
-	"statement modified",      Slow,    (self#aggregate_changes is_stmt), mkt_mod;
+        "instance creation changed",  Slow,    (self#make_changed_to is_instcreat), mkt_chgto;
+        "instance creation modified", Slow,    (self#aggregate_changes is_instcreat), mkt_mod;
+        "instance creation removed",  Smedium, (self#make_delete_st is_instcreat), mkt_del;
+        "instance creation added",    Smedium, (self#make_insert_st is_instcreat), mkt_ins;
 
-	"method implementation changed", Slow, (self#make_implementation_change), mkt_mod;
+        "array creation changed",  Slow,    (self#make_changed_to is_acreat), mkt_chgto;
+        "array creation modified", Slow,    (self#aggregate_changes is_acreat), mkt_mod;
+        "array creation removed",  Smedium, (self#make_delete_st is_acreat), mkt_del;
+        "array creation added",    Smedium, (self#make_insert_st is_acreat), mkt_ins;
 
-	"(removed)",       Slow, (self#make_delete_st (fun x -> true)), mkt_del;
-	"(added)",         Slow, (self#make_insert_st (fun x -> true)), mkt_ins;
-	"(deleted)",       Slow, (self#make_delete (fun x -> true)), mkt_del;
-	"(inserted)",      Slow, (self#make_insert (fun x -> true)), mkt_ins;
-	"(moved)",         Slow, (self#make_move (fun x -> true)), mkt_mov;
-	"(changed)",       Slow, (self#make_changed_to (fun x -> true)), mkt_chgto;
-	"(renamed)",       Slow, (self#make_renaming is_named), mkt_ren;
-	"(order changed)", Slow, (self#make_order_change (fun x -> true)), mkt_odrchg;
+        "constructor invocation changed",  Slow,    (self#make_changed_to is_ctorinvok), mkt_chgto;
+        "constructor invocation modified", Slow,    (self#aggregate_changes is_ctorinvok), mkt_mod;
+        "constructor invocation removed",  Smedium, (self#make_delete_st is_ctorinvok), mkt_del;
+        "constructor invocation added",    Smedium, (self#make_insert_st is_ctorinvok), mkt_ins;
+
+        "assertion condition changed",  Slow,    (self#make_changed_to is_assertcond), mkt_chgto;
+        "assertion condition modified", Slow,    (self#aggregate_changes is_assertcond), mkt_mod;
+        "assertion removed",            Smedium, (self#make_delete_st is_assert), mkt_del;
+        "assertion added",              Smedium, (self#make_insert_st is_assert), mkt_ins;
+        "assertion message removed",    Slow,    (self#make_delete_st is_assertmes), mkt_del;
+        "assertion message added",      Slow,    (self#make_insert_st is_assertmes), mkt_ins;
+
+        "initialization-part of for-statement changed",  Slow, (self#make_changed_to is_forinit), mkt_chgto;
+        "initialization-part of for-statement modified", Slow, (self#aggregate_changes is_forinit), mkt_mod;
+        "condition-part of for-statement changed",       Slow, (self#make_changed_to is_forcond), mkt_chgto;
+        "condition-part of for-statement modified",      Slow, (self#aggregate_changes is_forcond), mkt_mod;
+        "update-part of for-statement changed",          Slow, (self#make_changed_to is_forupdate), mkt_chgto;
+        "update-part of for-statement modified",         Slow, (self#aggregate_changes is_forupdate), mkt_mod;
+
+        "assignment removed",         Smedium, (self#make_delete_st is_assign), mkt_del;
+        "assignment added",           Smedium, (self#make_insert_st is_assign), mkt_ins;
+        "LHS of assignment changed",  Slow,    (self#make_changed_to is_lhs), mkt_chgto;
+        "LHS of assignment modified", Slow,    (self#aggregate_changes is_lhs), mkt_mod;
+        "RHS of assignment changed",  Slow,    (self#make_changed_to is_rhs), mkt_chgto;
+        "RHS of assignment modified", Slow,    (self#aggregate_changes is_rhs), mkt_mod;
+
+
+        "argument removed",       Scrucial, (self#make_delete_st is_arg), mkt_del_c cat_argument;
+        "argument added",         Scrucial, (self#make_insert_st is_arg), mkt_ins_c cat_argument;
+        "argument order changed", Scrucial, (self#make_order_change is_arg), mkt_odrchg_c cat_argument;
+        "argument renamed",       Slow,     (self#make_renaming is_arg), mkt_ren_c cat_argument;
+        "argument changed",       Slow,     (self#make_changed_to is_arg), mkt_chgto_c cat_argument;
+        "argument modified",      Slow,     (self#aggregate_changes is_arg), mkt_mod_c cat_argument;
+
+        "import declaration removed",       Smedium, (self#make_delete_st is_idecl), mkt_del;
+        "import declaration added",         Smedium, (self#make_insert_st is_idecl), mkt_ins;
+        "import declaration renamed",       Smedium, (self#make_renaming is_idecl), mkt_ren;
+        "import declaration order changed", Slow,    (self#make_order_change is_idecl), mkt_odrchg;
+
+        "package declaration removed",       Smedium, (self#make_delete_st is_pdecl), mkt_del;
+        "package declaration added",         Smedium, (self#make_insert_st is_pdecl), mkt_ins;
+        "package declaration renamed",       Smedium, (self#make_renaming is_pdecl), mkt_ren;
+
+        "constant changed", Smedium, (self#make_changed_to is_literal), mkt_chgto;
+
+        "expression removed",  Slow, (self#make_delete_st is_primary_or_expression), mkt_del;
+        "expression added",    Slow, (self#make_insert_st is_primary_or_expression), mkt_ins;
+        "expression moved",    Slow, (self#make_move is_primary_or_expression), mkt_mov;
+        "expression changed",  Slow, (self#make_changed_to is_primary_or_expression), mkt_chgto;
+        "expression modified", Slow, (self#aggregate_changes is_primary_or_expression), mkt_mod;
+
+        "unary operator removed", Slow, (self#make_delete is_unaryop), mkt_del;
+        "unary operator added",   Slow, (self#make_insert is_unaryop), mkt_ins;
+        "unary operator changed", Slow, (self#make_changed_to is_unaryop), mkt_chgto;
+
+        "binary operator removed", Slow, (self#make_delete is_binaryop), mkt_del;
+        "binary operator added",   Slow, (self#make_insert is_binaryop), mkt_ins;
+        "binary operator changed", Slow, (self#make_changed_to is_binaryop), mkt_chgto;
+
+        "statement removed",       Smedium, (self#make_delete_st is_stmt), mkt_del;
+        "statement added",         Smedium, (self#make_insert_st is_stmt), mkt_ins;
+        "statement deleted",       Smedium, (self#make_delete is_stmt), mkt_del;
+        "statement inserted",      Smedium, (self#make_insert is_stmt), mkt_ins;
+        "statement order changed", Slow,    (self#make_order_change is_stmt), mkt_odrchg;
+        "statement moved",         Smedium, (self#make_move is_stmt), mkt_mov;
+        "statement changed",       Slow,    (self#make_changed_to is_stmt), mkt_chgto;
+        "statement modified",      Slow,    (self#aggregate_changes is_stmt), mkt_mod;
+
+        "method implementation changed", Slow, (self#make_implementation_change), mkt_mod;
+
+        "(removed)",       Slow, (self#make_delete_st (fun x -> true)), mkt_del;
+        "(added)",         Slow, (self#make_insert_st (fun x -> true)), mkt_ins;
+        "(deleted)",       Slow, (self#make_delete (fun x -> true)), mkt_del;
+        "(inserted)",      Slow, (self#make_insert (fun x -> true)), mkt_ins;
+        "(moved)",         Slow, (self#make_move (fun x -> true)), mkt_mov;
+        "(changed)",       Slow, (self#make_changed_to (fun x -> true)), mkt_chgto;
+        "(renamed)",       Slow, (self#make_renaming is_named), mkt_ren;
+        "(order changed)", Slow, (self#make_order_change (fun x -> true)), mkt_odrchg;
 
       ]
     (* end of method make_changes_list *)
@@ -789,8 +785,8 @@ module F (L : Java_label.T) = struct
 
  end (* of class Change.F.c *)
 
-  let extract options tree1 tree2 uidmapping edits =
-    let chg = new c options tree1 tree2 uidmapping edits get_unit get_desc1 get_desc2 in
+  let extract options tree1 tree2 nmapping edits =
+    let chg = new c options tree1 tree2 nmapping edits get_unit get_desc1 get_desc2 in
     let res = chg#extract in
     chg#recover_edits;
     res

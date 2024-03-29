@@ -2052,7 +2052,7 @@ class translator options =
     in
     let children =
       (List.map self#of_switch_label sls) @
-      (List.flatten (List.map self#of_block_statement bss))
+      (List.concat_map self#of_block_statement bss)
     in
     let nd = self#mknode ~ordinal_tbl_opt L.SwitchBlockStatementGroup children in
     set_nodes_loc nd children;
@@ -2475,7 +2475,7 @@ class translator options =
     nd
 
   method _of_block ?(orig_lab_opt=None) lab b =
-    let stmt_ndl = List.flatten (List.map self#of_block_statement b.Ast.b_block_statements) in
+    let stmt_ndl = List.concat_map self#of_block_statement b.Ast.b_block_statements in
     if
       options#ast_reduction_flag && not options#normalize_ast_flag &&
       List.length stmt_ndl = 1
@@ -2804,7 +2804,7 @@ class translator options =
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length ctor_nodes; List.length bss])
     in
-    let stmts = List.flatten (List.map self#of_block_statement bss) in
+    let stmts = List.concat_map self#of_block_statement bss in
     let children = ctor_nodes @ stmts in
     let msig =
       if options#java_anon_ctor_body_flag then
@@ -2821,18 +2821,14 @@ class translator options =
 
   method of_record_body ?(in_method=false) rname rb =
     let body = rb.Ast.rb_record_body_declarations in
-    let children =
-      List.flatten (List.map self#of_record_body_declaration body)
-    in
+    let children = List.concat_map self#of_record_body_declaration body in
     self#_of_class_body ~in_method rname children rb.Ast.rb_loc
 
   method of_class_body_opt ?(in_method=false) name cb = of_opt (self#of_class_body ~in_method name) cb
 
   method of_class_body ?(in_method=false) cname cb =
     let body = cb.Ast.cb_class_body_declarations in
-    let children =
-      List.flatten (List.map self#of_class_body_declaration body)
-    in
+    let children = List.concat_map self#of_class_body_declaration body in
     self#_of_class_body ~in_method cname children cb.Ast.cb_loc
 
   method _of_class_body ?(in_method=false) cname children loc =
@@ -2918,7 +2914,7 @@ class translator options =
   method of_enum_body name eb =
     let econsts = eb.Ast.eb_enum_constants in
     let cbdecls = eb.Ast.eb_class_body_declarations in
-    let dnds = List.flatten (List.map self#of_class_body_declaration cbdecls) in
+    let dnds = List.concat_map self#of_class_body_declaration cbdecls in
     let dnds =
       if
         options#ast_reduction_flag &&
@@ -3221,9 +3217,7 @@ class translator options =
 
   method of_aspect_body aname abd =
     let body = abd.Ast.abd_aspect_body_declarations in
-    let children =
-      List.flatten (List.map self#of_class_body_declaration body)
-    in
+    let children = List.concat_map self#of_class_body_declaration body in
     self#_of_class_body aname children abd.Ast.abd_loc
 
   method of_abstract_method_declaration amd =
@@ -3241,9 +3235,7 @@ class translator options =
 
   method of_interface_body iname ib =
     let mems = ib.Ast.ib_member_declarations in
-    let children =
-      List.flatten (List.map self#of_interface_member_declaration mems)
-    in
+    let children = List.concat_map self#of_interface_member_declaration mems in
     let fields, methods, classes, enums, ifaces, others =
       ref [], ref [], ref [], ref [], ref [], ref []
     in
@@ -3297,10 +3289,9 @@ class translator options =
   method of_annotation_type_body name atb =
     let nd =
       self#mklnode (L.AnnotationTypeBody name)
-        (List.flatten
-           (List.map
-              self#of_annotation_type_member_declaration
-              atb.Ast.atb_member_declarations))
+        (List.concat_map
+           self#of_annotation_type_member_declaration
+           atb.Ast.atb_member_declarations)
     in
     set_loc nd atb.Ast.atb_loc;
     nd
@@ -3446,7 +3437,7 @@ let of_compilation_unit options cu =
     match type_decls with
     | [] -> []
     | _ ->
-        let td_nodes = List.flatten (List.map trans#of_type_declaration type_decls) in
+        let td_nodes = List.concat_map trans#of_type_declaration type_decls in
         let nd = mklnode options L.TypeDeclarations td_nodes in
         set_nodes_loc nd td_nodes;
         [nd]

@@ -39,25 +39,25 @@ class seq options = object (self)
       ?(info_file_path="")
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      (uidmapping : node_t UIDmapping.c)
+      (nmapping : node_t Node_mapping.c)
       edits_copy
       fname
       =
     let comp = options#delta_compression in
     let irreversible_flag = options#irreversible_flag in
     let dedits =
-      new Delta.Edit.seq options ~irreversible_flag tree1 tree2 uidmapping edits_copy self
+      new Delta.Edit.seq options ~irreversible_flag tree1 tree2 nmapping edits_copy self
     in
     dedits#dump_delta
       ~extra_ns_decls
       ~comp
       ~info_file_path
-      uidmapping fname
+      nmapping fname
 
 end (* of class seq *)
 
 
-let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
+let dump_changes options lang tree1 tree2 nmapping edits_copy edits file =
   DEBUG_MSG "dumping changes...";
 
   let extract = lang#extract_change in
@@ -65,7 +65,7 @@ let dump_changes options lang tree1 tree2 uidmapping edits_copy edits file =
   Xprint.verbose options#verbose_flag "extracting changes...";
 
   let changes, unused, change_infos, triples =
-    extract options tree1 tree2 uidmapping edits_copy
+    extract options tree1 tree2 nmapping edits_copy
   in
 
   Xprint.verbose options#verbose_flag "done.";
@@ -201,7 +201,7 @@ let remove_relabels_and_mapping
     tree1
     tree2
     edits
-    uidmapping
+    nmapping
     to_be_removed
     =
   List.iter (* remove incompatible relabels and mapping *)
@@ -213,23 +213,21 @@ let remove_relabels_and_mapping
       List.iter
         (fun n ->
           try
-            let u = n#uid in
-            let u' = uidmapping#find n#uid in
-            let n' = tree2#search_node_by_uid u' in
+            let n' = nmapping#find n in
             if List.memq n' !nodes2 then begin
 
               if by_non_renames then begin
-                DEBUG_MSG "by_non_renames=true: u=%a u'=%a" UID.ps u UID.ps u';
-                cenv#add_bad_pair u u'
+                DEBUG_MSG "by_non_renames=true: n=%a n'=%a" nups n nups n';
+                cenv#add_bad_pair n n'
               end;(*do not remove!!!NG!!!*)
 
               List.iter
                 (fun ed ->
                   DEBUG_MSG "removing %s" (Editop.to_string ed);
                   edits#remove_edit ed
-                ) (edits#find12 u u');
+                ) (edits#find12 n n');
 
-              uidmapping#remove u u';
+              nmapping#remove n n';
 
               let del = Editop.make_delete n in (* generate delete *)
               DEBUG_MSG "adding %s" (Editop.to_string del);
@@ -280,7 +278,7 @@ let match_nodes
             List.iter
               (fun (n1, n2, w) ->
                 DEBUG_MSG " %a(%a)-%a(%a): %d"
-                  UID.ps n1#uid GI.ps n1#gindex UID.ps n2#uid GI.ps n2#gindex w
+                  nups n1 GI.ps n1#gindex nups n2 GI.ps n2#gindex w
               ) !pair_weight_list
           END_DEBUG;
 
@@ -293,21 +291,20 @@ let match_nodes
 (* end of func match_nodes *)
 
 
-let lock_mapping tree1 tree2 uidmapping nd1 nd2 =
-  DEBUG_MSG "%a-%a" UID.ps nd1#uid UID.ps nd2#uid;
+let lock_mapping tree1 tree2 nmapping nd1 nd2 =
+  DEBUG_MSG "%a-%a" nups nd1 nups nd2;
   let nodes1 = ref [] in
   let nodes2 = ref [] in
   tree1#scan_whole_initial_subtree nd1 (fun n -> nodes1 := n::!nodes1);
   tree2#scan_whole_initial_subtree nd2 (fun n -> nodes2 := n::!nodes2);
   List.iter
     (fun n ->
-      let u = n#uid in
       try
-        let u' = uidmapping#find u in
-        if List.memq (tree2#search_node_by_uid u') !nodes2 then begin
+        let n' = nmapping#find n in
+        if List.memq n' !nodes2 then begin
           let key = Some (Key.make_pair_key nd1 nd2) in
-          uidmapping#lock_uid ?key:key u;
-          uidmapping#lock_uid ?key:key u';
+          nmapping#lock_node ?key:key n;
+          nmapping#lock_node ?key:key n';
         end
       with
         Not_found -> ()
@@ -320,7 +317,7 @@ let generate_compatible_edits
     cenv
     (tree1 : Spec.tree_t)
     (tree2 : Spec.tree_t)
-    uidmapping
+    nmapping
     edits
     compatible_pairs
     is_incompatible
@@ -337,7 +334,7 @@ let generate_compatible_edits
       let subtree2 = tree2#make_anonymized_subtree_copy nd2 in
       let subcenv = new Comparison.c options subtree1 subtree2 in
       let m, em, r =
-        Treediff.match_trees cenv subtree1 subtree2 (new UIDmapping.c subcenv) (new UIDmapping.c subcenv)
+        Treediff.match_trees cenv subtree1 subtree2 (new Node_mapping.c subcenv) (new Node_mapping.c subcenv)
       in
       let matches =
         (Misc.conv_subtree_node_pairs tree1 tree2) (m @ em @ r)
@@ -346,7 +343,7 @@ let generate_compatible_edits
       BEGIN_DEBUG
         DEBUG_MSG "matches:";
         List.iter
-          (fun (n1, n2) -> DEBUG_MSG "%a-%a" UID.ps n1#uid UID.ps n2#uid)
+          (fun (n1, n2) -> DEBUG_MSG "%a-%a" nups n1 nups n2)
           matches;
         DEBUG_MSG "matches (gindex):";
         List.iter
@@ -356,31 +353,28 @@ let generate_compatible_edits
 
       List.iter
         (fun (n1, n2) ->
-          DEBUG_MSG "%a-%a" UID.ps n1#uid UID.ps n2#uid;
+          DEBUG_MSG "%a-%a" nups n1 nups n2;
           let incompat, by_non_renames = is_incompatible n1 n2 in
           if incompat then
             DEBUG_MSG "incompatible"
-          else
-            let u1, u2 = n1#uid, n2#uid in
-
+          else begin
             (* remove conflicting edits *)
             begin
-              let eds1 = edits#find1 u1 in
+              let eds1 = edits#find1 n1 in
               let conflict =
                 match eds1 with
                 | [] -> false
                 | [Delete _] -> true
-                | [Relabel(_, _, (u2', _, _))] -> u2' <> u2
-                | [Relabel(_, _, (u2', _, _));Move(_, _, _, (u2'', _, _))]
-                | [Move(_, _, _, (u2'', _, _));Relabel(_, _, (u2', _, _))] ->
-                    assert (u2' = u2'');
-                    let b = u2' <> u2 in
+                | [Relabel(_, _, (i2', _))] -> Info.get_node i2' != n2
+                | [Relabel(_, _, (i2', _));Move(_, _, _, (i2'', _))]
+                | [Move(_, _, _, (i2'', _));Relabel(_, _, (i2', _))] ->
+                    let n2' = Info.get_node i2' in
+                    let n2'' = Info.get_node i2'' in
+                    assert (n2' == n2'');
+                    let b = n2' != n2 in
                     if b then begin
-                      let n2' = tree2#search_node_by_uid u2' in
                       let ins = Editop.make_insert n2' in
-
                       DEBUG_MSG "adding %s" (Editop.to_string ins);
-
                       edits#add_edit ins
                     end;
                     b
@@ -394,18 +388,19 @@ let generate_compatible_edits
                   ) eds1
             end;
             begin
-              let eds2 = edits#find2 u2 in
+              let eds2 = edits#find2 n2 in
               let conflict =
                 match eds2 with
                 | [] -> false
                 | [Insert _] -> true
-                | [Relabel(_, (u1', _, _), _)] -> u1' <> u1
-                | [Relabel(_, (u1', _, _), _);Move(_, _, (u1'', _, _), _)]
-                | [Move(_, _, (u1'', _, _), _);Relabel(_, (u1', _, _), _)] ->
-                    assert (u1' = u1'');
-                    let b = u1' <> u1 in
+                | [Relabel(_, (i1', _), _)] -> Info.get_node i1' != n1
+                | [Relabel(_, (i1', _), _);Move(_, _, (i1'', _), _)]
+                | [Move(_, _, (i1'', _), _);Relabel(_, (i1', _), _)] ->
+                    let n1' = Info.get_node i1' in
+                    let n1'' = Info.get_node i1'' in
+                    assert (n1' == n1'');
+                    let b = n1' != n1 in
                     if b then begin
-                      let n1' = tree1#search_node_by_uid u1' in
                       let del = Editop.make_delete n1' in
                       DEBUG_MSG "adding %s" (Editop.to_string del);
                       edits#add_edit del
@@ -422,7 +417,7 @@ let generate_compatible_edits
             end;
 
             (* add new edit *)
-            let eds = edits#find12 u1 u2 in
+            let eds = edits#find12 n1 n2 in
             if eds = [] then begin
               if not (n1#data#eq n2#data) then begin
                 let rel = Editop.make_relabel n1 n2 in
@@ -441,25 +436,25 @@ let generate_compatible_edits
             end;
 
             (* add new mapping (override) *)
-            if not (uidmapping#has_mapping u1 u2) then begin
-              DEBUG_MSG "adding %a -> %a" UID.ps u1 UID.ps u2;
-              let conflict = uidmapping#add_unsettled u1 u2 in
+            if not (nmapping#has_mapping n1 n2) then begin
+              DEBUG_MSG "adding %a -> %a" nups n1 nups n2;
+              let conflict = nmapping#add_unsettled n1 n2 in
               match conflict with
-              | Some u1, None -> begin
-                  let del = Editop.make_delete (tree1#search_node_by_uid u1) in
+              | Some n1, None -> begin
+                  let del = Editop.make_delete n1 in
                   DEBUG_MSG "adding %s" (Editop.to_string del);
                   edits#add_edit del
               end
-              | None, Some u2 -> begin
-                  let ins = Editop.make_insert (tree2#search_node_by_uid u2) in
+              | None, Some n2 -> begin
+                  let ins = Editop.make_insert n2 in
                   DEBUG_MSG "adding %s" (Editop.to_string ins);
                   edits#add_edit ins
               end
-              | Some u1, Some u2 -> begin
-                  let del = Editop.make_delete (tree1#search_node_by_uid u1) in
+              | Some n1, Some n2 -> begin
+                  let del = Editop.make_delete n1 in
                   DEBUG_MSG "adding %s" (Editop.to_string del);
                   edits#add_edit del;
-                  let ins = Editop.make_insert (tree2#search_node_by_uid u2) in
+                  let ins = Editop.make_insert n2 in
                   DEBUG_MSG "adding %s" (Editop.to_string ins);
                   edits#add_edit ins
               end
@@ -473,10 +468,10 @@ let generate_compatible_edits
               B.is_def bnd1 && B.is_def bnd2 && B.is_local_def bnd1 = B.is_local_def bnd2
             then begin
               let key = Some (Key.make_pair_key nd1 nd2) in
-              uidmapping#lock_uid ?key:key u1;
-              uidmapping#lock_uid ?key:key u2
+              nmapping#lock_node ?key:key n1;
+              nmapping#lock_node ?key:key n2
             end
-
+          end
         ) matches
       end
 
@@ -517,7 +512,7 @@ let is_uniq_child pnd nd =
       pnd#initial_nchildren = 1
 
   in
-  DEBUG_MSG "%a -> %B" UID.ps nd#uid b;
+  DEBUG_MSG "%a -> %B" nups nd b;
   b
 
 let has_uniq_path rt nd =
@@ -537,15 +532,15 @@ let has_uniq_path rt nd =
     | Abort -> false
     | Exit -> true
   in
-  (*DEBUG_MSG "%a (rt=%a) -> %B" nd#uid rt#uid b*)
+  (*DEBUG_MSG "%a (rt=%a) -> %B" nups nd nups rt b*)
   b
 
 let has_uniq_paths rt1 rt2 n1 n2 =
   let b = has_uniq_path rt1 n1 && has_uniq_path rt2 n2 in
-  DEBUG_MSG "(%a-%a) %a-%a -> %B" UID.ps rt1#uid UID.ps rt2#uid UID.ps n1#uid UID.ps n2#uid b;
+  DEBUG_MSG "(%a-%a) %a-%a -> %B" nups rt1 nups rt2 nups n1 nups n2 b;
   b
 
-let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possible_rename = begin
+let collect_use_renames ?(filt=fun _ _ -> true) cenv nmapping edits is_possible_rename = begin
 
   let freq_tbl = Hashtbl.create 0 in
   let bonus_tbl = Hashtbl.create 0 in
@@ -584,7 +579,24 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
       with
         Not_found -> Hashtbl.add bi_tbl bi1 [bi2]
     in
-    if force || is_possible_rename node1 node2 bid1 bid2 then begin
+    if
+      force ||
+      is_possible_rename node1 node2 bid1 bid2(*!20240324! &&
+      let find_nearest_anc_stmt =
+        Sourcecode.find_nearest_p_ancestor_node (fun n -> n#data#is_statement)
+      in
+      not (
+       try
+         let stmt1 = find_nearest_anc_stmt node1 in
+         let stmt2 = find_nearest_anc_stmt node2 in
+         nmapping#find stmt1 == stmt2 &&
+         let has_stmt_anc = Misc.has_p_ancestor (fun x -> x#data#is_statement) in
+         not (has_stmt_anc stmt1) && not (has_stmt_anc stmt2) &&
+         stmt1#initial_parent#initial_nchildren = 1 &&
+         stmt2#initial_parent#initial_nchildren = 1
+       with _ -> false
+      )*)
+    then begin
       let boundary_key = cenv#get_boundary_key node1 node2 in
       add _use_rename_tbl1 boundary_key bid1 bid2;
       add _use_rename_tbl2 boundary_key bid2 bid1;
@@ -602,7 +614,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
             is_uniq_child pnd1 node1 && is_uniq_child pnd2 node2 ||
             pnd1#initial_nchildren = 1 && pnd1#initial_nchildren = 1
            ) &&
-           uidmapping#find pnd1#uid = pnd2#uid &&
+           nmapping#find pnd1 == pnd2 &&
            let ppnd1 = pnd1#initial_parent in
            let ppnd2 = pnd2#initial_parent in
            (
@@ -610,7 +622,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
             is_uniq_child ppnd1 pnd1 && is_uniq_child ppnd2 pnd2 ||
             ppnd1#initial_nchildren = 1 && ppnd1#initial_nchildren = 1
            ) &&
-           uidmapping#find ppnd1#uid = ppnd2#uid
+           nmapping#find ppnd1 == ppnd2
          with
            _ -> false
         ) ||
@@ -634,11 +646,11 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
             let def2 = tree2#search_node_by_uid (B.get_uid node2#data#binding) in
             DEBUG_MSG "def: %s - %s" def1#data#to_string def2#data#to_string;
             not (try
-              let def1' = tree2#search_node_by_uid (uidmapping#find def1#uid) in
+              let def1' = nmapping#find def1 in
               def1' != def2 && def1#data#eq def1'#data
             with _ -> false) &&
             not (try
-              let def2' = tree1#search_node_by_uid (uidmapping#inv_find def2#uid) in
+              let def2' = nmapping#inv_find def2 in
               def2' != def1 && def2#data#eq def2'#data
             with _ -> false)
           end
@@ -674,7 +686,10 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
       with
         Not_found -> Hashtbl.add tbl nm1 [nm2]
     in
-    if is_possible_rename node1 node2 BID.dummy BID.dummy then begin
+    if
+      is_possible_rename node1 node2 BID.dummy BID.dummy(*!20240324! &&
+      not (cenv#has_match1 node1) && not (cenv#has_match2 node2)*)
+    then begin
       add _free_rename_tbl1 name1 name2;
       add _free_rename_tbl2 name2 name1;
       DEBUG_MSG "added";
@@ -685,11 +700,11 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
           let pnd1 = node1#initial_parent in
           let pnd2 = node2#initial_parent in
           not pnd1#data#is_order_insensitive && not pnd2#data#is_order_insensitive &&
-          uidmapping#find pnd1#uid = pnd2#uid &&
+          nmapping#find pnd1 == pnd2 &&
           let ppnd1 = pnd1#initial_parent in
           let ppnd2 = pnd2#initial_parent in
           not ppnd1#data#is_order_insensitive && not ppnd2#data#is_order_insensitive &&
-          uidmapping#find ppnd1#uid = ppnd2#uid
+          nmapping#find ppnd1 = ppnd2
         with
           _ -> false
       then
@@ -717,8 +732,8 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
             | [], _, _ | _, [], _ -> false
             | [x1,_], [x2,_], _ -> x1 == n1 && x2 == n2
             | xl1, xl2, _ when has_stmt_anc n1 && has_stmt_anc n2 -> begin
-                let filt1 (n, _) = uidmapping#mem_dom n#uid in
-                let filt2 (n, _) = uidmapping#mem_cod n#uid in
+                let filt1 (n, _) = nmapping#mem_dom n in
+                let filt2 (n, _) = nmapping#mem_cod n in
                 match List.filter filt1 xl1, List.filter filt2 xl2 with
                 | [x1,_], [x2,_] -> x1 == n1 && x2 == n2
                 | _ -> false
@@ -734,7 +749,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
 
   edits#iter_relabels
     (function
-      | Relabel(_, (u1, info1, ex1), (u2, info2, ex2)) as rel -> begin
+      | Relabel(_, (info1, ex1), (info2, ex2)) as rel -> begin
           let _ = rel in
           DEBUG_MSG "checking %s" (Editop.to_string rel);
           let nd1 = Info.get_node info1 in
@@ -777,7 +792,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
                   try
                     let pnd1 = nd1#initial_parent in
                     let pnd2 = nd2#initial_parent in
-                    uidmapping#find pnd1#uid = pnd2#uid &&
+                    nmapping#find pnd1 = pnd2 &&
                     is_uniq_child pnd1 nd1 && is_uniq_child pnd2 nd2
                   with _ -> false
               end
@@ -826,33 +841,34 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv uidmapping edits is_possibl
           end
           else if nd1#data#is_named_orig && nd2#data#is_named_orig then begin
             match nd1#initial_children, nd2#initial_children with
-            | [|c1|], [|c2|] when cenv#has_uniq_match c1 c2 -> begin
-                let nm1 = Comparison.get_orig_name nd1 in
-                let nm2 = Comparison.get_orig_name nd2 in
-                cenv#add_rename_pat (nm1, nm2)
+            | [|c1|], [|c2|] when begin
+                not (cenv#has_match1 nd1) && not (cenv#has_match2 nd2) &&
+                cenv#has_uniq_match c1 c2
+            end -> begin
+              let nm1 = Comparison.get_orig_name nd1 in
+              let nm2 = Comparison.get_orig_name nd2 in
+              cenv#add_rename_pat (nm1, nm2)
             end
             | _ -> ()
           end
       end
       | _ -> assert false
     );
-  (*!20240205!uidmapping#iter
-    (fun u1 u2 ->
-      DEBUG_MSG "checking %a-%a" UID.ps u1 UID.ps u2;
-      let nd1 = cenv#tree1#search_node_by_uid u1 in
-      let nd2 = cenv#tree2#search_node_by_uid u2 in
-      if filt nd1 nd2 then begin
-        if is_use nd1 && is_use nd2 then begin
+  (*!20240205!nmapping#iter
+    (fun n1 n2 ->
+      DEBUG_MSG "checking %a-%a" nups n1 nups n2;
+      if filt n1 n2 then begin
+        if is_use n1 && is_use n2 then begin
           try
-            add_use_rename nd1 nd2 (get_bid nd1) (get_bid nd2)
+            add_use_rename n1 n2 (get_bid n1) (get_bid n2)
           with
             Not_found -> assert false
         end
         else if
-          not (is_def nd1) && not (is_def nd2) &&
-          nd1#data#is_named_orig && nd2#data#is_named_orig
+          not (is_def n1) && not (is_def n2) &&
+          n1#data#is_named_orig && n2#data#is_named_orig
         then begin
-          add_free_rename nd1 nd2
+          add_free_rename n1 n2
         end
       end
     );*)
@@ -900,7 +916,7 @@ let adjust_renames
     ?(trust_moved_non_renames=true)
     options
     cenv
-    uidmapping
+    nmapping
     edits
     (filters : (node_t -> bool) array)
     =
@@ -922,14 +938,12 @@ let adjust_renames
   let set_tbl_def = set_tbl (function Some (d, u) -> true, u | None -> true, false) in
   let set_tbl_use = set_tbl (function Some (d, u) -> d, true | None -> false, true) in
 
-  uidmapping#iter
-    (fun u1 u2 ->
-      DEBUG_MSG "non_rename: checking %a-%a" UID.ps u1 UID.ps u2;
-      let n1 = tree1#search_node_by_uid u1 in
-      let n2 = tree2#search_node_by_uid u2 in
+  nmapping#iter
+    (fun n1 n2 ->
+      DEBUG_MSG "non_rename: checking %a-%a" nups n1 nups n2;
       let context_cond =
-        (try uidmapping#find n1#initial_parent#uid = n2#initial_parent#uid with _ -> false) &&
-        (trust_moved_non_renames || not (edits#mem_mov12 u1 u2))
+        (try nmapping#find n1#initial_parent == n2#initial_parent with _ -> false) &&
+        (trust_moved_non_renames || not (edits#mem_mov12 n1 n2))
       in
       DEBUG_MSG "context_cond=%B" context_cond;
       if context_cond then
@@ -980,7 +994,7 @@ let adjust_renames
         let pnd1 = node1#initial_parent in
         let pnd2 = node2#initial_parent in
         let c_cond =
-          try uidmapping#find pnd1#uid = pnd2#uid with _ -> false
+          try nmapping#find pnd1 == pnd2 with _ -> false
         in
         let p_cond =
           let pbi1_opt = get_bid_opt pnd1 in
@@ -995,7 +1009,7 @@ let adjust_renames
         Otreediff.Otree.Parent_not_found _ -> true, true
     in
     DEBUG_MSG "%a-%a (%a-%a): parent_cond=%B context_cond=%B"
-      UID.ps node1#uid UID.ps node2#uid BID.ps bi1 BID.ps bi2 parent_cond context_cond;
+      nups node1 nups node2 BID.ps bi1 BID.ps bi2 parent_cond context_cond;
 
     if parent_cond then
       let same_name() =
@@ -1014,13 +1028,11 @@ let adjust_renames
           try
             let p1 = node1#initial_parent in
             let p2 = node2#initial_parent in
-            let pu1 = p1#uid in
-            let pu2 = p2#uid in
-            uidmapping#find pu1 == pu2 &&
+            nmapping#find p1 == p2 &&
             let p1_eq_p2 = p1#data#eq p2#data in
             p1_eq_p2 && (p1#data#is_sequence || has_uniq_paths p1 p2 node1 node2) ||
             not p1_eq_p2 && p1#data#is_named && p2#data#is_named &&
-            not (edits#mem_mov12 pu1 pu2)
+            not (edits#mem_mov12 p1 p2)
           with
             _ -> false
         in
@@ -1049,11 +1061,11 @@ let adjust_renames
     let find_anc = Sourcecode.find_nearest_mapped_ancestor_node ~moveon_ in
     let b =
       try
-        let an1 = find_anc uidmapping#mem_dom n1 in
-        let an2 = find_anc uidmapping#mem_cod n2 in
-        let au1' = uidmapping#find an1#uid in
-        DEBUG_MSG "%a->%a" nups an1 UID.ps au1';
-        au1' = an2#uid &&
+        let an1 = find_anc nmapping#mem_dom n1 in
+        let an2 = find_anc nmapping#mem_cod n2 in
+        let an1' = nmapping#find an1 in
+        DEBUG_MSG "%a->%a" nups an1 nups an1';
+        an1' == an2 &&
         (
          (try n1#initial_parent == an1 with _ -> false) ||
          (try n2#initial_parent == an2 with _ -> false)
@@ -1074,17 +1086,17 @@ let adjust_renames
       let b =
         (
          try
-           let u1' = uidmapping#find n1#initial_parent#uid in
-           u1' = n2#initial_parent#uid ||
+           let p1' = nmapping#find n1#initial_parent in
+           p1' == n2#initial_parent ||
            n1#data#_anonymized_label = n2#data#_anonymized_label &&
-           u1' = n2#initial_parent#initial_parent#uid
+           p1' == n2#initial_parent#initial_parent
          with _ -> false
         ) ||
         n1#data#_anonymized_label = n2#data#_anonymized_label &&
         (
          (try
-           let u2' = uidmapping#inv_find n2#initial_parent#uid in
-           u2' = n1#initial_parent#initial_parent#uid
+           let p2' = nmapping#inv_find n2#initial_parent in
+           p2' == n1#initial_parent#initial_parent
           with _ -> false
          ) ||
          has_nearest_mapped_ancestor_upto_boundary n1 n2
@@ -1093,7 +1105,7 @@ let adjust_renames
       DEBUG_MSG "%a-%a: %B" nups n1 nups n2 b;
       b
     in
-    collect_use_renames ~filt cenv uidmapping edits is_possible_rename
+    collect_use_renames ~filt cenv nmapping edits is_possible_rename
   in
   let get_freq bi1 bi2 =
     let freq, _, _ = Hashtbl.find freq_tbl (bi1, bi2) in
@@ -1518,14 +1530,14 @@ let adjust_renames
     ) selected_renames;
 
   let is_good_relabel nd1 nd2 =
-    DEBUG_MSG "%a-%a" UID.ps nd1#uid UID.ps nd2#uid;
+    DEBUG_MSG "%a-%a" nups nd1 nups nd2;
     try
       let chk n1 n2 =
         n1#data#relabel_allowed n2#data &&
         try
-          uidmapping#find n1#uid = n2#uid
+          nmapping#find n1 == n2
         with
-          Not_found -> not (uidmapping#mem_cod n2#uid)
+          Not_found -> not (nmapping#mem_cod n2)
       in
       let pnd1 = nd1#initial_parent in
       let pnd2 = nd2#initial_parent in
@@ -1589,10 +1601,10 @@ let adjust_renames
   let is_incompatible nd1 nd2 =
     let pnd1 = nd1#initial_parent in
     let pnd2 = nd2#initial_parent in
-    let context_cond = try uidmapping#find pnd1#uid = pnd2#uid with _ -> false in
+    let context_cond = try nmapping#find pnd1 == pnd2 with _ -> false in
     DEBUG_MSG "%a-%a context_cond=%B" nups nd1 nups nd2 context_cond;
-    (*let is_stable = not (edits#mem_mov12 nd1#uid nd2#uid) in
-    DEBUG_MSG "%a-%a is_stable=%B" UID.ps nd1#uid UID.ps nd2#uid is_stable;*)
+    (*let is_stable = not (edits#mem_mov12 nd1 nd2) in
+    DEBUG_MSG "%a-%a is_stable=%B" nups nd1 nups nd2 is_stable;*)
 
     let same_name =
       try
@@ -1718,9 +1730,11 @@ let adjust_renames
 
   edits#iter_relabels (* find incompatible relabels *)
     (function
-      | Relabel(_, (uid1, info1, _), (uid2, info2, _)) as rel -> begin
+      | Relabel(_, (info1, _), (info2, _)) as rel -> begin
           let _ = rel in
-          DEBUG_MSG "finding incompatible relabels: checking %a-%a" UID.ps uid1 UID.ps uid2;
+          DEBUG_MSG "finding incompatible relabels: checking %a-%a"
+            nups (Info.get_node info1) nups (Info.get_node info2);
+
           let nd1 = Info.get_node info1 in
           let nd2 = Info.get_node info2 in
           let incompat, by_non_renames = is_incompatible nd1 nd2 in
@@ -1768,7 +1782,7 @@ let adjust_renames
 
   DEBUG_MSG "* removing incompatible relabels and mapping...";
 
-  remove_relabels_and_mapping cenv tree1 tree2 edits uidmapping !to_be_removed;
+  remove_relabels_and_mapping cenv tree1 tree2 edits nmapping !to_be_removed;
 
   DEBUG_MSG "* finding compatible pairs...";
 
@@ -1820,17 +1834,17 @@ let adjust_renames
 
   edits#iter_deletes
     (function
-      | Delete(_, _, info, ex) -> check check_tbl1 info
+      | Delete(_, info, ex) -> check check_tbl1 info
       | _ -> assert false
     );
   edits#iter_inserts
     (function
-      | Insert(_, _, info, ex) -> check check_tbl2 info
+      | Insert(_, info, ex) -> check check_tbl2 info
       | _ -> assert false
     );
   edits#iter_relabels
     (function
-      | Relabel(_, (_, info1, _), (_, info2, _)) -> begin
+      | Relabel(_, (info1, _), (info2, _)) -> begin
           check check_tbl1 info1;
           check check_tbl2 info2
       end
@@ -1881,7 +1895,7 @@ let adjust_renames
             DEBUG_MSG "pair_weight_list:";
             List.iter
               (fun (n1, n2, w) ->
-                DEBUG_MSG " %a-%a: %d" UID.ps n1#uid UID.ps n2#uid w
+                DEBUG_MSG " %a-%a: %d" nups n1 nups n2 w
               ) !pair_weight_list
           END_DEBUG;
 
@@ -1896,7 +1910,7 @@ let adjust_renames
     List.iter
       (fun (n1, n2) ->
         DEBUG_MSG "compatible_pair: %a-%a (%a-%a)"
-          UID.ps n1#uid UID.ps n2#uid GI.ps n1#gindex GI.ps n2#gindex
+          nups n1 nups n2 GI.ps n1#gindex GI.ps n2#gindex
       )
       (List.fast_sort
          (fun (n1, _) (n2, _) -> Stdlib.compare n1#gindex n2#gindex)
@@ -1907,7 +1921,7 @@ let adjust_renames
 
   (*DEBUG_MSG "* generating compatible edits...";
   let nrels =
-    generate_compatible_edits options cenv tree1 tree2 uidmapping edits
+    generate_compatible_edits options cenv tree1 tree2 nmapping edits
       !compatible_pairs is_incompatible
   in
   DEBUG_MSG "* %d relabels generated." nrels;*)
@@ -1916,11 +1930,11 @@ let adjust_renames
 
   edits#iter_relabels (* lock relabels *)
     (function
-      | Relabel(_, (u1, info1, ex1), (u2, info2, ex2)) -> begin
+      | Relabel(_, (info1, ex1), (info2, ex2)) -> begin
           let nd1 = Info.get_node info1 in
           let nd2 = Info.get_node info2 in
 
-          DEBUG_MSG "relabel %a-%a (%a-%a)" UID.ps u1 UID.ps u2 GI.ps nd1#gindex GI.ps nd2#gindex;
+          DEBUG_MSG "relabel %a-%a (%a-%a)" nups nd1 nups nd2 GI.ps nd1#gindex GI.ps nd2#gindex;
 
           let is_final () =
             let b =
@@ -2002,9 +2016,9 @@ let adjust_renames
               in
               DEBUG_MSG "lock=%B final=%B" lock final;
               if lock then begin
-                lock_mapping tree1 tree2 uidmapping nd1 nd2;
+                lock_mapping tree1 tree2 nmapping nd1 nd2;
                 if final then
-                  uidmapping#finalize_mapping nd1#uid nd2#uid
+                  nmapping#finalize_mapping nd1 nd2
               end
             with
               Not_found -> ()
@@ -2016,7 +2030,7 @@ let adjust_renames
 
   DEBUG_MSG "* generating compatible edits...";
   let nrels =
-    generate_compatible_edits options cenv tree1 tree2 uidmapping edits
+    generate_compatible_edits options cenv tree1 tree2 nmapping edits
       !compatible_pairs is_incompatible
   in
   DEBUG_MSG "* %d relabels generated." nrels;
@@ -2024,7 +2038,7 @@ let adjust_renames
   List.iter
     (fun (n1, n2) ->
       DEBUG_MSG "%s - %s" n1#data#to_string n2#data#to_string;
-      uidmapping#add_starting_uid_pair_for_glueing (n1#uid, n2#uid)
+      nmapping#add_starting_pair_for_glueing (n1, n2)
     ) !compatible_pairs;
 
 (*
@@ -2049,7 +2063,7 @@ let adjust_renames
 *)
   cenv#set_is_possible_rename
     (fun ?(strict=false) n1 n2 ->
-      DEBUG_MSG "strict=%B %a-%a" strict UID.ps n1#uid UID.ps n2#uid;
+      DEBUG_MSG "strict=%B %a-%a" strict nups n1 nups n2;
       let bi1_opt = try Some (get_bid n1) with Not_found -> None in
       let bi2_opt = try Some (get_bid n2) with Not_found -> None in
       match bi1_opt, bi2_opt with

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ let sprintf = Printf.sprintf
 let elaborate_edits
     options
     (cenv : (Tree.node_t, Tree.c) Comparison.c)
-    uidmapping
+    nmapping
     edits
     =
   let mkfilt = Edit.mkfilt Fact.getlab in
@@ -56,7 +56,7 @@ let elaborate_edits
   while !modified && !count < max_count do
     incr count;
     DEBUG_MSG "%d-th execution of rename adjustment" !count;
-    modified := Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters;
+    modified := Edit.adjust_renames ~handle_weak options cenv nmapping edits filters;
   done
 
 class tree_patcher options tree_factory = object

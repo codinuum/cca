@@ -217,18 +217,18 @@ let contract tree1 tree2 clusters =
   List.iter contract_cluster clusters;
 
 
-  let mk_uid_cluster cluster =
-    List.map (fun (i, j) -> (tree1#get i)#uid, (tree2#get j)#uid) cluster
+  let mk_nd_cluster cluster =
+    List.map (fun (i, j) -> (tree1#get i), (tree2#get j)) cluster
   in
-  let deferred_uid_cluster =
+  let deferred_nd_cluster =
     match !deferred_cluster with
-      Some clu -> Some (mk_uid_cluster clu) | None -> None
+      Some clu -> Some (mk_nd_cluster clu) | None -> None
   in
-  let pruned_uid_clusters =
-    List.map (fun clu -> mk_uid_cluster clu) !pruned_clusters
+  let pruned_nd_clusters =
+    List.map (fun clu -> mk_nd_cluster clu) !pruned_clusters
   in
 
-  deferred_uid_cluster, pruned_uid_clusters
+  deferred_nd_cluster, pruned_nd_clusters
 (* end of func contract *)
 
 
@@ -317,6 +317,9 @@ let node_to_g_string nd =
 let nodes_to_us_string nds =
   String.concat ";" (List.map node_to_u_string nds)
 
+let nodea_to_us_string nda =
+  String.concat ";" (List.map node_to_u_string (Array.to_list nda))
+
 let nodes_to_gs_string nds =
   String.concat ";" (List.map node_to_g_string nds)
 
@@ -344,6 +347,7 @@ let nups () = node_to_u_string
 let ngps () = node_to_g_string
 let nugps () = node_to_ug_string
 let nsps () = nodes_to_us_string
+let naps () = nodea_to_us_string
 let ngsps () = nodes_to_gs_string
 let nugsps () = nodes_to_ugs_string
 let usps () = us_to_string
@@ -405,13 +409,19 @@ let rec get_p_descendants ?(moveon=fun x -> true) pred nd =
   else
     []
 
-let has_p_descendant ?(moveon=fun x -> true) pred nd =
+let has_p_descendant ?(count=1) ?(moveon=fun x -> true) pred nd =
+  let c = ref 0 in
   let rec _has_p_descendant ?(moveon=fun x -> true) pred nd =
     if moveon nd then
       Array.iter
         (fun n ->
-          if pred n then
-            raise Exit
+          if pred n then begin
+            incr c;
+            if !c >= count then
+              raise Exit
+            else
+              _has_p_descendant ~moveon pred n
+          end
           else
             _has_p_descendant ~moveon pred n
         ) nd#initial_children
@@ -422,12 +432,35 @@ let has_p_descendant ?(moveon=fun x -> true) pred nd =
   with
     Exit -> true
 
-let is_cross_boundary uidmapping n1 n2 =
+let count_p_descendant ?(limit=0) ?(moveon=fun x -> true) pred nd =
+  let c = ref 0 in
+  let rec _count_p_descendant ?(moveon=fun x -> true) pred nd =
+    if moveon nd then
+      Array.iter
+        (fun n ->
+          if pred n then begin
+            incr c;
+            if limit <= 0 || !c >= limit then
+              raise Exit
+            else
+              _count_p_descendant ~moveon pred n
+          end
+          else
+            _count_p_descendant ~moveon pred n
+        ) nd#initial_children
+  in
+  try
+    _count_p_descendant ~moveon pred nd;
+    !c
+  with
+    Exit -> !c
+
+let is_cross_boundary nmapping n1 n2 =
   let b =
     try
       let a1 = get_p_ancestor (fun x -> x#data#is_boundary) n1 in
       let a2 = get_p_ancestor (fun x -> x#data#is_boundary) n2 in
-      not (try uidmapping#find a1#uid = a2#uid with _ -> false)
+      not (try nmapping#find a1 == a2 with _ -> false)
     with
       _ -> false
   in

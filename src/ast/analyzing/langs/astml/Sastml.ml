@@ -36,14 +36,13 @@ let decomp ext ifile ofile =
 
 
 let extensions =
-  List.flatten
-    (List.map
-       (fun base_ext ->
-	 List.map
-	   (fun comp_ext ->
-	     base_ext^comp_ext
-	   ) comp_ext_list
-       ) [Astml.extension; Astml.ccs_ext])
+  List.concat_map
+    (fun base_ext ->
+      List.map
+	(fun comp_ext ->
+	  base_ext^comp_ext
+	) comp_ext_list
+    ) [Astml.extension; Astml.ccs_ext]
 
 let _ = Lang_base.register_spec parser_name extensions
 

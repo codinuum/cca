@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1452,8 +1452,8 @@ let compare_trees ?(fact_extractor=null_fact_extractor) options tree1 tree2 =
 
         let _ = Cache.prepare_cache_dir options cache_path in
 
-        let _ = (dtree1#expand_all : UID.t -> bool) in
-        let _ = (dtree2#expand_all : UID.t -> bool) in
+        let _ = (dtree1#expand_all : node_t -> bool) in
+        let _ = (dtree2#expand_all : node_t -> bool) in
 
         let _unmodified0, _renamed0, _moved0 =
           pp0 dtree1 dtree2 dtbl1 dtbl2 tbl1 tbl2

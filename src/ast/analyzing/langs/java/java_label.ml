@@ -1368,7 +1368,15 @@ module Primary = struct
   let common_methods =
     let s = Xset.create 0 in
     List.iter (Xset.add s)
-      ["print#1";"println#1"];
+      [
+       "print#1";
+       "println#1";
+       "assertNull#1";
+       "assertTrue#1";
+       "assertFalse#1";
+       "assertEquals#2";
+       "assertNotEquals#2";
+      ];
     s
 
   let is_common = function

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -179,7 +179,7 @@ class c options = object (self)
           end
 
         end
-        else if options#dump_origin_flag then begin (* dump origin related information *)
+        (*else if options#dump_origin_flag then begin (* dump origin related information *)
           let origin_file = Filename.concat cache_path options#origin_file_name in
           let ending_file = Filename.concat cache_path options#ending_file_name in
 
@@ -215,7 +215,7 @@ class c options = object (self)
           in
           self#dump_fragment M_ENDING frag_file_ending nds_tbl_ending;
           self#verbose_msg "fragments(ending) saved in \"%s\"" frag_file_ending
-        end; (* if options#dump_origin_flag *)
+        end*); (* if options#dump_origin_flag *)
 
         S._dump_source cache_path tree;
         S._dump_parser cache_path tree;

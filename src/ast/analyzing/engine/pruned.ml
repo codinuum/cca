@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ module Otree = Otreediff.Otree
 
 let sprintf = Printf.sprintf
 
+let nups = Misc.nups
 
 (*** pruned nodes ***)
 
@@ -35,8 +36,8 @@ type gindex = GI.t
 
 type 'node_t t =
     kind ref
-      * UID.t * (gindex (* leftmost *) * gindex) (* for old tree *)
-      * UID.t * (gindex (* leftmost *) * gindex) (* for new tree *)
+      * (gindex (* leftmost *) * gindex) (* for old tree *)
+      * (gindex (* leftmost *) * gindex) (* for new tree *)
       * ('node_t Info.t) (* for old tree *)
       * ('node_t Info.t) (* for new tree *)
 
@@ -45,23 +46,29 @@ let kind_to_string = function
   | Migratory  -> "MIGRATORY"
   | Other      -> "OTHER"
 
-let to_string (kind, uid1, (lgi1, gi1), uid2, (lgi2, gi2), info1, info2) =
+let to_string (kind, (lgi1, gi1), (lgi2, gi2), info1, info2) =
+  let n1 = Info.get_node info1 in
+  let n2 = Info.get_node info2 in
   let s = kind_to_string !kind in
-  sprintf "[PRUNED(%s)]: (%s:%d-%d)%s -> (%s:%d-%d)%s" s
-    (UID.to_string uid1) lgi1 gi1 (Info.to_string info1)
-    (UID.to_string uid2) lgi2 gi2 (Info.to_string info2)
+  sprintf "[PRUNED(%s)]: (%a:%d-%d)%s -> (%a:%d-%d)%s" s
+    nups n1 lgi1 gi1 (Info.to_string info1)
+    nups n2 lgi2 gi2 (Info.to_string info2)
 
-let to_string_short (kind, uid1, (lgi1, gi1), uid2, _, _, _) =
-  sprintf "<%s-%s(%d)>" (UID.to_string uid1) (UID.to_string uid2) (gi1 - lgi1 + 1)
+let to_string_short (kind, (lgi1, gi1), _, info1, info2) =
+  let n1 = Info.get_node info1 in
+  let n2 = Info.get_node info2 in
+  sprintf "<%a-%a(%d)>" nups n1 nups n2 (gi1 - lgi1 + 1)
 
-let is_single (_, _, (lgi1, gi1), _, _, _, _) = lgi1 = gi1
+let is_single (_, (lgi1, gi1), _, _, _) = lgi1 = gi1
 
-let make_isomorphic uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 =
-  (ref Isomorphic, uid1, lgi_gi1, uid2, lgi_gi2, info1, info2)
-let make_migratory uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 =
-  (ref Migratory, uid1, lgi_gi1, uid2, lgi_gi2, info1, info2)
-let make_other uid1 lgi_gi1 uid2 lgi_gi2 info1 info2 =
-  (ref Other, uid1, lgi_gi1, uid2, lgi_gi2, info1, info2)
+let make_isomorphic lgi_gi1 lgi_gi2 info1 info2 =
+  (ref Isomorphic, lgi_gi1, lgi_gi2, info1, info2)
+
+let make_migratory lgi_gi1 lgi_gi2 info1 info2 =
+  (ref Migratory, lgi_gi1, lgi_gi2, info1, info2)
+
+let make_other lgi_gi1 lgi_gi2 info1 info2 =
+  (ref Other, lgi_gi1, lgi_gi2, info1, info2)
 
 
 class ['node_t, 'tree_t] nodes = object (self)
@@ -99,61 +106,67 @@ class ['node_t, 'tree_t] nodes = object (self)
   method find p = List.find p list
   method exists p = List.exists p list
 
-  method get_kind u1 u2 =
-    let s, _, _, _, _, _, _ =
+  method get_kind nd1 nd2 =
+    let s, _, _, _, _ =
       self#find
-	(fun (kind, uid1, _, uid2, _, _, _) -> u1 = uid1 && u2 = uid2)
+        (fun (kind, _, _, i1, i2) ->
+          let n1 = Info.get_node i1 in
+          let n2 = Info.get_node i2 in
+          n1 == nd1 && n2 == nd2
+        )
     in
     !s
 
-  method set_kind uid1 uid2 kind =
+  method set_kind nd1 nd2 kind =
     self#iter
-      (fun (s, u1, _, u2, _, _, _) ->
-	if u1 = uid1 && u2 = uid2 then s := kind)
+      (fun (s, _, _, i1, i2) ->
+        let n1 = Info.get_node i1 in
+        let n2 = Info.get_node i2 in
+        if n1 == nd1 && n2 = nd2 then s := kind)
 
 (* does pruned subtree (old) contain node_data? *)
   method mem1 (tree1 : 'tree_t) (nd : 'node_t) =
     DEBUG_MSG "is_whole=%B" tree1#is_whole;
-    let uid = nd#uid in
     self#exists
       (function
-	  (kind, uid', (lgi, gi), _, _, info', _) ->
-	    match !kind with
-	      Other -> uid' = uid
-	    | _ ->
-		let b2 =
-		  try
-		    let gidx = nd#gindex in
-		    lgi <= gidx && gidx <= gi
-		  with Not_found -> false
-		in
-		b2
+          (kind, (lgi, gi), _, info', _) ->
+            let nd' = Info.get_node info' in
+            match !kind with
+            | Other -> nd' == nd
+            | _ ->
+                let b2 =
+                  try
+                    let gidx = nd#gindex in
+                    lgi <= gidx && gidx <= gi
+                  with Not_found -> false
+                in
+                b2
       )
 
 (* does pruned subtree (new) contain node_data? *)
   method mem2 (tree2 : 'tree_t) (nd : 'node_t) =
     DEBUG_MSG "is_whole=%B" tree2#is_whole;
-    let uid = nd#uid in
     self#exists
       (function
-	  (kind, _, _, uid', (lgi, gi), _, info') ->
-	    match !kind with
-	      Other -> uid' = uid
-	    | _ ->
-		let b2 =
-		  try
-		    let gidx = nd#gindex in
-		    lgi <= gidx && gidx <= gi
-		  with Not_found -> false
-		in
-		b2
+          (kind, _, (lgi, gi), _, info') ->
+            let nd' = Info.get_node info' in
+            match !kind with
+            | Other -> nd' = nd
+            | _ ->
+                let b2 =
+                  try
+                    let gidx = nd#gindex in
+                    lgi <= gidx && gidx <= gi
+                  with Not_found -> false
+                in
+                b2
       )
 
 
   method to_string = sprintf
       "%d pruned node(s):\n%s" (List.length list)
       (Xlist.to_string
-	 (fun p -> sprintf "%s" (to_string p))
-	 "\n" list)
+         (fun p -> sprintf "%s" (to_string p))
+         "\n" list)
 
 end (* of class Pruned.nodes *)

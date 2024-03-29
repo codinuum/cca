@@ -109,7 +109,7 @@ let encoded_digest_of_file options file =
 
 
 
-let int_of_origin ogn =
+(*let int_of_origin ogn =
   if ogn = unknown_origin then
     Origin.attr_unknown
   else begin
@@ -117,7 +117,7 @@ let int_of_origin ogn =
       int_of_string ogn
     with
       Invalid_argument s -> ERROR_MSG "int_of_origin: %s" s; exit 1
-  end
+  end*)
 
 let merge_locs nds =
   let lmerge loc1 loc2 =
@@ -259,7 +259,6 @@ module Tree (L : Spec.LABEL_T) = struct
         | None -> failwith "Sourcecode.node_data#add_to_ordinal_list"
         | Some tbl -> tbl#add_list l
 
-      val(* mutable*) lab = lab
       val mutable orig_lab_opt = orig_lab_opt
 
       method _label = Obj.repr lab
@@ -352,13 +351,13 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method get_ident_use = L.get_ident_use lab
 
-      val mutable origin = unknown_origin
+      (*val mutable origin = unknown_origin
       method origin = origin
       method set_origin o = origin <- o
 
       val mutable ending = unknown_origin
       method ending = ending
-      method set_ending e = ending <- e
+      method set_ending e = ending <- e*)
 
       val mutable frommacro = ""
       method frommacro = frommacro
@@ -382,7 +381,7 @@ module Tree (L : Spec.LABEL_T) = struct
           | Some l1, Some o2 -> L.is_compatible ~weak l1 (Obj.obj o2)
           | _ -> false
         in
-        DEBUG_MSG "%s-%s -> %B" label ndat#label b;
+        DEBUG_MSG "%s-%s -> %B" self#label ndat#label b;
         b
 
       method is_order_insensitive = L.is_order_insensitive lab
@@ -405,14 +404,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       (*method _more_anonymized_label = Obj.repr (L.anonymize ~more:true lab)*)
 
-      val mutable stripped_label = None
-      method stripped_label =
-        match stripped_label with
-        | None ->
-            let slab = L.to_string (L.strip lab) in
-            stripped_label <- Some slab;
-            slab
-        | Some slab -> slab
+      method stripped_label = L.to_string (L.strip lab)
 
       val mutable anonymized_label = None
       method anonymized_label =
@@ -587,7 +579,7 @@ module Tree (L : Spec.LABEL_T) = struct
               self#is_compatible_with ~weak:true x)
           else
             (fun x ->
-              self#_label = x#_label && self#orig_lab_opt = x#orig_lab_opt
+              self#orig_lab_opt = x#orig_lab_opt && self#_label = x#_label
               (*self#orig_to_elem_data_for_eq = x#orig_to_elem_data_for_eq*)
             );
         self#update
@@ -605,9 +597,6 @@ module Tree (L : Spec.LABEL_T) = struct
           match char with
           | Some c -> c
           | _ -> assert false
-
-
-
 
     end (* of class Sourcecode.node_data *)
 
@@ -961,13 +950,13 @@ module Tree (L : Spec.LABEL_T) = struct
       tree
 
     (* subtree copy (gindexes are inherited) *)
-    method private make_anonymizedx_subtree_copy anonymize ?(uids_left_named=[]) (nd : node_t) =
+    method private make_anonymizedx_subtree_copy anonymize ?(nds_left_named=[]) (nd : node_t) =
       let rec doit n =
         let gi = n#gindex in
         if GI.is_valid gi then
           let children = List.filter_map doit (Array.to_list n#initial_children) in
           let alab =
-            if List.mem n#uid uids_left_named then
+            if List.memq n nds_left_named then
               get_lab n
             else
               anonymize n
@@ -987,17 +976,17 @@ module Tree (L : Spec.LABEL_T) = struct
       tree#_register_gindexes;
       tree
 
-    method make_anonymized_subtree_copy ?(uids_left_named=[]) (nd : node_t) =
+    method make_anonymized_subtree_copy ?(nds_left_named=[]) (nd : node_t) =
       let anonymize n = (Obj.obj n#data#_anonymized_label : L.t) in
-      self#make_anonymizedx_subtree_copy anonymize ~uids_left_named nd
+      self#make_anonymizedx_subtree_copy anonymize ~nds_left_named nd
 
-    method make_anonymized2_subtree_copy ?(uids_left_named=[]) (nd : node_t) =
+    method make_anonymized2_subtree_copy ?(nds_left_named=[]) (nd : node_t) =
       let anonymize n = (Obj.obj n#data#_anonymized2_label : L.t) in
-      self#make_anonymizedx_subtree_copy anonymize ~uids_left_named nd
+      self#make_anonymizedx_subtree_copy anonymize ~nds_left_named nd
 
-    method make_anonymized3_subtree_copy ?(uids_left_named=[]) (nd : node_t) =
+    method make_anonymized3_subtree_copy ?(nds_left_named=[]) (nd : node_t) =
       let anonymize n = (Obj.obj n#data#_anonymized3_label : L.t) in
-      self#make_anonymizedx_subtree_copy anonymize ~uids_left_named nd
+      self#make_anonymizedx_subtree_copy anonymize ~nds_left_named nd
 
 
     method get_ident_use_list gid =
@@ -1006,7 +995,7 @@ module Tree (L : Spec.LABEL_T) = struct
       self#preorder_scan_whole_initial_subtree nd
         (fun n ->
           let s = n#data#get_ident_use in
-          if not (List.mem s !res) && s <> "" then
+          if  s <> "" && not (List.mem s !res) then
             res := s::!res
         );
       List.rev !res
@@ -1081,8 +1070,7 @@ module Tree (L : Spec.LABEL_T) = struct
         );
       !res
 
-    method get_nearest_containing_unit uid =
-      let nd = self#search_node_by_uid uid in
+    method get_nearest_containing_unit nd =
       let ancs = List.rev (self#initial_ancestor_nodes nd) in
       if nd#data#to_be_notified then
         nd
@@ -1279,7 +1267,7 @@ module Tree (L : Spec.LABEL_T) = struct
         raise Not_found
 
 
-    method dump_origin bufsize nctms_file revidx origin_file ending_file =
+    (*method dump_origin bufsize nctms_file revidx origin_file ending_file =
       DEBUG_MSG "bufsize=%d" bufsize;
 
       let revidx_s = string_of_int revidx in
@@ -1426,9 +1414,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
       (sz, nknown_origin, cov, nds_tbl, nknown_ending, cov_ending, nds_tbl_ending)
 
-      (* end of method dump_origin *)
-
-
+      (* end of method dump_origin *)*)
 
 
     method align_fragments (gmap : (int * int) list) (tree : 'self) =
@@ -2120,7 +2106,7 @@ let find_nearest_mapped_ancestor_node ?(moveon_=fun x -> true) is_mapped nd =
   let rec scan n =
     try
       let pn = n#initial_parent in
-      if is_mapped pn#uid then
+      if is_mapped pn then
         pn
       else if moveon_ pn then
         scan pn
@@ -2147,7 +2133,7 @@ let find_nearest_mapped_descendant_nodes is_mapped node =
   let rec get nd =
     List.concat_map
       (fun n ->
-        if is_mapped n#uid then
+        if is_mapped n then
           [n]
         else
           get n

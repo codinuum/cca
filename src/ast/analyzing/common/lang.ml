@@ -62,7 +62,7 @@ type opts_t = Options.c
 
 type ('node, 'tree) edits_t = ('node, 'tree) Edit_base.seq_base
 type ('node, 'tree) cmp_t = ('node, 'tree) Comparison.c
-type uidmapping_t = node_t UIDmapping.c
+type nmapping_t = node_t Node_mapping.c
 
 class type lang_t =
   object
@@ -75,9 +75,9 @@ class type lang_t =
     method node_filter          : opts_t -> node_t -> bool
 
     method make_tree_comparator : opts_t -> ?cache_path:string -> S.file -> S.file -> tree_comparator
-    method extract_change       : opts_t -> tree_t -> tree_t -> uidmapping_t -> (node_t, tree_t) edits_t -> extracted_change
+    method extract_change       : opts_t -> tree_t -> tree_t -> nmapping_t -> (node_t, tree_t) edits_t -> extracted_change
     method node_pair_filter     : opts_t -> node_t -> node_t -> bool
-    method elaborate_edits      : (opts_t -> (node_t, tree_t) cmp_t -> uidmapping_t -> (node_t, tree_t) edits_t -> unit) option
+    method elaborate_edits      : (opts_t -> (node_t, tree_t) cmp_t -> nmapping_t -> (node_t, tree_t) edits_t -> unit) option
     method has_elaborate_edits  : bool
     method make_tree_patcher    : opts_t -> tree_patcher
   end
@@ -135,7 +135,7 @@ class c
   end
 
 
-let _extract_mapping_fact options uidmapping filter path tree1 tree2 =
+let _extract_mapping_fact options nmapping filter path tree1 tree2 =
 
   let fact_buf =
     let into_virtuoso = options#fact_into_virtuoso <> "" in
@@ -156,9 +156,7 @@ let _extract_mapping_fact options uidmapping filter path tree1 tree2 =
   let mkent1, mkent2 = make_mkent_pair options tree1 tree2 in
 
   let f settled =
-    fun uid1 uid2 ->
-      let nd1 = tree1#search_node_by_uid uid1 in
-      let nd2 = tree2#search_node_by_uid uid2 in
+    fun nd1 nd2 ->
 
       if (filter nd1 nd2) then begin
 	let ent1 = mkent1 nd1 in
@@ -212,13 +210,13 @@ let _extract_mapping_fact options uidmapping filter path tree1 tree2 =
 
       end
   in
-  uidmapping#iter_unsettled (f false);
-  uidmapping#iter_settled (f true);
+  nmapping#iter_unsettled (f false);
+  nmapping#iter_settled (f true);
 
   fact_buf#close
 
 
-let extract_mapping_fact options lang uidmapping path tree1 tree2 =
+let extract_mapping_fact options lang nmapping path tree1 tree2 =
 
   let filter = lang#node_pair_filter options in
 
@@ -231,7 +229,7 @@ let extract_mapping_fact options lang uidmapping path tree1 tree2 =
 
   begin
     try
-      _extract_mapping_fact options uidmapping filter path tree1 tree2;
+      _extract_mapping_fact options nmapping filter path tree1 tree2;
     with
       Triple.File_exists mes -> Xprint.warning "%s" mes
   end;
