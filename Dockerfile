@@ -72,9 +72,21 @@ RUN set -x && \
     opam switch create 4.14.2+options && \
     eval $(opam env --switch=4.14.2+options) && \
     opam install -y ocaml-option-flambda && \
-    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
+    echo 'test -r /root/.opam/opam-init/init.sh && . /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> .bashrc && \
+    echo 'export PATH=/opt/cca/bin:${PATH}' >> .bashrc
+
+RUN set -x && \
+    cd /root && \
+    opam update && \
+    opam upgrade -y && \
     eval $(opam env) && \
-    cd src && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt
+
+RUN set -x && \
+    cd /root/src && \
+    opam update && \
+    opam upgrade -y && \
+    eval $(opam env) && \
     make -C mldiff && \
     make -C util && \
     make -C otreediff && \
@@ -87,10 +99,7 @@ RUN set -x && \
     cp modules/Mfortran*.cmxs /opt/cca/modules/ && \
     cp modules/Mcpp*.cmxs /opt/cca/modules/ && \
     cd /root && \
-    rm -r src && \
-    echo 'test -r /root/.opam/opam-init/init.sh && . /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> .bashrc && \
-    echo 'export PATH=/opt/cca/bin:${PATH}' >> .bashrc
-
+    rm -r src
 
 RUN set -x && \
     apt-get autoremove -y && \
