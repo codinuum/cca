@@ -344,7 +344,7 @@ def mkfilepair(fent1, fent2):
     if id2 is None:
         id2 = 'null'
     uri = ENT_PAIR_NS + compo_join(id1, id2)
-    logger.debug('uri=%s' % uri)
+    logger.debug(f'uri={uri}')
     return Resource(uri=uri)
 
 
@@ -355,7 +355,7 @@ def mkchgpat(ent1, ent2, _chg):
                      chg)
 
     uri = CHGPAT_INST_NS + cid
-    logger.debug('uri=%s' % uri)
+    logger.debug(f'uri={uri}')
     return Resource(uri=uri)
 
 
@@ -415,7 +415,7 @@ class FactExtractor(object):
 
             for qvs, row in self._sparql.query(q):
                 info['Committer'] = row['cmtr']
-                info['Message'] = '%s' % row['mes']
+                info['Message'] = row['mes']
                 try:
                     ts = int(row['date'])
                     ofs = int(row['ofs'])
@@ -448,7 +448,10 @@ class Finder(object):
         self._proj_id = proj_id
         self._graph_uri = FB_NS + proj_id
         self._sparql = sparql.get_driver(method, pw=pw, port=port)
-        self._result = {}  # lang -> (ver * ver) -> (fid * fid) -> change_pat_name ->  (ent * ent) list
+
+        # lang -> (ver * ver) -> (fid * fid) -> change_pat_name -> (ent * ent) list
+        self._result = {}
+
         self._cache_base_dir = os.path.join(base_dir, 'work.diffts',
                                             proj_id+'.fact')
         if conf is None:
@@ -525,7 +528,7 @@ class Finder(object):
             i = self.get_ver_idx(lver)
             av = self._conf.vers[i]
         except Exception:
-            # logger.warning('cannot get abbreviation for "%s"' % lver)
+            # logger.warning(f'cannot get abbreviation for "{lver}"')
             pass
         return av
 
@@ -587,7 +590,7 @@ class Finder(object):
                     logger.debug('forcing the query to be executed for each version pairs')
                     q = re.sub(r'\?ver', '?VER', q)
 
-                _query = re.sub(r'WHERE', ('WHERE {\nGRAPH <%s>' % self._graph_uri),
+                _query = re.sub(r'WHERE', f'WHERE {{\nGRAPH <{self._graph_uri}>',
                                 q, count=1, flags=re.IGNORECASE).rstrip('\n ;')
                 query = '}}'.join(_query.rsplit('}', 1))
 
@@ -601,14 +604,7 @@ class Finder(object):
         return query, per_ver
 
     def add_ver_filter(self, q, ver0, ver1):
-        # q0 = q.replace('?VER_', '<%s>' % ver1)
-        # query = q0.replace('?VER', '<%s>' % ver0)
-
-        query = q.replace('{', '{\nFILTER (?VER = <%s> && ?VER_ = <%s>)' % (ver0, ver1), 1)
-
-        # query = re.sub(r'(\?VER\s+ver:version\s+\?VER_\s*\.)',
-        #                r'\1\nFILTER (?VER = <%s> && ?VER_ = <%s>)\n' % (ver0, ver1),
-        #                q)
+        query = q.replace('{', f'{{\nFILTER (?VER = <{ver0}> && ?VER_ = <{ver1}>)', 1)
         return query
 
     def get_version_pair(self, ent0, ent1):
@@ -642,11 +638,10 @@ class Finder(object):
                     idx = i
                     pair = (v0, row['v_'])
             except Exception:
-                logger.error('cannot get index for version "%s"' % v)
+                logger.error(f'cannot get index for version "{v}"')
 
         if pair is None:
-            logger.warning('cannot get version pair for "{}" and "{}"'
-                           .format(ent0, ent1))
+            logger.warning(f'cannot get version pair for "{ent0}" and "{ent1}"')
         else:
             self._version_pair_cache[(fent0, fent1)] = pair
 
@@ -678,8 +673,7 @@ class Finder(object):
             pairs.append((row['v'], row['v_']))
 
         if pairs == []:
-            logger.warning('cannot get version pair for "{}" and "{}"'
-                           .format(ent0, ent1))
+            logger.warning(f'cannot get version pair for "{ent0}" and "{ent1}"')
         else:
             self._version_pairs_cache[(fent0, fent1)] = pairs
 
@@ -699,13 +693,12 @@ class Finder(object):
 
         n = len(li)
         if n == 0:
-            logger.warning('SourceTreePair not found for "{}" and "{}"'
-                           .format(ver0, ver1))
+            logger.warning(f'SourceTreePair not found for "{ver0}" and "{ver1}"')
         elif n == 1:
             return li[0]
         else:
-            logger.warning('multiple SourceTreePair found for "{}" and "{}":\n{}'
-                           .format(ver0, ver1, '\n'.join(li)))
+            logger.warning(f'multiple SourceTreePair found for "{ver0}" and "{ver1}":'
+                           f'\n{"\n".join(li)}')
             return li[0]
 
     def get_srctree_ent(self, ver):
@@ -725,8 +718,7 @@ class Finder(object):
         elif n == 1:
             return li[0]
         else:
-            logger.warning('multiple SourceTree found for "{}":\n{}'
-                           .format(ver, '\n'.join(li)))
+            logger.warning(f'multiple SourceTree found for "{ver}":\n{"\n".join(li)}')
             return li[0]
 
     def count_triples(self):
@@ -805,7 +797,7 @@ class Finder(object):
         cond = True
         if self._conf.include:
             cond = any(path.startswith(x) for x in self._conf.include)
-        # logger.warning('%s --> %s' % (path, cond))
+        # logger.warning(f'{path} --> {cond}')
         return cond
 
     def get_source_path(self, fid, verURI):
@@ -835,10 +827,8 @@ class Finder(object):
         if n == 1:
             path = locs[0]
         elif n > 1:
-            logger.warning('multiple paths found for "{}"@"{}":\n{}'
-                           .format(fid.encode(),
-                                   get_localname(verURI),
-                                   '\n'.join(locs)))
+            logger.warning(f'multiple paths found for "{fid.encode()}"@"{get_localname(verURI)}":'
+                           f'\n{"\n".join(locs)}')
             path = locs[0]
         else:
             q = ALL_PATH_QUERY % {'fent': fent.get_uri(),
@@ -855,10 +845,9 @@ class Finder(object):
                 path = locs[0]
             else:
                 if n > 1:
-                    logger.warning('multiple paths found for "{}"@"{}":\n{}'
-                                   .format(fid.encode(),
-                                           get_localname(verURI),
-                                           '\n'.join(locs)))
+                    logger.warning('multiple paths found for '
+                                   f'"{fid.encode()}"@"{get_localname(verURI)}":'
+                                   f'\n{"\n".join(locs)}')
 
                 fd = fid.get_value()
                 vkey = self._conf.get_vkey(self.get_vindex(verURI))
@@ -875,10 +864,9 @@ class Finder(object):
                     # logger.warning(str(e))
                     logger.debug(str(e))
 
-        logger.debug('path="%s"' % path)
+        logger.debug(f'path="{path}"')
         if path is None and not self._conf.include:
-            logger.warning('path not found for "{}"@"{}"'
-                           .format(fid.encode(), get_localname(verURI)))
+            logger.warning(f'path not found for "{fid.encode()}"@"{get_localname(verURI)}"')
 
         self._src_path_tbl[(fid, verURI)] = path
 
@@ -917,26 +905,22 @@ class Finder(object):
         if self._conf.is_vkind_gitrev():
             fd = fid.get_value()
             if self._conf.gitweb_proj_id:
-                url = '/gitweb/?p={};a=blob_plain;f={};h={};hb={}'\
-                    .format(self._conf.gitweb_proj_id,
-                            p,
-                            fd,
-                            get_localname(verURI))
+                url = (f'/gitweb/?p={self._conf.gitweb_proj_id};a=blob_plain;f={p};h={fd};'
+                       f'hb={get_localname(verURI)}')
             else:
                 url = pathname2url(p)
-                logger.warning('cannot get source url: fd="{}" verURI="{}"'
-                               .format(fd, verURI))
+                logger.warning(f'cannot get source url: fd="{fd}" verURI="{verURI}"')
         else:
             try:
                 if p:
                     url = os.path.join(self.get_ver_dir_r(verURI), p)
             except Exception as e:
-                logger.warning('cannot get source URL for fid={} verURL={} path={}: {}'
-                               .format(fid, verURI, path, e))
+                logger.warning(f'cannot get source URL for fid={fid} verURL={verURI} path={path}:'
+                               f' {e}')
         return url
 
     def get_hilit(self, r):
-        return '%d:%d' % (r.get_start_offset(), r.get_end_offset())
+        return f'{r.get_start_offset()}:{r.get_end_offset()}'
 
     def setup_metric_tbl(self, vpairs):
         self._metric_tbl = {}
@@ -981,8 +965,8 @@ class Finder(object):
         count_items = list(count_tbl.items())
         count_items.sort(key=lambda x: x[1], reverse=True)
 
-        f.write('<span class="term">Found:</span> {} change patterns ({} instances)<br/>\n'
-                .format(nchange_pats, total))
+        f.write('<span class="term">Found:</span>'
+                f' {nchange_pats} change patterns ({total} instances)<br/>\n')
 
         if cov:
             f.write('<span class="term">Coverage:</span> {}/{}={:3.2f}<br/>\n'
@@ -993,9 +977,9 @@ class Finder(object):
         f.write('<table class="noframe" border="0" cellspacing="0">\n')
         for (change_pat, c) in count_items:
             p = float(c) / float(total) * 100.0
-            f.write('<tr><td><span class="name">{}</span></td><td align="right">{}</td>'
-                    .format(change_pat, c))
-            f.write('<td align="right">(%3.2f%%)</td></tr>\n' % p)
+            f.write(f'<tr><td><span class="name">{change_pat}</span></td>'
+                    f'<td align="right">{c}</td>')
+            f.write(f'<td align="right">({p:3.2f}%)</td></tr>\n')
         f.write('</table>\n')
 
     def make_applet_html(self, vpid, form_id, var0, var1, ent0, ent1,
@@ -1151,7 +1135,7 @@ class Finder(object):
             elif ch in ('pruned from', 'weak removal'):
                 prune.add(chg)
 
-        logger.debug('|prune|=%d |graft|=%d' % (len(prune), len(graft)))
+        logger.debug(f'|prune|={len(prune)} |graft|={len(graft)}')
 
         reduced = set()
 
@@ -1183,15 +1167,14 @@ class Finder(object):
                 prune.discard(chg)
                 graft.discard(chg)
 
-        logger.debug('|prune|={} |graft|={} |reduced|={}'
-                     .format(len(prune), len(graft), len(reduced)))
+        logger.debug(f'|prune|={len(prune)} |graft|={len(graft)} |reduced|={len(reduced)}')
 
         return (reduced | prune | graft)
 
     def dump(self, outdir, foutdir=None, url_base_path='..'):
 
         if not os.path.exists(outdir):
-            logger.warning('creating "%s"...' % outdir)
+            logger.warning(f'creating "{outdir}"...')
             os.makedirs(outdir)
 
         fact = Fact(PREFIX_TBL)
@@ -1199,7 +1182,7 @@ class Finder(object):
         html_dir = os.path.join(outdir, self._proj_id)
 
         if not os.path.exists(html_dir):
-            logger.warning('creating "%s"...' % html_dir)
+            logger.warning(f'creating "{html_dir}"...')
             os.makedirs(html_dir)
 
         html_path = os.path.join(html_dir, 'index.html')
@@ -1300,7 +1283,7 @@ class Finder(object):
                     xkey_tbl_lang_vp = {}
                     xkey_tbl_lang[lvp] = xkey_tbl_lang_vp
 
-                path_sub = os.path.join(html_dir, '%d.html' % ver_pair_count)
+                path_sub = os.path.join(html_dir, f'{ver_pair_count}.html')
 
                 vpid = str(ver_pair_count)
 
@@ -1317,29 +1300,24 @@ class Finder(object):
                 aver0 = self.get_abbrev_ver(lver0)
                 aver1 = self.get_abbrev_ver(lver1)
 
-                f_summary.write('<h3>Between "{}" and "{}"</h3>\n'
-                                .format(aver0, aver1))
+                f_summary.write(f'<h3>Between "{aver0}" and "{aver1}"</h3>\n')
 
                 if self._metric_tbl:
                     m = self._metric_tbl[(ver0, ver1)]
                     copts_str = m['copts']
                     if copts_str:
-                        copts_str = ' (%s)' % copts_str
-                    met = '<span class="term">{}:</span> {}{}<br />\n'\
-                        .format(self._extra_fact_extractor.metrics,
-                                m['value'],
-                                copts_str)
+                        copts_str = f' ({copts_str})'
+                    met = (f'<span class="term">{self._extra_fact_extractor.metrics}:'
+                           f'</span> {m['value']}{copts_str}<br />\n')
                     f_summary.write(met)
 
                 other_info = self._extra_fact_extractor.get_other_info(ver0,
                                                                        ver1)
                 if other_info:
                     for k in other_info.keys():
-                        f_summary.write('<span class="term">{}:</span> {}<br />\n'
-                                        .format(k, other_info[k]))
+                        f_summary.write(f'<span class="term">{k}:</span> {other_info[k]}<br />\n')
 
-                f_sub.write('<h3>Patterns found between "{}" and "{}"</h3>\n'
-                            .format(aver0, aver1))
+                f_sub.write(f'<h3>Patterns found between "{aver0}" and "{aver1}"</h3>\n')
 
                 fd_tbl = ver_tbl[(ver0, ver1)]
 
@@ -1357,16 +1335,14 @@ class Finder(object):
                                 instances.append(iid)
 
                 ninstances = len(instances)
-                logger.info('{} instances found between "{}" and "{}"'
-                            .format(ninstances, lver0, lver1))
+                logger.info(f'{ninstances} instances found between "{lver0}" and "{lver1}"')
 
                 if self._limit is not None:
                     if ninstances > self._limit:
                         reduced_count = 0
                         reduced_instances = random.sample(instances,
                                                           self._limit)
-                        logger.info('--> randomly sampled {} instances'
-                                    .format(len(reduced_instances)))
+                        logger.info(f'--> randomly sampled {len(reduced_instances)} instances')
 
                         for fd_pair in fd_tbl.keys():
                             g_tbl = fd_tbl[fd_pair]
@@ -1412,8 +1388,8 @@ class Finder(object):
 
                 self._show_stat(f_summary, count_tbl, cov)
 
-                link = '<a href="{}" target="right">Show Detail</a>\n'\
-                    .format(os.path.basename(path_sub))
+                link = f'<a href="{os.path.basename(path_sub)}" target="right">Show Detail</a>\n'
+
                 f_summary.write(link)
 
                 for (fid0, fid1) in fd_tbl.keys():
@@ -1435,14 +1411,14 @@ class Finder(object):
                         fact.add(file_pair_node, P_TYPE, ps.c_filepair)
                         fact.add(file_pair_node, ps.p_orig_file, fent0)
                         fact.add(file_pair_node, ps.p_modi_file, fent1)
-                        # self._extra_fact_extractor.extract_file_fact(fact, fent0, fent1, ver0, ver1)
+                        # self._extra_fact_extractor.extract_file_fact(fact, fent0, fent1,
+                        #                                              ver0, ver1)
                     # END EXTRACT FACT
 
                     url0 = self.get_source_url(fid0, ver0, path=path0)
                     url1 = self.get_source_url(fid1, ver1, path=path1)
 
-                    f_sub.write('<h4>[{}] {} <br/> - {}</h4>\n'
-                                .format(file_count, path0, path1))
+                    f_sub.write(f'<h4>[{file_count}] {path0} <br/> - {path1}</h4>\n')
                     f_sub.write('<ul>\n')
 
                     applet_data = {
@@ -1487,7 +1463,7 @@ class Finder(object):
 
                                 ln0 = get_localname(str(ent0.get_uri()))
                                 ln1 = get_localname(str(ent1.get_uri()))
-                                xkey = '%s:%s:%s' % (change_pat, ln0, ln1)
+                                xkey = f'{change_pat}:{ln0}:{ln1}'
                                 xkey_tbl_lang_vp[xkey] = local_count
 
                                 # BEGIN EXTRACT FACT
@@ -1554,18 +1530,16 @@ class Finder(object):
 
                                         for obj in objs:
                                             fact.add(chgpat_node, pred, obj)
-
-                                    # for (pred, lits) in [(self.mkchgpatpred(lang, k), make_literals(others_tbl[k])) for k in otbl_keys]:
-                                    #     for lit in lits:
-                                    #         fact.add(chgpat_node, pred, lit)
                                 # END EXTRACT FACT
 
                                 other_vs = []
                                 for k in otbl_keys:
-                                    ss = list(filter(lambda x: not x.startswith('http'), others_tbl[k]))
+                                    ss = list(filter(lambda x: not x.startswith('http'),
+                                                     others_tbl[k]))
                                     if len(ss) > 0:
-                                        other_vs.append('<span class="variable">%s</span>: <code>%s</code>' % (k, str_set_to_str(ss)))
-                                # other_vs = ['<span class="variable">%s</span>: <code>%s</code>' % (k, str_set_to_str(others_tbl[k])) for k in otbl_keys]
+                                        other_vs.append(f'<span class="variable">{k}</span>:'
+                                                        f' <code>{str_set_to_str(ss)}</code>')
+
                                 others_str = ', '.join(other_vs)
                                 item_data['others'] = others_str
 
@@ -1594,7 +1568,9 @@ class Finder(object):
 
                                 ess_tbl0 = {}  # fid -> (so * eo * var) list
                                 ess_tbl1 = {}  # fid -> (so * eo * var) list
-                                ess_tbl01 = {}  # (fid * fid) -> ((so * eo * var) * (so * eo * var)) list
+
+                                # (fid * fid) -> ((so * eo * var) * (so * eo * var)) list
+                                ess_tbl01 = {}
 
                                 def mkofs(e, v):
                                     r = e.get_range()
@@ -1670,7 +1646,7 @@ class Finder(object):
                                     ess1_str = ess_tbl1.get(f1, '[]')
                                     ess01_str = ess_tbl01.get((f0, f1), '[]')
 
-                                    form_id = '%d-%d' % (count, sub_count)
+                                    form_id = f'{count}-{sub_count}'
 
                                     a = self.make_applet_html(vpid, form_id,
                                                               v0, v1, e0, e1,
@@ -1743,13 +1719,13 @@ class Finder(object):
                         applet_data['var0'] = '_'
                         applet_data['var1'] = '_'
 
-                        applet_data['form_id'] = 'o%d' % count_uc
+                        applet_data['form_id'] = f'o{count_uc}'
 
                         applet = APPLET % applet_data
 
                         count_uc += 1
 
-                        item_data['rname'] = '%s (%s)' % (c, ct)
+                        item_data['rname'] = f'{c} ({ct})'
                         item_data['count'] = count_uc
                         item_data['others'] = ''
                         item_data['applet'] = applet
@@ -1932,7 +1908,7 @@ class Finder(object):
 
     def _enumerate_changes(self, lang, q):
 
-        logger.info('enumerating changes (%s)...' % q),
+        logger.info(f'enumerating changes ({q})...'),
 
         start = time.time()
 
@@ -1943,9 +1919,7 @@ class Finder(object):
 
             if per_ver:
                 for (ver0, ver1) in self._conf.vURIpairs:
-                    logger.info('  "{}"-"{}"'
-                                .format(get_localname(ver0),
-                                        get_localname(ver1)))
+                    logger.info(f'  "{get_localname(ver0)}"-"{get_localname(ver1)}"')
 
                     count = 0
 
@@ -1975,7 +1949,7 @@ class Finder(object):
 
                         count += 1
 
-                    logger.debug('%d rows processed' % count)
+                    logger.debug(f'{count} rows processed')
 
             else:
                 count = 0
@@ -2006,7 +1980,7 @@ class Finder(object):
 
                     count += 1
 
-                logger.debug('%d rows processed' % count)
+                logger.debug(f'{count} rows processed')
 
             for (ver0, ver1) in tbl.keys():
                 fd_tbl = {}
@@ -2039,9 +2013,7 @@ class Finder(object):
 
                 (ver0, ver1) = k0
 
-                logger.debug('  {}-{}:'
-                             .format(get_localname(ver0),
-                                     get_localname(ver1)))
+                logger.debug(f'  {get_localname(ver0)}-{get_localname(ver1)}:')
 
                 fd_tbl = {}
                 try:
@@ -2053,19 +2025,18 @@ class Finder(object):
                     (fid0, fid1) = k1
                     n = len(self._prim_chg_tbl[k0][k1])
 
-                    logger.debug('    "{}"-"{}": {}'
-                                 .format(fid0.encode(), fid1.encode(), n))
+                    logger.debug(f'    "{fid0.encode()}"-"{fid1.encode()}": {n}')
 
                     self._prim_chg_count_tbl[k0][k1] = n
 
             t = time.time() - start
-            logger.info('done. (%ds)' % t)
+            logger.info(f'done. ({t:.2f}s)')
 
         except QueryNotFound as e:
-            logger.warning('query not found: "%s"' % e.query)
+            logger.warning(f'query not found: "{e.query}"')
 
     def enumerate_primitive_changes(self, lang):
-        logger.info('enumerating primitive changes for %s...' % lang)
+        logger.info(f'enumerating primitive changes for {lang}...')
         self._prim_chg_tbl = {}
         lang = None
         self._enumerate_changes(lang, Q_ENUM_MAPPING_CHG)
@@ -2108,19 +2079,19 @@ class Finder(object):
     def is_removal(self, s):
         b = s in ('deleted or pruned', 'deleted from', 'pruned from',
                   'weak removal')
-        logger.debug('%s --> %s' % (s, b))
+        logger.debug(f'{s} --> {b}')
         return b
 
     def is_addition(self, s):
         b = s in ('inserted or grafted', 'inserted into', 'grafted onto',
                   'weak addition')
-        logger.debug('%s --> %s' % (s, b))
+        logger.debug(f'{s} --> {b}')
         return b
 
     def is_mapping_chg(self, s):
         b = s in ('changed to', 'modified', 'moved to', 'order changed',
                   'renamed')
-        logger.debug('%s --> %s' % (s, b))
+        logger.debug(f'{s} --> {b}')
         return b
 
     def remove_from_prim_chg_tbl(self, ver0, ver1, fid0, fid1, ent0, ent1):
@@ -2149,7 +2120,7 @@ class Finder(object):
                     to_be_removed.append(chg)
 
             for chg in to_be_removed:
-                logger.debug('removing (%s,%s,%s)' % (e0, e1, c))
+                logger.debug(f'removing ({e0},{e1},{c})')
                 chgs.remove(chg)
 
         except KeyError:
@@ -2173,7 +2144,8 @@ class Finder(object):
                 self.enumerate_primitive_changes(lang)
 
             try:
-                ver_tbl = self._result[lang]  # (ver * ver) -> (fid * fid) -> change_pat_name ->  (ent * ent) list
+                # (ver * ver) -> (fid * fid) -> change_pat_name -> (ent * ent) list
+                ver_tbl = self._result[lang]
             except KeyError:
                 ver_tbl = {}
                 self._result[lang] = ver_tbl
@@ -2188,7 +2160,7 @@ class Finder(object):
                     skip_count = 0
 
                 name = fname_to_title(q)
-                logger.info('finding \"%s\" for %s...' % (name, lang)),
+                logger.info(f'finding \"{name}\" for {lang}...')
                 sys.stdout.flush()
 
                 ess0, ess1, ess01 = essential
@@ -2200,7 +2172,7 @@ class Finder(object):
                                                                 and is_complex)
                                                  )
 
-                # logger.debug('query:\n%s' % _query)
+                # logger.debug(f'query:\n{_query}')
 
                 start = time.time()
 
@@ -2230,22 +2202,19 @@ class Finder(object):
                 for (ver0, ver1) in vpairs:
                     vp_count += 1
 
-                    logger.debug('%s vs %s' % (ver0, ver1))
+                    logger.debug(f'{ver0} vs {ver1}')
 
                     st0 = time.time()
 
                     if per_ver:
                         query = self.add_ver_filter(_query, ver0, ver1)
-                        sys.stdout.write('<{} -> {}> [{}/{}]'
-                                         .format(self.get_ver_name(ver0),
-                                                 self.get_ver_name(ver1),
-                                                 vp_count,
-                                                 nvpairs))
+                        sys.stdout.write(f'<{self.get_ver_name(ver0)} -> {self.get_ver_name(ver1)}>'
+                                         f' [{vp_count}/{nvpairs}]')
                         sys.stdout.flush()
                     else:
                         query = _query
 
-                    # logger.debug('query:\n%s' % query)
+                    # logger.debug(f'query:\n{query}')
 
                     rows = []
 
@@ -2354,18 +2323,15 @@ class Finder(object):
                         uri0 = self.get_uri(row, var0)
                         uri1 = self.get_uri(row, var1)
 
-                        logger.debug('var0: %s --> uri0: %s' % (var0, uri0))
-                        logger.debug('var1: %s --> uri1: %s' % (var1, uri1))
-                        # print('var0: %s --> %s' % (var0, uri0))
-                        # print('var1: %s --> %s' % (var1, uri1))
+                        logger.debug(f'var0: {var0} --> uri0: {uri0}')
+                        logger.debug(f'var1: {var1} --> uri1: {uri1}')
 
                         if uri0 is None or uri1 is None:
                             continue
 
                         if has_extra:
                             extra_count = extra_count_tbl.get((uri0, uri1), 0)
-                            logger.debug('extra_count={} min_extra={}'
-                                         .format(extra_count, min_extra))
+                            logger.debug(f'extra_count={extra_count} min_extra={min_extra}')
                             if extra_count < min_extra:
                                 continue
 
@@ -2376,15 +2342,14 @@ class Finder(object):
                         fid1 = ent1.get_file_id()
 
                         if fid0 == fid1:
-                            logger.warning('illegal URI pair: {} and {}'
-                                           .format(uri0, uri1))
+                            logger.warning(f'illegal URI pair: {uri0} and {uri1}')
 
                         version_pairs = [(ver0, ver1)]
 
                         if not per_ver:
                             version_pairs = self.get_version_pairs(ent0, ent1)
                             if version_pairs == []:
-                                logger.warning('%s' % name)
+                                logger.warning(f'{name}')
                                 continue
 
                         if self._conf.include:
@@ -2407,7 +2372,7 @@ class Finder(object):
 
                         chg_name = name
                         if key_var:
-                            chg_name = '"%s" %s' % (key_var, name)
+                            chg_name = f'"{key_var}" {name}'
 
                         for (v0, v1) in extra:
                             u0 = row[v0]
@@ -2484,6 +2449,7 @@ class Finder(object):
 
                         if not ess_exists:
                             # logger.warning('no essential variables found')
+                            logger.debug('no essential variables found')
                             continue
 
                         for v in others:
@@ -2522,39 +2488,39 @@ class Finder(object):
                                 grp = GROUP_SEPARATOR.join(ys)
 
                         except Exception as e:
-                            logger.warning('group not set: %s' % e)
+                            logger.warning(f'group not set: {e}')
+
+                        logger.debug(f'grp={grp}')
 
                         for fd_tbl in fd_tbls:
-
-                            g_tbl = {}
-
                             try:
                                 g_tbl = fd_tbl[(fid0, fid1)]
                             except KeyError:
                                 g_tbl = {}
                                 fd_tbl[(fid0, fid1)] = g_tbl
-
                             try:
                                 d = g_tbl[grp]
-
                                 try:
                                     t = d[chg_name]
                                     t[key] = data
+                                    logger.debug(f'{chg_name} -> {key} -> {data}')
                                 except KeyError:
                                     d[chg_name] = {key: data}
+                                    logger.debug(f'{chg_name} -> {key} -> {data}')
 
                             except KeyError:
                                 d = {chg_name: {key: data}}
+                                logger.debug(f'{chg_name} -> {key} -> {data}')
                                 g_tbl[grp] = d
 
                     if per_ver:
-                        logger.info(' (%ds)' % (time.time() - st0))
+                        logger.info(f' ({time.time() - st0}s)')
 
                 t = time.time() - start
-                logger.info('done. (%ds)' % t)
+                logger.info(f'done. ({t:.2f}s)')
 
                 if query_prec and skip_count:
-                    logger.info('%d instances skipped' % skip_count)
+                    logger.info(f'{skip_count} instances skipped')
 
 
 def find(query_dir, queries, predicate_tbl, extra_fact_extractor,
