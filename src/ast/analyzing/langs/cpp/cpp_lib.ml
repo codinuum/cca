@@ -26,21 +26,25 @@ let elaborate_edits
     uidmapping
     edits
     =
-  let mkfilt = Edit.mkfilt Fact.getlab in
-(*
-  let is_type_decl_stmt = mkfilt Label.is_type_decl_stmt in
-*)
+  if not options#no_rename_rectification_flag then begin
+    let mkfilt = Edit.mkfilt Fact.getlab in
+    (*let is_type_decl_stmt = mkfilt Label.is_type_decl_stmt in*)
+    let is_named = mkfilt Label.is_named in
 
-  let is_named = mkfilt Label.is_named in
-
-  let filters = [|
-    is_named;
-  |]
-  in
-  let handle_weak = not options#dump_delta_flag in
-  let _ = Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters in
-  ()
-
+    let filters = [|
+      is_named;
+    |]
+    in
+    let max_count = 2 in
+    let handle_weak = not options#dump_delta_flag in
+    let count = ref 0 in
+    let modified = ref true in
+    while !modified && !count < max_count do
+      incr count;
+      DEBUG_MSG "%d-th execution of rename rectification" !count;
+      modified := Edit.rectify_renames ~handle_weak options cenv uidmapping edits filters
+    done
+  end
 
 let _ =
   Lang.register Scpp.parser_name

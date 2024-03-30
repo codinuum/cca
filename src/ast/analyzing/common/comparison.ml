@@ -1420,12 +1420,7 @@ class ['node_t, 'tree_t] c
     let matches = ref [] in
     let nmcount = ref 0 in
 
-    let has_uniq_match =
-      if options#no_rename_rectification_flag then
-        fun _ _ -> false
-      else
-        self#has_uniq_match
-    in
+    let has_uniq_match = self#has_uniq_match in
 
     List.iter
       (fun (i, j) ->

@@ -910,8 +910,8 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv nmapping edits is_possible_
   freq_tbl, _use_rename_tbl1, _use_rename_tbl2, free_freq_tbl, _free_rename_tbl1, _free_rename_tbl2
 end
 
-(* adjust_renames assumes that edit seq. contains correct renames of USEs *)
-let adjust_renames
+(* rectify_renames assumes that edit seq. contains correct renames of USEs *)
+let rectify_renames
     ?(handle_weak=true)
     ?(trust_moved_non_renames=true)
     options
@@ -2104,4 +2104,4 @@ let adjust_renames
 
   nrels > 0
 
-(* end of func adjust_renames *)
+(* end of func rectify_renames *)

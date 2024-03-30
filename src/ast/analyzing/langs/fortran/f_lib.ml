@@ -28,23 +28,29 @@ let elaborate_edits
     uidmapping
     edits
     =
-  let mkfilt = Edit.mkfilt Fact.getlab in
-(*
-  let is_type_decl_stmt = mkfilt Label.is_type_decl_stmt in
-*)
-  let is_entity_decl = mkfilt Label.is_entity_decl in
-  let is_part_name   = mkfilt Label.is_part_name in
-  let is_var_name    = mkfilt Label.is_var_name in
+  if not options#no_rename_rectification_flag then begin
+    let mkfilt = Edit.mkfilt Fact.getlab in
+    (*let is_type_decl_stmt = mkfilt Label.is_type_decl_stmt in*)
+    let is_entity_decl = mkfilt Label.is_entity_decl in
+    let is_part_name   = mkfilt Label.is_part_name in
+    let is_var_name    = mkfilt Label.is_var_name in
 
-  let filters = [|
-    is_entity_decl;
-    is_part_name;
-    is_var_name;
-  |]
-  in
-  let _ = Edit.adjust_renames options cenv uidmapping edits filters in
-  ()
-
+    let filters = [|
+      is_entity_decl;
+      is_part_name;
+      is_var_name;
+    |]
+    in
+    let max_count = 2 in
+    let handle_weak = not options#dump_delta_flag in
+    let count = ref 0 in
+    let modified = ref true in
+    while !modified && !count < max_count do
+      incr count;
+      DEBUG_MSG "%d-th execution of rename rectification" !count;
+      modified := Edit.rectify_renames ~handle_weak options cenv uidmapping edits filters;
+    done
+  end
 
 let _ =
   Lang.register Sfortran.parser_name

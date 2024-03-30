@@ -1415,7 +1415,6 @@ module F (Label : Spec.LABEL_T) = struct
             Treediff.fast_match_trees otree ntree ref_nmapping
           else
             let check_relabels =
-              not options#no_rename_rectification_flag &&
               if
                 nd1#data#is_boundary && nd2#data#is_boundary ||
                 nd1#data#is_block && nd2#data#is_block
@@ -2159,6 +2158,7 @@ END_DEBUG;
       ?(use_binding_info=false)
       ?(rely_on_binding_info=false)
       ?(rely_on_context=false)
+      ?(ignore_common=false)
       (nmapping : node_t Node_mapping.c)
       (ref_nmapping : node_t Node_mapping.c)
       =
@@ -2234,8 +2234,9 @@ END_DEBUG;
       DEBUG_MSG "START: first=%B record_conflicted_pairs=%B" first record_conflicted_pairs;
       DEBUG_MSG "       override=%B no_mapping_override=%B" override no_mapping_override;
       DEBUG_MSG "       no_moves=%B downward=%B use_binding_info=%B rely_on_binding_info=%B"
-                                    no_moves downward use_binding_info rely_on_binding_info;
-      DEBUG_MSG "       rely_on_context=%B last=%B" rely_on_context last;
+                        no_moves downward use_binding_info rely_on_binding_info;
+      DEBUG_MSG "       rely_on_context=%B ignore_common=%B last=%B"
+                        rely_on_context ignore_common last;
       if not (Xset.is_empty bad_pairs) then begin
         Xset.iter
           (fun (n1, n2) ->
@@ -2250,10 +2251,26 @@ END_DEBUG;
       (*DEBUG_MSG "nmapping (gindex):\n%s\n" nmapping#to_string_gid;*)
     END_DEBUG;
 
-    let is_bad_pair n1 n2 =
-      let b = Xset.mem bad_pairs (n1, n2) in
-      DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
-      b
+    let is_bad_pair =
+      if ignore_common then
+        fun n1 n2 ->
+          let b =
+            (try
+              (n1#data#is_common || n2#data#is_common) &&
+              n1#initial_parent#data#is_sequence &&
+              n2#initial_parent#data#is_sequence &&
+              not (n1#data#eq n2#data)
+            with _ -> false)
+          ||
+            Xset.mem bad_pairs (n1, n2)
+          in
+          DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+          b
+      else
+        fun n1 n2 ->
+          let b = Xset.mem bad_pairs (n1, n2) in
+          DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+          b
     in
 
     let starting_pairs =
@@ -5072,7 +5089,7 @@ END_DEBUG;
 *)
     let sync_edits = sync_edits options cenv edits in
 
-    if not simple && not options#no_rename_rectification_flag then begin
+    if not simple then begin
       begin
         match lang#elaborate_edits with
         | Some f ->
@@ -5104,6 +5121,7 @@ if not options#no_glue_flag then begin
             let removed_pairs, added_pairs, conflicted_pairs =
               glue_deletes_and_inserts options cenv tree1 tree2
                 ~override:true ~no_moves:options#no_moves_flag ~use_binding_info:true
+                ~ignore_common:true
                 nmapping (new Node_mapping.c cenv)
             in
             sync_edits removed_pairs added_pairs;
@@ -5313,7 +5331,8 @@ end;
       DEBUG_MSG "@";
       let _, added_pairs, conflicted_pairs =
         glue_deletes_and_inserts
-          ~first:true ~record_conflicted_pairs:true options cenv tree1 tree2 nmapping ref_nmapping
+          ~first:true ~record_conflicted_pairs:true ~ignore_common:true
+          options cenv tree1 tree2 nmapping ref_nmapping
       in
       DEBUG_MSG "|conflicted_pairs|=%d" (Xset.length conflicted_pairs);
       let starting_pairs =

@@ -265,7 +265,7 @@ let speclist =
    "-norr", Arg.Unit (fun () ->
                        options#set_no_rename_rectification_flag;
                        options#clear_use_binding_info_flag;
-                       options#set_no_odd_relabel_elim_flag
+                       (*options#set_no_odd_relabel_elim_flag*)
                      ),
            "\tdisable rename rectification";
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
