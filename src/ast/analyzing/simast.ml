@@ -72,7 +72,16 @@ let speclist =
    "-version", Arg.Set show_version_flag, "\tshow version";
    "-verbose", Arg.Unit (fun () -> options#set_verbose_flag), "\tdisplay verbose messages";
    "-check", Arg.Unit (fun () -> options#set_check_flag), "\tcheck result";
-   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing in spite of errors";
+   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing despite errors";
+
+   "-parser:rely-on-naming-convention", Arg.Unit
+                                        (fun () -> options#set_rely_on_naming_convention_flag),
+                                        "\trely on naming convention";
+   "-parser:partial-name-resolution", Arg.Unit (fun () -> options#set_partial_name_resolution_flag),
+                                      "\tresolve names partially";
+   "-parser:no-implicit-name-resolution",
+     Arg.Unit (fun () -> options#set_no_implicit_name_resolution_flag),
+     "\tdisable name resolution";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";
@@ -139,17 +148,17 @@ let speclist =
    "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag),
                           sprintf "\tdo not ignore huge arrays (default:%s)"
                             (if options#ignore_huge_arrays_flag then "ignore" else "scan");
-
    "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
                          sprintf "N\thuge array size threshold (default: %d)"
                            options#huge_array_threshold;
-
    "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
                              "\tsuppress moves of unnamed nodes";
-
+   "-no-binding-trace", Arg.Unit (fun () -> options#set_no_binding_trace_flag),
+                        "\t\tdisable binding trace";
+   "-strict-rr", Arg.Unit (fun () -> options#set_strict_rename_rectification_flag),
+                 "\t\tforce strict rename rectification";
    "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
                   "\t\t\taggressively find moves";
-
 (*
 "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
 sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;

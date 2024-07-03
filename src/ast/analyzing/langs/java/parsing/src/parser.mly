@@ -684,8 +684,11 @@ _package_declaration:
     { 
       let pname = P.name_to_simple_string n in
       env#set_current_package_name pname;
-      let d = env#current_source#file#dirname in
-      env#classtbl#add_package ~dir:(env#current_source#tree#get_entry d) pname;
+
+      if not env#no_implicit_name_resolution_flag then begin
+        let d = env#current_source#file#dirname in
+        env#classtbl#add_package ~dir:(env#current_source#tree#get_entry d) pname
+      end;
 
       set_attribute_P_P n;
       let loc =
@@ -772,6 +775,8 @@ type_import_on_demand_declaration:
             let sn = P.name_to_simple_string n in
             (*parse_warning $startofs $endofs "failed to resolve %s" sn;*)
             try
+              if env#no_implicit_name_resolution_flag then
+                raise Not_found;
               let p =
                 Filename.concat env#classtbl#get_source_dir#path (Common.pkg_to_path sn)
               in
@@ -2606,7 +2611,7 @@ method_invocation:
             is_field_access q ||
             is_expr_name q
           then begin
-            set_name_attribute NAexpression q;
+            set_name_attribute (NAexpression EKunknown) q;
             register_qname_as_expression q;
             env#reclassify_identifier(leftmost_of_name q);
             mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
@@ -2667,7 +2672,7 @@ method_invocation:
         is_field_access q ||
         is_expr_name q
       then begin
-        set_name_attribute NAexpression q;
+        set_name_attribute (NAexpression EKunknown) q;
         register_qname_as_expression q;
         begin
           try
@@ -2734,7 +2739,7 @@ method_invocation:
 array_access:
 | n=name LBRACKET e=expression RBRACKET               
     { 
-      set_name_attribute NAexpression n;
+      set_name_attribute (NAexpression EKunknown) n;
       if is_qualified n then begin
         let q = get_qualifier n in
         env#set_attribute_A q
@@ -2755,7 +2760,7 @@ postfix_expression:
 | p=primary                 { mkexpr $startofs $endofs (Eprimary p) }
 | n=name                      
     { 
-      set_name_attribute NAexpression n;
+      set_name_attribute (NAexpression EKunknown) n;
       if is_qualified n then begin
         let q = get_qualifier n in
         env#set_attribute_A ~force_defer:true q

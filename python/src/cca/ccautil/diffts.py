@@ -3,7 +3,7 @@
 '''
   A Diff/TS Driver
 
-  Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -426,6 +426,9 @@ def diffts(diff_cmd, file1, file2,
            ignore_moves_of_unordered=False,
            no_unnamed_node_moves=False,
            no_rename_rectification=False,
+           no_binding_trace=False,
+           strict_rr=False,
+           no_implicit_name_resolution=False,
            keep_filtered_temp=False,
            local_cache_name='',
            dump_delta=False,
@@ -533,6 +536,15 @@ def diffts(diff_cmd, file1, file2,
 
         if no_rename_rectification:
             other_opts += ' -norr'
+
+        if no_binding_trace:
+            other_opts += ' -no-binding-trace'
+
+        if strict_rr:
+            other_opts += ' -strict-rr'
+
+        if no_implicit_name_resolution:
+            other_opts += ' -parser:no-implicit-name-resolution'
 
         if ignore_moves_of_unordered:
             other_opts += ' -ignore-moves-of-unordered'

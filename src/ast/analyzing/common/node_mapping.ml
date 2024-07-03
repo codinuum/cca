@@ -20,7 +20,7 @@
 module UID = Otreediff.UID
 module GI = Otreediff.GIndex
 module Comp = Compression
-module Nodetbl = Treediff.Nodetbl
+module Nodetbl = Node.Tbl
 
 
 let fprintf = Printf.fprintf
@@ -222,7 +222,7 @@ module Json = struct
 
 end
 
-class ['node_t] c cenv = object (self : 'self)
+class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
 
   val mutable use_crossing_or_incompatible_matches_count_cache = false
 

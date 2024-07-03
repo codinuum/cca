@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ class tree_builder options =
       _parser#_set_keep_going_flag options#keep_going_flag;
       _parser#set_java_lang_spec options#java_lang_spec;
       _parser#_set_rely_on_naming_convention_flag options#rely_on_naming_convention_flag;
-      _parser#_set_partial_name_resolution_flag options#partial_name_resolution_flag
+      _parser#_set_partial_name_resolution_flag options#partial_name_resolution_flag;
+      _parser#_set_no_implicit_name_resolution_flag options#no_implicit_name_resolution_flag
 
   end

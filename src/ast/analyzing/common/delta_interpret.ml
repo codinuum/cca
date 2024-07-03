@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1638,21 +1638,40 @@ class ['tree] interpreter (tree : 'tree) = object (self)
     let skip_touched_li ?(limit=tree#root) ?(target=tree#root) nd =
       DEBUG_MSG "limit=%a target=%a nd=%a" nps limit nps target nps nd;
       let last_inserted = ref [] in
+      let visited = Xset.create 0 in
       let rec skip nd =
         DEBUG_MSG "nd=%a" nps nd;
+
+        if Xset.mem visited nd then begin
+          DEBUG_MSG "infinite loop detected: nd=%s" nd#initial_to_string;
+          failwith "skip_touched";
+        end;
+
         if nd == limit then
           failwith "skip_touched";
-        let pnd = nd#initial_parent in
-        if pnd == limit then
-          failwith "skip_touched";
-        if self#is_insert pnd then begin
-          DEBUG_MSG "%a (pos=%d)" nps pnd nd#initial_pos;
-          last_inserted := (pnd, nd#initial_pos) :: !last_inserted
-        end;
-        if self#is_stable pnd || pnd == target && pnd != tree#root then
-          pnd, nd#initial_pos, !last_inserted
-        else
-          skip pnd
+
+        Xset.add visited nd;
+
+        try
+          let pnd = nd#initial_parent in
+          DEBUG_MSG "pnd=%s" pnd#initial_to_string;
+
+          if pnd == limit then
+            failwith "skip_touched";
+
+          if self#is_insert pnd then begin
+            DEBUG_MSG "%a (pos=%d)" nps pnd nd#initial_pos;
+            last_inserted := (pnd, nd#initial_pos) :: !last_inserted
+          end;
+          if self#is_stable pnd || pnd == target && pnd != tree#root then
+            pnd, nd#initial_pos, !last_inserted
+          else
+            skip pnd
+        with
+          Otree.Parent_not_found _ -> begin
+            DEBUG_MSG "parent not found: nd=%s" nd#initial_to_string;
+            failwith "skip_touched"
+          end
       in
       skip nd
     in

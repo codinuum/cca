@@ -21,7 +21,7 @@ module UID = Otreediff.UID
 module MID = Moveid
 module GI = Otreediff.GIndex
 module B = Binding
-module Nodetbl = Treediff.Nodetbl
+module Nodetbl = Node.Tbl
 
 let matched_sibling_ratio_thresh = 0.9
 

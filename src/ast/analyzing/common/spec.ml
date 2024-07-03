@@ -127,6 +127,7 @@ class type tree_t = object ('self)
 
   method set_true_children_tbl    : (node_t, node_t array) Hashtbl.t -> unit
   method recover_true_children    : initial_only:bool -> unit -> unit
+  method has_true_children        : node_t -> bool
 
   method set_source_info          : Storage.file -> unit
 

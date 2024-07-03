@@ -134,8 +134,6 @@ module type T = sig
 
   val getlab                   : Spec.node_t -> t
 
-  val is_local_variabledeclarator : t -> bool
-
 end
 
 
@@ -217,6 +215,7 @@ module Type = struct
        "java.lang.reflect.Method";
        "java.lang.reflect.Parameter";
        "java.lang.reflect.Field";
+       "java.lang.NullPointerException";
        "java.util.List";
        "java.util.Collection";
        "java.util.Iterator";
@@ -229,13 +228,14 @@ module Type = struct
      ];
     s
 
-  let is_common = function
+  let rec is_common = function
     | Byte | Short | Int | Long | Char
     | Float | Double | Boolean | Void
       -> true
     | ClassOrInterface n
     | Class n
       -> Xset.mem common_classes n
+    | Array(ty, _) -> is_common ty
     | _ -> false
 
   let rec get_name = function
@@ -1987,7 +1987,7 @@ type t = (* Label *)
 (* misc *)
   | Block of tie_id
   | LocalVariableDeclaration of bool (* is stmt *) * (name * dims) list
-  | VariableDeclarator of name * dims * bool (* is local *)
+  | VariableDeclarator of name * dims
   | CatchClause of tie_id
   | Finally
   | ForInit of tie_id
@@ -2077,7 +2077,7 @@ type t = (* Label *)
 
   | EmptyDeclaration
 
-  | ForHeader of name * dims
+  | ForHead of tie_id
 
   | Aspect of name
   | Pointcut of name
@@ -2129,8 +2129,7 @@ let to_string = function
   | Block tid                               -> sprintf "Block(%s)" (tid_to_string tid)
   | LocalVariableDeclaration(isstmt, vdids) ->
       sprintf "LocalVariableDeclaration(%B,%s)" isstmt (vdids_to_string vdids)
-  | VariableDeclarator(name, dims, islocal) ->
-      sprintf "VariableDeclarator(%s,%d,%B)" name dims islocal
+  | VariableDeclarator(name, dims)          -> sprintf "VariableDeclarator(%s,%d)" name dims
   | CatchClause tid                         -> sprintf "CatchClause(%s)" (tid_to_string tid)
   | Finally                                 -> "Finally"
   | ForInit tid                             -> sprintf "ForInit(%s)" (tid_to_string tid)
@@ -2203,7 +2202,7 @@ let to_string = function
 
   | EmptyDeclaration                        -> "EmptyDeclaration"
 
-  | ForHeader(name, dims)                   -> sprintf "ForHeader(%s,%d)" name dims
+  | ForHead tid                   -> sprintf "ForHead(%s)" (tid_to_string tid)
 
   | Aspect name                   -> sprintf "Aspect(%s)" name
   | Pointcut name                 -> sprintf "Pointcut(%s)" name
@@ -2257,12 +2256,12 @@ let strip = function (* strip non-name attributes from label *)
 
   | LocalVariableDeclaration(_, l) -> LocalVariableDeclaration(true, List.map (fun (n, _) -> n, 0) l)
   | FieldDeclaration l             -> FieldDeclaration (List.map (fun (n, _) -> n, 0) l)
-  | VariableDeclarator(name, _, _) -> VariableDeclarator(name, 0, true)
+  | VariableDeclarator(name, _)    -> VariableDeclarator(name, 0)
 
   | TypeArguments(_, name)  -> TypeArguments(1, name)
   | Parameter(name, _, _)   -> Parameter(name, 0, false)
   | CatchParameter(name, _) -> CatchParameter(name, 0)
-  | ForHeader(name, _)      -> ForHeader(name, 0)
+  | ForHead _ -> ForHead null_tid
 
   | lab -> lab
 
@@ -2275,7 +2274,7 @@ let anonymize ?(more=false) = function
 
   | LocalVariableDeclaration _ when more -> VariableDeclaration
   | FieldDeclaration _ when more         -> VariableDeclaration
-  | VariableDeclarator(name, dims, false) when more -> VariableDeclarator("", 0, true)
+  | VariableDeclarator(name, dims) when more -> VariableDeclarator("", 0)
   | Modifiers kind when more -> Modifiers Kany
 
   | Type ty                        -> Type (Type.anonymize ty)
@@ -2302,8 +2301,8 @@ let anonymize ?(more=false) = function
   | Method(name, msig)             -> Method("", "")
   (*| Method(name, msig)             -> Method("", msig)*)
 
-  | LocalVariableDeclaration(b, vdids)      -> LocalVariableDeclaration(b, [])
-  | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, islocal)
+  | LocalVariableDeclaration(b, vdids) -> LocalVariableDeclaration(b, [])
+  | VariableDeclarator(name, dims) -> VariableDeclarator("", 0)
   | NamedArguments _               -> NamedArguments ""
   | TypeArguments(nth, name)       -> TypeArguments(1, "")
   | Parameters _                   -> Parameters ""
@@ -2339,7 +2338,7 @@ let anonymize ?(more=false) = function
   | InferredFormalParameter _      -> InferredFormalParameter ""
   (*| Resource(name, dims)           -> Resource("", 0)*)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
-  | ForHeader(name, dims)          -> ForHeader("", 0)
+  | ForHead tid                    -> ForHead (anonymize_tid ~more tid)
   | HugeArray _                    -> HugeArray(0, "")
   | HugeExpr _                     -> HugeExpr(0, "")
   | Block tid                      -> Block null_tid
@@ -2427,8 +2426,7 @@ let rec to_simple_string = function
   | InstanceInitializer         -> "<init>"
   | Block tid                   -> "<block>"
   | LocalVariableDeclaration(isstmt, vdids) -> "<vdecl>"
-  | VariableDeclarator(name, dims, islocal) ->
-      name^(if dims = 0 then "" else sprintf "[%d" dims)^(if islocal then "L" else "F")
+  | VariableDeclarator(name, dims) -> name^(if dims = 0 then "" else sprintf "[%d" dims)
   | CatchClause tid             -> "catch"
   | Finally                     -> "finally"
   | ForInit tid                 -> "<for_init>"
@@ -2494,7 +2492,7 @@ let rec to_simple_string = function
   | HugeArray(sz, c)            -> c
   | HugeExpr(sz, c)             -> c
   | EmptyDeclaration            -> ";"
-  | ForHeader(name, dims)         -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
+  | ForHead tid                 -> "<for_head>"
   | Aspect name                   -> "aspect "^name
   | Pointcut name                 -> "pointcut "^name
   | DeclareParents                -> "declare parents"
@@ -2551,8 +2549,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | StaticInitializer                       -> mkstr 18
   | InstanceInitializer                     -> mkstr 19
   | Block tid                               -> catstr [mkstr 20; tid_to_string tid]
-  | VariableDeclarator(name, dims, islocal) ->
-      combo 21 [name; string_of_int dims; if islocal then "L" else "F"]
+  | VariableDeclarator(name, dims)          -> combo 21 [name; string_of_int dims]
   | CatchClause tid                         -> catstr [mkstr 23; tid_to_string tid]
   | Finally                                 -> mkstr 24
   | ForInit tid                             -> catstr [mkstr 25; tid_to_string tid]
@@ -2616,7 +2613,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 86 [string_of_int sz; h]
   | EmptyDeclaration                        -> mkstr 87
-  | ForHeader(name, dims)                   -> combo 105 [name; string_of_int dims]
+  | ForHead tid                           -> catstr [mkstr 105; tid_to_string tid]
   | Aspect name                   -> combo 88 [name]
   | Pointcut name                 -> combo 89 [name]
   | DeclareParents                -> mkstr 90
@@ -2698,11 +2695,7 @@ let to_tag ?(strip=false) l =
 
     | Block _ when strip          -> "Block", []
     | Block tid                   -> "Block", mktidattr tid
-    | VariableDeclarator(name, d, islocal) ->
-        "VariableDeclarator", ["name",xmlenc name;
-                                dims_attr_name,string_of_int d;
-                                islocal_attr_name,string_of_bool islocal
-                              ]
+    | VariableDeclarator(name, d) -> "VariableDeclarator", ["name",xmlenc name;dims_attr_name,string_of_int d;]
     | CatchClause tid             -> "CatchClause", mktidattr tid
     | Finally                     -> "Finally", []
     | ForInit _ when strip        -> "ForInit", []
@@ -2799,8 +2792,7 @@ let to_tag ?(strip=false) l =
 
     | EmptyDeclaration -> "EmptyDeclaration", []
 
-    | ForHeader(name, dims) -> "ForHeader", ["name",xmlenc name;
-                                             dims_attr_name,string_of_int dims]
+    | ForHead tid -> "ForHead", mktidattr tid
 
     | Aspect name                   -> "Aspect", ["name",xmlenc name]
     | Pointcut name                 -> "Pointcut", ["name",xmlenc name]
@@ -2862,7 +2854,7 @@ let to_char lab =
     | StaticInitializer -> 18
     | InstanceInitializer -> 19
     | Block _ -> 20
-    | VariableDeclarator(name, dims, islocal) -> 21
+    | VariableDeclarator(name, dims) -> 21
     | CatchClause tid -> 23
     | Finally -> 24
     | ForInit tid -> 25
@@ -2924,7 +2916,7 @@ let to_char lab =
     | AnnotDim _                 -> 89
     | HugeArray _ -> 90
     | EmptyDeclaration -> 91
-    | ForHeader _ -> 109
+    | ForHead _ -> 109
     | Aspect name                   -> 92
     | Pointcut name                 -> 93
     | DeclareParents                -> 94
@@ -3025,13 +3017,14 @@ let forced_to_be_collapsible lab =
   false
 
 let is_collapse_target options lab =
-  if options#no_collapse_flag then false
+  if options#no_collapse_flag then
+    false
   else
     match lab with
     | Statement _
     | Primary _
     | Expression _
-    | Type (Type.ClassOrInterface _ | Type.Class _ | Type.Interface _)
+    | Type (Type.ClassOrInterface _ | Type.Class _ | Type.Interface _ | Type.Array _)
 
     | Class _
     | Enum _
@@ -3052,7 +3045,7 @@ let is_collapse_target options lab =
     | ForInit _
     | ForCond _
     | ForUpdate _
-(*    | ForHeader _*)
+    | ForHead _
     | Block _
     | Parameters _
     | MethodBody _
@@ -3084,7 +3077,6 @@ let is_collapse_target options lab =
     | ClassnamePatternOr
     | ClassnamePatternNot
     | ClassnamePatternParen
-
       -> true
     | _ -> false
 
@@ -3212,8 +3204,8 @@ let relabel_allowed (lab1, lab2) =
         | _ -> false
     end
 
-    | Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
-    | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
+    (*| Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
+    | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true*)
 
     (*| Statement (Statement.Expression _), lab
     | lab, Statement (Statement.Expression _) -> is_statement_expression lab*)
@@ -3271,9 +3263,12 @@ let relabel_allowed (lab1, lab2) =
 (*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
 
+    | LocalVariableDeclaration _, FieldDeclaration _
+    | FieldDeclaration _, LocalVariableDeclaration _
+
     | Parameter _, CatchParameter _ | CatchParameter _, Parameter _
-    | Parameter _, ForHeader _ | ForHeader _, Parameter _
-    | ForHeader _, CatchParameter _ | CatchParameter _, ForHeader _
+    | Parameter _, LocalVariableDeclaration _ | LocalVariableDeclaration _, Parameter _
+    | LocalVariableDeclaration _, CatchParameter _ | CatchParameter _, LocalVariableDeclaration _
 
       -> true
 
@@ -3303,6 +3298,7 @@ let is_common = function
   | Primary p
   | Expression (Expression.Primary p)
   | Statement (Statement.Expression (Expression.Primary p, _)) -> Primary.is_common p
+  | IDsingle n -> Xset.mem Type.common_classes n
   | _ -> false
 
 let is_order_insensitive = function
@@ -3365,7 +3361,6 @@ let is_named = function
   | InferredFormalParameter _
   (*| Resource _*)
   | CatchParameter _
-  | ForHeader _
     -> true
 
   | ClassnamePatternName _
@@ -3416,7 +3411,6 @@ let is_named_orig = function
   | InferredFormalParameter _
   (*| Resource _*)
   | CatchParameter _
-  | ForHeader _
   | HugeArray _
   | HugeExpr _
     -> true
@@ -3759,8 +3753,8 @@ let is_forupdate = function
   | ForUpdate _ -> true
   | _ -> false
 
-let is_forheader = function
-  | ForHeader _ -> true
+let is_forhead = function
+  | ForHead _ -> true
   | _ -> false
 
 let is_switchblock = function
@@ -3790,10 +3784,6 @@ let is_arrayinitializer = function
 let is_variabledeclarator = function
   | VariableDeclarator _ -> true
   | _ -> false
-
-let is_local_variabledeclarator = function
-  | VariableDeclarator(_, _, b) -> b
-  | _ -> raise (Invalid_argument "Java.Label.is_local_variabledeclarator")
 
 let is_literal = function
   | Primary (Primary.Literal _)
@@ -4151,6 +4141,7 @@ let is_scope_creating lab =
   is_class_or_interface lab ||
   is_method lab ||
   is_methodbody lab ||
+  is_for lab ||
   is_block lab ||
   is_try lab ||
   is_aspect lab
@@ -4165,7 +4156,6 @@ let get_category lab =
 let get_dims = function
   | Parameter(_, dims, _)
   | CatchParameter(_, dims)
-  | ForHeader(_, dims)
       -> dims
   | _ -> failwith "Java_label.get_dims: no dimensions"
 
@@ -4186,7 +4176,7 @@ let get_name ?(strip=false) lab =
     | ElementValuePair name
     | Constructor(name, _)
     | ConstructorBody(name, _)
-    | VariableDeclarator(name, _, _)
+    | VariableDeclarator(name, _)
     | TypeArguments(_, name)
     | NamedArguments name
     | Parameters name
@@ -4216,7 +4206,6 @@ let get_name ?(strip=false) lab =
     | InferredFormalParameter name
     (*| Resource(name, _)*)
     | CatchParameter(name, _)
-    | ForHeader(name, _)
       -> name
 
     | LocalVariableDeclaration(_, vdids) -> vdids_to_string vdids
@@ -4586,7 +4575,7 @@ let of_elem_data =
     "Block",                     (fun a -> Block(find_tid a));
     "LocalVariableDeclaration",  (fun a -> LocalVariableDeclaration(false, find_vdids ~attr_name:"name" a));
     "LocalVariableDeclarationStatement",  (fun a -> LocalVariableDeclaration(true, find_vdids ~attr_name:"name" a));
-    "VariableDeclarator",        (fun a -> VariableDeclarator(find_name a, find_dims a, find_bool a islocal_attr_name));
+    "VariableDeclarator",        (fun a -> VariableDeclarator(find_name a, find_dims a));
     "CatchClause",               (fun a -> CatchClause(find_tid a));
     "Finally",                   (fun a -> Finally);
     "ForInit",                   (fun a -> ForInit(find_tid a));
@@ -4665,7 +4654,7 @@ let of_elem_data =
 
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
 
-    "ForHeader", (fun a -> ForHeader(find_name a, find_dims a));
+    "ForHead", (fun a -> ForHead(find_tid a));
 
     "Aspect",                   (fun a -> Aspect(find_name a));
     "Pointcut",                 (fun a -> Pointcut(find_name a));

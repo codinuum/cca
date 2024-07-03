@@ -507,10 +507,11 @@ module Tree (L : Spec.LABEL_T) = struct
       method src_loc = src_loc
 
       method to_string =
-        sprintf "%s%s[%s]"
+        sprintf "%s%s[%s]%s"
           self#label
           (match orig_lab_opt with Some l -> "("^(L.to_string l)^")" | None -> "")
           (Loc.to_string src_loc)
+          (Binding.to_string self#binding)
 
       method is_named = is_named
       method is_named_orig = is_named_orig
@@ -789,6 +790,7 @@ module Tree (L : Spec.LABEL_T) = struct
 
     val mutable true_children_tbl = (Hashtbl.create 0 : (node_t, node_t array) Hashtbl.t)
     method set_true_children_tbl tbl = true_children_tbl <- tbl
+    method has_true_children n = Hashtbl.mem true_children_tbl n
 
     method recover_true_children ~initial_only () =
       (*Printf.printf "! [before] initial_size=%d (initial_only=%B)\n"
@@ -801,12 +803,21 @@ module Tree (L : Spec.LABEL_T) = struct
           DEBUG_MSG "recovering true children: %a -> [%s]"
             UID.ps nd#uid (Xarray.to_string (fun n -> UID.to_string n#uid) ";" c);
 
-          (*if (Array.length nd#initial_children) <> (Array.length c) then begin
-            Printf.printf "!!! %s\n" nd#initial_to_string;
-            Printf.printf "!!! [%s] -> [%s]\n"
-              (Xarray.to_string (fun n -> UID.to_string n#uid) ";" nd#initial_children)
-              (Xarray.to_string (fun n -> UID.to_string n#uid) ";" c)
-          end;*)
+          BEGIN_DEBUG
+            let _nc = nd#initial_nchildren in
+            let nc = Array.length c in
+            if _nc <> nc then begin
+              DEBUG_MSG "initial_nchildren: %d [%s] -> %d"
+                _nc
+                (Xarray.to_string
+                   (fun n ->
+                     sprintf "%a%s%s" UID.ps n#uid
+                       (if self#has_true_children n then "*" else "")
+                       (if is_ghost_node n then sprintf "#%d"n#initial_nchildren else "")
+                   ) ";" nd#initial_children)
+                nc;
+            end
+          END_DEBUG;
 
           nd#set_initial_children c;
           if not initial_only then

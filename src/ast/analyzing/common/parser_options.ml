@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -66,6 +66,9 @@ class c = object (self)
 
   val uid_generator = new Otreediff.UID.generator
   method uid_generator = uid_generator
+
+  val bid_generator = new Binding.ID.generator
+  method bid_generator = bid_generator
 
   val mutable dump_dot_flag    = false
   method dump_dot_flag = dump_dot_flag
@@ -179,10 +182,20 @@ class c = object (self)
   method set_partial_name_resolution_flag = partial_name_resolution_flag <- true
   method clear_partial_name_resolution_flag = partial_name_resolution_flag <- false
 
+  val mutable no_implicit_name_resolution_flag = false
+  method no_implicit_name_resolution_flag = no_implicit_name_resolution_flag
+  method set_no_implicit_name_resolution_flag = no_implicit_name_resolution_flag <- true
+  method clear_no_implicit_name_resolution_flag = no_implicit_name_resolution_flag <- false
+
   val mutable use_binding_info_flag = true
   method use_binding_info_flag = use_binding_info_flag
   method set_use_binding_info_flag = use_binding_info_flag <- true
   method clear_use_binding_info_flag = use_binding_info_flag <- false
+
+  val mutable no_binding_trace_flag = false
+  method no_binding_trace_flag = no_binding_trace_flag
+  method set_no_binding_trace_flag = no_binding_trace_flag <- true
+  method clear_no_binding_trace_flag = no_binding_trace_flag <- false
 
   (* *)
   val mutable latest_target = ""
@@ -421,11 +434,9 @@ class c = object (self)
   method clear_fortran_ignore_include_flag = fortran_ignore_include_flag <- false
 
   (* Verilog *)
-
   method verilog_ignore_include_flag = verilog_ignore_include_flag
   method set_verilog_ignore_include_flag = verilog_ignore_include_flag <- true
   method clear_verilog_ignore_include_flag = verilog_ignore_include_flag <- false
-
 
   (* yacfe *)
   method yacfe_defs_builtins = yacfe_defs_builtins

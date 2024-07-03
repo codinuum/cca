@@ -31,6 +31,7 @@ let elaborate_edits
     edits
     =
   if not options#no_rename_rectification_flag then begin
+    DEBUG_MSG "START!";
     let mkfilt = Edit.mkfilt Fact.getlab in
     let is_import_single       = mkfilt Label.is_import_single in
     let is_field               = mkfilt Label.is_field in

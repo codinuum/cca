@@ -21,7 +21,7 @@ open Stat.File
 module GI  = Otreediff.GIndex
 module Otree = Otreediff.Otree
 module Json = Node_mapping.Json
-module Nodetbl = Treediff.Nodetbl
+module Nodetbl = Node.Tbl
 
 let sprintf = Printf.sprintf
 let fprintf = Printf.fprintf
@@ -225,57 +225,82 @@ let gid_of_edit2 = function
   | Delete(_, info, _) -> raise Not_found
 
 
-let _sort_edit_list_topdown gid_of_edit =
-  List.fast_sort
-    (fun ed1 ed2 ->
-      let c =
-        try
-          let gi1, gi2 = gid_of_edit ed1, gid_of_edit ed2 in
-          Stdlib.compare gi2 gi1
-        with
-          Not_found -> 0
-      in
-      let c' =
-        if c = 0 then
-          match ed1, ed2 with
-          | Move _, Relabel _ -> -1
-          | Relabel _, Move _ -> 1
-          | _ -> 0
-        else
-          c
-      in
-      (* DEBUG_MSG "%s vs %s --> %d" (to_string ed1) (to_string ed2) c'; *)
-      c'
-    )
+let comp_edits_topdown gid_of_edit ed1 ed2 =
+  let c =
+    try
+      let gi1, gi2 = gid_of_edit ed1, gid_of_edit ed2 in
+      Stdlib.compare gi2 gi1
+    with
+      Not_found -> 0
+  in
+  let c' =
+    if c = 0 then
+      match ed1, ed2 with
+      | Move _, Relabel _ -> -1
+      | Relabel _, Move _ -> 1
+      | _ -> 0
+    else
+      c
+  in
+  (* DEBUG_MSG "%s vs %s --> %d" (to_string ed1) (to_string ed2) c'; *)
+  c'
+
+let _sort_edit_list_topdown gid_of_edit = List.fast_sort (comp_edits_topdown gid_of_edit)
 
 let sort_edit_list_topdown l =
   let l' = _sort_edit_list_topdown gid_of_edit1 l in
   let l'' = _sort_edit_list_topdown gid_of_edit2 l' in
   l''
 
-let _sort_edit_list_bottomup gid_of_edit =
-  List.fast_sort
-    (fun ed1 ed2 ->
-      let c =
-        try
-          let gi1, gi2 = gid_of_edit1 ed1, gid_of_edit1 ed2 in
-          Stdlib.compare gi1 gi2
-        with
-          Not_found -> 0
-      in
-      if c = 0 then
-        match ed1, ed2 with
-        | Relabel _, Move _ -> -1
-        | Move _, Relabel _ -> 1
-        | _ -> 0
-      else
-        c
-    )
+let comp_edits_bottomup gid_of_edit ed1 ed2 =
+  let c =
+    try
+      let gi1, gi2 = gid_of_edit1 ed1, gid_of_edit1 ed2 in
+      Stdlib.compare gi1 gi2
+    with
+      Not_found -> 0
+  in
+  if c = 0 then
+    match ed1, ed2 with
+    | Relabel _, Move _ -> -1
+    | Move _, Relabel _ -> 1
+    | _ -> 0
+  else
+    c
+
+let _sort_edit_list_bottomup gid_of_edit = List.fast_sort (comp_edits_bottomup gid_of_edit)
 
 let sort_edit_list_bottomup l =
   let l' = _sort_edit_list_bottomup gid_of_edit1 l in
   let l'' = _sort_edit_list_bottomup gid_of_edit2 l' in
   l''
+
+let sort_mids_movs mov_compare movl =
+  let tbl0 = Hashtbl.create 0 in
+  List.iter
+    (function
+      | Move(mid, _, _, _) as mov -> begin
+          tbl_add tbl0 !mid mov
+      end
+      | _ -> ()
+    ) movl;
+  let tbl = Hashtbl.create 0 in
+  let midl = ref [] in
+  Hashtbl.iter
+    (fun mid mvl ->
+      Hashtbl.add tbl mid (List.fast_sort mov_compare mvl);
+      midl := mid :: !midl
+    ) tbl0;
+  let mid_compare mid0 mid1 =
+    let m0 = List.hd (Hashtbl.find tbl mid0) in
+    let m1 = List.hd (Hashtbl.find tbl mid1) in
+    mov_compare m0 m1
+  in
+  let sorted_midl = List.fast_sort mid_compare !midl in
+  List.flatten (List.map (Hashtbl.find tbl) sorted_midl)
+
+let sort_move_list_topdown movl = sort_mids_movs (comp_edits_topdown gid_of_edit1) movl
+let sort_move_list_bottomup movl = sort_mids_movs (comp_edits_bottomup gid_of_edit1) movl
 
 let tbl_remove tbl k =
   (*while Hashtbl.mem tbl k do*)
@@ -667,11 +692,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method iter_moves_topdown f =
     let movs = self#edit_tbl_to_list mov1_tbl in
-    List.iter f (sort_edit_list_topdown movs)
+    List.iter f (sort_move_list_topdown movs)
 
   method iter_moves_bottomup f =
     let movs = self#edit_tbl_to_list mov1_tbl in
-    List.iter f (sort_edit_list_bottomup movs)
+    List.iter f (sort_move_list_bottomup movs)
 
   method iter_relabels f =
     Nodetbl.iter (fun _ ed -> f ed) rel1_tbl
@@ -1171,6 +1196,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method mem_rel1 nd = Nodetbl.mem rel1_tbl nd
   method mem_rel2 nd = Nodetbl.mem rel2_tbl nd
 
+  method mem12 nd1 nd2 = self#mem_mov12 nd1 nd2 || self#mem_rel12 nd1 nd2
 
   method sort_topdown =
     list <-
@@ -2599,11 +2625,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method ungroup (tree1 : 'tree_t) (tree2 : 'tree_t)
       =
+    DEBUG_MSG "before ungrouping:\n%s" self#to_string;
     DEBUG_MSG "ungrouping...";
 
     (*let group_tbl = Hashtbl.create 0 in*)
 
     let gensubedits tree ?(whole=false) ?(exclude=[]) node =
+      DEBUG_MSG "node=%a%!" nups node;
       let res = ref [] in
       let rec doit nd =
         DEBUG_MSG "nd=%a%!" nups nd;
@@ -2630,6 +2658,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
       DEBUG_MSG "processing %s..." (to_string ed);
 
+      let edit_list = ref [] in
+      let add_edit e = edit_list := e :: !edit_list in
+
       let nd = Info.get_node inf in
 
       if !ex = [] then begin
@@ -2640,7 +2671,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               (fun (i, e) ->
                 let ed' = Delete(e = [], i, ref e) in
                 (*tbl_add group_tbl ed ed';*)
-                self#add_edit ed'
+                add_edit ed'
               ) (gensubedits tree1 ~whole:true nd)
 
         | Insert _ ->
@@ -2648,7 +2679,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               (fun (i, e) ->
                 let ed' = Insert(e = [], i, ref e) in
                 (*tbl_add group_tbl ed ed';*)
-                self#add_edit ed'
+                add_edit ed'
               ) (gensubedits tree2 ~whole:true nd)
 
         | _ -> assert false
@@ -2695,7 +2726,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   | _ -> assert false
                 in
                 (*tbl_add group_tbl ed new_ed;*)
-                self#add_edit new_ed;
+                add_edit new_ed;
 
                 if whole then begin
                   begin
@@ -2705,7 +2736,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                           (fun (i, e) ->
                             let ed' = Delete(e = [], i, ref e) in
                             (*tbl_add group_tbl ed ed';*)
-                            self#add_edit ed'
+                            add_edit ed'
                           ) (gensubedits tree1 n)
 
                     | Insert _ ->
@@ -2713,7 +2744,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                           (fun (i, e) ->
                             let ed' = Insert(e = [], i, ref e) in
                             (*tbl_add group_tbl ed ed';*)
-                            self#add_edit ed'
+                            add_edit ed'
                           ) (gensubedits tree2 n)
 
                     | _ -> assert false
@@ -2726,7 +2757,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
         end
 
-      end
+      end;
+      !edit_list
     in (* end of func process_delete_or_insert *)
 
 
@@ -2824,14 +2856,17 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     in (* end of func process_move *)
 
+    let editll_to_be_added = ref [] in
+    let add_editl el = editll_to_be_added := el :: !editll_to_be_added in
     self#iter
       (fun ed ->
         match ed with
-        | Delete(_, inf, ex) -> process_delete_or_insert ed inf ex
-        | Insert(_, inf, ex) -> process_delete_or_insert ed inf ex
+        | Delete(_, inf, ex) -> add_editl (process_delete_or_insert ed inf ex)
+        | Insert(_, inf, ex) -> add_editl (process_delete_or_insert ed inf ex)
         | Move(mid, kind, (inf1, ex1), (inf2, ex2)) -> process_move ed mid kind inf1 ex1 inf2 ex2
         | _ -> ()
       );
+    List.iter (fun el -> List.iter self#add_edit el) !editll_to_be_added;
 
     Xset.iter
       (fun ed ->
@@ -4661,24 +4696,33 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     (* end of method shrink_moves *)
 
   method is_crossing_with_untouched
+      ?(full_scan=false)
       ?(mask=[])
       ?(incompatible_only=false)
       (nmapping : 'node_t Node_mapping.c)
       nd1 nd2
       =
-    DEBUG_MSG "[incompatible_only=%B] %a-%a" incompatible_only nups nd1 nups nd2;
+    DEBUG_MSG "[full_scan=%B][incompatible_only=%B] %a-%a"
+      full_scan incompatible_only nups nd1 nups nd2;
+
     let iter =
       if incompatible_only then
-        nmapping#iter_incompatible_mapping_rep
+        if full_scan then
+          nmapping#iter_incompatible_mapping
+        else
+          nmapping#iter_incompatible_mapping_rep
       else
-        nmapping#iter_crossing_or_incompatible_mapping_rep
+        if full_scan then
+          nmapping#iter_crossing_or_incompatible_mapping
+        else
+          nmapping#iter_crossing_or_incompatible_mapping_rep
     in
     try
       iter nd1 nd2
         (fun n1 n2 ->
-(*
+
           DEBUG_MSG "checking %a-%a" nups n1 nups n2;
-*)
+
           if
             not (is_ghost_node n1) && not (is_ghost_node n2) &&
             not (self#mem_mov12 n1 n2) && not (List.mem (n1, n2) mask)

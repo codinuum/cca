@@ -222,7 +222,7 @@ let set_control_flow body =
               ) (children.(1))#initial_children
         end
         | L.Statement.For -> begin
-            let c3 = (Sourcecode.get_logical_nth_child nd 3).(0) in
+            let c3 = (Sourcecode.get_logical_nth_child nd 1).(0) in
             add_succ1 c3;
             set_succ label_env ((Some c3, c3::nexts)::loop_env) nexts c3
         end
@@ -322,8 +322,14 @@ let set_control_flow body =
 
 
 
-class visitor bid_gen tree = object (self)
+class visitor options bid_gen static_vdtors tree = object (self)
   inherit Sourcecode.visitor tree
+
+  initializer
+    BEGIN_DEBUG
+      DEBUG_MSG "%d static vdtors" (Xset.length static_vdtors);
+      Xset.iter (fun n -> DEBUG_MSG "%s" n#data#to_string) static_vdtors
+    END_DEBUG
 
   val stack = new Sourcecode.stack
 
@@ -351,6 +357,7 @@ class visitor bid_gen tree = object (self)
 
   method scanner_body_after_subscan nd =
     let lab = getlab nd in
+
     if L.is_scope_creating lab then
       stack#pop;
 
@@ -388,42 +395,8 @@ class visitor bid_gen tree = object (self)
       self#apply_deferred nd
     end;
 
-    if L.is_forheader lab then begin
-      let name = L.get_name lab in
-      let bid = bid_gen#gen in
-      tree#add_to_bid_tbl bid name;
-      DEBUG_MSG "DEF(for_header): %s (bid=%a) %s" name BID.ps bid nd#to_string;
-      nd#data#set_binding (Binding.make_unknown_def bid true);
-      self#set_scope_node nd;
-      stack#register name nd;
-
-      begin
-        try
-          let for_nd = nd#initial_parent in
-          DEBUG_MSG "for: %s" for_nd#data#to_string;
-          let f () =
-            try
-              let expr_nd = for_nd#initial_children.(1) in
-              if L.is_primaryname (getlab expr_nd) then begin
-                let expr_name = expr_nd#data#get_name in
-                let expr_bid = Binding.get_bid expr_nd#data#binding in
-                DEBUG_MSG "EXPR: %s %a<->%a %s" expr_name BID.ps expr_bid BID.ps bid name;
-                tree#add_to_bid_map bid expr_bid;
-                tree#add_to_bid_map expr_bid bid;
-                tree#add_to_bid_tbl expr_bid expr_name
-              end
-            with
-              _ -> ()
-          in
-          self#reg_deferred for_nd f
-        with
-          _ -> ()
-      end
-
-    end;
-
     if L.is_variabledeclarator lab then begin
-      if L.is_local_variabledeclarator lab then begin
+      if L.is_localvariabledecl (getlab nd#initial_parent) then begin
         let name = L.get_name lab in
         let bid, bid_is_generated =
           try
@@ -447,13 +420,31 @@ class visitor bid_gen tree = object (self)
               let expr_name = expr_nd#data#get_name in
               let expr_bid = Binding.get_bid expr_nd#data#binding in
               DEBUG_MSG "EXPR: %s %a<->%a %s" expr_name BID.ps expr_bid BID.ps bid name;
-              tree#add_to_bid_map bid expr_bid;
-              tree#add_to_bid_map expr_bid bid;
+              if not options#no_binding_trace_flag then begin
+                tree#add_to_bid_map bid expr_bid;
+                tree#add_to_bid_map expr_bid bid;
+              end;
               tree#add_to_bid_tbl expr_bid expr_name
             end
           with
             _ -> ()
         end
+      end
+      else if Xset.mem static_vdtors nd then begin
+        let name = L.get_name lab in
+        let bid, bid_is_generated =
+          try
+            Binding.get_bid nd#data#binding, false
+          with _ -> bid_gen#gen, true
+        in
+        DEBUG_MSG "DEF(decl): %s (bid=%a) %s" name BID.ps bid nd#to_string;
+        if bid_is_generated then begin
+          nd#data#set_binding (Binding.make_unknown_def bid true);
+          tree#add_to_bid_tbl bid name;
+          tree#add_to_def_bid_tbl bid nd
+        end;
+        self#set_scope_node nd;
+        stack#register name nd
       end
     end;
 
@@ -479,8 +470,10 @@ class visitor bid_gen tree = object (self)
                 let vname = vdtor#data#get_name in
                 let vbid = Binding.get_bid vdtor#data#binding in
                 DEBUG_MSG "VDTOR: %s %a<-%a %s" vname BID.ps vbid BID.ps bid name;
+                if not options#no_binding_trace_flag then begin
                 tree#add_to_bid_map bid vbid;
                 (*tree#add_to_bid_map vbid bid;*)
+                end;
                 tree#add_to_bid_tbl bid name;
                 tree#add_to_bid_tbl vbid vname
               with _ -> ()
@@ -510,8 +503,10 @@ class visitor bid_gen tree = object (self)
             let lhs_name = lhs#data#get_name in
             let lhs_bid = Binding.get_bid lhs#data#binding in
             DEBUG_MSG "LHS: %s %a<->%a" lhs_name BID.ps lhs_bid BID.ps bid;
-            tree#add_to_bid_map bid lhs_bid;
-            tree#add_to_bid_map lhs_bid bid;
+            if not options#no_binding_trace_flag then begin
+              tree#add_to_bid_map bid lhs_bid;
+              tree#add_to_bid_map lhs_bid bid;
+            end;
             tree#add_to_bid_tbl lhs_bid lhs_name
           with
             _ -> ()
@@ -547,9 +542,11 @@ let compare_node_sig ?(reverse=false) nd1 nd2 =
 
 
 class translator options =
-  let bid_gen = new BID.generator in
+  let bid_gen = options#bid_generator in
   object (self)
   inherit node_maker options
+
+  val static_vdtors = Xset.create 0
 
   val mutable huge_array_list = []
 
@@ -638,7 +635,7 @@ class translator options =
           add_ivk (get_fqn "" nd lab) nd
         end*)
         else if L.is_variabledeclarator lab then begin
-          if L.is_local_variabledeclarator lab then
+          if L.is_localvariabledecl (getlab nd#initial_parent) then
             ()
           else begin
             let fqn = get_fqn ~strip:true "" nd lab in
@@ -756,12 +753,25 @@ class translator options =
       ) methodtbl;*)
 
     (* for local variables *)
-    let visitor = new visitor bid_gen tree in
+    let visitor = new visitor options bid_gen static_vdtors tree in
     visitor#visit_all
 
     (* end of method set_bindings *)
 
 
+
+  method mkatid nd =
+    Lang_base.mktid
+      (if options#incomplete_info_flag then
+        ""
+      else
+        let tree = new c options nd true in
+        let atree = tree#make_anonymized_subtree_copy nd in
+        Xhash.to_hex atree#digest)
+      (if options#incomplete_info_flag then
+        ""
+      else
+        nd#data#anonymized_label)
 
   method mktid nd =
     Lang_base.mktid
@@ -807,7 +817,9 @@ class translator options =
   method of_javatype dims ty =
     let ty =
       if dims <> [] then begin
-        let mkty d = { Ast.ty_desc=d; ty_loc=ty.Ast.ty_loc } in
+        let mkty d =
+          { Ast.ty_desc=d; ty_loc=Astloc.merge ty.Ast.ty_loc (Xlist.last dims).Ast.ad_loc }
+        in
         match ty.Ast.ty_desc with
         | Ast.Tarray(ty', dims') -> mkty (Ast.Tarray(ty', dims' @ dims))
         | _                      -> mkty (Ast.Tarray(ty, dims))
@@ -948,7 +960,7 @@ class translator options =
         set_loc nd param.Ast.fp_loc;
         nd
     | _ -> begin
-        let (_, name), dims = param.Ast.fp_variable_declarator_id in
+        let (iloc, name), dims = param.Ast.fp_variable_declarator_id in
         let mods = param.Ast.fp_modifiers in
         let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
         let dims_have_annot = Ast.annot_exists dims in
@@ -959,6 +971,12 @@ class translator options =
             [List.length mod_nodes; 1]
         in
         let ordinal_tbl_opt = Some (new ordinal_tbl otbl_spec) in
+        let id_loc =
+          if iloc == Ast.Loc.dummy then
+            Loc.dummy
+          else
+            conv_loc iloc
+        in
         let dim_nds =
           if dims_have_annot then
             List.map self#of_annot_dim dims
@@ -966,7 +984,7 @@ class translator options =
             []
         in
         let nd =
-          self#mknode ~ordinal_tbl_opt
+          self#mknode ~ordinal_tbl_opt ~id_loc
             (L.Parameter(name, List.length dims, param.Ast.fp_variable_arity))
             (mod_nodes @ [self#of_javatype [] param.Ast.fp_type] @ dim_nds)
         in
@@ -975,15 +993,31 @@ class translator options =
     end
 
   method of_for_header param =
-    let (_, name), dims = param.Ast.fp_variable_declarator_id in
+    let (iloc, name), dims = param.Ast.fp_variable_declarator_id in
+    let ndims = List.length dims in
+    let vdtor_loc = conv_loc iloc in
+    let vdtor_nd =
+      self#mknode
+        ~ordinal_tbl_opt:(Some (new ordinal_tbl [0])) ~id_loc:vdtor_loc
+        (L.VariableDeclarator(name, ndims)) []
+    in
+    vdtor_nd#data#set_loc vdtor_loc;
+
     let mods = param.Ast.fp_modifiers in
     let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
     let ordinal_tbl_opt =
-      Some (new ordinal_tbl [List.length mod_nodes; 1])
+      Some (new ordinal_tbl [List.length mod_nodes; 1; 1])
     in
+    let id_loc =
+      if iloc == Ast.Loc.dummy then
+        Loc.dummy
+      else
+        conv_loc iloc
+    in
+    let lab = L.LocalVariableDeclaration(false, [name, ndims]) in
     let nd =
-      self#mknode ~ordinal_tbl_opt (L.ForHeader(name, List.length dims))
-        (mod_nodes @ [self#of_javatype [] param.Ast.fp_type])
+      self#mknode ~ordinal_tbl_opt ~id_loc lab
+        (mod_nodes @ [self#of_javatype [] param.Ast.fp_type; vdtor_nd])
     in
     set_loc nd param.Ast.fp_loc;
     nd
@@ -1274,7 +1308,7 @@ class translator options =
         nd
     end
 
-  method of_variable_declarator vd =
+  method of_variable_declarator ?(is_static=false) vd =
     let loc = conv_loc vd.Ast.vd_loc in
     let (iloc, name), dims = vd.Ast.vd_variable_declarator_id in
     let children =
@@ -1290,10 +1324,11 @@ class translator options =
         conv_loc iloc
     in
     let nd =
-      self#mknode ~ordinal_tbl_opt ~id_loc
-        (L.VariableDeclarator(name, List.length dims, !(vd.Ast.vd_is_local))) children
+      self#mknode ~ordinal_tbl_opt ~id_loc (L.VariableDeclarator(name, List.length dims)) children
     in
     nd#data#set_loc loc;
+    if is_static then
+      Xset.add static_vdtors nd;
     nd
 
   method vdids_to_str vdids = String.concat ";" (List.map (fun ((_, id), _) -> id) vdids)
@@ -1732,9 +1767,9 @@ class translator options =
 
     | Ast.ACEtypeInit(ty, dims, array_initializer) ->
         let ordinal_tbl_opt = Some (new ordinal_tbl [1; List.length array_initializer]) in
+        let ty_nd = self#of_javatype dims ty in
         self#mknode ~ordinal_tbl_opt (L.Primary L.Primary.ArrayCreationInit)
-          ((self#of_javatype dims ty) ::
-           (List.map self#of_variable_initializer array_initializer))
+          (ty_nd :: (List.map self#of_variable_initializer array_initializer))
 
   method of_name loc0 name =
     let name_to_node ?(children=[]) mkplab n =
@@ -2106,15 +2141,21 @@ class translator options =
     nd
 
   method of_catch_parameter param =
-    let (_, name), dims = param.Ast.cfp_variable_declarator_id in
+    let (iloc, name), dims = param.Ast.cfp_variable_declarator_id in
     let mods = param.Ast.cfp_modifiers in
     let mod_nodes = self#of_modifiers_opt (L.Kparameter name) mods in
     let type_nodes = List.map (self#of_javatype []) param.Ast.cfp_type_list in
     let ordinal_tbl_opt =
       Some (new ordinal_tbl [List.length mod_nodes; List.length type_nodes])
     in
+    let id_loc =
+      if iloc == Ast.Loc.dummy then
+        Loc.dummy
+      else
+        conv_loc iloc
+    in
     let nd =
-      self#mknode ~ordinal_tbl_opt
+      self#mknode ~ordinal_tbl_opt ~id_loc
         (L.CatchParameter(name, List.length dims)) (mod_nodes @ type_nodes)
     in
     set_loc nd param.Ast.cfp_loc;
@@ -2422,35 +2463,46 @@ class translator options =
             Some (new ordinal_tbl [if init_opt = None then 0 else 1;
                                    if e_opt = None then 0 else 1;
                                    if se_list = [] then 0 else 1;
-                                   1;
                                  ])
           in
-          let s_ = self#of_statement ~block_context:"for" s in
-          let s_ = self#normalize_block_stmt s_ in
           let children =
             (match init_opt with None -> [] | Some init -> [self#of_for_init init]) @
             (match e_opt with
             | None -> []
             | Some e ->
                 let e_nd = self#of_expression e in
-                let t = self#mktid e_nd in
-                let n = self#mknode (L.ForCond t) [e_nd] in
+                let tid = self#mktid e_nd in
+                let n = self#mknode (L.ForCond tid) [e_nd] in
                 set_loc n e.Ast.e_loc;
                 [n]
             ) @
             (if se_list <> []
             then begin
               let se_nodes = List.map self#of_statement_expression se_list in
-              let t =
+              let tid =
                 match se_nodes with
                 | [] -> L.null_tid
                 | n::_ -> self#mktid n
               in
-              let n = self#mknode (L.ForUpdate t) se_nodes in
+              let n = self#mknode (L.ForUpdate tid) se_nodes in
               set_nodes_loc n se_nodes;
               [n]
             end
-            else []) @ [s_]
+            else [])
+          in
+          let s_ = self#of_statement ~block_context:"for" s in
+          let s_ = self#normalize_block_stmt s_ in
+          let children, ordinal_tbl_opt =
+            match children with
+            | [] -> [s_], Some (new ordinal_tbl [0; 1])
+            | cl -> begin
+                let _head_nd = self#mknode ~ordinal_tbl_opt (L.ForHead L.null_tid) children in
+                let tid = self#mktid _head_nd in
+                let head_nd = self#mknode ~ordinal_tbl_opt (L.ForHead tid) children in
+                let head_loc = Loc.merge (List.hd cl)#data#src_loc (Xlist.last cl)#data#src_loc in
+                head_nd#data#set_loc head_loc;
+                [head_nd; s_], Some (new ordinal_tbl [1; 1])
+            end
           in
           self#mknode ~ordinal_tbl_opt (L.Statement L.Statement.For) children
 
@@ -2525,6 +2577,17 @@ class translator options =
 
   method of_field_declaration ?(interface_field=false) fd =
     let mods = fd.Ast.fd_modifiers in
+    let is_static =
+      match mods with
+      | None -> false
+      | Some ms ->
+          List.exists
+            (fun m ->
+              match m.Ast.m_desc with
+              | Ast.Mstatic -> true
+              | _ -> false
+            ) ms.Ast.ms_modifiers
+    in
     let vdtors = fd.Ast.fd_variable_declarators in
 
     if options#normalize_ast_flag then begin
@@ -2551,14 +2614,14 @@ class translator options =
         nd
       in
       let mkfdecl ghost vd =
-        _mkfdecl ghost vd (self#of_variable_declarator vd)
+        _mkfdecl ghost vd (self#of_variable_declarator ~is_static vd)
       in
       match vdtors with
       | []       -> []
       | [vd]     -> [mkfdecl false vd]
       | vd::rest ->
           let fdecl_nd = mkfdecl false vd in
-          let rest_vdnds = List.map self#of_variable_declarator rest in
+          let rest_vdnds = List.map (self#of_variable_declarator ~is_static) rest in
           List.iter (fun vn -> self#add_true_parent vn#uid fdecl_nd) rest_vdnds;
           fdecl_nd :: (List.map2 (fun v vn -> _mkfdecl true v vn) rest rest_vdnds)
     end
@@ -2581,7 +2644,7 @@ class translator options =
         self#mknode ~orig_lab_opt ~ordinal_tbl_opt ~id_loc (L.FieldDeclaration vdids_)
           (mod_nodes @
            [ty_leaf] @
-           (List.map self#of_variable_declarator vdtors))
+           (List.map (self#of_variable_declarator ~is_static) vdtors))
       in
       set_loc nd fd.Ast.fd_loc;
       [nd]
@@ -2851,7 +2914,9 @@ class translator options =
           | L.StaticInitializer   -> static_inits := nd :: !static_inits
           | L.InstanceInitializer -> inst_inits := nd :: !inst_inits
           | L.EmptyDeclaration when
-              options#strip_empty_flag && not options#recover_orig_ast_flag && options#sort_unordered_flag
+              options#strip_empty_flag &&
+              not options#recover_orig_ast_flag &&
+              options#sort_unordered_flag
             -> ()
           | _ -> others := nd :: !others
         in
@@ -3248,7 +3313,9 @@ class translator options =
       | L.Interface _
       | L.AnnotationType _ -> ifaces := nd::!ifaces
       | L.EmptyDeclaration when
-          options#strip_empty_flag && not options#recover_orig_ast_flag && options#sort_unordered_flag
+          options#strip_empty_flag &&
+          not options#recover_orig_ast_flag &&
+          options#sort_unordered_flag
         -> ()
       | _ -> others := nd::!others
     in

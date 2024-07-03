@@ -149,7 +149,9 @@ let dims_to_short_string dims =
 let name_attribute_to_string = function
   | NApackage       -> "P"
   | NAtype r        -> "T:"^(resolve_result_to_str r)
-  | NAexpression    -> "E"
+  | NAexpression EKfacc -> "Ef"
+  | NAexpression EKname -> "En"
+  | NAexpression EKunknown -> "E"
   | NAmethod        -> "M"
   | NApackageOrType -> "PT"
   | NAstatic r      -> "S:"^(resolve_result_to_str r)

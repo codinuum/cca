@@ -26,6 +26,7 @@ class parser_c = object (self)
   val mutable keep_going_flag = true
   val mutable rely_on_naming_convention_flag = false
   val mutable partial_name_resolution_flag = false
+  val mutable no_implicit_name_resolution_flag = false
 
   val mutable parser_main = fun ul -> Obj.magic ()
   val mutable scanner     = Obj.magic ()
@@ -78,6 +79,10 @@ class parser_c = object (self)
   method _set_partial_name_resolution_flag b =
     partial_name_resolution_flag <- b;
     env#_set_partial_name_resolution_flag b
+
+  method _set_no_implicit_name_resolution_flag b =
+    no_implicit_name_resolution_flag <- b;
+    env#_set_no_implicit_name_resolution_flag b
 
   method parser_init =
     env#begin_scope();
@@ -153,10 +158,9 @@ class parser_c = object (self)
 	| Ast.Nqualified(nattr_r, q, _, id) -> begin
             DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
 	    resolve_name q;
-            if Ast.get_name_attribute q = Ast.NAexpression then begin
-              nattr_r := Ast.NAexpression
-            end
-            else begin
+            match Ast.get_name_attribute q with
+            | Ast.NAexpression ek as a -> nattr_r := a
+            | _ -> begin
               DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
               match !nattr_r with
               | Ast.NAtype _ -> env#finalize_name_attribute nattr_r

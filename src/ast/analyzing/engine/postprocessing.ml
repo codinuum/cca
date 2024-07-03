@@ -20,7 +20,7 @@ module MID = Moveid
 module GI  = Otreediff.GIndex
 module B   = Binding
 module BID = B.ID
-module Nodetbl = Treediff.Nodetbl
+module Nodetbl = Node.Tbl
 
 open Misc
 
@@ -2252,6 +2252,16 @@ END_DEBUG;
     END_DEBUG;
 
     let is_bad_pair =
+      let is_local_def n = B.is_local_def n#data#binding in
+      let has_no_use_rename n1 n2 =
+        let b =
+          not (n1#data#eq n2#data) &&
+          is_local_def n1 && is_local_def n2 &&
+          not (cenv#has_use_rename n1 n2)
+        in
+        DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+        b
+      in
       if ignore_common then
         fun n1 n2 ->
           let b =
@@ -2263,12 +2273,22 @@ END_DEBUG;
             with _ -> false)
           ||
             Xset.mem bad_pairs (n1, n2)
+          ||
+            (try cenv#is_scope_breaking_mapping nmapping n1 n2 with Failure _ -> false)
+          ||
+            has_no_use_rename n1 n2
           in
           DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
           b
       else
         fun n1 n2 ->
-          let b = Xset.mem bad_pairs (n1, n2) in
+          let b =
+            Xset.mem bad_pairs (n1, n2)
+          ||
+            (try cenv#is_scope_breaking_mapping nmapping n1 n2 with Failure _ -> false)
+          ||
+            has_no_use_rename n1 n2
+          in
           DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
           b
     in
@@ -4892,6 +4912,8 @@ END_DEBUG;
 
     DEBUG_MSG "* REMOVING EDITS...";
 
+    let to_be_added1 = Xset.create 0 in
+    let to_be_added2 = Xset.create 0 in
     List.iter
       (fun (n1, n2) ->
         DEBUG_MSG "checking %a-%a" nups n1 nups n2;
@@ -4905,15 +4927,24 @@ END_DEBUG;
         else begin
           List.iter edits#remove_edit eds;
         end;
-        let del = Edit.make_delete n1 in
-        DEBUG_MSG "adding %s" (Edit.to_string del);
-        edits#add_edit del;
-        let ins = Edit.make_insert n2 in
-        DEBUG_MSG "adding %s" (Edit.to_string ins);
-        edits#add_edit ins
+        Xset.add to_be_added1 n1;
+        Xset.add to_be_added2 n2
       ) removed_pairs;
 
     DEBUG_MSG "* ADDING EDITS...";
+
+    Xset.iter
+      (fun n1 ->
+        let del = Edit.make_delete n1 in
+        DEBUG_MSG "adding %s" (Edit.to_string del);
+        edits#add_edit del;
+      ) to_be_added1;
+    Xset.iter
+      (fun n2 ->
+        let ins = Edit.make_insert n2 in
+        DEBUG_MSG "adding %s" (Edit.to_string ins);
+        edits#add_edit ins
+      ) to_be_added2;
 
     let pending_pairs = ref [] in
 
@@ -5152,7 +5183,15 @@ if not options#no_glue_flag then begin
           nmapping (new Node_mapping.c cenv)
       in
       sync_edits removed_pairs added_pairs;
+
 end;
+
+      if
+        not options#no_rename_rectification_flag &&
+        options#strict_rename_rectification_flag
+      then begin
+        Edit.rectify_renames_ex options cenv nmapping edits
+      end
 
     end;
 
@@ -5818,6 +5857,7 @@ end;
 
                   let is_mov1 =
                     edits#is_crossing_with_untouched
+                      ?full_scan:None
                       ?mask:None ?incompatible_only:None nmapping
                   in
                   let is_mov2 n1 n2 = is_mov1 n2 n1 in
@@ -6670,6 +6710,7 @@ end;
           let is_crossing n1 n2 =
             let b =
               edits#is_crossing_with_untouched
+                ?full_scan:None
                 ?mask:None ?incompatible_only:None nmapping n1 n2
             in
             DEBUG_MSG "%a %a -> %B" nps n1 nps n2 b;
@@ -7179,6 +7220,7 @@ end;
                          with _ -> false
                         ) &&
                         edits#is_crossing_with_untouched
+                          ?full_scan:None
                           ?mask:None ?incompatible_only:None
                           nmapping nd1 nd2
                       in
@@ -7289,6 +7331,7 @@ end;
                        nd1#data#is_boundary && nd2#data#is_boundary
                       ) &&
                       edits#is_crossing_with_untouched
+                        ?full_scan:None
                         ?mask:None ?incompatible_only:None
                         nmapping nd1 nd2
                    )
@@ -7416,6 +7459,8 @@ end;
                               end
                               | _ -> assert false
                             ) movl
+                        ||
+                          cenv#has_use_mapping nmapping nd1 nd2
                         (*||
                           not (nd1#data#eq nd2#data) &&
                           B.is_def nd1#data#binding && B.is_def nd2#data#binding &&
@@ -7483,8 +7528,21 @@ end;
             end;
 
             BEGIN_DEBUG
+              let xlen =
+                let count = ref 0 in
+                Xset.iter
+                  (function
+                    | Edit.Move(m, _, _, _) as mov ->
+                        if !m = mid then begin
+                          incr count;
+                          DEBUG_MSG "to be excluded: %s" (Edit.to_string mov)
+                        end
+                    | _ -> ()
+                  ) to_be_excluded;
+                !count
+              in
               let head =
-                if Xset.length to_be_excluded > 0 then
+                if xlen > 0 then
                   "PARTIALLY "
                 else
                   ""
@@ -7530,7 +7588,7 @@ end;
   (* end of decompose_moves *)
 
   (* *)
-  let elaborate_edits_for_delta options ?(sim_thresh=0.1) cenv tree1 tree2 nmapping edits =
+  let elaborate_edits_for_delta options ?(sim_thresh=0.05) cenv tree1 tree2 nmapping edits =
     let dels = Xset.create 0 in
     let inss = Xset.create 0 in
 
@@ -7744,8 +7802,8 @@ end;
               DEBUG_MSG "n2=%s" n2#initial_to_string;
               DEBUG_MSG "similarity=%f" sim;*)
               if sim < sim_thresh then begin
-                DEBUG_MSG "elaborating edits on %s-%s (similarity=%f)"
-                  n1#initial_to_string n2#initial_to_string sim;
+                DEBUG_MSG "elaborating edits on %s-%s (similarity=%f<%f)"
+                  n1#initial_to_string n2#initial_to_string sim sim_thresh;
                 Xprint.verbose options#verbose_flag "elaborating edits on %s -- %s (similarity=%f)"
                   n1#data#to_string n2#data#to_string sim;
 
@@ -7789,55 +7847,53 @@ end;
       (function
         | Edit.Move(mid, kind, (info1, _), (info2, _)) ->
 
-    let sz1 = Info.get_size info1 in
-    let sz2 = Info.get_size info2 in
+            let sz1 = Info.get_size info1 in
+            let sz2 = Info.get_size info2 in
 
-    assert (sz1 = sz2);
+            assert (sz1 = sz2);
 
-    let nd1 = Info.get_node info1 in
-    let nd2 = Info.get_node info2 in
+            let nd1 = Info.get_node info1 in
+            let nd2 = Info.get_node info2 in
 
-    DEBUG_MSG "checking %a %a-%a (%a-%a) sz=%d" MID.ps !mid nups nd1 nups nd2 ngps nd1 ngps nd2 sz1;
+            DEBUG_MSG "checking %a %a-%a (%a-%a) sz=%d" MID.ps !mid nups nd1 nups nd2 ngps nd1 ngps nd2 sz1;
 
-    begin
-     try
-       let ndpairs = Hashtbl.find move_mem_tbl !mid in
-       Hashtbl.replace move_mem_tbl !mid ((nd1, nd2)::ndpairs)
-     with
-       Not_found -> Hashtbl.add move_mem_tbl !mid [nd1, nd2]
-    end;
-    begin
-      try
-        let rt1, rt2 = Hashtbl.find move_top_tbl !mid in
-        if nd1#gindex > rt1#gindex then
-          Hashtbl.replace move_top_tbl !mid (nd1, nd2)
-      with
-        Not_found -> Hashtbl.add move_top_tbl !mid (nd1, nd2)
-    end;
+            begin
+              try
+                let ndpairs = Hashtbl.find move_mem_tbl !mid in
+                Hashtbl.replace move_mem_tbl !mid ((nd1, nd2)::ndpairs)
+              with
+                Not_found -> Hashtbl.add move_mem_tbl !mid [nd1, nd2]
+            end;
+            begin
+              try
+                let rt1, rt2 = Hashtbl.find move_top_tbl !mid in
+                if nd1#gindex > rt1#gindex then
+                  Hashtbl.replace move_top_tbl !mid (nd1, nd2)
+              with
+                Not_found -> Hashtbl.add move_top_tbl !mid (nd1, nd2)
+            end;
 
-    if not (Xset.mem crossing_checked !mid) then begin
-      Xset.add crossing_checked !mid;
-      try
-        nmapping#iter_crossing_or_incompatible_mapping nd1 nd2
-          (fun n1 n2 ->
-(*
-            DEBUG_MSG "!!!  crossing: %a-%a (%a-%a)" nups n1 nups n2 ngps n1 ngps n2;
-*)
-            match edits#find12 n1 n2 with
-            | [] | [Edit.Relabel _] ->
-                if (not (is_ghost_node n1)) && (not (is_ghost_node n2)) then begin
-                  DEBUG_MSG "-->  crossing_with_untouched: %a-%a" nups n1 nups n2;
-                  Xset.add crossing_with_untouched !mid;
-                  raise Break
-                end
-            | eds -> ()
-(*            List.iter (fun e -> DEBUG_MSG "!!!    %s" (Edit.to_string e)) eds *)
-  )
-      with
-        Break -> ()
-    end
+            if not (Xset.mem crossing_checked !mid) then begin
+              Xset.add crossing_checked !mid;
+              try
+                nmapping#iter_crossing_or_incompatible_mapping nd1 nd2
+                  (fun n1 n2 ->
+(*DEBUG_MSG "!!!  crossing: %a-%a (%a-%a)" nups n1 nups n2 ngps n1 ngps n2;*)
+                    match edits#find12 n1 n2 with
+                    | [] | [Edit.Relabel _] ->
+                        if (not (is_ghost_node n1)) && (not (is_ghost_node n2)) then begin
+                          DEBUG_MSG "-->  crossing_with_untouched: %a-%a" nups n1 nups n2;
+                          Xset.add crossing_with_untouched !mid;
+                          raise Break
+                        end
+                    | eds -> ()
+(*List.iter (fun e -> DEBUG_MSG "!!!    %s" (Edit.to_string e)) eds *)
+                  )
+              with
+                Break -> ()
+            end
 
-| _ -> assert false
+        | _ -> assert false
 
       ); (* edits#iter_moves *)
 
@@ -8035,10 +8091,15 @@ end;
     let mtree2 = new Otreediff.Otree.otree mroot2 in
 
 (* EXPERIMENTAL!!! *)
-    Xprint.verbose options#verbose_flag "performing experimental false move detection...";
+
+    let disable_true_move_detection_flag =
+      check_hard_tree_size_limit options mtree1#size mtree2#size
+    in
+    DEBUG_MSG "disable_true_move_detection_flag=%B" disable_true_move_detection_flag;
+
     let true_moves =
-      if check_hard_tree_size_limit options mtree1#size mtree2#size then begin
-        let mk x =
+      if disable_true_move_detection_flag then begin
+        (*let mk x =
           let l = ref [] in
           let rec do_scan nd =
             Array.iter do_scan nd#children;
@@ -8057,7 +8118,6 @@ end;
           Array.iteri pr a2;
         END_DEBUG;
         let m, rs, ds, is = Adiff.adiff a1 a2 in
-        DEBUG_MSG "|m|=%d" (List.length m);
         let s = Xset.create 0 in
         let proc a i =
           DEBUG_MSG "%d: [%s]" i (String.concat ";" (List.map MID.to_string a.(i)));
@@ -8067,6 +8127,14 @@ end;
                 Xset.add s x
             ) a.(i)
         in
+        BEGIN_DEBUG
+          DEBUG_MSG "|m|=%d" (List.length m);
+          List.iter
+            (fun (i, j) ->
+              DEBUG_MSG "%d->%d: [%s]" i j (String.concat ";" (List.map MID.to_string a1.(i)));
+              (*proc a1 i ; proc a2 j*)
+            ) m
+        END_DEBUG;
         DEBUG_MSG "rel:";
         List.iter (fun (i, j) -> proc a1 i; proc a2 j) rs;
         DEBUG_MSG "del:";
@@ -8074,9 +8142,10 @@ end;
         DEBUG_MSG "ins:";
         List.iter (proc a2) is;
         DEBUG_MSG "%d true moves found" (Xset.length s);
-        Xset.to_list s
+        Xset.to_list s*)[]
       end
       else begin
+        Xprint.verbose options#verbose_flag "performing experimental false move detection...";
         let mid_count_tbl = Hashtbl.create 0 in
         List.iter
           (fun (mid, _, _) ->
@@ -8099,7 +8168,7 @@ end;
 
         BEGIN_DEBUG
           DEBUG_MSG "* mid tree 1:\n%s" mtree1#to_string;
-        DEBUG_MSG "* mid tree 2:\n%s" mtree2#to_string;
+          DEBUG_MSG "* mid tree 2:\n%s" mtree2#to_string;
         END_DEBUG;
 
         let cost t1 t2 i j =
@@ -8122,11 +8191,9 @@ end;
         let eds, map, _ = Otreediff.ZS.Float.find cost mtree1 mtree2 in
 
         BEGIN_DEBUG
-          DEBUG_MSG "eds:\n%s"
-          (Otreediff.Edit.seq_to_string eds);
-        DEBUG_MSG "mapping:\n%s"
-          (Otreediff.Mapping.to_string map)
-          END_DEBUG;
+          DEBUG_MSG "eds:\n%s" (Otreediff.Edit.seq_to_string eds);
+          DEBUG_MSG "mapping:\n%s" (Otreediff.Mapping.to_string map)
+        END_DEBUG;
 
         let true_moves =
           List.fold_left
@@ -8162,13 +8229,17 @@ end;
       (function
         | Edit.Move(mid, kind, (info1, _), (info2, _)) as mov ->
             let crossing = Xset.mem crossing_with_untouched !mid in
-            if crossing || List.mem !mid true_moves then begin
+            if
+              crossing ||
+              (disable_true_move_detection_flag || List.mem !mid true_moves)
+            then begin
 
               BEGIN_DEBUG
                 if List.mem !mid true_moves then
                   if
                     not
                       (edits#is_crossing_with_untouched
+                         ?full_scan:None
                          ?mask:None ?incompatible_only:None nmapping
                          (Info.get_node info1) (Info.get_node info2))
                   then
@@ -8328,12 +8399,12 @@ end;
       DEBUG_MSG "edits:\n%s\n" edits#to_string;
     END_DEBUG;
 
-    eliminate_false_moves options cenv edits nmapping;
+    (*eliminate_false_moves options cenv edits nmapping;
 
     BEGIN_DEBUG
       DEBUG_MSG "* AFTER FALSE MOVE ELIMINATION *";
       DEBUG_MSG "edits:\n%s\n" edits#to_string;
-    END_DEBUG;
+    END_DEBUG;*)
 
     examine_moves edits;
 
@@ -8376,14 +8447,20 @@ end;
       end
     END_DEBUG;
 
-    (* check moves *)
-    DEBUG_MSG "checking moves...";
-
-    let is_crossing_with_untouched ?(mask=[]) ?(incompatible_only=false) =
-      edits#is_crossing_with_untouched
+    let is_crossing_with_untouched ?(full_scan=false) ?(mask=[]) ?(incompatible_only=false) =
+      edits#is_crossing_with_untouched ?full_scan:(Some full_scan)
         ?mask:(Some mask) ?incompatible_only:(Some incompatible_only) nmapping
     in
 
+
+    (* check moves *)
+    DEBUG_MSG "checking moves...";
+    let full_scan =
+      not options#no_rename_rectification_flag ||
+      options#strict_rename_rectification_flag
+    in
+    let moves = Xset.create 0 in
+    let non_moves = Xset.create 0 in
     edits#iter_moves_topdown
       (function
         | Edit.Move(mid, kind, (info1, _), (info2, _)) as mov ->
@@ -8392,12 +8469,26 @@ end;
 
             DEBUG_MSG "checking: %a %a-%a" MID.ps !mid nups nd1 nups nd2;
 
-            if not (is_crossing_with_untouched nd1 nd2) then begin
+            if Xset.mem non_moves !mid then begin
               DEBUG_MSG "not a move: %s" (Edit.to_string mov);
               edits#remove_edit mov
             end
+            else if Xset.mem moves !mid then
+              ()
+            else
+
+            if is_crossing_with_untouched ~full_scan nd1 nd2 then begin
+              Xset.add moves !mid
+            end
+            else begin
+              DEBUG_MSG "not a move: %s" (Edit.to_string mov);
+              edits#remove_edit mov;
+              Xset.add non_moves !mid
+            end
+
         | _ -> assert false
       );
+
 
     DEBUG_MSG "nmapping:\n%s\n" nmapping#to_string;
 
@@ -8947,7 +9038,14 @@ end;
             ~override:true ~downward:true ~no_moves:false
             nmapping (new Node_mapping.c cenv)
         in
-        sync_edits options cenv edits removed_pairs added_pairs
+        let is_mov n1 n2 =
+          edits#is_crossing_with_untouched
+            ?full_scan:None
+            ?mask:None ?incompatible_only:None nmapping
+            n1 n2,
+          None
+        in
+        sync_edits options ~is_mov cenv edits removed_pairs added_pairs
       end;
 
       let dels0 = Xset.filter (fun x -> edits#mem_del x) dels0 in
@@ -9525,7 +9623,9 @@ end;
                   in
                   match !nd_opt' with
                   | Some nd' when nd'#initial_children = cs' -> begin
-                      if not options#no_moves_flag || not (is_crossing_with_untouched nd nd') then begin
+                      if
+                        not options#no_moves_flag || not (is_crossing_with_untouched nd nd')
+                      then begin
                         let ins = edits#find_ins nd' in
                         if not (nd#data#eq nd'#data) then begin
                           if relabel_allowed nd nd' then
@@ -9706,6 +9806,7 @@ end;
         | _ -> ()
       )
     done;
+
     if Hashtbl.length mid_change_tbl > 0 then begin
       edits#iter_moves
         (function
@@ -9720,6 +9821,34 @@ end;
         )
     end;
 
+    BEGIN_DEBUG
+      DEBUG_MSG "CHECKING BEFORE FINAL FIXUP...";
+      tree1#fast_scan_whole_initial
+        (fun n1 ->
+          if nmapping#mem_dom n1 then
+            let n1' = nmapping#find n1 in
+            if not (n1#data#eq n1'#data) then
+              if not (edits#mem_rel12 n1 n1') then
+                DEBUG_MSG "relabel not found for %s-%s"
+                  n1#initial_to_string n1'#initial_to_string
+          else
+            if not (edits#mem1 n1) then
+              DEBUG_MSG "delete not found for %s" n1#initial_to_string
+        );
+      tree2#fast_scan_whole_initial
+        (fun n2 ->
+          if nmapping#mem_cod n2 then
+            let n2' = nmapping#inv_find n2 in
+            if not (n2'#data#eq n2#data) then
+              if not (edits#mem_rel12 n2' n2) then
+                DEBUG_MSG "relabel not found for %s-%s"
+                  n2'#initial_to_string n2#initial_to_string
+          else
+            if not (edits#mem2 n2) then
+              DEBUG_MSG "insert not found for %s" n2#initial_to_string
+        );
+      DEBUG_MSG "DONE."
+    END_DEBUG;
 
     (* final fixup *)
 

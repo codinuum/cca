@@ -63,6 +63,9 @@ let p_is_abst    = mkjres "isAbstract"
 let p_identifier = mkjres "identifier"
 let p_qualifier  = mkjres "qualifier"
 
+let p_id_offset = mkjres "identOffset"
+let p_id_length = mkjres "identLength"
+
 let getlab = getlab
 
 let node_filter options nd = (* filter out inactive nodes *)
@@ -174,6 +177,16 @@ class extractor options cache_path tree = object (self)
     if node_filter options nd then begin
       self#add (entity, p_is_a, mkjres nd#data#get_category);
       (* self#add (entity, p_file_digest, tree#encoded_source_digest); *)
+
+      begin
+        let id_loc = nd#data#id_loc in
+        if id_loc != Loc.dummy then begin
+          let offset = id_loc.Loc.start_offset in
+          let length = id_loc.Loc.end_offset - offset + 1 in
+          self#add (entity, p_id_offset, Triple.make_nn_int_literal offset);
+          self#add (entity, p_id_length, Triple.make_nn_int_literal length);
+        end
+      end;
 
       begin
         try
@@ -405,7 +418,7 @@ class extractor options cache_path tree = object (self)
       end;
 
       if L.is_variabledeclarator lab then begin
-        if L.is_local_variabledeclarator lab then begin
+        if L.is_localvariabledecl (getlab nd#initial_parent) then begin
           let name = L.get_name lab in
           stack#register name nd
         end;

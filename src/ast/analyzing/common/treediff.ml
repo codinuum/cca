@@ -19,15 +19,7 @@ open Printf
 
 let nups = Misc.nups
 
-type node_t = Spec.node_t
-
-module Node = struct
-  type t = node_t
-  let equal n1 n2 = n1 == n2
-  let hash n = n#hash(*lnot n#uid*)
-end
-
-module Nodetbl = Hashtbl.Make (Node)
+module Nodetbl = Node.Tbl
 
 
 let cost ?(nmap_opt=None) tree1 tree2 i j =
@@ -567,7 +559,7 @@ let fast_match_trees tree1 tree2 ref_nmapping = (* fast but inaccurate *)
 
 
 let match_trees
-    cenv
+    (cenv : 'a Node.cenv_t)
     tree1
     tree2
     ?(partially_mapped=false)

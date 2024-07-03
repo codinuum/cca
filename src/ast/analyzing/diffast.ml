@@ -177,7 +177,7 @@ let speclist =
    "-check", Arg.Unit (fun () -> options#set_check_flag), "\tcheck result";
    "-r", Arg.Unit (fun () -> options#set_recursive_flag), "\t\tcompare files recursively";
    "-I", Arg.String options#add_search_path, "PATH\tadd search path";
-   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing in spite of errors";
+   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing despite errors";
    (*"-splithunk", Arg.Unit (fun () -> options#set_split_hunk_flag), "\tsplit delta hunks";!!!!!*)
    "-keep-filtered-temp-file", Arg.Unit (fun () -> options#set_keep_filtered_temp_file_flag),
                                "\tkeep filtered temporary file";
@@ -195,6 +195,9 @@ let speclist =
                                         "\trely on naming convention";
    "-parser:partial-name-resolution", Arg.Unit (fun () -> options#set_partial_name_resolution_flag),
                                       "\tresolve names partially";
+   "-parser:no-implicit-name-resolution",
+     Arg.Unit (fun () -> options#set_no_implicit_name_resolution_flag),
+     "\tdisable name resolution";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";
@@ -268,6 +271,7 @@ let speclist =
                        (*options#set_no_odd_relabel_elim_flag*)
                      ),
            "\tdisable rename rectification";
+
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomoves", Arg.Unit (fun () -> options#set_no_moves_flag), "\tdisable move generation";
    "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
@@ -314,6 +318,10 @@ let speclist =
                                 options#mapped_neighbours_difference_threshold;
    "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
                              "\tsuppress moves of unnamed nodes";
+   "-no-binding-trace", Arg.Unit (fun () -> options#set_no_binding_trace_flag),
+                        "\t\tdisable binding trace";
+   "-strict-rr", Arg.Unit (fun () -> options#set_strict_rename_rectification_flag),
+                 "\t\tforce strict rename rectification";
    "-weak", Arg.Unit set_weak_flags, "\t\t\tweaken node equation and node permutation detection";
    "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
                   "\t\t\taggressively find moves";

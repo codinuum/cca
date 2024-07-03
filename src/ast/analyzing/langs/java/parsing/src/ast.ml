@@ -32,6 +32,7 @@ type simple_name = identifier
 
 type dims = int (* dimension *)
 
+type expr_kind = EKunknown | EKfacc | EKname
 
 type identifier_attribute =
   | IApackage
@@ -46,8 +47,13 @@ type identifier_attribute =
   | IAlabel
   | IAstatic of string
   | IAtypeparameter
-  | IAexpression
+  | IAexpression of expr_kind
   | IAarray
+
+let expr_kind_to_str = function
+  | EKunknown -> "unknown"
+  | EKfacc -> "facc"
+  | EKname -> "name"
 
 let iattr_to_str = function
   | IApackage     -> "package"
@@ -62,7 +68,7 @@ let iattr_to_str = function
   | IAvariable    -> "variable"
   | IAstatic s    -> "static member"^(if s = "" then "" else ":"^s)
   | IAtypeparameter -> "type parameter"
-  | IAexpression -> "expression"
+  | IAexpression ek -> "expression:"^(expr_kind_to_str ek)
   | IAarray -> "array"
 
 
@@ -166,17 +172,21 @@ let split_inner lname = (* parent * rest *)
 type name_attribute =
   | NApackage
   | NAtype of resolve_result
-  | NAexpression
+  | NAexpression of expr_kind
   | NAmethod
   | NApackageOrType
   | NAstatic of resolve_result
   | NAambiguous of resolve_result
   | NAunknown
 
+let is_expr_attr = function
+  | NAexpression _ -> true
+  | _ -> false
+
 let iattr_to_nattr = function
   | IApackage     -> NApackage
   | IAmethod      -> NAmethod
-  | IAexpression  -> NAexpression
+  | IAexpression ek -> NAexpression ek
   | _ -> failwith "Ast.iattr_to_nattr"
 
 let get_resolved_name = function
@@ -195,7 +205,7 @@ let set1 orig a =
       | NApackage | NAtype _ -> orig := a
       | _ -> ()
   end
-  | NAexpression -> begin
+  | NAexpression _ -> begin
       match a with
       | NAstatic _ -> orig := a
       | _ -> ()
@@ -1067,7 +1077,7 @@ let is_package_or_type_name name =
 
 let is_expression name =
   match get_name_attribute name with
-  | NAexpression -> true
+  | NAexpression _ -> true
   | _ -> false
 
 let is_unknown_name name =
@@ -1187,7 +1197,8 @@ and _name_to_facc name =
   match name.n_desc with
   | Nsimple(a, i) -> begin
       match !a with
-      | NAexpression -> PfieldAccess(FAimplicit name)
+      | NAexpression (EKfacc|EKunknown) -> PfieldAccess(FAimplicit name)
+      | NAexpression EKname -> Pname name
       | _ -> Pname name
   end
   | Nqualified(a, n, [], i) -> PfieldAccess(FAprimary(name_to_facc n, i))
@@ -1590,7 +1601,9 @@ and proc_field_access f fa =
 and name_attribute_to_string = function
   | NApackage       -> "P"
   | NAtype r        -> "T"
-  | NAexpression    -> "E"
+  | NAexpression EKfacc -> "Ef"
+  | NAexpression EKname -> "En"
+  | NAexpression EKunknown -> "E"
   | NAmethod        -> "M"
   | NApackageOrType -> "PT"
   | NAstatic r      -> "S"

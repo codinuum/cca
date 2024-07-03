@@ -740,14 +740,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end;
       pr_string "this"
 
-  | L.ForHeader(i, dims) ->
-      pr_selected ~fail_on_error L.is_modifiers children;
-      let a' = find_nodes L.is_type children in
-      if (Array.length a') > 0 then begin
-        pb#pr_a pr_none (pr_node ~fail_on_error ~va ~blk_style ~prec) a';
-      end;
-      pad 1;
-      pr_id i; pr_dims dims
+  | L.ForHead _ ->
+      pr_selected ~fail_on_error L.is_forinit children;
+      pr_semicolon(); pr_space();
+      pr_selected ~fail_on_error L.is_forcond children;
+      pr_semicolon(); pr_space();
+      pr_selected ~fail_on_error L.is_forupdate children;
 
   | L.Method(i, _) ->
       (*pb#open_vbox 0;*)
@@ -914,11 +912,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       | L.Statement.For ->
           pr_string "for (";
           pb#open_box 0;
-          pr_selected ~fail_on_error L.is_forinit children;
-          pr_semicolon(); pr_space();
-          pr_selected ~fail_on_error L.is_forcond children;
-          pr_semicolon(); pr_space();
-          pr_selected ~fail_on_error L.is_forupdate children;
+          pr_selected ~fail_on_error L.is_forhead children;
           pr_rparen();
           pb#close_box();
           if nchildren > 0 then begin
@@ -1038,7 +1032,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end;
       pb#close_box()
 
-  | L.VariableDeclarator(i, dims, islocal) ->
+  | L.VariableDeclarator(i, dims) ->
       pr_id i; pr_dims dims;
       if nchildren > 0 then begin
         pr_string " ="; pr_break 1 pb#indent;

@@ -16,6 +16,7 @@
 (* comparison.ml *)
 
 module B = Binding
+module Nodetbl = Node.Tbl
 
 open Otreediff
 open Misc
@@ -549,10 +550,10 @@ class ['node_t, 'tree_t] c
         pair_weight_list
     in
 
-    DEBUG_MSG "select_p_pairs: [%s]"
-      (Xlist.to_string
-         (fun (n1, n2, w) -> sprintf "(%a-%a,%d)" nups n1 nups n2 w)
-         ";" pair_weight_list);
+    BEGIN_DEBUG
+      DEBUG_MSG "select_p_pairs:";
+      List.iter (fun (n1, n2, w) -> DEBUG_MSG "%a-%a %d" nups n1 nups n2 w) pair_weight_list;
+    END_DEBUG;
 
     let len = List.length pair_weight_list in
 
@@ -617,14 +618,12 @@ class ['node_t, 'tree_t] c
       let compat = List.map (fun i -> a.(i)) compat_idxs in
       let incompat = List.map (fun i -> a.(i)) incompat_idxs in
 
-      DEBUG_MSG "select_p_pairs: p pairs: [%s]"
-        (Xlist.to_string
-	   (fun (n1, n2, _) -> sprintf "(%a-%a)" UID.ps n1#uid UID.ps n2#uid)
-	   ";" compat);
-      DEBUG_MSG "select_p_pairs: not p pairs: [%s]"
-        (Xlist.to_string
-	   (fun (n1, n2, _) -> sprintf "(%a-%a)" UID.ps n1#uid UID.ps n2#uid)
-	   ";" incompat);
+      BEGIN_DEBUG
+        DEBUG_MSG "select_p_pairs: p pairs:";
+        List.iter (fun (n1, n2, _) -> DEBUG_MSG "%a-%a" nups n1 nups n2) compat;
+        DEBUG_MSG "select_p_pairs: not p pairs:";
+        List.iter (fun (n1, n2, _) -> DEBUG_MSG "%a-%a" nups n1 nups n2) incompat;
+      END_DEBUG;
 
       compat, incompat
     end
@@ -802,6 +801,8 @@ class ['node_t, 'tree_t] c
 
   val is_possible_rename_cache = (Tbl3.create() : (bool, 'node_t, 'node_t, bool) Tbl3.t)
 
+  method _is_possible_rename = is_possible_rename
+
   method is_possible_rename ?(strict=false) n1 n2 =
     try
       Tbl3.find is_possible_rename_cache strict n1 n2
@@ -814,6 +815,89 @@ class ['node_t, 'tree_t] c
   method set_is_possible_rename f =
     is_possible_rename <- f;
     Tbl3.clear is_possible_rename_cache
+
+  val mutable def_bid_map1_set = false
+  val mutable def_bid_map2_set = false
+  method def_bid_maps_set = def_bid_map1_set && def_bid_map2_set
+
+  val mutable def_bid_map1 = (Hashtbl.create 0 : (B.ID.t, B.ID.t) Hashtbl.t)
+  val mutable def_bid_map2 = (Hashtbl.create 0 : (B.ID.t, B.ID.t) Hashtbl.t)
+  method set_def_bid_map1 m = def_bid_map1 <- m; def_bid_map1_set <- true
+  method set_def_bid_map2 m = def_bid_map2 <- m; def_bid_map2_set <- true
+
+  val mutable def_use_tbl1_set = false
+  val mutable def_use_tbl2_set = false
+  method def_use_tbls_set = def_use_tbl1_set && def_use_tbl2_set
+
+  val mutable def_use_tbl1 = Nodetbl.create 0
+  val mutable def_use_tbl2 = Nodetbl.create 0
+  method set_def_use_tbl1 tbl = def_use_tbl1 <- tbl; def_use_tbl1_set <- true
+  method set_def_use_tbl2 tbl = def_use_tbl2 <- tbl; def_use_tbl2_set <- true
+
+  method has_use_mapping nmapping n1 n2 =
+    let b =
+      let usel2 = try Nodetbl.find def_use_tbl2 n2 with _ -> [] in
+      DEBUG_MSG "uses2=[%s]" (Xlist.to_string (fun n -> UID.to_string n#uid) ";" usel2);
+      let uses2 = Xset.from_list usel2 in
+      try
+        List.iter
+          (fun use1 ->
+            DEBUG_MSG "use1=%a" nups use1;
+            try
+              let use1' = nmapping#find use1 in
+              DEBUG_MSG "use1'=%a" nups use1';
+              if Xset.mem uses2 use1' then
+                raise Found
+            with
+              Not_found -> ()
+          ) (try Nodetbl.find def_use_tbl1 n1 with _ -> []);
+        false
+      with
+        Found -> true
+    in
+    DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+    b
+
+  method is_scope_breaking_mapping
+      (nmapping : 'node_t Node_mapping.c)
+      (n1 : 'node_t)
+      (n2 : 'node_t)
+      =
+    let b =
+      try
+        let b1 = n1#data#binding in
+        let b2 = n2#data#binding in
+        if B.is_use b1 && B.is_use b2 then begin
+          if self#def_bid_maps_set then begin
+            let bi1 = B.get_bid b1 in
+            let bi2 = B.get_bid b2 in
+            (try
+              let bi1' = Hashtbl.find def_bid_map1 bi1 in
+              bi1' <> bi2
+            with
+              Not_found -> false) ||
+              (try
+                let bi2' = Hashtbl.find def_bid_map2 bi2 in
+                bi2' <> bi1
+              with
+                Not_found -> false)
+          end
+          else
+            failwith "Comparison.c#is_scope_breaking_mapping"
+        end
+        else if B.is_local_def b1 && B.is_local_def b2 then begin
+          if self#def_use_tbls_set then
+            not (self#has_use_mapping nmapping n1 n2)
+          else
+            failwith "Comparison.c#is_scope_breaking_mapping"
+        end
+        else
+          false
+      with
+        _ -> false
+    in
+    DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+    b
 
   val bad_pairs = (Xset.create 0 : ('node_t * 'node_t) Xset.t)
   method bad_pairs = bad_pairs
@@ -866,7 +950,9 @@ class ['node_t, 'tree_t] c
     | Some mnm -> mnm
     | None -> raise Not_found
 
-  val adjacency_cache = (Tbl2.create() : ('node_t, 'node_t, float * ('node_t * 'node_t) list) Tbl2.t)
+  val adjacency_cache =
+    (Tbl3.create() : (('node_t * 'node_t) option, 'node_t, 'node_t,
+                      float * ('node_t * 'node_t) list) Tbl3.t)
 
   val mutable adjacency_cache_hit_count = 0
 
@@ -916,7 +1002,7 @@ class ['node_t, 'tree_t] c
   method tree2 = tree2
 
   method use_adjacency_cache = use_adjacency_cache
-  method size_of_adjacency_cache = Tbl2.length adjacency_cache
+  method size_of_adjacency_cache = Tbl3.length adjacency_cache
 
   method adjacency_cache_hit_count = adjacency_cache_hit_count
 
@@ -1660,7 +1746,7 @@ class ['node_t, 'tree_t] c
     sim
 
   (* adjacency : similarity of the context *)
-  method _get_adjacency_score nd1 nd2 =
+  method _get_adjacency_score ?(anchor=None) nd1 nd2 =
 
     DEBUG_MSG "evaluating %a-%a..." nups nd1 nups nd2;
 
@@ -1668,7 +1754,7 @@ class ['node_t, 'tree_t] c
       if not use_adjacency_cache then
         raise Not_found;
 
-      let score, ref_npairs = Tbl2.find adjacency_cache nd1 nd2 in
+      let score, ref_npairs = Tbl3.find adjacency_cache anchor nd1 nd2 in
 
       adjacency_cache_hit_count <- adjacency_cache_hit_count + 1;
 
@@ -1838,50 +1924,62 @@ class ['node_t, 'tree_t] c
             (*Printf.printf "! rev_flag: %s\n" nd1#to_string*)
           end;
 
-          let rec doit = function
+          let finish idx1 idx2 anc1 anc2 ipos1 ipos2 =
+            let d = idx1 + idx2
+                    (*(get_n_skipped tree1 snd1 nd1) + (get_n_skipped tree2 snd2 nd2)*)
+            in
+            let ichildren1 = anc1#initial_children in
+            let ichildren2 = anc2#initial_children in
+            let len1 = Array.length ichildren1 in
+            let len2 = Array.length ichildren2 in
+            let left = ipos1 >= 1 (* && *) || ipos2 >= 1 in
+            let right = ipos1 <= len1 - 2 (* && *) || ipos2 <= len2 - 2 in
+            (*if
+               (not left || not right) &&
+               match rest with
+               | (_, _, a1, a2, ip1, ip2)::_ -> begin
+                   a1 != rt1 && a2 != rt2 &&
+                   not a1#data#is_boundary && not a2#data#is_boundary &&
+                   not a1#initial_children.(ip1)#data#is_order_insensitive &&
+                   not a2#initial_children.(ip2)#data#is_order_insensitive
+               end
+               | _ -> false
+            then
+              doit (lv+1) rest
+            else*)
+            (left, right, anc1, anc2, ipos1, ipos2, d)
+          in
+
+          let filt1, filt2 =
+            match anchor with
+            | Some (anchor1, anchor2) -> begin
+                DEBUG_MSG "anchor1=%a anchor2=%a" nups anchor1 nups anchor2;
+                (fun x -> x == anchor1 || tree1#is_initial_ancestor x anchor1),
+                (fun x -> x == anchor2 || tree2#is_initial_ancestor x anchor2)
+            end
+            | None -> (fun _ -> true), (fun _ -> true)
+          in
+
+          let rec doit lv = function
             | [] -> raise Not_found
             | (idx1, idx2, anc1, anc2, ipos1, ipos2)::rest ->
-                DEBUG_MSG "anc1=%a anc2=%a" nups anc1 nups anc2;
+                DEBUG_MSG "lv=%d anc1=%a anc2=%a" lv nups anc1 nups anc2;
                 if anc1 == rt1 || anc2 == rt2 || anc1#data#is_boundary || anc2#data#is_boundary then
                   raise Not_found
-
                 else begin
                   if rev_flag && anc1#initial_nchildren = 1 && anc2#initial_nchildren = 1 then
-                    doit rest
-                  else if weq anc1 anc2 then begin
-                    let d = idx1 + idx2
-(*                    (get_n_skipped tree1 snd1 nd1) + (get_n_skipped tree2 snd2 nd2) *)
-                    in
-                    let ichildren1 = anc1#initial_children in
-                    let ichildren2 = anc2#initial_children in
-                    let len1 = Array.length ichildren1 in
-                    let len2 = Array.length ichildren2 in
-                    let left = ipos1 >= 1 (* && *) || ipos2 >= 1 in
-                    let right = ipos1 <= len1 - 2 (* && *) || ipos2 <= len2 - 2 in
-
-                    (*if
-                      (not left || not right) &&
-                      match rest with
-                      | (_, _, a1, a2, ip1, ip2)::_ -> begin
-                          a1 != rt1 && a2 != rt2 &&
-                          not a1#data#is_boundary && not a2#data#is_boundary &&
-                          not a1#initial_children.(ip1)#data#is_order_insensitive &&
-                          not a2#initial_children.(ip2)#data#is_order_insensitive
-                      end
-                      | _ -> false
-                    then
-                      doit rest
-                    else*)
-                      (left, right, anc1, anc2, ipos1, ipos2, d)
-
-                  end (* if weq anc1 anc2 *)
+                    doit (lv+1) rest
+                  else if not (filt1 anc1 && filt2 anc2) then
+                    doit (lv+1) rest
+                  else if weq anc1 anc2 then
+                    finish idx1 idx2 anc1 anc2 ipos1 ipos2
                   else
-                    doit rest
+                    doit (lv+1) rest
 
                 end (* if not (anc1 == rt1... *)
           in
-          doit (self#find_ancestor_pairs_of_same_category rev_flag nd1 nd2)
-        in
+          doit 1 (self#find_ancestor_pairs_of_same_category rev_flag nd1 nd2)
+        in (* find_anchor *)
 
 
         let _comp_score
@@ -2149,15 +2247,15 @@ class ['node_t, 'tree_t] c
           (*let key = uid1, uid2 in*)
           (*let prev_score, _ = try Hashtbl.find adjacency_cache key with _ -> 0.0, [] in
           if total_score > prev_score then*)
-          Tbl2.add adjacency_cache nd1 nd2 (total_score, !ref_npairs)
+          Tbl3.add adjacency_cache anchor nd1 nd2 (total_score, !ref_npairs)
         end;
 
         total_score, !ref_npairs
 (* end of method _get_adjacency_score *)
 
 
-  method get_adjacency_score nd1 nd2 =
-    let s, _ = self#_get_adjacency_score nd1 nd2 in
+  method get_adjacency_score ?(anchor=None) nd1 nd2 =
+    let s, _ = self#_get_adjacency_score ~anchor nd1 nd2 in
     s
 
 
@@ -3448,6 +3546,7 @@ class ['node_t, 'tree_t] c
 
             else if
               try
+                get_orig_name nd1old <> get_orig_name nd2old &&
                 not (is_rename_pat_ nd1old nd2old) && is_rename_pat_ nd1new nd2new
               with _ -> false
             then begin
@@ -3457,6 +3556,7 @@ class ['node_t, 'tree_t] c
             end
             else if
               try
+                get_orig_name nd1new <> get_orig_name nd2new &&
                 is_rename_pat_ nd1old nd2old && not (is_rename_pat_ nd1new nd2new)
               with _ -> false
             then begin
