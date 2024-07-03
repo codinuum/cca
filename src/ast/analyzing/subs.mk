@@ -23,7 +23,7 @@ COMMON_OBJS = key.cmo loc.cmo binding.cmo moveid.cmo adiff.cmo const.cmo misc.cm
 		region.cmo range.cmo Lrange.cmo LCrange.cmo \
 		fragment.cmo GIDfragment.cmo LCfragment.cmo Lfragment.cmo \
 		spec_base.cmo spec.cmo triple.cmo info.cmo editop.cmo fs.cmo delta_base.cmo \
-		sourcecode.cmo proximity.cmo treediff.cmo node_mapping.cmo stat.cmo \
+		sourcecode.cmo proximity.cmo node.cmo treediff.cmo node_mapping.cmo stat.cmo \
 		change_base.cmo \
 		delta_common.cmo delta_interpret.cmo delta_format.cmo delta.cmo \
 		fact_base.cmo comparison.cmo \
