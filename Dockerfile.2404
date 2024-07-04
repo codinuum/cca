@@ -1,0 +1,113 @@
+FROM ubuntu:24.04
+
+LABEL maintainer="codinuum"
+
+RUN set -x && \
+    mkdir -p /opt/cca/modules && \
+    mkdir -p /var/lib/cca && \
+    useradd -r -d /opt/cca -s /bin/nologin cca && \
+    chown -R cca:cca /opt/cca && \
+    chown -R cca:cca /var/lib/cca
+
+COPY LICENSE /opt/cca/
+COPY cca /opt/cca/
+
+RUN set -x && \
+    cd /root && \
+    apt-get update && \
+    apt-get upgrade -y && \
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            gosu \
+            vim \
+            opam \
+            net-tools \
+            make m4 flex bison automake autoconf \
+            libtool pkg-config swig \
+            libgmp-dev libssl-dev libz-dev libreadline-dev librdf0-dev libpcre3-dev unixodbc-dev \
+            gawk gperf \
+            sloccount \
+            unixodbc \
+            openjdk-8-jdk \
+            python3 python3-dev \
+            python3-pygit2 \
+            python3-pyodbc \
+            python3-setuptools \
+            python3-rapidjson \
+            python3-svn \
+            python3-daemon \
+            python3-venv \
+            python3-build \
+            python3-pip \
+            wget ca-certificates \
+            git rsync && \
+    pip3 install javalang --break-system-packages
+
+RUN set -x && \
+    cd /root && \
+    git clone https://github.com/openlink/virtuoso-opensource && \
+    cd virtuoso-opensource && \
+    ./autogen.sh && \
+    env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
+    --program-transform-name="s/isql/isql-v/" --disable-dbpedia-vad --disable-demo-vad \
+    --enable-fct-vad --enable-ods-vad --disable-sparqldemo-vad --disable-tutorial-vad \
+    --enable-isparql-vad --enable-rdfmappers-vad --enable-openssl=/usr && \
+    make && make install && \
+    cd /root && \
+    rm -r virtuoso-opensource
+
+COPY python /root/python
+
+RUN set -x && \
+    cd /root/python && \
+    python3 -m build && \
+    pip3 install dist/cca-*.tar.gz --break-system-packages && \
+    cd /root && \
+    rm -r python
+
+COPY src /root/src/
+
+RUN set -x && \
+    cd /root && \
+    opam init -y --disable-sandboxing --bare && \
+    eval $(opam env) && \
+    opam update && \
+    opam switch create 4.14.2+options && \
+    eval $(opam env --switch=4.14.2+options) && \
+    opam install -y ocaml-option-flambda && \
+    echo 'test -r /root/.opam/opam-init/init.sh && . /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> .bashrc && \
+    echo 'export PATH=/opt/cca/bin:${PATH}' >> .bashrc
+
+RUN set -x && \
+    cd /root && \
+    opam update && \
+    opam upgrade -y && \
+    eval $(opam env) && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt
+
+RUN set -x && \
+    cd /root/src && \
+    opam update && \
+    opam upgrade -y && \
+    eval $(opam env) && \
+    make -C mldiff && \
+    make -C util && \
+    make -C otreediff && \
+    cd ast/analyzing && \
+    make production && \
+    cp -r bin etc /opt/cca/ && \
+    cp modules/Mverilog*.cmxs /opt/cca/modules/ && \
+    cp modules/Mpython*.cmxs /opt/cca/modules/ && \
+    cp modules/Mjava*.cmxs /opt/cca/modules/ && \
+    cp modules/Mfortran*.cmxs /opt/cca/modules/ && \
+    cp modules/Mcpp*.cmxs /opt/cca/modules/ && \
+    cd /root && \
+    rm -r src
+
+RUN set -x && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH $PATH:/opt/cca/bin
+
+CMD ["/bin/bash"]
