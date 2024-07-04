@@ -70,11 +70,15 @@ def check_output(cmd, cwd=None, rc_check=True,
 
 
 class PopenContext(object):
-    def __init__(self, cmd, rc_check=True, stdout=PIPE, stderr=PIPE):
+    def __init__(self, cmd, rc_check=True, stdout=PIPE, stderr=PIPE,
+                 text=True, encoding='utf-8', errors='replace'):
         self.cmd = cmd
         self.rc_check = rc_check
         self.stdout = stdout
         self.stderr = stderr
+        self.text = text
+        self.encoding = encoding
+        self.errors = errors
 
     def __enter__(self):
         self._po = Popen(self.cmd,
@@ -82,16 +86,16 @@ class PopenContext(object):
                          stdout=self.stdout,
                          stderr=self.stderr,
                          close_fds=True,
-                         text=True,
-                         encoding='utf-8',
-                         errors='replace')
+                         text=self.text,
+                         encoding=self.encoding,
+                         errors=self.errors)
         return self._po
 
     def __exit__(self, *exc_info):
         (exc, v, tr) = exc_info
 
         if exc == OSError:
-            logger.error('execution failed: %s' % v)
+            logger.error(f'execution failed: {v}')
             return True
 
         elif exc is None:
