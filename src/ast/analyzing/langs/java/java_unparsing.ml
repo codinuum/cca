@@ -912,7 +912,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       | L.Statement.For ->
           pr_string "for (";
           pb#open_box 0;
-          pr_selected ~fail_on_error L.is_forhead children;
+          let pr_semi_semi () = pr_semicolon(); pr_semicolon() in
+          pr_selected ~fail_on_error ~otherwise:pr_semi_semi L.is_forhead children;
           pr_rparen();
           pb#close_box();
           if nchildren > 0 then begin
