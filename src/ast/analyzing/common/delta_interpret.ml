@@ -2885,7 +2885,9 @@ class ['tree] interpreter (tree : 'tree) = object (self)
                     DEBUG_MSG "parent key found: %a -> %s" nps e (key_to_string k);
                     match k with
                     | K_mid _ | K_stid _ -> begin
-                        let ((pnd, pos, ofs) as pnd_pos_ofs) = try self#find_parent e with Not_found -> get_parent e in
+                        let ((pnd, pos, ofs) as pnd_pos_ofs) =
+                          try self#find_parent e with Not_found -> get_parent e
+                        in
                         DEBUG_MSG "parent found: %a pos=%d ofs=%f" nps pnd pos ofs;
 
                       let ok =
@@ -5162,11 +5164,22 @@ class ['tree] interpreter (tree : 'tree) = object (self)
         then begin
           DEBUG_MSG "nd=%a" nps nd;
           let target =
+            let visited = Xset.create 0 in
+            Xset.add visited nd;
             try
               let k = self#get_upstream_dest nd in
               let a =
                 get_p_ancestor
                   (fun x ->
+                    DEBUG_MSG "x=%a" nps x;
+
+                    if Xset.mem visited x then begin
+                      WARN_MSG "infinite loop detected!";
+                      raise Not_found
+                    end
+                    else
+                      Xset.add visited x;
+
                     let b =
                       match self#find_key_opt x with
                       | Some k0 -> k0 = k
