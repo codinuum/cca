@@ -814,7 +814,41 @@ class env = object (self)
           raise Not_found
         else begin
           DEBUG_MSG "FOUND: %s -> [%s]" ident (Xlist.to_string iattr_to_str ";" attrs);
-          attrs
+          List.map
+            (function
+              | IAclass s | IAinterface s | IAtypename s as attr -> begin
+                  try
+                    let prefix = String.sub s 0 ((String.length s) - (String.length ident)) in
+                    DEBUG_MSG "prefix=\"%s\" ident=\"%s\"" prefix ident;
+                    if String.ends_with ~suffix:"." prefix then begin
+                      let sup = String.sub prefix 0 (String.length prefix - 1) in
+                      let _, id = decompose_qname sup in
+                      let afilt = function
+                        | IAclass s | IAinterface s | IAtypename s -> true
+                        | _ -> false
+                      in
+                      try
+                        let _ = self#lookup_identifier ~afilt id in
+                        let x = sup ^ "$" ^ ident in
+                        let attr' =
+                          match attr with
+                          | IAclass _ -> IAclass x
+                          | IAinterface _ -> IAinterface x
+                          | IAtypename _ -> IAtypename x
+                          | _ -> assert false
+                        in
+                        DEBUG_MSG "%s --> %s" (iattr_to_str attr) (iattr_to_str attr');
+                        attr'
+                      with
+                        Not_found -> attr
+                    end
+                    else
+                      attr
+                  with
+                    _ -> attr
+              end
+              | attr -> attr
+            ) attrs
         end
 
 
