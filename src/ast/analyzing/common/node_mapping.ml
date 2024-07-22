@@ -715,18 +715,28 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
   method to_string_gid =
     let buf = Buffer.create 0 in
     let gi_pairs = ref [] in
-    let cmp (gi1, _) (gi2, _) = Stdlib.compare gi1 gi2 in
+    let cmp (gi1, _, _, _, _, _) (gi2, _, _, _, _, _) = Stdlib.compare gi1 gi2 in
 
     let add nd1 nd2 =
       let gi1 = nd1#gindex in
       let gi2 = nd2#gindex in
-      gi_pairs := (gi1, gi2) :: !gi_pairs
+      let lgi1 = (cenv#tree1#initial_leftmost nd1)#gindex in
+      let lgi2 = (cenv#tree2#initial_leftmost nd2)#gindex in
+      let u1 = nd1#uid in
+      let u2 = nd2#uid in
+      gi_pairs := (gi1, gi2, lgi1, lgi2, u1, u2) :: !gi_pairs
     in
     let pr mark =
     List.iter
-      (fun (gi1, gi2) ->
+      (fun (gi1, gi2, lgi1, lgi2, u1, u2) ->
         Buffer.add_string buf
-          (sprintf "Mapping#to_string_gid: %s: %a-%a\n" mark GI.ps gi1 GI.ps gi2)
+          (sprintf
+             "%s: (%a)%a-(%a)%a (%a-%a)\n"
+             mark
+             GI.ps lgi1 GI.ps gi1
+             GI.ps lgi2 GI.ps gi2
+             UID.ps u1 UID.ps u2
+          )
       ) (List.fast_sort cmp !gi_pairs)
     in
     self#iter_unsettled add;
@@ -1110,51 +1120,108 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
     Nodetbl.clear reptbl;
     reptbl_is_empty <- true
 
-  method iter_rep_for_crossing (f : 'node_t -> 'node_t -> unit) : unit =
+  method iter_rep_for_crossing is_move (f : 'node_t -> 'node_t -> unit) : unit =
     if reptbl_is_empty then begin
-      self#cache_rep_for_crossing();
+      self#cache_rep_for_crossing is_move ();
       reptbl_is_empty <- false
     end;
     Nodetbl.iter f reptbl
 
-  method private cache_rep_for_crossing () : unit =
+  method private cache_rep_for_crossing is_move () : unit =
+    DEBUG_MSG "mapping:\n%s" self#to_string_gid;
     let last_g1 = ref GI.unknown in
     let last_g2 = ref GI.unknown in
+    let last_lg1 = ref GI.unknown in
+    let last_lg2 = ref GI.unknown in
+    let last_is_mov = ref false in
     cenv#tree1#fast_scan_whole_initial
       (fun n1 ->
         try
           let n2 = self#find n1 in
           let g1 = n1#gindex in
           let g2 = n2#gindex in
+          let lg1 = (cenv#tree1#initial_leftmost n1)#gindex in
+          let lg2 = (cenv#tree2#initial_leftmost n2)#gindex in
+          let is_mov = is_move n1 n2 in
           if g1 - !last_g1 = 1 && g2 - !last_g2 = 1 then begin
             if
+              is_mov <> !last_is_mov &&
+              (lg1 <> !last_lg1 || lg2 <> !last_lg2)
+            then begin
+              DEBUG_MSG "%a-%a %a" GI.ps g1 GI.ps g2 nps n1;
+              Nodetbl.add reptbl n1 n2;
+            end
+            else if
               n1#data#is_boundary && n2#data#is_boundary &&
               n1#data#is_order_insensitive && n2#data#is_order_insensitive
             then begin
               DEBUG_MSG "%a-%a %a" GI.ps g1 GI.ps g2 nps n1;
               Nodetbl.add reptbl n1 n2;
             end
+            else
+              DEBUG_MSG "(%a-%a %a)" GI.ps g1 GI.ps g2 nps n1
           end
           else begin
             DEBUG_MSG " %a-%a %a" GI.ps g1 GI.ps g2 nps n1;
             Nodetbl.add reptbl n1 n2;
           end;
           last_g1 := g1;
-          last_g2 := g2
+          last_g2 := g2;
+          last_lg1 := lg1;
+          last_lg2 := lg2;
+          last_is_mov := is_mov
         with
           Not_found -> ()
        )
 
+  method add_to_rep nd1 nd2 =
+    DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+    try
+      let nd1' = Nodetbl.find reptbl nd1 in
+      if nd1' = nd2 then begin
+        DEBUG_MSG "not added"
+      end
+      else begin
+        DEBUG_MSG "not added: nd1'(=%a) != nd2(=%a)" nups nd1' nups nd2
+      end
+    with Not_found -> begin
+      Nodetbl.add reptbl nd1 nd2;
+      DEBUG_MSG "added"
+    end
+
+  method invalidate_rep nd1 nd2 =
+    DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+    try
+      if Nodetbl.find reptbl nd1 = nd2 then begin
+        let g1 = GI.offset nd1#gindex 1 in
+        DEBUG_MSG "g1=%a" GI.ps g1;
+        let n1 = cenv#tree1#search_node_by_gindex g1 in
+        DEBUG_MSG "n1=%a" nups n1;
+        let n1' = self#find n1 in
+        DEBUG_MSG "n1'=%a" nups n1';
+        let g2 = GI.offset nd2#gindex 1 in
+        DEBUG_MSG "g2=%a" GI.ps g2;
+        if n1'#gindex = g2 then begin
+          let n2 = cenv#tree2#search_node_by_gindex g2 in
+          DEBUG_MSG "added to reptbl: %a-%a" nups n1 nups n2;
+          Nodetbl.add reptbl n1 n2
+        end
+      end
+    with Not_found -> ()
+
   method iter_crossing_mapping_rep
+      (is_move : 'node_t -> 'node_t -> bool)
       (nd1 : 'node_t)
       (nd2 : 'node_t)
       (f : 'node_t -> 'node_t -> unit)
       : unit
       =
-    self#iter_rep_for_crossing
+    self#iter_rep_for_crossing is_move
       (fun n1 n2 ->
         if is_crossing nd1 nd2 n1 n2 then
           f n1 n2
+        (*else
+          DEBUG_MSG "not crossing: %a-%a" nups n1 nups n2*)
       )
 
   method iter_incompatible_mapping_rep nd1 nd2 (f : 'node_t -> 'node_t -> unit) : unit =
@@ -1210,8 +1277,10 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
           Not_found -> ()
       )
 
-  method iter_crossing_or_incompatible_mapping_rep nd1 nd2 f =
-    self#iter_crossing_mapping_rep nd1 nd2 f;
+  method iter_crossing_or_incompatible_mapping_rep is_move nd1 nd2 f =
+    DEBUG_MSG "iter_crossing_mapping_rep %a %a" nups nd1 nups nd2;
+    self#iter_crossing_mapping_rep is_move nd1 nd2 f;
+    DEBUG_MSG "iter_incompatible_mapping_rep %a %a" nups nd1 nups nd2;
     self#iter_incompatible_mapping_rep nd1 nd2 f
 
 

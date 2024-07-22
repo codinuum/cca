@@ -1220,31 +1220,66 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method filter f =
     List.iter
       (fun tbl ->
+        let to_be_removed = Xset.create 0 in
         Nodetbl.iter
-          (fun u e -> if not (f e) then Nodetbl.remove tbl u) tbl)
-      tables
+          (fun u e ->
+            if not (f e) then begin
+              DEBUG_MSG "to be removed: %s" (to_string e);
+              Xset.add to_be_removed u
+            end
+          ) tbl;
+        Xset.iter (Nodetbl.remove tbl) to_be_removed
+      ) tables
 
   method filter_deletes f =
+    let to_be_removed = Xset.create 0 in
     Nodetbl.iter
-      (fun u e -> if not (f e) then Nodetbl.remove del_tbl u) del_tbl
+      (fun u e ->
+        if not (f e) then begin
+          DEBUG_MSG "to be removed: %s" (to_string e);
+          Xset.add to_be_removed u
+        end
+      ) del_tbl;
+    Xset.iter (Nodetbl.remove del_tbl) to_be_removed
 
   method filter_inserts f =
+    let to_be_removed = Xset.create 0 in
     Nodetbl.iter
-      (fun u e -> if not (f e) then Nodetbl.remove ins_tbl u) ins_tbl
+      (fun u e ->
+        if not (f e) then begin
+          DEBUG_MSG "to be removed: %s" (to_string e);
+          Xset.add to_be_removed u
+        end
+      ) ins_tbl;
+    Xset.iter (Nodetbl.remove ins_tbl) to_be_removed
 
   method filter_relabels f =
     List.iter
       (fun tbl ->
+        let to_be_removed = Xset.create 0 in
         Nodetbl.iter
-          (fun u e -> if not (f e) then Nodetbl.remove tbl u) tbl)
-      [rel1_tbl; rel2_tbl]
+          (fun u e ->
+            if not (f e) then begin
+              DEBUG_MSG "to be removed: %s" (to_string e);
+              Xset.add to_be_removed u
+            end
+          ) tbl;
+        Xset.iter (Nodetbl.remove tbl) to_be_removed
+      ) [rel1_tbl; rel2_tbl]
 
   method filter_moves f =
     List.iter
       (fun tbl ->
+        let to_be_removed = Xset.create 0 in
         Nodetbl.iter
-          (fun u e -> if not (f e) then Nodetbl.remove tbl u) tbl)
-      [mov1_tbl; mov2_tbl]
+          (fun u e ->
+            if not (f e) then begin
+              DEBUG_MSG "to be removed: %s" (to_string e);
+              Xset.add to_be_removed u
+            end
+          ) tbl;
+        Xset.iter (Nodetbl.remove tbl) to_be_removed
+      ) [mov1_tbl; mov2_tbl]
 
 
   method get_line_align
@@ -4578,26 +4613,29 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           in
           eds, [m], [ad]
     in
-    let find_ed2 nd =
+    let find_ed2 ?(rms_only=false) nd =
       try
         [self#find_ins nd], [], []
       with
         Not_found ->
           let eds = self#find2 nd in
-          let m, ad =
-            match eds with
-            | [Move(_, _, (i1, _), (i2, _))]
-            | [Relabel(_, (i1, _), (i2, _))]
-            | [Move(_, _, (i1, _), (i2, _));Relabel _]
-            | [Relabel _;Move(_, _, (i1, _), (i2, _))] -> begin
-                let n1 = Info.get_node i1 in
-                let n2 = Info.get_node i2 in
-                (n1, n2), make_delete n1
-            end
-            | [] -> raise Not_found
-            | _ -> assert false
-          in
-          eds, [m], [ad]
+          if rms_only then
+            eds, [], []
+          else
+            let m, ad =
+              match eds with
+              | [Move(_, _, (i1, _), (i2, _))]
+              | [Relabel(_, (i1, _), (i2, _))]
+              | [Move(_, _, (i1, _), (i2, _));Relabel _]
+              | [Relabel _;Move(_, _, (i1, _), (i2, _))] -> begin
+                  let n1 = Info.get_node i1 in
+                  let n2 = Info.get_node i2 in
+                  (n1, n2), make_delete n1
+              end
+              | [] -> raise Not_found
+              | _ -> assert false
+            in
+            eds, [m], [ad]
     in
 
     let used_matches = ref [] in
@@ -4637,17 +4675,27 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             List.iter
               (fun (nd1, nd2) ->
                 try
-                  let to_be_removed, umap_to_be_removed, to_be_added =
+                  let to_be_removed, nmap_to_be_removed, to_be_added =
                     try
                       let nd1' = nmapping#find nd1 in
-                      let m = nd1, nd1' in
-                      let es = self#find12 nd1 nd1' in
-                      let ins = make_insert nd1' in
-                      try
-                        let rms, ms, ad = find_ed2 nd2 in
-                        rms @ es, m :: ms, ins :: ad
-                      with
-                        Not_found -> raise Abort
+                      if nd1' == nd2 then begin
+                        let es = self#find12 nd1 nd1' in
+                        try
+                          let rms, ms, ad = find_ed2 ~rms_only:true nd2 in
+                          Xlist.unionq rms es, ms, ad
+                        with
+                          Not_found -> raise Abort
+                      end
+                      else begin
+                        let m = nd1, nd1' in
+                        let es = self#find12 nd1 nd1' in
+                        let ins = make_insert nd1' in
+                        try
+                          let rms, ms, ad = find_ed2 nd2 in
+                          Xlist.unionq rms es, m :: ms, ins :: ad
+                        with
+                          Not_found -> raise Abort
+                      end
                     with
                       Not_found ->
                         try
@@ -4657,7 +4705,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                           let del = make_delete nd2' in
                           try
                             let rms, ms, ad = find_ed1 nd1 in
-                            rms @ es, m :: ms, del :: ad
+                            Xlist.unionq rms es, m :: ms, del :: ad
                           with
                             Not_found -> raise Abort
                         with
@@ -4676,7 +4724,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                       assert (not (nmapping#mem_cod n2));
 
-                    ) umap_to_be_removed;
+                    ) nmap_to_be_removed;
                   List.iter self#add_edit to_be_added;
 
                   DEBUG_MSG "adding %a-%a" nups nd1 nups nd2;
@@ -4699,11 +4747,17 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       ?(full_scan=false)
       ?(mask=[])
       ?(incompatible_only=false)
+      ?(weak=true)
       (nmapping : 'node_t Node_mapping.c)
       nd1 nd2
       =
-    DEBUG_MSG "[full_scan=%B][incompatible_only=%B] %a-%a"
-      full_scan incompatible_only nups nd1 nups nd2;
+    BEGIN_DEBUG
+      DEBUG_MSG "[full_scan=%B][incompatible_only=%B][weak=%B] %a-%a"
+        full_scan incompatible_only weak nups nd1 nups nd2;
+      List.iter
+        (fun (n1, n2) -> DEBUG_MSG "masked: %a-%a" nups n1 nups n2)
+        mask
+    END_DEBUG;
 
     let iter =
       if incompatible_only then
@@ -4715,8 +4769,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         if full_scan then
           nmapping#iter_crossing_or_incompatible_mapping
         else
-          nmapping#iter_crossing_or_incompatible_mapping_rep
+          let is_move = self#mem_mov12 in
+          nmapping#iter_crossing_or_incompatible_mapping_rep is_move
     in
+    let flag = ref false in
     try
       iter nd1 nd2
         (fun n1 n2 ->
@@ -4725,22 +4781,32 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
           if
             not (is_ghost_node n1) && not (is_ghost_node n2) &&
-            not (self#mem_mov12 n1 n2) && not (List.mem (n1, n2) mask)
+            not (List.mem (n1, n2) mask)
           then begin
-            BEGIN_DEBUG
-              let mes =
-                if incompatible_only then
-                  "is crossing with"
-                else
-                  "is crossing or incompatible with"
-              in
-              DEBUG_MSG "%a-%a %s %a-%a" nugps nd1 nugps nd2 mes nugps n1 nugps n2;
-            END_DEBUG;
-            raise Exit
+
+            if self#mem_mov12 n1 n2 then begin
+              DEBUG_MSG "mem_mov12 %a %a --> true" nups n1 nups n2;
+              flag := true
+            end
+            else begin
+              DEBUG_MSG "mem_mov12 %a %a --> false" nups n1 nups n2;
+              BEGIN_DEBUG
+                let mes =
+                  if incompatible_only then
+                    "is crossing with"
+                  else
+                    "is crossing or incompatible with"
+                in
+                DEBUG_MSG "%a-%a %s %a-%a" nugps nd1 nugps nd2 mes nugps n1 nugps n2;
+              END_DEBUG;
+              raise Exit
+            end
+
           end
         );
-      DEBUG_MSG "false";
-      false
+      let b = weak && !flag in
+      DEBUG_MSG "%B" b;
+      b
     with
       Exit ->
         DEBUG_MSG "true";

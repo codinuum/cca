@@ -373,59 +373,115 @@ let generate_compatible_edits
             (* remove conflicting edits *)
             begin
               let eds1 = edits#find1 n1 in
+              let to_be_added = Xset.create 0 in
               let conflict =
                 match eds1 with
                 | [] -> false
+
                 | [Delete _] -> true
+
                 | [Relabel(_, _, (i2', _))] -> Info.get_node i2' != n2
+
                 | [Relabel(_, _, (i2', _));Move(_, _, _, (i2'', _))]
-                | [Move(_, _, _, (i2'', _));Relabel(_, _, (i2', _))] ->
+                | [Move(_, _, _, (i2'', _));Relabel(_, _, (i2', _))] -> begin
                     let n2' = Info.get_node i2' in
                     let n2'' = Info.get_node i2'' in
                     assert (n2' == n2'');
                     let b = n2' != n2 in
                     if b then begin
                       let ins = Editop.make_insert n2' in
-                      DEBUG_MSG "adding %s" (Editop.to_string ins);
-                      edits#add_edit ins
+                      DEBUG_MSG "to be adde: %s" (Editop.to_string ins);
+                      Xset.add to_be_added ins
                     end;
                     b
-                | _ -> assert false
+                end
+                | [Move(_, _, _, (i2', _))] -> begin
+                    let n2' = Info.get_node i2' in
+                    if n2' != n2 then begin
+                      let ins = Editop.make_insert n2' in
+                      DEBUG_MSG "to be added: %s" (Editop.to_string ins);
+                      Xset.add to_be_added ins
+                    end;
+                    true
+                end
+                | eds -> begin
+                    DEBUG_MSG "assertion failed";
+                    List.iter
+                      (fun ed ->
+                        DEBUG_MSG "%s" (to_string ed);
+                        Xprint.error "%s\n" (to_string ed)
+                      ) eds;
+                    assert false
+                end
               in
-              if conflict then
+              if conflict then begin
                 List.iter
                   (fun e ->
                     DEBUG_MSG "removing %s" (Editop.to_string e);
                     edits#remove_edit e
-                  ) eds1
+                  ) eds1;
+                Xset.iter
+                  (fun e ->
+                    DEBUG_MSG "adding %s" (Editop.to_string e);
+                    edits#add_edit e
+                  ) to_be_added
+              end
             end;
             begin
               let eds2 = edits#find2 n2 in
+              let to_be_added = Xset.create 0 in
               let conflict =
                 match eds2 with
                 | [] -> false
+
                 | [Insert _] -> true
+
                 | [Relabel(_, (i1', _), _)] -> Info.get_node i1' != n1
+
                 | [Relabel(_, (i1', _), _);Move(_, _, (i1'', _), _)]
-                | [Move(_, _, (i1'', _), _);Relabel(_, (i1', _), _)] ->
+                | [Move(_, _, (i1'', _), _);Relabel(_, (i1', _), _)] -> begin
                     let n1' = Info.get_node i1' in
                     let n1'' = Info.get_node i1'' in
                     assert (n1' == n1'');
                     let b = n1' != n1 in
                     if b then begin
                       let del = Editop.make_delete n1' in
-                      DEBUG_MSG "adding %s" (Editop.to_string del);
-                      edits#add_edit del
+                      DEBUG_MSG "to be added: %s" (Editop.to_string del);
+                      Xset.add to_be_added del
                     end;
                     b
-                | _ -> assert false
+                end
+                | [Move(_, _, (i1', _), _)] -> begin
+                    let n1' = Info.get_node i1' in
+                    if n1' != n1 then begin
+                      let del = Editop.make_delete n1' in
+                      DEBUG_MSG "to be added: %s" (Editop.to_string del);
+                      Xset.add to_be_added del
+                    end;
+                    true
+                end
+                | eds -> begin
+                    DEBUG_MSG "assertion failed";
+                    List.iter
+                      (fun ed ->
+                        DEBUG_MSG "%s" (to_string ed);
+                        Xprint.error "%s\n" (to_string ed)
+                      ) eds;
+                    assert false
+                end
               in
-              if conflict then
+              if conflict then begin
                 List.iter
                   (fun e ->
                     DEBUG_MSG "removing %s" (Editop.to_string e);
                     edits#remove_edit e
-                  ) eds2
+                  ) eds2;
+                Xset.iter
+                  (fun e ->
+                    DEBUG_MSG "adding %s" (Editop.to_string e);
+                    edits#add_edit e
+                  ) to_be_added
+              end
             end;
 
             (* add new edit *)
@@ -441,9 +497,9 @@ let generate_compatible_edits
             else begin
               BEGIN_DEBUG
                 List.iter
-                (fun ed ->
-                  DEBUG_MSG "found %s" (Editop.to_string ed)
-                ) eds;
+                  (fun ed ->
+                    DEBUG_MSG "found %s" (Editop.to_string ed)
+                  ) eds;
               END_DEBUG
             end;
 
