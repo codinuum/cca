@@ -1895,7 +1895,7 @@ let is_fold_op = function
 let is_op = function
   | T.AMP_AMP _ | PTR_AMP_AMP | BAR_BAR _
   | PLUS | MINUS | STAR | PTR_STAR | SLASH | PERC
-  | HAT _ | PTR_AMP | AMP _ | BAR _ | LT_LT | GT_GT | PLUS_EQ | MINUS_EQ
+  | HAT _ | PTR_HAT | PTR_AMP | AMP _ | BAR _ | LT_LT | GT_GT | PLUS_EQ | MINUS_EQ
   | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
   | LT_LT_EQ | GT_GT_EQ | EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
   | LT | GT | TEMPL_LT | TY_TEMPL_GT(* | PLUS_PLUS | MINUS_MINUS*)
@@ -14173,6 +14173,33 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | LBRACKET when self#peek_nth_rawtoken (nth+2) != RBRACKET -> true
                     | _ -> false
                 end -> true
+                | x when begin
+                    match x with
+                    | STAR | AMP _ | HAT _ | AMP_AMP _ -> begin
+                        match self#peek_nth_rawtoken 3 with
+                        | RPAREN -> false
+                        | STAR | AMP _ | HAT _ | AMP_AMP _ -> false
+                        | _ -> true
+                    end
+                    | GT | GT_GT -> self#peek_nth_rawtoken 3 != RPAREN
+                    | TEMPL_LT | TEMPL_LT_ -> begin
+                        let nth, l = self#peek_rawtoken_up_to_rparen_none() in
+                        match l with
+                        | RBRACKET::LBRACKET::_ -> false
+                        | (TY_TEMPL_GT|TEMPL_GT|GT|GT_GT)::_ -> false
+                        | _ -> true
+                    end
+                    | TEMPL_GT | TY_TEMPL_GT -> true
+                    | LT
+                    | BAR_BAR _
+                    | PLUS | MINUS | SLASH | PERC
+                    | BAR _ | LT_LT | PLUS_EQ | MINUS_EQ
+                    | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
+                    | LT_LT_EQ | GT_GT_EQ | EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
+                    | PLUS_PLUS | MINUS_MINUS
+                    | DOT | MINUS_GT | DOT_STAR | MINUS_GT_STAR | QUEST -> true
+                    | _ -> false
+                end -> true
                 | _ -> begin
                     let nth, l = self#peek_rawtoken_up_to_rparen_none() in
                     match l with
@@ -15141,6 +15168,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       env#end_of_lambda_templ_flag
                   end -> DEBUG_MSG "@"; token
 
+                  | LBRACE when begin
+                      env#braced_init_flag
+                  end -> DEBUG_MSG "@"; token
+
+                  | LBRACE when begin
+                      match ll with
+                      | [RBRACKET::LBRACKET::_] -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@"; token
+
                   | _ when begin
                       env#in_objc_message_expr &&
                       match prev_rawtoken with
@@ -15504,6 +15541,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
             end -> false
             | TY_LPAREN when begin
+                prev_rawtoken == LPAREN ||
                 let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
                 match (ll : T.token list list) with
                 | [x::_] -> is_literal x
@@ -19148,6 +19186,15 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | TY_TEMPL_GT -> true
                 | _ -> false
             end -> DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP)"; token
+
+            | LBRACKET when begin
+                self#peek_nth_rawtoken 2 == RBRACKET
+            end -> DEBUG_MSG "* @ LBRACKET RBRACKET"; token
+
+            | LBRACKET when begin
+                env#at_templ_arg &&
+                env#at_paren_2
+            end -> DEBUG_MSG "* @ LBRACKET"; mk T.TEMPL_GT
 
             | _ when begin
                 env#expr_flag ||
