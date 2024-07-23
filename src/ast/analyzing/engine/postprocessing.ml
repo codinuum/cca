@@ -8058,7 +8058,22 @@ end;
               DEBUG_MSG "%a(depth=%d,xsz=%f,ysz=%d): %a-%a is shallowest"
                 MID.ps mid depth xsz ysz nps nd1 nps nd2;
 
-              if (*ysz < 2 && *)xsz < 1.0 then begin (* note that checking move roots is insufficient *)
+              let anc_ok () =
+                let b =
+                  try
+                    let an1 = Sourcecode.find_nearest_mapped_ancestor_node nmapping#mem_dom nd1 in
+                    let an2 = Sourcecode.find_nearest_mapped_ancestor_node nmapping#mem_cod nd2 in
+                    DEBUG_MSG "an1=%a an2=%a" nups an1 nups an2;
+                    nmapping#find an1 == an2
+                  with
+                    _ -> false
+                in
+                DEBUG_MSG "%B" b;
+                b
+              in
+              let _ = ysz in
+
+              if xsz < 1.0 && not (anc_ok()) then begin (* note that checking move roots is insufficient *)
                 DEBUG_MSG "%a --> crossing with untouched" MID.ps mid;
                 Xset.add crossing_with_untouched mid
               end
