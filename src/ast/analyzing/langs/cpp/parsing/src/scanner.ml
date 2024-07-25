@@ -14185,6 +14185,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | TEMPL_LT | TEMPL_LT_ -> begin
                         let nth, l = self#peek_rawtoken_up_to_rparen_none() in
                         match l with
+                        | (PTR_STAR|PTR_AMP|PTR_AMP_AMP|PTR_HAT|HAT _)::_ -> false
                         | RBRACKET::LBRACKET::_ -> false
                         | (TY_TEMPL_GT|TEMPL_GT|GT|GT_GT)::_ -> false
                         | _ -> true
