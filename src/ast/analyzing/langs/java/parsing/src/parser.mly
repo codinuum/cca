@@ -1057,11 +1057,11 @@ super_opt:
 
 interfaces:
 | IMPLEMENTS i=interface_type_list { mkim $startofs $endofs i }
-| IMPLEMENTS i=interface_type_list IMPLEMENTS j=interface_type_list
+| IMPLEMENTS i=interface_type_list IMPLEMENTS i_=interface_type_list
     { 
       if env#keep_going_flag then begin
         parse_warning $startofs $endofs "odd implements specification";
-        mkim $startofs $endofs (i@j)
+        mkim $startofs $endofs (ty_list_union i i_)
       end
       else
         parse_error $startofs $endofs "odd implements specification"
@@ -1605,6 +1605,15 @@ throws_opt:
 
 throws:
 | THROWS c=class_type_list { mkth $startofs $endofs c }
+| THROWS c=class_type_list THROWS c_=class_type_list
+    { 
+      if env#keep_going_flag then begin
+        parse_warning $startofs $endofs "odd throws specification";
+        mkth $startofs $endofs (ty_list_union c c_)
+      end
+      else
+        parse_error $startofs $endofs "odd throws specification"
+    }
 ;
 
 %inline

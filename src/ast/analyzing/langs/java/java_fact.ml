@@ -65,6 +65,8 @@ let p_qualifier  = mkjres "qualifier"
 
 let p_id_offset = mkjres "identOffset"
 let p_id_length = mkjres "identLength"
+let p_expr_offset = mkjres "exprOffset"
+let p_expr_length = mkjres "exprLength"
 
 let getlab = getlab
 
@@ -185,6 +187,15 @@ class extractor options cache_path tree = object (self)
           let length = id_loc.Loc.end_offset - offset + 1 in
           self#add (entity, p_id_offset, Triple.make_nn_int_literal offset);
           self#add (entity, p_id_length, Triple.make_nn_int_literal length);
+        end
+      end;
+      if L.is_expression lab then begin
+        let loc = nd#data#src_loc in
+        if loc != Loc.dummy then begin
+          let offset = loc.Loc.start_offset in
+          let length = loc.Loc.end_offset - offset + 1 in
+          self#add (entity, p_expr_offset, Triple.make_nn_int_literal offset);
+          self#add (entity, p_expr_length, Triple.make_nn_int_literal length);
         end
       end;
 

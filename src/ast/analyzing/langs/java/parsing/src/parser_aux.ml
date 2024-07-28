@@ -1311,6 +1311,14 @@ class env = object (self)
 end (* of class Parser_aux.env *)
 
 
+let ty_list_union tyl0 tyl1 =
+  let get_rep = P.type_to_string in
+  let a0 = List.map (fun ty -> get_rep ty, ty) tyl0 in
+  let a1 = List.map (fun ty -> get_rep ty, ty) tyl1 in
+  let d0, _ = List.split a0 in
+  let d1, _ = List.split a1 in
+  let u = Xlist.union d0 d1 in
+  List.map (fun x -> try List.assoc x a0 with Not_found -> List.assoc x a1) u
 
 
 module type STATE_T = sig
