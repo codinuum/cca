@@ -823,24 +823,28 @@ class env = object (self)
                     if String.ends_with ~suffix:"." prefix then begin
                       let sup = String.sub prefix 0 (String.length prefix - 1) in
                       let _, id = decompose_qname sup in
-                      let afilt = function
-                        | IAclass s | IAinterface s | IAtypename s -> true
-                        | _ -> false
-                      in
-                      try
-                        let _ = self#lookup_identifier ~afilt id in
-                        let x = sup ^ "$" ^ ident in
-                        let attr' =
-                          match attr with
-                          | IAclass _ -> IAclass x
-                          | IAinterface _ -> IAinterface x
-                          | IAtypename _ -> IAtypename x
-                          | _ -> assert false
+                      if id = ident then
+                        attr
+                      else begin
+                        let afilt = function
+                          | IAclass s | IAinterface s | IAtypename s -> true
+                          | _ -> false
                         in
-                        DEBUG_MSG "%s --> %s" (iattr_to_str attr) (iattr_to_str attr');
-                        attr'
-                      with
-                        Not_found -> attr
+                        try
+                          let _ = self#lookup_identifier ~afilt id in
+                          let x = sup ^ "$" ^ ident in
+                          let attr' =
+                            match attr with
+                            | IAclass _ -> IAclass x
+                            | IAinterface _ -> IAinterface x
+                            | IAtypename _ -> IAtypename x
+                            | _ -> assert false
+                          in
+                          DEBUG_MSG "%s --> %s" (iattr_to_str attr) (iattr_to_str attr');
+                          attr'
+                        with
+                          Not_found -> attr
+                      end
                     end
                     else
                       attr
