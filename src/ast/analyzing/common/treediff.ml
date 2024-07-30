@@ -571,7 +571,8 @@ let match_trees
     =
 
   BEGIN_DEBUG
-    DEBUG_MSG "partially_mapped=%B root_check=%B semantic=%B" partially_mapped root_check semantic;
+    DEBUG_MSG "partially_mapped=%B root_check=%B semantic=%B check_relabels=%B"
+    partially_mapped root_check semantic check_relabels;
     DEBUG_MSG "|T1(root:%a)|=%d |T2(root:%a)|=%d"
       UID.ps tree1#root#uid tree1#size UID.ps tree2#root#uid tree2#size;
     DEBUG_MSG "T1:\n%s\n" tree1#to_string;

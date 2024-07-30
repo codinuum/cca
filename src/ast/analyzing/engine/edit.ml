@@ -345,7 +345,7 @@ let generate_compatible_edits
       let subtree2 = tree2#make_anonymized_subtree_copy nd2 in
       let subcenv = new Comparison.c options subtree1 subtree2 in
       let m, em, r =
-        Treediff.match_trees
+        Treediff.match_trees ~semantic:true
           cenv subtree1 subtree2 (new Node_mapping.c subcenv) (new Node_mapping.c subcenv)
       in
       let matches =
@@ -2503,6 +2503,17 @@ let rectify_renames_ex
       DEBUG_MSG "is_bad_def=%B" is_bad_def;
       if is_bad_def then begin
         pairs_to_be_removed := (def1, def2, true) :: !pairs_to_be_removed;
+        begin
+          try
+            let pdef1 = def1#initial_parent in
+            if not pdef1#data#is_sequence then begin
+              let pdef2 = def2#initial_parent in
+              if nmapping#find pdef1 == pdef2 then begin
+                pairs_to_be_removed := (pdef1, pdef2, true) :: !pairs_to_be_removed;
+              end
+            end
+          with _ -> ()
+        end;
         List.iter2
           (fun n1 n2 ->
             pairs_to_be_removed := (n1, n2, true) :: !pairs_to_be_removed

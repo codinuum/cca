@@ -7979,9 +7979,19 @@ end;
 
     let sorted_mid_list =
       let cmp m0 m1 =
-        let d0 = Hashtbl.find move_depth_tbl m0 in
+        (*let d0 = Hashtbl.find move_depth_tbl m0 in
         let d1 = Hashtbl.find move_depth_tbl m1 in
-        let c = Stdlib.compare d0 d1 in
+        let c = Stdlib.compare d0 d1 in*)
+        let r0, _ = Hashtbl.find move_top_tbl m0 in
+        let r1, _ = Hashtbl.find move_top_tbl m1 in
+        let c =
+          if tree1#is_initial_ancestor r0 r1 then
+            -1
+          else if tree1#is_initial_ancestor r1 r0 then
+            1
+          else
+            0
+        in
         if c = 0 then
           let xsz0 = Hashtbl.find x_move_size_tbl m0 in
           let xsz1 = Hashtbl.find x_move_size_tbl m1 in
