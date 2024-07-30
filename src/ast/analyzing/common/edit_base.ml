@@ -4747,7 +4747,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       ?(full_scan=false)
       ?(mask=[])
       ?(incompatible_only=false)
-      ?(weak=true)
+      ?(weak=false)
       (nmapping : 'node_t Node_mapping.c)
       nd1 nd2
       =

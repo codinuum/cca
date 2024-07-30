@@ -10079,8 +10079,8 @@ module Edit = struct
                     let name = ndata#elem_name_for_delta in
                     let aname_ =
                       try
-                        sprintf ",\"aname\":\"%s\""
-                          (try ndata#get_orig_name with _ -> ndata#get_name)
+                        let aname = try ndata#get_orig_name with _ -> ndata#get_name in
+                        sprintf ",\"aname\":\"%s\"" (String.escaped aname)
                       with
                         _ -> ""
                     in

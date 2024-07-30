@@ -134,8 +134,8 @@ let speclist =
    "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
    "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
 
-   (*"-localcachename", Arg.String options#set_local_cache_name,
-   sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;*)
+   "-localcachename", Arg.String options#set_local_cache_name,
+   sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;
 
 
 
