@@ -979,7 +979,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv nmapping edits is_possible_
 end
 
 (* rectify_renames assumes that edit seq. contains correct renames of USEs *)
-let rectify_renames
+let rectify_renames_u
     ?(handle_weak=true)
     ?(trust_moved_non_renames=true)
     options
@@ -2161,17 +2161,22 @@ let rectify_renames
 
   nrels > 0
 
-(* end of func rectify_renames *)
+(* end of func rectify_renames_u *)
 
 
-let rectify_renames_ex
+let rectify_renames_d
     options
     (cenv : (node_t, tree_t) Comparison.c)
     nmapping
     edits
     =
-  DEBUG_MSG "START!";
+  let rrlv = options#rename_rectification_level in
+  let strict_flag = rrlv >= 3 in
   let cands_thresh = 32 in
+
+  DEBUG_MSG "START! (rrlv=%d, strict_flag=%B, cands_thresh=%d)"
+    rrlv strict_flag cands_thresh;
+
   let def_pair_list = ref [] in
 
   let def_bid_tbl1 = Hashtbl.create 0 in
@@ -2514,10 +2519,14 @@ let rectify_renames_ex
             end
           with _ -> ()
         end;
-        List.iter2
-          (fun n1 n2 ->
-            pairs_to_be_removed := (n1, n2, true) :: !pairs_to_be_removed
-          ) !use_renames1 !use_renames2;
+
+        if strict_flag then begin
+          List.iter2
+            (fun n1 n2 ->
+              pairs_to_be_removed := (n1, n2, true) :: !pairs_to_be_removed
+            ) !use_renames1 !use_renames2
+        end;
+
         match !non_rename_def_cand1, !non_rename_def_cand2 with
         | None, Some def2' -> to_be_mapped := ([def1], [def2']) :: !to_be_mapped
         | Some def1', None -> to_be_mapped := ([def1'], [def2]) :: !to_be_mapped
@@ -2648,3 +2657,5 @@ let rectify_renames_ex
   cenv#set_def_use_tbl2 def_use_tbl2;
 
   DEBUG_MSG "FINISHED!"
+
+(* end of rectify_renames_d *)

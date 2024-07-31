@@ -5201,11 +5201,8 @@ if not options#no_glue_flag then begin
 
 end;
 
-      if
-        not options#no_rename_rectification_flag &&
-        options#strict_rename_rectification_flag
-      then begin
-        Edit.rectify_renames_ex options cenv nmapping edits
+      if options#rename_rectification_level >= 2 then begin
+        Edit.rectify_renames_d options cenv nmapping edits
       end
 
     end;
@@ -8652,8 +8649,7 @@ end;
     (* check moves *)
     DEBUG_MSG "checking moves...";
     let full_scan =
-      not options#no_rename_rectification_flag ||
-      options#strict_rename_rectification_flag
+      options#rename_rectification_level > 0
     in
     let moves = Xset.create 0 in
     let non_moves = Xset.create 0 in

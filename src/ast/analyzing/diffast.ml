@@ -265,12 +265,14 @@ let speclist =
 *)
    "-nore", Arg.Unit (fun () -> options#set_no_odd_relabel_elim_flag),
             "\tdisable odd relabel elimination";
-   "-norr", Arg.Unit (fun () ->
-                       options#set_no_rename_rectification_flag;
-                       options#clear_use_binding_info_flag;
-                       (*options#set_no_odd_relabel_elim_flag*)
-                     ),
-           "\tdisable rename rectification";
+
+   "-rrlv", Arg.Int (fun lv ->
+                      options#set_rename_rectification_level lv;
+                      if lv <= 0 then options#clear_use_binding_info_flag;
+                      (*options#set_no_odd_relabel_elim_flag*)
+                    ),
+          sprintf "\tset rename rectification level (0:none, 1:u, 2:u+d, 3:u+ds) (default: %d)"
+          options#rename_rectification_level;
 
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomoves", Arg.Unit (fun () -> options#set_no_moves_flag), "\tdisable move generation";
@@ -320,8 +322,6 @@ let speclist =
                              "\tsuppress moves of unnamed nodes";
    "-no-binding-trace", Arg.Unit (fun () -> options#set_no_binding_trace_flag),
                         "\t\tdisable binding trace";
-   "-strict-rr", Arg.Unit (fun () -> options#set_strict_rename_rectification_flag),
-                 "\t\tforce strict rename rectification";
    "-weak", Arg.Unit set_weak_flags, "\t\t\tweaken node equation and node permutation detection";
    "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
                   "\t\t\taggressively find moves";

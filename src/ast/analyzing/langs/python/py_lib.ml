@@ -29,7 +29,7 @@ let elaborate_edits
     uidmapping
     edits
     =
-  if not options#no_rename_rectification_flag then begin
+  if options#rename_rectification_level > 0 then begin
     let mkfilt = Edit.mkfilt Fact.getlab in
     let is_assign = mkfilt Label.is_assign in
     let is_attrref = mkfilt Label.is_attrref in
@@ -50,7 +50,7 @@ let elaborate_edits
     while !modified && !count < max_count do
       incr count;
       DEBUG_MSG "%d-th execution of rename rectification" !count;
-      modified := Edit.rectify_renames ~handle_weak options cenv uidmapping edits filters;
+      modified := Edit.rectify_renames_u ~handle_weak options cenv uidmapping edits filters;
     done
   end
 

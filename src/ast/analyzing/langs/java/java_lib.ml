@@ -30,7 +30,7 @@ let elaborate_edits
     nmapping
     edits
     =
-  if not options#no_rename_rectification_flag then begin
+  if options#rename_rectification_level > 0 then begin
     DEBUG_MSG "START!";
     let mkfilt = Edit.mkfilt Fact.getlab in
     let is_import_single       = mkfilt Label.is_import_single in
@@ -58,7 +58,7 @@ let elaborate_edits
     while !modified && !count < max_count do
       incr count;
       DEBUG_MSG "%d-th execution of rename rectification" !count;
-      modified := Edit.rectify_renames ~handle_weak options cenv nmapping edits filters;
+      modified := Edit.rectify_renames_u ~handle_weak options cenv nmapping edits filters;
     done
   end
 
