@@ -2520,12 +2520,10 @@ let rectify_renames_d
           with _ -> ()
         end;
 
-        if strict_flag then begin
-          List.iter2
-            (fun n1 n2 ->
-              pairs_to_be_removed := (n1, n2, true) :: !pairs_to_be_removed
-            ) !use_renames1 !use_renames2
-        end;
+        List.iter2
+          (fun n1 n2 ->
+            pairs_to_be_removed := (n1, n2, strict_flag) :: !pairs_to_be_removed
+          ) !use_renames1 !use_renames2;
 
         match !non_rename_def_cand1, !non_rename_def_cand2 with
         | None, Some def2' -> to_be_mapped := ([def1], [def2']) :: !to_be_mapped
@@ -2572,7 +2570,10 @@ let rectify_renames_d
         Hashtbl.add def_bid_map2 bid2 bid1
       end
 
-    ) !def_pair_list;
+    )
+    (List.fast_sort
+       (fun (x, _) (y, _) -> Stdlib.compare x#gindex y#gindex)
+       !def_pair_list);
 
   DEBUG_MSG "* removing bad def renames and mappings...";
 
