@@ -2393,6 +2393,9 @@ let rectify_renames_d
       let conflicting_mapping_list2 = ref [] in
       let use_renames1 = ref [] in
       let use_renames2 = ref [] in
+
+      let use_list1 = (try Nodetbl.find def_use_tbl1 def1 with _ -> []) in
+      let use_list1 = List.fast_sort (fun x y -> Stdlib.compare y#gindex x#gindex) use_list1 in
       List.iter
         (fun use1 ->
           try
@@ -2413,7 +2416,10 @@ let rectify_renames_d
             DEBUG_MSG "use delete: %a" nps use1;
             delete_list := use1 :: !delete_list
           end
-        ) (try Nodetbl.find def_use_tbl1 def1 with _ -> []);
+        ) use_list1;
+
+      let use_list2 = (try Nodetbl.find def_use_tbl2 def2 with _ -> []) in
+      let use_list2 = List.fast_sort (fun x y -> Stdlib.compare y#gindex x#gindex) use_list2 in
       List.iter
         (fun use2 ->
           try
@@ -2428,17 +2434,21 @@ let rectify_renames_d
             DEBUG_MSG "use insert: %a" nps use2;
             insert_list := use2 :: !insert_list
           end
-        ) (try Nodetbl.find def_use_tbl2 def2 with _ -> []);
+        ) use_list2;
+
       let use_delete_count = List.length !delete_list in
       let use_insert_count = List.length !insert_list in
       let conflicting_use_mapping_count1 = List.length !conflicting_mapping_list1 in
       let conflicting_use_mapping_count2 = List.length !conflicting_mapping_list2 in
+
       DEBUG_MSG "use_rename_count=%d" !use_rename_count;
       DEBUG_MSG "use_delete_count=%d use_insert_count=%d" use_delete_count use_insert_count;
       DEBUG_MSG "conflicting_use_mapping_count1=%d" conflicting_use_mapping_count1;
       DEBUG_MSG "conflicting_use_mapping_count2=%d" conflicting_use_mapping_count2;
+
       let non_rename_def_cand1 = ref None in
       let non_rename_def_cand2 = ref None in
+
       let is_bad_def =
         (*Comparison.get_orig_name def1 <> Comparison.get_orig_name def2 &&*)
         List.exists
@@ -2519,7 +2529,6 @@ let rectify_renames_d
             end
           with _ -> ()
         end;
-
         List.iter2
           (fun n1 n2 ->
             pairs_to_be_removed := (n1, n2, strict_flag) :: !pairs_to_be_removed
