@@ -1724,6 +1724,14 @@ let rectify_renames_u
             context_cond_ && List.mem (bi1, bi2) selected_renames
           then
             false, false*)
+          else if
+            context_cond_ &&
+            not non_rename1 && not non_rename2 &&
+            match bi1'_opt, bi2'_opt with
+            | Some bi1', Some bi2' -> bi1' = bi2 && bi2' = bi1
+            | _ -> false
+          then
+            false, false
           else
             context_cond_ &&
             (
@@ -2347,9 +2355,14 @@ let rectify_renames_d
     );
   DEBUG_MSG "@";
   let find_def tree def_bid_tbl bid =
-    try
-      Hashtbl.find def_bid_tbl bid
-    with _ -> tree#find_def_for_bid bid
+    DEBUG_MSG "%a" BID.ps bid;
+    let def =
+      try
+        Hashtbl.find def_bid_tbl bid
+      with _ -> tree#find_def_for_bid bid
+    in
+    DEBUG_MSG "def=%a" nups def;
+    def
   in
   DEBUG_MSG "@";
   nmapping#iter
@@ -2545,12 +2558,38 @@ let rectify_renames_d
           filt !conflicting_mapping_list1, filt !conflicting_mapping_list2
         in
         List.iter
-          (fun pl ->
+          (fun (i, pl) ->
             List.iter
               (fun (n1, n2) ->
-                pairs_to_be_removed := (n1, n2, true) :: !pairs_to_be_removed
+                DEBUG_MSG "%a-%a" nups n1 nups n2;
+                let strict_flag_ =
+                  strict_flag(* ||
+                  try
+                    if i = 1 then begin
+                      let bi2 = get_bid n2 in
+                      DEBUG_MSG "%a -> %a" nups n2 BID.ps bi2;
+                      let def2 = find_def cenv#tree2 def_bid_tbl2 bi2 in
+                      let b = nmapping#mem_cod def2 in
+                      DEBUG_MSG "%B" b;
+                      b
+                    end
+                    else if i = 2 then begin
+                      let bi1 = get_bid n1 in
+                      DEBUG_MSG "%a -> %a" nups n1 BID.ps bi1;
+                      let def1 = find_def cenv#tree1 def_bid_tbl1 bi1 in
+                      let b = nmapping#mem_dom def1 in
+                      DEBUG_MSG "%B" b;
+                      b
+                    end
+                    else
+                      assert false
+                  with
+                    _ -> true*)
+                in
+                DEBUG_MSG "strict_flag=%B strict_flag_=%B" strict_flag strict_flag_;
+                pairs_to_be_removed := (n1, n2, strict_flag_) :: !pairs_to_be_removed
               ) pl
-          ) [conflicting_mapping_list1_; conflicting_mapping_list2_];
+          ) [1,conflicting_mapping_list1_; 2,conflicting_mapping_list2_];
 
         let nds1, _ = List.split conflicting_mapping_list1_ in
         let _, nds2 = List.split conflicting_mapping_list2_ in
@@ -2563,7 +2602,10 @@ let rectify_renames_d
           then begin
             List.iter2
               (fun n1 n2 ->
-                pairs_to_be_removed := (n1, n2, true) :: !pairs_to_be_removed
+                let strict_flag_ =
+                  strict_flag
+                in
+                pairs_to_be_removed := (n1, n2, strict_flag_) :: !pairs_to_be_removed
               ) !use_renames1 !use_renames2;
             !use_renames1 @ nds1_, !use_renames2 @ nds2_
           end
@@ -2637,28 +2679,36 @@ let rectify_renames_d
 
   let local_bad_pairs = Xset.create 0 in
   List.iter
-    (fun (n1, n2, _) ->
-      Xset.add local_bad_pairs (n1, n2)
+    (fun (n1, n2, strict) ->
+      if strict then
+        Xset.add local_bad_pairs (n1, n2)
     ) !pairs_to_be_removed;
 
   let is_possible_rename = cenv#_is_possible_rename in
   cenv#set_is_possible_rename
     (fun ?(strict=false) n1 n2 ->
       DEBUG_MSG "is_possible_rename: strict=%B %a-%a" strict nups n1 nups n2;
-      not (Xset.mem local_bad_pairs (n1, n2)) &&
-      is_possible_rename ?strict:(Some strict) n1 n2 &&
-      (try
-        let bi1 = get_bid n1 in
-        DEBUG_MSG "bi1=%a" BID.ps bi1;
-        not (Xset.mem non_rename_bids1 bi1)
-      with
-        _ -> true) &&
-      (try
-        let bi2 = get_bid n2 in
-        DEBUG_MSG "bi2=%a" BID.ps bi2;
-        not (Xset.mem non_rename_bids2 bi2)
-      with
-        _ -> true)
+      let b =
+        not (Xset.mem local_bad_pairs (n1, n2)) &&
+        is_possible_rename ?strict:(Some strict) n1 n2 &&
+        (
+         not strict_flag ||
+         (try
+           let bi1 = get_bid n1 in
+           DEBUG_MSG "bi1=%a" BID.ps bi1;
+           not (Xset.mem non_rename_bids1 bi1)
+         with
+           _ -> true) &&
+         (try
+           let bi2 = get_bid n2 in
+           DEBUG_MSG "bi2=%a" BID.ps bi2;
+           not (Xset.mem non_rename_bids2 bi2)
+         with
+           _ -> true)
+        )
+      in
+      DEBUG_MSG "%B" b;
+      b
     );
 
   cenv#set_def_bid_map1 def_bid_map1;

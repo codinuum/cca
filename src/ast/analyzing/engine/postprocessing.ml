@@ -3664,7 +3664,9 @@ END_DEBUG;
                       else
                         None
                     else
-                      Some ca.(n#initial_pos + d)
+                      let sib = ca.(n#initial_pos + d) in
+                      DEBUG_MSG "%a: (%d) -> %a" nups n d nups sib;
+                      Some sib
                   with
                     _ -> None
                 in
@@ -3674,7 +3676,11 @@ END_DEBUG;
                   let b =
                     match n1_opt, n2_opt with
                     | None, None -> weak
-                    | Some n1, Some n2 -> nmapping#find n1 == n2
+                    | Some n1, Some n2 -> begin
+                        try
+                          nmapping#find n1 == n2
+                        with _ -> false
+                    end
                     | _ -> false
                   in
                   BEGIN_DEBUG
@@ -3696,8 +3702,10 @@ END_DEBUG;
                       let left = is_mapped (get_left false ca1 n1) (get_left false ca2 n2) in
                       let right = is_mapped (get_right false ca1 n1) (get_right false ca2 n2) in
                       DEBUG_MSG "left=%B right=%B" left right;
-                      left && right || (left || right) && n1#data#equals n2#data
-                    with _ -> false
+                      left && right ||
+                      (left || right) && n1#data#equals n2#data
+                    with
+                      _ -> false
                   in
                   DEBUG_MSG "cond0=%B" cond0;
                   let cond1 () =
