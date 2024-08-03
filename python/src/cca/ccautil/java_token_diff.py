@@ -201,7 +201,7 @@ def is_equivalent_file(path1, path2):
         logger.info('same files')
         return True
 
-    logger.info(f'comparing {path1} with {path2}')
+    logger.debug(f'comparing {path1} with {path2}')
 
     toks1 = get_tokens(path1)
     toks2 = get_tokens(path2)
@@ -240,7 +240,7 @@ def compare_files(path1, path2, simple=False):
         logger.info('different files')
         return {}
 
-    logger.info(f'comparing {path1} with {path2}')
+    logger.debug(f'comparing {path1} with {path2}')
 
     toks1 = get_tokens(path1)
     toks2 = get_tokens(path2)
