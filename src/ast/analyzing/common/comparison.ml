@@ -546,8 +546,13 @@ class ['node_t, 'tree_t] c
 
     let pair_weight_list =
       List.fast_sort
-        (fun (n1, _, _) (n2, _, _) -> Stdlib.compare n1#gindex n2#gindex)
-        pair_weight_list
+        (fun (n11, n12, _) (n21, n22, _) ->
+          let c = Stdlib.compare n11#gindex n21#gindex in
+          if c = 0 then
+            Stdlib.compare n12#gindex n22#gindex
+          else
+            c
+        ) pair_weight_list
     in
 
     BEGIN_DEBUG

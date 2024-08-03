@@ -1972,7 +1972,8 @@ type t = (* Label *)
   | NameInvocation of name (* a kind of primary invocation *)
 
 (* switch labels *)
-  | SLconstant | SLdefault
+  | SLconstant of tie_id
+  | SLdefault
 
 (* element value *)
   | EVconditional | EVannotation | EVarrayInit
@@ -2116,7 +2117,7 @@ let to_string = function
   | SuperInvocation                         -> "SuperInvocation"
   | PrimaryInvocation                       -> "PrimaryInvocation"
   | NameInvocation name                     -> sprintf "NameInvocation(%s)" name
-  | SLconstant                              -> "SLconstant"
+  | SLconstant tid                          -> sprintf "SLconstant(%s)" (tid_to_string tid)
   | SLdefault                               -> "SLdefault"
   | EVconditional                           -> "EVconditional"
   | EVannotation                            -> "EVannotation"
@@ -2360,6 +2361,8 @@ let anonymize ?(more=false) = function
   | Pointcut _ -> Pointcut ""
   | DeclareMessage _ -> DeclareMessage ""
 
+  | SLconstant tid -> SLconstant (anonymize_tid ~more tid)
+
   | lab -> lab
 
 
@@ -2414,7 +2417,7 @@ let rec to_simple_string = function
   | SuperInvocation     -> "super"
   | PrimaryInvocation   -> "<p_invok>"
   | NameInvocation name -> name
-  | SLconstant          -> "<sw_label>"
+  | SLconstant tid      -> "<sw_label>"
   | SLdefault           -> "default"
   | EVconditional       -> "<elem_val>"
   | EVannotation        -> "<elem_val>"
@@ -2539,7 +2542,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | SuperInvocation                         -> mkstr 8
   | PrimaryInvocation                       -> mkstr 9
   | NameInvocation name                     -> combo 10 [name]
-  | SLconstant                              -> mkstr 11
+  | SLconstant tid                          -> catstr [mkstr 11; tid_to_string tid]
   | SLdefault                               -> mkstr 12
   | EVconditional                           -> mkstr 13
   | EVannotation                            -> mkstr 14
@@ -2676,7 +2679,7 @@ let to_tag ?(strip=false) l =
     | NameInvocation name         -> "NameInvocation", ["name",xmlenc name]
 
 (* switch label *)
-    | SLconstant                  -> "ConstantLabel", []
+    | SLconstant tid              -> "ConstantLabel", mktidattr tid
     | SLdefault                   -> "DefaultLabel", []
 
 (* element value *)
@@ -2844,7 +2847,7 @@ let to_char lab =
     | SuperInvocation -> 8
     | PrimaryInvocation -> 9
     | NameInvocation name -> 10
-    | SLconstant -> 11
+    | SLconstant tid -> 11
     | SLdefault -> 12
     | EVconditional -> 13
     | EVannotation -> 14
@@ -3770,7 +3773,7 @@ let is_switchrule = function
   | _ -> false
 
 let is_switchlabel = function
-  | SLconstant | SLdefault -> true
+  | SLconstant _ | SLdefault -> true
   | _ -> false
 
 let is_switchrulelabel = function
@@ -4560,7 +4563,7 @@ let of_elem_data =
     "SuperInvocation",           (fun a -> SuperInvocation);
     "PrimaryInvocation",         (fun a -> PrimaryInvocation);
     "NameInvocation",            (fun a -> NameInvocation(find_name a));
-    "ConstantLabel",             (fun a -> SLconstant);
+    "ConstantLabel",             (fun a -> SLconstant(find_tid a));
     "DefaultLabel",              (fun a -> SLdefault);
     "ConstantRuleLabel",         (fun a -> SRLconstant);
     "DefaultRuleLabel",          (fun a -> SRLdefault);

@@ -1958,6 +1958,7 @@ let rectify_renames_u
   let compatible_pairs = ref [] in
   Hashtbl.iter
     (fun (bid1, bid2) (cands1, cands2) ->
+      DEBUG_MSG "ncands1=%d ncands2=%d" (List.length cands1) (List.length cands2);
       let filt n1 n2 =
         (n1#data#eq n2#data || n1#data#relabel_allowed n2#data) &&
         let is_def1 = is_def n1 in

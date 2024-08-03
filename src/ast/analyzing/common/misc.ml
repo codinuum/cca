@@ -341,7 +341,8 @@ let node_to_lab_string nd =
 
 let node_to_data_string nd = Printf.sprintf "[%s]%s" (node_to_loc_string nd) (node_to_lab_string nd)
 
-let node_to_string nd = Printf.sprintf "%a[%s]%s" UID.ps nd#uid (node_to_loc_string nd) (node_to_lab_string nd)
+let node_to_string nd =
+  Printf.sprintf "%a:%a[%s]%s" UID.ps nd#uid GI.ps nd#gindex (node_to_loc_string nd) (node_to_lab_string nd)
 
 let nups () = node_to_u_string
 let ngps () = node_to_g_string

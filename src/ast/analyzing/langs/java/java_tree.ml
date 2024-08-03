@@ -2075,7 +2075,11 @@ class translator options =
   method of_switch_label sl =
     let nd =
       match sl.Ast.sl_desc with
-      | Ast.SLconstant el -> self#mknode L.SLconstant (List.map self#of_expression el)
+      | Ast.SLconstant el -> begin
+          let _nd = self#mknode (L.SLconstant L.null_tid) (List.map self#of_expression el) in
+          let tid = self#mktid _nd in
+          self#mknode (L.SLconstant tid) (List.map self#of_expression el)
+      end
       | Ast.SLdefault -> self#mkleaf L.SLdefault
     in
     set_loc nd sl.Ast.sl_loc;
