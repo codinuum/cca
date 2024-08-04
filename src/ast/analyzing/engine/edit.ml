@@ -253,6 +253,7 @@ let remove_relabels_and_mapping
 let combine_node_lists
     ?(filt=(fun _ _ -> true))
     (cenv : (node_t, tree_t) Comparison.c)
+    nmapping
     cands1
     cands2
     =
@@ -266,6 +267,21 @@ let combine_node_lists
       let sorted2 = List.fast_sort gcmp nds2 in
       List.combine sorted1 sorted2
   end*)
+  | nds1, nds2 when begin
+      List.length nds1 = List.length nds2 &&
+      List.for_all2
+        (fun n1 n2 ->
+          try
+            nmapping#find n1#initial_parent == n2#initial_parent
+          with _ -> false
+        ) nds1 nds2
+  end -> begin
+    let get_ofs n = n#data#src_loc.Loc.start_offset in
+    let cmp n0 n1 = Stdlib.compare (get_ofs n0) (get_ofs n1) in
+    let sorted1 = List.fast_sort cmp nds1 in
+    let sorted2 = List.fast_sort cmp nds2 in
+    List.combine sorted1 sorted2
+  end
   | nds1, nds2 -> begin
       let anc1, _ = cenv#tree1#nearest_common_ancestor nds1 in
       let anc2, _ = cenv#tree2#nearest_common_ancestor nds2 in
@@ -1990,7 +2006,8 @@ let rectify_renames_u
   let compatible_pairs = ref [] in
   Hashtbl.iter
     (fun (bid1, bid2) (cands1, cands2) ->
-      DEBUG_MSG "ncands1=%d ncands2=%d" (List.length cands1) (List.length cands2);
+      DEBUG_MSG "%a-%a: ncands1=%d ncands2=%d"
+        BID.ps bid1 BID.ps bid2 (List.length cands1) (List.length cands2);
       let filt n1 n2 =
         (n1#data#eq n2#data || n1#data#relabel_allowed n2#data) &&
         let is_def1 = is_def n1 in
@@ -2000,7 +2017,7 @@ let rectify_renames_u
         is_def1 && is_def2 || is_use1 && is_use2 ||
         not is_def1 && not is_def2 && not is_use1 && not is_use2
       in
-      compatible_pairs := (combine_node_lists ~filt cenv cands1 cands2) @ !compatible_pairs
+      compatible_pairs := (combine_node_lists ~filt cenv nmapping cands1 cands2) @ !compatible_pairs
 
     ) cands_pair_tbl;
 
@@ -2708,7 +2725,7 @@ let rectify_renames_d
         compatible_pairs := (comb sorted_cands1 sorted_cands2) @ !compatible_pairs
       end
       else
-        compatible_pairs := (combine_node_lists cenv cands1 cands2) @ !compatible_pairs
+        compatible_pairs := (combine_node_lists cenv nmapping cands1 cands2) @ !compatible_pairs
     ) !to_be_mapped;
 
   BEGIN_DEBUG

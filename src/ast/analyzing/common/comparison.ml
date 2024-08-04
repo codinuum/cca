@@ -682,8 +682,7 @@ class ['node_t, 'tree_t] c
   method _has_use_rename n1 n2 =
     match has_use_rename_opt with
     | Some f -> f n1 n2
-    | None when is_def n1 && is_def n2 -> raise Not_found
-    | None -> false
+    | None -> raise Not_found
 
   method has_use_rename x1 x2 =
     try
@@ -691,10 +690,11 @@ class ['node_t, 'tree_t] c
     with
       Not_found -> false
 
-  method can_be_cached n1 n2 =
+  method can_be_cached ?(strict=false) n1 n2 =
     let b =
       match has_use_rename_opt with
       | Some _ -> true
+      | None when strict -> false
       | None ->
           try
             not (is_def n1 && is_def n2)
@@ -2255,7 +2255,7 @@ class ['node_t, 'tree_t] c
 
         if
           use_adjacency_cache &&
-          self#can_be_cached nd1 nd2
+          self#can_be_cached ~strict:true nd1 nd2
         then begin
           (*let key = uid1, uid2 in*)
           (*let prev_score, _ = try Hashtbl.find adjacency_cache key with _ -> 0.0, [] in

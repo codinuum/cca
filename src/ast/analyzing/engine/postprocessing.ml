@@ -3572,8 +3572,12 @@ END_DEBUG;
                       match ndmems1', ndmems2' with
                       | [n1, mems1], [n2, mems2] ->
                           let found1, found2 = List.split !found_st in
-                          let sub1 = List.exists (fun fd1 -> tree1#initial_subtree_mem fd1 n1) found1 in
-                          let sub2 = List.exists (fun fd2 -> tree2#initial_subtree_mem fd2 n2) found2 in
+                          let sub1 =
+                            List.exists (fun fd1 -> tree1#initial_subtree_mem fd1 n1) found1
+                          in
+                          let sub2 =
+                            List.exists (fun fd2 -> tree2#initial_subtree_mem fd2 n2) found2
+                          in
                           if not sub1 && not sub2 then begin
                             DEBUG_MSG "  subtree pair of size %d found: %a-%a" sz nups n1 nups n2;
                             found_st := (n1, n2) :: !found_st
@@ -3604,7 +3608,19 @@ END_DEBUG;
                             not (List.mem (n1, n2) !found) && not (issub1 n1) && not (issub2 n2)
                           then begin
                             DEBUG_MSG "  node pair found: %a-%a" nups n1 nups n2;
-                            found := (n1, n2) :: !found
+                            found := (n1, n2) :: !found;
+                            try
+                              let pn1 = n1#initial_parent in
+                              let pn2 = n2#initial_parent in
+                              if
+                                not (nmapping#mem_dom pn1) && not (nmapping#mem_cod pn2) &&
+                                (pn1#data#eq pn2#data || relabel_allowed pn1 pn2)
+                              then begin
+                                DEBUG_MSG "  parent node pair added: %a-%a" nups pn1 nups pn2;
+                                found := (pn1, pn2) :: !found
+                              end
+                            with
+                              _ -> ()
                           end
                       end
                       | _ -> ()
