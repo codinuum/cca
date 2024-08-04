@@ -676,8 +676,13 @@ class ['node_t, 'tree_t] c
 
   val mutable has_use_rename_opt = None
 
+  val adjacency_cache =
+    (Tbl3.create() : (('node_t * 'node_t) option, 'node_t, 'node_t,
+                      float * ('node_t * 'node_t) list) Tbl3.t)
+
   method set_has_use_rename f =
-    has_use_rename_opt <- Some f
+    has_use_rename_opt <- Some f;
+    Tbl3.clear adjacency_cache
 
   method _has_use_rename n1 n2 =
     match has_use_rename_opt with
@@ -690,11 +695,10 @@ class ['node_t, 'tree_t] c
     with
       Not_found -> false
 
-  method can_be_cached ?(strict=false) n1 n2 =
+  method can_be_cached n1 n2 =
     let b =
       match has_use_rename_opt with
       | Some _ -> true
-      | None when strict -> false
       | None ->
           try
             not (is_def n1 && is_def n2)
@@ -959,9 +963,9 @@ class ['node_t, 'tree_t] c
     | Some mnm -> mnm
     | None -> raise Not_found
 
-  val adjacency_cache =
+  (*val adjacency_cache =
     (Tbl3.create() : (('node_t * 'node_t) option, 'node_t, 'node_t,
-                      float * ('node_t * 'node_t) list) Tbl3.t)
+                      float * ('node_t * 'node_t) list) Tbl3.t)*)
 
   val mutable adjacency_cache_hit_count = 0
 
@@ -2255,7 +2259,7 @@ class ['node_t, 'tree_t] c
 
         if
           use_adjacency_cache &&
-          self#can_be_cached ~strict:true nd1 nd2
+          self#can_be_cached nd1 nd2
         then begin
           (*let key = uid1, uid2 in*)
           (*let prev_score, _ = try Hashtbl.find adjacency_cache key with _ -> 0.0, [] in
