@@ -2602,9 +2602,10 @@ let rectify_renames_d
               (fun (n1, n2) ->
                 let b =
                   not (Misc.is_cross_boundary nmapping n1 n2) &&
+                  (strict_flag ||
                   try
                     nmapping#find n1#initial_parent != n2#initial_parent
-                  with _ -> true
+                  with _ -> true)
                 in
                 DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
                 b
