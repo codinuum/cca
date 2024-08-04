@@ -649,7 +649,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv nmapping edits is_possible_
     in
     if
       force ||
-      is_possible_rename node1 node2 bid1 bid2(*!20240324! &&
+      is_possible_rename cenv node1 node2 bid1 bid2(*!20240324! &&
       let find_nearest_anc_stmt =
         Sourcecode.find_nearest_p_ancestor_node (fun n -> n#data#is_statement)
       in
@@ -755,7 +755,7 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv nmapping edits is_possible_
         Not_found -> Hashtbl.add tbl nm1 [nm2]
     in
     if
-      is_possible_rename node1 node2 BID.dummy BID.dummy(*!20240324! &&
+      is_possible_rename cenv node1 node2 BID.dummy BID.dummy(*!20240324! &&
       not (cenv#has_match1 node1) && not (cenv#has_match2 node2)*)
     then begin
       add _free_rename_tbl1 name1 name2;
@@ -1006,6 +1006,20 @@ let rectify_renames_u
   let set_tbl_def = set_tbl (function Some (d, u) -> true, u | None -> true, false) in
   let set_tbl_use = set_tbl (function Some (d, u) -> d, true | None -> false, true) in
 
+  let non_rename_bid_map1 = Hashtbl.create 0 in
+  let non_rename_bid_map2 = Hashtbl.create 0 in
+
+  let non_rename_bid_map_find1 bi1 =
+    let bi2 = Hashtbl.find non_rename_bid_map1 bi1 in
+    DEBUG_MSG "%a -> %a" BID.ps bi1 BID.ps bi2;
+    bi2
+  in
+  let non_rename_bid_map_find2 bi2 =
+    let bi1 = Hashtbl.find non_rename_bid_map2 bi2 in
+    DEBUG_MSG "%a <- %a" BID.ps bi1 BID.ps bi2;
+    bi1
+  in
+
   nmapping#iter
     (fun n1 n2 ->
       DEBUG_MSG "non_rename: checking %a-%a" nups n1 nups n2;
@@ -1026,12 +1040,16 @@ let rectify_renames_u
           if (*is_non_local_def*)is_def n1 && (*is_non_local_def*)is_def n2 then begin
             set_tbl_def non_rename_bid_tbl1 bi1;
             set_tbl_def non_rename_bid_tbl2 bi2;
+            Hashtbl.add non_rename_bid_map1 bi1 bi2;
+            Hashtbl.add non_rename_bid_map2 bi2 bi1;
 
             DEBUG_MSG "non_rename (def): %a-%a (%s)" BID.ps bi1 BID.ps bi2 name;
           end
           else if is_use n1 && is_use n2 then begin
             set_tbl_use non_rename_bid_tbl1 bi1;
             set_tbl_use non_rename_bid_tbl2 bi2;
+            Hashtbl.add non_rename_bid_map1 bi1 bi2;
+            Hashtbl.add non_rename_bid_map2 bi2 bi1;
 
             DEBUG_MSG "non_rename (use): %a-%a (%s)" BID.ps bi1 BID.ps bi2 name;
           end
@@ -1055,7 +1073,7 @@ let rectify_renames_u
   in
 
   (* non-rename can be rename e.g. fortran: variable-name -> array-element *)
-  let is_possible_rename node1 node2 bi1 bi2 =
+  let is_possible_rename (cenv : (node_t, tree_t) Comparison.c) node1 node2 bi1 bi2 =
 
     let parent_cond, context_cond =
       try
@@ -1110,7 +1128,21 @@ let rectify_renames_u
       let b =
         let has_conflict =
           context_cond &&
-          (non_rename non_rename_bid_tbl1 bi1 || non_rename non_rename_bid_tbl2 bi2)
+          (*(non_rename non_rename_bid_tbl1 bi1 || non_rename non_rename_bid_tbl2 bi2)*)
+          (non_rename non_rename_bid_tbl1 bi1 &&
+           not (
+           try
+             List.mem bi2 (cenv#tree2#find_mapped_bids (non_rename_bid_map_find1 bi1))
+           with _ -> false
+           )
+          ) ||
+          (non_rename non_rename_bid_tbl2 bi2 &&
+           not (
+           try
+             List.mem bi1 (cenv#tree1#find_mapped_bids (non_rename_bid_map_find2 bi2))
+           with _ -> false
+           )
+          )
         in
         if has_conflict then
           DEBUG_MSG "%a-%a: conflicts with exactly matched pair" BID.ps bi1 BID.ps bi2;
@@ -2139,28 +2171,28 @@ let rectify_renames_u
             let bi1' = Hashtbl.find rename_tbl1 bi1 in
             DEBUG_MSG "%a->%a" BID.ps bi1 BID.ps bi1';
             bi1' = bi2 ||
-            (not strict || not (Hashtbl.mem rename_tbl2 bi2)) && is_possible_rename n1 n2 bi1 bi2
+            (not strict || not (Hashtbl.mem rename_tbl2 bi2)) && is_possible_rename cenv n1 n2 bi1 bi2
           end
           else if Hashtbl.mem rename_tbl2 bi2 then begin
             let bi2' = Hashtbl.find rename_tbl2 bi2 in
             DEBUG_MSG "%a<-%a" BID.ps bi2' BID.ps bi2;
             bi2' = bi1 ||
-            (not strict || not (Hashtbl.mem rename_tbl1 bi1)) && is_possible_rename n1 n2 bi1 bi2
+            (not strict || not (Hashtbl.mem rename_tbl1 bi1)) && is_possible_rename cenv n1 n2 bi1 bi2
           end
           else
-            is_possible_rename n1 n2 bi1 bi2
+            is_possible_rename cenv n1 n2 bi1 bi2
       end
       | Some bi1, None -> begin
           DEBUG_MSG "bi1=%a" BID.ps bi1;
           (*not strict || !!!NG!!!*)
           not (non_rename non_rename_bid_tbl1 bi1) && not (Hashtbl.mem rename_tbl1 bi1) ||
-          is_possible_rename n1 n2 bi1 BID.dummy
+          is_possible_rename cenv n1 n2 bi1 BID.dummy
       end
       | None, Some bi2 -> begin
           DEBUG_MSG "bi2=%a" BID.ps bi2;
           (*not strict || !!!NG!!!*)
           not (non_rename non_rename_bid_tbl2 bi2) && not (Hashtbl.mem rename_tbl2 bi2) ||
-          is_possible_rename n1 n2 BID.dummy bi2
+          is_possible_rename cenv n1 n2 BID.dummy bi2
       end
       | None, None -> true
     );
@@ -2389,6 +2421,8 @@ let rectify_renames_d
         end
       end
     );
+  let get_use_list1 def1 = try Nodetbl.find def_use_tbl1 def1 with _ -> [] in
+  let get_use_list2 def2 = try Nodetbl.find def_use_tbl2 def2 with _ -> [] in
   DEBUG_MSG "@";
   let def_bid_map1 = Hashtbl.create 0 in
   let def_bid_map2 = Hashtbl.create 0 in
@@ -2408,7 +2442,7 @@ let rectify_renames_d
       let use_renames1 = ref [] in
       let use_renames2 = ref [] in
 
-      let use_list1 = (try Nodetbl.find def_use_tbl1 def1 with _ -> []) in
+      let use_list1 = get_use_list1 def1 in
       let use_list1 = List.fast_sort (fun x y -> Stdlib.compare y#gindex x#gindex) use_list1 in
       List.iter
         (fun use1 ->
@@ -2432,7 +2466,7 @@ let rectify_renames_d
           end
         ) use_list1;
 
-      let use_list2 = (try Nodetbl.find def_use_tbl2 def2 with _ -> []) in
+      let use_list2 = get_use_list2 def2 in
       let use_list2 = List.fast_sort (fun x y -> Stdlib.compare y#gindex x#gindex) use_list2 in
       List.iter
         (fun use2 ->
@@ -2545,17 +2579,37 @@ let rectify_renames_d
         end;
         List.iter2
           (fun n1 n2 ->
+            DEBUG_MSG "%a-%a" nups n1 nups n2;
+            DEBUG_MSG "added to pairs_to_be_removed";
             pairs_to_be_removed := (n1, n2, strict_flag) :: !pairs_to_be_removed
           ) !use_renames1 !use_renames2;
 
         match !non_rename_def_cand1, !non_rename_def_cand2 with
-        | None, Some def2' -> to_be_mapped := ([def1], [def2']) :: !to_be_mapped
-        | Some def1', None -> to_be_mapped := ([def1'], [def2]) :: !to_be_mapped
+        | None, Some def2' -> begin
+            to_be_mapped := ([def1], [def2']) :: !to_be_mapped;
+            to_be_mapped := (get_use_list1 def1, get_use_list2 def2') :: !to_be_mapped
+        end
+        | Some def1', None -> begin
+            to_be_mapped := ([def1'], [def2]) :: !to_be_mapped;
+            to_be_mapped := (get_use_list1 def1', get_use_list2 def2) :: !to_be_mapped
+        end
         | _ -> ()
       end
       else begin (* is good def pair *)
         let conflicting_mapping_list1_, conflicting_mapping_list2_ =
-          let filt = List.filter (fun (n1, n2) -> not (Misc.is_cross_boundary nmapping n1 n2)) in
+          let filt =
+            List.filter
+              (fun (n1, n2) ->
+                let b =
+                  not (Misc.is_cross_boundary nmapping n1 n2) &&
+                  try
+                    nmapping#find n1#initial_parent != n2#initial_parent
+                  with _ -> true
+                in
+                DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+                b
+              )
+          in
           filt !conflicting_mapping_list1, filt !conflicting_mapping_list2
         in
         List.iter
@@ -2588,6 +2642,7 @@ let rectify_renames_d
                     _ -> true*)
                 in
                 DEBUG_MSG "strict_flag=%B strict_flag_=%B" strict_flag strict_flag_;
+                DEBUG_MSG "added to pairs_to_be_removed";
                 pairs_to_be_removed := (n1, n2, strict_flag_) :: !pairs_to_be_removed
               ) pl
           ) [1,conflicting_mapping_list1_; 2,conflicting_mapping_list2_];

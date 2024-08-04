@@ -251,9 +251,13 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
     crossing_or_incompatible_matches_count_cache_hit_count
 
   val mutable starting_pairs_for_glueing = ([] : ('node_t * 'node_t) list)
-  method clear_starting_pairs_for_glueing = starting_pairs_for_glueing <- []
+
+  method clear_starting_pairs_for_glueing =
+    DEBUG_MSG "@";
+    starting_pairs_for_glueing <- []
 
   method set_starting_pairs_for_glueing l =
+    DEBUG_MSG "@";
     starting_pairs_for_glueing <- l
 
   method remove_starting_pairs_for_glueing l =

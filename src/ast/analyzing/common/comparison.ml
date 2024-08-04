@@ -675,11 +675,15 @@ class ['node_t, 'tree_t] c
       get_def_bn_opt tree1 n1, get_def_bn_opt tree2 n2
 
   val mutable has_use_rename_opt = None
-  method set_has_use_rename f = has_use_rename_opt <- Some f
+
+  method set_has_use_rename f =
+    has_use_rename_opt <- Some f
+
   method _has_use_rename n1 n2 =
     match has_use_rename_opt with
     | Some f -> f n1 n2
-    | None -> raise Not_found
+    | None when is_def n1 && is_def n2 -> raise Not_found
+    | None -> false
 
   method has_use_rename x1 x2 =
     try
@@ -2192,7 +2196,8 @@ class ['node_t, 'tree_t] c
             nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
             (self#under_permutation_hub nd1 nd2 ||
              nd1#data#eq nd2#data && self#has_trivial_value nd1)
-          then
+          then begin
+            DEBUG_MSG "@";
             (try
               let nds1 =
                 List.filter (fun x -> x != nd1) (Array.to_list nd1#initial_parent#initial_children)
@@ -2205,12 +2210,14 @@ class ['node_t, 'tree_t] c
             (try
               self#get_adjacency_score nd1#initial_parent nd2#initial_parent
             with _ -> 0.0)
+          end
           else if
              try
                not nd1#data#is_boundary && not nd2#data#is_boundary &&
                not (self#_has_use_rename nd1 nd2)
              with Not_found -> false
-          then
+          then begin
+            DEBUG_MSG "@";
             (try
               let nds1 =
                 List.filter (fun x -> x != nd1) (Array.to_list nd1#initial_parent#initial_children)
@@ -2225,6 +2232,7 @@ class ['node_t, 'tree_t] c
                 0.0
             with _ -> 0.0),
             0.0
+          end
           else
             0.0, 0.0
         in

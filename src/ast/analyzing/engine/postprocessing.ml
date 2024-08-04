@@ -8697,8 +8697,9 @@ end;
       DEBUG_MSG "* STARTING EXTRA POSTPROCESSING";
 
       let _, keyroots_moderate =
-        let filt u1 u2 =
-          not (edits#mem_mov12 u1 u2)
+        let filt n1 n2 =
+          not (edits#mem_mov12 n1 n2)(* ||
+          not (is_cross_boundary nmapping n1 n2)*)
         in
         find_keyroots options ~relax:true ~ignore_sequence:true ~filt tree1 tree2 nmapping
       in

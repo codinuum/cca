@@ -412,7 +412,30 @@ class visitor options bid_gen static_vdtors tree = object (self)
         self#set_scope_node nd;
         stack#register name nd;
         self#apply_deferred nd;
-        begin
+
+        let rec scan_expr expr_nd =
+          begin
+            try
+              let expr_lab = getlab expr_nd in
+              if L.is_primaryname expr_lab || L.is_fieldaccess expr_lab then begin
+                let expr_name = expr_nd#data#get_name in
+                let expr_bid = Binding.get_bid expr_nd#data#binding in
+                DEBUG_MSG "EXPR: %s %a<->%a %s" expr_name BID.ps expr_bid BID.ps bid name;
+                if not options#no_binding_trace_flag then begin
+                  tree#add_to_bid_map bid expr_bid;
+                  tree#add_to_bid_map expr_bid bid;
+                end;
+                tree#add_to_bid_tbl expr_bid expr_name
+              end
+            with
+              _ -> ()
+          end;
+          Array.iter scan_expr expr_nd#initial_children
+        in
+        if nd#initial_nchildren > 0 then
+          scan_expr nd#initial_children.(0);
+
+        (*begin
           try
             let expr_nd = nd#initial_children.(0) in
             let expr_lab = getlab expr_nd in
@@ -428,7 +451,7 @@ class visitor options bid_gen static_vdtors tree = object (self)
             end
           with
             _ -> ()
-        end
+        end*)
       end
       else if Xset.mem static_vdtors nd then begin
         let name = L.get_name lab in
