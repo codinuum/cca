@@ -2224,10 +2224,24 @@ class ['node_t, 'tree_t] c
             DEBUG_MSG "@";
             (try
               let nds1 =
-                List.filter (fun x -> x != nd1) (Array.to_list nd1#initial_parent#initial_children)
+                let pnd1 = nd1#initial_parent in
+                let siba1 = pnd1#initial_children in
+                if Array.length siba1 > 1 then
+                  List.filter (fun x -> x != nd1) (Array.to_list siba1)
+                else
+                  let ppnd1 = pnd1#initial_parent in
+                  let psiba1 = ppnd1#initial_children in
+                  List.filter (fun x -> x != pnd1) (Array.to_list psiba1)
               in
               let nds2 =
-                List.filter (fun x -> x != nd2) (Array.to_list nd2#initial_parent#initial_children)
+                let pnd2 = nd2#initial_parent in
+                let siba2 = pnd2#initial_children in
+                if Array.length siba2 > 1 then
+                  List.filter (fun x -> x != nd2) (Array.to_list siba2)
+                else
+                  let ppnd2 = pnd2#initial_parent in
+                  let psiba2 = ppnd2#initial_children in
+                  List.filter (fun x -> x != pnd2) (Array.to_list psiba2)
               in
               let s = _incr_score ~bonus_named:true ~bonus_named_more:true nds1 nds2 in
               if s >= 0.0 then

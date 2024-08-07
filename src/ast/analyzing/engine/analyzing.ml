@@ -2205,10 +2205,18 @@ end;
           let _multi_match_list = ref [] in
 
           let lock_cond nd =
-            nd#data#is_statement && nd#initial_nchildren > 0 &&
-            Array.for_all
-              (fun n -> not n#data#has_value || n#data#has_non_trivial_value )
-              nd#initial_children
+            let b =
+              let pred n =
+                (not n#data#has_value || n#data#has_non_trivial_value)(* &&
+                (not n#data#is_named_orig || not n#data#is_common)*)
+              in
+              nd#data#is_statement && nd#initial_nchildren > 0 &&
+              Array.for_all
+                (fun x -> pred x(* || Misc.has_p_descendant pred x*))
+                nd#initial_children
+            in
+            DEBUG_MSG "%a --> %B" nups nd b;
+            b
           in
 
           let parent_matches = Xset.create 0 in
@@ -2730,10 +2738,15 @@ end;
             (fun (tree, set) ->
               Xset.iter
                 (fun n ->
+                  (*begin
+                    match n#data#_digest with
+                    | Some d when not n#is_collapsed -> n#collapse n#data#weight d
+                    | _ -> ()
+                  end;*)
                   n#lock_collapse;
 
-                  DEBUG_MSG "collapsed node locked: %a:%s (subtree size: %d)"
-                    nups n n#data#to_string (tree#whole_initial_subtree_size n)
+                  DEBUG_MSG "collapsed node locked: %s (subtree size: %d)"
+                    n#to_string (tree#whole_initial_subtree_size n)
 
                 ) set
             ) [(tree1, locked1); (tree2, locked2)];

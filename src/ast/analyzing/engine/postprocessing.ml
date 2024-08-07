@@ -7495,6 +7495,14 @@ end;
                             ) movl
                         ||
                           cenv#has_use_mapping nmapping nd1 nd2
+                        ||
+                          try
+                            let def1 = get_def_node tree1 nd1 in
+                            let def2 = get_def_node tree2 nd2 in
+                            DEBUG_MSG "def1=%a def2=%a" nups def1 nups def2;
+                            nmapping#find def1 == def2
+                          with
+                            _ -> false
                         (*||
                           not (nd1#data#eq nd2#data) &&
                           B.is_def nd1#data#binding && B.is_def nd2#data#binding &&
@@ -8003,12 +8011,18 @@ end;
         (*let d0 = Hashtbl.find move_depth_tbl m0 in
         let d1 = Hashtbl.find move_depth_tbl m1 in
         let c = Stdlib.compare d0 d1 in*)
-        let r0, _ = Hashtbl.find move_top_tbl m0 in
-        let r1, _ = Hashtbl.find move_top_tbl m1 in
+        let r0, r0_ = Hashtbl.find move_top_tbl m0 in
+        let r1, r1_ = Hashtbl.find move_top_tbl m1 in
         let c =
-          if tree1#is_initial_ancestor r0 r1 then
+          if
+            tree1#is_initial_ancestor r0 r1 ||
+            tree2#is_initial_ancestor r0_ r1_
+          then
             -1
-          else if tree1#is_initial_ancestor r1 r0 then
+          else if
+            tree1#is_initial_ancestor r1 r0 ||
+            tree2#is_initial_ancestor r1_ r0_
+          then
             1
           else
             0
@@ -8043,6 +8057,9 @@ end;
           let nd1, nd2 = Hashtbl.find move_top_tbl mid in
           DEBUG_MSG "%a: %a-%a" MID.ps mid nps nd1 nps nd2;
 
+          let incompat_nds1 = Xset.create 0 in
+          let incompat_nds2 = Xset.create 0 in
+
           try
             nmapping#iter_crossing_or_incompatible_mapping nd1 nd2
               (fun n1 n2 ->
@@ -8055,12 +8072,20 @@ end;
                     end
                 end
                 | eds when not (is_ghost_node n1) && not (is_ghost_node n2) -> begin
-                    DEBUG_MSG "-->  crossing with:";
+                    DEBUG_MSG "-->  crossing or incompatible with:";
                     List.iter
                       (fun e ->
                         DEBUG_MSG "!!!    %s" (Edit.to_string e);
                         match e with
-                        | Edit.Move(id, _, _, _) -> begin
+                        | Edit.Move(id, _, (i1, _), (i2, _)) -> begin
+
+                            let n1 = Info.get_node i1 in
+                            let n2 = Info.get_node i2 in
+                            if Node_mapping.is_incompatible tree1 tree2 nd1 nd2 n1 n2 then begin
+                              Xset.add incompat_nds1 n1;
+                              Xset.add incompat_nds2 n2
+                            end;
+
                             if Xset.mem virtually_untouched !id then begin
                               DEBUG_MSG "%a is virtually untouched" MID.ps !id;
                               Xset.add crossing_with_untouched mid;
@@ -8090,12 +8115,22 @@ end;
                 MID.ps mid depth xsz ysz nps nd1 nps nd2;
 
               let anc_ok () =
+                let mem_dom n1 = if Xset.mem incompat_nds1 n1 then false else nmapping#mem_dom n1 in
+                let mem_cod n2 = if Xset.mem incompat_nds2 n2 then false else nmapping#mem_cod n2 in
                 let b =
                   try
-                    let an1 = Sourcecode.find_nearest_mapped_ancestor_node nmapping#mem_dom nd1 in
-                    let an2 = Sourcecode.find_nearest_mapped_ancestor_node nmapping#mem_cod nd2 in
+                    let an1 = Sourcecode.find_nearest_mapped_ancestor_node mem_dom nd1 in
+                    let an2 = Sourcecode.find_nearest_mapped_ancestor_node mem_cod nd2 in
                     DEBUG_MSG "an1=%a an2=%a" nups an1 nups an2;
+                    (*(an1 == nd1#initial_parent || an2 == nd2#initial_parent) &&*)
+                    (*not (is_cross_boundary nmapping an1 an2) &&*)
                     nmapping#find an1 == an2
+                  (*||
+                    let an1_ = Sourcecode.find_nearest_mapped_ancestor_node nmapping#mem_dom nd1 in
+                    let an2_ = Sourcecode.find_nearest_mapped_ancestor_node nmapping#mem_cod nd2 in
+                    DEBUG_MSG "an1=%a an2=%a" nups an1 nups an2;
+                    (*(an1_ != an1 || an2_ != an2) &&*)
+                    nmapping#find an1_ == an2_*)
                   with
                     _ -> false
                 in
@@ -8104,7 +8139,7 @@ end;
               in
               let _ = ysz in
 
-              if xsz < 1.0 && not (anc_ok()) then begin (* note that checking move roots is insufficient *)
+              if xsz < 1.0 && not (anc_ok()) then begin (* NB checking move roots is insufficient *)
                 DEBUG_MSG "%a --> crossing with untouched" MID.ps mid;
                 Xset.add crossing_with_untouched mid
               end
