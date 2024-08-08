@@ -1369,6 +1369,7 @@ module Primary = struct
     let s = Xset.create 0 in
     List.iter (Xset.add s)
       [
+       "add#1";
        "print#1";
        "println#1";
        "assertNull#1";

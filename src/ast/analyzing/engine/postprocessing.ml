@@ -836,6 +836,71 @@ module F (Label : Spec.LABEL_T) = struct
         end
         | _ -> assert false
       );
+    if true then begin
+      DEBUG_MSG "checking parent_move_tbl...";
+      let to_be_removed = ref [] in
+      Hashtbl.iter
+        (fun m (pm, pg1, pg2) ->
+          DEBUG_MSG "%a -> %a: %a-%a" MID.ps m MID.ps pm gps pg1 gps pg2;
+          let mem_pair_list = Hashtbl.find mem_tbl m in
+          let parent_mem_pair_list = ref [] in
+          if List.length mem_pair_list = 1 then begin
+            let ok1 = ref false in
+            let ok2 = ref false in
+            List.iter
+              (fun (n1, n2) ->
+                DEBUG_MSG "n1=%a" nps n1;
+                DEBUG_MSG "n2=%a" nps n2;
+                begin
+                  try
+                    let def1 = get_def_node cenv#tree1 n1 in
+                    DEBUG_MSG "def1=%a" nps def1;
+                    parent_mem_pair_list := Hashtbl.find mem_tbl pm;
+                    DEBUG_MSG "|parent_mem_pair_list|=%d" (List.length !parent_mem_pair_list);
+                    List.iter
+                      (fun (pn1, _) ->
+                        if pn1 == def1 then
+                          raise Found
+                      ) !parent_mem_pair_list
+                  with
+                  | Found -> ok1 := true
+                  | _ ->
+                      if
+                        n1#data#is_statement || n1#data#is_op
+                      then
+                        ok1 := true
+                end;
+                begin
+                  try
+                    let def2 = get_def_node cenv#tree2 n2 in
+                    DEBUG_MSG "def2=%a" nps def2;
+                    if !parent_mem_pair_list = [] then begin
+                      parent_mem_pair_list := Hashtbl.find mem_tbl pm;
+                      DEBUG_MSG "|parent_mem_pair_list|=%d" (List.length !parent_mem_pair_list);
+                    end;
+                    List.iter
+                      (fun (_, pn2) ->
+                        if pn2 == def2 then
+                          raise Found
+                      ) !parent_mem_pair_list
+                  with
+                  | Found -> ok2 := true
+                  |  _ ->
+                      if
+                        n2#data#is_statement || n2#data#is_op
+                      then
+                        ok2 := true
+                end;
+                DEBUG_MSG "ok1=%B ok1=%B" !ok1 !ok2;
+                if not !ok1 || not !ok2 then begin
+                  DEBUG_MSG "to be removed: %a -> %a" MID.ps m MID.ps pm;
+                  to_be_removed := m :: !to_be_removed
+                end
+              ) mem_pair_list
+          end
+        ) parent_move_tbl;
+      List.iter (Hashtbl.remove parent_move_tbl) !to_be_removed
+    end;
     BEGIN_DEBUG
       DEBUG_MSG "final parent_move_tbl:";
       Hashtbl.iter
@@ -1796,7 +1861,10 @@ END_DEBUG;
                     (an1#data#eq an2#data(* ||
                      an1#data#_stripped_label = an2#data#_stripped_label*)
                     ) &&
-                    (an1 == nd1#initial_parent || an2 == nd2#initial_parent) &&
+                    (
+                     an1 == nd1#initial_parent || an2 == nd2#initial_parent ||
+                     is_use nd1 && nd1#data#anonymized_label = nd2#data#anonymized_label
+                    ) &&
                     try
                       let an1' = nmapping#find an1 in
                       DEBUG_MSG "%a->%a" nups an1 nups an1';
@@ -6972,9 +7040,11 @@ end;
            with
              _ -> false) ||!!!NG!!!*)
            (*tsz > 1 &&*)
-           (cenv#has_uniq_match rt1 rt2 ||
-           exists_uniq_match movl ||
-           not (surrounded_by is_del rt1 || surrounded_by is_ins rt2))
+           (
+            (let b = cenv#has_uniq_match rt1 rt2 in DEBUG_MSG "has_uniq_match=%B" b; b) ||
+            (let b = exists_uniq_match movl in DEBUG_MSG "exists_uniq_match=%B" b; b) ||
+            let b = not (surrounded_by is_del rt1 || surrounded_by is_ins rt2) in DEBUG_MSG "%B" b; b
+           )
            (*not (surrounded_by is_del rt1) || not (surrounded_by is_ins rt2))!!!NG!!!*)
           )
         then begin
@@ -7213,7 +7283,7 @@ end;
                     let nd1 = Info.get_node info1 in
                     let nd2 = Info.get_node info2 in
                     let is_root = nd1 == rt1 &&  nd2 == rt2 in
-                    DEBUG_MSG "%a-%a (is_root=%B)" nups nd1 nups nd2 is_root;
+                    DEBUG_MSG "%a-%a (is_root=%B) %a - %a" nups nd1 nups nd2 is_root labps nd1 labps nd2;
                     let b =
                       (
                        (*check_parent nd1 nd2 && *)
@@ -7414,6 +7484,7 @@ end;
             begin
               let xtbl = Hashtbl.create 0 in
               let xset = Xset.create 0 in
+              let sz = List.length movl in
               List.iter
                 (fun mov ->
                   match mov with
@@ -7525,8 +7596,12 @@ end;
                         with
                           _ -> false
                       then begin
-                        DEBUG_MSG "to be excluded: %a (binding)" MID.ps mid;
-                        Xset.add xset mid
+                        if sz = 1 && is_cross_boundary nmapping nd1 nd2 then
+                          DEBUG_MSG "single cross boundary move: %a" MID.ps mid
+                        else begin
+                          DEBUG_MSG "to be excluded: %a (binding)" MID.ps mid;
+                          Xset.add xset mid
+                        end
                       end
                   end
                   | _ -> assert false
@@ -7576,8 +7651,8 @@ end;
                   (function
                     | Edit.Move(m, _, _, _) as mov ->
                         if !m = mid then begin
+                          DEBUG_MSG "to be excluded[%d]: %s" !count (Edit.to_string mov);
                           incr count;
-                          DEBUG_MSG "to be excluded: %s" (Edit.to_string mov)
                         end
                     | _ -> ()
                   ) to_be_excluded;
@@ -7585,7 +7660,7 @@ end;
               in
               let head =
                 if xlen > 0 then
-                  "PARTIALLY "
+                  sprintf "PARTIALLY (excluded %d moves) " xlen
                 else
                   ""
               in
@@ -8006,6 +8081,8 @@ end;
         Hashtbl.add move_depth_tbl mid (d1 + d2)
       ) move_top_tbl;
 
+    let get_ln n = n#data#src_loc.Loc.start_line in
+
     let sorted_mid_list =
       let cmp m0 m1 =
         (*let d0 = Hashtbl.find move_depth_tbl m0 in
@@ -8034,7 +8111,13 @@ end;
           if c = 0 then
             let ysz0 = Hashtbl.find y_move_size_tbl m0 in
             let ysz1 = Hashtbl.find y_move_size_tbl m1 in
-            Stdlib.compare ysz1 ysz0
+            let c = Stdlib.compare ysz1 ysz0 in
+            if c = 0 then
+              let ln0 = get_ln r0 in
+              let ln1 = get_ln r1 in
+              Stdlib.compare ln0 ln1
+            else
+              c
           else
             c
         else
@@ -8045,11 +8128,18 @@ end;
 
     let virtually_untouched = Xset.create 0 in
 
+    let n_mids = List.length sorted_mid_list in
+    let _ = n_mids in
+
+    let mid_count = ref 0 in
+
+    let get_depth mi = Hashtbl.find move_depth_tbl mi in
+    let _ = get_depth in
+
     List.iter
       (fun mid ->
-        let depth = Hashtbl.find move_depth_tbl mid in
-        let _ = depth in
-        DEBUG_MSG "mid=%a (depth=%d)" MID.ps mid depth;
+        incr mid_count;
+        DEBUG_MSG "[%d/%d] mid=%a (depth=%d)" !mid_count n_mids MID.ps mid (get_depth mid);
 
         if not (Xset.mem crossing_checked mid) then begin
           Xset.add crossing_checked mid;
@@ -8100,19 +8190,23 @@ end;
                 end
                 | eds -> ()
               );
+
+            (*let get_xsz mi = Hashtbl.find x_move_size_tbl mi in*)
+            let get_ysz mi = Hashtbl.find y_move_size_tbl mi in
+            let _ = get_ysz in
+
             let n_crossing_movs = Xset.length crossing_movs in
             if n_crossing_movs > 0 then begin
               let ml = Xset.to_list crossing_movs in
               DEBUG_MSG "-->  %a crossing with %d moves: [%s]" MID.ps mid n_crossing_movs
                 (Xlist.to_string
-                   (fun m -> sprintf "%a(%d)" MID.ps m (Hashtbl.find move_depth_tbl m))
+                   (fun m -> sprintf "%a(ysz:%d)" MID.ps m (get_ysz m))
                    ";" ml);
 
               let xsz = Hashtbl.find x_move_size_tbl mid in
-              let ysz = Hashtbl.find y_move_size_tbl mid in
 
               DEBUG_MSG "%a(depth=%d,xsz=%f,ysz=%d): %a-%a is shallowest"
-                MID.ps mid depth xsz ysz nps nd1 nps nd2;
+                MID.ps mid (get_depth mid) xsz (get_ysz mid) nps nd1 nps nd2;
 
               let anc_ok () =
                 let mem_dom n1 = if Xset.mem incompat_nds1 n1 then false else nmapping#mem_dom n1 in
@@ -8137,7 +8231,6 @@ end;
                 DEBUG_MSG "%B" b;
                 b
               in
-              let _ = ysz in
 
               if xsz < 1.0 && not (anc_ok()) then begin (* NB checking move roots is insufficient *)
                 DEBUG_MSG "%a --> crossing with untouched" MID.ps mid;

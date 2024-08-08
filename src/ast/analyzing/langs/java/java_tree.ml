@@ -391,6 +391,16 @@ class visitor options bid_gen static_vdtors tree = object (self)
       end
     end;
 
+    if L.is_catch_parameter lab then begin
+      let name = L.get_name lab in
+      let bid = bid_gen#gen in
+      tree#add_to_bid_tbl bid name;
+      DEBUG_MSG "DEF(catch param): %s (bid=%a) %s" name BID.ps bid nd#to_string;
+      nd#data#set_binding (Binding.make_unknown_def bid true);
+      self#set_scope_node nd;
+      stack#register name nd
+    end;
+
     if L.is_for lab then begin
       self#apply_deferred nd
     end;

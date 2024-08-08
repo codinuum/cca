@@ -1117,6 +1117,7 @@ class ['node_t, 'tree_t] c
       ?(bonus_named=false)
       ?(bonus_rename_pat=false)
       ?(check_uniq=false)
+      ?(exact_only=false)
       nd1 nd2
       =
     let v =
@@ -1146,6 +1147,8 @@ class ['node_t, 'tree_t] c
           s
 
       end
+      else if exact_only then
+        0
       else if nd1#data#_anonymized_label = nd2#data#_anonymized_label then
         if
           (*bonus_named && *)nd1#data#is_named && nd2#data#is_named &&
@@ -1473,6 +1476,7 @@ class ['node_t, 'tree_t] c
       ?(flat=false)
       ?(strip=false)
       ?(check_uniq=false)
+      ?(exact_only=false)
       nds1 nds2
       =
     let getlab =
@@ -1569,7 +1573,7 @@ class ['node_t, 'tree_t] c
               0.7 (* subtree_similarity_thresh *)
           end
           else
-            float (self#eval_label_match ~bonus_named ~bonus_rename_pat ~check_uniq n1 n2)
+            float (self#eval_label_match ~bonus_named ~bonus_rename_pat ~check_uniq ~exact_only n1 n2)
         in
 
         score := !score +. lm;
@@ -1788,6 +1792,7 @@ class ['node_t, 'tree_t] c
             ?(bonus_named=false)
             ?(bonus_named_more=false)
             ?(check_uniq=false)
+            ?(exact_only=false)
             nds1 nds2
             =
 
@@ -1800,7 +1805,7 @@ class ['node_t, 'tree_t] c
           DEBUG_MSG "nds1=[%s] (%d)" (Xlist.to_string (fun n -> n#data#label) ";" nds1) len1;
           DEBUG_MSG "nds2=[%s] (%d)" (Xlist.to_string (fun n -> n#data#label) ";" nds2) len2;
 
-          let lmres = self#eval_label_match_list ~bonus_named ~check_uniq nds1 nds2 in
+          let lmres = self#eval_label_match_list ~bonus_named ~check_uniq ~exact_only nds1 nds2 in
 
           DEBUG_MSG "score=%f nmcount=%d" lmres.lm_score lmres.lm_nmcount;
           BEGIN_DEBUG
@@ -2222,27 +2227,17 @@ class ['node_t, 'tree_t] c
              with Not_found -> false
           then begin
             DEBUG_MSG "@";
+            let rec get_sibl n =
+              let pn = n#initial_parent in
+              let siba = pn#initial_children in
+              if Array.length siba > 1 then
+                List.filter (fun x -> x != n) (Array.to_list siba)
+              else
+                get_sibl pn
+            in
             (try
-              let nds1 =
-                let pnd1 = nd1#initial_parent in
-                let siba1 = pnd1#initial_children in
-                if Array.length siba1 > 1 then
-                  List.filter (fun x -> x != nd1) (Array.to_list siba1)
-                else
-                  let ppnd1 = pnd1#initial_parent in
-                  let psiba1 = ppnd1#initial_children in
-                  List.filter (fun x -> x != pnd1) (Array.to_list psiba1)
-              in
-              let nds2 =
-                let pnd2 = nd2#initial_parent in
-                let siba2 = pnd2#initial_children in
-                if Array.length siba2 > 1 then
-                  List.filter (fun x -> x != nd2) (Array.to_list siba2)
-                else
-                  let ppnd2 = pnd2#initial_parent in
-                  let psiba2 = ppnd2#initial_children in
-                  List.filter (fun x -> x != pnd2) (Array.to_list psiba2)
-              in
+              let nds1 = get_sibl nd1 in
+              let nds2 = get_sibl nd2 in
               let s = _incr_score ~bonus_named:true ~bonus_named_more:true nds1 nds2 in
               if s >= 0.0 then
                 s
@@ -2253,9 +2248,61 @@ class ['node_t, 'tree_t] c
           end
           else
             0.0, 0.0
+        in (* score_siblings, score_parent *)
+
+        (* for ancestor statement *)
+        let score_stmt =
+          let get_stmt = get_p_ancestor (fun x -> x#data#is_statement) in
+          let filt1 n1 =
+            (*n1#data#is_named_orig ||
+              n1#data#has_non_trivial_value ||*)
+            self#has_uniq_match1 n1
+          in
+          let filt2 n2 =
+            (*n2#data#is_named_orig ||
+              n2#data#has_non_trivial_value ||*)
+            self#has_uniq_match2 n2
+          in
+          if
+            nd1#data#is_statement || nd2#data#is_statement ||
+            try
+              not (B.is_use nd1#data#binding) || not (B.is_use nd2#data#binding)
+            with _ -> true
+          then
+            0.0
+          else
+            try
+              let stmt1 = get_stmt nd1 in
+              let stmt2 = get_stmt nd2 in
+              (*if not stmt1#data#is_named || not stmt2#data#is_named then
+                raise Abort;*)
+              let desc1 = ref [] in
+              let desc2 = ref [] in
+              tree1#fast_scan_whole_initial_subtree stmt1
+                (fun n1 ->
+                  if filt1 n1 then
+                    desc1 := n1 :: !desc1
+                );
+              tree2#fast_scan_whole_initial_subtree stmt2
+                (fun n2 ->
+                  if filt2 n2 then
+                    desc2 := n2 :: !desc2
+                );
+              DEBUG_MSG "nd1: %a" nps nd1;
+              DEBUG_MSG "nd2: %a" nps nd2;
+              DEBUG_MSG "stmt1: %a" nps stmt1;
+              DEBUG_MSG "stmt2: %a" nps stmt2;
+              match !desc1, !desc2 with
+              | [], [] -> 0.0
+              | [], _ | _, [] -> 0.0
+              | _ -> _incr_score ~exact_only:true !desc1 !desc2
+            with
+              _ -> 0.0
         in
 
-        let total_score = !score +. score_anc +. score_desc +. score_siblings +. score_parent in
+        let total_score =
+          !score +. score_anc +. score_desc +. score_siblings +. score_parent +. score_stmt
+        in
 
         BEGIN_DEBUG
           DEBUG_MSG "score for descendants: %f" score_desc;
@@ -2264,6 +2311,8 @@ class ['node_t, 'tree_t] c
           DEBUG_MSG "score_desc=%f" score_desc;
           DEBUG_MSG "score_siblings=%f" score_siblings;
           DEBUG_MSG "score_parent=%f" score_parent;
+          let head = if score_stmt > 0.0 then "!" else "" in
+          DEBUG_MSG "score_stmt=%s%f" head score_stmt;
           DEBUG_MSG "total score: %a-%a -> %f" nups nd1 nups nd2 total_score;
           DEBUG_MSG "ref_npairs: [%s]"
             (Xlist.to_string

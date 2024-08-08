@@ -1214,7 +1214,8 @@ let rectify_renames_u
         (
          (try
            let p2' = nmapping#inv_find n2#initial_parent in
-           p2' == n1#initial_parent#initial_parent
+           (*p2' == n1#initial_parent#initial_parent*)
+           Misc.has_p_ancestor ~moveon:(fun x -> not x#data#is_boundary) ((==) p2') n1
           with _ -> false
          ) ||
          has_nearest_mapped_ancestor_upto_boundary n1 n2
