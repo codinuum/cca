@@ -212,6 +212,8 @@ let remove_relabels_and_mapping
       let nodes2 = ref [] in
       tree1#scan_whole_initial_subtree nd1 (fun n -> nodes1 := n::!nodes1);
       tree2#scan_whole_initial_subtree nd2 (fun n -> nodes2 := n::!nodes2);
+      DEBUG_MSG "descs1: %a -> [%a]" nups nd1 nsps !nodes1;
+      DEBUG_MSG "descs2: %a -> [%a]" nups nd2 nsps !nodes2;
       List.iter
         (fun n ->
           try
@@ -254,6 +256,7 @@ let combine_node_lists
     ?(filt=(fun _ _ -> true))
     (cenv : (node_t, tree_t) Comparison.c)
     nmapping
+    edits
     cands1
     cands2
     =
@@ -293,9 +296,10 @@ let combine_node_lists
           List.iter
             (fun nd2 ->
               if filt nd1 nd2 then begin
-                let w =
+                let a =
                   Stdlib.truncate ((cenv#get_adjacency_score ~anchor nd1 nd2) *. 10000.0)
                 in
+                let w = Comparison.weight_of_int a in
                 pair_weight_list := (nd1, nd2, w) :: !pair_weight_list
               end
             ) nds2
@@ -305,8 +309,8 @@ let combine_node_lists
         DEBUG_MSG "pair_weight_list:";
         List.iter
           (fun (n1, n2, w) ->
-            DEBUG_MSG " %a(%a)-%a(%a): %d"
-              nups n1 GI.ps n1#gindex nups n2 GI.ps n2#gindex w
+            DEBUG_MSG " %a(%a)-%a(%a): %a"
+              nups n1 GI.ps n1#gindex nups n2 GI.ps n2#gindex Comparison.wps w
           ) !pair_weight_list
       END_DEBUG;
 
@@ -1880,7 +1884,7 @@ let rectify_renames_u
               ||
                 is_incompatible_def nd1 nd2
               then begin
-                DEBUG_MSG "not so good relabel";
+                DEBUG_MSG "not so good relabel: %a-%a" nups nd1 nups nd2;
                 to_be_removed := (nd1, nd2, by_non_renames) :: !to_be_removed;
                 remove_from_rename_tbls nd1 nd2
               end
@@ -1893,7 +1897,7 @@ let rectify_renames_u
               end
             end
             else begin
-              DEBUG_MSG "bad relabel";
+              DEBUG_MSG "bad relabel: %a-%a" nups nd1 nups nd2;
               to_be_removed := (nd1, nd2, by_non_renames) :: !to_be_removed;
               remove_from_rename_tbls nd1 nd2
             end
@@ -2018,7 +2022,7 @@ let rectify_renames_u
         is_def1 && is_def2 || is_use1 && is_use2 ||
         not is_def1 && not is_def2 && not is_use1 && not is_use2
       in
-      compatible_pairs := (combine_node_lists ~filt cenv nmapping cands1 cands2) @ !compatible_pairs
+      compatible_pairs := (combine_node_lists ~filt cenv nmapping edits cands1 cands2) @ !compatible_pairs
 
     ) cands_pair_tbl;
 
@@ -2523,6 +2527,7 @@ let rectify_renames_d
            conflicting_use_mapping_count1; conflicting_use_mapping_count2
           ] &&
         (
+         Comparison.get_orig_name def1 <> Comparison.get_orig_name def2 &&
          !use_rename_count = 0 &&
          (use_delete_count + conflicting_use_mapping_count1)
            * (use_insert_count + conflicting_use_mapping_count2) = 0
@@ -2583,6 +2588,7 @@ let rectify_renames_d
       in
       DEBUG_MSG "is_bad_def=%B" is_bad_def;
       if is_bad_def then begin
+        DEBUG_MSG "added to pairs_to_be_removed: %a-%a" nups def1 nups def2;
         pairs_to_be_removed := (def1, def2, true) :: !pairs_to_be_removed;
         begin
           try
@@ -2590,6 +2596,7 @@ let rectify_renames_d
             if not pdef1#data#is_sequence then begin
               let pdef2 = def2#initial_parent in
               if nmapping#find pdef1 == pdef2 then begin
+                DEBUG_MSG "added to pairs_to_be_removed: %a-%a" nups pdef1 nups pdef2;
                 pairs_to_be_removed := (pdef1, pdef2, true) :: !pairs_to_be_removed;
               end
             end
@@ -2597,8 +2604,7 @@ let rectify_renames_d
         end;
         List.iter2
           (fun n1 n2 ->
-            DEBUG_MSG "%a-%a" nups n1 nups n2;
-            DEBUG_MSG "added to pairs_to_be_removed";
+            DEBUG_MSG "added to pairs_to_be_removed: %a-%a" nups n1 nups n2;
             pairs_to_be_removed := (n1, n2, strict_flag) :: !pairs_to_be_removed
           ) !use_renames1 !use_renames2;
 
@@ -2661,7 +2667,7 @@ let rectify_renames_d
                     _ -> true*)
                 in
                 DEBUG_MSG "strict_flag=%B strict_flag_=%B" strict_flag strict_flag_;
-                DEBUG_MSG "added to pairs_to_be_removed";
+                DEBUG_MSG "added to pairs_to_be_removed: %a-%a" nups n1 nups n2;
                 pairs_to_be_removed := (n1, n2, strict_flag_) :: !pairs_to_be_removed
               ) pl
           ) [1,conflicting_mapping_list1_; 2,conflicting_mapping_list2_];
@@ -2680,6 +2686,7 @@ let rectify_renames_d
                 let strict_flag_ =
                   strict_flag
                 in
+                DEBUG_MSG "added to pairs_to_be_removed: %a-%a" nups n1 nups n2;
                 pairs_to_be_removed := (n1, n2, strict_flag_) :: !pairs_to_be_removed
               ) !use_renames1 !use_renames2;
             !use_renames1 @ nds1_, !use_renames2 @ nds2_
@@ -2726,7 +2733,7 @@ let rectify_renames_d
         compatible_pairs := (comb sorted_cands1 sorted_cands2) @ !compatible_pairs
       end
       else
-        compatible_pairs := (combine_node_lists cenv nmapping cands1 cands2) @ !compatible_pairs
+        compatible_pairs := (combine_node_lists cenv nmapping edits cands1 cands2) @ !compatible_pairs
     ) !to_be_mapped;
 
   BEGIN_DEBUG

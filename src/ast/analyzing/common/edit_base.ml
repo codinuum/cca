@@ -4572,7 +4572,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               match cand with
               | (n1, n2)::_ ->
                   Hashtbl.add ctbl (n1, n2) cand;
-                  n1, n2, (List.length cand)
+                  n1, n2, Comparison.weight_of_int (List.length cand)
               | _ -> assert false
             in
             let pair_weight_list = List.map get_top_pair_len cands in

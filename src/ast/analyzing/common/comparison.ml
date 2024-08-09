@@ -519,6 +519,46 @@ exception Abort
 
 let is_crossing = Node_mapping.is_crossing
 
+type weight_t =
+  | W_int of int
+  | W_float of float
+  | W_int_int of int * int
+
+let weight_of_int i = W_int i
+let weight_of_float f = W_float f
+let weight_of_int_int i j = W_int_int(i, j)
+
+let weight_to_int = function
+  | W_int i -> i
+  | _ -> failwith "Compare.weight_to_int"
+
+let weight_to_int_int = function
+  | W_int_int(i, j) -> i, j
+  | _ -> failwith "Compare.weight_to_int_int"
+
+let weight_to_float = function
+  | W_float f -> f
+  | _ -> failwith "Compare.weight_to_float"
+
+let weight_to_string = function
+  | W_int i -> string_of_int i
+  | W_float f -> string_of_float f
+  | W_int_int(i, j) -> Printf.sprintf "(%d, %d)" i j
+
+let wps () = weight_to_string
+
+let weight_compare x0 x1 =
+  match x0, x1 with
+  | W_int i0, W_int i1 -> Stdlib.compare i0 i1
+  | W_float f0, W_float f1 -> Stdlib.compare f0 f1
+  | W_int_int(i0, j0), W_int_int(i1, j1) -> begin
+      let c = Stdlib.compare i0 i0 in
+      if c = 0 then
+        Stdlib.compare j0 j1
+      else
+        c
+  end
+  | _ -> failwith "Compare.weight_compare"
 
 class ['node_t, 'tree_t] c
     options
@@ -541,7 +581,10 @@ class ['node_t, 'tree_t] c
   method is_crossing_or_incompatible nd11 nd12 nd21 nd22 =
     is_crossing nd11 nd12 nd21 nd22 || self#_is_incompatible nd11 nd12 nd21 nd22
 
-  method select_p_pairs (p : 'node_t -> 'node_t -> 'node_t -> 'node_t -> bool) pair_weight_list =
+  method select_p_pairs
+      (p : 'node_t -> 'node_t -> 'node_t -> 'node_t -> bool)
+      (pair_weight_list : ('node_t * 'node_t * weight_t) list)
+      =
     (* returns p pairs and not p pairs *)
 
     let pair_weight_list =
@@ -557,7 +600,7 @@ class ['node_t, 'tree_t] c
 
     BEGIN_DEBUG
       DEBUG_MSG "select_p_pairs:";
-      List.iter (fun (n1, n2, w) -> DEBUG_MSG "%a-%a %d" nups n1 nups n2 w) pair_weight_list;
+      List.iter (fun (n1, n2, w) -> DEBUG_MSG "%a-%a %a" nups n1 nups n2 wps w) pair_weight_list;
     END_DEBUG;
 
     let len = List.length pair_weight_list in
@@ -595,11 +638,11 @@ class ['node_t, 'tree_t] c
 	  (fun i j ->
 	    let _, _, wi = a.(i) in
 	    let _, _, wj = a.(j) in
-	    let x = Stdlib.compare wj wi in
+	    let x = weight_compare wj wi in
 	    if x = 0 then begin
 	      let fi = nfriends_a.(i) in
 	      let fj = nfriends_a.(j) in
-	      Stdlib.compare fj fi
+	      weight_compare (weight_of_int fj) (weight_of_int fi)
 	    end
 	    else
 	      x
@@ -635,7 +678,7 @@ class ['node_t, 'tree_t] c
     else
       pair_weight_list, []
 
-  method select_compatible_pairs (pair_weight_list : ('node_t * 'node_t * int) list) =
+  method select_compatible_pairs (pair_weight_list : ('node_t * 'node_t * weight_t) list) =
     (* returns compat. pairs and incompat. pairs *)
     self#select_p_pairs
       (fun n11 n12 n21 n22 ->
@@ -647,7 +690,7 @@ class ['node_t, 'tree_t] c
         b
       ) pair_weight_list
 
-  method select_compatible_and_not_crossing_pairs pair_weight_list =
+  method select_compatible_and_not_crossing_pairs (pair_weight_list : ('node_t * 'node_t * weight_t) list) =
     self#select_p_pairs
       (fun n11 n12 n21 n22 ->
         let b =
@@ -1253,7 +1296,7 @@ class ['node_t, 'tree_t] c
       with
         _ -> false
     in
-    DEBUG_MSG "%a -> %B" nps n2 b;
+    (*DEBUG_MSG "%a -> %B" nps n2 b;*)
     b
 
   val mutable num_to_be_notified1 = -1
@@ -1820,7 +1863,8 @@ class ['node_t, 'tree_t] c
 
           ref_npairs := lmres.lm_matches @ !ref_npairs;
           let s =
-            (lmres.lm_score *. 2.0) /. (float (len1 + len2 + extra_denom))
+            let denom = float (len1 + len2 + extra_denom) in
+            (lmres.lm_score *. 2.0) /. denom
           in
           let s' =
             if bonus_named_more then
@@ -2254,13 +2298,11 @@ class ['node_t, 'tree_t] c
         let score_stmt =
           let get_stmt = get_p_ancestor (fun x -> x#data#is_statement) in
           let filt1 n1 =
-            (*n1#data#is_named_orig ||
-              n1#data#has_non_trivial_value ||*)
+            (n1#data#is_named_orig || n1#data#has_non_trivial_value) &&
             self#has_uniq_match1 n1
           in
           let filt2 n2 =
-            (*n2#data#is_named_orig ||
-              n2#data#has_non_trivial_value ||*)
+            (n2#data#is_named_orig || n2#data#has_non_trivial_value) &&
             self#has_uniq_match2 n2
           in
           if
@@ -2278,12 +2320,12 @@ class ['node_t, 'tree_t] c
                 raise Abort;*)
               let desc1 = ref [] in
               let desc2 = ref [] in
-              tree1#fast_scan_whole_initial_subtree stmt1
+              tree1#preorder_scan_whole_initial_subtree stmt1
                 (fun n1 ->
                   if filt1 n1 then
                     desc1 := n1 :: !desc1
                 );
-              tree2#fast_scan_whole_initial_subtree stmt2
+              tree2#preorder_scan_whole_initial_subtree stmt2
                 (fun n2 ->
                   if filt2 n2 then
                     desc2 := n2 :: !desc2

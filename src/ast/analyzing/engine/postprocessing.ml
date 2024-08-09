@@ -133,7 +133,7 @@ module F (Label : Spec.LABEL_T) = struct
         DEBUG_MSG "%a %s" nups nd
           (Xlist.to_string
              (fun (nd1, nd2, nth, sz) ->
-               sprintf "<%a,%a(%dth)(sz:%d)>" nups nd1 nups nd2 !nth sz)
+               sprintf "<%a,%a(%dth)(sz:%a)>" nups nd1 nups nd2 !nth Comparison.wps sz)
              "" vs);
 
         let vs = select_compatible_pairs vs in
@@ -164,7 +164,7 @@ module F (Label : Spec.LABEL_T) = struct
             DEBUG_MSG "%a %s" nups nd
               (Xlist.to_string
                  (fun (nd1, nd2, nth, sz) ->
-                   sprintf "<%a,%a(%dth)(sz:%d)>" nups nd1 nups nd2 !nth sz)
+                   sprintf "<%a,%a(%dth)(sz:%a)>" nups nd1 nups nd2 !nth Comparison.wps sz)
                  "" (List.rev vs));
             DEBUG_MSG "a1 = [%s]" (Xarray.to_string string_of_int " " a1);
             DEBUG_MSG "a2 = [%s]" (Xarray.to_string string_of_int " " a2);
@@ -175,7 +175,9 @@ module F (Label : Spec.LABEL_T) = struct
             if a1 = a2 then
               []
             else
-              let weight_list = List.map (fun (_, _, _, sz) -> sz) sorted1 in
+              let weight_list =
+                List.map (fun (_, _, _, sz) -> Comparison.weight_to_int sz) sorted1
+              in
 (*
               let get_weight _ j _ =
                 try
@@ -450,11 +452,14 @@ module F (Label : Spec.LABEL_T) = struct
               let incompat' =
                 List.map
                   (fun (n1, n2) ->
-                    (n1, n2, estimate_cost_of_move tree1 tree2 nmapping n1 n2)
+                    let w =
+                      Comparison.weight_of_int (estimate_cost_of_move tree1 tree2 nmapping n1 n2)
+                    in
+                    (n1, n2, w)
                   ) incompat
               in
               let incompat'', _ = cenv#select_compatible_pairs incompat' in
-              List.fold_left (fun sum (n1, n2, sz) -> sum + sz) 0 incompat''
+              List.fold_left (fun sum (n1, n2, sz) -> sum + Comparison.weight_to_int sz) 0 incompat''
             in
 
             let b = asz <= cost in
@@ -513,7 +518,7 @@ module F (Label : Spec.LABEL_T) = struct
 
               DEBUG_MSG "may be a permutation: (%a) %a-%a" nups an1 nups nd nups nd';
 
-              pmap_add pmap an1 (nd, nd', ref 0, asz);
+              pmap_add pmap an1 (nd, nd', ref 0, Comparison.weight_of_int asz);
               DEBUG_MSG "map added"
 
             end
@@ -1253,6 +1258,21 @@ module F (Label : Spec.LABEL_T) = struct
       (nmapping : node_t Node_mapping.c)
       nd1 nd2
       =
+    DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+
+    let weak_equal =
+      nd1#data#eq nd2#data ||
+      nd1#data#has_non_trivial_tid && nd2#data#has_non_trivial_tid &&
+      (
+       nd1#data#anonymized_label = nd2#data#anonymized_label ||
+       nd1#data#anonymized2_label = nd2#data#anonymized2_label
+      )
+    in
+    DEBUG_MSG "weak_equal=%B" weak_equal;
+
+    if not exact && weak_equal then
+      false
+    else
 
     (* check ancestors *)
     let is_odd_anc =
@@ -7024,7 +7044,15 @@ end;
            (try
              let prt1 = rt1#initial_parent in
              let prt2 = rt2#initial_parent in
-             is_stable1 prt1 || is_stable2 prt2 || is_mov1 prt1 && is_mov2 prt2
+             (
+              let b =
+                (not rt1#data#is_common || not rt2#data#is_common) &&
+                (is_stable1 prt1 || is_stable2 prt2)
+              in
+              DEBUG_MSG "is_stable=%B" b;
+              b
+             ) ||
+             let b = is_mov1 prt1 && is_mov2 prt2 in DEBUG_MSG "is_mov=%B" b; b
            with _ -> false) ||
              (*is_stable1 prt1
                && (try
@@ -7642,6 +7670,38 @@ end;
                   end
                   | _ -> assert false
                 ) movl
+            end;
+
+            let only_common_excluded, excluded =
+              let b = ref true in
+              let xl = ref [] in
+              begin
+                try
+                  Xset.iter
+                    (function
+                      | Edit.Move(m, _, (i1, _), (i2, _)) as mov ->
+                          if !m = mid then begin
+                            DEBUG_MSG "checking %s" (Edit.to_string mov);
+                            let n1 = Info.get_node i1 in
+                            let n2 = Info.get_node i2 in
+                            if not n1#data#is_common || not n2#data#is_common then begin
+                              b := false;
+                              raise Exit
+                            end
+                            else
+                              xl := mov :: !xl
+                          end
+                      | _ -> ()
+                    ) to_be_excluded
+                with
+                  Exit -> ()
+              end;
+              !b, !xl
+            in
+            DEBUG_MSG "only_common_excluded=%B" only_common_excluded;
+
+            if only_common_excluded then begin
+              List.iter (Xset.remove to_be_excluded) excluded
             end;
 
             BEGIN_DEBUG
@@ -9069,7 +9129,7 @@ end;
                   let n1 = tree1#search_node_by_gindex g1 in
                   let n2 = tree2#search_node_by_gindex g2 in
                   let sz = estimate_cost_of_move tree1 tree2 nmapping n1 n2 in
-                  (n1, n2, sz)
+                  (n1, n2, Comparison.weight_of_int sz)
                 with
                   Not_found -> assert false
               ) cmids
