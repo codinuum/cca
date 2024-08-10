@@ -924,16 +924,25 @@ class ['node_t, 'tree_t] c
         let b1 = n1#data#binding in
         let b2 = n2#data#binding in
         if B.is_use b1 && B.is_use b2 then begin
-          if self#def_bid_maps_set then begin
+          DEBUG_MSG "@";
+          let xor a b = (a || b) && not (a && b) in
+          if xor (B.has_loc b1) (B.has_loc b2) then begin
+            DEBUG_MSG "@";
+            false
+          end
+          else if self#def_bid_maps_set then begin
             let bi1 = B.get_bid b1 in
             let bi2 = B.get_bid b2 in
+            DEBUG_MSG "bi1=%a bi2=%a" B.ID.ps bi1 B.ID.ps bi2;
             (try
               let bi1' = Hashtbl.find def_bid_map1 bi1 in
+              DEBUG_MSG "%a -> %a" B.ID.ps bi1 B.ID.ps bi1';
               bi1' <> bi2
             with
               Not_found -> false) ||
               (try
                 let bi2' = Hashtbl.find def_bid_map2 bi2 in
+                DEBUG_MSG "%a <- %a" B.ID.ps bi2' B.ID.ps bi2;
                 bi2' <> bi1
               with
                 Not_found -> false)
@@ -942,6 +951,7 @@ class ['node_t, 'tree_t] c
             failwith "Comparison.c#is_scope_breaking_mapping"
         end
         else if B.is_local_def b1 && B.is_local_def b2 then begin
+          DEBUG_MSG "@";
           if self#def_use_tbls_set then
             not (self#has_use_mapping nmapping n1 n2)
           else

@@ -153,6 +153,10 @@ let get_loc = function
   | Use(_, Some (_, loc)) -> loc
   | _ -> raise Not_found
 
+let has_loc = function
+  | Use(_, Some (_, loc)) -> true
+  | _ -> false
+
 let get_uid = function
   | Use(_, Some (u, _)) -> u
   | _ -> raise Not_found

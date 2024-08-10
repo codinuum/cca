@@ -65,4 +65,5 @@ val get_bid_opt : t -> ID.t option
 val get_use_count : t -> int
 val get_loc : t -> Loc.t
 val get_uid : t -> UID.t
+val has_loc : t -> bool
 val incr_use : t -> unit
