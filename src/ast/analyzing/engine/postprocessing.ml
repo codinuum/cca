@@ -2230,6 +2230,21 @@ END_DEBUG;
     DEBUG_MSG "ODD RELABELS ELIMINATED."
   (* end of func eliminate_odd_relabels *)
 
+
+  let is_crossing_with_untouched edits nmapping
+      ?(full_scan=false)
+      ?(mask=[])
+      ?(incompatible_only=false)
+      ?(weak=false)
+      =
+    edits#is_crossing_with_untouched
+      ?full_scan:(Some full_scan)
+      ?mask:(Some mask)
+      ?incompatible_only:(Some incompatible_only)
+      ?weak:(Some weak)
+      nmapping
+
+
  (*
   * glueing deletes and inserts
   *)
@@ -2253,6 +2268,7 @@ END_DEBUG;
       ?(rely_on_binding_info=false)
       ?(rely_on_context=false)
       ?(ignore_common=false)
+      ?(edits_opt=None)
       (nmapping : node_t Node_mapping.c)
       (ref_nmapping : node_t Node_mapping.c)
       =
@@ -2382,10 +2398,16 @@ END_DEBUG;
             (try cenv#is_scope_breaking_mapping nmapping n1 n2 with Failure _ -> false)
           ||
             has_no_use_rename n1 n2
+          ||
+            match edits_opt with
+            | None -> false
+            | Some edits ->
+                n1#data#is_named && n2#data#is_named && is_odd_relabel tree1 tree2 nmapping n1 n2 &&
+                is_crossing_with_untouched edits nmapping n1 n2
           in
           DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
           b
-    in
+    in (* is_bad_pair *)
 
     let starting_pairs =
       List.fold_left
@@ -5280,6 +5302,7 @@ if not options#no_glue_flag then begin
               glue_deletes_and_inserts options cenv tree1 tree2
                 ~override:true ~no_moves:options#no_moves_flag ~use_binding_info:true
                 ~ignore_common:true
+                ~edits_opt:(Some edits)
                 nmapping (new Node_mapping.c cenv)
             in
             sync_edits ~check_conflicts:true removed_pairs added_pairs;
@@ -5307,6 +5330,7 @@ if not options#no_glue_flag then begin
         glue_deletes_and_inserts options cenv tree1 tree2
           ~no_moves:options#no_moves_flag
           ~use_binding_info(* ~rely_on_binding_info:use_binding_info*)
+          ~edits_opt:(Some edits)
           nmapping (new Node_mapping.c cenv)
       in
       sync_edits removed_pairs added_pairs;
@@ -8843,20 +8867,7 @@ end;
       end
     END_DEBUG;
 
-    let is_crossing_with_untouched
-        ?(full_scan=false)
-        ?(mask=[])
-        ?(incompatible_only=false)
-        ?(weak=false)
-        =
-      edits#is_crossing_with_untouched
-        ?full_scan:(Some full_scan)
-        ?mask:(Some mask)
-        ?incompatible_only:(Some incompatible_only)
-       ?weak:(Some weak)
-        nmapping
-    in
-
+    let is_crossing_with_untouched = is_crossing_with_untouched edits nmapping in
 
     (* check moves *)
     DEBUG_MSG "checking moves...";
@@ -8959,6 +8970,7 @@ end;
             glue_deletes_and_inserts options cenv tree1 tree2
               ~override:true ~is_move ~downward:true ~no_moves:true ~extend_move ~add_move
               ~use_binding_info ~rely_on_binding_info
+              ~edits_opt:(Some edits)
               nmapping (new Node_mapping.c cenv)
           in
           removed_pairs, added_pairs
@@ -9410,6 +9422,7 @@ end;
             let removed_pairs, added_pairs, _ =
               glue_deletes_and_inserts options cenv tree1 tree2
                 ~override:true ~downward:true ~no_moves:false ~glue_filt
+                ~edits_opt:(Some edits)
                 nmapping (new Node_mapping.c cenv)
             in
             let is_mov n1 n2 = true, Some mid in
@@ -9441,6 +9454,7 @@ end;
         let removed_pairs, added_pairs, _ =
           glue_deletes_and_inserts options cenv tree1 tree2
             ~override:true ~downward:true ~no_moves:false
+            ~edits_opt:(Some edits)
             nmapping (new Node_mapping.c cenv)
         in
         let is_mov n1 n2 =
@@ -9968,6 +9982,7 @@ end;
             ~use_binding_info
             ~rely_on_binding_info
             ~rely_on_context:true
+            ~edits_opt:(Some edits)
             nmapping pre_nmapping
         in
         (*let is_mov n1 n2 =

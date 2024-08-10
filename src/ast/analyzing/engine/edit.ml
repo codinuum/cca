@@ -2235,7 +2235,7 @@ let rectify_renames_d
     =
   let rrlv = options#rename_rectification_level in
   let strict_flag = rrlv >= 3 in
-  let cands_thresh = 32 in
+  let cands_thresh = 128 in
 
   DEBUG_MSG "START! (rrlv=%d, strict_flag=%B, cands_thresh=%d)"
     rrlv strict_flag cands_thresh;
