@@ -2399,11 +2399,10 @@ END_DEBUG;
           ||
             has_no_use_rename n1 n2
           ||
+            n1#data#is_named && n2#data#is_named && is_odd_relabel tree1 tree2 nmapping n1 n2 &&
             match edits_opt with
-            | None -> false
-            | Some edits ->
-                n1#data#is_named && n2#data#is_named && is_odd_relabel tree1 tree2 nmapping n1 n2 &&
-                is_crossing_with_untouched edits nmapping n1 n2
+            | None -> true
+            | Some edits -> is_crossing_with_untouched edits nmapping n1 n2
           in
           DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
           b
