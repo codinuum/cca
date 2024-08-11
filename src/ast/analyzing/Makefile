@@ -107,7 +107,7 @@ OTHER_OBJS_OPT     = $(OTHER_OBJS:.cmo=.cmx)
 OTHER_OBJS_P_OPT   = $(OTHER_OBJS_P:.cmo=.cmx)
 OTHER_OBJS_DEP_OPT = $(OTHER_OBJS_DEP:.cmo=.cmx)
 
-PACKAGES = -package camlp-streams,pxp,ulex,str,csv,bigarray,zip,menhirLib,cohttp
+PACKAGES = -package camlp-streams,pxp,ulex,str,csv,bigarray,zip,menhirLib
 PACKAGES += -package cryptokit,netclient
 PACKAGES += -package netzip,uuidm,dynlink,volt
 
