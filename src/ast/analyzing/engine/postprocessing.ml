@@ -1071,7 +1071,7 @@ module F (Label : Spec.LABEL_T) = struct
               (fun n ->
                 try
                   let n' = nmapping#find n in
-                  let b = not (Array.memq n' ca') in
+                  let b = not (tree2#initial_subtree_mem nd' n') in
                   DEBUG_MSG "%a -> %a (%B)" nups n nups n' b;
                   b
                 with
@@ -1082,7 +1082,7 @@ module F (Label : Spec.LABEL_T) = struct
               (fun n' ->
                 try
                   let n = nmapping#inv_find n' in
-                  let b = not (Array.memq n ca) in
+                  let b = not (tree1#initial_subtree_mem nd n) in
                   DEBUG_MSG "%a <- %a (%B)" nups n nups n' b;
                   b
                 with
@@ -2273,6 +2273,13 @@ END_DEBUG;
       (ref_nmapping : node_t Node_mapping.c)
       =
     Xprint.verbose options#verbose_flag "glueing deletes and inserts...";
+
+    let shifted_nodes1 = Xset.create 0 in
+    let shifted_nodes2 = Xset.create 0 in
+    let shift_node1 n1 = Xset.add shifted_nodes1 n1 in
+    let shift_node2 n2 = Xset.add shifted_nodes2 n2 in
+    let is_shifted_node1 n1 = Xset.mem shifted_nodes1 n1 in
+    let is_shifted_node2 n2 = Xset.mem shifted_nodes2 n2 in
 
     let is_possible_rename n1 n2 =
       let b = cenv#is_possible_rename ~strict:rely_on_binding_info n1 n2 in
@@ -4219,6 +4226,36 @@ END_DEBUG;
               ) cands
           in (* cands *)
 
+          let cands =
+            List.map
+              (fun ((n1, n2, defeated) as triple) ->
+                DEBUG_MSG "<%a-%a%s>" nups n1 nups n2 (if defeated then "(defeated)" else "");
+                if n1#data#anonymized_label <> n2#data#anonymized_label then
+                  if n1#initial_nchildren = 0 && n2#initial_nchildren = 1 then
+                    let c2 = n2#initial_children.(0) in
+                    if n1#data#eq c2#data then begin
+                      DEBUG_MSG " -> <%a-%a%s>" nups n1 nups c2 (if defeated then "(defeated)" else "");
+                      shift_node2 c2;
+                      n1, c2, defeated
+                    end
+                    else
+                      triple
+                  else if n1#initial_nchildren = 1 && n2#initial_nchildren = 1 then
+                    let c1 = n1#initial_children.(0) in
+                    if c1#data#eq n2#data then begin
+                      DEBUG_MSG " -> <%a-%a%s>" nups c1 nups n2 (if defeated then "(defeated)" else "");
+                      shift_node1 c1;
+                      c1, n2, defeated
+                    end
+                    else
+                      triple
+                  else
+                    triple
+                else
+                  triple
+              ) cands
+          in
+
           DEBUG_MSG "cands: %s"
             (String.concat ""
                (List.map
@@ -4816,9 +4853,10 @@ END_DEBUG;
                   let b = ref false in
                   let dnc = ref None in
                   let force = ref false in
+                  let nd1_ = if is_shifted_node1 nd1 then nd1#initial_parent else nd1 in
                   cenv#compare_mappings nmapping ~override
-                    nd1 n2 (fun d _ frc -> dnc := d; force := frc)
-                    nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
+                    nd1_ n2 (fun d _ frc -> dnc := d; force := frc)
+                    nd1_ nd2 ~ncrossing_new:ncross ~adjacency_new:adj
                     (fun d _ frc ->
                       b := true;
                       dnc := d;
@@ -4874,9 +4912,10 @@ END_DEBUG;
                   let b = ref false in
                   let dnc = ref None in
                   let force = ref false in
+                  let nd2_ = if is_shifted_node2 nd2 then nd2#initial_parent else nd2 in
                   cenv#compare_mappings nmapping ~override
-                    n1 nd2 (fun d _ frc -> dnc := d; force := frc)
-                    nd1 nd2 ~ncrossing_new:ncross ~adjacency_new:adj
+                    n1 nd2_ (fun d _ frc -> dnc := d; force := frc)
+                    nd1 nd2_ ~ncrossing_new:ncross ~adjacency_new:adj
                     (fun d _ frc ->
                       b := true;
                       dnc := d;
@@ -7368,9 +7407,16 @@ end;
                       DEBUG_MSG " stmt: %a-%a %a [%a]-[%a]"
                         nups stmt1 nups stmt2 labps stmt1 locps stmt1 locps stmt2;
                       let b0 =
-                        (stmt1 == rt1 && stmt2 == rt2 || is_stable_map stmt1 stmt2) &&
-                        not (has_p_descendant (fun n -> n != nd1 && node_eq n nd1) stmt1) &&
-                        not (has_p_descendant (fun n -> n != nd2 && node_eq n nd2) stmt2) &&
+                        (
+                         stmt1 == rt1 && stmt2 == rt2 ||
+                         is_stable_map stmt1 stmt2 ||
+                         is_map stmt1 stmt2 &&
+                         try is_map stmt1#initial_parent stmt2#initial_parent with _ -> false
+                        ) &&
+                        (
+                         not (has_p_descendant (fun n -> n != nd1 && node_eq n nd1) stmt1) ||
+                         not (has_p_descendant (fun n -> n != nd2 && node_eq n nd2) stmt2)
+                        ) &&
                         (
                          not (is_use nd1 && is_use nd2) ||
                          try
@@ -7381,6 +7427,7 @@ end;
                           ?full_scan:None ?mask:None ?incompatible_only:None ?weak:None
                           nmapping nd1 nd2
                       in
+                      DEBUG_MSG "b0=%B" b0;
                       if b0 then begin
 
                         DEBUG_MSG "!!! %a-%a %a [%a]-[%a]"
@@ -8193,13 +8240,13 @@ end;
           let xsz1 = Hashtbl.find x_move_size_tbl m1 in
           let c = Stdlib.compare xsz1 xsz0 in
           if c = 0 then
-            let ysz0 = Hashtbl.find y_move_size_tbl m0 in
-            let ysz1 = Hashtbl.find y_move_size_tbl m1 in
-            let c = Stdlib.compare ysz1 ysz0 in
+            let ln0 = get_ln r0 in
+            let ln1 = get_ln r1 in
+            let c = Stdlib.compare ln0 ln1 in
             if c = 0 then
-              let ln0 = get_ln r0 in
-              let ln1 = get_ln r1 in
-              Stdlib.compare ln0 ln1
+              let ysz0 = Hashtbl.find y_move_size_tbl m0 in
+              let ysz1 = Hashtbl.find y_move_size_tbl m1 in
+              Stdlib.compare ysz1 ysz0
             else
               c
           else

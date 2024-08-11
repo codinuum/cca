@@ -3267,8 +3267,11 @@ let relabel_allowed (lab1, lab2) =
 
     (*| LocalVariableDeclaration _, Resource _ | Resource _, LocalVariableDeclaration _*)
 
-(*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
+    (*| VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
+
+    | VariableDeclarator _, InferredFormalParameter _
+    | InferredFormalParameter _, VariableDeclarator _
 
     | LocalVariableDeclaration _, FieldDeclaration _
     | FieldDeclaration _, LocalVariableDeclaration _
