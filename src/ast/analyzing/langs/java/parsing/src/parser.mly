@@ -3099,7 +3099,12 @@ lambda_expression:
 ;
 
 lambda_parameters:
-| i=identifier                                   { let _, id = i in mklp $startofs $endofs (LPident id) }
+| i=identifier
+    { 
+      let _, id = i in
+      env#register_identifier id IAparameter;
+      mklp $startofs $endofs (LPident id)
+    }
 | LPAREN__LAMBDA l=formal_parameter_list0 RPAREN { mklp $startofs $endofs (LPformal l) }
 | LPAREN__LAMBDA l=clist(identifier)      RPAREN { mklp $startofs $endofs (LPinferred l) }
 ;
