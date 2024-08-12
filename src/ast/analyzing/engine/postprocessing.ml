@@ -1067,11 +1067,131 @@ module F (Label : Spec.LABEL_T) = struct
             let ca = nd#initial_children in
             let ca' = nd'#initial_children in
 
+            let is_crossing_or_incompatible x x' y y' =
+              Comparison.is_crossing x x' y y' ||
+              Node_mapping._is_incompatible tree1 tree2 x x' y y'
+            in
+
+            (*let has_crossing_mapped_anc n n' =
+              let moveon x = x != nd in
+              let b =
+                has_p_ancestor ~moveon
+                  (fun x ->
+                    try
+                      let x' = nmapping#find x in
+                      is_crossing_or_incompatible n n' x x'
+                    with _ -> false
+                  ) n
+              in
+              DEBUG_MSG "%a\n %a --> %B" nps n nps n' b;
+              b
+            in
+            let has_crossing_mapped_anc' n' n =
+              let moveon x' = x' != nd' in
+              let b =
+                has_p_ancestor ~moveon
+                  (fun x' ->
+                    try
+                      let x = nmapping#inv_find x' in
+                      is_crossing_or_incompatible n n' x x'
+                    with _ -> false
+                  ) n'
+              in
+              DEBUG_MSG "%a\n %a --> %B" nps n' nps n b;
+              b
+            in*)
+            let find_mappings_below n n' =
+              let ml = ref [] in
+              tree1#fast_scan_whole_initial_subtree n
+                (fun x ->
+                  try
+                    let x' = nmapping#find x in
+                    ml := (x, x') :: !ml
+                  with _ -> ()
+                );
+              !ml
+            in
+            let has_crossing_mapped_desc ?(strict=false) ?(excludes=[]) n n' =
+              DEBUG_MSG "strict=%B" strict;
+              let mappings = find_mappings_below n n' in
+              let b =
+                has_p_descendant
+                  (fun x ->
+                    (not strict || x#initial_parent != n) &&
+                    try
+                      let x' = nmapping#find x in
+                      not (List.mem (x, x') excludes) &&
+                      (not strict || x'#initial_parent != n') &&
+                      (
+                       is_crossing_or_incompatible n n' x x' ||
+                       List.exists
+                         (fun (y, y') ->
+                           is_crossing_or_incompatible x x' y y'
+                         ) mappings
+                      )
+                    with _ -> false
+                  ) n
+              in
+              DEBUG_MSG "%a\n %a --> %B" nps n nps n' b;
+              b
+            in
+            let has_crossing_mapped_desc' n' n =
+              let mappings = find_mappings_below n n' in
+              let b =
+                has_p_descendant
+                  (fun x' ->
+                    try
+                      let x = nmapping#inv_find x' in
+                      is_crossing_or_incompatible n n' x x' ||
+                      List.exists
+                        (fun (y, y') ->
+                          is_crossing_or_incompatible x x' y y'
+                        ) mappings
+                    with _ -> false
+                  ) n'
+              in
+              DEBUG_MSG "%a\n %a --> %B" nps n' nps n b;
+              b
+            in
+            DEBUG_MSG "nd=%a" nps nd;
+            DEBUG_MSG "nd'=%a" nps nd';
+
+            let st_has_crossing_mapped_desc =
+              let cache = ref None in
+              let f x x' =
+                match !cache with
+                | Some b -> b
+                | None ->
+                    let strict = true in
+                    let excludes = [x, x'] in
+                    let b = has_crossing_mapped_desc ~strict ~excludes nd nd' in
+                    cache := Some b;
+                    b
+              in
+              f
+            in
+            let check_st_flag =
+              not (nd#data#is_sequence && nd'#data#is_sequence) &&
+              not (nd#data#is_statement && nd'#data#is_statement)
+            in
+            DEBUG_MSG "check_st_flag=%B" check_st_flag;
+
             Array.exists
               (fun n ->
                 try
                   let n' = nmapping#find n in
-                  let b = not (tree2#initial_subtree_mem nd' n') in
+                  let b =
+                    if n'#initial_parent == nd' then
+                      false
+                    else if not (tree2#is_initial_ancestor nd' n') then
+                      true
+                    else if has_crossing_mapped_desc' n' n then
+                      true
+                    else if check_st_flag then
+                      st_has_crossing_mapped_desc n n'
+                    else
+                      false
+                  in
                   DEBUG_MSG "%a -> %a (%B)" nups n nups n' b;
                   b
                 with
@@ -1082,12 +1202,24 @@ module F (Label : Spec.LABEL_T) = struct
               (fun n' ->
                 try
                   let n = nmapping#inv_find n' in
-                  let b = not (tree1#initial_subtree_mem nd n) in
+                  let b =
+                    if n#initial_parent == nd then
+                      false
+                    else if not (tree1#is_initial_ancestor nd n) then
+                      true
+                    else if has_crossing_mapped_desc n n' then
+                      true
+                    else if check_st_flag then
+                      st_has_crossing_mapped_desc n n'
+                    else
+                      false
+                  in
                   DEBUG_MSG "%a <- %a (%B)" nups n nups n' b;
                   b
                 with
                   Not_found -> false
               ) ca'
+
           with
             Not_found -> false
         in
@@ -8240,15 +8372,29 @@ end;
           let xsz1 = Hashtbl.find x_move_size_tbl m1 in
           let c = Stdlib.compare xsz1 xsz0 in
           if c = 0 then
-            let ln0 = get_ln r0 in
-            let ln1 = get_ln r1 in
-            let c = Stdlib.compare ln0 ln1 in
-            if c = 0 then
+
               let ysz0 = Hashtbl.find y_move_size_tbl m0 in
               let ysz1 = Hashtbl.find y_move_size_tbl m1 in
-              Stdlib.compare ysz1 ysz0
-            else
-              c
+              let c = Stdlib.compare ysz1 ysz0 in
+              if c = 0 then
+                let ln0 = get_ln r0 in
+                let ln1 = get_ln r1 in
+                let c = Stdlib.compare ln0 ln1 in
+                c
+              else
+                c
+(*
+              let ln0 = get_ln r0 in
+              let ln1 = get_ln r1 in
+              let c = Stdlib.compare ln0 ln1 in
+              if c = 0 then
+                let ysz0 = Hashtbl.find y_move_size_tbl m0 in
+                let ysz1 = Hashtbl.find y_move_size_tbl m1 in
+                let c = Stdlib.compare ysz1 ysz0 in
+                c
+              else
+                c
+*)
           else
             c
         else
