@@ -225,6 +225,20 @@ let is_capitalized s =
   with
     _ -> false
 
+let is_all_capitalized s =
+  try
+    let c = Char.code s.[0] in
+    65 <= c && c <= 90 &&
+    String.for_all
+      (fun chr ->
+        let c = Char.code chr in
+        65 <= c && c <= 90 ||
+        48 <= c && c <= 57 ||
+        chr = '_'
+      ) s
+  with
+    _ -> false
+
 type literal =
   | Linteger of string
   | LfloatingPoint of string
@@ -992,6 +1006,12 @@ let is_rightmost_id_capitalized n =
   | Nqualified(_, _, _, id) -> is_capitalized id
   | _ -> false
 
+let is_rightmost_id_all_capitalized n =
+  match n.n_desc with
+  | Nsimple(_, id) -> is_all_capitalized id
+  | Nqualified(_, _, _, id) -> is_all_capitalized id
+  | _ -> false
+
 let rightmost_name n =
   match n.n_desc with
   | Nqualified(a, _, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
@@ -1070,6 +1090,11 @@ let is_type name =
   | NAtype _ -> true
   | _ -> false
 
+let is_static name =
+  match get_name_attribute name with
+  | NAstatic _ -> true
+  | _ -> false
+
 let is_package_or_type_name name =
   match get_name_attribute name with
   | NApackageOrType -> true
@@ -1078,6 +1103,11 @@ let is_package_or_type_name name =
 let is_expression name =
   match get_name_attribute name with
   | NAexpression _ -> true
+  | _ -> false
+
+let is_unknown_expression name =
+  match get_name_attribute name with
+  | NAexpression EKunknown -> true
   | _ -> false
 
 let is_unknown_name name =
@@ -1215,8 +1245,10 @@ and proc_primary f p =
       DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
       if is_qualified n then begin
         let q = get_qualifier n in
-        if is_expression q then
-          p.p_desc <- _name_to_facc n
+        if is_expression q then begin
+          p.p_desc <- _name_to_facc n;
+          DEBUG_MSG "[%s] -> %s" (Loc.to_string p.p_loc) (prim_to_string p)
+        end
       end
   end
   | PclassLiteral ty -> proc_type f ty
@@ -1226,13 +1258,16 @@ and proc_primary f p =
   | PfieldAccess (FAimplicit n) when is_type_name n -> begin
       f n;
       DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
-      p.p_desc <- Pname n
+      p.p_desc <- Pname n;
+      DEBUG_MSG "[%s] -> %s" (Loc.to_string p.p_loc) (prim_to_string p)
   end
   | PfieldAccess (FAimplicit n) when is_ambiguous_name n -> begin
       f n;
       DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
-      if is_type_name n then
-        p.p_desc <- Pname n
+      if is_type_name n || is_static n then begin
+        p.p_desc <- Pname n;
+        DEBUG_MSG "[%s] -> %s" (Loc.to_string p.p_loc) (prim_to_string p)
+      end
   end
   | PfieldAccess fa -> proc_field_access f fa
   | PmethodInvocation mi -> proc_method_invocation f mi
@@ -1631,7 +1666,21 @@ and prim_to_string p =
   match p.p_desc with
   | Pname n -> sprintf "Pname:%s" (name_to_string n)
   | PfieldAccess (FAimplicit n) -> sprintf "PfieldAccess:FAimplicit:%s" (name_to_string n)
-  | _ -> "<prim>"
+  | PfieldAccess (FAprimary(p, id)) ->
+      sprintf "PfieldAccess:FAprimary:(%s):%s" (prim_to_string p) id
+  | PfieldAccess _ -> "PfieldAcess"
+  | PqualifiedThis n -> sprintf "PqualifiedThis:%s" (name_to_string n)
+  | Pliteral _ -> "Pliteral"
+  | PclassLiteral _ -> "PclassLiteral"
+  | PclassLiteralVoid -> "PclassLiteralVoid"
+  | Pthis -> "Pthis"
+  | Pparen _ -> "Pparen"
+  | PclassInstanceCreation _ -> "PclassInstanceCreation"
+  | PmethodInvocation _ -> "PmethodInvocation"
+  | ParrayAccess _ -> "ParrayAccess"
+  | ParrayCreationExpression _ -> "ParrayCreationExpression"
+  | PmethodReference _ -> "PmethodReference"
+  | Perror err -> err
 
 and proc_method_invocation f mi =
   let proc = function
@@ -1668,6 +1717,7 @@ and proc_array_access f aa =
   | AAprimary(p, e) ->
       proc_primary f p;
       proc_expression f e
+
 and proc_array_creation_expression f ace =
   match ace with
   | ACEtype(ty, des, _) ->
@@ -1676,6 +1726,7 @@ and proc_array_creation_expression f ace =
   | ACEtypeInit(ty, _, ai) ->
       proc_type f ty;
       proc_array_initializer f ai
+
 and proc_type_declaration f td =
   match td.td_desc with
   | TDclass cd -> proc_class_declaration f cd

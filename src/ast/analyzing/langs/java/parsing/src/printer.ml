@@ -382,9 +382,8 @@ let pr_unary_operator op =
   | UOcomplement    -> "~"
   | UOnot           -> "!")
 
-let pr_binary_operator op =
-  pr_string
-  (match op with
+let binary_operator_to_string op =
+  match op with
   | BOmul     -> "*"
   | BOdiv     -> "/"
   | BOmod     -> "%"
@@ -403,7 +402,10 @@ let pr_binary_operator op =
   | BObitOr   -> "|"
   | BObitXor  -> "^"
   | BOand     -> "&&"
-  | BOor      -> "||")
+  | BOor      -> "||"
+
+let pr_binary_operator op =
+  pr_string (binary_operator_to_string op)
 
 let pr_assignment_operator ao =
   pr_string

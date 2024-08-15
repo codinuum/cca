@@ -2748,8 +2748,8 @@ method_invocation:
 array_access:
 | n=name LBRACKET e=expression RBRACKET               
     { 
-      set_name_attribute (NAexpression EKunknown) n;
       if is_qualified n then begin
+        set_name_attribute (NAexpression EKunknown) n;
         let q = get_qualifier n in
         env#set_attribute_A q
       end;
@@ -2766,11 +2766,11 @@ array_access:
 ;
 
 postfix_expression:
-| p=primary                 { mkexpr $startofs $endofs (Eprimary p) }
+| p=primary { mkexpr $startofs $endofs (Eprimary p) }
 | n=name                      
     { 
-      set_name_attribute (NAexpression EKunknown) n;
       if is_qualified n then begin
+        set_name_attribute (NAexpression EKunknown) n;
         let q = get_qualifier n in
         env#set_attribute_A ~force_defer:true q
       end;

@@ -1398,6 +1398,7 @@ module Expression = struct
     | AssignmentOperator of AssignmentOperator.t * tie_id
     | Lambda
     | Switch
+    | NaryAdd
 
   let get_name = function
     | Primary prim -> Primary.get_name prim
@@ -1423,6 +1424,7 @@ module Expression = struct
       | AssignmentOperator(ao, tid) -> sprintf "%s(%s)" (AssignmentOperator.to_string ao) (tid_to_string tid)
       | Lambda                -> "Lambda"
       | Switch                -> "Switch"
+      | NaryAdd               -> "NaryAdd"
     in
     "Expression." ^ str
 
@@ -1447,6 +1449,7 @@ module Expression = struct
     | AssignmentOperator(ao, tid) -> AssignmentOperator.to_simple_string ao
     | Lambda                -> "<lambda>"
     | Switch                -> "switch"
+    | NaryAdd               -> "(+)()"
 
   let to_short_string = function
     | Cond                  -> mkstr 0
@@ -1458,6 +1461,7 @@ module Expression = struct
     | AssignmentOperator(ao, tid) -> catstr [mkstr 6; AssignmentOperator.to_short_string ao; tid_to_string tid]
     | Lambda                -> mkstr 7
     | Switch                -> mkstr 8
+    | NaryAdd               -> mkstr 9
 
   let to_tag e =
     let name, attrs =
@@ -1471,6 +1475,7 @@ module Expression = struct
       | AssignmentOperator(ao, tid) -> AssignmentOperator.to_tag ao (mktidattr tid)
       | Lambda                -> "Lambda", []
       | Switch                -> "Switch", []
+      | NaryAdd               -> "NaryAdd", []
     in
     name, attrs
 
@@ -3052,6 +3057,7 @@ let is_collapse_target options lab =
     | ForHead _
     | Block _
     | Parameters _
+    | Parameter _
     | MethodBody _
     | ConstructorBody _
     | TypeArguments _
@@ -4030,6 +4036,10 @@ let is_binaryop = function
   | Expression.AssignmentOperator _) -> true
   | _ -> false
 
+let is_binary_add = function
+  | Expression (Expression.BinaryOperator BinaryOperator.Add) -> true
+  | _ -> false
+
 let is_block = function
   | Block _ -> true
   | _ -> false
@@ -4512,6 +4522,7 @@ let of_elem_data =
     "Cast",        (fun a -> mke a Expression.Cast);
     "Lambda",      (fun a -> mke a Expression.Lambda);
     "Switch",      (fun a -> mke a Expression.Switch);
+    "NaryAdd",     (fun a -> mke a Expression.NaryAdd);
 
     "NormalAnnotation",        (fun a -> Annotation (Annotation.Normal(find_name a)));
     "MarkerAnnotation",        (fun a -> Annotation (Annotation.Marker(find_name a)));

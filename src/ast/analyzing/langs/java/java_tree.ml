@@ -1979,6 +1979,7 @@ class translator options =
    nd
 
   method of_expression ?(sub=false) ?(is_stmt=false) e =
+    DEBUG_MSG "sub=%B is_stmt=%B" sub is_stmt;
     let nd =
       match e.Ast.e_desc with
       | Ast.Eprimary prim -> self#of_primary prim
@@ -1987,18 +1988,22 @@ class translator options =
           self#mknode (L.of_unary_operator ~is_stmt unary_op) [self#of_expression expr]
 
       | Ast.Ebinary(bin_op, expr1, expr2) -> begin
+          DEBUG_MSG "bin_op=(%s)" (P.binary_operator_to_string bin_op);
           let nd =
             self#mknode (L.of_binary_operator bin_op)
               [self#of_expression ~sub:true expr1; self#of_expression ~sub:true expr2]
           in
+          DEBUG_MSG "nd=%s" nd#to_string;
+          let is_add n = L.is_binary_add (getlab n) in
           if not sub && options#ignore_huge_exprs_flag then begin
-            let n = new c options nd false in
-            let _ = n#setup_initial_children in
-            (*let _ = n#setup_initial_size in
-              let sz = n#initial_size in*)
+            DEBUG_MSG "@";
+            let t = new c options nd false in
+            let _ = t#setup_initial_children in
+            (*let _ = t#setup_initial_size in
+              let sz = t#initial_size in*)
             let sz =
               let c = ref 0 in
-              n#scan_whole_initial
+              t#scan_whole_initial
                 (fun n ->
                   if L.is_literal (getlab n) then
                     incr c
@@ -2011,10 +2016,36 @@ class translator options =
               let buf = Buffer.create 0 in
               let _oc = new Xchannel.out_channel (Xchannel.Destination.of_buffer buf) in
               let oc = Spec_base.OutChannel.of_xchannel _oc in
-              let _ = n#unparse_ch oc in
+              let _ = t#unparse_ch oc in
               let u = Buffer.contents buf in
               let _ = Spec_base.OutChannel.close oc in
               self#mkleaf (L.HugeExpr(sz, u))
+            end
+            else if is_add nd then begin
+              DEBUG_MSG "@";
+              let t = new c options nd false in
+              let _ = t#setup_initial_children in
+              DEBUG_MSG "t:\n%s" t#to_string;
+              let children = ref [] in
+              try
+                let rec scan n =
+                  DEBUG_MSG "n=%s" n#to_string;
+                  if is_add n then begin
+                    children := n#children.(1) :: !children;
+                    scan n#children.(0)
+                  end
+                  else
+                    children := n :: !children
+                in
+                scan t#root;
+                let nc = List.length !children in
+                DEBUG_MSG "nc=%d" nc;
+                if nc > 3 then
+                  self#mknode (L.Expression L.Expression.NaryAdd) !children
+                else
+                  nd
+              with
+                _ -> nd
             end
             else
               nd

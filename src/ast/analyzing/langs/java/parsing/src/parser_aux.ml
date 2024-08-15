@@ -26,7 +26,8 @@ module P = Printer
 exception Attrs_found of identifier_attribute list
 exception Unknown of string
 exception Type_found of string
-exception Expr_found
+exception Expr_found of expr_kind
+exception Static_found of string
 
 type sub_context =
   | SC_block
@@ -1061,10 +1062,21 @@ class env = object (self)
           DEBUG_MSG "found: %s" (iattr_to_str ia);
           raise (Type_found (if s = "" then id else s))
       end
-      | IAfield | IAarray | IAexpression _ as ia -> begin
+      | IAfield as ia -> begin
           let _ = ia in
           DEBUG_MSG "found: %s" (iattr_to_str ia);
-          raise Expr_found
+          raise (Expr_found EKfacc)
+      end
+      | IAarray | IAexpression _ as ia -> begin
+          let _ = ia in
+          DEBUG_MSG "found: %s" (iattr_to_str ia);
+          nattr_ref := NAexpression EKunknown;
+          raise Not_found
+      end
+      | IAstatic s as ia -> begin
+          let _ = ia in
+          DEBUG_MSG "found: %s" (iattr_to_str ia);
+          raise (Static_found (if s = "" then id else s))
       end
       | _ when not continue -> ()
       | ia -> begin
@@ -1108,7 +1120,8 @@ class env = object (self)
               !nattr_ref
             with
             | Type_found s -> NAtype (R_resolved s)
-            | Expr_found -> NAexpression EKunknown
+            | Expr_found ek -> NAexpression ek
+            | Static_found s -> NAstatic (R_resolved s)
         end
         | _ -> raise Not_found
       in
@@ -1215,8 +1228,11 @@ class env = object (self)
         in
         let attrs = self#lookup_identifier ~afilt ident in
         match List.nth attrs 0 with
-        | IAvariable | IAparameter | IAstatic _ -> NAexpression EKname
+        | IAvariable | IAparameter -> NAexpression EKname
+
         | IAfield -> NAexpression EKfacc
+
+        | IAstatic s -> NAstatic (R_resolved (if s = "" then ident else s))
 
         | IAclass s | IAinterface s | IAtypename s -> begin
             NAtype (R_deferred(ident, self#copy_current_stack, s))
@@ -1628,7 +1644,7 @@ module F (Stat : STATE_T) = struct
           let attrs = env#lookup_identifier id in
           let rec iter = function
             | [] -> raise Not_found
-            | (IAfield | IAstatic _)::_ -> true
+            | IAfield::_ -> true
             | (IAexpression _ | IAarray | IAmethod)::rest -> iter rest
             | _ -> false
           in
@@ -1941,21 +1957,27 @@ module F (Stat : STATE_T) = struct
     DEBUG_MSG "%s" (P.name_to_string name);
     match name.n_desc with
     | Nsimple(a, i) -> begin
+        DEBUG_MSG "a=%s i=%s" (name_attribute_to_string !a) i;
         let lab =
-          try
-            if List.mem IAfield (env#lookup_identifier i) then begin
-              a := NAexpression EKfacc;
-              PfieldAccess(FAimplicit name)
-            end
-            else begin
-              a := NAexpression EKname;
-              Pname name
-            end
-          with
-            Not_found -> begin
-              a := NAambiguous (env#resolve name);
-              PfieldAccess(FAimplicit name)
-            end
+          match !a with
+          | NAexpression EKname | NAstatic _ -> Pname name
+          | NAexpression EKfacc -> PfieldAccess(FAimplicit name)
+          | _ -> begin
+              try
+                if List.mem IAfield (env#lookup_identifier i) then begin
+                  a := NAexpression EKfacc;
+                  PfieldAccess(FAimplicit name)
+                end
+                else begin
+                  a := NAexpression EKname;
+                  Pname name
+                end
+              with
+                Not_found -> begin
+                  a := NAambiguous (env#resolve name);
+                  PfieldAccess(FAimplicit name)
+                end
+          end
         in
         _mkprim name.n_loc lab
     end
@@ -2005,6 +2027,7 @@ module F (Stat : STATE_T) = struct
       end
       else if
         whole && is_simple q &&
+        not (is_leftmost_id_capitalized q) &&
         (
          env#in_static_method ||
          (env#rely_on_naming_convention_flag && is_rightmost_id_capitalized q) ||
@@ -2037,6 +2060,7 @@ module F (Stat : STATE_T) = struct
               end
               | (IAstatic fqn)::_ -> begin
                   DEBUG_MSG "fqn=\"%s\"" fqn;
+                  let fqn = if fqn = "" then id else fqn in
                   set_name_attribute (NAstatic (R_resolved fqn)) n;
                   _mkprim loc (Pname n)
               end
@@ -2053,7 +2077,9 @@ module F (Stat : STATE_T) = struct
             iter (env#lookup_identifier id)
           with
             Not_found -> begin
-              set_name_attribute (NAambiguous (env#resolve n)) n;
+              let na = NAambiguous (env#resolve ~force_defer:true n) in
+              DEBUG_MSG "na=%s" (P.name_attribute_to_string na);
+              set_name_attribute na n;
               DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
               _mkprim loc (PfieldAccess(FAimplicit n))
             end

@@ -127,6 +127,7 @@ let get_prec_of_expression = function
   | L.Expression.Cond -> 3
   | L.Expression.Lambda -> 0
   | L.Expression.Switch -> 0
+  | L.Expression.NaryAdd -> 12
 
 let get_prec = function
   | L.Primary p    -> get_prec_of_primary p
@@ -1405,6 +1406,9 @@ and pr_expression ?(fail_on_error=true) ?(prec=0) e children =
       end;
       pr_nth_child 1
   end
+
+  | L.Expression.NaryAdd -> pb#pr_a (fun () -> pr_string "+") (pr_node ~fail_on_error) children
+
 
 
 let unparse ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) t =
