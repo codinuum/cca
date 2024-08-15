@@ -1407,7 +1407,7 @@ and pr_expression ?(fail_on_error=true) ?(prec=0) e children =
       pr_nth_child 1
   end
 
-  | L.Expression.NaryAdd -> pb#pr_a (fun () -> pr_string "+") (pr_node ~fail_on_error) children
+  | L.Expression.NaryAdd -> pb#pr_a (fun () -> pr_string " + ") (pr_node ~fail_on_error) children
 
 
 
