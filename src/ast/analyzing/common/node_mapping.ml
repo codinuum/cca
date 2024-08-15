@@ -169,7 +169,22 @@ module Json = struct
     else
       ""
 
-  let get_info1 (nd : node_t) =
+  let get_digest tree nd =
+    if nd#data#is_named_orig && nd#initial_nchildren = 0 then
+      nd#data#get_orig_name
+    else
+      let d =
+        match nd#data#_digest with
+        | Some d -> d
+        | None -> tree#get_digest nd
+      in
+      Xhash.to_hex d
+
+  let get_info1
+      ?(is_subtree_root=fun x -> false)
+      tree
+      (nd : node_t)
+      =
     let named_nameless = nd#data#is_named && not nd#data#is_named_orig in
     let name = get_name nd in
     let phantom = nd#data#is_phantom in
@@ -177,6 +192,14 @@ module Json = struct
     let l = ref [] in
     l := (sprintf "\"loc\":%s" (get_loc nd)) :: !l;
     l := (sprintf "\"cat\":%s" (get_cat nd)) :: !l;
+
+    if is_subtree_root nd && not phantom then begin
+      let h = get_digest tree nd in
+      let lgi = (tree#initial_leftmost nd)#gindex in
+      l := (sprintf "\"digest\":\"%s\"" h) :: !l;
+      l := (sprintf "\"leftmost\":\"%a\"" GI.rs lgi) :: !l
+    end;
+
     if name <> "" then
       l := (sprintf "\"name\":\"%s\"" name) :: !l;
     if named_nameless then
@@ -187,7 +210,12 @@ module Json = struct
       l := "\"unordered\":true" :: !l;
     "{"^(String.concat "," !l)^"}"
 
-  let get_info mapped_node_tbl (nd1 : node_t) (nd2 : node_t) =
+  let get_info
+      ?(is_subtree_root=fun x -> false)
+      tree1 tree2
+      mapped_node_tbl
+      (nd1 : node_t) (nd2 : node_t)
+      =
     let named_nameless =
       nd1#data#is_named && not nd1#data#is_named_orig &&
       nd2#data#is_named && not nd2#data#is_named_orig
@@ -208,6 +236,20 @@ module Json = struct
     let l = ref [] in
     l := (sprintf "\"from_loc\":%s,\"to_loc\":%s" (get_loc nd1) (get_loc nd2)) :: !l;
     l := (sprintf "\"from_cat\":%s,\"to_cat\":%s" (get_cat nd1) (get_cat nd2)) :: !l;
+
+    if is_subtree_root nd1 && not nd1#data#is_phantom then begin
+      let h = get_digest tree1 nd1 in
+      let lgi = (tree1#initial_leftmost nd1)#gindex in
+      l := (sprintf "\"from_digest\":\"%s\"" h) :: !l;
+      l := (sprintf "\"from_leftmost\":\"%a\"" GI.rs lgi) :: !l
+    end;
+    if is_subtree_root nd2 && not nd2#data#is_phantom then begin
+      let h = get_digest tree2 nd2 in
+      let lgi = (tree2#initial_leftmost nd2)#gindex in
+      l := (sprintf "\"to_digest\":\"%s\"" h) :: !l;
+      l := (sprintf "\"to_leftmost\":\"%a\"" GI.rs lgi) :: !l
+    end;
+
     if name1 <> "" then
       l := (sprintf "\"from_name\":\"%s\"" name1) :: !l;
     if name2 <> "" then
@@ -278,7 +320,7 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
 
   method lock_node ?(key=Key.any_key) n =
     DEBUG_MSG "locking %a with %s" nups n (Key.to_string key);
-    Nodetbl.add locked_nodes n key
+    Nodetbl.replace locked_nodes n key
 
   method unlock_node n =
     DEBUG_MSG "unlocking %a" nups n;
@@ -612,6 +654,8 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
         end;
         self#clear_crossing_or_incompatible_matches_count_cache;
         self#clear_reptbl();
+        self#unlock_node nd1;
+        self#unlock_node nd2;
         true
       end
       else
@@ -958,9 +1002,13 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
     let mva = Array.of_seq mvs in
     Array.fast_sort (fun (n1, _) (n2, _) -> compare n1#gindex n2#gindex) mva;
 
+    let is_subtree_root x =
+      x#data#is_boundary
+    in
+
     let _fprintf = Json._fprintf in
     let get_gid = Json.get_gid in
-    let get_info = Json.get_info mapped_node_tbl in
+    let get_info = Json.get_info ~is_subtree_root cenv#tree1 cenv#tree2 mapped_node_tbl in
 
     try
       let d = Filename.dirname fname in

@@ -1690,22 +1690,28 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     let mapped_node_tbl = Nodetbl.create 0 in
 
+    let subtree_roots = Xset.create 0 in
+
     self#iter
       (function
         | Delete(_, info, excludes) -> begin
             let nd = Info.get_node info in
             let nds = List.map Info.get_node !excludes in
+            Xset.add subtree_roots nd;
             tree1#scan_initial_cluster (nd, nds) (fun n -> _del_list := n :: !_del_list)
         end
         | Insert(_, info, excludes) -> begin
             let nd = Info.get_node info in
             let nds = List.map Info.get_node !excludes in
+            Xset.add subtree_roots nd;
             tree2#scan_initial_cluster (nd, nds) (fun n -> _ins_list := n :: !_ins_list);
         end
         | Relabel(movrel, (info1, excludes1), (info2, excludes2)) -> begin
             let nd1 = Info.get_node info1 in
             let nd2 = Info.get_node info2 in
             Nodetbl.add mapped_node_tbl nd2 nd1;
+            Xset.add subtree_roots nd1;
+            Xset.add subtree_roots nd2;
             if !movrel then
               _movrel_list := (nd1, nd2) :: !_movrel_list
             else
@@ -1717,6 +1723,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           Nodetbl.add mapped_node_tbl nd2 nd1;
           let nds1 = List.map Info.get_node !excludes1 in
           let nds2 = List.map Info.get_node !excludes2 in
+          Xset.add subtree_roots nd1;
+          Xset.add subtree_roots nd2;
           let el1 = ref [] in
           let el2 = ref [] in
           let add r n = if not (is_ghost_node n) then r := n :: !r in
@@ -1741,9 +1749,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let movrel_list = List.fast_sort cmp2 !_movrel_list in
     let mov_list = List.fast_sort cmp2 !_mov_list in
 
+    let is_subtree_root x =
+      x#data#is_statement && (x#data#is_named || x#initial_nchildren > 0) ||
+      x#data#is_named_orig(* && x#initial_nchildren > 0*) ||
+      Xset.mem subtree_roots x
+    in
+
     let get_gid = Json.get_gid in
-    let get_info1 = Json.get_info1 in
-    let get_info = Json.get_info mapped_node_tbl in
+    let get_info1 = Json.get_info1 ~is_subtree_root in
+    let get_info = Json.get_info ~is_subtree_root tree1 tree2 mapped_node_tbl in
     let _fprintf = Json._fprintf in
 
     try
@@ -1751,13 +1765,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       if not (Xfile.dir_exists d) then
         Xfile.mkdir d;
       let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
-      let dump1 ch l =
+      let dump1 tree ch l =
         let comma_flag = ref false in
         List.iter
           (fun nd ->
             if !comma_flag then
               _fprintf ch ",";
-            let info = get_info1 nd in
+            let info = get_info1 tree nd in
             _fprintf ch "[%a,%s]" GI.rs (get_gid nd) info;
             comma_flag := true
           ) l
@@ -1774,9 +1788,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           ) l
       in
       _fprintf ch "{\"delete\":[";
-      dump1 ch del_list;
+      dump1 tree1 ch del_list;
       _fprintf ch "],\"insert\":[";
-      dump1 ch ins_list;
+      dump1 tree2 ch ins_list;
       _fprintf ch "],\"relabel\":[";
       dump2 ch rel_list;
       _fprintf ch "],\"move+relabel\":[";

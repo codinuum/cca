@@ -282,9 +282,9 @@ module Tree (L : Spec.LABEL_T) = struct
         let short_str = L.to_short_string ~ignore_identifiers_flag lab in
         rep <- short_str;
         short_string <- short_str;
-        match _digest with
+        (*match _digest with
         | Some d -> rep <- String.concat "" [rep;"<";d;">"]
-        | None -> ()
+        | None -> ()*)
 
       method elem_name_for_delta =
         let n, _, _ = self#to_elem_data_for_delta in
