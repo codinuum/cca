@@ -3106,7 +3106,14 @@ lambda_parameters:
       mklp $startofs $endofs (LPident id)
     }
 | LPAREN__LAMBDA l=formal_parameter_list0 RPAREN { mklp $startofs $endofs (LPformal l) }
-| LPAREN__LAMBDA l=clist(identifier)      RPAREN { mklp $startofs $endofs (LPinferred l) }
+| LPAREN__LAMBDA l=clist(identifier)      RPAREN
+    { 
+      List.iter
+        (fun (_, id) ->
+          env#register_identifier id IAparameter
+        ) l;
+      mklp $startofs $endofs (LPinferred l)
+    }
 ;
 
 lambda_body:

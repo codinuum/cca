@@ -671,7 +671,7 @@ and pr_lambda_params params =
   | LPident id     -> pr_id id
   | LPformal fps   -> pr_lparen(); pr_formal_parameters fps; pr_rparen()
   | LPinferred ids ->
-      pr_lparen(); List.iter (fun (_, id) -> pr_id id) ids;pr_rparen()
+      pr_lparen(); pr_hovlist pr_comma (fun (_, id) -> pr_id id) ids; pr_rparen()
 
 and pr_lambda_body prec = function
   | LBexpr expr   -> pr_expression prec expr
