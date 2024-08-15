@@ -320,7 +320,13 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
 
   method lock_node ?(key=Key.any_key) n =
     DEBUG_MSG "locking %a with %s" nups n (Key.to_string key);
-    Nodetbl.replace locked_nodes n key
+    try
+      let k = Nodetbl.find locked_nodes n in
+      DEBUG_MSG "found: %s" (Key.to_string k);
+      if key <> k then
+        Nodetbl.add locked_nodes n key
+    with
+      Not_found -> Nodetbl.add locked_nodes n key
 
   method unlock_node n =
     DEBUG_MSG "unlocking %a" nups n;
