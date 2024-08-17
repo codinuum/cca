@@ -8427,6 +8427,9 @@ end;
           let incompat_nds1 = Xset.create 0 in
           let incompat_nds2 = Xset.create 0 in
 
+          let crossing_nds1 = Xset.create 0 in
+          let crossing_nds2 = Xset.create 0 in
+
           try
             nmapping#iter_crossing_or_incompatible_mapping nd1 nd2
               (fun n1 n2 ->
@@ -8451,6 +8454,10 @@ end;
                             if Node_mapping.is_incompatible tree1 tree2 nd1 nd2 n1 n2 then begin
                               Xset.add incompat_nds1 n1;
                               Xset.add incompat_nds2 n2
+                            end
+                            else(* if is_cross_boundary nmapping n1 n2 then*) begin
+                              Xset.add crossing_nds1 n1;
+                              Xset.add crossing_nds2 n2
                             end;
 
                             if Xset.mem virtually_untouched !id then begin
@@ -8486,8 +8493,24 @@ end;
                 MID.ps mid (get_depth mid) xsz (get_ysz mid) nps nd1 nps nd2;
 
               let anc_ok () =
-                let mem_dom n1 = if Xset.mem incompat_nds1 n1 then false else nmapping#mem_dom n1 in
-                let mem_cod n2 = if Xset.mem incompat_nds2 n2 then false else nmapping#mem_cod n2 in
+                let mem_dom n1 =
+                  if
+                    Xset.mem incompat_nds1 n1 ||
+                    Xset.mem crossing_nds1 n1 && try nd1#initial_parent == n1 with _ -> false
+                  then
+                    false
+                  else
+                    nmapping#mem_dom n1
+                in
+                let mem_cod n2 =
+                  if
+                    Xset.mem incompat_nds2 n2 ||
+                    Xset.mem crossing_nds2 n2 && try nd2#initial_parent == n2 with _ -> false
+                  then
+                    false
+                  else
+                    nmapping#mem_cod n2
+                in
                 let b =
                   try
                     let an1 = Sourcecode.find_nearest_mapped_ancestor_node mem_dom nd1 in
