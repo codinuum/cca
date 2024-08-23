@@ -269,6 +269,7 @@ class pstat = object (self)
   val mutable new_flag = false
   val mutable concept_flag = false
   val mutable requires_clause_flag = false
+  val mutable rhs_flag = false
 
   val bracket_stack_stack = Stack.create()
 
@@ -385,6 +386,7 @@ class pstat = object (self)
     new_flag <- false;
     concept_flag <- false;
     requires_clause_flag <- false;
+    rhs_flag <- false;
     Stack.clear bracket_stack_stack;
     Stack.push (Stack.create() : bracket_kind Stack.t) bracket_stack_stack;
     Stack.clear paren_stack;
@@ -1300,6 +1302,20 @@ class pstat = object (self)
     end
 
   method requires_clause_flag = requires_clause_flag
+
+  method set_rhs_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "rhs_flag set";
+      rhs_flag <- true
+    end
+
+  method clear_rhs_flag () =
+    if rhs_flag then begin
+      DEBUG_MSG "rhs_flag cleared";
+      rhs_flag <- false
+    end
+
+  method rhs_flag = rhs_flag
 
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
@@ -2696,6 +2712,9 @@ class dummy_pstat = object (self)
   method set_requires_clause_flag () = ()
   method clear_requires_clause_flag () = ()
   method requires_clause_flag = false
+  method set_rhs_flag () = ()
+  method clear_rhs_flag () = ()
+  method rhs_flag = false
   method enter_sizeof_ty () = ()
   method exit_sizeof_ty () = ()
   method sizeof_ty_flag = false
@@ -3246,6 +3265,11 @@ class env = object (self)
     let spec = new N.Spec.c nd#loc nd#id i N.Spec.MacroFun in
     top_frame#register ~replace:true i spec
 
+  method register_id_macro_fun i (nd : Ast.node) =
+    DEBUG_MSG "i=%s" i;
+    let spec = new N.Spec.c nd#loc nd#id i N.Spec.IdMacroFun in
+    top_frame#register ~replace:false i spec
+
   method undef_macro i =
     top_frame#remove_macro (Ast.mk_macro_call_id i);
     top_frame#remove_macro (Ast.mk_macro_id i)
@@ -3348,10 +3372,10 @@ class env = object (self)
       let p = stack#get_prefix() in
       let k =
         match nd#label with
-        | EnumHeadEnum       -> N.Spec.Enum s
-        | EnumHeadEnumClass  -> N.Spec.EnumClass s
-        | EnumHeadEnumStruct -> N.Spec.EnumStruct s
-        | EnumHeadEnumMacro i -> N.Spec.EnumMacro(i, s)
+        | EnumHeadEnum | OpaqueEnumDeclaration -> N.Spec.Enum s
+        | EnumHeadEnumClass | OpaqueEnumDeclarationClass -> N.Spec.EnumClass s
+        | EnumHeadEnumStruct | OpaqueEnumDeclarationStruct -> N.Spec.EnumStruct s
+        | EnumHeadEnumMacro i | OpaqueEnumDeclarationMacro i -> N.Spec.EnumMacro(i, s)
         | _ -> assert false
       in
       let spec = new N.Spec.c ~prefix:p nd#loc nd#id qn k in
@@ -3519,11 +3543,19 @@ class env = object (self)
     DEBUG_MSG "nd=%s" (L.to_string nd#label);
     let frm = stack#top in
     let scope = frm#scope in
+    let enumclass_flag = N.Scope.is_enumclass scope in
+    DEBUG_MSG "enumclass_flag=%B" enumclass_flag;
     let p = stack#get_prefix() in
     try
       List.iter
         (fun (n, qn, ty) ->
-          let spec = new N.Spec.c ~prefix:p n#loc n#id qn (N.Spec.make_enumerator ty) in
+          let kind =
+            if enumclass_flag then
+              N.Spec.make_classenumerator ty
+            else
+              N.Spec.make_enumerator ty
+          in
+          let spec = new N.Spec.c ~prefix:p n#loc n#id qn kind in
           n#set_info (I.from_spec spec);
           frm#register qn spec
         ) (Ast.qn_type_list_of_enumerator scope nd)
@@ -3560,6 +3592,11 @@ class env = object (self)
     in
     List.iter
       (fun (n, qn, ty) ->
+        DEBUG_MSG "qn=%s ty=%s" qn (Type.to_string ty);
+        let t = Type.wrap ty in
+        Type.hoist_typedef t;
+        let typedef_flag = t.Type.t_typedef in
+        DEBUG_MSG "typedef_flag=%B" typedef_flag;
         let bid =
           if is_local then
             self#make_local_bid()
@@ -3575,9 +3612,14 @@ class env = object (self)
         in
         let lod = n#loc in
         let iod = n#id in
+        let kind =
+          if typedef_flag then
+            N.Spec.Type
+          else
+            N.Spec.make_variable ty
+        in
         let spec =
-          new N.Spec.c ~bid_opt ~prefix:p ~is_local ~section_info_opt lod iod qn
-            (N.Spec.make_variable ty)
+          new N.Spec.c ~bid_opt ~prefix:p ~is_local ~section_info_opt lod iod qn kind
         in
         n#set_info (I.from_spec spec);
         if is_local then begin
@@ -3995,6 +4037,10 @@ class env = object (self)
   method set_requires_clause_flag = pstat#set_requires_clause_flag
   method clear_requires_clause_flag = pstat#clear_requires_clause_flag
   method requires_clause_flag = pstat#requires_clause_flag
+
+  method set_rhs_flag = pstat#set_rhs_flag
+  method clear_rhs_flag = pstat#clear_rhs_flag
+  method rhs_flag = pstat#rhs_flag
 
   method set_alias_flag = pstat#set_alias_flag
   method clear_alias_flag = pstat#clear_alias_flag

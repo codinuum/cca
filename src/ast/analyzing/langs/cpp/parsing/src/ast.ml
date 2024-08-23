@@ -31,7 +31,7 @@ module Type = Pinfo.Type
 open Common
 
 let mk_macro_id i = "`"^i
-let mk_macro_call_id i = "`"^i^"()"
+let mk_macro_call_id ?(args="") i = sprintf "`%s(%s)" i args
 
 class node
     ?(lloc=LLoc.dummy)
@@ -1008,7 +1008,10 @@ and qn_of_class_head_name (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
   | ClassHeadName qn -> qn
-  | IdentifierMacroInvocation i -> mk_macro_call_id i
+  | IdentifierMacroInvocation i -> begin
+    let args = String.concat "," (List.map (fun x -> L.to_simple_string x#label) nd#children) in
+    (mk_macro_call_id ~args i)
+  end
   | _ -> uqn_of_class_name nd
 
 and qn_of_enum_head_name (nd : node) =
@@ -1299,7 +1302,10 @@ and qn_class_spec_of_class ns (nd : node) =
 and qn_enum_spec_of_enum ns (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | EnumHeadEnum | EnumHeadEnumClass | EnumHeadEnumStruct -> begin
+  | EnumHeadEnum | EnumHeadEnumClass | EnumHeadEnumStruct
+  | OpaqueEnumDeclaration
+  | OpaqueEnumDeclarationClass
+  | OpaqueEnumDeclarationStruct -> begin
       let qn =
         match nd#nth_children 1 with
         | [] -> ""
@@ -1315,10 +1321,13 @@ and qn_enum_spec_of_enum ns (nd : node) =
       let spec = new N.Spec.enum_spec ~enum_base qn in
       qn, spec
   end
-  | EnumHeadEnumMacro i when i = "NS_ENUM" || i = "NS_OPTIONS" -> begin
-      let qn = (nd#nth_child 1)#get_name in
-      let spec = new N.Spec.enum_spec qn in
-      qn, spec
+  | EnumHeadEnumMacro i | OpaqueEnumDeclarationMacro i when begin
+      i = "NS_ENUM" ||
+      i = "NS_OPTIONS"
+  end -> begin
+    let qn = (nd#nth_child 1)#get_name in
+    let spec = new N.Spec.enum_spec qn in
+    qn, spec
   end
   | _ -> invalid_arg "Cpp.Ast.qn_enum_spec_of_enum"
 
@@ -1440,7 +1449,14 @@ and qn_type_list_of_enumerator scope (nd : node) =
     | _ -> invalid_arg "Cpp.Ast.qn_type_list_of_enumerator"
   in
   let qn = get_qn nd in
-  let ts = I.TypeSpec.Elaborated (I.ElaboratedType.Enum (N.Scope.get_name scope)) in
+  let et =
+    let n = N.Scope.get_name scope in
+    if N.Scope.is_enumclass scope then
+      I.ElaboratedType.EnumClass n
+    else
+      I.ElaboratedType.Enum n
+  in
+  let ts = I.TypeSpec.Elaborated et in
   let ty = I.Type.make_simple_type (new I.decl_specs) [ts] (I.TypeSpec.encode [ts]) in
   [nd, qn, ty]
 
@@ -2084,9 +2100,9 @@ and simple_type_of_decl_spec_seq (nds : node list) =
                 let k =
                   match y#label with
                   | EnumHeadEnum
-                  | EnumHeadEnumClass
-                  | EnumHeadEnumStruct
                   | EnumHeadEnumMacro _ -> fun x -> I.ElaboratedType.Enum x
+                  | EnumHeadEnumClass
+                  | EnumHeadEnumStruct -> fun x -> I.ElaboratedType.EnumClass x
                   | lab ->
                       DEBUG_MSG "%s" (L.to_string lab);
                       assert false

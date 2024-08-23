@@ -4213,6 +4213,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_assignment_operator), _, _ -> begin
                 scanner#ctx_expr();
+                env#set_rhs_flag();
                 raise Exit
             end
             (*| I.X (I.N N_pp_a_if_group), _, I.X (I.T T_LT_LT) -> begin

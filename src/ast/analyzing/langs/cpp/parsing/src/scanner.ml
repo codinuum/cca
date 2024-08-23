@@ -1392,6 +1392,7 @@ let flags_to_str e =
     "using_ns",                        e#using_ns_flag;
     "value",                           e#value_flag;
     "virtual_func",                    e#virtual_func_flag;
+    "rhs",                             e#rhs_flag;
    ] in
   String.concat "" (List.map (fun (k, v) -> "["^k^"]") (List.filter (fun (k, v) -> v) l))
 
@@ -1624,7 +1625,7 @@ let count_brackets =
       | _ -> oc, cc
     ) (0, 0)
 
-type name_kind = K_NONE | K_TYPE | K_OBJ | K_TEMPL
+type name_kind = K_NONE | K_TYPE | K_TYPE_OR_FPARAM | K_OBJ | K_TEMPL
 
 class type c_t = object
   method keep_flag : bool
@@ -1678,19 +1679,20 @@ class type c_t = object
   method find_ident_conv : string -> T.token
 
   method lookup_name : ?kind:name_kind -> ?prefix:string -> string -> Pinfo.Name.Spec.c
-  method is_type : ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
+  method is_type : ?qualified:bool -> ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
   method is_label : string -> bool
   method is_templ : ?prefix:string -> string -> bool
   method is_val : ?prefix:string -> string -> bool
   method _is_val : string -> bool
   method is_macro_fun : string -> bool
+  method is_id_macro_fun : string -> bool
   method is_macro_obj : string -> bool
 
   method reg_macro_fun : string -> unit
 
   method is_ty : ?strong:bool -> ?defined:bool -> ?weak:bool -> T.token -> bool
-  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list -> bool
-  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list list -> bool
+  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> ?no_lookup:bool -> T.token list -> bool
+  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> ?no_lookup:bool -> T.token list list -> bool
   method check_if_macro_arg : T.token list -> bool
   method check_if_macro_args : T.token list list -> bool
   method check_if_noptr_dtor : ?weak:bool -> T.token list -> bool
@@ -1897,8 +1899,19 @@ let is_op = function
   | PLUS | MINUS | STAR | PTR_STAR | SLASH | PERC
   | HAT _ | PTR_HAT | PTR_AMP | AMP _ | BAR _ | LT_LT | GT_GT | PLUS_EQ | MINUS_EQ
   | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
-  | LT_LT_EQ | GT_GT_EQ | EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
+  | LT_LT_EQ | GT_GT_EQ | EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | LT_EQ_GT | GT_EQ
   | LT | GT | TEMPL_LT | TY_TEMPL_GT(* | PLUS_PLUS | MINUS_MINUS*)
+  | DOT | MINUS_GT | DOT_STAR | MINUS_GT_STAR -> true
+  | QUEST -> true
+  | _ -> false
+
+let _is_op = function
+  | T.AMP_AMP _ | BAR_BAR _
+  | PLUS | MINUS | STAR | SLASH | PERC
+  | HAT _ | AMP _ | BAR _ | LT_LT | GT_GT | PLUS_EQ | MINUS_EQ
+  | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
+  | LT_LT_EQ | GT_GT_EQ | EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
+  | LT | GT
   | DOT | MINUS_GT | DOT_STAR | MINUS_GT_STAR -> true
   | QUEST -> true
   | _ -> false
@@ -2230,6 +2243,21 @@ let rev_skip_pp_l =
   in
   skip
 
+let rev_filt_pp =
+  let is_pp rt =
+    match (rt : T.token) with
+    | PP_ENDIF _ | PP_IF | PP_IFDEF | PP_IFNDEF | PP_ELIF _ | PP_ELSE _ -> true
+    | x -> is_pp_control_line x
+  in
+  let rec filt skip_flag = function
+    | [] -> []
+    | h::tl when is_pp h -> filt false tl
+    | T.NEWLINE::tl -> filt true tl
+    | x::tl when skip_flag -> filt skip_flag tl
+    | x::tl -> x::(filt skip_flag tl)
+  in
+  filt false
+
 let make_pp_else info = T.PP_ELSE (ref (Pinfo.pp_if_cond_to_string info.Pinfo.i_cond))
 
 let make_pp_endif info = T.PP_ENDIF (ref (Pinfo.pp_if_cond_to_string info.Pinfo.i_cond))
@@ -2278,13 +2306,39 @@ let conv_token (env : Aux.env) scanner (token : token) =
     else
       env#stack#get_prefix ~class_only:true ()
   in
+  let full_prefix =
+    if prev_rawtoken == COLON_COLON then
+      prefix
+    else
+      env#stack#get_prefix ~class_only:false ()
+  in
 
-  let is_type = self#is_type ~prefix in
+  let is_type ?(qualified=false) ?(defined=false) ?(weak=false) x =
+    DEBUG_MSG "x=%s prefix=%s full_prefix=%s" x prefix full_prefix;
+    let b =
+      self#is_type ~qualified ~prefix ~defined ~weak x ||
+      self#is_type ~qualified ~prefix:full_prefix ~defined ~weak x
+    in
+    b
+  in
   let is_label = self#is_label in
-  let is_templ = self#is_templ ~prefix in
-  let is_val = self#is_val ~prefix in
+  let is_templ x =
+    let b =
+      self#is_templ ~prefix x ||
+      self#is_templ ~prefix:full_prefix x
+    in
+    b
+  in
+  let is_val x =
+    let b =
+      self#is_val ~prefix x ||
+      self#is_val ~prefix:full_prefix x
+    in
+    b
+  in
   let _is_val = self#_is_val in
   let is_macro_fun = self#is_macro_fun in
+  let is_id_macro_fun = self#is_id_macro_fun in
   let check_if_macro_args = self#check_if_macro_args in
   let check_if_noptr_dtor = self#check_if_noptr_dtor in
   let check_if_noptr_dtor_ = self#check_if_noptr_dtor_ in
@@ -4946,6 +5000,30 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
         | TY_LPAREN when begin
             match prev_rawtoken with
+            | RETURN -> true
+            | _ -> false
+        end && begin
+          let nth, ll =
+            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+          in
+          DEBUG_MSG "\n%s"
+            (String.concat "\n"
+               (List.map
+                  (fun x -> String.concat ";"
+                      (List.map Token.rawtoken_to_string x)) ll));
+          List.exists
+            (function
+              | T.IDENT x::_ -> is_type x && begin
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+            ) ll
+        end -> DEBUG_MSG "RETURN @ TY_LPAREN ... RPAREN SEMICOLON"; mk (T.IDENT_EM s)
+
+        | TY_LPAREN when begin
+            match prev_rawtoken with
             | COMMA | LPAREN | QUEST -> true
             | _ -> false
         end && begin
@@ -5626,11 +5704,20 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | _ -> false
             end -> DEBUG_MSG "* @ *"; mk (T.IDENT_IM s)
 
-            | _ when prev_rawtoken != COLON_COLON && context == EXPR && begin
+            | _ when begin
+                prev_rawtoken != COLON_COLON &&
+                context == EXPR &&
+                (
+                 not env#stack#at_top ||
+                 macro_body_parsing_flag ||
+                 env#at_paren ||
+                 env#braced_init_flag
+                ) &&
                 match self#peek_rawtoken() with
                 | TY_LPAREN -> begin
+                    let ignore_templ_lv = true in
                     let nth, ll =
-                      self#peek_rawtoken_up_to_rparen_split_at_comma ~ignore_templ_lv:true ~from:2 ()
+                      self#peek_rawtoken_up_to_rparen_split_at_comma ~ignore_templ_lv ~from:2 ()
                     in
                     let nth, ll =
                       if
@@ -5638,9 +5725,12 @@ let conv_token (env : Aux.env) scanner (token : token) =
                           (fun l ->
                             match (l : T.token list) with
                             | IDENT _::TEMPL_LT::IDENT _::_ -> true
+                            | x::_ when is_basic_ty x -> true
+                            | IDENT x::_ when is_type x -> true
                             | _ ->
                             match (List.rev l : T.token list) with
                             | [IDENT _;T.TEMPL_LT;x] when is_basic_ty x -> true
+                            | [IDENT _;T.TEMPL_LT;IDENT x] when is_type x -> true
                             | IDENT _::TEMPL_LT::IDENT _::_ -> true
                             | _ -> false
                           ) ll
@@ -5654,20 +5744,27 @@ let conv_token (env : Aux.env) scanner (token : token) =
                          (List.map
                             (fun x -> String.concat ";"
                                 (List.map Token.rawtoken_to_string x)) ll));
+                    (
+                     match self#peek_nth_rawtoken (nth+1) with
+                     | IDENT _ -> false
+                     | _ -> true
+                    ) &&
                     List.exists
                       (function
                         | [] -> true
                         | T.SEMICOLON _::_ -> true
                         | [PLUS_PLUS|MINUS_MINUS] -> true
                         | [x] when is_op x -> true
-                        | [x] when
+                        | [x] when begin
                             is_basic_ty x &&
                             (prev_rawtoken != RPAREN || env#end_of_cast_type_flag)
-                          -> true
+                        end -> true
 
-                        | [IDENT x] when
+                        | [IDENT x] when begin
                             (is_type_name x || is_type x) && prev_rawtoken != RPAREN
-                          -> true
+                        end -> true
+
+                        | IDENT x::_ when is_type x -> true
 
                         | (T.PTR_STAR|PTR_AMP|PTR_AMP_AMP)::r ->
                             not (list_memqn [T.TEMPL_LT;TY_TEMPL_GT] r)
@@ -5696,7 +5793,31 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
             | _ when env#cast_head_flag && is_type ~defined:true s -> DEBUG_MSG "* @ *"; token
 
-            | _ when is_type s -> DEBUG_MSG "* @ *"; token
+            | DOT | MINUS_GT when begin
+                match self#peek_rawtoken() with
+                | x when is_aop x || is_op x -> true
+                | LBRACKET | SEMICOLON _ -> true
+                | _ -> false
+            end -> DEBUG_MSG "(DOT|MINUS_GT) @ (LBRACKET|SEMICOLON|aop|op)"; mk (T.IDENT_V s)
+
+            | x when begin
+                (is_aop x || _is_op x) &&
+                match self#peek_rawtoken() with
+                | x when is_aop x || is_op x -> true
+                | LBRACKET | SEMICOLON _ -> true
+                | _ -> false
+            end -> DEBUG_MSG "(aop|op) @ (LBRACKET|SEMICOLON|aop|op)"; mk (T.IDENT_V s)
+
+            | x when begin
+                match x with
+                | DOT | MINUS_GT -> false
+                | x when is_uop x -> false
+                | LPAREN | COMMA when begin
+                    env#at_arg_paren &&
+                    (env#at_macro_arg_paren_2 || env#new_flag)
+                end -> false
+                | _ -> is_type s
+            end -> DEBUG_MSG "* @ *"; token
 
             | LPAREN when begin
                 match self#peek_rawtoken() with
@@ -6569,6 +6690,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
                 match self#peek_nth_rawtoken (nth+1) with
                 | EQ -> true
+                | SEMICOLON _ when env#end_of_enum_spec_flag -> true
                 | LBRACKET when
                     self#peek_nth_rawtoken (nth+2) == RBRACKET &&
                     self#peek_nth_rawtoken (nth+3) == EQ
@@ -7090,6 +7212,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
             end -> DEBUG_MSG "@ TY_LPAREN"; token
 
             | TY_LPAREN when begin
+                is_ty _rawtok &&
+                match prev_rawtoken with
+                | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
+                | _ -> false
+            end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_V s)
+
+            | TY_LPAREN when begin
                 is_ty _rawtok
             end -> DEBUG_MSG "@ TY_LPAREN"; token
 
@@ -7341,9 +7470,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
             end -> DEBUG_MSG "(CONST|RPAREN|...) @ TY_LPAREN"; mk (T.IDENT_AM s)
 
             | TY_LPAREN when begin
-                is_id_or_ty_macro_ident s &&
                 match prev_rawtoken with
                 | IDENT _ -> begin
+                    is_id_or_ty_macro_ident s &&
                     let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
                     match self#peek_nth_rawtoken (nth+1) with
                     | IDENT x -> begin
@@ -7353,6 +7482,14 @@ let conv_token (env : Aux.env) scanner (token : token) =
                         | SEMICOLON _ -> true
                         | _ -> false
                     end
+                    | _ -> false
+                end
+                | RBRACE -> begin
+                    env#end_of_class_spec_flag &&
+                    is_id_macro_fun s &&
+                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                    match self#peek_nth_rawtoken (nth+1) with
+                    | SEMICOLON _ | COMMA -> true
                     | _ -> false
                 end
                 | _ -> false
@@ -7945,19 +8082,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
         end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_SM s)
 
         | TY_LPAREN when begin
+            is_start_of_stmt() &&
             match prev_rawtoken with
             | LBRACE | RBRACE | SEMICOLON _ | NEWLINE -> begin
                 let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
                 match self#peek_nth_rawtoken (nth+1) with
-                | EQ -> true
-                | LBRACKET when
-                    self#peek_nth_rawtoken (nth+2) == RBRACKET &&
-                    self#peek_nth_rawtoken (nth+3) == EQ
-                  -> true
+                | EQ -> check_if_macro_args ll
                 | _ -> false
             end
             | _ -> false
-        end -> DEBUG_MSG "* @"; mk (T.IDENT_IM s)
+        end -> DEBUG_MSG "* @ TY_LPAREN ... RPAREN EQ"; mk (T.IDENT_IM s)
 
         | TY_LPAREN when begin
             match self#peek_nth_rawtoken 2 with
@@ -8267,12 +8401,12 @@ let conv_token (env : Aux.env) scanner (token : token) =
               Not_found ->
             let cands =
               match self#peek_rawtoken() with
-              | TY_LPAREN | LPAREN -> [mk (T.IDENT_V s); mk (T.IDENT_SM s);]
+              | TY_LPAREN | LPAREN -> [mk (T.IDENT_V s); mk (T.IDENT_SM s)]
               | IDENT _ -> [mk (T.IDENT_V s); mk (T.STMT_MACRO s)]
               | PP_IF | PP_IFDEF | PP_IFNDEF -> begin
                   let nth, l = self#peek_rawtoken_up_to [T.NEWLINE] in
                   match self#peek_nth_rawtoken (nth+1) with
-                  | TY_LPAREN | LPAREN -> [mk (T.IDENT_V s); mk (T.IDENT_SM s);]
+                  | TY_LPAREN | LPAREN -> [mk (T.IDENT_V s); mk (T.IDENT_SM s)]
                   | IDENT _ -> [mk (T.IDENT_V s); mk (T.STMT_MACRO s)]
                   | _ -> [mk (T.IDENT_V s)]
               end
@@ -9371,6 +9505,21 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       let nth, ll =
                         self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
                       in
+                      List.exists
+                        (function
+                          | T.IDENT x::_ when is_type x -> true
+                          | x::_ when is_basic_ty x -> true
+                          | _ -> false
+                        ) ll &&
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | DOT | MINUS_GT -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_EM s)
+
+                  | TY_LPAREN when begin
+                      let nth, ll =
+                        self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+                      in
                       match self#peek_nth_rawtoken (nth+1) with
                       | DOT | MINUS_GT | SEMICOLON _ -> true
                       | _ -> false
@@ -10207,6 +10356,17 @@ let conv_token (env : Aux.env) scanner (token : token) =
            | STR_LITERAL _ | USER_STR_LITERAL _ | STR_MACRO _ | PP_STRINGIZED _ -> true
            | _ -> false
         end -> DEBUG_MSG "LPAREN @"; mk (T.STR_MACRO s)
+
+        | COMMA | LPAREN when env#at_macro_arg_paren && begin
+            match self#peek_rawtoken() with
+            | PTR_STAR -> begin
+                match self#peek_nth_rawtoken 2 with
+                | COMMA | RPAREN -> true
+                | PTR_STAR -> true
+                | _ -> false
+            end
+            | _ -> false
+        end -> DEBUG_MSG "(COMMA|LPAREN) @"; token
 
         | LPAREN | COMMA | DECL_MACRO _ when begin
             DEBUG_MSG "(LPAREN|COMMA|DECL_MACRO) @";
@@ -11645,7 +11805,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   mk (T.IDENT_AM s)
                 end
 
-                | COMMA when env#at_macro_arg_paren && begin
+                (*| COMMA when env#at_macro_arg_paren && begin
                     let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
                     DEBUG_MSG "\n%s"
                       (String.concat "\n"
@@ -11658,7 +11818,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end -> begin
                   DEBUG_MSG "COMMA @ TY_LPAREN";
                   token
-                end
+                end*)
 
                 | COMMA when env#param_head_flag -> begin
                   DEBUG_MSG "COMMA @ TY_LPAREN";
@@ -12125,10 +12285,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
                                 match self#peek_nth_rawtoken (nth'+1) with
                                 | LBRACE | SEMICOLON _ -> DEBUG_MSG "@"; mk (T.IDENT_DSM s)
 
-                                | _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                                | _ -> DEBUG_MSG "@ TY_LPAREN ... RPAREN IDENT TY_LPAREN"; mk (T.IDENT_V s)
                             end
                         end
-                        | LBRACKET -> DEBUG_MSG "@"; mk (T.IDENT_TM s)
+                        | LBRACKET -> DEBUG_MSG "@ TY_LPAREN ... RPAREN IDENT LBRACKET"; mk (T.IDENT_TM s)
 
                         | IDENT y when begin
                             DEBUG_MSG "y=%s" y;
@@ -12136,7 +12296,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                             | TY_LPAREN -> chk (nth2+2)
                             | IDENT _ -> chk_sub (nth2+2)
                             | _ -> false
-                        end -> DEBUG_MSG "@"; mk (T.IDENT_TM s)
+                        end -> DEBUG_MSG "@ TY_LPAREN ... RPAREN IDENT"; mk (T.IDENT_TM s)
 
                         | SEMICOLON _ when not (is_capital_ident x)
                           -> DEBUG_MSG "@"; mk (T.IDENT_TM s)
@@ -13149,6 +13309,17 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       self#ctx_expr();
                       mk (T.IDENT_V s)
                     end
+
+                    | COMMA | LPAREN when env#at_macro_arg_paren && begin
+                        match self#peek_rawtoken() with
+                        | PTR_STAR -> begin
+                            match self#peek_nth_rawtoken 2 with
+                            | COMMA | RPAREN -> true
+                            | PTR_STAR -> true
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end -> DEBUG_MSG "(COMMA|LPAREN) @"; token
 
                     | COMMA when begin
                         not env#ty_param_flag &&
@@ -14334,7 +14505,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
            | RPAREN -> prev_rawtoken3 == AUTO
            (*| PTR_STAR | PTR_AMP | PTR_AMP_AMP -> prev_rawtoken3 == COMMA*)
            | _ -> false
-        end -> DEBUG_MSG "@"; token
+        end -> DEBUG_MSG "IDENT_V @"; token
 
         | IDENT_V _ when begin
            match prev_rawtoken2 with
@@ -14351,7 +14522,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                | _ -> false
            end
            | _ -> false
-        end -> DEBUG_MSG "@"; mk T.LPAREN
+        end -> DEBUG_MSG "(MINUS_GT|...) IDENT_V @"; mk T.LPAREN
 
         | NEW when begin
             match self#peek_rawtoken() with
@@ -14465,6 +14636,17 @@ let conv_token (env : Aux.env) scanner (token : token) =
         | TYPEID when begin
             match self#peek_rawtoken() with
             | TYPENAME -> true
+            | IDENT _ -> begin
+                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
+                DEBUG_MSG "|ll|=%d\n%s" (List.length ll)
+                  (String.concat "\n"
+                     (List.map
+                        (fun x -> String.concat ";"
+                            (List.map Token.rawtoken_to_string x)) ll));
+                match ll with
+                | [IDENT x::_] when is_type ~defined:true x -> true
+                | _ -> false
+            end
             | _ -> false
         end -> DEBUG_MSG "TYPEID @"; token
 
@@ -14477,7 +14659,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | _ -> true
         end -> DEBUG_MSG "IDENT_V @"; token
 
-        | IDENT_V _ when
+        | IDENT_V _ when begin
             let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
             List.exists
               (fun l ->
@@ -14485,7 +14667,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | [x] when is_literal x -> true
                 | _ -> false
               ) ll
-          -> DEBUG_MSG "IDENT_V @"; mk T.LPAREN
+        end -> DEBUG_MSG "IDENT_V @"; mk T.LPAREN
 
         | DOT_STAR | MINUS_GT_STAR when begin
             let nth, l = self#peek_rawtoken_up_to_rparen_none() in
@@ -14991,7 +15173,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       end
                       | _ -> false
                   end -> begin
-                    DEBUG_MSG "@";
+                    DEBUG_MSG "@ ... RPAREN TY_LPAREN";
                     conv_nth_token (function T.TY_LPAREN,s,e -> T.TY_LPAREN_,s,e | x -> x) (nth+1);
                     token
                   end
@@ -15035,7 +15217,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                           | _ -> false
                       end
                       | _ -> false
-                  end -> DEBUG_MSG "@"; token
+                  end -> DEBUG_MSG "@ ... RPAREN TY_LPAREN"; token
 
                   | TY_LPAREN when not (is_ident prev_rawtoken) && begin
                       match ll with
@@ -15057,7 +15239,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | DOT | MINUS_GT when List.length ll = 1 -> true
                     | SEMICOLON _ when !param_flag -> true
                     | _ -> false
-                  end -> DEBUG_MSG "@"; token
+                  end -> DEBUG_MSG "@ ... RPAREN TY_LPAREN"; token
 
                   | TY_LPAREN when begin
                       prev_rawtoken == EQ &&
@@ -15072,7 +15254,14 @@ let conv_token (env : Aux.env) scanner (token : token) =
                           | _ -> false
                       end
                       | _ -> false
-                  end -> DEBUG_MSG "@"; token
+                  end -> DEBUG_MSG "@ ... RPAREN TY_LPAREN"; token
+
+                  | TY_LPAREN when begin
+                      context == EXPR &&
+                      match ll with
+                      | [IDENT x::_] when is_type ~defined:true x -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@ ... RPAREN TY_LPAREN"; token
 
                   | LBRACKET when begin
                       (match prev_rawtoken with
@@ -16159,6 +16348,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~lv_ofs:1 () in
             (match ll with
             | [[(PTR_STAR|PTR_AMP|PTR_AMP_AMP);IDENT _]] -> true
+            | [IDENT x::_] when is_type x -> true
             | _ -> false) ||
             (List.exists
                (function
@@ -16707,12 +16897,68 @@ let conv_token (env : Aux.env) scanner (token : token) =
             DEBUG_MSG "%s" (Token.rawtoken_to_string (self#peek_nth_rawtoken (nth+1)));
             match self#peek_nth_rawtoken (nth+1) with
             | TY_TEMPL_GT | GT_GT when env#templ_arg_flag -> true
-            | LBRACE | SEMICOLON _ | COLON when check_if_params ~weak:true ll -> false
+            | LBRACE | SEMICOLON _ | COLON | CONST when check_if_params ~weak:true ll -> false
             | EQ when begin
                 match self#peek_nth_rawtoken (nth+2) with
                 | DEFAULT | DELETE -> true
                 | _ -> false
             end -> false
+            | IDENT _ when begin
+                check_if_macro_args ll &&
+                match self#peek_nth_rawtoken (nth+2) with
+                | IDENT _ -> begin
+                    match self#peek_nth_rawtoken (nth+3) with
+                    | TY_LPAREN -> begin
+                        let nth', ll' =
+                          self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+4) ()
+                        in
+                        check_if_macro_args ll'
+                    end
+                    | _ -> false
+                end
+                | _ -> false
+            end -> true
+            | SEMICOLON _ when begin
+                try
+                  let scope = env#stack#top#scope in
+                  DEBUG_MSG "scope=%s" (Pinfo.Name.Scope.to_string scope);
+                  match scope with
+                  | Class i -> begin
+                      let s_ = Pinfo.encode_ident s in
+                      DEBUG_MSG "prefix=%s full_prefix=%s" prefix full_prefix;
+                      DEBUG_MSG "i=%s s_=%s" i s_;
+                      i = s_ ||
+                      i = prefix && Xstring.endswith prefix s_ ||
+                      i = full_prefix && Xstring.endswith full_prefix s_
+                  end
+                  | _ -> false
+                with
+                  _ -> false
+            end -> false
+            | SEMICOLON _ when begin
+                let is_class = function
+                  | Pinfo.Name.Spec.Class _ | Struct _ | Union _
+                  | Enum _ | EnumClass _ | EnumStruct _ -> true
+                  | _ -> false
+                in
+                env#stack#at_class &&
+                try
+                  let spec = self#lookup_name s in
+                  match (spec#kind : Pinfo.Name.Spec.kind) with
+                  | Template k when is_class k -> true
+                  | k when is_class k -> true
+                  | _ -> false
+                with
+                  Not_found -> false
+            end -> false
+            | SEMICOLON _ when begin
+                DEBUG_MSG "@";
+                (env#stack#at_top || env#stack#at_namespace || env#stack#at_class) &&
+                match prev_rawtoken2 with
+                | SEMICOLON _ | NEWLINE ->
+                    not (check_if_params ~strict:false ~weak:true ~no_lookup:true ll)
+                | _ -> false
+            end -> true
             | _ ->
                 is_macro_fun s ||
                 match context, sub_context with
@@ -16810,7 +17056,11 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     end
                     | l -> begin
                         match (List.rev l : T.token list) with
-                        | x::y::_ when is_ty x && y != COLON_COLON -> true
+                        | x::y::_ when begin
+                            match y with
+                            | COLON_COLON | TY_LPAREN -> false
+                            | _ -> is_ty x
+                        end -> true
                         | _ -> false
                     end
                   ) ll
@@ -16838,7 +17088,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             match env#stack#top#scope with
             | Class i -> i = Pinfo.encode_ident x
             | _ -> false
-        end -> DEBUG_MSG "IDENT @"; token
+        end -> DEBUG_MSG "IDENT_V @"; token
 
         | _ -> begin
             DEBUG_MSG "* @";
@@ -16931,8 +17181,20 @@ let conv_token (env : Aux.env) scanner (token : token) =
                                           )) ll) &&
                         match self#peek_nth_rawtoken (nth+1) with
                         | COLON | SEMICOLON _ | LBRACE -> true
+                        | PP_ENDIF _ -> begin
+                            let nth', _ = self#peek_rawtoken_up_to ~from:(nth+2) [T.NEWLINE] in
+                            match self#peek_nth_rawtoken (nth'+1) with
+                            | COLON | SEMICOLON _ | LBRACE -> true
+                            | _ -> false
+                        end
+                        | PP_ELIF _ | PP_ELSE _ -> begin
+                            let nth' = self#peek_rawtoken_up_to_section_end ~from:(nth+2) () in
+                              match self#peek_nth_rawtoken (nth'+1) with
+                              | COLON | SEMICOLON _ | LBRACE -> true
+                              | _ -> false
+                        end
                         | COMMA | RPAREN when env#at_type_paren -> true
-                        | _ -> false
+                        | _ -> DEBUG_MSG "@"; false
                     end -> DEBUG_MSG "@ IDENT COMMA"; token
 
                     | _ when begin
@@ -16978,6 +17240,12 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | RPAREN -> self#peek_nth_rawtoken 4 == LBRACE
                     | _ -> false
                 end -> DEBUG_MSG "@ IDENT TY_LPAREN"; mk T.LPAREN
+
+                | RPAREN when prev_rawtoken == SIZEOF && begin
+                    match self#peek_nth_rawtoken 3 with
+                    | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ -> is_type ~defined:true x
+                    | _ -> false
+                end -> DEBUG_MSG "@ IDENT RPAREN"; token
 
                 | RPAREN when begin
                     match self#peek_nth_rawtoken 3 with
@@ -17236,6 +17504,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
                                 end
                                 | _ -> false
                             end -> DEBUG_MSG "IDENT_V @ IDENT COLON_COLON IDENT ... RPAREN TY_TEMPL_GT"; mk T.LPAREN
+
+                            | NAMESPACE -> DEBUG_MSG "@ IDENT COLON_COLON IDENT ... RPAREN NAMESPACE"; mk T.LPAREN
 
                             | _ when begin
                                 prev_rawtoken == LPAREN && prev_rawtoken2 == DECLTYPE &&
@@ -17882,6 +18152,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | LPAREN | EQ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ
             | HAT_EQ _ | AMP_EQ _ | BAR_EQ _ | RETURN | COMMA | INI_LBRACE -> true
             | COLON_COLON when not env#trailing_retty_flag -> true
+            | MINUS_GT -> false
+            | x when is_op x -> true
             | _ -> false
         end -> DEBUG_MSG "(LPAREN|...) IDENT @"; mk T.INI_LBRACE
 
@@ -17942,11 +18214,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | _ when begin
                 context == EXPR && env#paren_level = 1 &&
                 (
-                 (prev_rawtoken == NEWLINE && is_pp_endif prev_rawtoken2 && prev_rawtoken3 == RPAREN &&
-                  prev_rawtoken4 == NEWLINE
+                 (
+                  prev_rawtoken == NEWLINE && is_pp_endif prev_rawtoken2 &&
+                  prev_rawtoken3 == RPAREN && prev_rawtoken4 == NEWLINE
                  ) ||
-                 not env#macro_arg_flag && not env#end_of_params_flag && not env#trailing_retty_flag &&
-                 not env#init_flag && prev_rawtoken != RBRACKET && prev_rawtoken != LPAREN &&
+                 not env#macro_arg_flag && not env#end_of_params_flag &&
+                 not env#trailing_retty_flag && not env#init_flag &&
+                 prev_rawtoken != RBRACKET && prev_rawtoken != LPAREN &&
                  prev_rawtoken != REQUIRES && not env#end_of_req_params_flag &&
                  not env#braced_init_flag && try env#paren_stack_top == PK_NORMAL with _ -> false
                 )
@@ -18562,8 +18836,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     (env#at_type_paren_2 || env#trailing_retty_flag)
                 end -> DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP)"; token
 
-                | _ when env#templ_param_arg_level > 0 ->
-                    DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP)"; mk T.TEMPL_GT
+                | _ when begin
+                    env#templ_param_arg_level > 0 &&
+                    match self#peek_nth_rawtoken 2 with
+                    | EQ -> true
+                    | _ -> false
+                end -> DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP) EQ"; token
+
+                | _ when begin
+                    env#templ_param_arg_level > 0
+                end -> DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP)"; mk T.TEMPL_GT
 
                 | _ -> DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP)"; mk T.GT
             end
@@ -19558,13 +19840,43 @@ let conv_token (env : Aux.env) scanner (token : token) =
   end
 
   | IDENT s when begin
-      is_ident_macro_ident_p s &&
+      is_ident_macro_ident_p s && self#peek_rawtoken() == TY_LPAREN &&
       let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
       match self#peek_nth_rawtoken (nth+1) with
       | SEMICOLON _ | EQ -> true
       | _ -> false
   end -> begin
     DEBUG_MSG "@";
+    mk (T.IDENT_IM s)
+  end
+
+  | IDENT s when begin
+      self#peek_rawtoken() == TY_LPAREN &&
+      not (is_start_of_stmt()) &&
+      not env#end_of_params_flag &&
+      not env#end_of_noptr_dtor_paren_flag &&
+      is_id_macro_fun s &&
+      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+      match self#peek_nth_rawtoken (nth+1) with
+      | EQ -> begin
+          match self#peek_nth_rawtoken (nth+2) with
+          | DEFAULT | DELETE | INT_LITERAL "0" -> false
+          | _ -> true
+      end
+      | SEMICOLON _ when begin
+          (env#stack#at_top || env#stack#at_class) &&
+          match prev_rawtoken with
+          | SEMICOLON _ | RBRACE -> true
+          | _ -> false
+      end -> false
+      | COMMA | SEMICOLON _ -> begin
+          match prev_rawtoken with
+          | RBRACE -> true
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@ (EQ|COMMA|SEMICOLON)";
     mk (T.IDENT_IM s)
   end
 
@@ -19778,12 +20090,133 @@ let conv_token (env : Aux.env) scanner (token : token) =
       | _ -> false
   end -> DEBUG_MSG "COLON_COLON @ TY_LPAREN"; mk (T.IDENT_V s)
 
-  | IDENT s when (is_type_name s || is_type(* ~weak:true*) s) && begin
+  | IDENT s when
+      (
+       is_type_name s ||
+       is_type ~qualified:(prev_rawtoken == COLON_COLON) ~defined:true(* ~weak:true*) s
+      ) && begin
+      DEBUG_MSG "@";
+      (not env#using_flag || env#alias_flag) &&
+      match prev_rawtoken with
+      | TY_TILDE -> false
+      | LAM_LBRACKET -> true
+      | RBRACE when begin
+          (
+           env#end_of_class_spec_flag ||
+           env#stack#at_enum &&
+           try
+             let info = env#pp_if_section_top_info in
+             info.Pinfo.i_cond_sub == Pinfo.PP_CLOSING
+           with _ -> false
+          ) &&
+          match self#peek_rawtoken() with
+          | COMMA | SEMICOLON _ -> true
+          | _ -> false
+      end -> true
+      | COLON when begin
+          env#ctor_init_flag &&
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> true
+          | _ -> false
+      end -> true
+      | RPAREN when begin
+          env#end_of_cast_type_flag &&
+          match self#peek_rawtoken() with
+          | LBRACE -> false
+          | _ -> true
+      end -> true
+      | LPAREN when begin
+          match prev_rawtoken2 with
+          | IF | SWITCH | FOR | ODD_FOR | WHILE -> begin
+              match self#peek_rawtoken() with
+              | RPAREN | DOT | MINUS_GT -> false
+              | _ -> true
+          end
+          | ELLIPSIS when prev_rawtoken3 == SIZEOF -> true
+          | _ -> false
+      end -> false
+      | LPAREN | COMMA when begin
+          (env#at_arg_paren || env#at_paren && not env#macro_arg_flag) &&
+          match self#peek_rawtoken() with
+          | LBRACE -> false
+          | TEMPL_LT -> false
+          | _ -> true
+      end -> true
+      | COLON_COLON when begin
+          match self#peek_rawtoken() with
+          | COMMA | RPAREN when env#stack#at_params && env#init_flag -> true
+          | SEMICOLON _ when env#rhs_flag -> true
+          | _ -> false
+      end -> true
+      | _ when env#at_type_paren -> false
+      | _ when context == MEM && (sub_context == INI || sub_context == END_OF_TY_SPEC) && begin
+          DEBUG_MSG "@";
+          match prev_rawtoken with
+          | OPERATOR -> false
+          | _ ->
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> begin
+              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+              match self#peek_nth_rawtoken (nth+1) with
+              | EQ | COLON | LBRACE -> true
+              | CONST | NOEXCEPT | THROW when not env#at_templ_arg -> true
+              | TY_LPAREN -> false
+              | SEMICOLON _ when begin
+                  match prev_rawtoken with
+                  | CONSTEXPR | INLINE -> true
+                  | x when is_basic_ty x -> true
+                  | TEMPL_GT when env#end_of_templ_head_flag -> true
+                  | _ -> false
+              end -> true
+              | _ when begin
+                  let scope =
+                    let _scope = env#stack#top#scope in
+                    try
+                      match _scope with
+                      | Template -> (env#stack#peek_nth 2)#scope
+                      | _ -> _scope
+                    with _ -> _scope
+                  in
+                  DEBUG_MSG "scope=%s" (Pinfo.Name.Scope.to_string scope);
+                  match scope with
+                  | Class i -> begin
+                      let s_ = Pinfo.encode_ident s in
+                      DEBUG_MSG "prefix=%s full_prefix=%s" prefix full_prefix;
+                      DEBUG_MSG "i=%s s_=%s" i s_;
+                      i = s_ ||
+                      i = prefix && Xstring.endswith prefix s_ ||
+                      i = full_prefix && Xstring.endswith full_prefix s_
+                  end
+                  | _ -> false
+              end -> DEBUG_MSG "@"; true
+              | _ -> false
+          end
+          | _ -> false
+      end -> true
+      | _ when context == EXPR && sub_context == INI && begin
+          match self#peek_rawtoken() with
+          | SEMICOLON _ | COMMA -> true
+          | _ -> false
+      end -> true
+      | _ when begin
+          match self#peek_rawtoken() with
+          | DOT | MINUS_GT -> true
+          | _ -> false
+      end -> true
+      | _ -> false
+  end -> DEBUG_MSG "(RBRACE|...) @ (COMMA|SEMICOLON)"; mk (T.IDENT_V s)
+
+  | IDENT s when
+      (
+       is_type_name s ||
+       is_type ~qualified:(prev_rawtoken == COLON_COLON) ~defined:true(* ~weak:true*) s
+      ) && begin
       not env#typedef_flag &&
       (not env#using_flag || env#alias_flag) &&
       match prev_rawtoken with
       | SHORT | INT | LONG | FLOAT | DOUBLE | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL
       | PTR_STAR | PTR_AMP | PTR_AMP_AMP
+      | TY_TEMPL_GT
       | AMP_AMP _ | BAR_BAR _ | PLUS | MINUS | STAR | SLASH | PERC
       | EXCLAM _ | HAT _ | BAR _ | LT_LT | GT_GT | PLUS_EQ | MINUS_EQ
       | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
@@ -19854,6 +20287,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
           | COMMA | RPAREN when env#at_arg_paren -> true
           | _ -> false
       end -> false
+      | NEWLINE when env#stack#at_enum || env#stack#at_enumclass -> false
       | NEWLINE | SEMICOLON _ -> begin
           match self#peek_rawtoken() with
           | PP_IF | PP_IFDEF | PP_IFNDEF -> begin
@@ -27715,7 +28149,8 @@ module F (Stat : Aux.STATE_T) = struct
             DEBUG_MSG "spec#prefix=\"%s\" prefix=\"%s\"" spec#prefix prefix;
             let b =
               (spec#prefix = "" && not spec#is_fparam) ||
-              Xstring.endswith spec#prefix prefix
+              (*Xstring.endswith spec#prefix prefix ||*)
+              Xstring.startswith prefix spec#prefix
             in
             DEBUG_MSG "b=%B" b;
             b
@@ -27727,7 +28162,17 @@ module F (Stat : Aux.STATE_T) = struct
             fun x ->
               match x#kind with
               | Pinfo.Name.Spec.TypeParam _ | Class _ | Struct _ | Union _
-              | Enum _ | EnumClass _ | EnumStruct _ | EnumMacro _ | Type -> true
+              (*| Enum _ *)| EnumClass _ | EnumStruct _ | EnumMacro _ | Type -> true
+              | Member mspec -> Pinfo.Type.is_type_type mspec#ty
+              | _ -> false
+        end
+        | K_TYPE_OR_FPARAM -> begin
+            fun x ->
+              match x#kind with
+              | Pinfo.Name.Spec.TypeParam _ | Class _ | Struct _ | Union _
+              | EnumClass _ | EnumStruct _ | EnumMacro _ | Type -> true
+              | Member mspec -> Pinfo.Type.is_type_type mspec#ty
+              | FParam _ -> true
               | _ -> false
         end
         | K_OBJ -> begin
@@ -27762,19 +28207,26 @@ module F (Stat : Aux.STATE_T) = struct
         | _ -> false
       with _ -> false
 
-    method is_type ?(prefix="") ?(defined=false) ?(weak=false) s =
+    method is_type ?(qualified=false) ?(prefix="") ?(defined=false) ?(weak=false) s =
       let b =
         try
-          let spec = self#lookup_name(* ~kind:K_TYPE*) ~prefix s in
+          let spec = self#lookup_name ~kind:K_TYPE_OR_FPARAM ~prefix s in
+          (not qualified || spec#prefix <> "") &&
           match (spec#kind : Pinfo.Name.Spec.kind) with
-          | Class _ | Struct _ | Union _
-          | Enum _ | EnumClass _ | EnumStruct _ when weak -> true
+          | FParam _ when prefix = "" -> false
+
+          | Struct _ | Union _ | Enum _ when weak -> true
+
+          | Class _ | EnumClass _ | EnumStruct _ when defined || weak -> true
 
           | Variable ty when defined || weak -> Pinfo.Type.is_typedef ty
+
           | Member mspec when defined || weak ->
-              Pinfo.Type.is_typedef mspec#ty || Pinfo.Type.is_type_type mspec#ty
+              Pinfo.Type.is_typedef mspec#ty ||
+              Pinfo.Type.is_type_type ~name:s mspec#ty
 
           | TypeParam pspec -> not (Pinfo.Name.Spec.param_spec_is_concept pspec)
+
           | Type -> true
 
           | _ -> false
@@ -27832,7 +28284,9 @@ module F (Stat : Aux.STATE_T) = struct
               end
               | _ -> false
           end -> false
-          | Variable _ | Enumerator _ | FParam _ -> true
+          (*| Variable _ | Enumerator _ | FParam _ -> true*)
+          | Variable _ | Enumerator _ -> true
+          | FParam _ when prefix = "" -> true
           | Param ty -> begin
               match Pinfo.Type.unwrap ty with
               | SimpleTy sty -> Pinfo.Type.simple_ty_has_basic_ty sty
@@ -27857,6 +28311,19 @@ module F (Stat : Aux.STATE_T) = struct
           (*match (spec#kind : Pinfo.Name.Spec.kind) with
           | MacroFun -> true
           | _ -> false*)
+        with
+          Not_found -> Xset.mem macro_fun_set s
+      in
+      DEBUG_MSG "%s -> %B" s b;
+      b
+
+    method is_id_macro_fun s =
+      let b =
+        try
+          let spec = self#lookup_name (Ast.mk_macro_call_id s) in
+          match (spec#kind : Pinfo.Name.Spec.kind) with
+          | IdMacroFun -> true
+          | _ -> false
         with
           Not_found -> Xset.mem macro_fun_set s
       in
@@ -28967,9 +29434,13 @@ module F (Stat : Aux.STATE_T) = struct
         if
           List.for_all
             (function
+              | [T.IDENT x] when self#is_type ~defined:true x -> false
               | [T.IDENT _|IDENT_V _] -> true
               | [T.IDENT _|IDENT_V _; PARAM_DECL_MACRO _] -> true
-              | [T.IDENT x|IDENT_V x; IDENT y] when is_param_decl_macro x || is_param_decl_macro y -> true
+              | [T.IDENT x|IDENT_V x; IDENT y] when begin
+                  is_param_decl_macro x ||
+                  is_param_decl_macro y
+              end -> true
               | [T.NEW|CATCH|FINAL|CLASS|EXPLICIT|TEMPLATE|THIS] -> true (* should be an identifier *)
               | [T.EXCLAM x] when x = "not" -> true
               | [T.IDENT x; IDENT y] when is_param_decl_macro x || is_param_decl_macro y -> true
@@ -29475,32 +29946,65 @@ module F (Stat : Aux.STATE_T) = struct
       end
       | _ -> false
 
-    method check_if_param ?(strict=true) ?(weak=false) ?(at_type_paren=false) l = (* assumes rev *)
-      let is_ty = self#is_ty ~weak in
+    method check_if_param
+        ?(strict=true)
+        ?(weak=false)
+        ?(at_type_paren=false)
+        ?(no_lookup=false)
+        l (* assumes rev *)
+        =
+      let is_ty =
+        if no_lookup then
+          fun ?(strong=false) ?(defined=false) _ -> false
+        else
+          self#is_ty ~weak
+      in
+      let ty_pat = function
+        | (T.PTR_STAR|PTR_AMP|PTR_AMP_AMP)::IDENT _::_
+        | (PTR_STAR|PTR_AMP|PTR_AMP_AMP)::(TY_TEMPL_GT|GT_GT)::_
+          -> true
+        | _ -> false
+      in
       DEBUG_MSG "%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
       let b =
-        match (l : T.token list) with
+        let l =
+          match (l : T.token list) with
+          | NEWLINE::_ -> begin
+              let l_ = rev_filt_pp l in
+              DEBUG_MSG "-> %s" (String.concat ";" (List.map Token.rawtoken_to_string l_));
+              l_
+          end
+          | _ -> l
+        in
+        match l with
         | [IDENT _] when weak -> true
         | [ELLIPSIS] -> true
         | IDENT _::ELLIPSIS::_ -> true
         | TY_TEMPL_GT::RPAREN::IDENT _::IDENT _::_ -> true
         | TY_TEMPL_GT::_ when weak -> true
         | IDENT _::TY_TEMPL_GT::_ when weak -> true
+        | IDENT _::EQ::_ -> true
         | x::EQ::_ when is_literal x -> true
         | x::_ when is_ty x -> true
+        (*!!!NG!!!| x::y::_ when begin
+            match y with
+            | DOT | MINUS_GT -> false
+            | _ -> is_ty x
+        end -> true*)
         | IDENT _::x::_ when is_ty x -> true
         | [IDENT _;x] when is_ty x -> true
         | [IDENT _;IDENT _] when weak || not strict -> true
         | [IDENT _;IDENT _;COLON_COLON;IDENT _] when weak || not strict -> true
         | IDENT _::IDENT _::COLON_COLON::IDENT _::rest when begin
-            (weak || not strict) && List.for_all (function T.IDENT _ | COLON_COLON -> true | _ -> false) rest
+            (weak || not strict) &&
+            List.for_all (function T.IDENT _ | COLON_COLON -> true | _ -> false) rest
         end -> true
         | IDENT _::COLON_COLON::IDENT _::rest when begin
             weak && List.for_all (function T.IDENT _ | COLON_COLON -> true | _ -> false) rest
         end -> true
         | [IDENT _;STRUCT|UNION|CLASS|ENUM] -> true
         | [IDENT _;IDENT _;STRUCT|UNION|CLASS|ENUM] -> true
-        | [PTR_STAR|PTR_AMP|PTR_AMP_AMP;x] when is_ty x -> true
+        | (PTR_STAR|PTR_AMP|PTR_AMP_AMP)::x::_ when is_ty x -> true
         | [PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x] when is_ty x -> true
         | [PTR_STAR|PTR_AMP|PTR_AMP_AMP;x;CONST] when is_ty x -> true
         | [PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x;CONST] when is_ty x -> true
@@ -29518,20 +30022,32 @@ module F (Stat : Aux.STATE_T) = struct
             | _ -> false
         end -> true
 
-        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x] when is_ty x -> true
+        (*| [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x] when is_ty x -> true*)
+        | IDENT _::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::x::_ when is_ty x -> true
         | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x] when is_ty x -> true
         | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x;CONST] when is_ty x -> true
-        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x;CONST] when is_ty x -> true
+        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;x;CONST] when
+            is_ty x
+          -> true
         | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _] when weak -> true
         | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _;COLON_COLON;IDENT _] when weak -> true
-        | IDENT _::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::(TY_TEMPL_GT|GT_GT)::_ when at_type_paren || weak -> true
+        | IDENT _::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::(TY_TEMPL_GT|GT_GT)::_ when
+            at_type_paren ||
+            weak
+            -> true
         | IDENT _::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::IDENT _::COLON_COLON::IDENT _::rest when begin
             weak && List.for_all (function T.IDENT _ | COLON_COLON -> true | _ -> false) rest
         end -> true
-        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _;STRUCT|UNION|CLASS|ENUM] when weak -> true
-        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _] when weak -> true
+        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _;STRUCT|UNION|CLASS|ENUM] when
+            weak
+          -> true
+        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _] when
+            weak
+          -> true
         | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _;CONST] when weak -> true
-        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _;CONST] when weak -> true
+        | [IDENT _;PTR_STAR|PTR_AMP|PTR_AMP_AMP;PTR_STAR|PTR_AMP|PTR_AMP_AMP;IDENT _;CONST] when
+            weak
+          -> true
         | [RBRACKET;LBRACKET;x] when is_ty x -> true
         | RBRACKET::IDENT _::LBRACKET::RPAREN::IDENT _::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::TY_LPAREN::IDENT x::_ when
             is_type_name x || weak -> true
@@ -29543,12 +30059,27 @@ module F (Stat : Aux.STATE_T) = struct
         | IDENT _::TY_TEMPL_GT::IDENT _::TEMPL_LT::IDENT _::_ when weak -> true
         | IDENT _::GT_GT::_::COMMA::x::_ when is_ty x -> true
         | OVERRIDE::_ -> false
-        | RBRACE::LBRACE::EQ::IDENT _::_::_ -> true
-        | [RBRACE;LBRACE;EQ;(PTR_STAR|PTR_AMP|PTR_AMP_AMP);IDENT _] -> true
-        | IDENT _::COLON_COLON::IDENT _::EQ::IDENT _::_::_ -> true
-        | IDENT _::COLON_COLON::TY_TEMPL_GT::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::_ -> true
-        | RPAREN::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::IDENT x::TY_LPAREN::RPAREN::_ when is_type_name x || weak -> true
-        | RPAREN::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::x::TY_LPAREN::RPAREN::_ when is_ty x || weak -> true
+        | RBRACE::LBRACE::EQ::rest when begin
+            match rest with
+            | IDENT _::_ -> true
+            | l when ty_pat l -> true
+            | _ -> false
+        end -> true
+        | IDENT _::COLON_COLON::IDENT _::EQ::rest when begin
+            match rest with
+            | IDENT _::_ -> true
+            | l when ty_pat l -> true
+            | _ -> false
+        end -> true
+        | IDENT _::COLON_COLON::(TY_TEMPL_GT|GT_GT)::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::_ -> true
+        | RPAREN::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::IDENT x::TY_LPAREN::RPAREN::_ when begin
+            is_type_name x ||
+            weak
+        end -> true
+        | RPAREN::(PTR_STAR|PTR_AMP|PTR_AMP_AMP)::x::TY_LPAREN::RPAREN::_ when begin
+            is_ty x ||
+            weak
+        end -> true
         | RPAREN::TY_LPAREN::IDENT _::EQ::_ -> true
         | _::_ when begin
             match Xlist.last l with
@@ -29563,6 +30094,8 @@ module F (Stat : Aux.STATE_T) = struct
                 is_ty x -> true
             | x::TY_LPAREN::(PTR_STAR|PTR_AMP|PTR_AMP_AMP|HAT _)::RPAREN::TY_LPAREN::_ when
                 is_ty x -> true
+            | IDENT _::IDENT _::EQ::_ -> true
+            | IDENT _::EQ::_ -> true
             | _ -> false
         end -> true
         | _::_ when begin
@@ -29576,15 +30109,21 @@ module F (Stat : Aux.STATE_T) = struct
       DEBUG_MSG "b=%B" b;
       b
 
-    method check_if_params ?(strict=true) ?(weak=false) ?(at_type_paren=false) = function
+    method check_if_params
+        ?(strict=true)
+        ?(weak=false)
+        ?(at_type_paren=false)
+        ?(no_lookup=false)
+        =
+      function
       | [] -> true
-      | [x] -> self#check_if_param ~strict ~weak ~at_type_paren x
+      | [x] -> self#check_if_param ~strict ~weak ~at_type_paren ~no_lookup x
       | ll ->
           if weak then
-            List.for_all (self#check_if_param ~strict ~weak:true ~at_type_paren) ll
+            List.for_all (self#check_if_param ~strict ~weak:true ~at_type_paren ~no_lookup) ll
           else
-            List.exists (self#check_if_param ~strict ~weak:false ~at_type_paren) ll &&
-            List.for_all (self#check_if_param ~strict ~weak:true ~at_type_paren) ll
+            List.exists (self#check_if_param ~strict ~weak:false ~at_type_paren ~no_lookup) ll &&
+            List.for_all (self#check_if_param ~strict ~weak:true ~at_type_paren ~no_lookup) ll
 
     method check_if_macro_arg l = (* assumes rev *)
       DEBUG_MSG "%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
@@ -29623,6 +30162,7 @@ module F (Stat : Aux.STATE_T) = struct
         | _ -> begin
             match List.rev l with
             | DOT::_ -> true
+            | x::IDENT _::[] when is_basic_ty x -> false
             | x::y::r when
                 is_basic_ty x && y != TY_LPAREN && not (list_memqn [T.PTR_STAR;PTR_AMP] r)
               -> true
@@ -29730,6 +30270,8 @@ module F (Stat : Aux.STATE_T) = struct
         DEBUG_MSG "%s" (levels_to_str env);
 
         BEGIN_DEBUG
+          if macro_body_parsing_flag then
+            DEBUG_MSG "[macro_body_parsing]";
           if env#pp_if_section_level > 0 then begin
             DEBUG_MSG "pp_if_section_rel_brace_level:%d" env#pp_if_section_rel_brace_level;
             let info = env#pp_if_section_top_info in
@@ -32072,6 +32614,14 @@ module F (Stat : Aux.STATE_T) = struct
           | COLON_COLON -> ()
           | IDENT _ when self#peek_rawtoken() == COLON_COLON -> ()
           | _ -> env#clear_expr_flag()
+      end;
+
+      if env#rhs_flag then begin
+        let rawtok, _, _ = token in
+        match rawtok with
+        | COLON_COLON -> ()
+        | IDENT _ when self#peek_rawtoken() == COLON_COLON -> ()
+        | _ -> env#clear_rhs_flag()
       end;
 
       env#clear_dtor_flag();

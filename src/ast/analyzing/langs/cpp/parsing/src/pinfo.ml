@@ -208,6 +208,7 @@ module ElaboratedType = struct
     | Struct of name
     | Union of name
     | Enum of name
+    | EnumClass of name
     | Macro of name
 
   let to_string = function
@@ -215,6 +216,7 @@ module ElaboratedType = struct
     | Struct n -> "struct "^n
     | Union n -> "union "^n
     | Enum n -> "enum "^n
+    | EnumClass n -> "enum_class"^n
     | Macro n -> n
 
   let get_name = function
@@ -222,13 +224,22 @@ module ElaboratedType = struct
     | Struct n -> n
     | Union n -> n
     | Enum n -> n
+    | EnumClass n -> n
     | Macro n -> n
 
   let encode = function
     | Class n | Struct n -> "Ts"^n
     | Union n -> "Tu"^n
     | Enum n -> "Te"^n
+    | EnumClass n -> "Tes"^n
     | Macro n -> n
+
+  let is_type_type = function
+    | Class _
+    | Struct _
+    | Union _
+    | EnumClass _ -> true
+    | _ -> false
 
 end (* module Pinfo.ElaboratedType *)
 
@@ -353,6 +364,14 @@ module TypeSpec = struct
 
   let is_elaborated_type = function
     | Elaborated _ -> true
+    | _ -> false
+
+  let is_elaborated_type_type = function
+    | Elaborated e -> ElaboratedType.is_type_type e
+    | _ -> false
+
+  let is_elaborated_type_enum_class = function
+    | Elaborated (ElaboratedType.EnumClass _) -> true
     | _ -> false
 
   let is_typename = function
@@ -692,15 +711,28 @@ module Type = struct
     st_type_specs=ts;
   } = List.exists TypeSpec.is_elaborated_type ts
 
+  let simple_ty_has_elaborated_ty_enum_class {
+    st_type_specs=ts;
+  } = List.exists TypeSpec.is_elaborated_type_enum_class ts
+
   let simple_ty_has_typename {
     st_type_specs=ts;
   } = List.exists TypeSpec.is_typename ts
 
-  let simple_ty_has_type_type {
+  let simple_ty_has_type_type ?(name="") {
     st_type_specs=ts;
   } =
-    List.exists TypeSpec.is_elaborated_type ts ||
-    List.exists TypeSpec.is_typename ts
+    List.exists
+      (fun t ->
+        TypeSpec.is_elaborated_type_type t &&
+        (
+         name = "" ||
+         match TypeSpec.get_ident_opt t with
+         | Some x -> x = name
+         | None -> true
+        )
+      ) ts
+    (* || List.exists TypeSpec.is_typename ts*)
 
   let get_cv_qualifiers_of_simple_ty sty =
     List.fold_left
@@ -781,12 +813,12 @@ module Type = struct
     | FunctionTy fty -> get_top_level_type fty.ft_return_type
     | AltTy ts -> List.concat_map get_top_level_type ts
 
-  let rec _is_type_type = function
-    | SimpleTy sty -> simple_ty_has_type_type sty
-    | AltTy ts -> List.exists _is_type_type ts
+  let rec _is_type_type ?(name="") = function
+    | SimpleTy sty -> simple_ty_has_type_type ~name sty
+    | AltTy ts -> List.exists (_is_type_type ~name) ts
     | _ -> false
 
-  let is_type_type x = _is_type_type (unwrap x)
+  let is_type_type ?(name="") x = _is_type_type ~name (unwrap x)
 
   let hoist_typedef x =
     let tl = get_top_level_type x.t_desc in
@@ -879,6 +911,7 @@ module Name = struct
       | Template
       | Class of ident
       | Enum of ident
+      | EnumClass of ident
       | Params
       | Block of int * string ref(* prefix*) * string ref(* qname *) * bool ref(*is_body*)
 
@@ -888,6 +921,7 @@ module Name = struct
       | Template     -> "Template"
       | Class i      -> sprintf "Class(%s)" i
       | Enum i       -> sprintf "Enum(%s)" i
+      | EnumClass i  -> sprintf "EnumClass(%s)" i
       | Params       -> "Params"
       | Block(ln, p, q, b) ->
           sprintf "Block@%d%s%s%s" ln
@@ -898,7 +932,8 @@ module Name = struct
     let get_name = function
       | Namespace nn -> NestedNamespace.to_string nn
       | Class i
-      | Enum i -> i
+      | Enum i
+      | EnumClass i -> i
       | _ -> raise Not_found
 
     let is_top = (==) Top
@@ -915,6 +950,11 @@ module Name = struct
 
     let is_enum = function
       | Enum _ -> true
+      | EnumClass _ -> true
+      | _ -> false
+
+    let is_enumclass = function
+      | EnumClass _ -> true
       | _ -> false
 
     let is_params = (==) Params
@@ -1053,8 +1093,10 @@ module Name = struct
       | Member of mem_spec
       | Variable of Type.t_
       | Enumerator of Type.t_
+      | ClassEnumerator of Type.t_
       | MacroObj
       | MacroFun
+      | IdMacroFun
       | Label
 
     let rec kind_to_string = function
@@ -1077,8 +1119,10 @@ module Name = struct
       | Member s     -> sprintf "Member:%s" s#to_string
       | Variable ty  -> sprintf "Variable:%s" (Type.to_string_ ty)
       | Enumerator ty -> sprintf "Enumerator:%s" (Type.to_string_ ty)
+      | ClassEnumerator ty -> sprintf "ClassEnumerator:%s" (Type.to_string_ ty)
       | MacroObj     -> "MacroObj"
       | MacroFun     -> "MacroFun"
+      | IdMacroFun   -> "IdMacroFun"
       | Label        -> "Label"
 
     let rec type_of_kind = function
@@ -1088,6 +1132,7 @@ module Name = struct
       | FParam ty
       | Variable ty -> ty
       | Enumerator ty -> ty
+      | ClassEnumerator ty -> ty
       | _ -> raise Not_found
 
     let make_templ k = Template k
@@ -1119,6 +1164,11 @@ module Name = struct
       Type.hoist_typedef ty_;
       Enumerator ty_
 
+    let make_classenumerator ty =
+      let ty_ = Type.wrap ty in
+      Type.hoist_typedef ty_;
+      ClassEnumerator ty_
+
     let make_member aspec ty =
       let ty_ = Type.wrap ty in
       Type.hoist_typedef ty_;
@@ -1146,6 +1196,10 @@ module Name = struct
         method is_fparam =
           match kind with
           | FParam _ -> true
+          | _ -> false
+        method is_variable =
+          match kind with
+          | Variable _ -> true
           | _ -> false
         method ident = ident
         method kind = kind
@@ -1203,7 +1257,7 @@ module Name = struct
         (fun k v ->
           if k = i then begin
             match v#kind with
-            | Spec.MacroObj | MacroFun -> None
+            | Spec.MacroObj | MacroFun | IdMacroFun -> None
             | _ -> Some v
           end
           else
@@ -1314,6 +1368,7 @@ module Name = struct
     method enter_template () = self#enter_scope Scope.Template
     method enter_class i = self#enter_scope (Scope.Class i)
     method enter_enum i = self#enter_scope (Scope.Enum i)
+    method enter_enumclass i = self#enter_scope (Scope.EnumClass i)
     method enter_params () = self#enter_scope Scope.Params
     method enter_block ?(prefix="") ?(qname="") ?(no_tweak=false) ln =
       if popped_frame#scope == Scope.Params && not no_tweak then begin
@@ -1433,6 +1488,7 @@ module Name = struct
     method at_template = self#at_scope Scope.is_template
     method at_class = self#at_scope Scope.is_class
     method at_enum = self#at_scope Scope.is_enum
+    method at_enumclass = self#at_scope Scope.is_enumclass
     method at_block = self#at_scope Scope.is_block
     method at_body = self#at_scope Scope.is_body
     method at_lambda_body = self#at_scope Scope.is_lambda_body

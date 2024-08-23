@@ -40,7 +40,7 @@ val is_pp_control_line : T.token -> bool
 val is_params_body_macro : string -> bool
 val is_params_body_macro_ident : string -> bool
 
-type name_kind = K_NONE | K_TYPE | K_OBJ | K_TEMPL
+type name_kind = K_NONE | K_TYPE | K_TYPE_OR_FPARAM | K_OBJ | K_TEMPL
 
 class type c_t = object
   method keep_flag : bool
@@ -94,19 +94,20 @@ class type c_t = object
   method find_ident_conv : string -> T.token
 
   method lookup_name : ?kind:name_kind -> ?prefix:string -> string -> Pinfo.Name.Spec.c
-  method is_type : ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
+  method is_type : ?qualified:bool -> ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
   method is_label : string -> bool
   method is_templ : ?prefix:string -> string -> bool
   method is_val : ?prefix:string -> string -> bool
   method _is_val : string -> bool
   method is_macro_fun : string -> bool
+  method is_id_macro_fun : string -> bool
   method is_macro_obj : string -> bool
 
   method reg_macro_fun : string -> unit
 
   method is_ty : ?strong:bool -> ?defined:bool -> ?weak:bool -> T.token -> bool
-  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list -> bool
-  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list list -> bool
+  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> ?no_lookup:bool -> T.token list -> bool
+  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> ?no_lookup:bool -> T.token list list -> bool
   method check_if_noptr_dtor : ?weak:bool -> T.token list -> bool
   method check_if_noptr_dtor_ : ?weak:bool -> T.token list -> bool
   method check_if_macro_arg : T.token list -> bool

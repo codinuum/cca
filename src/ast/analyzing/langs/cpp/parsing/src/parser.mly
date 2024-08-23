@@ -2594,7 +2594,9 @@ _opaque_enum_declaration:
       let al = list_opt_to_list al_opt in
       let el = opt_to_list e_opt in
       let pvec = [List.length al; 1; List.length el] in
-      mknode ~pvec $startpos $endpos lab (al @ eh :: el)
+      let nd = mknode ~pvec $startpos $endpos lab (al @ eh :: el) in
+      let _ = env#register_enum_head nd in
+      nd
     }
 ;
 
@@ -5673,7 +5675,11 @@ enum_head:
       let pvec = [List.length al; List.length el; List.length ebl] in
       let nd = mknode ~pvec $symbolstartpos $endpos lab (al @ el @ ebl) in
       let qn = env#register_enum_head nd in
-      env#stack#enter_enum qn;
+      begin
+        match e with
+        | L.EnumKey.EnumClass | L.EnumKey.EnumStruct -> env#stack#enter_enumclass qn
+        | _ -> env#stack#enter_enum qn
+      end;
       nd
     }
 | i=IDENT_E ml=macro_args
@@ -10628,8 +10634,16 @@ unqualified_id:
 ;
 
 id_macro_call:
-| i=IDENT_IM ml=macro_args { mknode $startpos $endpos (L.IdentifierMacroInvocation i) ml }
-| i=IDENT_IM a=args_macro { mknode $startpos $endpos (L.IdentifierMacroInvocation i) [a] }
+| i=IDENT_IM ml=macro_args
+    { 
+      let nd = mknode $startpos $endpos (L.IdentifierMacroInvocation i) ml in
+      nd
+    }
+| i=IDENT_IM a=args_macro
+    { 
+      let nd = mknode $startpos $endpos (L.IdentifierMacroInvocation i) [a] in
+      nd
+    }
 ;
 
 pp_concat:
@@ -12193,7 +12207,11 @@ class_head_name:
       let qn = p^uqn in
       mknode ~pvec:[1; 1] $startpos $endpos (L.ClassHeadName qn) [n; c]
     }
-| i=id_macro_call { i }
+| i=id_macro_call
+    { 
+      env#register_id_macro_fun (Ast.mk_macro_call_id i#get_name) i;
+      i
+    }
 ;
 
 class_name:
