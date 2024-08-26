@@ -836,6 +836,9 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | RefMacro i -> combo2 682 [i]
   | RefMacroInvocation i -> combo2 683 [i]
 
+  | DummyOp -> mkstr2 684
+
+
 let strip lab = lab (* not yet *)
 
 let _anonymize ?(more=false) ?(most=false) = function

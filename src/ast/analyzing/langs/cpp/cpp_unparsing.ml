@@ -1229,6 +1229,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | DummyDecl                         -> ()
   | DummyStmt                         -> ()
   | DummyExpr                         -> ()
+  | DummyOp                           -> ()
   | DummyDtor                         -> ()
   | GnuAsmBlockFragmented a           -> pr_string a; pad1(); pr_seq()
   | GnuAsmFragment s                  -> pr_string s

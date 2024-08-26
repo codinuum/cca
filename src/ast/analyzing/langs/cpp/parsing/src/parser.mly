@@ -572,7 +572,7 @@ let warning = Parserlib_base.parse_warning
 
 %token MARKER PP_MARKER STR_MARKER COND_MARKER LAM_MARKER SECTION_MARKER SUFFIX_MARKER
 %token BRACE_PAREN_MARKER MOCK_MARKER
-%token DUMMY_STMT DUMMY_EXPR DUMMY_BODY DUMMY_DTOR DUMMY_TYPE
+%token DUMMY_STMT DUMMY_EXPR DUMMY_BODY DUMMY_DTOR DUMMY_TYPE DUMMY_OP
 
 %token EOF NEWLINE
 %token <string> STR_MACRO INT_MACRO DECL_MACRO STMT_MACRO VIRT_SPEC_MACRO OP_MACRO
@@ -5359,6 +5359,7 @@ namespace_body:
 explicit_instantiation:
 | e_opt=ioption(extern) TEMPLATE d=declaration
     { 
+      let _ = env#clear_templ_flag() in
       let el = opt_to_list e_opt in
       let pvec = [List.length el; 1] in
       mknode ~pvec $symbolstartpos $endpos L.ExplicitInstantiation (el @ [d])
@@ -9571,6 +9572,7 @@ multiplicative_unit:
 additive_op:
 | PLUS  { L.AdditiveExpressionAdd }
 | MINUS { L.AdditiveExpressionSubt }
+| DUMMY_OP { L.DummyOp }
 ;
 
 multiplicative_expression:
@@ -10259,7 +10261,7 @@ template_head:
 | TEMPLATE
     TEMPL_LT mid_templ_head tl=template_parameter_list TEMPL_GT r_opt=ioption(requires_clause)
     { 
-      env#register_templ_params tl;
+      (*env#register_templ_params tl;*)
       let rl = opt_to_list r_opt in
       mknode ~pvec:[List.length tl; List.length rl] $startpos $endpos L.TemplateHead (tl @ rl)
     }
@@ -10315,7 +10317,7 @@ lambda_declarator:
     al=attribute_specifier_seq
     t_opt=ioption(trailing_return_type)
     { 
-      env#register_param_decl_clause p;
+      (*env#register_param_decl_clause p;*)
       let tl = opt_to_list t_opt in
       let pvec = [1; List.length al; 0; 0; 0; List.length tl] in
       mknode ~pvec $startpos $endpos L.LambdaDeclarator (p :: al @ tl)
@@ -10325,7 +10327,7 @@ lambda_declarator:
     dl=decl_specifier_seq
     t_opt=ioption(trailing_return_type)
     { 
-      env#register_param_decl_clause p;
+      (*env#register_param_decl_clause p;*)
       let tl = opt_to_list t_opt in
       let pvec = [1; List.length al; List.length dl; 0; 0; List.length tl] in
       mknode ~pvec $startpos $endpos L.LambdaDeclarator (p :: al @ dl @ tl)
@@ -10334,7 +10336,7 @@ lambda_declarator:
     dl_opt=decl_specifier_seq_opt
     t_opt=ioption(trailing_return_type)
     { 
-      env#register_param_decl_clause p;
+      (*env#register_param_decl_clause p;*)
       let dl = list_opt_to_list dl_opt in
       let tl = opt_to_list t_opt in
       let pvec = [1; 0; List.length dl; 0; 0; List.length tl] in
@@ -10346,7 +10348,7 @@ lambda_declarator:
     al_opt=attribute_specifier_seq_opt
     t_opt=ioption(trailing_return_type)
     { 
-      env#register_param_decl_clause p;
+      (*env#register_param_decl_clause p;*)
       let dl = list_opt_to_list dl_opt in
       let al = list_opt_to_list al_opt in
       let tl = opt_to_list t_opt in
@@ -11597,7 +11599,6 @@ restricted_postfix_expr:
       let e = mknode ~pvec $startpos $endpos L.PostfixExpressionArrow (r :: tl) in
       mknode $startpos $endpos (L.OperatorMacro op) [e; i]
     }
-
 | DOT t_opt=ioption(template) i=id_expression
     { 
       let tl = opt_to_list t_opt in
@@ -12666,6 +12667,7 @@ operator:
 | MINUS_MINUS              { mkleaf $startpos $endpos L.MinusMinus }
 | CO_AWAIT                 { mkleaf $startpos $endpos L.Co_await }
 | o=OP_MACRO               { mkleaf $startpos $endpos (L.OperatorMacro o) }
+| DUMMY_OP                 { mkleaf $startpos $endpos L.DummyOp }
 ;
 
 
@@ -12732,8 +12734,11 @@ pp_define:
       let nd = mknode $startpos $endpos (L.PpDefine i) [mnd] in
       if pending then
         env#register_pending_macro i nd mk tl__obj
-      else if env#dump_tokens_flag then
-        env#register_pending_macro i nd Ast.L.MK_DUMMY tl__obj;
+      else begin
+        env#register_resolved_macro i mnd;
+        if env#dump_tokens_flag then
+          env#register_pending_macro i nd Ast.L.MK_DUMMY tl__obj
+      end;
       env#register_macro_fun (Ast.mk_macro_call_id i) nd;
       nd
     }
@@ -13408,6 +13413,7 @@ token_no_paren:
 
 | MARKER { mktok $startpos $endpos T.MARKER }
 | DUMMY_DTOR { mktok $startpos $endpos T.DUMMY_DTOR }
+| DUMMY_OP { mktok $startpos $endpos T.DUMMY_OP }
 | DUMMY_EXPR { mktok $startpos $endpos T.DUMMY_EXPR }
 | DUMMY_STMT { mktok $startpos $endpos T.DUMMY_STMT }
 | t=DOXYGEN_LINE { mktok $startpos $endpos (T.DOXYGEN_LINE t) }

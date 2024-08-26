@@ -183,6 +183,7 @@ class parser_c = object (self)
       | T_DTOR_MACRO -> "DTOR_MACRO"
       | T_DUMMY_BODY -> "DUMMY_BODY"
       | T_DUMMY_DTOR -> "DUMMY_DTOR"
+      | T_DUMMY_OP -> "DUMMY_OP"
       | T_DUMMY_EXPR -> "DUMMY_EXPR"
       | T_DUMMY_STMT -> "DUMMY_STMT"
       | T_DUMMY_TYPE -> "DUMMY_TYPE"
@@ -1592,7 +1593,15 @@ class parser_c = object (self)
                 env#set_requires_clause_flag();
                 raise Exit
             end
+            | I.X (I.N N_requirement_body), _, I.X (I.T T_LBRACE) -> begin
+                scanner#ctx_expr();
+                scanner#ctx_ini();
+                scanner#enter_block();
+                raise Exit
+            end
+
             | I.X (I.N N_requirement_body), _, I.X (I.T T_RBRACE) -> begin
+                env#stack#exit_block();
                 iter_items ~ith:5 menv_
                   (function
                     | _, I.X (I.N N_template_head), _, I.X (I.T T_TEMPL_GT), _ -> begin
@@ -2089,6 +2098,8 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_ty_macro_call), _ , I.X (I.T T_LPAREN) -> begin
+                (*scanner#push_context();
+                scanner#push_sub_context();*)
                 env#enter_macro_arg();
                 raise Exit
             end
@@ -2096,6 +2107,8 @@ class parser_c = object (self)
                 scanner#ctx_end_of_ty_spec();
                 env#exit_macro_arg();
                 env#set_end_of_type_macro_call_flag();
+                (*scanner#pop_context();
+                scanner#pop_sub_context();*)
                 raise Exit
             end
             | I.X (I.N N_macro_arg_list), _ , I.X (I.T T_COMMA) -> begin
@@ -2223,6 +2236,10 @@ class parser_c = object (self)
             | I.X (I.N N_declaration), I.X (I.N N_pp_decl_if_section_broken)::I.X (I.T T_MARKER)::_,
                 I.X (I.T T_RBRACE) -> begin
                 scanner#ctx_top();
+                scanner#ctx_ini()
+            end
+            | I.X (I.N N_declaration), _, I.X (I.T T_MARKER) -> begin
+                scanner#ctx_stmt();
                 scanner#ctx_ini()
             end
             | I.X (I.N N_member_declaration), I.X (I.N N_pp_func_head_if_section_broken)::_,
@@ -2880,11 +2897,13 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_lambda_declarator), _, I.X (I.T T_TY_LPAREN) -> begin
+                env#stack#enter_params();
                 env#set_lambda_dtor_flag();
                 raise Exit
             end
             | I.X (I.N N_lambda_declarator), _, I.X (I.T T_RPAREN) -> begin
                 env#set_end_of_params_flag();
+                env#stack#exit_params();
                 raise Exit
             end
             | I.X (I.N N_id_macro_call), _, I.X (I.T T_LPAREN) -> begin
@@ -4526,6 +4545,10 @@ class parser_c = object (self)
                 end
                 | _ -> ()
             end
+            | I.X (I.N N_explicit_instantiation), _, I.X (I.T T_TEMPLATE) -> begin
+                env#set_templ_flag();
+                raise Exit
+            end
             (*| I.X (I.N N_pp_decl_elif_group), _, I.X (I.T T_LBRACE) -> begin
                 env#pstat#close_brace();
                 raise Exit
@@ -4741,7 +4764,7 @@ class parser_c = object (self)
             (*| I.X (I.N N_enum_head)              -> env#exit_enum_head()*)
             | I.X (I.N N__lambda_expression)     -> env#clear_end_of_lambda_templ_flag()
             | I.X (I.N N_lambda_expression)      -> scanner#pop_context()
-            | I.X (I.N N_lambda_declarator)      -> env#clear_lambda_dtor_flag()
+            | I.X (I.N N_lambda_declarator)      -> env#clear_lambda_dtor_flag();
             | I.X (I.N N_alignment_specifier)    -> env#exit_alignas()
             | I.X (I.N N_trailing_return_type)   -> env#clear_trailing_retty_flag()
             | I.X (I.N N_base_clause)            -> env#exit_base_clause()

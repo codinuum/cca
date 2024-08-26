@@ -740,6 +740,7 @@ type t =
   | DummyDecl
   | DummyStmt
   | DummyExpr
+  | DummyOp
   | DummyDtor
   | GnuAsmBlockFragmented of string
   | GnuAsmFragment of string
@@ -1489,7 +1490,7 @@ let to_string = function
   | BalancedTokenSingle s          -> "BalancedTokenSingle:"^s
   | TokenSeq s                     -> "TokenSeq:"^s
   | ObjectLikeMacro                -> "ObjectLikeMacro"
-  | FunctionLikeMacro mk           -> "FunctionLikeMacro"^(macro_kind_to_string mk)
+  | FunctionLikeMacro mk           -> "FunctionLikeMacro:"^(macro_kind_to_string mk)
   | OperatorMacro i                -> "OperatorMacro:"^i
   | OperatorMacroInvocation i      -> "OperatorMacroInvocation:"^i
   | DefiningTypeSpecifierSeq       -> "DefiningTypeSpecifierSeq"
@@ -1512,6 +1513,7 @@ let to_string = function
   | DummyDecl                      -> "DummyDecl"
   | DummyStmt                      -> "DummyStmt"
   | DummyExpr                      -> "DummyExpr"
+  | DummyOp                        -> "DummyOp"
   | DummyDtor                      -> "DummyDtor"
   | GnuAsmBlockFragmented a        -> "GnuAsmBlockFragmented:"^a
   | GnuAsmFragment s               -> "GnuAsmFragment:"^s
@@ -2292,6 +2294,7 @@ let to_simple_string = function
   | DummyDecl                      -> "<dummy-decl>"
   | DummyStmt                      -> "<dummy-stmt>"
   | DummyExpr                      -> "<dummy-expr>"
+  | DummyOp                        -> "<dummy-op>"
   | DummyDtor                      -> "<dummy-dtor>"
   | GnuAsmBlockFragmented a        -> a
   | GnuAsmFragment s               -> s
@@ -3086,6 +3089,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DummyDecl                      -> "DummyDecl", []
   | DummyStmt                      -> "DummyStmt", []
   | DummyExpr                      -> "DummyExpr", []
+  | DummyOp                        -> "DummyOp", []
   | DummyDtor                      -> "DummyDtor", []
   | GnuAsmBlockFragmented a        -> "GnuAsmBlockFragmented", ["ident",a]
   | GnuAsmFragment s               -> "GnuAsmFragment", ["block",s]

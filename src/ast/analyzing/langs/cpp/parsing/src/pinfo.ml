@@ -342,6 +342,29 @@ module TypeSpec = struct
     | Typename e      -> "typename "^e
     | CvQualifier cvq -> CvQualifier.to_string cvq
 
+  let is_definite_type = function
+    | Decltype _
+    | Placeholder _
+    | Char
+    | Char8_t
+    | Char16_t
+    | Char32_t
+    | Wchar_t
+    | Bool
+    | Short
+    | Int
+    | Long
+    | Signed
+    | Unsigned
+    | Float
+    | Double
+    | Void
+    | UnsignedInt
+    | UnsignedLong
+    | Elaborated _
+      -> true
+    | _ -> false
+
   let is_basic_type = function
     | Char
     | Char8_t
@@ -703,6 +726,10 @@ module Type = struct
     else
       sprintf "(%s %s)" ds_str (list_to_string TypeSpec.to_string " " ts)
 
+  let simple_ty_has_definite_ty {
+    st_type_specs=ts;
+  } = List.exists TypeSpec.is_definite_type ts
+
   let simple_ty_has_basic_ty {
     st_type_specs=ts;
   } = List.exists TypeSpec.is_basic_type ts
@@ -819,6 +846,12 @@ module Type = struct
     | _ -> false
 
   let is_type_type ?(name="") x = _is_type_type ~name (unwrap x)
+
+  let _is_function_type = function
+    | FunctionTy _ -> true
+    | _ -> false
+
+  let is_function_type x = _is_function_type (unwrap x)
 
   let hoist_typedef x =
     let tl = get_top_level_type x.t_desc in
@@ -1093,7 +1126,6 @@ module Name = struct
       | Member of mem_spec
       | Variable of Type.t_
       | Enumerator of Type.t_
-      | ClassEnumerator of Type.t_
       | MacroObj
       | MacroFun
       | IdMacroFun
@@ -1119,7 +1151,6 @@ module Name = struct
       | Member s     -> sprintf "Member:%s" s#to_string
       | Variable ty  -> sprintf "Variable:%s" (Type.to_string_ ty)
       | Enumerator ty -> sprintf "Enumerator:%s" (Type.to_string_ ty)
-      | ClassEnumerator ty -> sprintf "ClassEnumerator:%s" (Type.to_string_ ty)
       | MacroObj     -> "MacroObj"
       | MacroFun     -> "MacroFun"
       | IdMacroFun   -> "IdMacroFun"
@@ -1132,7 +1163,6 @@ module Name = struct
       | FParam ty
       | Variable ty -> ty
       | Enumerator ty -> ty
-      | ClassEnumerator ty -> ty
       | _ -> raise Not_found
 
     let make_templ k = Template k
@@ -1164,11 +1194,6 @@ module Name = struct
       Type.hoist_typedef ty_;
       Enumerator ty_
 
-    let make_classenumerator ty =
-      let ty_ = Type.wrap ty in
-      Type.hoist_typedef ty_;
-      ClassEnumerator ty_
-
     let make_member aspec ty =
       let ty_ = Type.wrap ty in
       Type.hoist_typedef ty_;
@@ -1181,11 +1206,13 @@ module Name = struct
         =
       object (self)
         val mutable kind = _kind
+        val mutable prefix = prefix
 
         method get_qualified_name () = prefix^ident
         method bid_opt : BID.t option = bid_opt
         method section_info_opt : pp_if_section_info option = section_info_opt
         method prefix = prefix
+        method append_prefix p = prefix <- prefix ^ p
         method lod = lod
         method iod = iod
         method is_local = is_local
@@ -1209,6 +1236,7 @@ module Name = struct
           | Class _ | Struct _ | Union _
           | Enum _ | EnumClass _ | EnumStruct _ | EnumMacro _
           | Member _ | Function _ -> kind <- (make_templ kind)
+          | Variable t when Type.is_function_type t -> kind <- (make_templ kind)
           | _ -> ()
 
         method to_string =
@@ -1409,12 +1437,22 @@ module Name = struct
       self#_exit_scope Scope.is_template;
       popped_frame#iter
         (fun i (spec : Spec.c) ->
+          DEBUG_MSG "%s %s" i spec#to_string;
           match spec#kind with
+          | Template _ -> self#top#register ~templatize:false i spec
           | Class _ | Struct _ | Union _
           | Enum _ | EnumClass _ | EnumStruct _ | EnumMacro _
-          | Member _ | Function _
-          | Template _
-            -> self#top#register ~templatize:false i spec
+          (*| Member _ *)| Function _ -> begin
+              spec#templatize();
+              self#top#register ~templatize:false i spec
+          end
+          | Member _ -> begin
+              self#top#register ~templatize:false i spec
+          end
+          | Variable t when Type.is_function_type t -> begin
+              spec#templatize();
+              self#top#register ~templatize:false i spec
+          end
           | _ -> ()
         )
 
@@ -1432,10 +1470,23 @@ module Name = struct
     method exit_enum () =
       DEBUG_MSG "exiting Enum scope...";
       self#_exit_scope Scope.is_enum;
-      popped_frame#iter
-        (fun i (spec : Spec.c) ->
-          self#top#register ~templatize:false i spec
-        )
+      let scope = popped_frame#scope in
+      let enumclass_flag = Scope.is_enumclass scope in
+      if enumclass_flag then begin
+        let p = Scope.get_name scope in
+        popped_frame#iter
+          (fun i (spec : Spec.c) ->
+            DEBUG_MSG "%s %s" i spec#to_string;
+            spec#append_prefix p;
+            DEBUG_MSG " -> %s" spec#to_string;
+            self#top#register ~templatize:false i spec
+          )
+      end
+      else
+        popped_frame#iter
+          (fun i (spec : Spec.c) ->
+            self#top#register ~templatize:false i spec
+          )
 
     (*method exit_function () =
       DEBUG_MSG "exiting Function scope...";

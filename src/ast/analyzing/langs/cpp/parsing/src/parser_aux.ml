@@ -187,6 +187,7 @@ let stack_2nd stack =
 
 class pstat = object (self)
   val mutable for_flag = false
+  val mutable templ_flag = false
   val mutable sizeof_ty_flag = false
   val mutable str_flag = false
   val mutable macro_arg_level = 0
@@ -304,6 +305,7 @@ class pstat = object (self)
 
   method reset () =
     for_flag <- false;
+    templ_flag <- false;
     sizeof_ty_flag <- false;
     str_flag <- false;
     macro_arg_level <- 0;
@@ -528,6 +530,18 @@ class pstat = object (self)
     end
 
   method for_flag = for_flag
+
+  method set_templ_flag () =
+    DEBUG_MSG "templ_flag set";
+    templ_flag <- true
+
+  method clear_templ_flag () =
+    if templ_flag then begin
+      DEBUG_MSG "templ_flag cleared";
+      templ_flag <- false
+    end
+
+  method templ_flag = templ_flag
 
   method set_start_of_func_body_flag () =
     DEBUG_MSG "start_of_func_body_flag set";
@@ -2523,7 +2537,10 @@ class dummy_pstat = object (self)
   method last_ty_templ_id_flag = false
   method set_for_flag () = ()
   method clear_for_flag () = ()
+  method set_templ_flag () = ()
+  method clear_templ_flag () = ()
   method for_flag = false
+  method templ_flag = false
   method set_start_of_func_body_flag () = ()
   method clear_start_of_func_body_flag () = ()
   method start_of_func_body_flag = false
@@ -2988,6 +3005,7 @@ class env = object (self)
   val mutable access_spec_opt = (None : N.Spec.access_spec option)
 
   val mutable scanner_keep_flag = false
+  val mutable scanner_replay_flag = false
 
   val inline_asm_functions = (Xset.create 0 : string Xset.t)
 
@@ -3062,6 +3080,10 @@ class env = object (self)
   method set_scanner_keep_flag() = scanner_keep_flag <- true
   method clear_scanner_keep_flag() = scanner_keep_flag <- false
 
+  method scanner_replay_flag = scanner_replay_flag
+  method set_scanner_replay_flag() = scanner_replay_flag <- true
+  method clear_scanner_replay_flag() = scanner_replay_flag <- false
+
   method access_spec_opt = access_spec_opt
 
   method set_access_spec a =
@@ -3130,7 +3152,13 @@ class env = object (self)
       end
       | None -> ()
     with
-      Not_found -> self#set_type_external_name ~prefix i nd
+      Not_found -> begin
+        if not self#scanner_keep_flag && not self#scanner_replay_flag then begin
+          self#set_type_external_name ~prefix i nd;
+          (*!!!NG!!!let spec = new N.Spec.c ~prefix Ast.Loc.dummy 0 i N.Spec.Type in
+          top_frame#register i spec*)
+        end
+      end
 
   method save_stack () =
     saved_stack <- stack;
@@ -3256,12 +3284,12 @@ class env = object (self)
     bidgen#gen
 
   method register_macro_obj i (nd : Ast.node) =
-    DEBUG_MSG "i=%s" i;
+    DEBUG_MSG "i=%s %s" i nd#to_string;
     let spec = new N.Spec.c nd#loc nd#id i N.Spec.MacroObj in
     top_frame#register ~replace:true i spec
 
   method register_macro_fun i (nd : Ast.node) =
-    DEBUG_MSG "i=%s" i;
+    DEBUG_MSG "i=%s %s" i nd#to_string;
     let spec = new N.Spec.c nd#loc nd#id i N.Spec.MacroFun in
     top_frame#register ~replace:true i spec
 
@@ -3543,18 +3571,11 @@ class env = object (self)
     DEBUG_MSG "nd=%s" (L.to_string nd#label);
     let frm = stack#top in
     let scope = frm#scope in
-    let enumclass_flag = N.Scope.is_enumclass scope in
-    DEBUG_MSG "enumclass_flag=%B" enumclass_flag;
     let p = stack#get_prefix() in
     try
       List.iter
         (fun (n, qn, ty) ->
-          let kind =
-            if enumclass_flag then
-              N.Spec.make_classenumerator ty
-            else
-              N.Spec.make_enumerator ty
-          in
+          let kind = N.Spec.make_enumerator ty in
           let spec = new N.Spec.c ~prefix:p n#loc n#id qn kind in
           n#set_info (I.from_spec spec);
           frm#register qn spec
@@ -3644,6 +3665,10 @@ class env = object (self)
   method find_resolved_macro name =
     DEBUG_MSG "%s" name;
     Hashtbl.find resolved_macro_tbl name
+
+  method find_all_resolved_macro name =
+    DEBUG_MSG "%s" name;
+    Hashtbl.find_all resolved_macro_tbl name
 
   method register_pending_macro name parent_nd macro_kind tok_lst =
     DEBUG_MSG "%s: %s" name (L.macro_kind_to_string macro_kind);
@@ -3790,6 +3815,10 @@ class env = object (self)
   method set_for_flag = pstat#set_for_flag
   method clear_for_flag = pstat#clear_for_flag
   method for_flag = pstat#for_flag
+
+  method set_templ_flag = pstat#set_templ_flag
+  method clear_templ_flag = pstat#clear_templ_flag
+  method templ_flag = pstat#templ_flag
 
   method set_start_of_func_body_flag = pstat#set_start_of_func_body_flag
   method clear_start_of_func_body_flag = pstat#clear_start_of_func_body_flag
