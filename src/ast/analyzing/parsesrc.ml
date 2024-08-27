@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -42,6 +42,14 @@ let set_dump_compressed_ast_flags() =
   set_dump_ast_flags();
   options#set_compress_ast_flag
 
+let set_dump_src_out s =
+  options#set_dump_src_out s;
+  options#set_dump_src_flag;
+  options#set_no_collapse_flag
+
+let set_dump_src_flag() =
+  options#set_dump_src_flag;
+  options#set_no_collapse_flag
 
 let set_fact_enc_FDLC() =
   options#set_fact_enc Entity.FDLC
@@ -113,6 +121,8 @@ let speclist =
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\tdump AST";
    "-dump:ast:compress", Arg.Unit set_dump_compressed_ast_flags, "\tdump compressed AST";
+   "-dump:src", Arg.Unit set_dump_src_flag, "\t\tdump unparsed AST";
+   "-dump:src:out", Arg.String set_dump_src_out, "FILE\tdump unparsed AST into file";
 
 (* cache *)
    "-cache", Arg.String options#set_cache_dir_base,
@@ -124,8 +134,8 @@ let speclist =
    "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
    "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
 
-   (*"-localcachename", Arg.String options#set_local_cache_name,
-   sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;*)
+   "-localcachename", Arg.String options#set_local_cache_name,
+   sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;
 
 
 
@@ -133,50 +143,68 @@ let speclist =
    "-searchonly", Arg.Set_string keyword, "\tKEYWORD\tsearch keyword only";
 
 (* fact *)
-   "-fact",                    Arg.Unit (fun () -> options#set_fact_flag), "\tdump fact";
-   "-fact:into-virtuoso",      Arg.String options#set_fact_into_virtuoso, "URI\t output fact into graph <URI> in virtuoso";
-   "-fact:into-directory",     Arg.String options#set_fact_into_directory, "DIR\t output fact into directory DIR";
-   "-fact:project",            Arg.String set_fact_proj, "PROJ\tset project name to PROJ";
-   "-fact:project-root",       Arg.String set_fact_proj_root, "PATH\tset project root to PATH";
-   "-fact:version",            Arg.String set_fact_version, "KIND:VER\tset version of AST to KIND:VER (KIND=REL|SVNREV|GITREV|VARIANT)";
-   "-fact:add-versions",       Arg.Unit (fun () -> options#set_fact_add_versions_flag), "\tadd version statements to fact";
-   "-fact:encoding:FDLC",      Arg.Unit set_fact_enc_FDLC, "\tuse FDLC entity encoding";
-   "-fact:encoding:FDO",       Arg.Unit set_fact_enc_FDO, "\tuse FDO entity encoding";
-   "-fact:encoding:FDLO",      Arg.Unit set_fact_enc_FDLO, "\tuse FDLO entity encoding";
-   "-fact:encoding:FDLCO",     Arg.Unit set_fact_enc_FDLCO, "\tuse FDLCO entity encoding";
-   "-fact:encoding:PVFLC",     Arg.Unit set_fact_enc_PVFLC, "\tuse PVFLC entity encoding";
-   "-fact:encoding:PVFO",      Arg.Unit set_fact_enc_PVFO, "\tuse PVFO entity encoding";
-   "-fact:encoding:PVFLO",     Arg.Unit set_fact_enc_PVFLO, "\tuse PVFLO entity encoding";
-   "-fact:encoding:PVFLCO",    Arg.Unit set_fact_enc_PVFLCO, "use PVFLCO entity encoding";
-   "-fact:hash:MD5",           Arg.Unit set_fact_algo_MD5, "\tuse MD5 for entity encoding";
-   "-fact:hash:SHA1",          Arg.Unit set_fact_algo_SHA1, "\tuse SHA1 for entity encoding";
-   "-fact:hash:SHA256",        Arg.Unit set_fact_algo_SHA256, "\tuse SHA256 for entity encoding";
-   "-fact:hash:RIPEMD160",     Arg.Unit set_fact_algo_RIPEMD160, "\tuse RIPEMD160 for entity encoding";
-   "-fact:hash:GIT",           Arg.Unit set_fact_algo_GIT, "\tuse SHA1(Git) for entity encoding";
-   "-fact:hash:PATH",          Arg.Unit set_fact_algo_PATH, "\tuse SHA1(with path header) for entity encoding";
-   "-fact:restrict",           Arg.Unit (fun () -> options#set_fact_restricted_flag), "\trestrict fact generation to specific categories";
-   "-fact:ast",                Arg.Unit (fun () -> options#set_fact_for_ast_flag), "\t\toutput fact triples for AST";
+   "-fact", Arg.Unit (fun () -> options#set_fact_flag), "\tdump fact";
+   "-fact:into-virtuoso", Arg.String options#set_fact_into_virtuoso,
+                          "URI\t output fact into graph <URI> in virtuoso";
+   "-fact:into-directory", Arg.String options#set_fact_into_directory,
+                           "DIR\t output fact into directory DIR";
+   "-fact:project",      Arg.String set_fact_proj, "PROJ\tset project name to PROJ";
+   "-fact:project-root", Arg.String set_fact_proj_root, "PATH\tset project root to PATH";
+   "-fact:version",      Arg.String set_fact_version,
+                         "KIND:VER\tset version of AST to KIND:VER (KIND=REL|SVNREV|GITREV|VARIANT)";
+   "-fact:add-versions", Arg.Unit (fun () -> options#set_fact_add_versions_flag),
+                         "\tadd version statements to fact";
+   "-fact:encoding:FDLC",   Arg.Unit set_fact_enc_FDLC, "\tuse FDLC entity encoding";
+   "-fact:encoding:FDO",    Arg.Unit set_fact_enc_FDO, "\tuse FDO entity encoding";
+   "-fact:encoding:FDLO",   Arg.Unit set_fact_enc_FDLO, "\tuse FDLO entity encoding";
+   "-fact:encoding:FDLCO",  Arg.Unit set_fact_enc_FDLCO, "\tuse FDLCO entity encoding";
+   "-fact:encoding:PVFLC",  Arg.Unit set_fact_enc_PVFLC, "\tuse PVFLC entity encoding";
+   "-fact:encoding:PVFO",   Arg.Unit set_fact_enc_PVFO, "\tuse PVFO entity encoding";
+   "-fact:encoding:PVFLO",  Arg.Unit set_fact_enc_PVFLO, "\tuse PVFLO entity encoding";
+   "-fact:encoding:PVFLCO", Arg.Unit set_fact_enc_PVFLCO, "use PVFLCO entity encoding";
+   "-fact:hash:MD5",        Arg.Unit set_fact_algo_MD5, "\tuse MD5 for entity encoding";
+   "-fact:hash:SHA1",       Arg.Unit set_fact_algo_SHA1, "\tuse SHA1 for entity encoding";
+   "-fact:hash:SHA256",     Arg.Unit set_fact_algo_SHA256, "\tuse SHA256 for entity encoding";
+   "-fact:hash:RIPEMD160",  Arg.Unit set_fact_algo_RIPEMD160, "\tuse RIPEMD160 for entity encoding";
+   "-fact:hash:GIT",        Arg.Unit set_fact_algo_GIT, "\tuse SHA1(Git) for entity encoding";
+   "-fact:hash:PATH",       Arg.Unit set_fact_algo_PATH,
+                            "\tuse SHA1(with path header) for entity encoding";
+   "-fact:restrict", Arg.Unit (fun () -> options#set_fact_restricted_flag),
+                     "\trestrict fact generation to specific categories";
+   "-fact:ast",      Arg.Unit (fun () -> options#set_fact_for_ast_flag),
+                     "\t\toutput fact triples for AST";
 
-   "-fact:nocompress",         Arg.Unit (fun () -> options#clear_fact_compress_flag), "\tdisable fact compression";
-   "-fact:size-thresh",        Arg.Int options#set_fact_size_threshold, sprintf "N\tfact buffer size threshold (default: %d)" options#fact_size_threshold;
+   "-fact:nocompress", Arg.Unit (fun () -> options#clear_fact_compress_flag),
+                       "\tdisable fact compression";
+   "-fact:size-thresh", Arg.Int options#set_fact_size_threshold,
+                        sprintf "N\tfact buffer size threshold (default: %d)"
+                                options#fact_size_threshold;
+
+(* Java *)
+   "-java:JLS", Arg.Int (fun lv -> options#set_java_lang_spec lv), "\tset JLS level";
 
 (* Python *)
-   "-python:disable-with-stmt", Arg.Unit (fun () -> options#set_python_with_stmt_disabled_flag), "\tdisable with_statement feature";
+   "-python:disable-with-stmt", Arg.Unit (fun () -> options#set_python_with_stmt_disabled_flag),
+                                "\tdisable with_statement feature";
 
 (* Fortran *)
-   "-fortran:max-line-length", Arg.Int options#set_fortran_max_line_length, "N\tset max line length to N";
-   "-fortran:parse-d-lines",   Arg.Unit (fun () -> options#set_fortran_parse_d_lines_flag), "\tparse d-lines as code";
-   "-fortran:ignore-include",  Arg.Unit (fun () -> options#set_fortran_ignore_include_flag), "\tignore include lines";
-
+   "-fortran:max-line-length", Arg.Int options#set_fortran_max_line_length,
+                               "N\tset max line length to N";
+   "-fortran:parse-d-lines", Arg.Unit (fun () -> options#set_fortran_parse_d_lines_flag),
+                             "\tparse d-lines as code";
+   "-fortran:ignore-include", Arg.Unit (fun () -> options#set_fortran_ignore_include_flag),
+                              "\tignore include lines";
+(*
 (* Yacfe *)
    "-yacfe:macros", Arg.String options#set_yacfe_defs_builtins, "FILE\tread yacfe macro FILE";
 (*
-   "-yacfe:env",    Arg.String options#set_yacfe_env, "FILE\tread yacfe env FILE";
+   "-yacfe:env", Arg.String options#set_yacfe_env, "FILE\tread yacfe env FILE";
 *)
-   "-yacfe:if0",    Arg.Unit (fun () -> options#clear_ignore_if0_flag), "\t\tparse code in '#if 0' block";
-
+   "-yacfe:if0", Arg.Unit (fun () -> options#clear_ignore_if0_flag),
+                 "\t\tparse code in '#if 0' block";
+*)
    "-incompleteinfo", Arg.Unit (fun () -> options#set_incomplete_info_flag),
-   "\tsome parts of info are omitted in AST (for counting nodes only)";
+                      "\tsome parts of info are omitted in AST (for counting nodes only)";
 
  ]
 

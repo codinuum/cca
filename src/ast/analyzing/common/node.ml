@@ -1,6 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020-2023 Chiba Institute of Technology
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -15,16 +14,22 @@
    limitations under the License.
 *)
 
-(* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
+type node_t = Spec.node_t
 
-(* cpp/cpp_lib_p.ml *)
+module M = struct
+  type t = node_t
+  let equal n1 n2 = n1 == n2
+  let hash n = n#hash(*lnot n#uid*)
+end
 
-include Cpp_lib_base
+module Tbl = Hashtbl.Make (M)
 
-let _ =
-  Lang_base.register Scpp.parser_name
-    (new Lang_base.c
-       ~make_tree_builder:(new tree_builder)
-       ~extract_fact:Fact.extract
-       ~node_filter:Fact.node_filter
-    )
+type t = Tbl.key
+
+type 'a cenv_t =
+    <
+    get_adjacency_score : ?anchor:((node_t * node_t) option) -> t -> t -> float;
+    _get_adjacency_score : ?anchor:((node_t * node_t) option) -> t -> t -> float * (t * t) list;
+    ..> as 'a
+
+

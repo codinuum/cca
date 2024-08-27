@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -99,6 +99,8 @@ let parent2_attr   = mktag "parent_"
 let shift_attr     = mktag "shift"
 let shift1_attr    = mktag "shift"
 let shift2_attr    = mktag "shift_"
+
+let potential_dup_attr = mktag "potential_dup"
 
 (* for partial application of move *)
 type move_control = Mfull | MdeleteOnly | MinsertOnly

@@ -70,6 +70,17 @@ let _ =
         Printf.printf "%d lines read\n" _parser#lines_read
       end;
 
+      if Hashtbl.length ast#comment_tbl > 0 then begin
+        let lnl = Hashtbl.fold (fun ln _ l -> ln::l) ast#comment_tbl [] in
+        let lnl = List.fast_sort Stdlib.compare lnl in
+        Printf.printf "comments:\n";
+        List.iter
+          (fun ln ->
+            let c = Hashtbl.find ast#comment_tbl ln in
+            Printf.printf "%d: %s\n" ln c.Ast.c_comment
+          ) lnl
+      end;
+
       ignore (exit 0)
     done
   with

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 (* xstring.ml *)
 
 
-let startswith s s0 =
+(*let startswith s s0 =
   let len = String.length s in
   let len0 = String.length s0 in
 
@@ -45,10 +45,13 @@ let endswith s s0 =
       done;
       true
     with 
-    | Exit -> false
+    | Exit -> false*)
+
+let startswith s s0 = String.starts_with ~prefix:s0 s
+let endswith s s0 = String.ends_with ~suffix:s0 s
 
 
-let white_spaces = ["\t"; " "; "\n"]
+let white_spaces = [" "; "\x0C"; "\n"; "\r"; "\t"]
 
 
 let rec rstrip ?(strs=white_spaces) s =

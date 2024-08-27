@@ -137,12 +137,12 @@ let get_stable_matches ?(check=false) cmpr array1 array2 =
   Array.iteri (fun i stat -> Printf.printf "stat1[%d]: %s\n" i (stat_to_string stat)) stat_array1;
  *)
     finished := 
-      List.for_all 
+      Array.for_all
 	(fun stat -> 
 	  match stat with 
 	  | Sfinished | Sengaged _ -> true
 	  | _ -> false
-	) (Array.to_list stat_array1)
+	) stat_array1
 	
   done;
   let pairs =

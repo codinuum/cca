@@ -99,7 +99,7 @@ let _get_attr_opt conv xnode a =
   with
     Attribute_not_found _ -> None
 
-let get_attr_opt xnode a = _get_attr_opt (fun x -> x) xnode a
+let get_attr_opt xnode a = _get_attr_opt Fun.id xnode a
 
 let get_iattr_opt = _get_attr_opt int_of_string
 
@@ -196,23 +196,23 @@ let rev_scan_whole_initial_subtree ?(moveon=(fun x -> true)) nd (f : 'node -> un
 
 let rec get_p_descendants ?(keep_going=false) ?(moveon=fun x -> true) pred nd =
   if moveon nd then
-    List.flatten
-      (List.map
-         (fun n ->
-           if pred n then
-             n ::
-             (if keep_going && moveon n then begin
-               let l = get_p_descendants ~moveon pred n in
-               if l <> [] then
-                 DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;
-               l
-             end
-             else
-               [])
-           else
-             get_p_descendants ~moveon pred n
-         )
-         (Array.to_list nd#initial_children))
+    List.concat_map
+      (fun n ->
+        (*DEBUG_MSG "n=%a" nps n;*)
+        if pred n then
+          n ::
+          (if keep_going && moveon n then begin
+            let l = get_p_descendants ~moveon pred n in
+            if l <> [] then
+              DEBUG_MSG "!!!! n=%a l=[%a]" nps n nsps l;
+            l
+          end
+          else
+            [])
+        else
+          get_p_descendants ~moveon pred n
+      )
+      (Array.to_list nd#initial_children)
   else
     []
 
@@ -353,7 +353,7 @@ let scan_ancestors ?(moveon=fun x -> true) nd f =
   | Exit -> ()
   | Otree.Parent_not_found _ -> ()
 
-let get_ancestors nd =
+let get_ancestors ?(limit=None) nd =
   let l = ref [] in
   begin
     try
@@ -361,10 +361,14 @@ let get_ancestors nd =
       while true do
         let pos = (!cur)#initial_pos in
         cur := (!cur)#initial_parent;
-        l := (!cur, pos) :: !l
+        l := (!cur, pos) :: !l;
+        match limit with
+        | Some x when x == !cur -> raise Exit
+        | _ -> ()
       done
     with
-      Otree.Parent_not_found _ -> ()
+    | Exit
+    | Otree.Parent_not_found _ -> ()
   end;
   DEBUG_MSG "%a -> [%s]" nps nd
     (Xlist.to_string (fun (n, pos) -> sprintf "(%a,%d)" nps n pos) ";" !l);

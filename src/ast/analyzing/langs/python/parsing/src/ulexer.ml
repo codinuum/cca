@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -28,43 +28,15 @@ open Common
 open Compat
 
 module PB = Parserlib_base
+module Aux = Parser_aux
 
 type longstringmode = LSMfalse | LSMsingle | LSMdouble
 
-
 exception Illegal_indent
 
+let default_tab_size = 8
 
-
-let indent_length ind =
-  let c = ref 0 in
-  let add_tab() =
-    let n = !c mod 8 in
-    c := !c + 8 - n
-  in
-  let n = String.length ind in
-  if n > 0 then begin
-    if ind.[0] = '\012' then
-      ()
-    else if ind.[0] = '\009' then
-      add_tab()
-    else if ind.[0] = ' ' then
-      incr c
-    else
-      raise Illegal_indent;
-    if n > 1 then
-      for i = 1 to n - 1 do
-        if ind.[i] = '\009' then
-          add_tab()
-        else if ind.[i] = ' ' then
-          incr c
-        else
-          raise Illegal_indent
-      done
-  end;
-  DEBUG_MSG "length=%d" !c;
-  !c
-
+let space_only = String.for_all (fun c -> c = ' ')
 
 let mklexpos i =
     { Lexing.pos_fname = "";
@@ -74,13 +46,20 @@ let mklexpos i =
     }
 
 let mktok rawtok ulexbuf =
-  let st_pos = mklexpos (Ulexing.lexeme_start ulexbuf) in
-  let ed_pos = mklexpos ((Ulexing.lexeme_end ulexbuf) - 1) in
-  rawtok, st_pos, ed_pos
+  let st_ofs = Ulexing.lexeme_start ulexbuf in
+  let ed_ofs = Ulexing.lexeme_end ulexbuf in
+  let ed_ofs =
+    if ed_ofs = st_ofs then
+      ed_ofs
+    else
+      ed_ofs - 1
+  in
+  let st_pos = mklexpos st_ofs in
+  let ed_pos = mklexpos ed_ofs in
+  Token.create rawtok st_pos ed_pos
 
 
-
-module F (Stat : Parser_aux.STATE_T) = struct
+module F (Stat : Aux.STATE_T) = struct
 
   open Stat
 
@@ -113,7 +92,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "elif",     ELIF;
         "else",     ELSE;
         "except",   EXCEPT;
-        "exec",     EXEC;
+        (*"exec",     EXEC;*)
         "finally",  FINALLY;
         "for",      FOR;
         "from",     FROM;
@@ -126,7 +105,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
         "not",      NOT;
         "or",       OR;
         "pass",     PASS;
-        "print",    PRINT;
+        (*"print",    PRINT;*)
         "raise",    RAISE;
         "return",   RETURN;
         "try",      TRY;
@@ -165,8 +144,62 @@ module F (Stat : Parser_aux.STATE_T) = struct
     val mutable longstringmode = LSMfalse
 
     val indent_stack = Stack.create()
-    val token_stack = (Stack.create() : token_t Stack.t)
+    val token_queue = (new Xqueue.c : token_t Xqueue.c)
     val mutable paren_count = 0
+    val mutable last_indent = ""
+    val mutable last_indent_len = 0
+    val mutable newline_flag = false
+    val mutable last_ofs = 0
+    val mutable tab_size = default_tab_size
+
+    method set_tab_size n =
+      DEBUG_MSG "%d -> %d" tab_size n;
+      tab_size <- n
+
+    method indent_length ind =
+      (*DEBUG_MSG "ind=\"%s\"(%d)" (Xstring.encode ind) (String.length ind);*)
+      let c = ref 0 in
+      let add_tab() =
+        let n = !c mod tab_size in
+        c := !c + tab_size - n
+      in
+      let n = String.length ind in
+      (*DEBUG_MSG "n=%d" n;*)
+      if n > 0 then begin
+        if ind.[0] = '\012' then
+          ()
+        else if ind.[0] = '\009' then
+          add_tab()
+        else if ind.[0] = ' ' then
+          incr c
+        else
+          raise Illegal_indent;
+        if n > 1 then
+          for i = 1 to n - 1 do
+            if ind.[i] = '\009' then
+              add_tab()
+            else if ind.[i] = ' ' then
+              incr c
+            else
+              raise Illegal_indent
+          done
+      end;
+      (*DEBUG_MSG "length=%d" !c;*)
+      !c
+
+    method newline_flag = newline_flag
+    method set_newline_flag () = newline_flag <- true
+    method clear_newline_flag () = newline_flag <- false
+
+    method last_indent = last_indent
+    method set_last_indent ind =
+      DEBUG_MSG "%s" (Xstring.encode ind);
+      last_indent <- ind
+
+    method last_indent_len = last_indent_len
+    method set_last_indent_len n =
+      DEBUG_MSG "%d" n;
+      last_indent_len <- n
 
     method longstringmode = longstringmode
     method set_longstringmode m = longstringmode <- m
@@ -175,7 +208,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       DEBUG_MSG "pushed %d" n;
       Stack.push n indent_stack
 
-    method pop_indent =
+    method pop_indent () =
       let n = Stack.pop indent_stack in
       DEBUG_MSG "poped %d" n;
       n
@@ -183,22 +216,37 @@ module F (Stat : Parser_aux.STATE_T) = struct
     method top_of_indent_stack = Stack.top indent_stack
     method indent_stack_iter f = Stack.iter f indent_stack
     method indent_stack_len = Stack.length indent_stack
+    method is_valid_indent x =
+      DEBUG_MSG "%d" x;
+      let b =
+        try
+          Stack.iter
+            (fun i ->
+              DEBUG_MSG "%d" i;
+              if i = x then raise Exit
+            ) indent_stack;
+          false
+        with
+          Exit -> true
+      in
+      DEBUG_MSG "%B" b;
+      b
+
     method init_indent_stack () =
       Stack.clear indent_stack;
       Stack.push 0 indent_stack
 
-    method push_token t =
-      DEBUG_MSG "pushed %s" (Token.to_string env#current_pos_mgr t);
-      Stack.push t token_stack
+    method add_token t =
+      DEBUG_MSG "added %s" (Token.to_string env#current_pos_mgr t);
+      token_queue#add t
 
-    method pop_token =
-      let t = Stack.pop token_stack in
-      DEBUG_MSG "poped %s" (Token.to_string env#current_pos_mgr t);
+    method take_token () =
+      let t = token_queue#take in
+      DEBUG_MSG "taken %s" (Token.to_string env#current_pos_mgr t);
       t
 
-    method is_token_stack_empty = Stack.is_empty token_stack
-    method init_token_stack () =
-      Stack.clear token_stack
+    method is_token_queue_empty = token_queue#is_empty
+    method init_token_queue () = token_queue#clear
 
     method paren_in () = paren_count <- paren_count + 1
     method paren_out () = paren_count <- paren_count - 1
@@ -210,7 +258,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     method init =
       self#set_longstringmode LSMfalse;
       self#init_indent_stack();
-      self#init_token_stack();
+      self#init_token_queue();
       self#init_paren()
 
     initializer
@@ -232,7 +280,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let regexp line_join = '\\' line_terminator
 
-  let regexp letter = ['A'-'Z' 'a'-'z']
+  let regexp letter = ['A'-'Z' 'a'-'z' 128-255 880-1023 1024-1279 2304-2431 4352-4607 43360-43391 44032-55215 55216-55295]
   let regexp digit = ['0'-'9']
   let regexp identifier = (letter | '_') (letter | digit | '_')*
 
@@ -279,14 +327,27 @@ module F (Stat : Parser_aux.STATE_T) = struct
 
   let rec token scanner_env = lexer
 
-      line_join -> token scanner_env lexbuf
+    line_join -> token scanner_env lexbuf
+
 |   white_space -> token scanner_env lexbuf
 
 |   line_comment ->
-    DEBUG_MSG "[COMMENT] \"%s\"" (Ulexing.utf8_lexeme lexbuf);
-    let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
-    DEBUG_MSG "[COMMENT] region: %d-%d" st ed;
-    env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
+    let c = Ulexing.utf8_lexeme lexbuf in
+    DEBUG_MSG "[COMMENT] \"%s\"" c;
+    let so, eo = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
+    DEBUG_MSG "[COMMENT] region: %d-%d" so eo;
+    let loc = env#current_pos_mgr#offsets_to_loc so eo in
+    DEBUG_MSG "loc=%s" (Astloc.to_string loc);
+    if env#ignore_comment_flag then
+      env#comment_regions#add loc
+    else begin
+      DEBUG_MSG "c=%s" c;
+      env#add_comment (Ast.make_comment loc c);
+      DEBUG_MSG "last_range -> %s" (Astloc.to_string loc);
+      let st, ed = Astloc.to_lexposs loc in
+      env#set_last_range (st, ed)
+    end;
+
     token scanner_env lexbuf
 
 |   integer                 -> mktok (INTEGER (Ulexing.utf8_lexeme lexbuf)) lexbuf
@@ -303,16 +364,29 @@ module F (Stat : Parser_aux.STATE_T) = struct
     marker nl scanner_env (Ulexing.lexeme_start lexbuf) m lexbuf
 
 |   null_lines ->
-    let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
-    DEBUG_MSG "[NULL_LINES] \"%s\": region: %d-%d" (Ulexing.utf8_lexeme lexbuf) st ed;
-    env#comment_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
-    if scanner_env#in_paren then
-      token scanner_env lexbuf
-    else begin
-      DEBUG_MSG " * checking indent";
-      let ind = indent lexbuf in
-      check_indent scanner_env ind lexbuf
+    scanner_env#set_newline_flag();
+    let so, eo = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
+    let s = Ulexing.utf8_lexeme lexbuf in
+    DEBUG_MSG "[NULL_LINES] \"%s\": region: %d-%d" s so eo;
+    DEBUG_MSG "encoded: %s" (Xstring.encode s);
+
+    if env#ignore_comment_flag then begin
+      env#blank_regions#add (env#current_pos_mgr#offsets_to_loc so eo);
+      if scanner_env#in_paren then begin
+        let ind = indent lexbuf in
+        let ind_len = scanner_env#indent_length ind in
+        scanner_env#set_last_indent ind;
+        scanner_env#set_last_indent_len ind_len;
+        token scanner_env lexbuf
+      end
+      else begin
+        DEBUG_MSG "checking indent...";
+        let ind = indent lexbuf in (* next indent *)
+        check_indent scanner_env ind lexbuf
+      end
     end
+    else
+      check_null_lines scanner_env so s lexbuf;
 
 |   "==" -> mktok EQ_EQ lexbuf
 |   "<=" -> mktok LT_EQ lexbuf
@@ -378,8 +452,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let n = scanner_env#indent_stack_len - 1 in
     if n > 0 then begin
       for i = 1 to n do
-        ignore (scanner_env#pop_indent);
-        scanner_env#push_token (mktok DEDENT lexbuf)
+        ignore (scanner_env#pop_indent());
+        scanner_env#add_token (mktok DEDENT lexbuf)
       done
     end;
     (mktok EOF lexbuf)
@@ -399,29 +473,55 @@ module F (Stat : Parser_aux.STATE_T) = struct
 | _ -> line_comment lexbuf
 *)
 
-  and check_indent scanner_env ind lexbuf =
-    let len = indent_length ind in
-    DEBUG_MSG "len=%d" len;
+  and handle_indent
+      ?(eof_flag=false)
+      ?(prepend_opt=None)
+      ?(use_last_range=true)
+      scanner_env ind_len lexbuf
+      =
+    DEBUG_MSG "eof_flag=%B use_last_range=%B" eof_flag use_last_range;
+    DEBUG_MSG "ind_len=%d" ind_len;
+    let tok_consumer =
+      match prepend_opt with
+      | Some prepend -> prepend
+      | None -> scanner_env#add_token
+    in
     let top = scanner_env#top_of_indent_stack in
-    if len = top then
+    DEBUG_MSG "top=%d" top;
+    if not eof_flag && ind_len = top then
       ()
-    else if len > top then begin
-      scanner_env#push_indent len;
-      scanner_env#push_token (mktok INDENT lexbuf)
+    else if ind_len > top then begin
+      scanner_env#push_indent ind_len;
+      tok_consumer (mktok INDENT lexbuf)
     end
-    else if len < top then begin
+    else if eof_flag || ind_len < top then begin
       let ok = ref false in
-      scanner_env#indent_stack_iter (fun n -> if n = len then ok := true);
+      scanner_env#indent_stack_iter (fun n -> if n = ind_len then ok := true);
+      DEBUG_MSG "ok=%B" !ok;
       if !ok then begin
         let c = ref 0 in
+        if eof_flag then
+          incr c;
         scanner_env#indent_stack_iter
           (fun n ->
-            if n > len then begin
-              let _ = scanner_env#pop_indent in incr c
+            DEBUG_MSG "n=%d" n;
+            if eof_flag || n > ind_len then begin
+              let _ = scanner_env#pop_indent() in
+              incr c
             end);
+        let mkt =
+          if use_last_range then
+            fun rt ->
+              let st, ed = env#last_range in
+              Token.create rt ed ed
+          else
+            fun rt -> (mktok rt lexbuf)
+        in
         if !c > 0 then begin
           for i = 1 to !c do
-            scanner_env#push_token (mktok DEDENT lexbuf)
+            let t = mkt DEDENT in
+            DEBUG_MSG "[%d] %s" i (Token.to_string env#current_pos_mgr t);
+            tok_consumer t
           done
         end
         else
@@ -433,11 +533,191 @@ module F (Stat : Parser_aux.STATE_T) = struct
     else
       raise Illegal_indent; (* impossible *)
 
-    mktok (NEWLINE len) lexbuf
+  and check_indent
+      ?(token_maker_opt=None)
+      scanner_env ind lexbuf
+      =
+    let token_maker =
+      match token_maker_opt with
+      | Some f -> f
+      | None -> fun rt -> mktok rt lexbuf
+    in
+    let last_ind = scanner_env#last_indent in
+    let last_ind_len = scanner_env#last_indent_len in
+    DEBUG_MSG "last_ind=%s last_ind_len=%d" (Xstring.encode last_ind) last_ind_len;
+    DEBUG_MSG "ind=%s" (Xstring.encode ind);
+    if
+      last_ind <> "" &&
+      space_only last_ind &&
+      ind = "\t"
+    then begin
+      DEBUG_MSG "inconsistent use of tab and space in indentation";
+      let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
+      let loc = env#current_pos_mgr#offsets_to_loc st ed in
+      Aux.warning_loc loc "inconsistent use of tab and space in indentation";
+      scanner_env#set_tab_size last_ind_len
+    end;
+    let ind_len = scanner_env#indent_length ind in
+    DEBUG_MSG "ind_len=%d" ind_len;
+    scanner_env#set_last_indent ind;
+    scanner_env#set_last_indent_len ind_len;
+    handle_indent scanner_env ind_len lexbuf;
+    token_maker (NEWLINE ind_len)
+
+  and check_null_lines scanner_env so s lexbuf =
+    DEBUG_MSG "so=%d s=%s" so s;
+    DEBUG_MSG "%s" (Astloc.to_string (env#current_pos_mgr#offsets_to_loc so so));
+    let last_ind_len = scanner_env#last_indent_len in
+    DEBUG_MSG "last_ind_len=%d" last_ind_len;
+    let next_ind_opt =
+      if scanner_env#in_paren then
+        None
+      else
+        let next_ind = indent lexbuf in
+        DEBUG_MSG "next_ind=\"%s\"(%d)" (Xstring.encode next_ind) (String.length next_ind);
+        Some next_ind
+    in
+    let buf = Buffer.create 0 in
+    let ind_buf = Buffer.create 0 in
+    let in_comment_flag = ref false in
+    let start = ref 0 in
+    let blank_start = ref (-1) in
+    let blank_ofs = ref (-1) in
+    String.iteri
+      (fun i c ->
+        if !in_comment_flag then begin
+          if c == '\013' || c == '\010' then begin
+            let comment0 = Buffer.contents buf in
+            let so0 = so + !start in
+            let eo0 = so + i - 1 in
+            let loc0 = env#current_pos_mgr#offsets_to_loc so0 eo0 in
+            DEBUG_MSG "loc0=%s comment0=%s" (Astloc.to_string loc0) comment0;
+            env#add_comment (Ast.make_comment loc0 comment0);
+            if not env#ignore_comment_flag then begin
+              let st0, ed0 = Astloc.to_lexposs loc0 in
+              DEBUG_MSG "last_range -> %s" (Astloc.to_string loc0);
+              env#set_last_range (st0, ed0)
+            end;
+            Buffer.clear buf;
+            in_comment_flag := false;
+          end
+          else
+            Buffer.add_char buf c
+        end
+        else if c = '#' then begin
+          begin
+            let ind = Buffer.contents ind_buf in
+            let ind_len = scanner_env#indent_length ind in
+            DEBUG_MSG "ind_len=%d" ind_len;
+            let ok =
+              not scanner_env#in_paren &&
+              (match next_ind_opt with
+              | None -> true
+              | Some "" -> true
+              | Some next_ind ->
+                  let next_ind_len = scanner_env#indent_length next_ind in
+                  DEBUG_MSG "next_ind_len=%d" next_ind_len;
+                  scanner_env#is_valid_indent next_ind_len &&
+                  next_ind_len <= ind_len
+              ) &&
+              (
+               ind_len = last_ind_len ||
+               if ind_len < last_ind_len then begin
+                 DEBUG_MSG "%d < %d" ind_len last_ind_len;
+                 let last_tok = (Obj.obj env#last_token) in
+                 let last_rawtok = Token.to_rawtoken last_tok in
+                 last_rawtok != COLON
+               end
+               else
+                true
+              )
+            in
+            DEBUG_MSG "ok=%B" ok;
+            if ok then begin
+              scanner_env#set_last_indent ind;
+              scanner_env#set_last_indent_len ind_len;
+              handle_indent scanner_env ind_len lexbuf;
+            end;
+
+            Buffer.clear ind_buf
+          end;
+          if !blank_start >= 0 && !blank_start <= !blank_ofs then begin
+            let loc = env#current_pos_mgr#offsets_to_loc !blank_start !blank_ofs in
+            DEBUG_MSG "blank: %s" (Astloc.to_string loc);
+            env#blank_regions#add loc;
+            blank_start := -1;
+            blank_ofs := -1
+          end;
+          Buffer.add_char buf c;
+          start := i;
+          in_comment_flag := true
+        end
+        else if c == '\013' || c == '\010' then begin
+          Buffer.clear ind_buf;
+          if !blank_start >= 0 && !blank_start <= !blank_ofs then begin
+            let loc = env#current_pos_mgr#offsets_to_loc !blank_start !blank_ofs in
+            DEBUG_MSG "blank: %s" (Astloc.to_string loc);
+            env#blank_regions#add loc;
+            blank_start := -1;
+            blank_ofs := -1
+          end
+        end
+        else begin
+          if c == '\012' || c == ' ' || c == '\009' then begin
+            Buffer.add_char ind_buf c
+          end
+          else begin
+            DEBUG_MSG "c=%d" (Char.code c)
+          end;
+          let ofs = so + i in
+          if !blank_start < 0 then begin
+            blank_start := ofs;
+            blank_ofs := ofs
+          end
+          else if ofs = !blank_ofs + 1 then
+            incr blank_ofs
+        end
+      ) s;
+    if !blank_start >= 0 && !blank_start <= !blank_ofs then begin
+      let loc = env#current_pos_mgr#offsets_to_loc !blank_start !blank_ofs in
+      DEBUG_MSG "blank: %s" (Astloc.to_string loc);
+      env#blank_regions#add loc
+    end;
+    if scanner_env#in_paren then begin
+      let ind = indent lexbuf in
+      let ind_len = scanner_env#indent_length ind in
+      scanner_env#set_last_indent ind;
+      scanner_env#set_last_indent_len ind_len;
+      token scanner_env lexbuf
+    end
+    else begin
+      DEBUG_MSG "checking next indent...";
+      match next_ind_opt with
+      | Some next_ind -> begin
+          let eo =
+            try
+              if s.[0] == '\013' && s.[1] == '\010' then
+                so + 1
+              else
+                so
+            with _ -> so
+          in
+          let st, ed = Astloc.to_lexposs (env#current_pos_mgr#offsets_to_loc so eo) in
+          let token_maker rt = Token.create rt st ed in
+          let token_maker_opt = Some token_maker in
+          check_indent ~token_maker_opt scanner_env next_ind lexbuf
+      end
+      | None -> assert false
+    end
 
 
   and indent = lexer
-      indent -> Ulexing.utf8_lexeme lexbuf
+      indent ->
+        let st, ed = Ulexing.lexeme_start lexbuf, (Ulexing.lexeme_end lexbuf) - 1 in
+        DEBUG_MSG "[INDENT] \"%s\": region: %d-%d"
+          (Xstring.encode (Ulexing.utf8_lexeme lexbuf)) st ed;
+        env#blank_regions#add (env#current_pos_mgr#offsets_to_loc st ed);
+        Ulexing.utf8_lexeme lexbuf
 
   and longstring_single s = lexer
       longstring_single_quote -> mktok (LONGSTRING_REST (s^(Ulexing.utf8_lexeme lexbuf))) lexbuf
@@ -452,7 +732,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     let ind = indent lexbuf in
     let _ = check_indent scanner_env ind lexbuf in
     let mtok = (MARKER s), mklexpos st, mklexpos ((Ulexing.lexeme_end lexbuf) - 1) in
-    scanner_env#push_token mtok;
+    scanner_env#add_token mtok;
     nl
 
 |   _ -> marker nl scanner_env st (s^(Ulexing.utf8_lexeme lexbuf)) lexbuf
@@ -513,17 +793,31 @@ module F (Stat : Parser_aux.STATE_T) = struct
       );
     Buffer.contents buf
 
-  let outline_queue_to_string oq =
+  let is_outline_rawtoken = function
+    | LPAREN
+    | RPAREN
+    | LBRACE
+    | RBRACE
+    | LBRACKET
+    | RBRACKET
+    | INDENT
+    | DEDENT
+      -> true
+    | _ -> false
+
+  let outline_queue_to_string q =
     let buf = Buffer.create 0 in
-    oq#iter
+    q#iter
       (fun t ->
-        let s = Token.to_orig t in
-        Buffer.add_string buf s
+        let rt = Token.to_rawtoken t in
+        if is_outline_rawtoken rt then
+          let s = Token.rawtoken_to_orig rt in
+          Buffer.add_string buf s
       );
     Buffer.contents buf
 
   let is_stmt_head = function
-    | PRINT | DEL | PASS | BREAK | CONTINUE | RETURN | RAISE | YIELD
+    | PRINT | DEL | PASS | BREAK | CONTINUE | RETURN | RAISE(* | YIELD*)
     | IMPORT | GLOBAL | NONLOCAL | EXEC | ASSERT
     (*| IF | ELSE *)| WHILE(* | FOR*) | TRY | WITHx(* | ASYNC*) | DEF | CLASS | AT
       -> true
@@ -539,10 +833,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
     val queue = new Xqueue.c
 
     val shadow_queue = new Xqueue.c
-    val shadow_q = new Xqueue.c
+    (*val shadow_q = new Xqueue.c*)
 
     val mutable last_rawtoken = Tokens_.EOF
-
+    val mutable last_rawtoken2 = Tokens_.EOF
 
     method init =
       scanner_env#init
@@ -602,6 +896,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
       in
       peek [] 1
 
+    method peek_nth_rawtoken nth =
+      let _, rt = self#peek_nth nth in
+      rt
+
     method shadow_queue = shadow_queue
     method reset_shadow_queue = shadow_queue#clear
     method shadow_contents = token_queue_to_string shadow_queue
@@ -611,6 +909,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
       DEBUG_MSG "q=%s" (outline_queue_to_string q);
       shadow_queue#prepend_from q
 
+    method shadow_outline = outline_queue_to_string shadow_queue
+(*
     method shadow_q = shadow_q
     method reset_shadow_q = shadow_q#clear
     method shadow_outline = outline_queue_to_string shadow_q
@@ -619,7 +919,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
       DEBUG_MSG "shadow_q=%s" self#shadow_outline;
       DEBUG_MSG "q=%s" (outline_queue_to_string q);
       shadow_q#prepend_from q
-
+*)
 
     method has_error () =
       let b =
@@ -654,7 +954,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
     method __get_token ulexbuf =
       let get_token () =
         let tok =
-          if scanner_env#is_token_stack_empty then begin
+          if scanner_env#is_token_queue_empty then begin
             try
               match scanner_env#longstringmode with
               | LSMsingle -> begin
@@ -670,7 +970,7 @@ module F (Stat : Parser_aux.STATE_T) = struct
               Illegal_indent -> lexing_error ulexbuf "illegal indent"
           end
           else
-            scanner_env#pop_token
+            scanner_env#take_token()
         in
         begin
           match Token.get_rawtoken tok with
@@ -687,6 +987,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
           queue#take
       in
       env#set_last_token (Obj.repr t);
+      let _, st, ed = Token.decompose t in
+      env#set_last_range (st, ed);
       t
 
     method _get_token () =
@@ -699,26 +1001,120 @@ module F (Stat : Parser_aux.STATE_T) = struct
       | None -> failwith "Ulexer.scanner#_get_token"
 
     method get_token () =
+
       let token = self#_get_token() in
 
       let rawtok, stp, edp = Token.decompose token in
 
+      let is_print_stmt =
+        match rawtok with
+        | NAMEx "print" -> begin
+            match last_rawtoken with
+            | IMPORT -> false
+            | _ ->
+                match self#peek_nth_rawtoken 1 with
+                | LPAREN -> false
+                | _ ->
+                    DEBUG_MSG "is_print_stmt=true";
+                    true
+        end
+        | _ -> false
+      in
+      let is_exec_stmt =
+        match rawtok with
+        | NAMEx "exec" -> begin
+            match self#peek_nth_rawtoken 1 with
+            | LPAREN | EQ -> false
+            | _ ->
+                DEBUG_MSG "is_exec_stmt=true";
+                true
+        end
+        | _ -> false
+      in
+
       let token, rawtok =
-        if env#keep_going_flag && stp <> Lexing.dummy_pos && edp <> Lexing.dummy_pos then begin
+        if is_print_stmt then begin
+          let _, s, e = Token.decompose token in
+          let t = Token.create PRINT s e in
+          t, PRINT
+        end
+        else if is_exec_stmt then begin
+          let _, s, e = Token.decompose token in
+          let t = Token.create EXEC s e in
+          t, EXEC
+        end
+        else if env#keep_going_flag && stp <> Lexing.dummy_pos && edp <> Lexing.dummy_pos then begin
+          DEBUG_MSG "block_level=%d" env#block_level;
+          DEBUG_MSG "paren_level=%d" env#paren_level;
           match rawtok with
           | RPAREN when env#paren_level = 0 -> begin
               let loc = loc_of_poss stp edp in
               DEBUG_MSG "discarding a redundant closing parenthesis";
-              Parser_aux.warning_loc loc "discarding a redundant closing parenthesis";
+              Aux.warning_loc loc "discarding a redundant closing parenthesis";
               self#reset_paren_level();
               let token = self#_get_token() in
-              let rawtok, _, _ = Token.decompose token in
+              let rawtok = Token.to_rawtoken token in
               token, rawtok
+          end
+          | INDENT when begin
+              match last_rawtoken with
+              | NEWLINE _ -> last_rawtoken2 != COLON
+              | _ -> false
+          end -> begin
+            let loc = loc_of_poss stp edp in
+            DEBUG_MSG "discarding a redundant indent";
+            Aux.warning_loc loc "discarding a redundant indent";
+            let token = self#_get_token() in
+            let rawtok = Token.to_rawtoken token in
+            token, rawtok
+          end
+          | DEDENT when env#block_level = 0 -> begin
+            let loc = loc_of_poss stp edp in
+            let count = ref 1 in
+            let t = ref token in
+            let rt = ref rawtok in
+            begin
+              try
+                while true do
+                  t := self#_get_token();
+                  rt := Token.to_rawtoken !t;
+                  if !rt != DEDENT then
+                    raise Exit
+                  else
+                    incr count
+                done
+              with
+                Exit -> ()
+            end;
+            DEBUG_MSG "discarding %d redundant dedent(s)" !count;
+            Aux.warning_loc loc "discarding %d redundant dedent(s)" !count;
+            !t, !rt
+          end
+          | DEDENT when begin
+              match last_rawtoken with
+              | NEWLINE _ -> last_rawtoken2 == COLON
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "last_rawtoken2=%s" (Token.rawtoken_to_string last_rawtoken2);
+            DEBUG_MSG "last_rawtoken=%s" (Token.rawtoken_to_string last_rawtoken);
+            DEBUG_MSG "rawtok=%s" (Token.rawtoken_to_string rawtok);
+            DEBUG_MSG "outline=%s" self#shadow_outline;
+            let loc = loc_of_poss stp edp in
+            DEBUG_MSG "adding indent and dedent";
+            Aux.warning_loc loc "adding indent and dedent";
+            self#prepend_token token;
+            (*let ind_len = self#current_indent + 4 in
+            self#prepend_token (Token.create (Tokens_.NEWLINE ind_len) stp stp);
+            self#prepend_token (Token.create (Tokens_.PASS) stp stp);*)
+            self#prepend_token (Token.create (Tokens_.DEDENT) stp stp);
+            let token = Token.create (Tokens_.INDENT) stp stp in
+            let rawtok = Token.to_rawtoken token in
+            token, rawtok
           end
           | rt when begin
               last_rawtoken != COLON && env#paren_level > 0 &&
               (
-               is_stmt_head rt ||
+               is_stmt_head rt || rt == EOF ||
                match rt with
                | NAMEx _ -> begin
                    match last_rawtoken with
@@ -729,22 +1125,45 @@ module F (Stat : Parser_aux.STATE_T) = struct
                | _ -> false
               )
           end -> begin
-            DEBUG_MSG "q=%s" self#shadow_outline;
+            DEBUG_MSG "newline_flag=%B" scanner_env#newline_flag;
+            DEBUG_MSG "last_rawtoken=%s" (Token.rawtoken_to_string last_rawtoken);
+            DEBUG_MSG "rawtok=%s" (Token.rawtoken_to_string rawtok);
+            DEBUG_MSG "outline=%s" self#shadow_outline;
             let n = env#paren_level in
-            DEBUG_MSG "n=%d" n;
             let loc = loc_of_poss stp edp in
-            DEBUG_MSG "adding %d closing parentheses" n;
-            Parser_aux.warning_loc loc "adding %d closing parentheses" n;
-            self#prepend_token token;
-            self#prepend_token (Token.create (Tokens_.NEWLINE self#current_indent) stp stp);
-            let t = Token.create Tokens_.RPAREN stp stp in
-            for i = 1 to n do
-              self#prepend_token t;
-            done;
-            self#reset_paren_level();
-            let token = self#_get_token() in
-            let rawtok, _, _ = Token.decompose token in
-            token, rawtok
+
+            if scanner_env#newline_flag then begin
+              DEBUG_MSG "adding %d closing parentheses" n;
+              Aux.warning_loc loc "adding %d closing parentheses" n;
+              self#prepend_token token;
+              let ind_len = scanner_env#last_indent_len in
+              begin
+                match ulexbuf_opt with
+                | Some ulexbuf ->
+                    let prepend_opt = Some self#prepend_token in
+                    let eof_flag = rawtok == EOF in
+                    handle_indent ~eof_flag scanner_env ~prepend_opt ind_len ulexbuf
+                | _ -> ()
+              end;
+              self#prepend_token (Token.create (Tokens_.NEWLINE ind_len) stp stp);
+              let t = Token.create Tokens_.RPAREN stp stp in
+              for i = 1 to n do
+                self#prepend_token t;
+              done;
+              self#reset_paren_level();
+              let token = self#_get_token() in
+              let rawtok = Token.to_rawtoken token in
+              token, rawtok
+            end
+            else begin
+              DEBUG_MSG "adding comma";
+              Aux.warning_loc loc "adding comma";
+              self#prepend_token token;
+              let token = Token.create (Tokens_.COMMA) stp stp in
+              let rawtok = Token.to_rawtoken token in
+              token, rawtok
+            end
+
           end
           | _ -> token, rawtok
         end
@@ -756,49 +1175,46 @@ module F (Stat : Parser_aux.STATE_T) = struct
         match rawtok with
         | LPAREN -> begin
             env#open_paren();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | RPAREN when env#paren_level > 0 -> begin
             env#close_paren();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | LBRACE -> begin
             env#open_brace();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | RBRACE when env#brace_level > 0 -> begin
             env#close_brace();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | LBRACKET -> begin
             env#open_bracket();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | RBRACKET when env#brace_level > 0 -> begin
             env#close_bracket();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | INDENT -> begin
             env#open_block();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
         | DEDENT when env#block_level > 0 -> begin
             env#close_block();
-            shadow_queue#add token;
-            shadow_q#add token
+            (*shadow_q#add token*)
         end
-        | _ -> shadow_queue#add token
+        | _ -> ()
       end;
+
+      shadow_queue#add token;
+      DEBUG_MSG "shadow_queue length: %d" shadow_queue#length;
       DEBUG_MSG "---------- %s" (Token.to_string env#current_pos_mgr token);
       env#clear_shift_flag();
+      last_rawtoken2 <- last_rawtoken;
       last_rawtoken <- rawtok;
+      scanner_env#clear_newline_flag();
       token
 
 

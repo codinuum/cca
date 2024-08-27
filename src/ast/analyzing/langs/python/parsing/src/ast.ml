@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -33,7 +33,9 @@ type name = loc * string
 
 type dottedname = name list
 
+type comment = { c_loc : Loc.t; c_comment : string; }
 
+let make_comment loc c = { c_loc=loc; c_comment=c; }
 
 type fileinput = Fileinput of loc * statement list
 
@@ -54,6 +56,7 @@ and statement_desc =
   | Sasync_funcdef of decorator list * name * parameters * expr option * suite
   | Sfuncdef of decorator list * name * parameters * expr option * suite
   | Sclassdef of decorator list * name * arglist * suite
+  | Smatch of subject_expr * case_block list
   | Serror
   | Smarker of string
 
@@ -62,7 +65,7 @@ and simplestmt = { sstmt_desc: simplestmt_desc; sstmt_loc: loc }
 and simplestmt_desc =
   | SSexpr of expr list
   | SSassign of testlist list * testlist
-  | SSannassign of target list * expr * testlist option
+  | SSannassign of target list * (loc * expr) * testlist option
   | SSaugassign of target list * augop * testlist
   | SSprint of expr list
   | SSprintchevron of expr * expr list
@@ -102,10 +105,14 @@ and parameters = loc * vararg list
 
 and vararg =
 | VAarg of fpdef * expr option
-| VAargs of loc * name option
-| VAkwargs of loc * name
+| VAargs of loc * name option * expr option
+| VAkwargs of loc * name * expr option
+| VAsep of loc
 
-and fpdef = Fname of name | Flist of loc * fpdef list | Ftyped of loc * name * expr
+and fpdef =
+| Fname of name
+| Flist of loc * fpdef list
+| Ftyped of loc * name * expr
 
 and decorator = loc * dottedname * arglist
 
@@ -129,6 +136,7 @@ and primary = { prim_desc: primary_desc; prim_loc: loc }
 and primary_desc =
   | Pname of name
   | Pliteral of literal
+  | Pexpr of expr
   | Pparen of expr
   | Ptuple of expr list
   | Pyield of expr list
@@ -144,6 +152,7 @@ and primary_desc =
   | Pslice of primary * sliceitem list
   | Pcall of primary * arglist
   | Pawait of primary
+  | Pellipsis
 
 and trailer =
   | TRattrref of name
@@ -157,6 +166,9 @@ and literal =
   | Lfloatnumber of string
   | Limagnumber of string
   | Lstring of pystring list
+  | Lnone
+  | Ltrue
+  | Lfalse
 
 and pystring = PSlong of loc * string | PSshort of loc * string
 
@@ -184,7 +196,7 @@ and sliceitem =
   | SIexpr of expr
   | SI2 of loc * expr option * expr option
   | SI3 of loc * expr option * expr option * expr option
-  | SIellipsis of loc
+  (*| SIellipsis of loc*)
 
 and arglist = loc * argument list
 
@@ -225,9 +237,60 @@ and bop =
 
 and uop = Upositive | Unegative | Ucomplement | Unot
 
+and subject_expr =
+| SEstar of loc * expr * expr list
+| SEnamed of loc * expr
+
+and guard = loc * expr
+
+and complex_number =
+| CNplus of loc * literal_expr * string
+| CNminus of loc * literal_expr * string
+
+and literal_expr =
+| LEsigned of loc * literal
+| LEsignedMinus of loc * literal
+| LEcmplxPlus of loc * literal_expr * string
+| LEcmplxMinus of loc * literal_expr * string
+| LEstrings of loc * pystring list
+| LEnone of loc
+| LEtrue of loc
+| LEfalse of loc
+
+and key =
+| Kliteral of loc * literal_expr
+| Kattr of loc * name list
+
+and pattern =
+| PAas of loc * pattern * pattern
+| PAor of loc * pattern list
+| PAcapture of name
+| PAliteral of literal_expr
+| PAwildcard of loc
+| PAvalue of loc * name list
+| PAgroup of loc * pattern
+| PAseqB of loc * pattern option
+| PAseqP of loc * pattern option
+| PAseqOpen of loc * pattern * pattern option
+| PAseqMaybe of loc * pattern list
+| PAstar of loc * pattern
+| PAdblStar of loc * pattern
+| PAmap of loc * pattern list * pattern option
+| PAkeyValue of loc * key * pattern
+| PAkeyword of loc * name * pattern
+| PAclass of loc * name list * pattern list * pattern list
+
+and case_block = loc * pattern * guard option * suite
+
+
 
 class c (fileinput : fileinput) = object (self)
   inherit Ast_base.c
+
+  val mutable comment_tbl = (Hashtbl.create 0 : (int, comment) Hashtbl.t)
+
+  method set_comment_tbl t = comment_tbl <- t
+  method comment_tbl = comment_tbl
 
   method fileinput = fileinput
 

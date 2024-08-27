@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -35,11 +35,13 @@ open Stat
 
 %token EOF
 
+(* Literals *)
 %token <Ast.Loc.t * string> IDENTIFIER
 %token <string> INTEGER_LITERAL
 %token <string> FLOATING_POINT_LITERAL
 %token <string> CHARACTER_LITERAL
 %token <string> STRING_LITERAL
+%token <string> TEXT_BLOCK
 %token TRUE FALSE NULL
 
 (* Separators *)
@@ -53,7 +55,7 @@ open Stat
 %token EQ_EQ LT_EQ GT_EQ EXCLAM_EQ AND_AND OR_OR PLUS_PLUS MINUS_MINUS
 %token PLUS MINUS STAR SLASH AND OR HAT PERCENT LT_LT GT_GT GT_GT_GT
 %token PLUS_EQ MINUS_EQ STAR_EQ SLASH_EQ AND_EQ OR_EQ HAT_EQ PERCENT_EQ 
-%token LT_LT_EQ GT_GT_EQ GT_GT_GT_EQ MINUS_GT
+%token LT_LT_EQ GT_GT_EQ GT_GT_GT_EQ MINUS_GT MINUS_GT__CASE
 
 (* Keywords *)
 %token <Ast.Loc.t> ABSTRACT ASSERT BOOLEAN BREAK BYTE 
@@ -65,10 +67,15 @@ open Stat
 %token <Ast.Loc.t> SHORT STATIC STRICTFP SUPER SWITCH SYNCHRONIZED
 %token <Ast.Loc.t> THIS THROW THROWS TRANSIENT TRY VOLATILE VOID WHILE
 
+(* Contextual Keywords *)
+%token <Ast.Loc.t> EXPORTS MODULE NON_SEALED OPEN OPENS PERMITS PROVIDES RECORD REQUIRES
+%token <Ast.Loc.t> SEALED TO TRANSITIVE USES VAR WITH_ YIELD
+
 (* AspectJ *)
 %token <Ast.Loc.t> ASPECT POINTCUT WITHIN DECLARE
 %token DOT_DOT
 
+(* *)
 %token <Ast.statement> STMT
 %token <Ast.block_statement> BLOCK_STMT
 %token <string> MARKER ERROR ERROR_STMT ERROR_MOD
@@ -105,7 +112,10 @@ clist0(X):
 reserved:
 | GOTO  { }
 | CONST { }
+
 | GT_7 { }
+
+| VAR { }
 ;
 
 partial_block_statement:
@@ -128,6 +138,15 @@ literal:
 | FALSE                    { Lfalse }
 | c=CHARACTER_LITERAL      { Lcharacter(String.sub c 1 ((String.length c) - 2)) }
 | s=STRING_LITERAL         { env#incr_nstrings(); Lstring(String.sub s 1 ((String.length s) - 2)) }
+| s=TEXT_BLOCK
+    { 
+      check_JLS_level 15
+        (fun () ->
+          env#incr_nstrings();
+          LtextBlock(String.sub s 3 ((String.length s) - 6))
+        )
+        (fun () -> parse_error $startofs $endofs "text-block is available since JLS15")
+    }
 | NULL                     { Lnull }
 ;
 
@@ -146,8 +165,12 @@ primitive_type:
 |               u=unann_primitive_type { u }
 | a=annotations u=unann_primitive_type 
     { 
-      let loc = get_loc $startofs $endofs in
-      add_ann loc a u
+      check_JLS_level 8
+        (fun () ->
+          let loc = get_loc $startofs $endofs in
+          add_ann loc a u
+        )
+        (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
     }
 ;
 
@@ -180,8 +203,12 @@ reference_type:
 |               u=unann_reference_type { u }
 | a=annotations u=unann_reference_type 
     { 
-      let loc = get_loc $startofs $endofs in
-      add_ann loc a u
+      check_JLS_level 8
+        (fun () ->
+          let loc = get_loc $startofs $endofs in
+          add_ann loc a u
+        )
+        (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
     }
 ;
 
@@ -190,8 +217,12 @@ class_or_interface_type:
 |               u=unann_class_or_interface_type { u }
 | a=annotations u=unann_class_or_interface_type 
     { 
-      let loc = get_loc $startofs $endofs in
-      add_ann loc a u
+      check_JLS_level 8
+        (fun () ->
+          let loc = get_loc $startofs $endofs in
+          add_ann loc a u
+        )
+        (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
     }
 ;
 
@@ -200,8 +231,12 @@ class_or_interface_type_spec:
 |               u=unann_class_or_interface_type_spec { u }
 | a=annotations u=unann_class_or_interface_type_spec 
     { 
-      let head, a0, n0 = u in
-      head, a @ a0, n0
+      check_JLS_level 8
+        (fun () ->
+          let head, a0, n0 = u in
+          head, a @ a0, n0
+        )
+        (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
     }
 ;
 
@@ -211,7 +246,7 @@ unann_class_or_interface_type_spec:
     {
      let rr =
        try
-	 mkresolved (get_type_fqn n)
+         mkresolved (get_type_fqn n)
        with
        | _ -> env#resolve n
      in
@@ -229,8 +264,15 @@ unann_class_or_interface_type_spec:
 
 | c=unann_class_or_interface_type_spec ts=type_arguments DOT a=annotations0 n=name
     { 
-      let head, a0, n0 = c in
-      head @ [TSapply(a0, n0, ts)], a, n
+      let thunk () =
+        let head, a0, n0 = c in
+        head @ [TSapply(a0, n0, ts)], a, n
+      in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
     }
 ;
 
@@ -268,29 +310,36 @@ unann_array_type:
     { 
       set_attribute_PT_T (env#resolve n) n;
       register_qname_as_typename n;
-      mktype $startofs $endofs (Tarray(name_to_ty [] n, List.length d)) 
+      mktype $startofs $endofs (Tarray(name_to_ty [] n, d))
     }
 
-| p=unann_primitive_type d=ann_dims { mktype $startofs $endofs (Tarray(p, List.length d)) }
+| p=unann_primitive_type d=ann_dims { mktype $startofs $endofs (Tarray(p, d)) }
 
 | c=unann_class_or_interface_type_spec ts=type_arguments DOT a=annotations0 n=name d=ann_dims 
     { 
-      let head, a0, n0 = c in
-      let ty =
-	_mktype (Loc.merge (get_loc $startofs $endofs) n.n_loc) 
-	  (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)]))
+      let thunk () =
+        let head, a0, n0 = c in
+        let ty =
+          _mktype (Loc.merge (get_loc $startofs $endofs) n.n_loc)
+            (TclassOrInterface(head @ [TSapply(a0, n0, ts); TSname(a, n)]))
+        in
+        mktype $startofs $endofs (Tarray(ty, d))
       in
-      mktype $startofs $endofs (Tarray(ty, List.length d))
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
     }
 
 | c=unann_class_or_interface_type_spec ts=type_arguments d=ann_dims 
     { 
       let head, a, n = c in
       let ty =
-	_mktype (Loc.merge (get_loc $startofs $endofs) ts.tas_loc) 
-	  (TclassOrInterface(head @ [TSapply(a, n, ts)])) 
+        _mktype (Loc.merge (get_loc $startofs $endofs) ts.tas_loc)
+          (TclassOrInterface(head @ [TSapply(a, n, ts)]))
       in
-      mktype $startofs $endofs (Tarray(ty, List.length d))
+      mktype $startofs $endofs (Tarray(ty, d))
     }
 ;
 
@@ -302,15 +351,20 @@ type_arguments_opt:
 
 type_arguments:
 | LT GT { mktyargs $startofs $endofs [] }
-| LT tas=type_argument_list_1 
-    { 
-      mktyargs $startofs $endofs tas 
-    }
+| LT tas=type_argument_list_1 { mktyargs $startofs $endofs tas }
 ;
 
 %inline
 wildcard_head:
-| al=annotations0 QUESTION { al, $endofs }
+| a=annotations0 QUESTION
+    { 
+      let thunk () = a, $endofs in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
+    }
 ;
 
 wildcard:
@@ -452,16 +506,25 @@ simple_name:
 
 %inline
 qualified_name:
-| n=name DOT i=identifier 
+| n=name DOT i=identifier
     { 
       let _, id = i in
-      mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
+      mkname $startofs $endofs (Nqualified(ref NAunknown, n, [], id))
+    }
+| n=name DOT a=annotations i=identifier
+    { 
+      check_JLS_level 10
+        (fun () ->
+          let _, id = i in
+          mkname $startofs $endofs (Nqualified(ref NAunknown, n, a, id))
+        )
+        (fun () -> parse_error $startofs(a) $endofs(a) "dot annotation is available since JLS10")
     }
 (*| s=ERROR DOT i=identifier
     { 
       let n = mkerrname $startofs $endofs(s) s in
       let _, id = i in
-      mkname $startofs $endofs (Nqualified(ref NAunknown, n, id)) 
+      mkname $startofs $endofs (Nqualified(ref NAunknown, n, [], id))
     }*)
 ;
 
@@ -473,14 +536,20 @@ identifier:
 
 (***** *****)
 
-
 compilation_unit:
+| u=ordinary_compilation_unit { u }
+| u=modular_compilation_unit { u }
+;
+
+%inline
+ordinary_compilation_unit:
 |                                                                   { mkcu None [] [] }
 |                                              t=type_declarations  { mkcu None [] t }
 |                       i=import_declarations  t=type_declarations0 { mkcu None i t }
 | p=package_declaration i=import_declarations0 t=type_declarations0 { mkcu (Some p) i t }
 
-| p=package_declaration i=import_declarations0 t=type_declarations i2=import_declarations t2=type_declarations0
+| p=package_declaration i=import_declarations0 t=type_declarations
+    i2=import_declarations t2=type_declarations0
     { 
       if env#keep_going_flag then begin
         parse_warning $startofs(i2) $endofs(i2) "illegal import declaration(s)";
@@ -489,6 +558,88 @@ compilation_unit:
       else
         parse_error $startofs(i2) $endofs(i2) "illegal import declaration(s)"
     }
+;
+
+%inline
+modular_compilation_unit:
+|                        m=module_declaration { mkmcu [] m }
+| i=import_declarations  m=module_declaration { mkmcu i m }
+;
+module_declaration:
+| h=module_declaration_head b=module_body { mkmodule $startofs $endofs h b }
+;
+module_declaration_head:
+| a=annotations0        MODULE n=name
+    { 
+      check_JLS_level 9
+        (fun () -> mkmdh $symbolstartofs $endofs a None n)
+        (fun () -> parse_error $startofs $endofs "module-declaration is available since JLS9")
+    }
+| a=annotations0 o=OPEN MODULE n=name
+    { 
+      check_JLS_level 9
+        (fun () -> mkmdh $symbolstartofs $endofs a (Some o) n)
+        (fun () -> parse_error $startofs $endofs "module-declaration is available since JLS9")
+    }
+;
+module_body:
+| LBRACE ds=module_directive* RBRACE { mkmb $startofs $endofs ds }
+;
+module_name:
+| n=name { mkmn $startofs $endofs n }
+;
+module_directive:
+| REQUIRES ms=requires_modifier* n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDrequires(ms, n)))
+        (fun () -> parse_error $startofs $endofs "requires-directive is available since JLS9")
+    }
+| EXPORTS n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDexports(n, [])))
+        (fun () -> parse_error $startofs $endofs "exports-directive is available since JLS9")
+    }
+| EXPORTS n=name TO ns=clist(module_name) SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDexports(n, ns)))
+        (fun () -> parse_error $startofs $endofs "exports-directive is available since JLS9")
+    }
+| OPENS n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDopens(n, [])))
+        (fun () -> parse_error $startofs $endofs "opens-directive is available since JLS9")
+    }
+| OPENS n=name TO ns=clist(module_name) SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDopens(n, ns)))
+        (fun () -> parse_error $startofs $endofs "opens-directive is available since JLS9")
+    }
+| USES n=name SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDuses n))
+        (fun () -> parse_error $startofs $endofs "uses-directive is available since JLS9")
+    }
+| PROVIDES n=name WITH_ ns=clist(module_name) SEMICOLON
+    { 
+      check_JLS_level 9
+        (fun () -> mkmd $startofs $endofs (MDprovides(n, ns)))
+        (fun () -> parse_error $startofs $endofs "provides-directive is available since JLS9")
+    }
+;
+requires_modifier:
+| TRANSITIVE
+    { 
+      check_JLS_level 9
+        (fun () -> mkmod $startofs $endofs Mtransitive)
+        (fun () -> parse_error $startofs $endofs "transitive-modifier is available since JLS9")
+    }
+| STATIC { mkmod $startofs $endofs Mstatic }
 ;
 
 %inline
@@ -533,14 +684,17 @@ _package_declaration:
     { 
       let pname = P.name_to_simple_string n in
       env#set_current_package_name pname;
-      let d = env#current_source#file#dirname in
-      env#classtbl#add_package ~dir:(env#current_source#tree#get_entry d) pname;
+
+      if not env#no_implicit_name_resolution_flag then begin
+        let d = env#current_source#file#dirname in
+        env#classtbl#add_package ~dir:(env#current_source#tree#get_entry d) pname
+      end;
 
       set_attribute_P_P n;
       let loc =
-	match a with
-	| [] -> Loc.merge p (get_loc $startofs $endofs)
-	| _ -> get_loc $startofs $endofs
+        match a with
+        | [] -> Loc.merge p (get_loc $startofs $endofs)
+        | _ -> get_loc $startofs $endofs
       in
       mkpkgdecl loc a n 
     }
@@ -566,11 +720,11 @@ single_type_import_declaration:
             with _ ->
               P.name_to_simple_string n
           in
-	  register_identifier_as_typename fqn (rightmost_identifier n);
-	  set_attribute_PT_T (mkresolved fqn) n;
+          register_identifier_as_typename fqn (rightmost_identifier n);
+          set_attribute_PT_T (mkresolved fqn) n;
           register_qname_as_typename n;
         with
-	  _ ->
+          _ ->
             ()(*let sn = P.name_to_simple_string n in
             parse_warning $startofs $endofs "failed to resolve %s" sn*)
       end;
@@ -621,6 +775,8 @@ type_import_on_demand_declaration:
             let sn = P.name_to_simple_string n in
             (*parse_warning $startofs $endofs "failed to resolve %s" sn;*)
             try
+              if env#no_implicit_name_resolution_flag then
+                raise Not_found;
               let p =
                 Filename.concat env#classtbl#get_source_dir#path (Common.pkg_to_path sn)
               in
@@ -659,6 +815,7 @@ static_type_import_on_demand_declaration:
 type_declaration: 
 | c=class_declaration     { mktd $startofs $endofs (TDclass c) }
 | e=enum_declaration      { mktd $startofs $endofs (TDclass e) }
+| r=record_declaration    { mktd $startofs $endofs (TDclass r) } (* JLS16 *)
 | i=interface_declaration { mktd $startofs $endofs (TDinterface i) }
 | SEMICOLON               { mktd $startofs $endofs TDempty }
 | a=aspect_declaration    { mktd $startofs $endofs (TDclass a) }
@@ -703,6 +860,18 @@ adhoc_modifier:
 | VOLATILE     { Mvolatile }
 | STRICTFP     { Mstrictfp }
 | DEFAULT      { Mdefault }
+| SEALED
+    { 
+      check_JLS_level 17
+        (fun () -> Msealed)
+        (fun () -> parse_error $startofs $endofs "sealed-modifier is available since JLS17")
+    }
+| NON_SEALED
+    { 
+      check_JLS_level 17
+        (fun () -> Mnon_sealed)
+        (fun () -> parse_error $startofs $endofs "sealed-modifier is available since JLS17")
+    }
 ;
 
 %inline
@@ -775,6 +944,74 @@ element_value_comma:
 | e=element_value COMMA { e }
 ;
 
+record_declaration_head0:
+| m_opt=modifiers_opt RECORD i=identifier
+    { 
+      let _, id = i in
+      let fqn = mkfqn_cls id in
+      register_identifier_as_class fqn id;
+      begin_scope ~kind:(FKclass(id, ref false)) ();
+      m_opt, i
+    }
+;
+record_declaration_head1:
+| rh=record_declaration_head0 ts_opt=type_parameters_opt { rh, ts_opt }
+;
+record_header:
+| LPAREN                            RPAREN { [] }
+(*| LPAREN rl=clist(record_component) RPAREN { rl }*)
+| LPAREN rl=clist(formal_parameter) RPAREN { rl }
+;
+(*record_component:
+| ms=annotations0 t=unann_type                       i=identifier { }
+| ms=annotations0 t=unann_type              ELLIPSIS i=identifier { }
+| ms=annotations0 t=unann_type a=annotation ELLIPSIS i=identifier { }
+;*)
+record_declaration_head:
+| rh1=record_declaration_head1 h=record_header i_opt=interfaces_opt
+    { 
+      let rh0, ts_opt = rh1 in
+      end_typeparameter_scope ts_opt;
+      let ms_opt, (id_loc, id) = rh0 in
+      (*begin (* ??? *)
+        match ms_opt with
+        | Some ms when has_user_defined_annotation ms -> env#set_has_super()
+        | _ -> ()
+      end;*)
+      mkrh $startofs $endofs ms_opt id id_loc ts_opt h i_opt
+    }
+;
+record_declaration:
+| rh=record_declaration_head b=record_body
+    { 
+      check_JLS_level 16
+        (fun () -> mkcd $startofs $endofs (CDrecord(rh, b)))
+        (fun () -> parse_error $startofs $endofs "record-declaration is available since JLS16")
+    }
+;
+
+record_body:
+| LBRACE c=record_body_declarations0 RBRACE { end_scope(); mkrb $startofs $endofs c }
+;
+
+%inline
+record_body_declarations0:
+| l=list(record_body_declaration) { l }
+;
+
+record_body_declaration:
+| c=class_body_declaration { mkrbd $startofs $endofs (RBDclass_body_decl c) }
+| c=compact_constructor_declaration { mkrbd $startofs $endofs (RBDcompact_ctor_decl c) }
+;
+
+compact_constructor_declaration:
+| m_opt=modifiers_opt i=identifier cb=constructor_body
+    { 
+      let _, id = i in
+      mkccnd $symbolstartofs $endofs m_opt id cb
+    }
+;
+
 class_declaration_head0:
 | m_opt=modifiers_opt CLASS i=identifier 
     { 
@@ -782,24 +1019,24 @@ class_declaration_head0:
       let fqn = mkfqn_cls id in
       register_identifier_as_class fqn id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      m_opt, id
+      m_opt, i
     }
 ;
 class_declaration_head1:
 | ch=class_declaration_head0 ts_opt=type_parameters_opt { ch, ts_opt }
 ;
 class_declaration_head:
-| ch1=class_declaration_head1 s_opt=super_opt i_opt=interfaces_opt
+| ch1=class_declaration_head1 s_opt=super_opt i_opt=interfaces_opt p_opt=permits_opt
     { 
       let ch0, ts_opt = ch1 in
       end_typeparameter_scope ts_opt;
-      let ms_opt, id = ch0 in
-      begin
+      let ms_opt, (id_loc, id) = ch0 in
+      (*begin (* ??? *)
         match ms_opt with
         | Some ms when has_user_defined_annotation ms -> env#set_has_super()
         | _ -> ()
-      end;
-      mkch $startofs $endofs ms_opt id ts_opt s_opt i_opt
+      end;*)
+      mkch $startofs $endofs ms_opt id id_loc ts_opt s_opt i_opt p_opt
     }
 ;
 class_declaration:
@@ -820,11 +1057,11 @@ super_opt:
 
 interfaces:
 | IMPLEMENTS i=interface_type_list { mkim $startofs $endofs i }
-| IMPLEMENTS i=interface_type_list IMPLEMENTS j=interface_type_list
+| IMPLEMENTS i=interface_type_list IMPLEMENTS i_=interface_type_list
     { 
       if env#keep_going_flag then begin
         parse_warning $startofs $endofs "odd implements specification";
-        mkim $startofs $endofs (i@j)
+        mkim $startofs $endofs (ty_list_union i i_)
       end
       else
         parse_error $startofs $endofs "odd implements specification"
@@ -839,6 +1076,25 @@ interfaces_opt:
 %inline
 interface_type_list:
 | l=clist(interface_type) { l }
+;
+
+permits:
+| PERMITS tl=type_name_list
+    { 
+      check_JLS_level 17
+        (fun () -> mkpm $startofs $endofs tl)
+        (fun () -> parse_error $startofs $endofs "class-permits is available since JLS17")
+    }
+;
+
+%inline
+permits_opt:
+| p=ioption(permits) { p }
+;
+
+%inline
+type_name_list:
+| l=clist(name) { l }
 ;
 
 class_body: 
@@ -869,6 +1125,7 @@ class_member_declaration:
 | m=method_declaration    { m }
 | c=class_declaration     { mkcbd $startofs $endofs (CBDclass c) }
 | e=enum_declaration      { mkcbd $startofs $endofs (CBDclass e) }
+| r=record_declaration    { mkcbd $startofs $endofs (CBDclass r) } (* JLS16 *)
 | i=interface_declaration { mkcbd $startofs $endofs (CBDinterface i) }
 | SEMICOLON               { mkcbd $startofs $endofs CBDempty }
 | s=MARKER                { mkerrcbd $startofs $endofs s }
@@ -879,21 +1136,20 @@ enum_declaration_head0:
 | m_opt=modifiers_opt ENUM i=IDENTIFIER
     { 
       let _, id = i in
-      match env#java_lang_spec with
-      | Common.JLS3 | Common.JLSx ->
-	  env#set_java_lang_spec_JLS3;
-	  register_identifier_as_class (mkfqn_cls id) id;
-	  begin_scope ~kind:(FKclass(id, ref false)) ();
-	  m_opt, id
-      | Common.JLS2 ->
-	  parse_error $symbolstartofs $endofs "'enum' declaration is not available in JLS2"
+      check_JLS_level 3
+        (fun () ->
+          register_identifier_as_class (mkfqn_cls id) id;
+          begin_scope ~kind:(FKclass(id, ref false)) ();
+          m_opt, i
+        )
+        (fun () -> parse_error $symbolstartofs $endofs "'enum' declaration is available since JLS3")
     }
 ;
 enum_declaration_head:
 | eh0=enum_declaration_head0 i_opt=interfaces_opt
     { 
-      let ms, id = eh0 in
-      mkch $startofs $endofs ms id None None i_opt
+      let ms, (id_loc, id) = eh0 in
+      mkch $startofs $endofs ms id id_loc None None i_opt None
     }
 ;
 enum_declaration:
@@ -927,9 +1183,9 @@ enum_constant_head:
       let loc0, id = i in
       register_identifier_as_enumconst (mkfqn id) id;
       let loc =
-	match a with
-	| [] -> Loc.merge loc0 (get_loc $startofs $endofs)
-	| _ -> get_loc $startofs $endofs
+        match a with
+        | [] -> Loc.merge loc0 (get_loc $startofs $endofs)
+        | _ -> get_loc $startofs $endofs
       in
       begin_scope();
       (loc, a, id, e)
@@ -968,18 +1224,18 @@ enum_body_declarations0:
 field_declaration:
 | m_opt=modifiers_opt t=unann_type v=variable_declarators SEMICOLON 
     { 
-      let loc = 
-	match m_opt with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+      let loc, is_static =
+        match m_opt with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs), false
+        | Some ms -> get_loc $symbolstartofs $endofs, has_static ms
       in
       List.iter 
-	(fun vd ->
-          let i = fst vd.vd_variable_declarator_id in
-	  register_identifier_as_field i t;
-	  (*env#register_identifier ~qualify:true i IAfield;*)
-	  vd.vd_is_local := false;
-	) v;
+        (fun vd ->
+          let (_, id), _ = vd.vd_variable_declarator_id in
+          register_identifier_as_field ~is_static id t;
+          (*env#register_identifier ~qualify:true id IAfield;*)
+          vd.vd_is_local := false;
+        ) v;
       Ast.proc_type (register_qname_as_typename ~skip:1) t;
       mkfd loc m_opt t v
     }
@@ -991,14 +1247,14 @@ aspect_declaration_head0:
       let _, id = i in
       register_identifier_as_class (mkfqn_cls id) id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      m_opt, id
+      m_opt, i
     }
 ;
 aspect_declaration_head:
 | ah0=aspect_declaration_head0 s_opt=super_opt i_opt=interfaces_opt
     { 
-      let ms, id = ah0 in
-      mkch $startofs $endofs ms id None s_opt i_opt
+      let ms, (id_loc, id) = ah0 in
+      mkch $startofs $endofs ms id id_loc None s_opt i_opt None
     }
 ;
 aspect_declaration:
@@ -1122,8 +1378,20 @@ variable_declarator:
 ;
 
 variable_declarator_id: 
-| i=identifier                               { let _, id = i in id, 0 }
-| v=variable_declarator_id LBRACKET RBRACKET { let id, dim = v in id, dim + 1 }
+| i=identifier { i, [] }
+| v=variable_declarator_id a=annotations0 LBRACKET RBRACKET
+    { 
+      let thunk () =
+        let d = mkad $startofs(a) $endofs a in
+        let i, dl = v in
+        i, (dl@[d])
+      in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+        (fun () -> parse_error $startofs $endofs(a) "dims annotation is available since JLS8")
+      else
+        thunk()
+    }
 ;
 
 variable_initializer: 
@@ -1146,20 +1414,38 @@ void:
 ;
 
 method_header:
-| m_opt=modifiers_opt ts_opt=type_parameters_opt tv=type_or_void md=method_declarator t_opt=throws_opt 
+| m_opt=modifiers_opt tv=type_or_void md=method_declarator t_opt=throws_opt
     { 
       let (id, params_loc, params), dim = md in
       let loc =
-	match m_opt with
-	| None -> begin
-            match ts_opt with
-            | Some ts -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
-            | None    -> Loc.merge tv.ty_loc (get_loc $symbolstartofs $endofs)
-        end
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match m_opt with
+        | None -> Loc.merge tv.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       Ast.proc_type (register_qname_as_typename ~skip:1) tv;
-      mkmh loc m_opt ts_opt tv id params_loc params dim t_opt
+      let _ =
+        match m_opt with
+        | Some ms when has_static ms -> env#set_is_static()
+        | _ -> ()
+      in
+      mkmh loc m_opt None [] tv id params_loc params dim t_opt
+    }
+| m_opt=modifiers_opt ts=type_parameters al=annotations0 tv=type_or_void
+    md=method_declarator t_opt=throws_opt
+    { 
+      let (id, params_loc, params), dim = md in
+      let loc =
+        match m_opt with
+        | None -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
+      in
+      Ast.proc_type (register_qname_as_typename ~skip:1) tv;
+      let _ =
+        match m_opt with
+        | Some ms when has_static ms -> env#set_is_static()
+        | _ -> ()
+      in
+      mkmh loc m_opt (Some ts) al tv id params_loc params dim t_opt
     }
 ;
 
@@ -1175,64 +1461,124 @@ method_declarator_head:
     { 
       let _, id = i in
       register_identifier_as_method id; 
-      begin_scope(); 
-      id, lp
+      begin_scope ~kind:(FKmethod(id, ref false)) ();
+      i, lp
     }
 ;
 
 method_declarator:
 | m=method_declarator_head f=formal_parameter_list0 rp=RPAREN 
        { 
-	 let id, lparen_loc = m in
-	 let params_loc = Loc.merge lparen_loc rp in
-	 (id, params_loc, f), 0 
+         let id, lparen_loc = m in
+         let params_loc = Loc.merge lparen_loc rp in
+         (id, params_loc, f), []
        }
 | m=method_declarator_head i=identifier rp=RPAREN 
        { 
          if env#keep_going_flag then begin
            parse_warning $startofs(rp) $endofs(rp) "identifier expected";
-	   let id, lparen_loc = m in
-	   let params_loc = Loc.merge lparen_loc rp in
+           let id, lparen_loc = m in
+           let params_loc = Loc.merge lparen_loc rp in
            let t =
              mktype $startofs(i) $endofs(i)
-               (TclassOrInterface([TSname([], mkname $startofs(i) $endofs(i) (Nsimple(ref NAunknown, (snd i))))]))
+               (TclassOrInterface([TSname([], mkname $startofs(i) $endofs(i)
+                                            (Nsimple(ref NAunknown, (snd i))))]))
            in
-           let f = [mkfp (fst i) None t ("_", 0) false] in
-	   (id, params_loc, f), 0
+           let f = [mkfp (fst i) None t ((Loc.dummy, "_"), []) false] in
+           (id, params_loc, f), []
          end
          else
            parse_error $startofs(rp) $endofs(rp) "identifier expected"
        }
-| m=method_declarator LBRACKET RBRACKET { let md, dim = m in md, dim + 1 }
+| m=method_declarator a=annotations0 LBRACKET RBRACKET
+    { 
+      let thunk () =
+        let d = mkad $startofs(a) $endofs a in
+        let md, dl = m in
+        md, (dl@[d])
+      in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+        (fun () -> parse_error $startofs $endofs(a) "dims annotation is available since JLS8")
+      else
+        thunk()
+    }
+;
+
+%inline
+receiver_parameter:
+| a=variable_modifiers_opt t=unann_type THIS
+    { 
+      let loc =
+        match a with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
+      in
+      mkfp ~receiver:(Some "") loc a t ((Loc.dummy, ""), []) false
+    }
+| a=variable_modifiers_opt t=unann_type i=identifier DOT THIS
+    { 
+      let loc =
+        match a with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
+      in
+      let receiver = Some (let _, id = i in id) in
+      mkfp ~receiver loc a t ((Loc.dummy, ""), []) false
+    }
 ;
 
 %inline
 formal_parameter_list0:
-| l=clist0(formal_parameter) { l }
+| l=clist0(formal_parameter)
+    { 
+      (* TODO: check receiver-paramter and last-formal-parameter *)
+      l
+    }
 ;
 
 formal_parameter:
 | v=variable_modifiers_opt t=unann_type d=variable_declarator_id 
     { 
       let loc = 
-	match v with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match v with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
-      register_identifier_as_parameter (fst d) t;
+      let (_, id), _ = d in
+      register_identifier_as_parameter id t;
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
-      mkfp loc v t d false 
+      let rec chk_vararg = function
+        | [] -> false
+        | [d] -> d.Ast.ad_ellipsis
+        | d::dl ->
+            if d.Ast.ad_ellipsis && dl <> [] then
+              let st = d.Ast.ad_loc.Loc.start_offset in
+              let ed = d.Ast.ad_loc.Loc.end_offset in
+              parse_error st ed "ellipsis in annotations"
+            else
+              chk_vararg dl
+      in
+      let varargs = chk_vararg (get_annot_dims_from_type t) in
+      mkfp loc v t d varargs
     }
-| v=variable_modifiers_opt t=unann_type ELLIPSIS d=variable_declarator_id 
+(*| v=variable_modifiers_opt t=unann_type ELLIPSIS d=variable_declarator_id
     { 
       let loc = 
-	match v with
-	| None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match v with
+        | None -> Loc.merge t.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
-      register_identifier_as_parameter (fst d) t;
+      let (_, id), _ = d in
+      register_identifier_as_parameter id t;
       Ast.proc_type (register_qname_as_typename ~skip:2) t;
       mkfp loc v t d true 
+    }*)
+| r=receiver_parameter
+    { 
+      check_JLS_level 8
+        (fun () -> r)
+        (fun () -> parse_error $startofs $endofs "receiver parameter is available since JLS8")
     }
 ;
 
@@ -1259,6 +1605,15 @@ throws_opt:
 
 throws:
 | THROWS c=class_type_list { mkth $startofs $endofs c }
+| THROWS c=class_type_list THROWS c_=class_type_list
+    { 
+      if env#keep_going_flag then begin
+        parse_warning $startofs $endofs "odd throws specification";
+        mkth $startofs $endofs (ty_list_union c c_)
+      end
+      else
+        parse_error $startofs $endofs "odd throws specification"
+    }
 ;
 
 %inline
@@ -1285,13 +1640,13 @@ constructor_declaration:
       end_typeparameter_scope ts_opt;
       let cloc, sn, params_loc, params = c in
       let loc = 
-	match m_opt with
-	| None -> begin
+        match m_opt with
+        | None -> begin
             match ts_opt with
             | Some ts -> Loc.merge ts.tps_loc (get_loc $symbolstartofs $endofs)
             | None ->  Loc.merge cloc (get_loc $symbolstartofs $endofs)
         end
-	| Some _ -> get_loc $symbolstartofs $endofs
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       mkcnd loc m_opt ts_opt sn params_loc params t_opt cb
     }
@@ -1380,12 +1735,12 @@ normal_interface_declaration_head1:
 | h0=normal_interface_declaration_head0 ts_opt=type_parameters_opt { h0, ts_opt }
 ;
 normal_interface_declaration_head:
-| h1=normal_interface_declaration_head1 e_opt=extends_interfaces_opt
+| h1=normal_interface_declaration_head1 e_opt=extends_interfaces_opt p_opt=permits_opt
     { 
       let h0, ts_opt = h1 in
       end_typeparameter_scope ts_opt;
       let ms, id = h0 in
-      mkifh $startofs $endofs ms id ts_opt e_opt
+      mkifh $startofs $endofs ms id ts_opt e_opt p_opt
     }
 ;
 normal_interface_declaration:
@@ -1401,7 +1756,7 @@ annotation_type_declaration_head:
       let _, id = i in
       register_identifier_as_interface (mkfqn_cls id) id;
       begin_scope ~kind:(FKclass(id, ref false)) ();
-      mkifh $startofs $endofs m_opt id None None
+      mkifh $startofs $endofs m_opt id None None None
     }
 ;
 
@@ -1426,9 +1781,9 @@ annotation_type_member_declaration:
 | m_opt=modifiers_opt j=unann_type i=identifier LPAREN RPAREN a=ann_dims0 d=default_value_opt SEMICOLON 
     { 
       let loc = 
-	match m_opt with
-	| None -> Loc.merge j.ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match m_opt with
+        | None -> Loc.merge j.ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
       let _, id = i in
       _mkatmd loc (ATMDelement(m_opt, j, id, a, d))
@@ -1454,12 +1809,30 @@ ann_dims0:
 ;
 
 ann_dims:
-|            a=ann_dim { [a] }
-| d=ann_dims a=ann_dim { d @ [a] }
+| l=nonempty_list(ann_dim) { l }
+(*|            a=ann_dim { [a] }
+| d=ann_dims a=ann_dim { d @ [a] }*)
 ;
 
 ann_dim:
-| a=annotations0 LBRACKET RBRACKET { mkad $startofs $endofs a }
+| a=annotations0 LBRACKET RBRACKET
+    { 
+      let thunk () = mkad $symbolstartofs $endofs a in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+        (fun () -> parse_error $startofs $endofs(a) "dims annotation is available since JLS8")
+      else
+        thunk()
+    }
+| a=annotations0 ELLIPSIS
+    { 
+      let thunk () = mkad ~ellipsis:true $symbolstartofs $endofs a in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+        (fun () -> parse_error $startofs $endofs(a) "ellipsis annotation is available since JLS8")
+      else
+        thunk()
+    }
 ;
 
 extends_interfaces_opt:
@@ -1499,6 +1872,31 @@ interface_method_declaration:
 | mh=method_header b=method_body
     { 
       if mh_is_generic mh then end_scope();
+      let ms = get_modifiers_from_mh mh in
+      List.iter
+        (fun m ->
+          match m.m_desc with
+          | Mdefault | Mstatic -> begin
+              check_JLS_level 8
+                (fun () -> ())
+                (fun () ->
+                  parse_error $startofs m.Ast.m_loc.Loc.end_offset
+                    "static or default interface method is available since JLS8")
+          end
+          | _ -> ()
+        ) ms;
+      List.iter
+        (fun m ->
+          match m.m_desc with
+          | Mprivate -> begin
+              check_JLS_level 9
+                (fun () -> ())
+                (fun () ->
+                  parse_error $startofs m.Ast.m_loc.Loc.end_offset
+                    "private interface method is available since JLS9")
+          end
+          | _ -> ()
+        ) ms;
       let loc = Loc.merge mh.mh_loc (get_loc $startofs $endofs) in
       mkimed loc mh b
     }
@@ -1550,8 +1948,9 @@ local_variable_declaration:
     { 
        List.iter
        (fun vd ->
-	 register_identifier_as_variable (fst vd.vd_variable_declarator_id) t;
-	 vd.vd_is_local := true;
+         let (_, id), _ = vd.vd_variable_declarator_id in
+         register_identifier_as_variable id t;
+         vd.vd_is_local := true;
        ) v;
       mklvd $symbolstartofs $endofs m_opt t v
     }
@@ -1588,6 +1987,7 @@ statement_without_trailing_substatement:
 | s=synchronized_statement { s }
 | t=throw_statement        { t }
 | t=try_statement          { t }
+| y=yield_statement        { y }
 | a=assert_statement       { a }
 | s=STMT                   { s }
 | s=ERROR_STMT             { mkerrstmt $startofs $endofs s }
@@ -1636,13 +2036,23 @@ if_then_statement:
 ;
 
 if_then_else_statement:
-| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if ELSE s1=statement 
-     { mkstmt $startofs $endofs (SifThenElse(e, s0, s1)) }
+| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if x=ELSE s1=statement
+    { 
+      let _ = x in
+      let eso = $startofs(x) in
+      let eeo = $endofs(x) in
+      mkstmt ~eso ~eeo $startofs $endofs (SifThenElse(e, s0, s1))
+    }
 ;
 
 if_then_else_statement_no_short_if:
-| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if ELSE s1=statement_no_short_if 
-    { mkstmt $startofs $endofs (SifThenElse(e, s0, s1)) }
+| IF LPAREN e=expr_or_err RPAREN s0=statement_no_short_if x=ELSE s1=statement_no_short_if
+    { 
+      let _ = x in
+      let eso = $startofs(x) in
+      let eeo = $endofs(x) in
+      mkstmt ~eso ~eeo $startofs $endofs (SifThenElse(e, s0, s1))
+    }
 (*
 | IF LPAREN e=expression RPAREN er=error                 ELSE s=statement_no_short_if 
     { 
@@ -1658,10 +2068,37 @@ switch_statement:
 ;
 
 switch_block:
-| LBRACE                                                 RBRACE { mksb $startofs $endofs [] }
-| LBRACE                                 s=switch_labels RBRACE { mksb $startofs $endofs [(s, [])] }
-| LBRACE g=switch_block_statement_groups                 RBRACE { mksb $startofs $endofs (List.rev g) }
-| LBRACE g=switch_block_statement_groups s=switch_labels RBRACE { mksb $startofs $endofs (List.rev ((s, [])::g)) }
+| LBRACE                                                 RBRACE { mksb $startofs $endofs [] [] }
+| LBRACE                                 s=switch_labels RBRACE { mksb $startofs $endofs [(s, [])] [] }
+| LBRACE g=switch_block_statement_groups                 RBRACE { mksb $startofs $endofs (List.rev g) [] }
+| LBRACE g=switch_block_statement_groups s=switch_labels RBRACE { mksb $startofs $endofs (List.rev ((s, [])::g)) [] }
+| LBRACE r=switch_rules RBRACE { mksb $startofs $endofs [] (List.rev r) } (* JLS14 *)
+;
+
+switch_rules:
+|                 r=switch_rule { [r] }
+| rs=switch_rules r=switch_rule { r :: rs }
+;
+
+switch_rule_label:
+| CASE cl=clist(constant_expression) MINUS_GT__CASE
+    { 
+      check_JLS_level 14
+        (fun () -> mksrl $startofs $endofs (SLconstant cl))
+        (fun () -> parse_error $startofs $endofs "switch-rule is available since JLS14")
+    }
+| DEFAULT MINUS_GT
+    { 
+      check_JLS_level 14
+        (fun () -> mksrl $startofs $endofs SLdefault)
+        (fun () -> parse_error $startofs $endofs "switch-rule is available since JLS14")
+    }
+;
+
+switch_rule:
+| s=switch_rule_label e=expression SEMICOLON { s, mksrb $startofs(e) $endofs (SRBexpr e) }
+| s=switch_rule_label b=block { s, mksrb $startofs(b) $endofs (SRBblock b)  }
+| s=switch_rule_label t=throw_statement { s, mksrb $startofs(t) $endofs (SRBthrow t) }
 ;
 
 switch_block_statement_groups:
@@ -1679,8 +2116,17 @@ switch_labels:
 ;
 
 switch_label: 
-| CASE c=constant_expression COLON { mksl $startofs $endofs (SLconstant c) }
-| DEFAULT__COLON             COLON { mksl $startofs $endofs SLdefault }
+| CASE cl=clist(constant_expression) COLON
+    { 
+      let thunk () = mksl $startofs $endofs (SLconstant cl) in
+      if List.length cl > 1 then begin
+        check_JLS_level 14 thunk
+          (fun () -> parse_error $startofs $endofs "multi-switch-label is available since JLS14")
+      end
+      else
+        thunk()
+    }
+| DEFAULT__COLON COLON { mksl $startofs $endofs SLdefault }
 ;
 
 while_statement:
@@ -1710,7 +2156,8 @@ for_statement_head:
 javatype_vdid:
 | j=unann_type d=variable_declarator_id
     { 
-      register_identifier_as_variable (fst d) j;
+      let (_, id), _ = d in
+      register_identifier_as_variable id j;
       mkfp (get_loc $startofs $endofs) None j d false
     }
 ;
@@ -1723,8 +2170,8 @@ enhanced_for_statement:
     { end_scope();
       let fp0 = j in
       let fp =
-	mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
-	  fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
+        mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
+          fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
       in
       mkstmt $startofs $endofs (SforEnhanced(fp, e, s))
     }
@@ -1738,8 +2185,8 @@ enhanced_for_statement_no_short_if:
     { end_scope();
       let fp0 = j in
       let fp =
-	mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
-	  fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
+        mkfp (Loc.merge m.Ast.ms_loc fp0.Ast.fp_loc) (Some m)
+          fp0.Ast.fp_type fp0.Ast.fp_variable_declarator_id false
       in
       mkstmt $startofs $endofs (SforEnhanced(fp, e, s))
     }
@@ -1820,13 +2267,27 @@ try_statement:
 | tb=try_block                     { let r_opt, b = tb in mkstmt $startofs $endofs (Stry(r_opt, b, None, None)) }
 ;
 
+yield_statement:
+| YIELD e=expression SEMICOLON
+    { 
+      check_JLS_level 14
+        (fun () -> mkstmt $startofs $endofs (Syield e))
+        (fun () -> parse_error $startofs $endofs "yield-statement is available since JLS14")
+    }
+;
+
 %inline
 resource_spec_opt:
 | r_opt=ioption(resource_spec) { r_opt }
 ;
 
 resource_spec:
-| LPAREN rl=resource_list ioption(SEMICOLON) RPAREN { mkresspec $symbolstartofs $endofs rl }
+| LPAREN rl=resource_list ioption(SEMICOLON) RPAREN
+    { 
+      check_JLS_level 7
+        (fun () -> mkresspec $symbolstartofs $endofs rl)
+        (fun () -> parse_error $startofs $endofs "resource-spec is available since JLS7")
+    }
 ;
 
 resource_list:
@@ -1836,8 +2297,18 @@ resource_list:
 
 resource:
 | l=local_variable_declaration { mkres $startofs $endofs (RlocalVarDecl l)}
-| f=field_access { mkres $startofs $endofs (RfieldAccess f) }
-| n=name { mkres $startofs $endofs (Rname n) }
+| f=field_access
+    { 
+      check_JLS_level 9
+        (fun () -> mkres $startofs $endofs (RfieldAccess f))
+        (fun () -> parse_error $startofs $endofs "variable-access is available since JLS9")
+    }
+| n=name
+    { 
+      check_JLS_level 9
+        (fun () -> mkres $startofs $endofs (Rname n))
+        (fun () -> parse_error $startofs $endofs "variable-access is available since JLS9")
+    }
 ;
 
 %inline
@@ -1852,11 +2323,12 @@ catch_formal_parameter:
 | ms_opt=variable_modifiers_opt tl=catch_type d=variable_declarator_id
     {
       let loc = 
-	match ms_opt with
-	| None -> Loc.merge (List.hd tl).ty_loc (get_loc $symbolstartofs $endofs)
-	| Some _ -> get_loc $symbolstartofs $endofs
+        match ms_opt with
+        | None -> Loc.merge (List.hd tl).ty_loc (get_loc $symbolstartofs $endofs)
+        | Some _ -> get_loc $symbolstartofs $endofs
       in
-      List.iter (register_identifier_as_parameter (fst d)) tl;
+      let (_, id), _ = d in
+      List.iter (register_identifier_as_parameter id) tl;
       mkcfp loc ms_opt tl d
     }
 ;
@@ -1896,12 +2368,9 @@ assert_statement:
         | Some e -> Sassert2(b, e)
         | None   -> Sassert1 b
       in
-      match env#java_lang_spec with
-      | Common.JLS3 | Common.JLSx -> 
-	  env#set_java_lang_spec_JLS3;
-	  mkstmt $startofs $endofs lab
-      | Common.JLS2 -> 
-          parse_error $startofs $endofs "assert statement is not available in JLS2"
+      check_JLS_level 3
+        (fun () -> mkstmt $startofs $endofs lab)
+        (fun () -> parse_error $startofs $endofs "assert statement is available since JLS3")
     }
 ;
 
@@ -1930,24 +2399,29 @@ primary_no_new_array:
 | n=name d=ann_dims DOT CLASS 
     { 
       register_qname_as_typename n;
-      let ty = _mkty (Loc.merge n.n_loc (Xlist.last d).Ast.ad_loc) (Tarray(name_to_ty [] n, List.length d)) in
+      let ty = _mkty (Loc.merge n.n_loc (Xlist.last d).Ast.ad_loc) (Tarray(name_to_ty [] n, d)) in
       mkprim $startofs $endofs (PclassLiteral ty) 
     }
 | p=unann_primitive_type        DOT CLASS { mkprim $startofs $endofs (PclassLiteral p) }
 
 | p=unann_primitive_type d=ann_dims DOT CLASS 
     { 
-      let ty = _mkty (Loc.merge p.ty_loc (Xlist.last d).Ast.ad_loc) (Tarray(p, List.length d)) in
+      let ty = _mkty (Loc.merge p.ty_loc (Xlist.last d).Ast.ad_loc) (Tarray(p, d)) in
       mkprim $startofs $endofs (PclassLiteral ty) 
     }
 
 | void DOT CLASS { mkprim $startofs $endofs PclassLiteralVoid }
 
-| r=method_reference { mkprim $startofs $endofs (PmethodReference r) }
+| r=method_reference
+    { 
+      check_JLS_level 8
+        (fun () -> mkprim $startofs $endofs (PmethodReference r))
+        (fun () -> parse_error $startofs $endofs "method reference is available since JLS8")
+    }
 ;
 
 method_reference:
-| n=name           COLON_COLON tas_opt=type_arguments_opt i=identifier
+| n=name COLON_COLON tas_opt=type_arguments_opt i=identifier
     { 
       begin
         try
@@ -1958,7 +2432,7 @@ method_reference:
       let _, id = i in
       mkmr $startofs $endofs (MRname(n, tas_opt, id))
     }
-| p=primary        COLON_COLON tas_opt=type_arguments_opt i=identifier
+| p=primary COLON_COLON tas_opt=type_arguments_opt i=identifier
     { 
       let _, id = i in
       mkmr $startofs $endofs (MRprimary(p, tas_opt, id))
@@ -1982,9 +2456,9 @@ method_reference:
 | p=unann_primitive_type d=ann_dims0 COLON_COLON tas_opt=type_arguments_opt NEW
     { 
       let ty =
-	match d with
-	| [] -> p
-	| l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
+        match d with
+        | [] -> p
+        | l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, d))
       in
       mkmr $startofs $endofs (MRtypeNew(ty, tas_opt))
     }
@@ -1993,7 +2467,7 @@ method_reference:
       let ty =
         match d with
         | [] -> name_to_ty [] n
-        | l -> _mkty (Loc.merge n.n_loc (Xlist.last l).Ast.ad_loc) (Tarray(name_to_ty [] n, List.length d))
+        | l -> _mkty (Loc.merge n.n_loc (Xlist.last l).Ast.ad_loc) (Tarray(name_to_ty [] n, d))
       in
       register_qname_as_typename n;
       mkmr $startofs $endofs (MRtypeNew(ty, tas_opt))
@@ -2015,9 +2489,9 @@ class_instance_creation_expression:
     { 
       let tyargs, ty = c in
       begin 
-	match cb with 
-	| None -> end_scope() 
-	| _ -> () 
+        match cb with
+        | None -> end_scope()
+        | _ -> ()
       end;
       mkcic $startofs $endofs (CICunqualified(tyargs, ty, a, cb))
     }
@@ -2027,18 +2501,36 @@ class_instance_creation_expression:
     { 
       let _, id = i in
       let po, no, tyargs = c in
+      let _ =
+        match t with
+        | Some tas when List.length tas.tas_type_arguments = 0 -> begin
+            if cb = None then
+              check_JLS_level 7
+                (fun () -> ())
+                (fun () ->
+                  parse_error $startofs(t) $endofs(t)
+                    "diamond instance creation is available since JLS7")
+            else
+              check_JLS_level 9
+                (fun () -> ())
+                (fun () ->
+                  parse_error $startofs(t) $endofs(t)
+                    "diamond anonymous instance creation is available since JLS9")
+        end
+        | _ -> ()
+      in
       let cic =
-	match po, no with
-	| Some p, None -> 
-	    CICqualified(p, tyargs, id, t, a, cb)
-	| None, Some n ->
-	    CICnameQualified(n, tyargs, id, t, a, cb)
-	| _ -> assert false
+        match po, no with
+        | Some p, None ->
+            CICqualified(p, tyargs, id, t, a, cb)
+        | None, Some n ->
+            CICnameQualified(n, tyargs, id, t, a, cb)
+        | _ -> assert false
       in
       begin 
-	match cb with 
-	| None -> end_scope() 
-	| _ -> () 
+        match cb with
+        | None -> end_scope()
+        | _ -> ()
       end;
       mkcic $startofs $endofs cic
     }
@@ -2051,21 +2543,15 @@ argument_list0:
 ;
 
 array_creation_noinit:
-| NEW p=primitive_type          d=dim_exprs      { ACEtype(p, List.rev d, 0) }
-| NEW c=class_or_interface_type d=dim_exprs      { ACEtype(c, List.rev d, 0) }
-| NEW p=primitive_type          d=dim_exprs dm=ann_dims
-     { 
-       ACEtype(p, List.rev d, List.length dm)
-     }
-| NEW c=class_or_interface_type d=dim_exprs dm=ann_dims
-     { 
-       ACEtype(c, List.rev d, List.length dm)
-     }
+| NEW p=primitive_type          d=dim_exprs             { ACEtype(p, List.rev d, []) }
+| NEW c=class_or_interface_type d=dim_exprs             { ACEtype(c, List.rev d, []) }
+| NEW p=primitive_type          d=dim_exprs dm=ann_dims { ACEtype(p, List.rev d, dm) }
+| NEW c=class_or_interface_type d=dim_exprs dm=ann_dims { ACEtype(c, List.rev d, dm) }
 ;
 
 array_creation_init:
-| NEW p=primitive_type          d=ann_dims a=array_initializer { ACEtypeInit(p, (List.length d), [a]) }
-| NEW c=class_or_interface_type d=ann_dims a=array_initializer { ACEtypeInit(c, (List.length d), [a]) }
+| NEW p=primitive_type          d=ann_dims a=array_initializer { ACEtypeInit(p, d, [a]) }
+| NEW c=class_or_interface_type d=ann_dims a=array_initializer { ACEtypeInit(c, d, [a]) }
 ;
 
 dim_exprs:
@@ -2118,26 +2604,37 @@ method_invocation:
       set_name_attribute NAmethod n;
       register_qname_as_method n;
       if is_local_name n then begin
-	mkmi $startofs $endofs (MImethodName(n, a)) 
+        mkmi $startofs $endofs (MImethodName(n, a))
+      end
+      else if env#partial_name_resolution_flag then begin
+        mkmi $startofs $endofs (MImethodName(n, a))
       end
       else begin
-	try
-	  let q = get_qualifier n in
+        try
+          let q = get_qualifier n in
           env#set_attribute_A q;
-	  let id = rightmost_identifier n in
-	  if
+          let id = rightmost_identifier n in
+          if
             is_local_name q ||
             is_implicit_field_name q ||
             is_field_access q ||
             is_expr_name q
           then begin
-            set_name_attribute NAexpression q;
+            set_name_attribute (NAexpression EKunknown) q;
             register_qname_as_expression q;
             env#reclassify_identifier(leftmost_of_name q);
-	    mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
+            mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, None, id, a))
           end
           else begin
-            if is_type_name q || not env#has_super then begin
+            if
+              is_type_name q ||
+              (*Ast.is_simple q &&*)
+              (
+               env#in_static_method ||
+               (env#rely_on_naming_convention_flag && Ast.is_rightmost_id_capitalized q) ||
+               (not env#rely_on_naming_convention_flag && (not env#surrounding_class_has_super))
+              )
+            then begin
               try
                 let fqn = get_type_fqn q in
                 set_attribute_PT_T (mkresolved fqn) q;
@@ -2155,8 +2652,8 @@ method_invocation:
               (*raise (Unknown "")*)
             end
           end
-	with
-	| Not_found -> mkmi $startofs $endofs (MImethodName(n, a))
+        with
+        | Not_found -> mkmi $startofs $endofs (MImethodName(n, a))
       end
     }
 
@@ -2175,13 +2672,16 @@ method_invocation:
 | q=name DOT t=type_arguments i=identifier a=arguments
     { 
       let _, id = i in
-      if
+      if env#partial_name_resolution_flag then begin
+        mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
+      end
+      else if
         is_local_name q ||
         is_implicit_field_name q ||
         is_field_access q ||
         is_expr_name q
       then begin
-        set_name_attribute NAexpression q;
+        set_name_attribute (NAexpression EKunknown) q;
         register_qname_as_expression q;
         begin
           try
@@ -2189,7 +2689,7 @@ method_invocation:
           with
             Not_found -> ()
         end;
-	mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
+        mkmi $startofs $endofs (MIprimary(_name_to_prim ~whole:false q.n_loc q, Some t, id, a))
       end
       else begin
         if is_type_name q then begin
@@ -2248,16 +2748,16 @@ method_invocation:
 array_access:
 | n=name LBRACKET e=expression RBRACKET               
     { 
-      set_name_attribute NAexpression n;
       if is_qualified n then begin
+        set_name_attribute (NAexpression EKunknown) n;
         let q = get_qualifier n in
         env#set_attribute_A q
       end;
       register_qname_as_array n;
       if is_local_name n then
-	mkaa $startofs $endofs (AAname(n, e))
+        mkaa $startofs $endofs (AAname(n, e))
       else
-	mkaa $startofs $endofs (AAprimary(_name_to_prim n.n_loc n, e))
+        mkaa $startofs $endofs (AAprimary(_name_to_prim n.n_loc n, e))
     }
 | p=primary_no_new_array LBRACKET e=expression RBRACKET 
      { 
@@ -2266,11 +2766,11 @@ array_access:
 ;
 
 postfix_expression:
-| p=primary                 { mkexpr $startofs $endofs (Eprimary p) }
+| p=primary { mkexpr $startofs $endofs (Eprimary p) }
 | n=name                      
     { 
-      set_name_attribute NAexpression n;
       if is_qualified n then begin
+        set_name_attribute (NAexpression EKunknown) n;
         let q = get_qualifier n in
         env#set_attribute_A ~force_defer:true q
       end;
@@ -2315,7 +2815,17 @@ unary_expression_not_plus_minus:
 | p=postfix_expression      { p }
 | TILDE  u=unary_expression { mkexpr $startofs $endofs (Eunary(UOcomplement, u)) }
 | EXCLAM u=unary_expression { mkexpr $startofs $endofs (Eunary(UOnot, u)) }
-| c=cast_expression { c }
+| c=cast_expression         { c }
+| s=switch_expression       { s }
+;
+
+switch_expression:
+| SWITCH LPAREN e=expr_or_err RPAREN s=switch_block
+    { 
+      check_JLS_level 14
+        (fun () -> mkexpr $startofs $endofs (Eswitch(e, s)))
+        (fun () -> parse_error $startofs $endofs "switch-expression is available since JLS14")
+    }
 ;
 
 unary_expression_not_plus_minus_or_lambda_expression:
@@ -2335,57 +2845,87 @@ cast_expression:
 | LPAREN p=primitive_type d=ann_dims0 RPAREN u=unary_expression 
     { 
       let ty =
-	match d with
-	| [] -> p
-	| l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, List.length d))
+        match d with
+        | [] -> p
+        | l -> _mkty (Loc.merge p.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(p, d))
       in
       mkexpr $startofs $endofs (Ecast(ty, u)) 
     }
 | LPAREN a=annotations0 n=name RPAREN u=unary_expression_not_plus_minus_or_lambda_expression
     { 
-      set_attribute_PT_T (env#resolve n) n;
-      register_qname_as_typename n;
-      mkexpr $startofs $endofs (Ecast(name_to_ty a n, u))
-    }
-| LPAREN a=annotations0 n=name d=ann_dims RPAREN u=unary_expression_not_plus_minus_or_lambda_expression
-    { 
-      let ty = _mkty (Loc.merge n.n_loc (Xlist.last d).Ast.ad_loc) (Tarray(name_to_ty a n, List.length d)) in
-      set_attribute_PT_T (env#resolve n) n;
-      register_qname_as_typename n;
-      mkexpr $startofs $endofs (Ecast(ty, u)) 
-    }
-| LPAREN a=annotations0 n=name ts=type_arguments d=ann_dims0 RPAREN u=unary_expression_not_plus_minus_or_lambda_expression
-    { 
-      let ty = name_to_ty_args (Loc.merge n.n_loc ts.tas_loc) a n ts in
-      let ty' = 
-	match d with
-	| [] -> ty
-	| l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
+      let thunk () =
+        set_attribute_PT_T (env#resolve n) n;
+        register_qname_as_typename n;
+        mkexpr $startofs $endofs (Ecast(name_to_ty a n, u))
       in
-      set_attribute_PT_T (env#resolve n) n;
-      register_qname_as_typename n;
-      mkexpr $startofs $endofs (Ecast(ty', u)) 
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
+    }
+| LPAREN a=annotations0 n=name d=ann_dims RPAREN
+    u=unary_expression_not_plus_minus_or_lambda_expression
+    { 
+      let thunk () =
+        let ty = _mkty (Loc.merge n.n_loc (Xlist.last d).Ast.ad_loc) (Tarray(name_to_ty a n, d)) in
+        set_attribute_PT_T (env#resolve n) n;
+        register_qname_as_typename n;
+        mkexpr $startofs $endofs (Ecast(ty, u))
+      in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
+    }
+| LPAREN a=annotations0 n=name ts=type_arguments d=ann_dims0 RPAREN
+    u=unary_expression_not_plus_minus_or_lambda_expression
+    { 
+      let thunk () =
+        let ty = name_to_ty_args (Loc.merge n.n_loc ts.tas_loc) a n ts in
+        let ty' =
+          match d with
+          | [] -> ty
+          | l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, l))
+        in
+        set_attribute_PT_T (env#resolve n) n;
+        register_qname_as_typename n;
+        mkexpr $startofs $endofs (Ecast(ty', u))
+      in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
     }
 | LPAREN a=annotations0 n=name ts0=type_arguments DOT c=class_or_interface_type d=ann_dims0 RPAREN
        u=unary_expression_not_plus_minus_or_lambda_expression
     { 
-      let tspecs =
-	match c.ty_desc with
-	| TclassOrInterface ts | Tclass ts | Tinterface ts -> ts
-	| _ -> parse_error $startofs $endofs "invalid type"
+      let thunk () =
+        let tspecs =
+          match c.ty_desc with
+          | TclassOrInterface ts | Tclass ts | Tinterface ts -> ts
+          | _ -> parse_error $startofs $endofs "invalid type"
+        in
+        let ty =
+          _mkty (Loc.merge n.n_loc c.ty_loc)
+            (TclassOrInterface((TSapply(a, n, ts0)) :: tspecs))
+        in
+        let ty' =
+          match d with
+          | [] -> ty
+          | l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, l))
+        in
+        set_attribute_PT_T (env#resolve n) n;
+        register_qname_as_typename n;
+        mkexpr $startofs $endofs (Ecast(ty', u))
       in
-      let ty = 
-	_mkty (Loc.merge n.n_loc c.ty_loc) 
-	  (TclassOrInterface((TSapply(a, n, ts0)) :: tspecs))
-      in
-      let ty' = 
-	match d with 
-	| [] -> ty
-	| l -> _mkty (Loc.merge ty.ty_loc (Xlist.last l).Ast.ad_loc) (Tarray(ty, List.length l))
-      in
-      set_attribute_PT_T (env#resolve n) n;
-      register_qname_as_typename n;
-      mkexpr $startofs $endofs (Ecast(ty', u)) 
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
     }
 ;
 
@@ -2439,6 +2979,41 @@ instanceof_expression:
     { 
       let e = mkerrexpr $startofs $endofs(s) s in
       mkexpr $startofs $endofs (Einstanceof(e, r))
+    }
+| i=instanceof_expression INSTANCEOF p=pattern { mkexpr $startofs $endofs (EinstanceofP(i, p)) }
+| s=ERROR INSTANCEOF p=pattern
+    { 
+      let e = mkerrexpr $startofs $endofs(s) s in
+      mkexpr $startofs $endofs (EinstanceofP(e, p))
+    }
+;
+
+pattern:
+| t=reference_type v=variable_declarator_id
+    { 
+      check_JLS_level 14
+        (fun () ->
+          let vd = mkvd $startofs(v) $endofs v None in
+          let (_, id), _ = vd.vd_variable_declarator_id in
+          register_identifier_as_variable id t;
+          vd.vd_is_local := true;
+          mklvd $symbolstartofs $endofs None t [vd]
+        )
+        (fun () -> parse_error $startofs $endofs "instanceof-pattern is available since JLS16")
+    }
+| f=FINAL t=reference_type v=variable_declarator_id
+    { 
+      ignore f;
+      check_JLS_level 14
+        (fun () ->
+          let m = mkmod $startofs $endofs(f) Mfinal in
+          let vd = mkvd $startofs(v) $endofs v None in
+          let (_, id), _ = vd.vd_variable_declarator_id in
+          register_identifier_as_variable id t;
+          vd.vd_is_local := true;
+          mklvd $startofs $endofs (Some (mkmods $startofs $endofs(f) [m])) t [vd]
+        )
+        (fun () -> parse_error $startofs $endofs "instanceof-pattern is available since JLS16")
     }
 ;
 
@@ -2501,7 +3076,7 @@ assign_op:
 | GT_GT_GT_EQ { AOshiftRUEq }
 | AND_EQ      { AOandEq }
 | HAT_EQ      { AOxorEq }
-| OR_EQ	      { AOorEq }
+| OR_EQ       { AOorEq }
 ;
 
 expression_opt:
@@ -2517,14 +3092,28 @@ expression:
 lambda_expression:
 | p=lambda_parameters MINUS_GT b=lambda_body
     { 
-      mkexpr $startofs $endofs (Elambda(p, b))
+      check_JLS_level 8
+        (fun () -> mkexpr $startofs $endofs (Elambda(p, b)))
+        (fun () -> parse_error $startofs $endofs "lambda-expression is available since JLS8")
     }
 ;
 
 lambda_parameters:
-| i=identifier                                   { let _, id = i in mklp $startofs $endofs (LPident id) }
+| i=identifier
+    { 
+      let _, id = i in
+      env#register_identifier id IAparameter;
+      mklp $startofs $endofs (LPident id)
+    }
 | LPAREN__LAMBDA l=formal_parameter_list0 RPAREN { mklp $startofs $endofs (LPformal l) }
-| LPAREN__LAMBDA l=clist(identifier)      RPAREN { mklp $startofs $endofs (LPinferred l) }
+| LPAREN__LAMBDA l=clist(identifier)      RPAREN
+    { 
+      List.iter
+        (fun (_, id) ->
+          env#register_identifier id IAparameter
+        ) l;
+      mklp $startofs $endofs (LPinferred l)
+    }
 ;
 
 lambda_body:
@@ -2559,10 +3148,17 @@ type_parameter_list_1:
 type_variable:
 | a=annotations0 i=identifier 
     { 
-      begin_scope ~kind:FKtypeparameter ();
-      let _, id = i in 
-      register_identifier_as_typeparameter id;
-      a, id 
+      let thunk () =
+        begin_scope ~kind:FKtypeparameter ();
+        let _, id = i in
+        register_identifier_as_typeparameter id;
+        a, id
+      in
+      if List.length a > 0 then
+        check_JLS_level 8 thunk
+          (fun () -> parse_error $startofs $endofs(a) "type annotation is available since JLS8")
+      else
+        thunk()
     }
 ;
 
@@ -2635,6 +3231,7 @@ unary_expression_not_plus_minus_nn:
 | TILDE u=unary_expression  { mkexpr $startofs $endofs (Eunary(UOcomplement, u)) }
 | EXCLAM u=unary_expression { mkexpr $startofs $endofs (Eunary(UOnot, u)) }
 | c=cast_expression         { c }
+| s=switch_expression       { s }
 ;
 
 multiplicative_expression_nn:
@@ -2672,7 +3269,9 @@ relational_expression_nn:
 instanceof_expression_nn:
 | r=relational_expression_nn { r }
 | n=name INSTANCEOF r=reference_type { mkexpr $startofs $endofs (Einstanceof(_name_to_expr n.n_loc n, r)) }
+| n=name INSTANCEOF p=pattern        { mkexpr $startofs $endofs (EinstanceofP(_name_to_expr n.n_loc n, p)) }
 | i=instanceof_expression_nn INSTANCEOF r=reference_type { mkexpr $startofs $endofs (Einstanceof(i, r)) }
+| i=instanceof_expression_nn INSTANCEOF p=pattern        { mkexpr $startofs $endofs (EinstanceofP(i, p)) }
 ;
 
 equality_expression_nn:

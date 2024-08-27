@@ -766,14 +766,12 @@ partial_pu_tail:
 | se=specification_part__execution_part e=end_stmt_p pus_=program_unit* EOP
        { 
          let pus = 
-           List.flatten
-             (List.map 
-                (fun pu -> 
-                  match pu#label with
-                  | L.Fragment -> finalize_fragment C.Tprogram_unit pu
-                  | _ -> [pu]
-                ) pus_
-             )
+           List.concat_map
+             (fun pu ->
+               match pu#label with
+               | L.Fragment -> finalize_fragment C.Tprogram_unit pu
+               | _ -> [pu]
+             ) pus_
          in
          Partial.mk_pu_tail ((Ast.spec_opt_exec_opt_to_list se) @ (e :: pus))
        }
@@ -2092,15 +2090,13 @@ directive:
 program:
 | pus_=program_unit+ 
        { 
-         let pus = 
-           List.flatten
-             (List.map 
-                (fun pu -> 
-                  match pu#label with
-                  | L.Fragment -> finalize_fragment C.Tprogram_unit pu
-                  | _ -> [pu]
-                ) pus_
-             )
+         let pus =
+           List.concat_map
+             (fun pu ->
+               match pu#label with
+               | L.Fragment -> finalize_fragment C.Tprogram_unit pu
+               | _ -> [pu]
+             ) pus_
          in
          (* mknode $startpos $endpos L.Program pus *)
          let lloc = (* due to END_FRAGMENT *)
@@ -2967,15 +2963,13 @@ type_spec_node:
 
          | _ ->
              let children =
-               List.flatten
-                 (List.map
-                    (fun (spec, nd) ->
-                      check_error nd;
-                      match nd#label with
-                      | L.PpBranch -> nd#children
-                      | _ -> [nd]
-                    ) sts
-                 )
+               List.concat_map
+                 (fun (spec, nd) ->
+                   check_error nd;
+                   match nd#label with
+                   | L.PpBranch -> nd#children
+                   | _ -> [nd]
+                 ) sts
              in
              let lloc = Ast.lloc_of_nodes children in
              let nd = new Ast.node ~lloc ~children L.PpBranch in
@@ -6968,15 +6962,13 @@ function_head:
            match spfs with
            | [spf] -> spf
            | _ ->
-               let children = 
-                 List.flatten
-                   (List.map 
-                      (fun (_, nd) ->
-                        match nd#label with
-                        | L.PpBranchFunction -> nd#children
-                        | _ -> [nd]
-                      ) spfs
-                   )
+               let children =
+                 List.concat_map
+                   (fun (_, nd) ->
+                     match nd#label with
+                     | L.PpBranchFunction -> nd#children
+                     | _ -> [nd]
+                   ) spfs
                in
                let lloc = Ast.lloc_of_nodes children in
                let nd = new Ast.node ~lloc ~children L.PpBranchFunction in
@@ -7240,15 +7232,13 @@ subroutine_head:
            match spss with
            | [sps] -> sps
            | _ ->
-               let children = 
-                 List.flatten
-                   (List.map 
-                      (fun (_, nd) ->
-                        match nd#label with
-                        | L.PpBranchSubroutine -> nd#children
-                        | _ -> [nd]
-                      ) spss
-                   )
+               let children =
+                 List.concat_map
+                   (fun (_, nd) ->
+                     match nd#label with
+                     | L.PpBranchSubroutine -> nd#children
+                     | _ -> [nd]
+                   ) spss
                in
                let lloc = Ast.lloc_of_nodes children in
                let nd = new Ast.node ~lloc ~children L.PpBranchSubroutine in

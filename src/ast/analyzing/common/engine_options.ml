@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class c = object (self)
   val mutable no_glue_flag                 = false
   val mutable simple_glue_flag             = false
   val mutable no_movrels_flag              = false
-  val mutable no_relabel_elim_flag         = false
+  val mutable no_odd_relabel_elim_flag     = false
   val mutable prematch_early_resolve_flag  = false
   val mutable prematch_flag                = true
   val mutable preprune_flag                = true
@@ -48,6 +48,8 @@ class c = object (self)
   val mutable conservative_flag            = true
   val mutable ignore_move_of_unordered_flag = false
   val mutable ignore_non_orig_relabel_flag = false
+
+  val mutable rename_rectification_level = 2 (* 0: no rr, 1: rru, 2: rru+rrd, 3: rru+rrd(strict) *)
 (* *)
 
   val mutable dump_size_threshold = 16
@@ -62,6 +64,7 @@ class c = object (self)
   val mutable pp_anonymized_match_threshold          = 0.5
   val mutable pp_relabel_criteria                    = 0.8
   val mutable prematch_cands_threshold               = 4
+  val mutable prematch_subtree_cands_threshold       = 16
   val mutable preprune_threshold                     = 16
   val mutable prune_threshold                        = 1 (* any subtree of size < !prune_threshold may not be pruned *)
   val mutable subtree_match_ratio_threshold          = 0.6 (* must be > 0.5 *)
@@ -91,9 +94,12 @@ class c = object (self)
   method set_no_enclave_elim_flag = no_enclave_elim_flag <- true
   method clear_no_enclave_elim_flag = no_enclave_elim_flag <- false
 
-  method no_relabel_elim_flag = no_relabel_elim_flag
-  method set_no_relabel_elim_flag = no_relabel_elim_flag <- true
-  method clear_no_relabel_elim_flag = no_relabel_elim_flag <- false
+  method no_odd_relabel_elim_flag = no_odd_relabel_elim_flag
+  method set_no_odd_relabel_elim_flag = no_odd_relabel_elim_flag <- true
+  method clear_no_odd_relabel_elim_flag = no_odd_relabel_elim_flag <- false
+
+  method rename_rectification_level = rename_rectification_level
+  method set_rename_rectification_level lv = rename_rectification_level <- lv
 
   method no_moves_flag = no_moves_flag
   method set_no_moves_flag = no_moves_flag <- true
@@ -190,6 +196,9 @@ class c = object (self)
 
   method prematch_cands_threshold = prematch_cands_threshold
   method set_prematch_cands_threshold x = prematch_cands_threshold <- x
+
+  method prematch_subtree_cands_threshold = prematch_subtree_cands_threshold
+  method set_prematch_subtree_cands_threshold x = prematch_subtree_cands_threshold <- x
 
   method subtree_match_ratio_threshold = subtree_match_ratio_threshold
   method set_subtree_match_ratio_threshold x = subtree_match_ratio_threshold <- x

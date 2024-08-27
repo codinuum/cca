@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 *)
 (* parser_options.ml *)
 
+
+let default_java_lang_spec = 11
 
 let get_dist_dir () =
   Filename.dirname (Filename.dirname (Xfile.abspath Sys.executable_name))
@@ -64,6 +66,9 @@ class c = object (self)
 
   val uid_generator = new Otreediff.UID.generator
   method uid_generator = uid_generator
+
+  val bid_generator = new Binding.ID.generator
+  method bid_generator = bid_generator
 
   val mutable dump_dot_flag    = false
   method dump_dot_flag = dump_dot_flag
@@ -135,16 +140,24 @@ class c = object (self)
   val mutable designated_parser = ""
 
   (* output *)
-  val mutable dump_ast_flag    = false
-
+  val mutable dump_ast_flag = false
   val mutable compress_ast_flag = false
-  val mutable ast_compression   = Compression.none
+  val mutable ast_compression = Compression.none
+  val mutable dump_src_flag = false
+  val mutable dump_src_out = ""
 
   (* mode *)
-  val mutable recursive_flag       = false
-  val mutable incomplete_info_flag = false
+  val mutable recursive_flag = false
+  method recursive_flag = recursive_flag
+  method set_recursive_flag = recursive_flag <- true
+  method clear_recursive_flag = recursive_flag <- false
 
-  val mutable no_collapse_flag     = false
+  val mutable incomplete_info_flag = false
+  method incomplete_info_flag = incomplete_info_flag
+  method set_incomplete_info_flag = incomplete_info_flag <- true
+  method clear_incomplete_info_flag = incomplete_info_flag <- false
+
+  val mutable no_collapse_flag = false
   method no_collapse_flag = no_collapse_flag
   method set_no_collapse_flag = no_collapse_flag <- true
   method clear_no_collapse_flag = no_collapse_flag <- false
@@ -158,6 +171,31 @@ class c = object (self)
   method normalize_ast_flag = normalize_ast_flag
   method set_normalize_ast_flag = normalize_ast_flag <- true
   method clear_normalize_ast_flag = normalize_ast_flag <- false
+
+  val mutable rely_on_naming_convention_flag = false
+  method rely_on_naming_convention_flag = rely_on_naming_convention_flag
+  method set_rely_on_naming_convention_flag = rely_on_naming_convention_flag <- true
+  method clear_rely_on_naming_convention_flag = rely_on_naming_convention_flag <- false
+
+  val mutable partial_name_resolution_flag = false
+  method partial_name_resolution_flag = partial_name_resolution_flag
+  method set_partial_name_resolution_flag = partial_name_resolution_flag <- true
+  method clear_partial_name_resolution_flag = partial_name_resolution_flag <- false
+
+  val mutable no_implicit_name_resolution_flag = false
+  method no_implicit_name_resolution_flag = no_implicit_name_resolution_flag
+  method set_no_implicit_name_resolution_flag = no_implicit_name_resolution_flag <- true
+  method clear_no_implicit_name_resolution_flag = no_implicit_name_resolution_flag <- false
+
+  val mutable use_binding_info_flag = true
+  method use_binding_info_flag = use_binding_info_flag
+  method set_use_binding_info_flag = use_binding_info_flag <- true
+  method clear_use_binding_info_flag = use_binding_info_flag <- false
+
+  val mutable no_binding_trace_flag = false
+  method no_binding_trace_flag = no_binding_trace_flag
+  method set_no_binding_trace_flag = no_binding_trace_flag <- true
+  method clear_no_binding_trace_flag = no_binding_trace_flag <- false
 
   (* *)
   val mutable latest_target = ""
@@ -253,20 +291,37 @@ class c = object (self)
   (* configuration *)
   val mutable keep_going_flag = false
 
-
   val mutable ignore_identifiers_flag = false
-  method ignore_identifiers_flag  = ignore_identifiers_flag
-  method set_ignore_identifiers_flag  = ignore_identifiers_flag <- true
-  method clear_ignore_identifiers_flag  = ignore_identifiers_flag <- false
+  method ignore_identifiers_flag = ignore_identifiers_flag
+  method set_ignore_identifiers_flag = ignore_identifiers_flag <- true
+  method clear_ignore_identifiers_flag = ignore_identifiers_flag <- false
 
   val mutable ignore_huge_arrays_flag = true
-  method ignore_huge_arrays_flag  = ignore_huge_arrays_flag
-  method set_ignore_huge_arrays_flag  = ignore_huge_arrays_flag <- true
-  method clear_ignore_huge_arrays_flag  = ignore_huge_arrays_flag <- false
+  method ignore_huge_arrays_flag = ignore_huge_arrays_flag
+  method set_ignore_huge_arrays_flag = ignore_huge_arrays_flag <- true
+  method clear_ignore_huge_arrays_flag = ignore_huge_arrays_flag <- false
 
-  val mutable huge_array_threshold = 256
+  val mutable huge_array_threshold = 1000
   method huge_array_threshold = huge_array_threshold
   method set_huge_array_threshold x = huge_array_threshold <- x
+
+  val mutable ignore_huge_exprs_flag = true
+  method ignore_huge_exprs_flag = ignore_huge_exprs_flag
+  method set_ignore_huge_exprs_flag = ignore_huge_exprs_flag <- true
+  method clear_ignore_huge_exprs_flag = ignore_huge_exprs_flag <- false
+
+  val mutable huge_expr_threshold = 512
+  method huge_expr_threshold = huge_expr_threshold
+  method set_huge_expr_threshold x = huge_expr_threshold <- x
+
+  val mutable flatten_if_flag = true
+  method flatten_if_flag = flatten_if_flag
+  method set_flatten_if_flag = flatten_if_flag <- true
+  method clear_flatten_if_flag = flatten_if_flag <- false
+
+  (*val mutable deep_if_threshold = 0
+  method deep_if_threshold = deep_if_threshold
+  method set_deep_if_threshold x = deep_if_threshold <- x*)
 
   (* pre-processor *)
   val mutable ignore_if0_flag = true
@@ -274,8 +329,14 @@ class c = object (self)
   method set_ignore_if0_flag = ignore_if0_flag <- true
   method clear_ignore_if0_flag = ignore_if0_flag <- false
 
+  (* Java *)
+  val mutable java_anon_ctor_body_flag = false
+  val mutable java_lang_spec = default_java_lang_spec
+
   (* Python *)
   val mutable python_with_stmt_disabled_flag = false
+  val mutable python_ignore_docstring_flag = false
+  val mutable python_ignore_comment_flag = false
 
   (* Fortran *)
   val mutable fortran_max_line_length = -1
@@ -330,23 +391,35 @@ class c = object (self)
 
   method ast_compression = ast_compression
 
+  method dump_src_flag = dump_src_flag
+  method set_dump_src_flag = dump_src_flag <- true
+  method clear_dump_src_flag = dump_src_flag <- false
 
-  (* mode *)
-  method recursive_flag = recursive_flag
-  method set_recursive_flag = recursive_flag <- true
-  method clear_recursive_flag = recursive_flag <- false
-
-  method incomplete_info_flag = incomplete_info_flag
-  method set_incomplete_info_flag = incomplete_info_flag <- true
-  method clear_incomplete_info_flag = incomplete_info_flag <- false
-
+  method dump_src_out = dump_src_out
+  method set_dump_src_out s = dump_src_out <- s
 
 (* configurations getter/setter *)
+  (* Java *)
+  method java_anon_ctor_body_flag = java_anon_ctor_body_flag
+  method set_java_anon_ctor_body_flag = java_anon_ctor_body_flag <- true
+  method clear_java_anon_ctor_body_flag = java_anon_ctor_body_flag <- false
+
+  method java_lang_spec = java_lang_spec
+  method set_java_lang_spec lv = java_lang_spec <- lv
+  method reset_java_lang_spec = java_lang_spec <- default_java_lang_spec
 
   (* Python *)
   method python_with_stmt_disabled_flag = python_with_stmt_disabled_flag
   method set_python_with_stmt_disabled_flag = python_with_stmt_disabled_flag <- true
   method clear_python_with_stmt_disabled_flag = python_with_stmt_disabled_flag <- false
+
+  method python_ignore_docstring_flag = python_ignore_docstring_flag
+  method set_python_ignore_docstring_flag = python_ignore_docstring_flag <- true
+  method clear_python_ignore_docstring_flag = python_ignore_docstring_flag <- false
+
+  method python_ignore_comment_flag = python_ignore_comment_flag
+  method set_python_ignore_comment_flag = python_ignore_comment_flag <- true
+  method clear_python_ignore_comment_flag = python_ignore_comment_flag <- false
 
   (* Fortran *)
   method fortran_max_line_length = fortran_max_line_length
@@ -361,11 +434,9 @@ class c = object (self)
   method clear_fortran_ignore_include_flag = fortran_ignore_include_flag <- false
 
   (* Verilog *)
-
   method verilog_ignore_include_flag = verilog_ignore_include_flag
   method set_verilog_ignore_include_flag = verilog_ignore_include_flag <- true
   method clear_verilog_ignore_include_flag = verilog_ignore_include_flag <- false
-
 
   (* yacfe *)
   method yacfe_defs_builtins = yacfe_defs_builtins

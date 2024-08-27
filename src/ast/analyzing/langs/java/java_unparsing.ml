@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -23,7 +23,13 @@
 
 module L = Java_label
 
-open Unparsing_base
+module Fmtr = struct
+  let formatter = Format.std_formatter
+end
+
+module UPB = Unparsing_base.Make(Fmtr)
+
+open UPB
 
 let pb = new ppbox
 
@@ -120,6 +126,8 @@ let get_prec_of_expression = function
   | L.Expression.Instanceof -> 10
   | L.Expression.Cond -> 3
   | L.Expression.Lambda -> 0
+  | L.Expression.Switch -> 0
+  | L.Expression.NaryAdd -> 12
 
 let get_prec = function
   | L.Primary p    -> get_prec_of_primary p
@@ -220,26 +228,24 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
   | L.IDstaticOnDemand n   -> pr_string "import static "; pr_name n; pr_string ".*;"
 
-  | L.Annotations -> pb#pr_a pr_space (pr_node ~fail_on_error) children
+  | L.Annotations -> pb#pr_a ~tail:pr_space pr_space (pr_node ~fail_on_error) children
 
   | L.Annotation a -> begin
       match a with
       | L.Annotation.Normal n ->
           pr_string "@"; pr_name n; pr_lparen();
           pb#pr_va pr_comma (pr_node ~fail_on_error) children;
-          pr_rparen();
-          pr_space()
+          pr_rparen()
 
-      | L.Annotation.Marker n -> pr_string "@"; pr_name n; pr_space()
+      | L.Annotation.Marker n -> pr_string "@"; pr_name n
 
       | L.Annotation.SingleElement n ->
           pr_string "@"; pr_name n; pr_lparen();
           pr_nth_child 0;
-          pr_rparen();
-          pr_space()
+          pr_rparen()
   end
 
-  | L.Modifiers _ -> pb#pr_a pr_none (pr_node ~fail_on_error) children
+  | L.Modifiers _ -> pb#pr_a ~tail:pr_space pr_space (pr_node ~fail_on_error) children
 
   | L.Modifier m -> begin
       begin
@@ -257,18 +263,69 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
         | L.Modifier.Strictfp     -> pr_string "strictfp"
 (*      | L.Modifier.Annotation   -> pr_nth_child 0*)
         | L.Modifier.Default      -> pr_string "default"
+        | L.Modifier.Transitive   -> pr_string "transitive"
+        | L.Modifier.Sealed       -> pr_string "sealed"
+        | L.Modifier.NonSealed    -> pr_string "non-sealed"
         | L.Modifier.Error s      -> pr_string s
-      end;
-      pad 1
+      end
   end
 
   | L.ElementValuePair i -> pr_id i; pr_string "="; pr_nth_child 0
   | L.EVconditional      -> pr_nth_child 0
   | L.EVannotation       -> pr_nth_child 0
-  | L.EVarrayInit        ->
-      pr_string "{"; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string "}"
+  | L.EVarrayInit ->
+      pb#open_box 0;
+      pr_string "{"; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string "}";
+      pb#close_box()
 
   | L.Specifier _ -> ()
+
+  | L.Module n ->
+      pb#open_vbox 0;
+      pb#open_box 0;
+      pr_selected ~fail_on_error ~blk_style ~tail:pr_space L.is_annotation children;
+      pr_selected ~fail_on_error ~tail:pad1 L.is_open children;
+      pr_string "module "; pr_name n;
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_module_body children;
+      pb#close_box()
+
+  | L.Open -> pr_string "open"
+  | L.ModuleName n -> pr_name n
+
+  | L.Requires n ->
+      pb#open_box 0;
+      pr_string "requires ";
+      pr_selected ~fail_on_error ~head:pr_space ~tail:pr_space L.is_modifier children;
+      pr_name n;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.Exports n ->
+      pb#open_box 0;
+      pr_string "exports "; pr_name n;
+      let pr_to () = pr_space(); pr_string "to"; pr_space() in
+      pb#pr_a ~head:pr_to pr_comma (pr_node ~fail_on_error) children;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.Opens n ->
+      pb#open_box 0;
+      pr_string "opens "; pr_name n;
+      let pr_to () = pr_space(); pr_string "to"; pr_space() in
+      pb#pr_a ~head:pr_to pr_comma (pr_node ~fail_on_error) children;
+      pr_semicolon();
+      pb#close_box()
+
+  | L.Uses n -> pr_string "uses "; pr_name n; pr_semicolon()
+
+  | L.Provides n ->
+      pb#open_box 0;
+      pr_string "provides "; pr_name n;
+      let pr_with () = pr_space(); pr_string "with"; pr_space() in
+      pb#pr_a ~head:pr_with pr_comma (pr_node ~fail_on_error) children;
+      pr_semicolon();
+      pb#close_box()
 
   | L.Class i ->
       let specs = get_specs children in
@@ -279,6 +336,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error L.is_typeparameters specs;
       pr_selected ~fail_on_error L.is_extends specs;
       pr_selected ~fail_on_error L.is_implements specs;
+      pr_selected ~fail_on_error L.is_permits specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_classbody children;
       pb#close_box()
@@ -294,6 +352,19 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error ~blk_style L.is_enumbody children;
       pb#close_box()
 
+  | L.Record i ->
+      let specs = get_specs children in
+      pb#open_vbox 0;
+      pb#open_box 0;
+      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers specs;
+      pr_string "record "; pr_id i;
+      pr_selected ~fail_on_error L.is_typeparameters specs;
+      pr_lparen(); pr_selected ~fail_on_error L.is_parameter specs; pr_rparen();
+      pr_selected ~fail_on_error L.is_implements specs;
+      pb#close_box();
+      pr_selected ~fail_on_error ~blk_style L.is_classbody children;
+      pb#close_box()
+
   | L.Interface i ->
       let specs = get_specs children in
       pb#open_vbox 0;
@@ -302,6 +373,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "interface "; pr_id i;
       pr_typeparameters ~fail_on_error specs;
       pr_selected ~fail_on_error L.is_extendsinterfaces specs;
+      pr_selected ~fail_on_error L.is_permits specs;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style L.is_interfacebody children;
       pb#close_box()
@@ -375,6 +447,14 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
   | L.ClassnamePatternName n -> pr_name n
   | L.ClassnamePatternNamePlus n -> pr_name n; pr_string "+"
 
+  | L.ModuleBody _ ->
+        if nchildren = 0 then
+          pr_string "{}"
+        else begin
+          pb#pr_block_begin_tall();
+          pb#pr_a pr_cut (pr_node ~fail_on_error) children;
+          pb#pr_block_end()
+        end
 
   | L.ClassBody _ ->
         if nchildren = 0 then
@@ -513,6 +593,14 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "extends ";
       pb#pr_hova pr_comma (pr_node ~fail_on_error) children
 
+  | L.Permits when nchildren = 0 -> ()
+  | L.Permits ->
+      pr_break 1 pb#indent;
+      pr_string "permits ";
+      pb#pr_hova pr_comma (pr_node ~fail_on_error) children
+
+  | L.TypeName n -> pr_name n
+
   | L.ElementDeclaration i ->
       pb#open_box 0;
       pr_selected ~fail_on_error L.is_modifiers children;
@@ -523,9 +611,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_semicolon();
       pb#close_box()
 
-  | L.AnnotDim ->
-      pr_selected ~fail_on_error ~sep:pr_space ~tail:pr_space L.is_annotations children;
-      pr_string "[]";
+  | L.AnnotDim ellipsis ->
+      pr_selected ~fail_on_error ~sep:pr_space(* ~tail:pr_space*) L.is_annotations children;
+      if ellipsis then
+        ()
+      else
+        pr_string "[]";
 
   | L.FieldDeclarations _ -> pb#pr_a pr_space (pr_node ~fail_on_error) children
 
@@ -536,6 +627,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_selected ~fail_on_error ~sep:pr_comma ~tail:pr_semicolon
         L.is_variabledeclarator children;
       pb#close_box()
+
+  | L.VariableDeclaration -> ()
 
   | L.EmptyDeclaration -> pr_semicolon()
 
@@ -564,16 +657,16 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end
       else begin
         let rec pr_ty = function
-          | L.Type.Byte
+          | (L.Type.Byte
           | L.Type.Short
           | L.Type.Int
           | L.Type.Long
           | L.Type.Char
           | L.Type.Float
           | L.Type.Double
-          | L.Type.Boolean -> begin
+          | L.Type.Boolean) as ty0 -> begin
               pr_selected ~fail_on_error ~sep:pr_space ~tail:pr_space L.is_annotation children;
-              pr_string (type_to_string ty)
+              pr_string (type_to_string ty0)
           end
           | L.Type.ClassOrInterface n
           | L.Type.Class n
@@ -583,9 +676,12 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
               pr_name n;
               pr_selected ~fail_on_error L.is_typearguments children
           end
-          | L.Type.Array(ty, dims) when va && dims = 1 -> pr_ty ty
-          | L.Type.Array(ty, dims) when va -> pr_ty ty; pr_string (dims_to_string (dims-1))
-          | L.Type.Array(ty, dims) -> pr_ty ty; pr_string (dims_to_string dims)
+          (*| L.Type.Array(ty, dims) when va && dims = 1 -> pr_ty ty
+          | L.Type.Array(ty, dims) when va -> pr_ty ty; pr_dims (dims-1)*)
+          | L.Type.Array(ty, dims) ->
+              pr_ty ty;
+              pr_selected ~fail_on_error ~otherwise:(fun () -> pr_dims dims) L.is_annot_dim children
+
           | L.Type.Void -> pr_string "void"
         in
         pr_ty ty
@@ -601,6 +697,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pr_string "}"
 
   | L.HugeArray(_, c) -> pr_string c
+  | L.HugeExpr(_, c) -> pr_string c
 
   | L.Throws _ when nchildren = 0 -> ()
   | L.Throws _ ->
@@ -621,25 +718,46 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
 
       if va then pr_string "...";
       pad 1;
-      pr_id i; pr_dims dims
+      pr_id i;
+      pr_selected ~fail_on_error ~otherwise:(fun () -> pr_dims dims) L.is_annot_dim children
 
-  | L.ForHeader(i, dims) ->
+  | L.ReceiverParameter id_opt ->
+      pb#open_hbox();
       pr_selected ~fail_on_error L.is_modifiers children;
+      pb#close_box();
+
+      (*pr_selected ~fail_on_error L.is_type children;*)
       let a' = find_nodes L.is_type children in
       if (Array.length a') > 0 then begin
         pb#pr_a pr_none (pr_node ~fail_on_error ~va ~blk_style ~prec) a';
       end;
+
       pad 1;
-      pr_id i; pr_dims dims
+
+      begin
+        match id_opt with
+        | Some id -> pr_id id; pr_dot()
+        | _ -> ()
+      end;
+      pr_string "this"
+
+  | L.ForHead _ ->
+      pr_selected ~fail_on_error L.is_forinit children;
+      pr_semicolon(); pr_space();
+      pr_selected ~fail_on_error L.is_forcond children;
+      pr_semicolon(); pr_space();
+      pr_selected ~fail_on_error L.is_forupdate children;
 
   | L.Method(i, _) ->
       (*pb#open_vbox 0;*)
       pb#open_box 0;
-      pr_selected ~fail_on_error ~head:(fun () -> pb#open_vbox 0) ~tail:pb#close_box L.is_modifiers children;
+      let opv () = pb#open_vbox 0 in
+      pr_selected ~fail_on_error ~head:opv ~tail:pb#close_box L.is_modifiers children;
       pr_typeparameters ~fail_on_error children;
       pr_selected ~fail_on_error L.is_type children; pad 1;
       pr_id i;
       pr_parameters ~fail_on_error children;
+      pr_selected ~fail_on_error L.is_annot_dim children;
       pr_selected ~fail_on_error L.is_throws children;
       pb#close_box();
       pr_selected ~fail_on_error ~blk_style ~head:pad1 ~otherwise:pr_semicolon
@@ -673,12 +791,18 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end;
       pr_nth_child 1
 
-  | L.SLconstant -> pr_string "case "; pr_nth_child 0; pr_string ":"
+  | L.SLconstant _ ->
+      pr_string "case "; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string ":"
   | L.SLdefault -> pr_string "default:"
+
+  | L.SRLconstant ->
+      pr_string "case "; pb#pr_a pr_comma (pr_node ~fail_on_error) children; pr_string " ->"
+  | L.SRLdefault -> pr_string "default ->"
 
   | L.SwitchBlock ->
       pb#pr_block_begin_short();
       pr_selected ~fail_on_error ~blk_style ~sep:pr_space L.is_switchblockstmtgroup children;
+      pr_selected ~fail_on_error ~blk_style ~sep:pr_space L.is_switchrule children;
       pb#pr_block_end()
 
   | L.SwitchBlockStatementGroup ->
@@ -687,6 +811,17 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       pb#open_vbox 0;
       pr_selected ~fail_on_error ~sep:pr_space
         (fun lab -> L.is_block lab || L.is_blockstatement lab)
+        children;
+      pb#close_box();
+      pb#close_box()
+
+  | L.SwitchRule ->
+      pb#open_vbox 0;
+      pr_selected ~fail_on_error ~sep:pr_space L.is_switchrulelabel children; pr_break 1 pb#indent;
+      pb#open_vbox 0;
+      pr_selected ~fail_on_error ~sep:pr_space ~tail:pr_semicolon L.is_expression children;
+      pr_selected ~fail_on_error ~sep:pr_space
+        (fun lab -> L.is_block lab || L.is_statement lab)
         children;
       pb#close_box();
       pb#close_box()
@@ -718,25 +853,68 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           else begin
             pr_nth_child 1;
             if nchildren > 2 then begin
-              let else_part = children.(2) in
-              spc ~blk_style 1; pr_string "else";
-              let else_lab = getlab else_part in
-              if L.is_block else_lab || L.is_if else_lab then
+              pr_selected ~fail_on_error ~head:pad1 ~sep:pad1 L.is_elseif children;
+              pr_selected ~fail_on_error ~head:pad1 L.is_else children;
+
+              let else_part = children.(nchildren - 1) in
+              let lab = getlab else_part in
+              if not (L.is_elseif lab || L.is_else lab) then begin
+                spc ~blk_style 1; pr_string "else";
+                let else_lab = getlab else_part in
+                if L.is_block else_lab || L.is_if else_lab then
+                  pad 1
+                else
+                  pr_break 1 pb#indent;
+                pr_node ~fail_on_error else_part
+              end
+
+            end
+          end
+
+      (*| L.Statement.FlattenedIf _ ->
+          if nchildren > 0 then begin
+            pb#open_vbox pb#indent;
+            pb#pr_a (fun () -> pr_string " ") (pr_node ~fail_on_error) children;
+            pb#close_box()
+          end*)
+
+      | L.Statement.ElseIf _ ->
+          pr_string "else if ("; pr_nth_child 0; pr_rparen();
+          begin
+            try
+              if L.is_block (getlab (children.(1))) then
                 pad 1
               else
                 pr_break 1 pb#indent;
-              pr_node ~fail_on_error else_part
-            end
-          end
+            with
+              _ -> pad 1
+          end;
+          if nchildren < 2 then
+            pr_string "{}"
+          else
+            pr_nth_child 1
+
+      | L.Statement.Else ->
+          pr_string "else";
+          begin
+            try
+              if L.is_block (getlab (children.(0))) then
+                pad 1
+              else
+                pr_break 1 pb#indent;
+            with
+              _ -> pad 1
+          end;
+          if nchildren < 1 then
+            pr_string "{}"
+          else
+            pr_nth_child 0
 
       | L.Statement.For ->
           pr_string "for (";
           pb#open_box 0;
-          pr_selected ~fail_on_error L.is_forinit children;
-          pr_semicolon(); pr_space();
-          pr_selected ~fail_on_error L.is_forcond children;
-          pr_semicolon(); pr_space();
-          pr_selected ~fail_on_error L.is_forupdate children;
+          let pr_semi_semi () = pr_semicolon(); pr_semicolon() in
+          pr_selected ~fail_on_error ~otherwise:pr_semi_semi L.is_forhead children;
           pr_rparen();
           pb#close_box();
           if nchildren > 0 then begin
@@ -792,6 +970,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
           pr_selected ~fail_on_error ~tail:pad1 L.is_block children;
           pr_selected ~fail_on_error ~tail:pad1 L.is_catch_clause children;
           pr_selected ~fail_on_error ~tail:pad1 L.is_finally children
+
+      | L.Statement.Yield -> pr_string "yield "; pr_nth_child 0; pr_semicolon()
 
       | L.Statement.Switch ->
           pr_string "switch ("; pr_nth_child 0; pr_rparen();
@@ -854,7 +1034,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(blk_style=BSshort) ?(prec=0)
       end;
       pb#close_box()
 
-  | L.VariableDeclarator(i, dims, islocal) ->
+  | L.VariableDeclarator(i, dims) ->
       pr_id i; pr_dims dims;
       if nchildren > 0 then begin
         pr_string " ="; pr_break 1 pb#indent;
@@ -963,6 +1143,7 @@ and pr_primary ?(fail_on_error=true) ?(prec=0) p children =
         | L.Literal.False           -> "false"
         | L.Literal.Character c     -> "'"^c^"'"
         | L.Literal.String s        -> "\""^s^"\""
+        | L.Literal.TextBlock s     -> "\"\"\""^s^"\"\"\""
         | L.Literal.Null            -> "null"
       in
       pr_string s
@@ -1211,6 +1392,23 @@ and pr_expression ?(fail_on_error=true) ?(prec=0) e children =
       end;
       pr_string " -> "; pr_nth_child 1
   end
+
+  | L.Expression.Switch -> begin
+      pr_string "switch ("; pr_nth_child 0; pr_rparen();
+      begin
+        try
+          if L.is_switchblock (getlab (children.(1))) then
+            pad 1
+          else
+            pr_break 1 pb#indent;
+        with
+          _ -> pad 1
+      end;
+      pr_nth_child 1
+  end
+
+  | L.Expression.NaryAdd -> pb#pr_a (fun () -> pr_string " + ") (pr_node ~fail_on_error) children
+
 
 
 let unparse ?(no_boxing=false) ?(no_header=false) ?(fail_on_error=true) t =

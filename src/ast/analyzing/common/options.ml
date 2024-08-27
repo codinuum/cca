@@ -23,8 +23,6 @@ class c = object (self)
   inherit Delta_options.c
 
   (* output *)
-  val mutable dump_src_flag    = false
-  val mutable dump_src_out     = ""
   val mutable dump_ccs_flag    = false
   val mutable dump_origin_flag = false
 
@@ -73,13 +71,6 @@ class c = object (self)
   method clear_ignore_unmodified_flag = ignore_unmodified_flag <- false
 
   (* output *)
-  method dump_src_flag = dump_src_flag
-  method set_dump_src_flag = dump_src_flag <- true
-  method clear_dump_src_flag = dump_src_flag <- false
-
-  method dump_src_out = dump_src_out
-  method set_dump_src_out s = dump_src_out <- s
-
   method dump_ccs_flag = dump_ccs_flag
   method set_dump_ccs_flag = dump_ccs_flag <- true
   method clear_dump_ccs_flag = dump_ccs_flag <- false

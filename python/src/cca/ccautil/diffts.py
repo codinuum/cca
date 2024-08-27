@@ -3,7 +3,7 @@
 '''
   A Diff/TS Driver
 
-  Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -423,9 +423,16 @@ def diffts(diff_cmd, file1, file2,
            dironly=False,
            check=False,
            aggressive=False,
+           ignore_moves_of_unordered=False,
+           no_unnamed_node_moves=False,
+           no_rename_rectification=False,
+           no_binding_trace=False,
+           strict_rr=False,
+           no_implicit_name_resolution=False,
            keep_filtered_temp=False,
            local_cache_name='',
            dump_delta=False,
+           minimize_delta=False,
            fact_for_delta=False,
            keep_going=False,
            quiet=False):
@@ -523,9 +530,29 @@ def diffts(diff_cmd, file1, file2,
         other_opts = ''
         if aggressive:
             other_opts += ' -aggressive'
+
+        if no_unnamed_node_moves:
+            other_opts += ' -no-unnamed-node-moves'
+
+        if no_rename_rectification:
+            other_opts += ' -norr'
+
+        if no_binding_trace:
+            other_opts += ' -no-binding-trace'
+
+        if strict_rr:
+            other_opts += ' -strict-rr'
+
+        if no_implicit_name_resolution:
+            other_opts += ' -parser:no-implicit-name-resolution'
+
+        if ignore_moves_of_unordered:
+            other_opts += ' -ignore-moves-of-unordered'
+
         if keep_filtered_temp:
             logger.info('keep filtered temp files')
             other_opts += ' -keep-filtered-temp-file'
+
         if keep_going:
             other_opts += ' -k'
 
@@ -535,6 +562,9 @@ def diffts(diff_cmd, file1, file2,
 
         if dump_delta:
             other_opts += ' -dump:delta'
+
+        if minimize_delta:
+            other_opts += ' -dump:delta:minimize'
 
         cmd = ''.join((diff_cmd,
                        cache_opt, cachedir_opt, prep_opt, prem_opt, fact_opt,

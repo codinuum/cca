@@ -31,7 +31,7 @@ module F (S: Git.S) = struct
   let dir_sep_pat = Str.regexp_string Filename.dir_sep
 
 
-  class entry ~dirname ~name ~is_dir ~digest ?(blob_opt=None) es : Storage.entry_t = object
+  class entry ~dirname ~name ~is_dir ~digest ?(blob_opt=None) es : Storage.entry_t = object (self)
 
     method path = Filename.concat dirname name
     method dirname = dirname
@@ -43,7 +43,9 @@ module F (S: Git.S) = struct
     method get_content() =
       match blob_opt with
       | Some blob -> Blob.to_string blob
-      | _ -> raise Not_found
+      | None ->
+          Xprint.warning "not found: %s" self#path;
+          raise Not_found
 
     method dir_digest =
       if is_dir then
@@ -338,6 +340,7 @@ module F (S: Git.S) = struct
     match e.Git.Tree.perm with
     | `Dir
     | `Normal -> true
+    | `Exec -> true
     | _ -> false
 
   type obj = Tree of tree | File of Storage.file

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ open Stat.File
 
 module GI  = Otreediff.GIndex
 module Otree = Otreediff.Otree
-module Json = UIDmapping.Json
+module Json = Node_mapping.Json
+module Nodetbl = Node.Tbl
 
 let sprintf = Printf.sprintf
 let fprintf = Printf.fprintf
@@ -164,6 +165,7 @@ let ngps = Misc.ngps
 let nugps = Misc.nugps
 let usps = Misc.usps
 let nsps = Misc.nsps
+let naps = Misc.naps
 let locps = Misc.locps
 let labps = Misc.labps
 
@@ -176,108 +178,133 @@ let get_mid = function
   | Move(mid, _, _, _) -> !mid
   | _ -> assert false
 
-let add tbl u e =
+let add tbl n e =
   try
-    let e' = Hashtbl.find tbl u in
+    let e' = Nodetbl.find tbl n in
     if e <> e' then
-      WARN_MSG "already have %a -> %s (not added: %s)" ups u
+      WARN_MSG "already have %a -> %s (not added: %s)" nups n
         (to_string e') (to_string e)
   with
-    Not_found -> Hashtbl.add tbl u e
+    Not_found -> Nodetbl.add tbl n e
 
-let add2 tbl1 tbl2 u1 u2 e =
-  let is_ok tbl u =
+let add2 tbl1 tbl2 n1 n2 e =
+  let is_ok tbl n =
     try
-      let e' = Hashtbl.find tbl u in
+      let e' = Nodetbl.find tbl n in
       let a =
         if e <> e' then
           "conflicting "
         else
           ""
       in
-      WARN_MSG "already have %s%a -> %s (not added: %s)" a ups u
+      WARN_MSG "already have %s%a -> %s (not added: %s)" a nups n
         (to_string e') (to_string e);
       false
     with
       Not_found -> true
   in
-  let ok1 = is_ok tbl1 u1 in
-  let ok2 = is_ok tbl2 u2 in
+  let ok1 = is_ok tbl1 n1 in
+  let ok2 = is_ok tbl2 n2 in
 
   if ok1 && ok2 then begin
-    Hashtbl.add tbl1 u1 e;
-    Hashtbl.add tbl2 u2 e
+    Nodetbl.add tbl1 n1 e;
+    Nodetbl.add tbl2 n2 e
   end
 
 
 let gid_of_edit1 = function
-  | Delete(_, _, info, _)
-  | Relabel(_, (_, info, _), _)
-  | Move(_, _, (_, info, _), _) -> Info.get_gid info
-  | Insert(_, _, info, _) -> raise Not_found
+  | Delete(_, info, _)
+  | Relabel(_, (info, _), _)
+  | Move(_, _, (info, _), _) -> Info.get_gid info
+  | Insert(_, info, _) -> raise Not_found
 
 let gid_of_edit2 = function
-  | Insert(_, _, info, _)
-  | Relabel(_, _, (_, info, _))
-  | Move(_, _, _, (_, info, _)) -> Info.get_gid info
-  | Delete(_, _, info, _) -> raise Not_found
+  | Insert(_, info, _)
+  | Relabel(_, _, (info, _))
+  | Move(_, _, _, (info, _)) -> Info.get_gid info
+  | Delete(_, info, _) -> raise Not_found
 
 
-let _sort_edit_list_topdown gid_of_edit =
-  List.fast_sort
-    (fun ed1 ed2 ->
-      let c =
-        try
-          let gi1, gi2 = gid_of_edit ed1, gid_of_edit ed2 in
-          Stdlib.compare gi2 gi1
-        with
-          Not_found -> 0
-      in
-      let c' =
-        if c = 0 then
-          match ed1, ed2 with
-          | Move _, Relabel _ -> -1
-          | Relabel _, Move _ -> 1
-          | _ -> 0
-        else
-          c
-      in
-      (* DEBUG_MSG "%s vs %s --> %d" (to_string ed1) (to_string ed2) c'; *)
-      c'
-    )
+let comp_edits_topdown gid_of_edit ed1 ed2 =
+  let c =
+    try
+      let gi1, gi2 = gid_of_edit ed1, gid_of_edit ed2 in
+      Stdlib.compare gi2 gi1
+    with
+      Not_found -> 0
+  in
+  let c' =
+    if c = 0 then
+      match ed1, ed2 with
+      | Move _, Relabel _ -> -1
+      | Relabel _, Move _ -> 1
+      | _ -> 0
+    else
+      c
+  in
+  (* DEBUG_MSG "%s vs %s --> %d" (to_string ed1) (to_string ed2) c'; *)
+  c'
+
+let _sort_edit_list_topdown gid_of_edit = List.fast_sort (comp_edits_topdown gid_of_edit)
 
 let sort_edit_list_topdown l =
   let l' = _sort_edit_list_topdown gid_of_edit1 l in
   let l'' = _sort_edit_list_topdown gid_of_edit2 l' in
   l''
 
-let _sort_edit_list_bottomup gid_of_edit =
-  List.fast_sort
-    (fun ed1 ed2 ->
-      let c =
-        try
-          let gi1, gi2 = gid_of_edit1 ed1, gid_of_edit1 ed2 in
-          Stdlib.compare gi1 gi2
-        with
-          Not_found -> 0
-      in
-      if c = 0 then
-        match ed1, ed2 with
-        | Relabel _, Move _ -> -1
-        | Move _, Relabel _ -> 1
-        | _ -> 0
-      else
-        c
-    )
+let comp_edits_bottomup gid_of_edit ed1 ed2 =
+  let c =
+    try
+      let gi1, gi2 = gid_of_edit1 ed1, gid_of_edit1 ed2 in
+      Stdlib.compare gi1 gi2
+    with
+      Not_found -> 0
+  in
+  if c = 0 then
+    match ed1, ed2 with
+    | Relabel _, Move _ -> -1
+    | Move _, Relabel _ -> 1
+    | _ -> 0
+  else
+    c
+
+let _sort_edit_list_bottomup gid_of_edit = List.fast_sort (comp_edits_bottomup gid_of_edit)
 
 let sort_edit_list_bottomup l =
   let l' = _sort_edit_list_bottomup gid_of_edit1 l in
   let l'' = _sort_edit_list_bottomup gid_of_edit2 l' in
   l''
 
+let sort_mids_movs mov_compare movl =
+  let tbl0 = Hashtbl.create 0 in
+  List.iter
+    (function
+      | Move(mid, _, _, _) as mov -> begin
+          tbl_add tbl0 !mid mov
+      end
+      | _ -> ()
+    ) movl;
+  let tbl = Hashtbl.create 0 in
+  let midl = ref [] in
+  Hashtbl.iter
+    (fun mid mvl ->
+      Hashtbl.add tbl mid (List.fast_sort mov_compare mvl);
+      midl := mid :: !midl
+    ) tbl0;
+  let mid_compare mid0 mid1 =
+    let m0 = List.hd (Hashtbl.find tbl mid0) in
+    let m1 = List.hd (Hashtbl.find tbl mid1) in
+    mov_compare m0 m1
+  in
+  let sorted_midl = List.fast_sort mid_compare !midl in
+  List.flatten (List.map (Hashtbl.find tbl) sorted_midl)
+
+let sort_move_list_topdown movl = sort_mids_movs (comp_edits_topdown gid_of_edit1) movl
+let sort_move_list_bottomup movl = sort_mids_movs (comp_edits_bottomup gid_of_edit1) movl
+
 let tbl_remove tbl k =
   (*while Hashtbl.mem tbl k do*)
-    Hashtbl.remove tbl k
+    Nodetbl.remove tbl k
   (*done*)
 
 (* base class for edit sequences *)
@@ -285,7 +312,7 @@ let tbl_remove tbl k =
 exception Found
 exception Abort
 
-let is_ghost_node nd = nd#data#src_loc = Loc.ghost
+let is_ghost_node nd = nd#data#src_loc == Loc.ghost
 
 class formatters_base
     ~delete ~insert ~relabel ~move ~align
@@ -309,17 +336,17 @@ type move_region_tbl_t = (MID.t, (GI.t*GI.t*GI.t*GI.t)) Hashtbl.t
 
 class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
-  val mutable del_tbl  = Hashtbl.create 0
-  val mutable ins_tbl  = Hashtbl.create 0
-  val mutable rel1_tbl = Hashtbl.create 0
-  val mutable rel2_tbl = Hashtbl.create 0
-  val mutable mov1_tbl = Hashtbl.create 0
-  val mutable mov2_tbl = Hashtbl.create 0
+  val mutable del_tbl  = Nodetbl.create 0
+  val mutable ins_tbl  = Nodetbl.create 0
+  val mutable rel1_tbl = Nodetbl.create 0
+  val mutable rel2_tbl = Nodetbl.create 0
+  val mutable mov1_tbl = Nodetbl.create 0
+  val mutable mov2_tbl = Nodetbl.create 0
 
   val mutable tables = []
 
-  val mov_gr_tbl = Hashtbl.create 0 (* move id -> group id *)
-  val mov_gr_mem_tbl = Hashtbl.create 0 (* move id -> move list *)
+  val mutable mov_gr_tbl = Hashtbl.create 0 (* move id -> group id *)
+  val mutable mov_gr_mem_tbl = Hashtbl.create 0 (* move id -> move list *)
 
   val mutable list = ([] : ('node_t t) list)
 
@@ -334,6 +361,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method _indivisible_moves = indivisible_moves
   method _set_indivisible_moves s = indivisible_moves <- s
 
+  method _set_mov_gr_tbl tbl = mov_gr_tbl <- tbl
+  method _set_mov_gr_mem_tbl tbl = mov_gr_mem_tbl <- tbl
+
   method add_indivisible_move mid =
     DEBUG_MSG "%a" MID.ps mid;
     Xset.add indivisible_moves mid
@@ -346,6 +376,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let b = Xset.mem indivisible_moves mid in
     DEBUG_MSG "%a -> %B" MID.ps mid b;
     b
+
+  method _mov_gr_tbl = mov_gr_tbl
+  method _mov_gr_mem_tbl = mov_gr_mem_tbl
 
   method find_mov_gr = Hashtbl.find mov_gr_tbl
   method find_mov_gr_mems = Hashtbl.find mov_gr_mem_tbl
@@ -368,27 +401,30 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method copy =
     let eds = new seq_base options in
-    eds#_set_del_tbl (Hashtbl.copy self#_del_tbl);
-    eds#_set_ins_tbl (Hashtbl.copy self#_ins_tbl);
-    eds#_set_rel1_tbl (Hashtbl.copy self#_rel1_tbl);
-    eds#_set_rel2_tbl (Hashtbl.copy self#_rel2_tbl);
-    eds#_set_mov1_tbl (Hashtbl.copy self#_mov1_tbl);
-    eds#_set_mov2_tbl (Hashtbl.copy self#_mov2_tbl);
+    eds#_set_del_tbl (Nodetbl.copy self#_del_tbl);
+    eds#_set_ins_tbl (Nodetbl.copy self#_ins_tbl);
+    eds#_set_rel1_tbl (Nodetbl.copy self#_rel1_tbl);
+    eds#_set_rel2_tbl (Nodetbl.copy self#_rel2_tbl);
+    eds#_set_mov1_tbl (Nodetbl.copy self#_mov1_tbl);
+    eds#_set_mov2_tbl (Nodetbl.copy self#_mov2_tbl);
     eds#_set_indivisible_moves (Xset.copy self#_indivisible_moves);
+    eds#_set_mov_gr_tbl (Hashtbl.copy self#_mov_gr_tbl);
+    eds#_set_mov_gr_mem_tbl (Hashtbl.copy self#_mov_gr_mem_tbl);
     eds#_init;
     eds
 
   method private edit_tbl_to_list tbl =
-    Hashtbl.fold (fun _ e l -> e::l) tbl []
+    Nodetbl.fold (fun _ e l -> e::l) tbl []
 
   method clear =
+    DEBUG_MSG "@";
     list <- [];
-    Hashtbl.clear del_tbl;
-    Hashtbl.clear ins_tbl;
-    Hashtbl.clear rel1_tbl;
-    Hashtbl.clear rel2_tbl;
-    Hashtbl.clear mov1_tbl;
-    Hashtbl.clear mov2_tbl;
+    Nodetbl.clear del_tbl;
+    Nodetbl.clear ins_tbl;
+    Nodetbl.clear rel1_tbl;
+    Nodetbl.clear rel2_tbl;
+    Nodetbl.clear mov1_tbl;
+    Nodetbl.clear mov2_tbl;
     Hashtbl.clear mov_gr_tbl;
     Hashtbl.clear mov_gr_mem_tbl;
 
@@ -396,14 +432,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method is_consistent_with ed =
     let result =
       match ed with
-      | Delete(w, u, _, _) ->
-          let eds = self#find1 u in
+      | Delete(w, i, _) ->
+          let n = Info.get_node i in
+          let eds = self#find1 n in
           begin
             match eds with
-              [] -> true
-            | [Delete(w', u', _, _) as ed'] -> begin
+            | [] -> true
+            | [Delete(w', i', _) as ed'] -> begin
+                let n' = Info.get_node i' in
                 let _ = ed' in
-                let b = w = w' && u = u' in
+                let b = w = w' && n == n' in
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
@@ -425,14 +463,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             end
           end
 
-      | Insert(w, v, _, _)  ->
-          let eds = self#find2 v in
+      | Insert(w, i, _)  ->
+          let n = Info.get_node i in
+          let eds = self#find2 n in
           begin
             match eds with
             | [] -> true
-            | [Insert(w', v', _, _) as ed'] -> begin
+            | [Insert(w', i', _) as ed'] -> begin
+                let n' = Info.get_node i' in
                 let _ = ed' in
-                let b = w = w' && v = v' in
+                let b = w = w' && n == n' in
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
@@ -454,14 +494,18 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             end
           end
 
-      | Relabel(_, (u, _, _), (v, _, _)) ->
-          let eds = self#find12 u v in
+      | Relabel(_, (i1, _), (i2, _)) ->
+          let n1 = Info.get_node i1 in
+          let n2 = Info.get_node i2 in
+          let eds = self#find12 n1 n2 in
           begin
             match eds with
             | [] -> true
-            | [Move(_, _, (u', _, _), (v', _, _)) as ed'] -> begin
+            | [Move(_, _, (i1', _), (i2', _)) as ed'] -> begin
+                let n1' = Info.get_node i1' in
+                let n2' = Info.get_node i2' in
                 let _ = ed' in
-                let b = u = u' && v = v' in
+                let b = n1 == n1' && n2 == n2' in
                 BEGIN_DEBUG
                   if not b then
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
@@ -491,23 +535,29 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             end
           end
 
-      | Move(m, k, (u, _, x), (v, _, y)) ->
-          let eds = self#find12 u v in
+      | Move(m, k, (i1, x), (i2, y)) ->
+          let n1 = Info.get_node i1 in
+          let n2 = Info.get_node i2 in
+          let eds = self#find12 n1 n2 in
           begin
             match eds with
             | [] -> true
-            | [Relabel(_, (u', _, _), (v', _, _)) as ed'] -> begin
+            | [Relabel(_, (i1', _), (i2', _)) as ed'] -> begin
+                let n1' = Info.get_node i1' in
+                let n2' = Info.get_node i2' in
                 let _ = ed' in
-                let b = u = u' && v = v' in
+                let b = n1 == n1' && n2 == n2' in
                 BEGIN_DEBUG
                   if not b then
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
                 b
             end
-            | [Move(m', k', (u', _, x'), (v', _, y')) as ed'] -> begin
+            | [Move(m', k', (i1', x'), (i2', y')) as ed'] -> begin
+                let n1' = Info.get_node i1' in
+                let n2' = Info.get_node i2' in
                 let _ = ed' in
-                let b = u = u' && !m = !m' && !k = !k' && (!x = !x' || !x' = []) && (!y = !y' || !y' = []) in
+                let b = n1 == n1' && n2 == n2' && !m = !m' && !k = !k' && (!x = !x' || !x' = []) && (!y = !y' || !y' = []) in
                 BEGIN_DEBUG
                   if b then
                     DEBUG_MSG "duplication: %s" (to_string ed)
@@ -515,6 +565,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                     DEBUG_MSG "%s conflicts %s" (to_string ed) (to_string ed')
                 END_DEBUG;
                 b
+            end
+            | [ed';ed''] when ed = ed' || ed = ed'' -> begin
+                DEBUG_MSG "duplication: %s" (to_string ed);
+                true
             end
             | [ed';ed''] -> begin
                 DEBUG_MSG "%s conflicts %s and %s" (to_string ed) (to_string ed') (to_string ed'');
@@ -540,14 +594,20 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     END_DEBUG;
 
     match edit with
-    | Delete(_, uid, _, _) -> add del_tbl uid edit
-    | Insert(_, uid, _, _) -> add ins_tbl uid edit
-    | Relabel(_, (uid1, _, _), (uid2, _, _))    -> add2 rel1_tbl rel2_tbl uid1 uid2 edit
-    | Move(_, _, (uid1, _, _), (uid2, _, _)) -> begin
-        add2 mov1_tbl mov2_tbl uid1 uid2 edit;
+    | Delete(_, info, _) -> add del_tbl (Info.get_node info) edit
+    | Insert(_, info, _) -> add ins_tbl (Info.get_node info) edit
+    | Relabel(_, (info1, _), (info2, _)) -> begin
+        let nd1 = Info.get_node info1 in
+        let nd2 = Info.get_node info2 in
+        add2 rel1_tbl rel2_tbl nd1 nd2 edit
+    end
+    | Move(_, _, (info1, _), (info2, _)) -> begin
+        let nd1 = Info.get_node info1 in
+        let nd2 = Info.get_node info2 in
+        add2 mov1_tbl mov2_tbl nd1 nd2 edit;
         begin
           try
-            match self#find_rel12 uid1 uid2 with
+            match self#find_rel12 nd1 nd2 with
             | Relabel(movrel, _, _) -> movrel := true
             | _ -> assert false
           with
@@ -578,17 +638,19 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     DEBUG_MSG "%s" (to_string ed);
 
     match ed with
-    | Delete(_, u, _, _) -> (*Hashtbl.remove*)tbl_remove del_tbl u
-    | Insert(_, u, _, _) -> (*Hashtbl.remove*)tbl_remove ins_tbl u
-    | Relabel(_, (u1, _, _), (u2, _, _)) ->
-        (*Hashtbl.remove*)tbl_remove rel1_tbl u1;
-        (*Hashtbl.remove*)tbl_remove rel2_tbl u2
-    | Move(_, _, (u1, _, _), (u2, _, _)) -> begin
-        (*Hashtbl.remove*)tbl_remove mov1_tbl u1;
-        (*Hashtbl.remove*)tbl_remove mov2_tbl u2;
+    | Delete(_, i, _) -> (*Hashtbl.remove*)tbl_remove del_tbl (Info.get_node i)
+    | Insert(_, i, _) -> (*Hashtbl.remove*)tbl_remove ins_tbl (Info.get_node i)
+    | Relabel(_, (i1, _), (i2, _)) ->
+        (*Hashtbl.remove*)tbl_remove rel1_tbl (Info.get_node i1);
+        (*Hashtbl.remove*)tbl_remove rel2_tbl (Info.get_node i2)
+    | Move(_, _, (i1, _), (i2, _)) -> begin
+        let n1 = Info.get_node i1 in
+        let n2 = Info.get_node i2 in
+        (*Hashtbl.remove*)tbl_remove mov1_tbl n1;
+        (*Hashtbl.remove*)tbl_remove mov2_tbl n2;
         begin
           try
-            match self#find_rel12 u1 u2 with
+            match self#find_rel12 n1 n2 with
             | Relabel(movrel, _, _) -> movrel := false
             | _ -> assert false
           with
@@ -597,58 +659,68 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     end
 
 
-  method remove_del uid =
-    DEBUG_MSG "%a" ups uid;
-    Hashtbl.remove del_tbl uid
+  method remove_del nd =
+    DEBUG_MSG "%a" nups nd;
+    Nodetbl.remove del_tbl nd
 
-  method remove_ins uid =
-    DEBUG_MSG "%a" ups uid;
-    Hashtbl.remove ins_tbl uid
+  method remove_ins nd =
+    DEBUG_MSG "%a" nups nd;
+    Nodetbl.remove ins_tbl nd
 
   method is_empty = self#get_nedits = 0
 
   method iter f = (* unordered *)
     List.iter
       (fun tbl ->
-        Hashtbl.iter (fun _ ed -> f ed) tbl
+        Nodetbl.iter (fun _ ed -> f ed) tbl
       ) [mov1_tbl; rel1_tbl; del_tbl; ins_tbl]
 
   method iter_deletes_and_inserts f = (* unordered *)
     List.iter
       (fun tbl ->
-        Hashtbl.iter (fun _ ed -> f ed) tbl
+        Nodetbl.iter (fun _ ed -> f ed) tbl
       ) [del_tbl; ins_tbl]
 
   method iter_deletes f =
-    Hashtbl.iter (fun _ ed -> f ed) del_tbl
+    Nodetbl.iter (fun _ ed -> f ed) del_tbl
 
   method iter_inserts f =
-    Hashtbl.iter (fun _ ed -> f ed) ins_tbl
+    Nodetbl.iter (fun _ ed -> f ed) ins_tbl
 
   method iter_moves f =
-    Hashtbl.iter (fun _ ed -> f ed) mov1_tbl
+    Nodetbl.iter (fun _ ed -> f ed) mov1_tbl
 
   method iter_moves_topdown f =
     let movs = self#edit_tbl_to_list mov1_tbl in
-    List.iter f (sort_edit_list_topdown movs)
+    List.iter f (sort_move_list_topdown movs)
 
   method iter_moves_bottomup f =
     let movs = self#edit_tbl_to_list mov1_tbl in
-    List.iter f (sort_edit_list_bottomup movs)
+    List.iter f (sort_move_list_bottomup movs)
 
   method iter_relabels f =
-    Hashtbl.iter (fun _ ed -> f ed) rel1_tbl
+    Nodetbl.iter (fun _ ed -> f ed) rel1_tbl
 
+  method relabel_exists f =
+    try
+      Nodetbl.iter
+        (fun _ ed ->
+          if f ed then
+            raise Exit
+        ) rel1_tbl;
+      false
+    with
+      Exit -> true
 
   method get_ndeletes =
-    Hashtbl.length del_tbl
+    Nodetbl.length del_tbl
 
   method get_ninserts =
-    Hashtbl.length ins_tbl
+    Nodetbl.length ins_tbl
 
   method get_nmoves =
-    let n1 = Hashtbl.length mov1_tbl in
-    let n2 = Hashtbl.length mov2_tbl in
+    let n1 = Nodetbl.length mov1_tbl in
+    let n2 = Nodetbl.length mov2_tbl in
     assert (n1 = n2);
     n1
 
@@ -656,7 +728,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let count = ref 0 in
     self#iter_moves
       (function
-        | Move(mid, _, (_, inf1, _), (_, inf2, _)) ->
+        | Move(mid, _, (inf1, _), (inf2, _)) ->
             if !mid = move_id then
               let n1 = Info.get_node inf1 in
               let n2 = Info.get_node inf2 in
@@ -689,8 +761,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     Hashtbl.length tbl
 
   method get_nrelabels =
-    let n1 = Hashtbl.length rel1_tbl in
-    let n2 = Hashtbl.length rel2_tbl in
+    let n1 = Nodetbl.length rel1_tbl in
+    let n2 = Nodetbl.length rel2_tbl in
 (*
     if n1 <> n2 then begin
       DEBUG_MSG "size of rel1_tbl: %d" n1;
@@ -699,8 +771,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       let eds1 = ref [] in
       let eds2 = ref [] in
 
-      Hashtbl.iter (fun uid ed -> eds1 := ed::!eds1) rel1_tbl;
-      Hashtbl.iter (fun uid ed -> eds2 := ed::!eds2) rel2_tbl;
+      Hashtbl.iter (fun nd ed -> eds1 := ed::!eds1) rel1_tbl;
+      Hashtbl.iter (fun nd ed -> eds2 := ed::!eds2) rel2_tbl;
 
       let isect = Xlist.intersection !eds1 !eds2 in
 
@@ -726,7 +798,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let count = ref 0 in
     self#iter_deletes
       (function
-        | Delete(_, _, info, excl) ->
+        | Delete(_, info, excl) ->
             count := !count + (Info.get_size info)
         | _ -> assert false
       );
@@ -736,7 +808,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let count = ref 0 in
     self#iter_inserts
       (function
-        | Insert(_, _, info, excl) ->
+        | Insert(_, info, excl) ->
             count := !count + (Info.get_size info)
         | _ -> assert false
       );
@@ -746,7 +818,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let count_tbl = Hashtbl.create 0 in (* mid -> count *)
     self#iter_moves
       (function
-        | Move(mid, _, (_, inf1, excl1), (_, inf2, excl2)) ->
+        | Move(mid, _, (inf1, excl1), (inf2, excl2)) ->
             let sz = Info.get_size inf1 in
             begin
               try
@@ -789,7 +861,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let count = ref 0 in
     self#iter_relabels
       (function
-        | Relabel(_, (_, inf1, excl1), (_, inf2, excl2)) when orig -> begin
+        | Relabel(_, (inf1, excl1), (inf2, excl2)) when orig -> begin
             let nd1 = Info.get_node inf1 in
             let nd2 = Info.get_node inf2 in
             if nd1#data#is_named_orig || nd2#data#is_named_orig then begin
@@ -797,7 +869,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               count := !count + sz
             end
         end
-        | Relabel(_, (_, inf1, excl1), (_, inf2, excl2)) -> begin
+        | Relabel(_, (inf1, excl1), (inf2, excl2)) -> begin
             let sz = Info.get_size inf1 in
             count := !count + sz
         end
@@ -818,24 +890,23 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       ?(minsize=1)
       ?(orig=false)
       tree1
-      uidmapping
+      nmapping
       =
     let count_tbl = Hashtbl.create 0 in (* mid -> count *)
     self#iter_moves
       (function
-        | Move(mid, _, (u1, inf1, excl1), (_, _, _)) -> begin
+        | Move(mid, _, (info1, excl1), _) -> begin
             tree1#scan_initial_cluster
-              (Info.get_node inf1, List.map Info.get_node !excl1)
+              (Info.get_node info1, List.map Info.get_node !excl1)
               (fun n ->
                 try
-                  let u' = uidmapping#find n#uid in
+                  let n' = nmapping#find n in
                   let extra_cond =
                     not orig ||
                     (n#data#is_named_orig ||
-                    let n' = uidmapping#search_node_by_uid2 u' in
                     n'#data#is_named_orig)
                   in
-                  if self#mem_rel12 n#uid u' && extra_cond then begin
+                  if self#mem_rel12 n n' && extra_cond then begin
                     try
                       let c = Hashtbl.find count_tbl !mid in
                       Hashtbl.replace count_tbl !mid (c + 1)
@@ -872,9 +943,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let nds = Xset.create 0 in
     self#iter_moves
       (function
-        | Move(mid, _, (u1, inf1, excl1), (_, _, _)) ->
+        | Move(mid, _, (info1, excl1), _) ->
             tree1#scan_initial_cluster
-              (Info.get_node inf1, List.map Info.get_node !excl1)
+              (Info.get_node info1, List.map Info.get_node !excl1)
               (fun n -> Xset.add nds n)
         | _ -> assert false
       );
@@ -884,15 +955,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let nds = Xset.create 0 in
     self#iter_moves
       (function
-        | Move(mid, _, (_, inf1, _), (_, _, _)) ->
+        | Move(mid, _, (info1, _), _) ->
             if !mid = move_id then
-              let n = Info.get_node inf1 in
+              let n = Info.get_node info1 in
               Xset.add nds n
         | _ -> assert false
       );
     (*Xset.to_list *)nds
 
-  method private setup_multi_mov_gr_tbl uidmapping is_anon =
+  method private setup_multi_mov_gr_tbl nmapping is_anon =
 
     if false then begin (* eliminate single move of anonymous entity *)
 
@@ -908,29 +979,29 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       in
       self#iter_moves
         (function
-          | Move(mid, _, (u1, inf1, excl1), (u2, inf2, excl2)) as mov -> begin
+          | Move(mid, _, (info1, excl1), (info2, excl2)) as mov -> begin
               let count = ref 0 in
-              let rt1 = Info.get_node inf1 in
-              let rt2 = Info.get_node inf2 in
+              let rt1 = Info.get_node info1 in
+              let rt2 = Info.get_node info2 in
               scan_initial_cluster rt1 (List.map Info.get_node !excl1)
                 (fun n -> incr count);
 
               DEBUG_MSG "%a(count=%d): %s -> %s" MID.ps !mid !count rt1#data#label rt2#data#label;
               if !count = 1 && (is_anon rt1 || is_anon rt2) then begin
                 DEBUG_MSG "single move of anonymous node: %s" (to_string mov);
-                let _ = uidmapping#remove u1 u2 in
+                let _ = nmapping#remove rt1 rt2 in
                 self#remove_edit mov;
                 begin
                   try
-                    match self#find_rel12 u1 u2 with
+                    match self#find_rel12 rt1 rt2 with
                     | Relabel _ as rel ->
                         self#remove_edit rel
                     | _ -> assert false
                   with
                     Not_found -> ()
                 end;
-                self#add_edit (Delete(false, u1, inf1, excl1));
-                self#add_edit (Insert(false, u2, inf2, excl2));
+                self#add_edit (Delete(false, info1, excl1));
+                self#add_edit (Insert(false, info2, excl2));
               end
           end
           | _ -> assert false
@@ -959,22 +1030,29 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         if (List.length movs) > 1 then begin
           List.iter
             (function
-              | Move(m, _, (u1, _, _), (u2, _ ,_)) ->
+              | Move(m, _, (i1, _), (i2 ,_)) -> begin
                   let m' = mid_gen#gen in
-                  DEBUG_MSG "%a (%a-%a) -> %a" MID.ps !m ups u1 ups u2 MID.ps m';
+                  DEBUG_MSG "%a (%a-%a) -> %a" MID.ps !m
+                    nups (Info.get_node i1) nups (Info.get_node i2) MID.ps m';
                   if self#is_indivisible_move !m then
                     self#add_indivisible_move m';
                   m := m';
+                  DEBUG_MSG "%a <- %a" MID.ps mid MID.ps m';
                   Hashtbl.add mov_gr_tbl m' mid
+              end
               | _ -> assert false
             ) movs;
-          Hashtbl.add mov_gr_mem_tbl mid (sort_edit_list_topdown movs)
+          let sorted_movs = sort_edit_list_topdown movs in
+          DEBUG_MSG "%a -> [%s]" MID.ps mid
+            (Xlist.to_string MID.to_string ";"
+               (Xlist.uniq (List.fast_sort Stdlib.compare (List.map get_mid sorted_movs))));
+          Hashtbl.add mov_gr_mem_tbl mid sorted_movs
         end
       ) tbl
 
-  method finalize (uidmapping : 'node_t UIDmapping.c) (is_anon : 'node_t -> bool) =
+  method finalize (nmapping : 'node_t Node_mapping.c) (is_anon : 'node_t -> bool) =
     self#sync;
-    self#setup_multi_mov_gr_tbl uidmapping is_anon
+    self#setup_multi_mov_gr_tbl nmapping is_anon
 
   method to_string =
     let buf = Buffer.create 0 in
@@ -996,13 +1074,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       );
     Buffer.contents buf
 
-  method private _find12 table_pairs uid1 uid2 =
+  method private _find12 table_pairs nd1 nd2 =
     let res = ref [] in
     List.iter
       (fun (tbl1, tbl2) ->
         try
-          let e1 = Hashtbl.find tbl1 uid1 in
-          let e2 = Hashtbl.find tbl2 uid2 in
+          let e1 = Nodetbl.find tbl1 nd1 in
+          let e2 = Nodetbl.find tbl2 nd2 in
           if e1 = e2 then
             res := e1::!res
         with
@@ -1011,138 +1089,128 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     (*if !res <> [] then
       DEBUG_MSG "%a-%a -> [%s]"
-        ups uid1 ups uid2 (Xlist.to_string to_string ";" !res);*)
+        nups nd1 nups nd2 (Xlist.to_string to_string ";" !res);*)
 
     !res
 
-  method find12 uid1 uid2 =
-    self#_find12 [(rel1_tbl, rel2_tbl); (mov1_tbl, mov2_tbl)] uid1 uid2
+  method find12 nd1 nd2 =
+    self#_find12 [(rel1_tbl, rel2_tbl); (mov1_tbl, mov2_tbl)] nd1 nd2
 
-  method find21 uid2 uid1 =
-    self#_find12 [(rel1_tbl, rel2_tbl); (mov1_tbl, mov2_tbl)] uid1 uid2
+  method find21 nd2 nd1 =
+    self#_find12 [(rel1_tbl, rel2_tbl); (mov1_tbl, mov2_tbl)] nd1 nd2
 
-  method find_mov12 uid1 uid2 =
-    match self#_find12 [(mov1_tbl, mov2_tbl)] uid1 uid2 with
+  method find_mov12 nd1 nd2 =
+    match self#_find12 [(mov1_tbl, mov2_tbl)] nd1 nd2 with
     | [] -> raise Not_found
     | [ed] -> ed
     | _ -> assert false
 
-  method find_mid12 uid1 uid2 =
-    match self#find_mov12 uid1 uid2 with
+  method find_mid12 nd1 nd2 =
+    match self#find_mov12 nd1 nd2 with
     | Move(mid, _, _, _) -> !mid
     | _ -> assert false
 
-  method find_rel12 uid1 uid2 =
-    match self#_find12 [rel1_tbl, rel2_tbl] uid1 uid2 with
+  method find_rel12 nd1 nd2 =
+    match self#_find12 [rel1_tbl, rel2_tbl] nd1 nd2 with
     | [] -> raise Not_found
     | [ed] -> ed
     | _ -> assert false
 
-(*
-  method has_rel12 uid1 uid2 =
-    try
-      let _ = self#find_rel12 uid1 uid2 in
-      true
-    with
-      Not_found -> false
-*)
-
   method find_maps_of_relabels =
     let res = ref [] in
-    Hashtbl.iter
+    Nodetbl.iter
       (fun _ ed ->
         match ed with
-        | Relabel(_, (u, _, _), (v, _, _)) -> res := (u, v)::!res
+        | Relabel(_, (i1, _), (i2, _)) ->
+            res := (Info.get_node i1, Info.get_node i2)::!res
         | _ -> ()
       ) rel1_tbl;
     !res
 
-  method find1 uid =
+  method find1 nd =
     let res = ref [] in
     List.iter
       (fun tbl ->
         try
-          res := (Hashtbl.find tbl uid)::!res
+          res := (Nodetbl.find tbl nd)::!res
         with
           Not_found -> ()
       ) [del_tbl; rel1_tbl; mov1_tbl];
     !res
 
-  method find_del uid =
-    Hashtbl.find del_tbl uid
+  method find_del nd =
+    Nodetbl.find del_tbl nd
 
-  method find2 uid =
+  method find2 nd =
     let res = ref [] in
     List.iter
       (fun tbl ->
         try
-          res := (Hashtbl.find tbl uid)::!res
+          res := (Nodetbl.find tbl nd)::!res
         with
           Not_found -> ()
       ) [ins_tbl; rel2_tbl; mov2_tbl];
     !res
 
-  method find_ins uid =
-    Hashtbl.find ins_tbl uid
+  method find_ins nd =
+    Nodetbl.find ins_tbl nd
 
-  method find_mov1 uid =
-    Hashtbl.find mov1_tbl uid
+  method find_mov1 nd =
+    Nodetbl.find mov1_tbl nd
 
-  method find_mov2 uid =
-    Hashtbl.find mov2_tbl uid
+  method find_mov2 nd =
+    Nodetbl.find mov2_tbl nd
 
 
-  method mem1 uid = match self#find1 uid with [] -> false | _ -> true
-  method mem2 uid = match self#find2 uid with [] -> false | _ -> true
+  method mem1 nd = match self#find1 nd with [] -> false | _ -> true
+  method mem2 nd = match self#find2 nd with [] -> false | _ -> true
 
-  method mem_del uid =
-    Hashtbl.mem del_tbl uid
+  method mem_del nd =
+    Nodetbl.mem del_tbl nd
 
-  method mem_ins uid =
-    Hashtbl.mem ins_tbl uid
+  method mem_ins nd =
+    Nodetbl.mem ins_tbl nd
 
-  method mem_mov12 uid1 uid2 =
+  method mem_mov12 nd1 nd2 =
     try
-      let e1 = Hashtbl.find mov1_tbl uid1 in
-      let e2 = Hashtbl.find mov2_tbl uid2 in
-      e1 = e2
+      let e1 = Nodetbl.find mov1_tbl nd1 in
+      let e2 = Nodetbl.find mov2_tbl nd2 in
+      e1 == e2
     with
       Not_found -> false
 
-  method mem_mov21 uid2 uid1 =
-    self#mem_mov12 uid1 uid2
+  method mem_mov21 nd2 nd1 =
+    self#mem_mov12 nd1 nd2
 
-  method mem_mov1 uid = Hashtbl.mem mov1_tbl uid
-  method mem_mov2 uid = Hashtbl.mem mov2_tbl uid
+  method mem_mov1 nd = Nodetbl.mem mov1_tbl nd
+  method mem_mov2 nd = Nodetbl.mem mov2_tbl nd
 
-  method mem_rel12 uid1 uid2 =
+  method mem_rel12 nd1 nd2 =
     try
-      let e1 = Hashtbl.find rel1_tbl uid1 in
-      let e2 = Hashtbl.find rel2_tbl uid2 in
-      e1 = e2
+      let e1 = Nodetbl.find rel1_tbl nd1 in
+      let e2 = Nodetbl.find rel2_tbl nd2 in
+      e1 == e2
     with
       Not_found -> false
 
-  method mem_rel1 uid = Hashtbl.mem rel1_tbl uid
-  method mem_rel2 uid = Hashtbl.mem rel2_tbl uid
+  method mem_rel1 nd = Nodetbl.mem rel1_tbl nd
+  method mem_rel2 nd = Nodetbl.mem rel2_tbl nd
 
+  method mem12 nd1 nd2 = self#mem_mov12 nd1 nd2 || self#mem_rel12 nd1 nd2
 
   method sort_topdown =
     list <-
       sort_edit_list_topdown
-        (List.flatten
-           (List.map
-              self#edit_tbl_to_list
-              [del_tbl; ins_tbl; mov1_tbl; rel1_tbl]))
+        (List.concat_map
+           self#edit_tbl_to_list
+           [del_tbl; ins_tbl; mov1_tbl; rel1_tbl])
 
 
   method sync =
-    let dels, inss, rels, movs = ref [], ref [], ref [], ref [] in
-    List.iter
-      (fun (tbl, eds) -> Hashtbl.iter (fun _ e -> eds := e::!eds) tbl)
-      [del_tbl, dels; ins_tbl, inss; rel1_tbl, rels; mov1_tbl, movs];
-    list <- !dels @ !movs @ !inss @ !rels
-
+    list <-
+      List.concat_map
+        (fun tbl -> Nodetbl.fold (fun _ e l -> e :: l) tbl [])
+        [del_tbl; ins_tbl; rel1_tbl; mov1_tbl];
 
   method iter_topdown f =
     self#sort_topdown;
@@ -1152,51 +1220,82 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method filter f =
     List.iter
       (fun tbl ->
-        Hashtbl.iter
-          (fun u e -> if not (f e) then Hashtbl.remove tbl u) tbl)
-      tables
+        let to_be_removed = Xset.create 0 in
+        Nodetbl.iter
+          (fun u e ->
+            if not (f e) then begin
+              DEBUG_MSG "to be removed: %s" (to_string e);
+              Xset.add to_be_removed u
+            end
+          ) tbl;
+        Xset.iter (Nodetbl.remove tbl) to_be_removed
+      ) tables
 
   method filter_deletes f =
-    Hashtbl.iter
-      (fun u e -> if not (f e) then Hashtbl.remove del_tbl u) del_tbl
+    let to_be_removed = Xset.create 0 in
+    Nodetbl.iter
+      (fun u e ->
+        if not (f e) then begin
+          DEBUG_MSG "to be removed: %s" (to_string e);
+          Xset.add to_be_removed u
+        end
+      ) del_tbl;
+    Xset.iter (Nodetbl.remove del_tbl) to_be_removed
 
   method filter_inserts f =
-    Hashtbl.iter
-      (fun u e -> if not (f e) then Hashtbl.remove ins_tbl u) ins_tbl
+    let to_be_removed = Xset.create 0 in
+    Nodetbl.iter
+      (fun u e ->
+        if not (f e) then begin
+          DEBUG_MSG "to be removed: %s" (to_string e);
+          Xset.add to_be_removed u
+        end
+      ) ins_tbl;
+    Xset.iter (Nodetbl.remove ins_tbl) to_be_removed
 
   method filter_relabels f =
     List.iter
       (fun tbl ->
-        Hashtbl.iter
-          (fun u e -> if not (f e) then Hashtbl.remove tbl u) tbl)
-      [rel1_tbl; rel2_tbl]
+        let to_be_removed = Xset.create 0 in
+        Nodetbl.iter
+          (fun u e ->
+            if not (f e) then begin
+              DEBUG_MSG "to be removed: %s" (to_string e);
+              Xset.add to_be_removed u
+            end
+          ) tbl;
+        Xset.iter (Nodetbl.remove tbl) to_be_removed
+      ) [rel1_tbl; rel2_tbl]
 
   method filter_moves f =
     List.iter
       (fun tbl ->
-        Hashtbl.iter
-          (fun u e -> if not (f e) then Hashtbl.remove tbl u) tbl)
-      [mov1_tbl; mov2_tbl]
+        let to_be_removed = Xset.create 0 in
+        Nodetbl.iter
+          (fun u e ->
+            if not (f e) then begin
+              DEBUG_MSG "to be removed: %s" (to_string e);
+              Xset.add to_be_removed u
+            end
+          ) tbl;
+        Xset.iter (Nodetbl.remove tbl) to_be_removed
+      ) [mov1_tbl; mov2_tbl]
 
 
   method get_line_align
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      (uidmapping : 'node_t UIDmapping.c)
+      (nmapping : 'node_t Node_mapping.c)
       =
     let moved_nodes = self#get_moved_nodes tree1 in
-    let moved_uids = Xset.create 0 in
-    Xset.iter (fun n -> Xset.add moved_uids n#uid) moved_nodes;
     let aligns = Xset.create 0 in
-    uidmapping#iter
-      (fun u1 u2 ->
-        let n1 = tree1#search_node_by_uid u1 in
-        let n2 = tree2#search_node_by_uid u2 in
+    nmapping#iter
+      (fun n1 n2 ->
         let l1 = n1#data#src_loc.Loc.start_line in
         let l2 = n2#data#src_loc.Loc.start_line in
         if
-          not (Xset.mem moved_uids u1) &&
-          not (self#mem_rel12 u1 u2) &&
+          not (Xset.mem moved_nodes n1) &&
+          not (self#mem_rel12 n1 n2) &&
           l1 > 0 && l2 > 0
         then
           Xset.add aligns (l1, l2)
@@ -1432,6 +1531,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       END_DEBUG;
 
       let excludes' = (filter iginfos info !excludes) @ !excludes in
+
       let segs = Info.segment (info, (Info.sort_infos excludes')) in
 
       DEBUG_MSG "result=%s" (segments_to_string segs);
@@ -1440,7 +1540,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     in
 
     let get_mov_segs_pair = function
-      | Move(mid, _, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
+      | Move(mid, _, (info1, excludes1), (info2, excludes2)) ->
           let segs1 = get_segments iginfos1 info1 excludes1 in
           let segs2 = get_segments iginfos2 info2 excludes2 in
           segs1, segs2
@@ -1458,24 +1558,24 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
         try
           match ed with
-          | Delete(_, uid, info, excludes) ->
+          | Delete(_, info, excludes) ->
               let loc = Info.get_loc info in
               let st, ed = loc.Loc.start_offset, loc.Loc.end_offset in
               let segs = get_segments iginfos1 info excludes in
               output_string ch (formatters#delete st ed segs)
 
-          | Insert(_, uid, info, excludes) ->
+          | Insert(_, info, excludes) ->
               let loc = Info.get_loc info in
               let st, ed = loc.Loc.start_offset, loc.Loc.end_offset in
               let segs = get_segments iginfos2 info excludes in
               output_string ch (formatters#insert st ed segs)
 
-          | Relabel(movrel, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
+          | Relabel(movrel, (info1, excludes1), (info2, excludes2)) ->
+              let n1 = Info.get_node info1 in
+              let n2 = Info.get_node info2 in
               let ok =
                 !movrel ||
                 not minimal ||
-                let n1 = Info.get_node info1 in
-                let n2 = Info.get_node info2 in
                 n1#data#is_named_orig && n2#data#is_named_orig ||
                 (not n1#data#is_named && n2#data#is_named || n1#data#is_named && not n2#data#is_named) ||
                 (not (n1#data#is_compatible_with ?weak:(Some true) n2#data) &&
@@ -1486,16 +1586,38 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                  | _ -> false
               in
               if ok then begin
-                let loc1 = Info.get_loc info1 in
-                let loc2 = Info.get_loc info2 in
-                let st1, ed1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
-                let st2, ed2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
-                let segs1 = get_segments iginfos1 info1 excludes1 in
-                let segs2 = get_segments iginfos2 info2 excludes2 in
-                output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
+                if !movrel || n1#data#_anonymized_label <> n2#data#_anonymized_label then
+                  let loc1 = Info.get_loc info1 in
+                  let loc2 = Info.get_loc info2 in
+                  let segs1 = get_segments iginfos1 info1 excludes1 in
+                  let segs2 = get_segments iginfos2 info2 excludes2 in
+                  let st1, ed1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
+                  let st2, ed2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
+                  output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
+                else
+                  let loc1, loc2, id_only =
+                    let loc1 = Info.get_id_loc info1 in
+                    let loc2 = Info.get_id_loc info2 in
+                    if loc1 != Loc.dummy && loc2 != Loc.dummy then
+                      loc1, loc2, true
+                    else
+                      Info.get_loc info1, Info.get_loc info2, false
+                  in
+                  if loc1 != Loc.ghost && loc2 != Loc.ghost then
+                    let st1, ed1 as seg1 = loc1.Loc.start_offset, loc1.Loc.end_offset in
+                    let st2, ed2 as seg2 = loc2.Loc.start_offset, loc2.Loc.end_offset in
+                    let segs1, segs2 =
+                      if id_only then
+                        [seg1], [seg2]
+                      else
+                        let segs1 = get_segments iginfos1 info1 excludes1 in
+                        let segs2 = get_segments iginfos2 info2 excludes2 in
+                        segs1, segs2
+                    in
+                    output_string ch (formatters#relabel !movrel st1 ed1 segs1 st2 ed2 segs2)
               end
 
-          | Move(mid, _, (_, info1, _), (_, info2, _)) as mov ->
+          | Move(mid, _, (info1, _), (info2, _)) as mov ->
               let skip =
                 try
                   let movs = self#find_mov_gr_mems (self#find_mov_gr !mid) in
@@ -1503,7 +1625,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   (Xlist.max
                      (List.map
                         (function
-                          | Move(_, _, (_, i1, _), _) ->
+                          | Move(_, _, (i1, _), _) ->
                               (Info.get_node i1)#gindex
                           | _ -> assert false
                         ) movs))
@@ -1566,43 +1688,55 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let _movrel_list = ref [] in
     let _mov_list = ref [] in
 
-    let mapped_node_tbl = Hashtbl.create 0 in
+    let mapped_node_tbl = Nodetbl.create 0 in
+
+    let subtree_roots = Xset.create 0 in
 
     self#iter
       (function
-        | Delete(_, _, info, excludes) -> begin
+        | Delete(_, info, excludes) -> begin
             let nd = Info.get_node info in
             let nds = List.map Info.get_node !excludes in
+            Xset.add subtree_roots nd;
             tree1#scan_initial_cluster (nd, nds) (fun n -> _del_list := n :: !_del_list)
         end
-        | Insert(_, _, info, excludes) -> begin
+        | Insert(_, info, excludes) -> begin
             let nd = Info.get_node info in
             let nds = List.map Info.get_node !excludes in
+            Xset.add subtree_roots nd;
             tree2#scan_initial_cluster (nd, nds) (fun n -> _ins_list := n :: !_ins_list);
         end
-        | Relabel(movrel, (_, info1, excludes1), (_, info2, excludes2)) -> begin
+        | Relabel(movrel, (info1, excludes1), (info2, excludes2)) -> begin
             let nd1 = Info.get_node info1 in
             let nd2 = Info.get_node info2 in
-            Hashtbl.add mapped_node_tbl nd2 nd1;
+            Nodetbl.add mapped_node_tbl nd2 nd1;
+            Xset.add subtree_roots nd1;
+            Xset.add subtree_roots nd2;
             if !movrel then
               _movrel_list := (nd1, nd2) :: !_movrel_list
             else
               _rel_list := (nd1, nd2) :: !_rel_list
         end
-      | Move(_, _, (_, info1, excludes1), (_, info2, excludes2)) -> begin
+      | Move(mid, _, (info1, excludes1), (info2, excludes2)) -> begin
           let nd1 = Info.get_node info1 in
           let nd2 = Info.get_node info2 in
-          Hashtbl.add mapped_node_tbl nd2 nd1;
+          Nodetbl.add mapped_node_tbl nd2 nd1;
           let nds1 = List.map Info.get_node !excludes1 in
           let nds2 = List.map Info.get_node !excludes2 in
+          Xset.add subtree_roots nd1;
+          Xset.add subtree_roots nd2;
           let el1 = ref [] in
           let el2 = ref [] in
-          tree1#scan_initial_cluster (nd1, nds1) (fun n -> el1 := n :: !el1);
-          tree2#scan_initial_cluster (nd2, nds2) (fun n -> el2 := n :: !el2);
-          assert (List.length !el1 = List.length !el2);
+          let add r n = if not (is_ghost_node n) then r := n :: !r in
+          tree1#scan_initial_cluster (nd1, nds1) (add el1);
+          tree2#scan_initial_cluster (nd2, nds2) (add el2);
+          let nel1 = List.length !el1 in
+          let nel2 = List.length !el2 in
+          DEBUG_MSG "%a: nd1=%a |el1|=%d nd2=%a |el2|=%d" MID.ps !mid nups nd1 nel1 nups nd2 nel2;
+          assert (nel1 = nel2);
           List.iter2
             (fun n1 n2 ->
-              Hashtbl.add mapped_node_tbl n2 n1;
+              Nodetbl.add mapped_node_tbl n2 n1;
               _mov_list := (n1, n2) :: !_mov_list
             ) !el1 !el2
       end);
@@ -1615,9 +1749,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let movrel_list = List.fast_sort cmp2 !_movrel_list in
     let mov_list = List.fast_sort cmp2 !_mov_list in
 
+    let is_subtree_root x =
+      x#data#is_statement && (x#data#is_named || x#initial_nchildren > 0) ||
+      x#data#is_named_orig(* && x#initial_nchildren > 0*) ||
+      Xset.mem subtree_roots x
+    in
+
     let get_gid = Json.get_gid in
-    let get_info1 = Json.get_info1 in
-    let get_info = Json.get_info mapped_node_tbl in
+    let get_info1 = Json.get_info1 ~is_subtree_root in
+    let get_info = Json.get_info ~is_subtree_root tree1 tree2 mapped_node_tbl in
     let _fprintf = Json._fprintf in
 
     try
@@ -1625,13 +1765,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       if not (Xfile.dir_exists d) then
         Xfile.mkdir d;
       let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
-      let dump1 ch l =
+      let dump1 tree ch l =
         let comma_flag = ref false in
         List.iter
           (fun nd ->
             if !comma_flag then
               _fprintf ch ",";
-            let info = get_info1 nd in
+            let info = get_info1 tree nd in
             _fprintf ch "[%a,%s]" GI.rs (get_gid nd) info;
             comma_flag := true
           ) l
@@ -1648,9 +1788,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           ) l
       in
       _fprintf ch "{\"delete\":[";
-      dump1 ch del_list;
+      dump1 tree1 ch del_list;
       _fprintf ch "],\"insert\":[";
-      dump1 ch ins_list;
+      dump1 tree2 ch ins_list;
       _fprintf ch "],\"relabel\":[";
       dump2 ch rel_list;
       _fprintf ch "],\"move+relabel\":[";
@@ -1677,21 +1817,21 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let finished_movs = Xset.create 0 in (* mid set *)
 
     let get_size_of_mov = function
-      | Move(_, _, (_, info1, _), _) -> Info.get_size info1
+      | Move(_, _, (info1, _), _) -> Info.get_size info1
       | _ -> assert false
     in
 
     let excludes_to_str ex =
       " ["^
       (Xlist.to_string
-         (fun inf ->
-           sprintf "(%a:%a)" ups (Info.get_uid inf) gps (Info.get_gid inf)
+         (fun info ->
+           sprintf "(%a:%a)" ups (Info.get_uid info) gps (Info.get_gid info)
          ) ";" ex)^
       "]"
     in
 
     let dump_mov ch tab = function
-      | Move(mid, kind, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
+      | Move(mid, kind, (info1, excludes1), (info2, excludes2)) ->
           let nd1 = Info.get_node info1 in
           let nds1 = List.map Info.get_node !excludes1 in
           let elems1 = ref [] in
@@ -1722,7 +1862,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       (fun ed ->
         try
           match ed with
-          | Delete(_, uid, info, excludes) ->
+          | Delete(_, info, excludes) -> begin
               let nd = Info.get_node info in
               let nds = List.map Info.get_node !excludes in
               let elems = ref [] in
@@ -1737,8 +1877,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   excludes_to_str !excludes
                 )
                 (GI.list_to_string !elems)
-
-          | Insert(_, uid, info, excludes) ->
+          end
+          | Insert(_, info, excludes) -> begin
               let nd = Info.get_node info in
               let nds = List.map Info.get_node !excludes in
               let elems = ref [] in
@@ -1753,8 +1893,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   excludes_to_str !excludes
                 )
                 (GI.list_to_string !elems)
-
-          | Relabel(movrel, (uid1, info1, excludes1), (uid2, info2, excludes2)) ->
+          end
+          | Relabel(movrel, (info1, excludes1), (info2, excludes2)) -> begin
               let marker =
                 if !movrel then
                   "MOVREL"
@@ -1775,7 +1915,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 else
                   excludes_to_str !excludes2
                 )
-
+          end
           | Move(mid, kind, _, _) as mov ->
               if not (Xset.mem finished_movs !mid) then begin
                 try
@@ -1797,23 +1937,21 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   (* end of method dump_diff_info_ch *)
 
 
-  method get_diff_summary tree1 tree2 uidmapping =
+  method get_diff_summary tree1 tree2 nmapping =
 
-    (* uid -> (node * message * edits) *)
-    let to_be_notified_tbl1 = Hashtbl.create 0 in
-    let to_be_notified_tbl2 = Hashtbl.create 0 in
+    (* node -> (message * edits) *)
+    let to_be_notified_tbl1 = Nodetbl.create 0 in
+    let to_be_notified_tbl2 = Nodetbl.create 0 in
 
     let add_to_tbn tbl nd mes ed =
-      let uid = nd#uid in
       try
-        let (_, mes_r, edl_r, nmaps_r) = Hashtbl.find tbl uid in
+        let (mes_r, edl_r, nmaps_r) = Nodetbl.find tbl nd in
         edl_r := ed::!edl_r;
         if !mes_r = "" then mes_r := mes
       with Not_found ->
-        Hashtbl.add tbl uid (nd, ref mes, ref [ed], ref 0)
+        Nodetbl.add tbl nd (ref mes, ref [ed], ref 0)
     in
-    let make_notification tbl tree uid mes ed =
-      let nd = tree#search_node_by_uid uid in
+    let make_notification tbl tree nd mes ed =
       if nd#data#to_be_notified then
         add_to_tbn tbl nd mes ed;
       let ancestors = tree#initial_ancestor_nodes nd in
@@ -1831,30 +1969,27 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     self#iter
       (fun ed ->
         match ed with
-        | Delete(_, uid, info, excludes) ->
-            make_notification1 uid "DELETED" ed;
+        | Delete(_, info, _) ->
+            make_notification1 (Info.get_node info) "DELETED" ed;
 
-        | Insert(_, uid, info, excludes) ->
-            make_notification2 uid "INSERTED" ed;
+        | Insert(_, info, _) ->
+            make_notification2 (Info.get_node info) "INSERTED" ed;
 
-        | Relabel(_, (uid1, info1, excludes1), (uid2, info2, excludes2))
-          ->
-            make_notification1 uid1 "RENAMED" ed;
+        | Relabel(_, (info1, _), _) ->
+            make_notification1 (Info.get_node info1) "RENAMED" ed;
 
-        | Move(mid, _,
-               (uid1, info1, excludes1), (uid2, info2, excludes2))
-          ->
-            make_notification1 uid1 "MOVED" ed;
+        | Move(mid, _, (info1, _), _) ->
+            make_notification1 (Info.get_node info1) "MOVED" ed;
       );
-    Hashtbl.iter
-      (fun uid (nd, _, edl_r, _) ->
+    Nodetbl.iter
+      (fun nd (_, edl_r, _) ->
         try
-          let uid1 = uidmapping#inv_find uid in
-          let (_, _, edl_r', _) =
-            Hashtbl.find to_be_notified_tbl1 uid1
+          let nd1 = nmapping#inv_find nd in
+          let (_, edl_r', _) =
+            Nodetbl.find to_be_notified_tbl1 nd1
           in
           edl_r' := !edl_r' @ !edl_r;
-          Hashtbl.remove to_be_notified_tbl2 uid
+          Nodetbl.remove to_be_notified_tbl2 nd
         with Not_found -> ()
       ) to_be_notified_tbl2;
 
@@ -1862,17 +1997,17 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     let unmodified =
       List.filter
-        (fun nd -> not (Hashtbl.mem to_be_notified_tbl1 nd#uid))
+        (fun nd -> not (Nodetbl.mem to_be_notified_tbl1 nd))
         units_to_be_notified1
     in
 
-    uidmapping#iter
-      (fun uid _ ->
-        tree1#iter_initial_ancestors uid
-          (fun auid ->
+    nmapping#iter
+      (fun nd _ ->
+        tree1#iter_initial_ancestor_nodes nd
+          (fun an ->
             try
-              let (_, _, _, nmaps_r) =
-                Hashtbl.find to_be_notified_tbl1 auid
+              let (_, _, nmaps_r) =
+                Nodetbl.find to_be_notified_tbl1 an
               in
               incr nmaps_r
             with Not_found -> ()
@@ -1884,25 +2019,25 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   (* end of method get_diff_summary *)
 
 
-  method dump_diff_summary fname tree1 tree2 uidmapping =
-    Xfile.dump fname (self#dump_diff_summary_ch tree1 tree2 uidmapping)
+  method dump_diff_summary fname tree1 tree2 nmapping =
+    Xfile.dump fname (self#dump_diff_summary_ch tree1 tree2 nmapping)
 
   method dump_diff_summary_ch
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      uidmapping
+      nmapping
       ch
       =
 
     let to_be_notified_tbl1, to_be_notified_tbl2, _, unmodified =
-      self#get_diff_summary tree1 tree2 uidmapping
+      self#get_diff_summary tree1 tree2 nmapping
     in
 
     fprintf ch "*** Modified Units ***\n";
 
     let show tbl =
-      Hashtbl.iter
-        (fun uid (nd, mes_r, edl_r, nmaps_r) ->
+      Nodetbl.iter
+        (fun nd (mes_r, edl_r, nmaps_r) ->
           let ((d, dg), (i, ig), (r, rg), (m, mg)) =
             List.fold_left
               (fun (((d, dg) as dd),
@@ -1911,13 +2046,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                     ((m, mg) as mm)) ed
                 ->
                   match ed with
-                  | Delete(_, _, info, _) ->
+                  | Delete(_, info, _) ->
                       (d + (Info.get_size info), dg + 1), ii, rr, mm
-                  | Insert(_, _, info, _) ->
+                  | Insert(_, info, _) ->
                       dd, (i + (Info.get_size info), ig + 1), rr, mm
-                  | Relabel(_, (_, info, _), _) ->
+                  | Relabel(_, (info, _), _) ->
                       dd, ii, (r + (Info.get_size info), rg + 1), mm
-                  | Move(_, _, (_, info, _), _) ->
+                  | Move(_, _, (info, _), _) ->
                       dd, ii, rr, (m + (Info.get_size info), mg + 1)
               ) ((0, 0), (0, 0), (0, 0), (0, 0)) !edl_r
           in
@@ -1945,15 +2080,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       ) unmodified
   (* end of method dump_diff_summary_ch *)
 
-  method get_spm uidmapping =
+  method get_spm nmapping =
     let count = ref 0 in
-    uidmapping#iter
-      (fun uid1 uid2 ->
-        if self#mem_mov12 uid1 uid2 then
+    nmapping#iter
+      (fun nd1 nd2 ->
+        if self#mem_mov12 nd1 nd2 then
           ()
         else
-          let nd1 = uidmapping#search_node_by_uid1 uid1 in
-          let nd2 = uidmapping#search_node_by_uid2 uid2 in
           if
             nd1#data#eq nd2#data ||
             not nd1#data#is_named_orig && not nd2#data#is_named_orig &&
@@ -1963,9 +2096,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       );
     !count
 
-  method get_diff_stat tree1 tree2 uidmapping =
+  method get_diff_stat tree1 tree2 nmapping =
     let _, _, units, unmodified =
-      self#get_diff_summary tree1 tree2 uidmapping
+      self#get_diff_summary tree1 tree2 nmapping
     in
     let nunits = List.length units in
     let nunmodified = List.length unmodified in
@@ -1973,19 +2106,19 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let ndels    = self#get_ndeleted_nodes in
     let ninss    = self#get_ninserted_nodes in
     let nrels    = self#get_nrelabeled_nodes() in
-    let nmovrels = self#get_nmoved_and_relabeled_nodes tree1 uidmapping in
+    let nmovrels = self#get_nmoved_and_relabeled_nodes tree1 nmapping in
     let nrels_orig    = self#get_nrelabeled_nodes ~orig:true () in
-    let nmovrels_orig = self#get_nmoved_and_relabeled_nodes ~orig:true tree1 uidmapping in
+    let nmovrels_orig = self#get_nmoved_and_relabeled_nodes ~orig:true tree1 nmapping in
     let nmovs    = self#get_nmoved_nodes() in
 
-    let nmovrels2 = self#get_nmoved_and_relabeled_nodes ~minsize:2 tree1 uidmapping in
+    let nmovrels2 = self#get_nmoved_and_relabeled_nodes ~minsize:2 tree1 nmapping in
     let nmovs2    = self#get_nmoved_nodes ~minsize:2 () in
 
     let ndelgrs = self#get_ndeletes in
     let ninsgrs = self#get_ninserts in
     let nmovgrs = self#get_nmove_groups in
 
-    let nmaps = uidmapping#size in
+    let nmaps = nmapping#size in
     let total = ndels + ninss + nrels + (* nmovs *) nmovgrs in
     let nnodes1 = tree1#_initial_size in
     let nnodes2 = tree2#_initial_size in
@@ -1993,7 +2126,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       if total = 0 then
         "1.0"
       else
-        let spm = self#get_spm uidmapping(*nmaps - nmovs - nrels_orig + nmovrels_orig*) in
+        let spm = self#get_spm nmapping(*nmaps - nmovs - nrels_orig + nmovrels_orig*) in
         let _sim = float (spm * 2) /. float (nnodes1 + nnodes2) in
         sprintf "%.6f" _sim
     in
@@ -2036,16 +2169,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     }
   (* end of method get_diff_stat *)
 
-  method dump_diff_stat_ch ?(short=false) tree1 tree2 (uidmapping : 'node_t UIDmapping.c) =
-    let s = self#get_diff_stat tree1 tree2 uidmapping in
+  method dump_diff_stat_ch ?(short=false) tree1 tree2 (nmapping : 'node_t Node_mapping.c) =
+    let s = self#get_diff_stat tree1 tree2 nmapping in
     dump_diff_stat_ch ~short s
 
-  method dump_diff_stat ?(short=false) fname tree1 tree2 uidmapping =
-    Xfile.dump fname (self#dump_diff_stat_ch ~short tree1 tree2 uidmapping)
+  method dump_diff_stat ?(short=false) fname tree1 tree2 nmapping =
+    Xfile.dump fname (self#dump_diff_stat_ch ~short tree1 tree2 nmapping)
 
-  method show_diff_stat ?(short=false) tree1 tree2 uidmapping =
+  method show_diff_stat ?(short=false) tree1 tree2 nmapping =
     if not options#viewer_flag then begin
-      self#dump_diff_stat_ch ~short tree1 tree2 uidmapping stdout
+      self#dump_diff_stat_ch ~short tree1 tree2 nmapping stdout
     end
   (* end of method show_diff_stat *)
 
@@ -2078,13 +2211,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       ?(final=false)
       tree1
       tree2
-      (uidmapping : 'node_t UIDmapping.c)
+      (nmapping : 'node_t Node_mapping.c)
       ch
       =
     let mid_tbl = Hashtbl.create 0 in
     self#iter_moves
       (function
-        | Move(mid, _, (_, info1, excluded1), _) ->
+        | Move(mid, _, (info1, excluded1), _) ->
             let lab = sprintf "%a" MID.ps !mid in
             let nd1 = Info.get_node info1 in
             Hashtbl.add mid_tbl nd1 lab
@@ -2102,9 +2235,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           in
           let tail =
             try
-              let nd' =
-                tree2#search_node_by_uid (uidmapping#find nd#uid)
-              in
+              let nd' = nmapping#find nd in
               sprintf "\\n->%a" ngps nd'
             with
               _ -> ""
@@ -2132,9 +2263,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     self#iter_deletes
       (function
-        | Delete(_, _, inf, excluded) ->
+        | Delete(_, info, excluded) ->
             let buf0 =
-              self#get_cluster id_gen "" del_bg del_fg tree1 inf excluded
+              self#get_cluster id_gen "" del_bg del_fg tree1 info excluded
             in
             Buffer.add_buffer buf buf0
 
@@ -2142,7 +2273,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       );
     self#iter_moves
       (function
-        | Move(mid, _, (_, info1, excluded1), (_, info2, excluded2)) ->
+        | Move(mid, _, (info1, excluded1), (info2, excluded2)) ->
             let lab = ""(*sprintf "MOVE:%a" MID.ps !mid*) in
             let buf0 =
               self#get_cluster id_gen lab mov_bg mov_fg tree1 info1 excluded1
@@ -2153,7 +2284,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       );
     self#iter_relabels
       (function
-        | Relabel(movrel, (_, info1, _), (_, info2, _)) ->
+        | Relabel(movrel, (info1, _), (info2, _)) ->
             let nd1 = Info.get_node info1 in
             Buffer.add_string buf
               (sprintf "%a [style=filled,fillcolor=\"%s\",fontcolor=\"%s\"];\n"
@@ -2175,13 +2306,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       ?(final=false)
       tree2
       tree1
-      (uidmapping : 'node_t UIDmapping.c)
+      (nmapping : 'node_t Node_mapping.c)
       ch
       =
     let mid_tbl = Hashtbl.create 0 in
     self#iter_moves
       (function
-        | Move(mid, _, _, (_, info2, excluded2)) ->
+        | Move(mid, _, _, (info2, excluded2)) ->
             let lab = sprintf "%a" MID.ps !mid in
             let nd2 = Info.get_node info2 in
             Hashtbl.add mid_tbl nd2 lab
@@ -2199,9 +2330,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           in
           let tail =
             try
-              let nd' =
-                tree1#search_node_by_uid (uidmapping#inv_find nd#uid)
-              in
+              let nd' = nmapping#inv_find nd in
               sprintf "\\n%a->" ngps nd'
             with
               _ -> ""
@@ -2229,15 +2358,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     self#iter_inserts
       (function
-        | Insert(_, _, inf, excluded) ->
-            let buf0 = self#get_cluster id_gen "" ins_bg ins_fg tree2 inf excluded in
+        | Insert(_, info, excluded) ->
+            let buf0 = self#get_cluster id_gen "" ins_bg ins_fg tree2 info excluded in
             Buffer.add_buffer buf buf0
 
         | _ -> assert false
       );
     self#iter_moves
       (function
-        | Move(mid, _, (_, info1, excluded1), (_, info2, excluded2)) ->
+        | Move(mid, _, (info1, excluded1), (info2, excluded2)) ->
             let lab = ""(*sprintf "MOVE:%a" MID.ps !mid*) in
             let buf0 =
               self#get_cluster id_gen lab mov_bg mov_fg tree2 info2 excluded2
@@ -2248,7 +2377,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       );
     self#iter_relabels
       (function
-        | Relabel(movrel, (_, info1, _), (_, info2, _)) ->
+        | Relabel(movrel, (info1, _), (info2, _)) ->
             let nd2 = Info.get_node info2 in
             Buffer.add_string buf
               (sprintf "%a [style=filled,fillcolor=\"%s\",fontcolor=\"%s\"];\n"
@@ -2266,11 +2395,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   (* end of method dump_dot_ch2 *)
 
-  method dump_dot1 ?(final=false) fname (tree1 : 'tree_t) (tree2 : 'tree_t) (uidmapping : 'node_t UIDmapping.c) =
-    Xfile.dump fname (self#dump_dot_ch1 ~final tree1 tree2 uidmapping)
+  method dump_dot1 ?(final=false) fname (tree1 : 'tree_t) (tree2 : 'tree_t) (nmapping : 'node_t Node_mapping.c) =
+    Xfile.dump fname (self#dump_dot_ch1 ~final tree1 tree2 nmapping)
 
-  method dump_dot2 ?(final=false) fname (tree2 : 'tree_t) (tree1 : 'tree_t) (uidmapping : 'node_t UIDmapping.c) =
-    Xfile.dump fname (self#dump_dot_ch2 ~final tree2 tree1 uidmapping)
+  method dump_dot2 ?(final=false) fname (tree2 : 'tree_t) (tree1 : 'tree_t) (nmapping : 'node_t Node_mapping.c) =
+    Xfile.dump fname (self#dump_dot_ch2 ~final tree2 tree1 nmapping)
 
 
   (* checks whether this edit seq is correct or not *)
@@ -2278,7 +2407,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
   method check
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      (uidmapping : 'node_t UIDmapping.c)
+      (nmapping : 'node_t Node_mapping.c)
       =
     BEGIN_DEBUG
       DEBUG_MSG "checking result";
@@ -2338,7 +2467,6 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     end;
     tree1#init;
     tree2#init;
-(* tree1#setup_uid_table; tree2#setup_uid_table; *)
 
     DEBUG_MSG "after initialization:\nT1:\n%s\nT2:\n%s"
       tree1#to_string tree2#to_string;
@@ -2347,40 +2475,42 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     DEBUG_MSG "relabeling nodes in tree1";
     self#iter_relabels
       (function
-        | Relabel(_, (u1, _, infos1), (u2, _, infos2)) ->
-            let us1 = List.map Info.get_uid !infos1 in
-            let us2 = List.map Info.get_uid !infos2 in
+        | Relabel(_, (info1, infos1), (info2, infos2)) ->
+            let n1 = Info.get_node info1 in
+            let n2 = Info.get_node info2 in
+            let ns1 = List.map Info.get_node !infos1 in
+            let ns2 = List.map Info.get_node !infos2 in
 
             (* do relabel *)
             let targetq = Queue.create() in
             begin
               try
-                DEBUG_MSG "adding relabel targets %a[%a]-%a[%a]" ups u1 usps us1 ups u2 usps us2;
+                DEBUG_MSG "adding relabel targets %a[%a]-%a[%a]" nups n1 nsps ns1 nups n2 nsps ns2;
 
-                tree2#scan_cluster_u
-                  (u2, us2)
+                tree2#scan_cluster
+                  (n2, ns2)
                   (fun nd -> Queue.add nd targetq);
 
-                DEBUG_MSG "relabeling %a-%a" ups u1 ups u2;
+                DEBUG_MSG "relabeling %a-%a" nups n1 nups n2;
 
-                tree1#scan_cluster_u (u1, us1)
+                tree1#scan_cluster (n1, ns1)
                   (fun nd ->
                     let nd' = Queue.take targetq in
                     let d = nd'#data in
                     if nd#data#equals d then begin
                       normal_flag := false;
-                      WARN_MSG "relabel: not a relabel: %a-%a" ups u1 ups u2;
+                      WARN_MSG "relabel: not a relabel: %a-%a" nups n1 nups n2;
                       WARN_MSG "relabel: <%a> = <%a>" nps nd nps nd'
                     end;
                     nd#set_data d)
               with
                 Queue.Empty ->
                   normal_flag := false;
-                  WARN_MSG "relabel failed: %a > %a" ups u1 ups u2;
+                  WARN_MSG "relabel failed: %a > %a" nups n1 nups n2;
             end;
             if not (Queue.is_empty targetq) then begin
               normal_flag := false;
-              WARN_MSG "relabel failed: %a < %a" ups u1 ups u2
+              WARN_MSG "relabel failed: %a < %a" nups n1 nups n2
             end
         | _ -> assert false
       ); (* end of relabeling *)
@@ -2388,74 +2518,68 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     DEBUG_MSG "before node deletion:\nT1:\n%s\nT2:\n%s"
       tree1#to_string tree2#to_string;
 
-    let get_uids infos = List.map (fun i -> Info.get_uid i) infos in
+    let get_nodes infos = List.map (fun i -> Info.get_node i) infos in
 
     DEBUG_MSG "deleting nodes from T1 and T2";
 
     (* deleting nodes from tree1 and tree2 *)
-    let deleted1 = Hashtbl.create 0 in (* uid -> uid list *)
-    let deleted2 = Hashtbl.create 0 in (* uid -> uid list *)
-    let upd tbl uid =
-      let rec follow u =
+    let deleted1 = Nodetbl.create 0 in (* node -> node list *)
+    let deleted2 = Nodetbl.create 0 in (* node -> node list *)
+    let upd tbl nd =
+      let rec follow n =
         try
-          let uids = Hashtbl.find tbl u in
-          List.flatten (List.map follow uids)
-        with Not_found -> [u]
+          let ns = Nodetbl.find tbl n in
+          List.concat_map follow ns
+        with Not_found -> [n]
       in
-      follow uid
+      follow nd
     in
     self#iter
       (function
-        | Delete(_, uid, info, infos) -> begin
+        | Delete(_, info, infos) -> begin
+            let nd = Info.get_node info in
             try
-              let uids = get_uids !infos in
-              Hashtbl.add deleted1 uid uids;
-              let upd_uids = upd deleted1 uid in
+              let nds = get_nodes !infos in
+              Nodetbl.add deleted1 nd nds;
+              let upd_nds = upd deleted1 nd in
 
-              BEGIN_DEBUG
-                let nd = Info.get_node info in
-                DEBUG_MSG "deleting (del) %a(pos=%d,parent=%a) [%a] -> [%a]"
-                  ups uid nd#pos nups nd#parent usps uids usps upd_uids
-              END_DEBUG;
+              DEBUG_MSG "deleting (del) %a(pos=%d,parent=%a) [%a] -> [%a]"
+                nups nd nd#pos nups nd#parent nsps nds nsps upd_nds;
 
-              tree1#prune_cluster (uid, upd_uids)
+              tree1#prune_cluster nd upd_nds
             with
-              Not_found -> DEBUG_MSG "already deleted: %a" ups uid
+              Not_found -> DEBUG_MSG "already deleted: %a" nups nd
           end
-        | Insert(_, uid, info, infos) -> begin
+        | Insert(_, info, infos) -> begin
+            let nd = Info.get_node info in
             try
-              let uids = get_uids !infos in
-              Hashtbl.add deleted2 uid uids;
-              let upd_uids = upd deleted2 uid in
+              let nds = get_nodes !infos in
+              Nodetbl.add deleted2 nd nds;
+              let upd_nds = upd deleted2 nd in
 
-              BEGIN_DEBUG
-                let nd = Info.get_node info in
-                DEBUG_MSG "deleting (ins) %a(pos=%d,parent=%a[%a]) [%a] -> [%a]"
-                  ups uid nd#pos nups nd#parent usps nd#parent#children_uids usps uids usps upd_uids
-              END_DEBUG;
+              DEBUG_MSG "deleting (ins) %a(pos=%d,parent=%a[%a]) [%a] -> [%a]"
+                nups nd nd#pos nups nd#parent usps nd#parent#children_uids nsps nds nsps upd_nds;
 
-              tree2#prune_cluster (uid, upd_uids)
+              tree2#prune_cluster nd upd_nds
             with
-              Not_found -> DEBUG_MSG "already deleted: %a" ups uid
+              Not_found -> DEBUG_MSG "already deleted: %a" nups nd
         end
-        | Move(mid, _, (uid1, info1, infos1), (uid2, info2, infos2)) ->
-            Hashtbl.add deleted1 uid1 (get_uids !infos1);
-            Hashtbl.add deleted2 uid2 (get_uids !infos2);
-            let uids1 = upd deleted1 uid1 in
-            let uids2 = upd deleted2 uid2 in
+        | Move(mid, _, (info1, infos1), (info2, infos2)) ->
+            let nd1 = Info.get_node info1 in
+            let nd2 = Info.get_node info2 in
+            Nodetbl.add deleted1 nd1 (get_nodes !infos1);
+            Nodetbl.add deleted2 nd2 (get_nodes !infos2);
+            let nds1 = upd deleted1 nd1 in
+            let nds2 = upd deleted2 nd2 in
 
-            BEGIN_DEBUG
-              let nd1 = Info.get_node info1 in
-              let nd2 = Info.get_node info2 in
-              DEBUG_MSG "deleting (mid:%a) %a(pos=%d,parent=%a) [%a] - %a(pos=%d,parent=%a) [%a]"
-                MID.ps !mid
-                ups uid1 nd1#pos nups nd1#parent usps uids1
-                ups uid2 nd2#pos nups nd2#parent usps uids2
-            END_DEBUG;
+            DEBUG_MSG "deleting (mid:%a) %a(pos=%d,parent=%a) [%a] - %a(pos=%d,parent=%a) [%a]"
+              MID.ps !mid
+              nups nd1 nd1#pos nups nd1#parent nsps nds1
+              nups nd2 nd2#pos nups nd2#parent nsps nds2;
 
             let q = Queue.create() in
-            tree2#scan_cluster_u (uid2, uids2) (fun n -> Queue.add n q);
-            tree1#scan_cluster_u (uid1, uids1)
+            tree2#scan_cluster (nd2, nds2) (fun n -> Queue.add n q);
+            tree1#scan_cluster (nd1, nds1)
               (fun n ->
                 let n' = Queue.take q in
                 if not (node_eq n n') then begin
@@ -2464,8 +2588,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 end
               );
 
-            tree1#prune_cluster (uid1, uids1);
-            tree2#prune_cluster (uid2, uids2)
+            tree1#prune_cluster nd1 nds1;
+            tree2#prune_cluster nd2 nds2
 
         | _ -> ()
       );
@@ -2488,58 +2612,59 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     tree1#init;
     tree2#init;
 
-    let get_uids infos = List.map (fun i -> Info.get_uid i) infos in
+    let get_nodes infos = List.map (fun i -> Info.get_node i) infos in
 
     DEBUG_MSG "deleting nodes from T1 and T2";
 
     (* deleting nodes from tree1 and tree2 *)
-    let deleted1 = Hashtbl.create 0 in (* uid -> uid list *)
-    let deleted2 = Hashtbl.create 0 in (* uid -> uid list *)
-    let upd tbl uid =
-      let rec follow u =
+    let deleted1 = Nodetbl.create 0 in (* node -> node list *)
+    let deleted2 = Nodetbl.create 0 in (* node -> node list *)
+    let upd tbl nd =
+      let rec follow n =
         try
-          let uids = Hashtbl.find tbl u in
-          List.flatten (List.map follow uids)
-        with Not_found -> [u]
+          let ns = Nodetbl.find tbl n in
+          List.concat_map follow ns
+        with Not_found -> [n]
       in
-      follow uid
+      follow nd
     in
     let deleted_nodes1 = ref [] in
     let deleted_nodes2 = ref [] in
     self#iter
       (function
-        | Delete(_, uid, info, infos) -> begin
+        | Delete(_, info, infos) -> begin
+            let nd = Info.get_node info in
             try
-              let nd = tree1#search_node_by_uid uid in
-              Hashtbl.add deleted1 uid (get_uids !infos);
-              let uids = upd deleted1 uid in
+              Nodetbl.add deleted1 nd (get_nodes !infos);
+              let nds = upd deleted1 nd in
 
-              DEBUG_MSG "deleting (del) %a(pos=%d,parent=%a) [%a]" ups uid nd#pos nups nd#parent usps uids;
+              DEBUG_MSG "deleting (del) %a(pos=%d,parent=%a) [%a]"
+                nups nd nd#pos nups nd#parent nsps nds;
 
-              tree1#prune_cluster (uid, uids);
+              tree1#prune_cluster nd nds;
 
               if (Info.get_size info) > options#dump_size_threshold then
                 deleted_nodes1 := nd::!deleted_nodes1
 
             with
-              Not_found -> DEBUG_MSG "already deleted: %a" ups uid
+              Not_found -> DEBUG_MSG "already deleted: %a" nups nd
           end
-        | Insert(_, uid, info, infos) -> begin
+        | Insert(_, info, infos) -> begin
+            let nd = Info.get_node info in
             try
-              let nd = tree2#search_node_by_uid uid in
-              Hashtbl.add deleted2 uid (get_uids !infos);
-              let uids = upd deleted2 uid in
+              Nodetbl.add deleted2 nd (get_nodes !infos);
+              let nds = upd deleted2 nd in
 
               DEBUG_MSG "deleting (ins) %a(pos=%d,parent=%a[%a]) [%a]"
-                ups uid nd#pos nups nd#parent usps nd#parent#children_uids usps uids;
+                nups nd nd#pos nups nd#parent naps nd#parent#children nsps nds;
 
-              tree2#prune_cluster (uid, uids);
+              tree2#prune_cluster nd nds;
 
               if (Info.get_size info) > options#dump_size_threshold then
                 deleted_nodes2 := nd::!deleted_nodes2
 
             with
-              Not_found -> DEBUG_MSG "already deleted: %a" ups uid
+              Not_found -> DEBUG_MSG "already deleted: %a" nups nd
         end
         | _ -> ()
       );
@@ -2549,11 +2674,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method ungroup (tree1 : 'tree_t) (tree2 : 'tree_t)
       =
+    DEBUG_MSG "before ungrouping:\n%s" self#to_string;
     DEBUG_MSG "ungrouping...";
 
     (*let group_tbl = Hashtbl.create 0 in*)
 
     let gensubedits tree ?(whole=false) ?(exclude=[]) node =
+      DEBUG_MSG "node=%a%!" nups node;
       let res = ref [] in
       let rec doit nd =
         DEBUG_MSG "nd=%a%!" nups nd;
@@ -2565,7 +2692,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                  (tree#is_initial_ancestor node)
                  exclude)
           in
-          res := (nd#uid, Info.make nd, ex)::!res;
+          res := (Info.make nd, ex)::!res;
           Array.iter doit nd#initial_children
         end
       in
@@ -2580,6 +2707,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
       DEBUG_MSG "processing %s..." (to_string ed);
 
+      let edit_list = ref [] in
+      let add_edit e = edit_list := e :: !edit_list in
+
       let nd = Info.get_node inf in
 
       if !ex = [] then begin
@@ -2587,18 +2717,18 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         match ed with
         | Delete _ ->
             List.iter
-              (fun (u, i, e) ->
-                let ed' = Delete(e = [], u, i, ref e) in
+              (fun (i, e) ->
+                let ed' = Delete(e = [], i, ref e) in
                 (*tbl_add group_tbl ed ed';*)
-                self#add_edit ed'
+                add_edit ed'
               ) (gensubedits tree1 ~whole:true nd)
 
         | Insert _ ->
             List.iter
-              (fun (u, i, e) ->
-                let ed' = Insert(e = [], u, i, ref e) in
+              (fun (i, e) ->
+                let ed' = Insert(e = [], i, ref e) in
                 (*tbl_add group_tbl ed ed';*)
-                self#add_edit ed'
+                add_edit ed'
               ) (gensubedits tree2 ~whole:true nd)
 
         | _ -> assert false
@@ -2640,30 +2770,30 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
                 let new_ed =
                   match ed with
-                  | Delete _ -> Delete(whole, n#uid, new_info, ref new_ex)
-                  | Insert _ -> Insert(whole, n#uid, new_info, ref new_ex)
+                  | Delete _ -> Delete(whole, new_info, ref new_ex)
+                  | Insert _ -> Insert(whole, new_info, ref new_ex)
                   | _ -> assert false
                 in
                 (*tbl_add group_tbl ed new_ed;*)
-                self#add_edit new_ed;
+                add_edit new_ed;
 
                 if whole then begin
                   begin
                     match ed with
                     | Delete _ ->
                         List.iter
-                          (fun (u, i, e) ->
-                            let ed' = Delete(e = [], u, i, ref e) in
+                          (fun (i, e) ->
+                            let ed' = Delete(e = [], i, ref e) in
                             (*tbl_add group_tbl ed ed';*)
-                            self#add_edit ed'
+                            add_edit ed'
                           ) (gensubedits tree1 n)
 
                     | Insert _ ->
                         List.iter
-                          (fun (u, i, e) ->
-                            let ed' = Insert(e = [], u, i, ref e) in
+                          (fun (i, e) ->
+                            let ed' = Insert(e = [], i, ref e) in
                             (*tbl_add group_tbl ed ed';*)
-                            self#add_edit ed'
+                            add_edit ed'
                           ) (gensubedits tree2 n)
 
                     | _ -> assert false
@@ -2676,7 +2806,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
         end
 
-      end
+      end;
+      !edit_list
     in (* end of func process_delete_or_insert *)
 
 
@@ -2696,8 +2827,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       if !ex1 = [] && !ex2 = [] then begin
         self#remove_edit ed;
         List.iter2
-          (fun (u1, i1, e1) (u2, i2, e2) ->
-            let ed' = Move(mid, kind, (u1, i1, ref e1), (u2, i2, ref e2)) in
+          (fun (i1, e1) (i2, e2) ->
+            let ed' = Move(mid, kind, (i1, ref e1), (i2, ref e2)) in
             (*tbl_add group_tbl ed ed';*)
             add_ed ed'
           ) (gensubedits tree1 ~whole:true nd1) (gensubedits tree2 ~whole:true nd2)
@@ -2727,7 +2858,6 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 not (List.exists (fun p -> tree1#initial_subtree_mem p n1) !processed) &&
                 not (is_ghost_node n1)
               then begin
-                let u1, u2 = n1#uid, n2#uid in
 
                 let mk_inf tree n exnds =
                   let new_info = Info.make n in
@@ -2745,9 +2875,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 let whole = new_ex1 = [] && new_ex2 = [] in
 
                 let new_ed =
-                  Move(mid, kind, (u1, new_info1, ref new_ex1), (u2, new_info2, ref new_ex2))
+                  Move(mid, kind, (new_info1, ref new_ex1), (new_info2, ref new_ex2))
                 in
-                DEBUG_MSG "adding move: mid=%a %a --> %a (whole=%B)%!" MID.ps !mid ups u1 ups u2 whole;
+                DEBUG_MSG "adding move: mid=%a %a --> %a (whole=%B)%!" MID.ps !mid nups n1 nups n2 whole;
 
                 (*tbl_add group_tbl ed new_ed;*)
                 add_ed new_ed;
@@ -2756,11 +2886,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   let se1 = gensubedits tree1 n1 in
                   let se2 = gensubedits tree2 n2 in
                   DEBUG_MSG "number of subedits: %a->%d, %a->%d"
-                    ups u1 (List.length se1) ups u2 (List.length se2);
+                    nups n1 (List.length se1) nups n2 (List.length se2);
                   List.iter2
-                    (fun (u1, i1, e1) (u2, i2, e2) ->
-                      DEBUG_MSG "adding move: mid=%a %a --> %a%!" MID.ps !mid ups u1 ups u2;
-                      let ed' = Move(mid, kind, (u1, i1, ref e1), (u2, i2, ref e2)) in
+                    (fun (i1, e1) (i2, e2) ->
+                      DEBUG_MSG "adding move: mid=%a %a --> %a%!" MID.ps !mid nups n1 nups n2;
+                      let ed' = Move(mid, kind, (i1, ref e1), (i2, ref e2)) in
                       (*tbl_add group_tbl ed ed';*)
                       add_ed ed'
                     ) se1 se2;
@@ -2775,14 +2905,17 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     in (* end of func process_move *)
 
+    let editll_to_be_added = ref [] in
+    let add_editl el = editll_to_be_added := el :: !editll_to_be_added in
     self#iter
       (fun ed ->
         match ed with
-        | Delete(_, _, inf, ex) -> process_delete_or_insert ed inf ex
-        | Insert(_, _, inf, ex) -> process_delete_or_insert ed inf ex
-        | Move(mid, kind, (_, inf1, ex1), (_, inf2, ex2)) -> process_move ed mid kind inf1 ex1 inf2 ex2
+        | Delete(_, inf, ex) -> add_editl (process_delete_or_insert ed inf ex)
+        | Insert(_, inf, ex) -> add_editl (process_delete_or_insert ed inf ex)
+        | Move(mid, kind, (inf1, ex1), (inf2, ex2)) -> process_move ed mid kind inf1 ex1 inf2 ex2
         | _ -> ()
       );
+    List.iter (fun el -> List.iter self#add_edit el) !editll_to_be_added;
 
     Xset.iter
       (fun ed ->
@@ -2795,11 +2928,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
   method private get_non_ghost_children node =
     let rec get nd =
-      List.flatten
-        (List.map
-           (fun n ->
-             if is_ghost_node n then get n else [n]
-           ) (Array.to_list nd#initial_children))
+      List.concat_map
+        (fun n ->
+          if is_ghost_node n then get n else [n]
+        ) (Array.to_list nd#initial_children)
     in
     get node
 
@@ -2832,11 +2964,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                if List.memq n new_exnds then
                  l
                else
-                 (n#uid, Info.make n, new_ex)::l
+                 (Info.make n, new_ex)::l
              ) [] nodes)
       end
       else
-        [node#uid, info, proc_ex node ex]
+        [info, proc_ex node ex]
     in
 
     let to_be_converted info ex =
@@ -2848,68 +2980,70 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     self#filter
       (function
-        | Delete(_, _, info, ex) ->
+        | Delete(_, info, ex) ->
             let b = to_be_converted info ex in
             if b then begin
               List.iter
-                (fun (u, inf, e) ->
-                  add (Delete(e = [], u, inf, ref e)))
+                (fun (i, e) ->
+                  add (Delete(e = [], i, ref e)))
                 (cleanup tree1 info !ex)
             end;
             not b
 
-        | Insert(_, _, info, ex) ->
+        | Insert(_, info, ex) ->
             let b = to_be_converted info ex in
             if b then begin
               List.iter
-                (fun (u, inf, e) -> add (Insert(e = [], u, inf, ref e)))
+                (fun (i, e) -> add (Insert(e = [], i, ref e)))
                 (cleanup tree2 info !ex)
             end;
             not b
 
-        | Relabel(_, (uid1, info1, ex1), (uid2, info2, ex2)) ->
+        | Relabel(_, (info1, ex1), (info2, ex2)) ->
             let isw info = (Info.get_node info)#initial_nchildren = 0 in
             let b1 = to_be_converted info1 (ref []) in
             let b2 = to_be_converted info2 (ref []) in
 
             if b1 then
-              add (Insert(isw info2, uid2, info2, ex2));
+              add (Insert(isw info2, info2, ex2));
 
             if b2 then
-              add (Delete(isw info1, uid1, info1, ex1));
+              add (Delete(isw info1, info1, ex1));
 
             not (b1 || b2)
 
-        | Move(mid, k, (uid1, info1, ex1), (uid2, info2, ex2)) ->
+        | Move(mid, k, (info1, ex1), (info2, ex2)) ->
             let b1 = to_be_converted info1 ex1 in
             let b2 = to_be_converted info2 ex2 in
             if b1 || b2 then begin
 
               let q = Queue.create() in
-              let uids1 = List.map Info.get_uid !ex1 in
-              let uids2 = List.map Info.get_uid !ex2 in
+              let nd1 = Info.get_node info1 in
+              let nd2 = Info.get_node info2 in
+              let nds1 = List.map Info.get_node !ex1 in
+              let nds2 = List.map Info.get_node !ex2 in
               let mkxs n =
                 List.map Info.make (self#get_non_ghost_children n)
               in
-              tree2#scan_cluster_u (uid2, uids2) (fun n -> Queue.add n q);
-              tree1#scan_cluster_u (uid1, uids1)
+              tree2#scan_cluster (nd2, nds2) (fun n -> Queue.add n q);
+              tree1#scan_cluster (nd1, nds1)
                 (fun n ->
                   let n' = Queue.take q in
                   match is_ghost_node n, is_ghost_node n' with
                   | true, false -> begin
                       let xs' = mkxs n' in
-                      add (Insert(xs' = [], n'#uid, Info.make n', ref xs'))
+                      add (Insert(xs' = [], Info.make n', ref xs'))
                   end
                   | false, true -> begin
                       let xs = mkxs n in
-                      add (Delete(xs = [], n#uid, Info.make n, ref xs))
+                      add (Delete(xs = [], Info.make n, ref xs))
                   end
                   | false, false -> begin
                       let xs = mkxs n in
                       let xs' = mkxs n' in
                       add (Move(mid, k,
-                                (n#uid, Info.make n, ref xs),
-                                (n'#uid, Info.make n', ref xs')))
+                                (Info.make n, ref xs),
+                                (Info.make n', ref xs')))
                   end
                   | true, true -> ()
                 );
@@ -2926,17 +3060,16 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       (cenv : ('node_t, 'tree_t) Comparison.c)
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      uidmapping
+      nmapping
       (move_region_tbl : move_region_tbl_t)
       =
 
-    DEBUG_MSG "uidmapping:\n%s\n" uidmapping#to_string;
-    DEBUG_MSG "uidmapping (gindex):\n%s\n" uidmapping#to_string_gid;
+    DEBUG_MSG "nmapping:\n%s\n" nmapping#to_string;
+    DEBUG_MSG "nmapping (gindex):\n%s\n" nmapping#to_string_gid;
 
     let same_digest = _same_digest tree1 tree2 in
 
-    let gen_cands tree tree' umap umap' mem_mov_uu mem_mov_u' mem_del_or_ins is_mov nd nd0 =
-      let uid0 = nd0#uid in
+    let gen_cands tree tree' nmap nmap' mem_mov_nn mem_mov_n' mem_del_or_ins is_mov nd nd0 =
 
       DEBUG_MSG "nd:%a nd0:%a" nps nd nps nd0;
 
@@ -2944,40 +3077,37 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
       Array.iter
         (fun cnd ->
-          let cuid = cnd#uid in
 
-          DEBUG_MSG "cuid:%a" ups cuid;
+          DEBUG_MSG "cnd:%a" nups cnd;
 
           try
-            let cuid' = umap cuid in
-            if not (mem_mov_uu cuid cuid') then
-              let cnd' = tree'#search_node_by_uid cuid' in
+            let cnd' = nmap cnd in
+            if not (mem_mov_nn cnd cnd') then
               let nd' = cnd'#initial_parent in
-              let uid' = nd'#uid in
 
-              DEBUG_MSG "uid':%a" ups uid';
+              DEBUG_MSG "nd':%a" nups nd';
 
               let cond0 =
-                not (List.mem uid' !cands) &&
+                not (List.memq nd' !cands) &&
                 (nd'#data#eq nd#data(* ||
                   (try not nd'#initial_parent#data#is_boundary with _ -> false) &&
                   (try not nd#initial_parent#data#is_boundary with _ -> false) &&
                   not nd'#data#is_named_orig && not nd#data#is_named_orig &&
                   nd'#data#anonymized_label = nd#data#anonymized_label*)
                 ) &&
-                (mem_del_or_ins uid' || (mem_mov_u' uid' && uid0 <> uid')) &&
+                (mem_del_or_ins nd' || (mem_mov_n' nd' && nd0 != nd')) &&
                 (not (is_mov nd nd'))
               in
 
-              DEBUG_MSG "not (List.mem uid' !cands) --> %B" (not (List.mem uid' !cands));
+              DEBUG_MSG "not (List.memq nd' !cands) --> %B" (not (List.memq nd' !cands));
               DEBUG_MSG "nd'#data#eq nd#data --> %B"
                 (nd'#data#eq nd#data(* ||
                 not nd'#data#is_named_orig && not nd#data#is_named_orig &&
                 nd'#data#anonymized_label = nd#data#anonymized_label*));
               DEBUG_MSG "mem_del_or_ins uid' || (mem_mov_u' uid' && uid0 <> uid') --> %B"
-                (mem_del_or_ins uid' || (mem_mov_u' uid' && uid0 <> uid'));
+                (mem_del_or_ins nd' || (mem_mov_n' nd' && nd0 != nd'));
               DEBUG_MSG "not (is_mov nd nd') --> %B" (not (is_mov nd nd'));
-              DEBUG_MSG "cuid:%a --> cond0:%B" ups cuid cond0;
+              DEBUG_MSG "cnd:%a --> cond0:%B" nups cnd cond0;
 
               if cond0 then
                 let cond1 =
@@ -2985,11 +3115,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                     tree#fast_scan_whole_initial_subtree nd
                       (fun n ->
                         if n != nd then
-                          let u = n#uid in
                           try
-                            let u' = umap u in
-                            if not (mem_mov_uu u u') then
-                              let n' = tree'#search_node_by_uid u' in
+                            let n' = nmap n in
+                            if not (mem_mov_nn n n') then
                               if not (tree'#is_initial_ancestor nd' n') then
                                 raise Exit
                           with
@@ -2999,11 +3127,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                   with
                     Exit -> false
                 in
-                DEBUG_MSG "cuid:%a --> cond1:%B" ups cuid cond1;
+                DEBUG_MSG "cnd:%a --> cond1:%B" nups cnd cond1;
 
                 if cond1 then begin
                   DEBUG_MSG "adding %a" nps nd';
-                  cands := uid' :: !cands
+                  cands := nd' :: !cands
                 end
           with
             _ -> ()
@@ -3021,42 +3149,41 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             not nd#data#is_op &&
             not pnd#data#is_sequence && not pnd#data#is_op
           then begin
-            let puid = pnd#uid in
             try
-              let puid' = umap puid in
-              if not (mem_mov_uu puid puid') then begin
-                let pnd' = tree'#search_node_by_uid puid' in
+              let pnd' = nmap pnd in
+              if not (mem_mov_nn pnd pnd') then begin
                 if
                   (not (pnd'#data#is_named_orig && pnd#data#is_named_orig) || pnd'#data#eq pnd#data) &&
                   (
                    pnd'#data#is_named_orig && pnd#data#is_named_orig ||
-                   pnd#data#anonymized_label = pnd'#data#anonymized_label
+                   pnd#data#_anonymized_label = pnd'#data#_anonymized_label
                   )
                 then begin
                   let nd' = pnd'#initial_children.(nd#initial_pos) in
                   DEBUG_MSG "nd': %a" nps nd';
-                  let uid' = nd'#uid in
                   let cond0 =
-                    not (List.mem uid' !cands) &&
+                    not (List.memq nd' !cands) &&
                     (nd'#data#eq nd#data) &&
-                    (mem_del_or_ins uid' || (mem_mov_u' uid' && uid0 <> uid'))(* &&
+                    (mem_del_or_ins nd' || (mem_mov_n' nd' && nd0 != nd'))(* &&
                     try
-                      let n = tree#search_node_by_uid (umap' uid') in
+                      let n = (nmap' nd') in
                       DEBUG_MSG "n=%a" nps n;
                       not (is_mov n nd') || not (same_digest n nd')
                     with _
                       -> true*)
                   in
-                  DEBUG_MSG "puid:%a cond0=%B" ups puid cond0;
+                  DEBUG_MSG "pnd:%a cond0=%B" nups pnd cond0;
                   if cond0 then begin
 
                     let is_mapped map n =
                       try
-                        let _ = map n#uid in
+                        let _ = map n in
                         true
                       with
                         Not_found -> false
                     in
+
+                    let stable_node_pairs = ref [] in
 
                     let cond1 =
                       let stable_count = ref 0 in
@@ -3064,16 +3191,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                         tree#fast_scan_whole_initial_subtree nd
                           (fun n ->
                             if n != nd then
-                              let u = n#uid in
                               try
-                                let u' = umap u in
-                                if not (mem_mov_uu u u') then
-                                  let n' = tree'#search_node_by_uid u' in
+                                let n' = nmap n in
+                                if not (mem_mov_nn n n') then
                                   if
                                     n#data#eq n'#data &&
                                     tree'#is_initial_ancestor nd' n'
                                   then begin
                                     DEBUG_MSG "stable: %a - %a" nps n nps n';
+                                    stable_node_pairs := (n, n') :: !stable_node_pairs;
                                     incr stable_count
                                   end
                                   else
@@ -3085,7 +3211,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                       with
                         Exit -> false
                     in
-                    DEBUG_MSG "puid:%a cond1=%B" ups puid cond1;
+                    DEBUG_MSG "pnd:%a cond1=%B" nups pnd cond1;
 
                     let deferred_ops = ref [] in
 
@@ -3109,7 +3235,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                               deferred_ops :=
                                 (fun () ->
                                   DEBUG_MSG "extra: %a - %a" nps c nps c';
-                                  tbl_add_s extra_node_pair_tbl uid' (c, c')
+                                  tbl_add_s extra_node_pair_tbl nd' (c, c')
                                 ) :: !deferred_ops
                             end
                           ) nd#initial_children;
@@ -3145,8 +3271,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                       let mapchk x x' =
                         let b =
                           try
-                            let x_ = tree'#search_node_by_uid (umap x#uid) in
-                            let x_' = tree#search_node_by_uid (umap' x'#uid) in
+                            let x_ = nmap x in
+                            let x_' = nmap' x' in
                             DEBUG_MSG "x_=%a x_'=%a" nps x_ nps x_';
                             not (x_#data#subtree_equals x_'#data)
                           with
@@ -3163,11 +3289,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                         if
                           (*c#data#_anonymized_label = c'#data#_anonymized_label &&*)
                           c#data#eq c'#data &&
-                          not (try umap c#uid = c'#uid with _ -> false) &&
+                          not (try nmap c == c' with _ -> false) &&
                           mapchk c c'
                         then begin
                           DEBUG_MSG "extra: %a - %a" nps c nps c';
-                          tbl_add_s tbl uid' (c, c')
+                          tbl_add_s tbl nd' (c, c')
                         end;
                         check_children tbl c c'
                       end
@@ -3181,27 +3307,57 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                             if
                               (*c#data#_anonymized_label = c'#data#_anonymized_label &&*)
                               c#data#eq c'#data &&
-                              not (try umap c#uid = c'#uid with _ -> false) &&
+                              not (try nmap c == c' with _ -> false) &&
                               mapchk c c'
                             then begin
                               DEBUG_MSG "extra: %a - %a" nps c nps c';
-                              tbl_add_s tbl uid' (c, c')
+                              tbl_add_s tbl nd' (c, c')
                             end;
                             check_children tbl c c'
                           ) n#initial_children n'#initial_children
                       end
-                      else if n#data#eq n'#data && n#data#is_sequence && n'#data#is_sequence then begin
+                      else if
+                        n#data#eq n'#data && n#data#is_sequence && n'#data#is_sequence
+                      then begin
                         DEBUG_MSG "abort: %a - %a" nps n nps n';
                         raise Abort
                       end
                     in
 
-                    let check_matched_subtrees r r' =
-                      tree#fast_scan_whole_initial_subtree r
+                    let check_matched_subtrees ?(spairs=[]) r r' =
+                      DEBUG_MSG "r=%a r'=%a" nps r nps r';
+                      let npairs = ref spairs in
+                      let add ?(parent_only=false) x x' =
+                        DEBUG_MSG "extra: %a - %a" nps x nps x';
+                        let npair = x, x' in
+                        if not parent_only then begin
+                          npairs := npair :: !npairs;
+                          tbl_add_s extra_node_pair_tbl nd' npair
+                        end;
+                        try
+                          let px = x#initial_parent in
+                          let px' = x'#initial_parent in
+                          if
+                            (*px#initial_nchildren = 1 && px'#initial_nchildren = 1 &&*)
+                            px != r && px' != r' &&
+                            px#data#eq px'#data
+                          then begin
+                            DEBUG_MSG "another extra: %a - %a" nps px nps px';
+                            let npair = px, px' in
+                            npairs := npair :: !npairs;
+                            tbl_add_s extra_node_pair_tbl nd' npair
+                          end
+                        with _ -> ()
+                      in
+                      List.iter (fun (x, x') -> add ~parent_only:true x x') spairs;
+
+                      tree#(*fast_rev_scan_whole_initial_subtree*)fast_scan_whole_initial_subtree r
                         (fun n ->
+                          DEBUG_MSG "n=%a" nps n;
                           match n#data#_digest with
                           | None -> ()
                           | Some d -> begin
+                              DEBUG_MSG "d=%s" (Xhash.to_hex d);
                               try
                                 match cenv#multiple_subtree_matches#find d with
                                 | [], _, _ | _, [], _ -> ()
@@ -3217,8 +3373,19 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                     in
                                     match l, l' with
                                     | [x, _], [x', _] -> begin
-                                        DEBUG_MSG "extra: %a - %a" nps x nps x';
-                                        tbl_add_s extra_node_pair_tbl uid' (x, x')
+                                        DEBUG_MSG "x=%a x'=%a" nps x nps x';
+                                        let is_crossing = Node_mapping.is_crossing x x' in
+                                        let is_incompat =
+                                          Node_mapping.is_incompatible tree tree' x x'
+                                        in
+                                        if
+                                          List.mem (x, x') spairs ||
+                                          not
+                                            (List.exists
+                                               (fun (y, y') -> is_crossing y y' || is_incompat y y')
+                                               !npairs)
+                                        then
+                                          add x x'
                                     end
                                     | _ -> ()
                                 end
@@ -3227,18 +3394,25 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                         )
                     in
 
-                    if (cond1 || cond2()) && cond3 umap' nd' then begin
+                    if (cond1 || cond2()) && cond3 nmap' nd' then begin
                       let tbl = Hashtbl.create 0 in
                       try
                         check_children tbl nd nd';
                         List.iter (fun f -> f()) !deferred_ops;
                         Hashtbl.iter
                           (fun k vs ->
-                            Xset.iter (tbl_add_s extra_node_pair_tbl k) vs
+                            Xset.iter
+                              (fun v ->
+                                BEGIN_DEBUG
+                                  let x1, x2 = v in
+                                  DEBUG_MSG "extra: %a - %a" nps x1 nps x2
+                                END_DEBUG;
+                                tbl_add_s extra_node_pair_tbl k v
+                              ) vs
                           ) tbl;
-                        check_matched_subtrees nd nd';
+                        check_matched_subtrees ~spairs:!stable_node_pairs nd nd';
                         DEBUG_MSG "!!!!!!!! adding %a (nd: %a)" nps nd' nps nd;
-                        cands := uid' :: !cands
+                        cands := nd' :: !cands
                       with
                         Abort -> ()
                     end
@@ -3274,7 +3448,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         let nd1 = tree1#search_node_by_gindex gi1 in
         let nd2 = tree2#search_node_by_gindex gi2 in
 
-        (*if uidmapping#is_locked_mapping nd1#uid nd2#uid then begin
+        (*if nmapping#is_locked_mapping nd1 nd2 then begin
           DEBUG_MSG "!!!!!!!! locked mapping: %a-%a" nups nd1 nups nd2;
         end
         else*)
@@ -3287,6 +3461,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           gps lgi1 gps gi1 (l1+1) gps lgi2 gps gi2 (l2+1);
 
         let moveon =
+          let b =
           if same_digest ~digest_for_all:true nd1 nd2 then begin
             assert (l1 = l2);
             let rec loop i =
@@ -3295,7 +3470,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               else
                 let n1 = tree1#search_node_by_gindex (lgi1 + i) in
                 let n2 = tree2#search_node_by_gindex (lgi2 + i) in
-                if not (uidmapping#has_mapping n1#uid n2#uid) then
+                if not (nmapping#has_mapping n1 n2) then
                   true
                 else
                   loop (i + 1)
@@ -3304,12 +3479,15 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           end
           else
             true
+          in
+          DEBUG_MSG "%B" b;
+          b
         in
 
         if moveon then begin
 
-          let is_mov1 n1 n2 = self#is_crossing_with_untouched uidmapping n1 n2 in
-          let is_mov2 n2 n1 = self#is_crossing_with_untouched uidmapping n1 n2 in
+          let is_mov1 n1 n2 = self#is_crossing_with_untouched nmapping n1 n2 in
+          let is_mov2 n2 n1 = self#is_crossing_with_untouched nmapping n1 n2 in
 
           let node_pairs = ref [] in
 
@@ -3326,21 +3504,21 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             try
               while true do
                 let _cands01, _extra_node_pair_tbl01 =
-                  gen_cands tree2 tree1 uidmapping#inv_find uidmapping#find
+                  gen_cands tree2 tree1 nmapping#inv_find nmapping#find
                     self#mem_mov21 self#mem_mov1 self#mem_del is_mov2 !nd2x !nd1x
                 in
                 cands01 := _cands01;
                 extra_node_pair_tbl01 := _extra_node_pair_tbl01;
 
                 let _cands02, _extra_node_pair_tbl02 =
-                  gen_cands tree1 tree2 uidmapping#find uidmapping#inv_find
+                  gen_cands tree1 tree2 nmapping#find nmapping#inv_find
                     self#mem_mov12 self#mem_mov2 self#mem_ins is_mov1 !nd1x !nd2x
                 in
                 cands02 := _cands02;
                 extra_node_pair_tbl02 := _extra_node_pair_tbl02;
 
-                DEBUG_MSG "[%d] cands01(%a): [%a]" !lv nups !nd2x usps !cands01;
-                DEBUG_MSG "[%d] cands02(%a): [%a]" !lv nups !nd1x usps !cands02;
+                DEBUG_MSG "[%d] cands01(%a): [%a]" !lv nups !nd2x nsps !cands01;
+                DEBUG_MSG "[%d] cands02(%a): [%a]" !lv nups !nd1x nsps !cands02;
 
                 if !cands01 <> [] || !cands02 <> [] then begin
                   node_pairs := (!nd1x, !nd2x) :: !node_pairs;
@@ -3353,8 +3531,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                 if (!nd1x)#initial_nchildren = 1 && (!nd2x)#initial_nchildren = 1 then begin
                   let nx1 = (!nd1x)#initial_children.(0) in
                   let nx2 = (!nd2x)#initial_children.(0) in
-                  let ux1, ux2 = nx1#uid, nx2#uid in
-                  if self#mem_mov12 ux1 ux2 then begin
+                  if self#mem_mov12 nx1 nx2 then begin
                     node_pairs := (!nd1x, !nd2x) :: !node_pairs;
                     nd1x := nx1;
                     nd2x := nx2;
@@ -3383,96 +3560,111 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           let remove_orig ?(from_parent=false) () =
             List.iter
               (fun (n1, n2) ->
-                let u1, u2 = n1#uid, n2#uid in
-                DEBUG_MSG "%a-%a" ups u1 ups u2;
+                DEBUG_MSG "%a-%a" nups n1 nups n2;
 
-                let es1 = self#find1 u1 in
+                let es1 = self#find1 n1 in
                 List.iter (remove_edit ~from_parent) es1;
 
-                let es2 = self#find2 u2 in
+                let es2 = self#find2 n2 in
                 List.iter (remove_edit ~from_parent) es2;
 
-                ignore (uidmapping#remove u1 u2)
+                ignore (nmapping#remove n1 n2)
 
               ) !node_pairs
           in
 
-          let check1 u1 =
+          let check1 n1 =
             let b =
-              let p1 = ref u1 in
-              let pn1 = ref (tree1#search_node_by_uid u1) in
+              let pn1 = ref n1 in
               try
                 List.iter
                   (fun (_, n2) ->
-
-                    if self#is_crossing_with_untouched uidmapping !pn1 n2 then
+                    if self#is_crossing_with_untouched nmapping !pn1 n2 then
                       raise Exit;
-
-                    pn1 := (tree1#search_node_by_uid !p1)#initial_parent;
-                    p1 := (!pn1)#uid
+                    pn1 := (!pn1)#initial_parent
                   ) !node_pairs;
                 true
               with
                 Exit -> false
             in
-            DEBUG_MSG "%a --> %B" ups u1 b;
+            DEBUG_MSG "%a --> %B" nups n1 b;
             b
           in
 
-          let check2 u2 =
+          let check2 n2 =
             let b =
-              let p2 = ref u2 in
-              let pn2 = ref (tree2#search_node_by_uid u2) in
+              let pn2 = ref n2 in
               try
                 List.iter
                   (fun (n1, _) ->
-
-                    if self#is_crossing_with_untouched uidmapping n1 !pn2 then
+                    if self#is_crossing_with_untouched nmapping n1 !pn2 then
                       raise Exit;
-
-                    pn2 := (tree2#search_node_by_uid !p2)#initial_parent;
-                    p2 := (!pn2)#uid
+                    pn2 := (!pn2)#initial_parent
                   ) !node_pairs;
                 true
               with
                 Exit -> false
             in
-            DEBUG_MSG "%a --> %B" ups u2 b;
+            DEBUG_MSG "%a --> %B" nups n2 b;
             b
           in
 
           let handle_extra ?(from_parent=false) r1 r2 =
             DEBUG_MSG "%a-%a" nups r1 nups r2;
             let handle n1 n2 =
-              let u1, u2 = n1#uid, n2#uid in
+              DEBUG_MSG "%a-%a" nups n1 nups n2;
 
-              if self#mem_del u1 then
-                remove_edit ~from_parent (self#find_del u1)
-              else if self#mem_mov1 u1 then begin
-                let u1' = uidmapping#find u1 in
-                List.iter (remove_edit ~from_parent) (self#find12 u1 u1');
-                let _ = uidmapping#remove u1 u1' in
-                self#add_edit (make_insert (tree2#search_node_by_uid u1'))
+              if self#mem_del n1 then
+                remove_edit ~from_parent (self#find_del n1)
+              else if self#mem_mov1 n1 then begin
+                let n1' = nmapping#find n1 in
+                DEBUG_MSG "n1=%a n1'=%a" nups n1 nups n1';
+                List.iter (remove_edit ~from_parent) (self#find12 n1 n1');
+                let _ = nmapping#remove n1 n1' in
+                self#add_edit (make_insert n1')
               end;
 
-              if self#mem_ins u2 then
-                remove_edit ~from_parent (self#find_ins u2)
-              else if self#mem_mov2 u2 then begin
-                let u2' = uidmapping#inv_find u2 in
-                List.iter (remove_edit ~from_parent) (self#find12 u2' u2);
-                let _ = uidmapping#remove u2' u2 in
-                self#add_edit (make_delete (tree1#search_node_by_uid u2'))
+              if self#mem_ins n2 then
+                remove_edit ~from_parent (self#find_ins n2)
+              else if self#mem_mov2 n2 then begin
+                let n2' = nmapping#inv_find n2 in
+                DEBUG_MSG "n2'=%a n2=%a" nups n2' nups n2;
+                List.iter (remove_edit ~from_parent) (self#find12 n2' n2);
+                let _ = nmapping#remove n2' n2 in
+                self#add_edit (make_delete n2')
               end;
 
-              let _ = uidmapping#add_unsettled u1 u2 in
+              let conflict1, conflict2 = nmapping#add_unsettled n1 n2 in
+              begin
+                match conflict1 with
+                | Some n1 -> begin
+                    DEBUG_MSG "n1=%a" nups n1;
+                    List.iter (remove_edit ~from_parent) (self#find1 n1);
+                    self#add_edit (make_delete n1)
+                end
+                | _ -> ()
+              end;
+              begin
+                match conflict2 with
+                | Some n2 -> begin
+                    DEBUG_MSG "n2=%a" nups n2;
+                    List.iter (remove_edit ~from_parent) (self#find2 n2);
+                    self#add_edit (make_insert n2)
+                end
+                | _ -> ()
+              end;
+
               if not (n1#data#eq n2#data) then
                 self#add_edit (make_relabel n1 n2)
             in
             let nl1 = ref [] in
             let nl2 = ref [] in
-            tree1#fast_scan_whole_initial_subtree r1 (fun n1 -> nl1 := n1 :: !nl1);
-            tree2#fast_scan_whole_initial_subtree r2 (fun n2 -> nl2 := n2 :: !nl2);
-            if List.length !nl1 = List.length !nl2 then begin
+            let ncl1 = ref [] in
+            let ncl2 = ref [] in
+            let add nl ncl n = nl := n :: !nl; ncl := n#initial_nchildren :: !ncl in
+            tree1#fast_scan_whole_initial_subtree r1 (add nl1 ncl1);
+            tree2#fast_scan_whole_initial_subtree r2 (add nl2 ncl2);
+            if List.length !nl1 = List.length !nl2 && !ncl1 = !ncl2 then begin
               List.iter2 handle !nl1 !nl2
             end
             else begin
@@ -3480,68 +3672,70 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             end
           in
 
-          let handle1 ?(from_parent=false) u1 =
-            DEBUG_MSG "u1:%a" ups u1;
-            let p1 = ref u1 in
-            let pn1 = ref (tree1#search_node_by_uid u1) in
+          let node_pair_set_to_list s =
+            List.fast_sort
+              (fun x0 x1 -> Stdlib.compare (fst x1)#gindex (fst x0)#gindex)
+              (Xset.to_list s)
+          in
+
+          let handle1 ?(from_parent=false) n1 =
+            DEBUG_MSG "n1:%a" nups n1;
+            let pn1 = ref n1 in
             List.iter
               (fun (_, n2) ->
-                if self#mem_del !p1 then begin
-                  DEBUG_MSG "%a -> del" ups !p1;
-                  remove_edit ~from_parent (self#find_del !p1)
+                if self#mem_del !pn1 then begin
+                  DEBUG_MSG "%a -> del" nups !pn1;
+                  remove_edit ~from_parent (self#find_del !pn1)
                 end
-                else if self#mem_mov1 !p1 then begin
-                  DEBUG_MSG "%a -> mov1" ups !p1;
-                  let u1' = uidmapping#find !p1 in
-                  List.iter (remove_edit ~from_parent) (self#find12 !p1 u1');
-                  let _ = uidmapping#remove !p1 u1' in
-                  self#add_edit (make_insert (tree2#search_node_by_uid u1'))
+                else if self#mem_mov1 !pn1 then begin
+                  DEBUG_MSG "%a -> mov1" nups !pn1;
+                  let pn1' = nmapping#find !pn1 in
+                  List.iter (remove_edit ~from_parent) (self#find12 !pn1 pn1');
+                  let _ = nmapping#remove !pn1 pn1' in
+                  self#add_edit (make_insert pn1')
                 end;
-                ignore (uidmapping#add_unsettled !p1 n2#uid);
+                ignore (nmapping#add_unsettled !pn1 n2);
 
-                if not ((!pn1)#data#eq n2#data) && not (self#mem_rel12 !p1 n2#uid) then
+                if not ((!pn1)#data#eq n2#data) && not (self#mem_rel12 !pn1 n2) then
                   self#add_edit (make_relabel !pn1 n2);
 
-                pn1 := (tree1#search_node_by_uid !p1)#initial_parent;
-                p1 := (!pn1)#uid
+                pn1 := (!pn1)#initial_parent;
               ) !node_pairs;
             try
-              Xset.iter
+              List.iter
                 (fun (n2, n1) -> handle_extra ~from_parent n1 n2)
-                (Hashtbl.find !extra_node_pair_tbl01 u1)
+                (node_pair_set_to_list (Hashtbl.find !extra_node_pair_tbl01 n1))
             with
               Not_found -> ()
           in
 
-          let handle2 ?(from_parent=false) u2 =
-            DEBUG_MSG "u2:%a" ups u2;
-            let p2 = ref u2 in
-            let pn2 = ref (tree2#search_node_by_uid u2) in
+          let handle2 ?(from_parent=false) n2 =
+            DEBUG_MSG "n2:%a" nups n2;
+            let pn2 = ref n2 in
             List.iter
               (fun (n1, _) ->
-                if self#mem_ins !p2 then begin
-                  DEBUG_MSG "%a -> ins" ups !p2;
-                  remove_edit ~from_parent (self#find_ins !p2)
+                if self#mem_ins !pn2 then begin
+                  DEBUG_MSG "%a -> ins" nups !pn2;
+                  remove_edit ~from_parent (self#find_ins !pn2)
                 end
-                else if self#mem_mov2 !p2 then begin
-                  DEBUG_MSG "%a -> mov2" ups !p2;
-                  let u2' = uidmapping#inv_find !p2 in
-                  List.iter (remove_edit ~from_parent) (self#find12 u2' !p2);
-                  let _ = uidmapping#remove u2' !p2 in
-                  self#add_edit (make_delete (tree1#search_node_by_uid u2'))
+                else if self#mem_mov2 !pn2 then begin
+                  DEBUG_MSG "%a -> mov2" nups !pn2;
+                  let pn2' = nmapping#inv_find !pn2 in
+                  List.iter (remove_edit ~from_parent) (self#find12 pn2' !pn2);
+                  let _ = nmapping#remove pn2' !pn2 in
+                  self#add_edit (make_delete pn2')
                 end;
-                ignore (uidmapping#add_unsettled n1#uid !p2);
+                ignore (nmapping#add_unsettled n1 !pn2);
 
-                if not (n1#data#eq (!pn2)#data) && not (self#mem_rel12 n1#uid !p2) then
+                if not (n1#data#eq (!pn2)#data) && not (self#mem_rel12 n1 !pn2) then
                   self#add_edit (make_relabel n1 !pn2);
 
-                pn2 := (tree2#search_node_by_uid !p2)#initial_parent;
-                p2 := (!pn2)#uid
+                pn2 := (!pn2)#initial_parent;
               ) !node_pairs;
             try
-              Xset.iter
+              List.iter
                 (fun (n1, n2) -> handle_extra ~from_parent n1 n2)
-                (Hashtbl.find !extra_node_pair_tbl02 u2)
+                (node_pair_set_to_list (Hashtbl.find !extra_node_pair_tbl02 n2))
             with
               Not_found -> ()
           in
@@ -3550,34 +3744,34 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           cands02 := List.filter check2 !cands02;
 
           match !cands01, !cands02 with
-          | [uid1'], [uid2'] -> begin
+          | [nd1'], [nd2'] -> begin
               let from_parent =
-                Hashtbl.mem !extra_node_pair_tbl01 uid1' ||
-                Hashtbl.mem !extra_node_pair_tbl02 uid2'
+                Hashtbl.mem !extra_node_pair_tbl01 nd1' ||
+                Hashtbl.mem !extra_node_pair_tbl02 nd2'
               in
               remove_orig ~from_parent ();
-              handle1 ~from_parent uid1';
-              handle2 ~from_parent uid2'
+              handle1 ~from_parent nd1';
+              handle2 ~from_parent nd2'
           end
-          | [uid1'], [] -> begin
-              let from_parent = Hashtbl.mem !extra_node_pair_tbl01 uid1' in
+          | [nd1'], [] -> begin
+              let from_parent = Hashtbl.mem !extra_node_pair_tbl01 nd1' in
               remove_orig ~from_parent ();
-              handle1 ~from_parent uid1';
+              handle1 ~from_parent nd1';
               List.iter
                 (fun (n1, _) ->
-                  if not (uidmapping#mem_dom n1#uid) then begin
+                  if not (nmapping#mem_dom n1) then begin
                     DEBUG_MSG "making del: %a" nups n1;
                     self#add_edit (make_delete n1)
                   end
                 ) !node_pairs
           end
-          | [], [uid2'] -> begin
-              let from_parent = Hashtbl.mem !extra_node_pair_tbl02 uid2' in
+          | [], [nd2'] -> begin
+              let from_parent = Hashtbl.mem !extra_node_pair_tbl02 nd2' in
               remove_orig ~from_parent ();
-              handle2 ~from_parent uid2';
+              handle2 ~from_parent nd2';
               List.iter
                 (fun (_, n2) ->
-                  if not (uidmapping#mem_cod n2#uid) then begin
+                  if not (nmapping#mem_cod n2) then begin
                     DEBUG_MSG "making ins: %a" nups n2;
                     self#add_edit (make_insert n2)
                   end
@@ -3592,9 +3786,10 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
 
   method shrink_moves (* shrink moves to improve SPSM *)
+      (cenv : ('node_t, 'tree_t) Comparison.c)
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      (uidmapping : 'node_t UIDmapping.c)
+      (nmapping : 'node_t Node_mapping.c)
       (move_region_tbl : move_region_tbl_t)
       (removed_move_tbl : (MID.t, 'node_t t list) Hashtbl.t)
       =
@@ -3610,13 +3805,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
     self#iter_moves
       (function
-        | Move(mid, k, (u1, i1, _), (u2, i2, _)) -> begin
-            DEBUG_MSG "mid:%a %a-%a" MID.ps !mid ups u1 ups u2;
-            if not (self#mem_rel12 u1 u2) (* && !k <> Mpermutation *) then begin
-              let n1 = Info.get_node i1 in
-              let n2 = Info.get_node i2 in
+        | Move(mid, k, (i1, _), (i2, _)) -> begin
+            let n1 = Info.get_node i1 in
+            let n2 = Info.get_node i2 in
+            DEBUG_MSG "mid:%a %a-%a" MID.ps !mid nups n1 nups n2;
+            if not (self#mem_rel12 n1 n2) (* && !k <> Mpermutation *) then begin
 
-              DEBUG_MSG "digests: %a(%s) %a(%s)" ups u1 n1#data#_digest_string ups u2 n2#data#_digest_string;
+              DEBUG_MSG "digests: %a(%s) %a(%s)" nups n1 n1#data#_digest_string nups n2 n2#data#_digest_string;
 
               let digest_for_leaf = n1#data#has_non_trivial_value || n1#data#is_named in
 
@@ -3672,31 +3867,27 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         ) move_root_tbl
     END_DEBUG;
 
-    let rec find_stably_mapped_ancestor tree umap find nd =
+    let rec find_stably_mapped_ancestor tree nmap find nd =
       try
         let pnd = nd#initial_parent in
-        let puid = pnd#uid in
         try
-          let puid' = umap puid in
-          match find puid puid' with
-          | [] | [Relabel _] ->
-              let pnd' = tree#search_node_by_uid puid' in
-              pnd, pnd'
-          | _ -> find_stably_mapped_ancestor tree umap find pnd (* raise Not_found *)
+          let pnd' = nmap pnd in
+          match find pnd pnd' with
+          | [] | [Relabel _] -> pnd, pnd'
+          | _ -> find_stably_mapped_ancestor tree nmap find pnd (* raise Not_found *)
         with
-          Not_found -> find_stably_mapped_ancestor tree umap find pnd (* raise Not_found *)
+          Not_found -> find_stably_mapped_ancestor tree nmap find pnd (* raise Not_found *)
       with
         Otree.Parent_not_found _ -> raise Not_found
     in
 
-    let contain_stably_mapped tree root umap find =
+    let contain_stably_mapped tree root nmap find =
       try
         tree#fast_scan_whole_initial_subtree root
           (fun n ->
             try
-              let u = n#uid in
-              let u' = umap u in
-              match find u u' with
+              let n' = nmap n in
+              match find n n' with
               | [] | [Relabel _] -> raise Found
               | _ -> ()
             with
@@ -3771,10 +3962,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       tree#preorder_scan_whole_initial_subtree an
         (fun n ->
           if n != an && not (Xset.mem nodes_to_be_excluded n) then
-            let lmatch = n#data#_label = lab in
-            let amatch = n#data#_anonymized_label = alab in
-            if lmatch || amatch then begin
-              let u = n#uid in
+
+            if n#data#_label = lab then begin
 
               if _same_digest tree tree ~digest_for_leaf:true nd n && nd#data#weight > 1 then begin
                 DEBUG_MSG "digest match: %a-%a (weight=%d)" nups n nups nd nd#data#weight;
@@ -3782,14 +3971,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               end;
 
               if
-                self#mem_del u || self#mem_ins u ||
-                self#mem_mov1 u || self#mem_mov2 u ||
-                self#mem_rel1 u || self#mem_rel2 u
+                self#mem_del n || self#mem_ins n ||
+                self#mem_mov1 n || self#mem_mov2 n ||
+                self#mem_rel1 n || self#mem_rel2 n
               then begin
-                if lmatch then
-                  cands := n :: !cands;
-                if amatch then
-                  acands := n :: !acands
+                cands := n :: !cands;
+                acands := n :: !acands
               end;
 (*
               DEBUG_MSG "dcands: [%s]" (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !dcands);
@@ -3797,6 +3984,26 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               DEBUG_MSG "acands: [%s]" (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !acands);
 *)
             end
+            else if n#data#_anonymized_label = alab then begin
+
+              if _same_digest tree tree ~digest_for_leaf:true nd n && nd#data#weight > 1 then begin
+                DEBUG_MSG "digest match: %a-%a (weight=%d)" nups n nups nd nd#data#weight;
+                dcands := n :: !dcands
+              end;
+
+              if
+                self#mem_del n || self#mem_ins n ||
+                self#mem_mov1 n || self#mem_mov2 n ||
+                self#mem_rel1 n || self#mem_rel2 n
+              then
+                acands := n :: !acands;
+(*
+              DEBUG_MSG "dcands: [%s]" (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !dcands);
+              DEBUG_MSG "cands: [%s]" (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !cands);
+              DEBUG_MSG "acands: [%s]" (Xlist.to_string (fun n -> UID.to_string n#uid) ";" !acands);
+*)
+            end
+
         );
       match !cands with
       | [] -> begin
@@ -3808,8 +4015,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       | _ -> false, !cands
     in (* label_find *)
 
-    let is_crossing = UIDmapping.is_crossing in
-    let is_incompatible = UIDmapping.is_incompatible tree1 tree2 in
+    let is_crossing = Node_mapping.is_crossing in
+    (*let is_incompatible = Node_mapping.is_incompatible tree1 tree2 in*)
 
     DEBUG_MSG "-----";
 
@@ -3823,7 +4030,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           List.fold_left
             (fun pair_opt mov ->
               match mov with
-              | Move(mid, kind, (_, info1, _), (_, info2, _)) -> begin
+              | Move(mid, kind, (info1, _), (info2, _)) -> begin
                   DEBUG_MSG "removed move: %s" (to_string mov);
                   let n1 = Info.get_node info1 in
                   let n2 = Info.get_node info2 in
@@ -3862,11 +4069,44 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
             let cands1, c1an =
               try
-                let an1, an2 = find_stably_mapped_ancestor tree2 uidmapping#find self#find12 nd1 in
-
-                if tree2#is_initial_ancestor an2 nd2 then
-                  [], None
-
+                let an1, an2 = find_stably_mapped_ancestor tree2 nmapping#find self#find12 nd1 in
+                DEBUG_MSG "an1=%a an2=%a" nps an1 nps an2;
+                if tree2#is_initial_ancestor an2 nd2 then begin
+                  if nd1#initial_parent == an1 && nd2#initial_parent == an2 then begin
+                    match nd1#data#_digest with
+                    | Some d -> begin
+                        DEBUG_MSG "d=%s" (Xhash.to_hex d);
+                        try
+                          match cenv#multiple_subtree_matches#find d with
+                          | [], _, _ | _, [], _ -> [], None
+                          | l1, l2, _ -> begin
+                              let cands = ref [] in
+                              List.iter
+                                (fun (x1, mems1) ->
+                                  List.iter
+                                    (fun (x2, mems2) ->
+                                      if
+                                        x2 == nd2 &&
+                                        not (self#is_crossing_with_untouched nmapping x1 x2)
+                                      then begin
+                                        cands := (mems1, mems2)::!cands
+                                      end
+                                    ) l2
+                                ) l1;
+                              match !cands with
+                              | [] -> [], None
+                              | l ->
+                                  (List.map (fun (ms1, ms2) -> List.combine ms1 ms2) l),
+                                  Some (an1, an2)
+                          end
+                        with
+                          Not_found -> [], None
+                    end
+                    | None -> [], None
+                  end
+                  else
+                    [], None
+                end
                 else begin
                   BEGIN_DEBUG
                     let au1, au2 = an1#uid, an2#uid in
@@ -3892,13 +4132,14 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                               try
                                 tree1#fast_scan_whole_initial_subtree an1
                                   (fun n ->
-                                    let u = n#uid in
                                     try
-                                      let u' = uidmapping#find u in
-                                      match self#find12 u u' with
+                                      let n' = nmapping#find n in
+                                      match self#find12 n n' with
                                       | [] | [Relabel _] ->
-                                          let n' = tree2#search_node_by_uid u' in
-                                          if is_crossing nd1 n2 n n' || is_incompatible nd1 n2 n n' then
+                                          if
+                                            is_crossing nd1 n2 n n' ||
+                                            cenv#is_incompatible nd1 n2 n n'
+                                          then
                                             raise Found
                                       | _ -> ()
                                     with
@@ -3909,12 +4150,14 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                 Found -> true
                             in
                             not
-                              (crossing ||
-                              tree2#is_initial_ancestor n2 nd2 ||
-                              tree2#is_initial_ancestor nd2 n2 ||
                               (
-                               contain_stably_mapped tree2 n2 uidmapping#inv_find self#find21 &&
-                               n2#initial_nchildren > 0)
+                               crossing ||
+                               tree2#is_initial_ancestor n2 nd2 ||
+                               tree2#is_initial_ancestor nd2 n2 ||
+                               (
+                                n2#initial_nchildren > 0 &&
+                                contain_stably_mapped tree2 n2 nmapping#inv_find self#find21
+                               )
                               )
                           in
                           if b then
@@ -3965,11 +4208,44 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
             let cands2, c2an =
               try
-                let an2, an1 = find_stably_mapped_ancestor tree1 uidmapping#inv_find self#find21 nd2 in
-
-                if tree1#is_initial_ancestor an1 nd1 then
-                  [], None
-
+                let an2, an1 = find_stably_mapped_ancestor tree1 nmapping#inv_find self#find21 nd2 in
+                DEBUG_MSG "an1=%a an2=%a" nps an1 nps an2;
+                if tree1#is_initial_ancestor an1 nd1 then begin
+                  if nd1#initial_parent == an1 && nd2#initial_parent == an2 then begin
+                    match nd2#data#_digest with
+                    | Some d -> begin
+                        DEBUG_MSG "d=%s" (Xhash.to_hex d);
+                        try
+                          match cenv#multiple_subtree_matches#find d with
+                          | [], _, _ | _, [], _ -> [], None
+                          | l1, l2, _ -> begin
+                              let cands = ref [] in
+                              List.iter
+                                (fun (x1, mems1) ->
+                                  List.iter
+                                    (fun (x2, mems2) ->
+                                      if
+                                        x1 == nd1 &&
+                                        not (self#is_crossing_with_untouched nmapping x1 x2)
+                                      then begin
+                                        cands := (mems1, mems2)::!cands
+                                      end
+                                    ) l2
+                                ) l1;
+                              match !cands with
+                              | [] -> [], None
+                              | l ->
+                                  (List.map (fun (ms1, ms2) -> List.combine ms1 ms2) l),
+                                  Some (an1, an2)
+                          end
+                        with
+                          Not_found -> [], None
+                    end
+                    | None -> [], None
+                  end
+                  else
+                    [], None
+                end
                 else begin
                   BEGIN_DEBUG
                     let au1, au2 = an1#uid, an2#uid in
@@ -3995,13 +4271,14 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                               try
                                 tree2#fast_scan_whole_initial_subtree an2
                                   (fun n ->
-                                    let u = n#uid in
                                     try
-                                      let u' = uidmapping#inv_find u in
-                                      match self#find12 u' u with
+                                      let n' = nmapping#inv_find n in
+                                      match self#find12 n' n with
                                       | [] | [Relabel _] ->
-                                          let n' = tree1#search_node_by_uid u' in
-                                          if is_crossing n1 nd2 n' n || is_incompatible n1 nd2 n' n then
+                                          if
+                                            is_crossing n1 nd2 n' n ||
+                                            cenv#is_incompatible n1 nd2 n' n
+                                          then
                                             raise Found
                                       | _ -> ()
                                     with
@@ -4012,12 +4289,14 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                                 Found -> true
                             in
                             not
-                              (crossing ||
-                              tree1#is_initial_ancestor n1 nd1 ||
-                              tree1#is_initial_ancestor nd1 n1 ||
                               (
-                               contain_stably_mapped tree1 n1 uidmapping#find self#find12 &&
-                               n1#initial_nchildren > 0)
+                               crossing ||
+                               tree1#is_initial_ancestor n1 nd1 ||
+                               tree1#is_initial_ancestor nd1 n1 ||
+                               (
+                                n1#initial_nchildren > 0 &&
+                                contain_stably_mapped tree1 n1 nmapping#find self#find12
+                               )
                               )
                           in
 
@@ -4085,11 +4364,9 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
           (fun n1 ->
             if n1 != an1 then
               try
-                let u1 = n1#uid in
-                let u2 = uidmapping#find u1 in
-                let n2 = tree2#search_node_by_uid u2 in
+                let n2 = nmapping#find n1 in
                 if tree2#initial_subtree_mem an2 n2 then begin
-                  match self#find12 u1 u2 with
+                  match self#find12 n1 n2 with
                   | [] | [Relabel _] -> stable_matches := (n1, n2) :: !stable_matches
                   | _ -> ()
                 end
@@ -4223,7 +4500,7 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
         in
 
         let cands = (* extract connected pairs *)
-          List.flatten (List.map get_largest_connected_subset cands)
+          List.concat_map get_largest_connected_subset cands
         in
 
         let filtered_cands =
@@ -4254,8 +4531,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                       List.for_all
                         (fun (sn1, sn2) ->
                           (tree1#initial_subtree_mem r1 sn1 || tree2#initial_subtree_mem r2 sn2) ||
-                          (not (UIDmapping.is_incompatible tree1 tree2 sn1 sn2 r1 r2) &&
-                           not (UIDmapping.is_crossing sn1 sn2 r1 r2))
+                          (not (cenv#is_incompatible sn1 sn2 r1 r2) &&
+                           not (Node_mapping.is_crossing sn1 sn2 r1 r2))
                           ) !stable_matches
                     then
                       cand
@@ -4266,8 +4543,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
                       (fun (n1, n2) ->
                         List.for_all
                           (fun (sn1, sn2) ->
-                            (not (UIDmapping.is_incompatible tree1 tree2 sn1 sn2 n1 n2) &&
-                             not (UIDmapping.is_crossing sn1 sn2 n1 n2))
+                            (not (cenv#is_incompatible sn1 sn2 n1 n2) &&
+                             not (Node_mapping.is_crossing sn1 sn2 n1 n2))
                           ) !stable_matches
                       ) cand
               | [] -> []
@@ -4309,12 +4586,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
               match cand with
               | (n1, n2)::_ ->
                   Hashtbl.add ctbl (n1, n2) cand;
-                  n1, n2, (List.length cand)
+                  n1, n2, Comparison.weight_of_int (List.length cand)
               | _ -> assert false
             in
             let pair_weight_list = List.map get_top_pair_len cands in
             let compat, _ =
-              UIDmapping.select_compatible_and_not_crossing_pairs tree1 tree2 pair_weight_list
+              cenv#select_compatible_and_not_crossing_pairs pair_weight_list
             in
             let selected = List.map (fun (n1, n2, _) -> Hashtbl.find ctbl (n1, n2)) compat in
             Hashtbl.replace cand_tbl (an1, an2) selected
@@ -4329,39 +4606,50 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     (* *)
     DEBUG_MSG "-----";
 
-    let find_ed1 uid =
+    let find_ed1 nd =
       try
-        [self#find_del uid], [], []
+        [self#find_del nd], [], []
       with
         Not_found ->
-          let eds = self#find1 uid in
+          let eds = self#find1 nd in
           let m, ad =
             match eds with
-            | [Move(_, _, (u1, i1, _), (u2, i2, _))]
-            | [Relabel(_, (u1, i1, _), (u2, i2, _))]
-            | [Move(_, _, (u1, i1, _), (u2, i2, _));Relabel _]
-            | [Relabel _;Move(_, _, (u1, i1, _), (u2, i2, _))] -> (u1, u2), make_insert (Info.get_node i2)
+            | [Move(_, _, (i1, _), (i2, _))]
+            | [Relabel(_, (i1, _), (i2, _))]
+            | [Move(_, _, (i1, _), (i2, _));Relabel _]
+            | [Relabel _;Move(_, _, (i1, _), (i2, _))] -> begin
+                let n1 = Info.get_node i1 in
+                let n2 = Info.get_node i2 in
+                (n1, n2), make_insert n2
+            end
             | [] -> raise Not_found
             | _ -> assert false
           in
           eds, [m], [ad]
     in
-    let find_ed2 uid =
+    let find_ed2 ?(rms_only=false) nd =
       try
-        [self#find_ins uid], [], []
+        [self#find_ins nd], [], []
       with
         Not_found ->
-          let eds = self#find2 uid in
-          let m, ad =
-            match eds with
-            | [Move(_, _, (u1, i1, _), (u2, i2, _))]
-            | [Relabel(_, (u1, i1, _), (u2, i2, _))]
-            | [Move(_, _, (u1, i1, _), (u2, i2, _));Relabel _]
-            | [Relabel _;Move(_, _, (u1, i1, _), (u2, i2, _))] -> (u1, u2), make_delete (Info.get_node i1)
-            | [] -> raise Not_found
-            | _ -> assert false
-          in
-          eds, [m], [ad]
+          let eds = self#find2 nd in
+          if rms_only then
+            eds, [], []
+          else
+            let m, ad =
+              match eds with
+              | [Move(_, _, (i1, _), (i2, _))]
+              | [Relabel(_, (i1, _), (i2, _))]
+              | [Move(_, _, (i1, _), (i2, _));Relabel _]
+              | [Relabel _;Move(_, _, (i1, _), (i2, _))] -> begin
+                  let n1 = Info.get_node i1 in
+                  let n2 = Info.get_node i2 in
+                  (n1, n2), make_delete n1
+              end
+              | [] -> raise Not_found
+              | _ -> assert false
+            in
+            eds, [m], [ad]
     in
 
     let used_matches = ref [] in
@@ -4400,69 +4688,62 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
 
             List.iter
               (fun (nd1, nd2) ->
-                let uid1, uid2 = nd1#uid, nd2#uid in
-
                 try
-                  let to_be_removed, umap_to_be_removed, to_be_added =
+                  let to_be_removed, nmap_to_be_removed, to_be_added =
                     try
-                      let uid1' = uidmapping#find uid1 in
-                      let m = uid1, uid1' in
-                      let es = self#find12 uid1 uid1' in
-                      let ins = make_insert (tree2#search_node_by_uid uid1') in
-                      try
-                        let rms, ms, ad = find_ed2 uid2 in
-                        rms @ es, m :: ms, ins :: ad
-                      with
-                        Not_found -> raise Abort
-(*
-  try
-  let uid2' = uidmapping#inv_find uid2 in
-  mov::(self#find12 uid2' uid2), [uid2', uid2; m], [make_delete (tree1#search_node_by_uid uid2');ins]
-  with
-  Not_found -> [mov], [m], [ins]
- *)
+                      let nd1' = nmapping#find nd1 in
+                      if nd1' == nd2 then begin
+                        let es = self#find12 nd1 nd1' in
+                        try
+                          let rms, ms, ad = find_ed2 ~rms_only:true nd2 in
+                          Xlist.unionq rms es, ms, ad
+                        with
+                          Not_found -> raise Abort
+                      end
+                      else begin
+                        let m = nd1, nd1' in
+                        let es = self#find12 nd1 nd1' in
+                        let ins = make_insert nd1' in
+                        try
+                          let rms, ms, ad = find_ed2 nd2 in
+                          Xlist.unionq rms es, m :: ms, ins :: ad
+                        with
+                          Not_found -> raise Abort
+                      end
                     with
                       Not_found ->
                         try
-                          let uid2' = uidmapping#inv_find uid2 in
-                          let m = uid2', uid2 in
-                          let es = self#find12 uid2' uid2 in
-                          let del = make_delete (tree1#search_node_by_uid uid2') in
+                          let nd2' = nmapping#inv_find nd2 in
+                          let m = nd2', nd2 in
+                          let es = self#find12 nd2' nd2 in
+                          let del = make_delete nd2' in
                           try
-                            let rms, ms, ad = find_ed1 uid1 in
-                            rms @ es, m :: ms, del :: ad
+                            let rms, ms, ad = find_ed1 nd1 in
+                            Xlist.unionq rms es, m :: ms, del :: ad
                           with
                             Not_found -> raise Abort
-(*
-  try
-  let uid1' = uidmapping#find uid1 in
-  mov::(self#find12 uid1 uid1'), [uid1, uid1'; m], [make_insert (tree2#search_node_by_uid uid1');del]
-  with
-  Not_found -> [mov], [m], [del]
- *)
-
                         with
                           Not_found ->
-                            let dels = try [self#find_del uid1] with Not_found -> [] in
-                            let inss = try [self#find_ins uid2] with Not_found -> [] in
+                            let dels = try [self#find_del nd1] with Not_found -> [] in
+                            let inss = try [self#find_ins nd2] with Not_found -> [] in
                             dels @ inss, [], []
                   in
 
                   List.iter self#remove_edit to_be_removed;
                   List.iter
-                    (fun (u1, u2) ->
-                      DEBUG_MSG "removing %a-%a" ups u1 ups u2;
+                    (fun (n1, n2) ->
+                      DEBUG_MSG "removing %a-%a" nups n1 nups n2;
 
-                      let _ = uidmapping#remove u1 u2 in
+                      let _ = nmapping#remove n1 n2 in
 
-                      assert (not (uidmapping#mem_cod u2));
+                      assert (not (nmapping#mem_cod n2));
 
-                    ) umap_to_be_removed;
+                    ) nmap_to_be_removed;
                   List.iter self#add_edit to_be_added;
 
-                  DEBUG_MSG "adding %a-%a" ups uid1 ups uid2;
+                  DEBUG_MSG "adding %a-%a" nups nd1 nups nd2;
 
-                  ignore (uidmapping#add_unsettled uid1 uid2);
+                  ignore (nmapping#add_unsettled nd1 nd2);
                   used_matches := (nd1, nd2) :: !used_matches
                 with
                   Abort -> ()
@@ -4477,47 +4758,80 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     (* end of method shrink_moves *)
 
   method is_crossing_with_untouched
+      ?(full_scan=false)
       ?(mask=[])
       ?(incompatible_only=false)
-      ?(statement_only=false)
-      (uidmapping : 'node_t UIDmapping.c)
+      ?(weak=true)
+      (nmapping : 'node_t Node_mapping.c)
       nd1 nd2
       =
-    DEBUG_MSG "[incompatible_only=%B][statement_only=%B] %a-%a" incompatible_only statement_only nups nd1 nups nd2;
+    BEGIN_DEBUG
+      DEBUG_MSG "[full_scan=%B][incompatible_only=%B][weak=%B] %a-%a"
+        full_scan incompatible_only weak nups nd1 nups nd2;
+      List.iter
+        (fun (n1, n2) -> DEBUG_MSG "masked: %a-%a" nups n1 nups n2)
+        mask
+    END_DEBUG;
+
     let iter =
       if incompatible_only then
-        uidmapping#iter_incompatible_mapping
+        if full_scan then
+          nmapping#iter_incompatible_mapping
+        else
+          nmapping#iter_incompatible_mapping_rep
       else
-        uidmapping#iter_crossing_or_incompatible_mapping
+        if full_scan then
+          nmapping#iter_crossing_or_incompatible_mapping
+        else
+          let is_move = self#mem_mov12 in
+          nmapping#iter_crossing_or_incompatible_mapping_rep is_move
     in
+    let flag = ref false in
     try
       iter nd1 nd2
-        (fun u1 u2 ->
-(*
-          DEBUG_MSG "checking %a-%a" ups u1 ups u2;
-*)
-          if not (List.mem (u1, u2) mask) && not (self#mem_mov12 u1 u2) then begin
-            let n1 = uidmapping#search_node_by_uid1 u1 in
-            let n2 = uidmapping#search_node_by_uid2 u2 in
-            if
-              (not (is_ghost_node n1)) && (not (is_ghost_node n2)) &&
-              (not statement_only || n1#data#is_statement && n2#data#is_statement)
-            then begin
-              DEBUG_MSG "%a-%a is crossing with %a-%a" nugps nd1 nugps nd2 nugps n1 nugps n2;
+        (fun n1 n2 ->
+
+          DEBUG_MSG "checking %a-%a" nups n1 nups n2;
+
+          if
+            not (is_ghost_node n1) && not (is_ghost_node n2) &&
+            not (List.mem (n1, n2) mask)
+          then begin
+
+            if self#mem_mov12 n1 n2 then begin
+              DEBUG_MSG "mem_mov12 %a %a --> true" nups n1 nups n2;
+              flag := true
+            end
+            else begin
+              DEBUG_MSG "mem_mov12 %a %a --> false" nups n1 nups n2;
+              BEGIN_DEBUG
+                let mes =
+                  if incompatible_only then
+                    "is crossing with"
+                  else
+                    "is crossing or incompatible with"
+                in
+                DEBUG_MSG "%a-%a %s %a-%a" nugps nd1 nugps nd2 mes nugps n1 nugps n2;
+              END_DEBUG;
               raise Exit
             end
+
           end
         );
-      DEBUG_MSG "false";
-      false
+      let b = weak && !flag in
+      DEBUG_MSG "%B" b;
+      b
     with
-      Exit -> DEBUG_MSG "true"; true
+      Exit ->
+        DEBUG_MSG "true";
+        true
 
   method dump_delta
       ?(extra_ns_decls=([] : (string * string) list))
+      ?(info_file_path="")
       (tree1 : 'tree_t)
       (tree2 : 'tree_t)
-      (uidmapping : 'node_t UIDmapping.c)
+      (nmapping : 'node_t Node_mapping.c)
       (edits_copy : 'edits)
       (fname : string)
       =

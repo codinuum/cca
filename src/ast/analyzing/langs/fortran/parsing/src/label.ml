@@ -1,6 +1,6 @@
 (*
    Copyright 2013-2018 RIKEN
-   Copyright 2018-2020 Chiba Institude of Technology
+   Copyright 2018-2024 Chiba Institude of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1547,7 +1547,9 @@ let has_non_trivial_value lab = (* not yet *)
   with
     Not_found -> false
 
-let get_name = function
+let has_non_trivial_tid lab = false (* not yet *)
+
+let get_name ?(strip=false) = function
   | Name n
   | VariableName n
   | FunctionReference n

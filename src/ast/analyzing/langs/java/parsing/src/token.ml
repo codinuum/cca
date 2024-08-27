@@ -31,12 +31,29 @@ let rawtoken_to_string = function
   | GT_7         -> "GT_7"
   | EOP          -> "EOP"
 
+  | EXPORTS _    -> "EXPORTS"
+  | MODULE _     -> "MODULE"
+  | NON_SEALED _ -> "NON_SEALED"
+  | OPEN _       -> "OPEN"
+  | OPENS _      -> "OPENS"
+  | PERMITS _    -> "PERMITS"
+  | PROVIDES _   -> "PROVIDES"
+  | RECORD _     -> "RECORD"
+  | REQUIRES _   -> "REQUIRES"
+  | SEALED _     -> "SEALED"
+  | TO _         -> "TO"
+  | TRANSITIVE _ -> "TRANSITIVE"
+  | USES _       -> "USES"
+  | VAR _        -> "VAR"
+  | WITH_ _      -> "WITH_"
+  | YIELD _      -> "YIELD"
 
   | IDENTIFIER(_, s)         -> "IDENTIFIER:" ^ s
   | INTEGER_LITERAL i        -> "INTEGER_LITERAL:" ^ i
   | FLOATING_POINT_LITERAL f -> "FLOATING_POINT_LITERAL:" ^ f
   | CHARACTER_LITERAL c      -> "CHARACTER_LITERAL:" ^ c
   | STRING_LITERAL s         -> "STRING_LITERAL:" ^ s
+  | TEXT_BLOCK s             -> "TEXT_BLOCK:" ^ s
   | TRUE                     -> "TRUE"
   | FALSE                    -> "FALSE"
   | NULL                     -> "NULL"
@@ -85,6 +102,7 @@ let rawtoken_to_string = function
   | PLUS_EQ     -> "PLUS_EQ"
   | MINUS_EQ    -> "MINUS_EQ"
   | MINUS_GT    -> "MINUS_GT"
+  | MINUS_GT__CASE -> "MINUS_GT__CASE"
   | STAR_EQ     -> "STAR_EQ"
   | SLASH_EQ    -> "SLASH_EQ"
   | AND_EQ      -> "AND_EQ"
@@ -166,12 +184,29 @@ let rawtoken_to_orig = function
   | GT_7         -> ">>>>>>>"
   | EOP          -> ""
 
+  | EXPORTS _    -> "exports"
+  | MODULE _     -> "module"
+  | NON_SEALED _ -> "non-sealed"
+  | OPEN _       -> "open"
+  | OPENS _      -> "opens"
+  | PERMITS _    -> "permits"
+  | PROVIDES _   -> "provides"
+  | RECORD _     -> "record"
+  | REQUIRES _   -> "requires"
+  | SEALED _     -> "sealed"
+  | TO _         -> "to"
+  | TRANSITIVE _ -> "transitive"
+  | USES _       -> "uses"
+  | VAR _        -> "var"
+  | WITH_ _      -> "with"
+  | YIELD _      -> "yield"
 
   | IDENTIFIER(_, s)         -> s
   | INTEGER_LITERAL i        -> i
   | FLOATING_POINT_LITERAL f -> f
   | CHARACTER_LITERAL c      -> c
   | STRING_LITERAL s         -> s
+  | TEXT_BLOCK s             -> s
   | TRUE                     -> "true"
   | FALSE                    -> "false"
   | NULL                     -> "null"
@@ -220,6 +255,7 @@ let rawtoken_to_orig = function
   | PLUS_EQ     -> "+="
   | MINUS_EQ    -> "-="
   | MINUS_GT    -> "->"
+  | MINUS_GT__CASE -> "->"
   | STAR_EQ     -> "*="
   | SLASH_EQ    -> "/="
   | AND_EQ      -> "&="

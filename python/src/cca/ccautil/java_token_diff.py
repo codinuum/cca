@@ -3,7 +3,7 @@
 '''
   java_token_diff.py
 
-  Copyright 2018-2019 Chiba Institute of Technology
+  Copyright 2018-2024 Chiba Institute of Technology
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -131,38 +131,33 @@ def diff_to_str(d, toks1, toks2):
     if dels:
         for ((a, b), _) in dels:
             pre, post = get_pre_context(toks1, a), get_post_context(toks1, b)
-            lines.append('[DELETE] {}-{} ({}):\n'.format(a, b-1, b-a))
-            lines.append('  {}\n'.format(pre))
+            lines.append(f'[DELETE] {a}-{b-1} ({b-a}):\n')
+            lines.append(f'  {pre}\n')
             lines.append('- ')
             lines.append(' '.join(toks1[a:b]))
             lines.append('\n')
-            lines.append('  {}\n'.format(post))
+            lines.append(f'  {post}\n')
     if repls:
         for ((a, b), (a2, b2)) in repls:
             pre, post = get_pre_context(toks1, a), get_post_context(toks1, b)
-            lines.append('[REPLACE] {}-{} -> {}-{} ({}->{}):\n'.format(a,
-                                                                       b-1,
-                                                                       a2,
-                                                                       b2-1,
-                                                                       b-a,
-                                                                       b2-a2))
-            lines.append('  {}\n'.format(pre))
+            lines.append(f'[REPLACE] {a}-{b-1} -> {a2}-{b2-1} ({b-a}->{b2-a2}):\n')
+            lines.append(f'  {pre}\n')
             lines.append('- ')
             lines.append(' '.join(toks1[a:b]))
             lines.append('\n-----\n')
             lines.append('+ ')
             lines.append(' '.join(toks2[a2:b2]))
             lines.append('\n')
-            lines.append('  {}\n'.format(post))
+            lines.append(f'  {post}\n')
     if inss:
         for ((i, _), (a, b)) in inss:
             pre, post = get_context(toks1, i)
-            lines.append('[INSERT] {} -> {}-{} ({}):\n'.format(i, a, b-1, b-a))
+            lines.append(f'[INSERT] {i} -> {a}-{b-1} ({b-a}):\n')
             lines.append('  {}\n'.format(pre))
             lines.append('+ ')
             lines.append(' '.join(toks2[a:b]))
             lines.append('\n')
-            lines.append('  {}\n'.format(post))
+            lines.append(f'  {post}\n')
 
     s = ''.join(lines)
 
@@ -206,7 +201,7 @@ def is_equivalent_file(path1, path2):
         logger.info('same files')
         return True
 
-    logger.info('comparing {} with {}'.format(path1, path2))
+    logger.debug(f'comparing {path1} with {path2}')
 
     toks1 = get_tokens(path1)
     toks2 = get_tokens(path2)
@@ -219,7 +214,7 @@ def all_different(paths):
     for i in range(n-1):
         for j in range(i+1, n):
             if filecmp.cmp(paths[i], paths[j], shallow=False):
-                logger.info('same files: {} {}'.format(paths[i], paths[j]))
+                logger.info(f'same files: {paths[i]} {paths[j]}')
                 return False
 
     toks_list = [None for _ in paths]
@@ -231,8 +226,7 @@ def all_different(paths):
             if toks_list[j] is None:
                 toks_list[j] = get_tokens(paths[j])
             if toks_list[i] is toks_list[j]:
-                logger.info('equivalent files: {} {}'
-                            .format(paths[i], paths[j]))
+                logger.info(f'equivalent files: {paths[i]} {paths[j]}')
                 return False
 
     return True
@@ -246,7 +240,7 @@ def compare_files(path1, path2, simple=False):
         logger.info('different files')
         return {}
 
-    logger.info('comparing {} with {}'.format(path1, path2))
+    logger.debug(f'comparing {path1} with {path2}')
 
     toks1 = get_tokens(path1)
     toks2 = get_tokens(path2)
@@ -358,7 +352,7 @@ def main():
         if r:
             d = r['diff']
             if d:
-                logger.debug('differences:\n{}'.format(d))
+                logger.debug(f'differences:\n{d}')
             c = r['count']
 
     elif os.path.isdir(args.path1) and os.path.isdir(args.path2):

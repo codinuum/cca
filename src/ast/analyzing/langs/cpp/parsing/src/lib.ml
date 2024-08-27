@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ module Aux = Parser_aux
 module PB = Parserlib_base
 module C = Context
 module T = Tokens_
+module L = Label
 
 let printf = Printf.printf
 let fprintf = Printf.fprintf
@@ -37,11 +38,12 @@ class parser_c = object (self)
 
   val mutable token_hist_flag = false
   val mutable parse_macro_defs_flag = true
+  val mutable dump_tokens_flag = false
 
   val mutable scanner = Obj.magic ()
   val mutable _parse = fun () -> Obj.magic ()
 
-  val mutable mode = Scanner.M_NORMAL
+  val mutable mode = Aux.M_NORMAL
 
   val mutable tokens_read = 0
 
@@ -51,6 +53,11 @@ class parser_c = object (self)
 
   method clear_parse_macro_defs_flag () =
     parse_macro_defs_flag <- false
+
+  method set_dump_tokens_flag () =
+    dump_tokens_flag <- true;
+    env#set_dump_tokens_flag();
+    scanner#set_dump_tokens_flag()
 
   method make_source file  = new Source.c file
   method make_source_stdin = new Source.c Storage.stdin
@@ -75,13 +82,15 @@ class parser_c = object (self)
 
     scanner <- new Scan.c env;
 
+    let token_seq = scanner#token_seq in
+
     let replay_success_callback () =
       DEBUG_MSG "called";
       (*menv_backup_obj := None*)
     in
     scanner#register_replay_success_callback replay_success_callback;
 
-    let terminal_to_string : type a . a T.terminal -> string = function
+    let terminal_to_string : type a . a I.terminal -> string = function
       | T_ACC_SPEC_MACRO -> "ACC_SPEC_MACRO"
       | T_ALIGNAS -> "ALIGNAS"
       | T_ALIGNOF -> "ALIGNOF"
@@ -164,7 +173,7 @@ class parser_c = object (self)
       | T_DEFAULT -> "DEFAULT"
       | T_DEFINED -> "DEFINED"
       | T_DELETE -> "DELETE"
-      | T_DELIM_MACRO -> "DELIM_MACROE"
+      | T_DELIM_MACRO -> "DELIM_MACRO"
       | T_DO -> "DO"
       | T_DOT -> "DOT"
       | T_DOT_STAR -> "DOT_STAR"
@@ -174,6 +183,7 @@ class parser_c = object (self)
       | T_DTOR_MACRO -> "DTOR_MACRO"
       | T_DUMMY_BODY -> "DUMMY_BODY"
       | T_DUMMY_DTOR -> "DUMMY_DTOR"
+      | T_DUMMY_OP -> "DUMMY_OP"
       | T_DUMMY_EXPR -> "DUMMY_EXPR"
       | T_DUMMY_STMT -> "DUMMY_STMT"
       | T_DUMMY_TYPE -> "DUMMY_TYPE"
@@ -362,6 +372,7 @@ class parser_c = object (self)
       | T_PLUS -> "PLUS"
       | T_PLUS_EQ -> "PLUS_EQ"
       | T_PLUS_PLUS -> "PLUS_PLUS"
+      | T_PMODE -> "PMODE"
       | T_PP_ -> "PP_"
       | T_PP_DEFINE -> "PP_DEFINE"
       | T_PP_ELIF -> "PP_ELIF"
@@ -461,6 +472,7 @@ class parser_c = object (self)
       | T_QUEST -> "QUEST"
       | T_RBRACE -> "RBRACE"
       | T_RBRACKET -> "RBRACKET"
+      | T_REF_MACRO -> "REF_MACRO"
       | T_REGISTER -> "REGISTER"
       | T_REINTERPRET_CAST -> "REINTERPRET_CAST"
       | T_REQUIRES -> "REQUIRES"
@@ -579,6 +591,7 @@ class parser_c = object (self)
       | N__static_assert_declaration -> "_static_assert_declaration"
       | N__type_specifier_seq -> "_type_specifier_seq"
       | N__using_declaration -> "_using_declaration"
+      | N__using_enum_declaration -> "_using_enum_declaration"
       | N__using_directive -> "_using_directive"
       | N_abstract_declarator -> "abstract_declarator"
       | N_abstract_pack_declarator -> "abstract_pack_declarator"
@@ -762,6 +775,7 @@ class parser_c = object (self)
       | N_list_pp_a_elif_group_ -> "list(pp_a_elif_group)"
       | N_list_pp_aexpr_elif_group_ -> "list(pp_aexpr_elif_group)"
       | N_list_pp_aexpr_elif_group_closing_ -> "list(pp_aexpr_elif_group)"
+      | N_list_pp_args_elif_group_close_open_ -> "list(pp_args_elif_group_close_open)"
       | N_list_pp_args_elif_group_closing_ -> "list(pp_args_elif_group_closing)"
       | N_list_pp_attr_elif_group_ -> "list(pp_attr_elif_group)"
       | N_list_pp_base_clause_elif_group_ -> "list(pp_base_clause_elif_group)"
@@ -795,6 +809,7 @@ class parser_c = object (self)
       | N_list_pp_idtor_elif_group_ -> "list(pp_idtor_elif_group)"
       | N_list_pp_ifstmt_elif_group_closing_ -> "list(pp_ifstmt_elif_group_closing)"
       | N_list_pp_init_elif_group_ -> "list(pp_init_elif_group)"
+      | N_list_pp_init_elif_group_closing_ -> "list(pp_init_elif_group_closing)"
       | N_list_pp_ior_elif_group_ -> "list(pp_ior_elif_group)"
       | N_list_pp_lambda_head_elif_group_broken_ -> "list(pp_lambda_head_elif_group_broken)"
       | N_list_pp_land_elif_group_ -> "list(pp_land_elif_group)"
@@ -884,6 +899,7 @@ class parser_c = object (self)
       | N_nonempty_list_gnu_asm_token_ -> "nonempty_list(gnu_asm_token)"
       | N_nonempty_list_header_name_token_ -> "nonempty_list(header_name_token)"
       | N_nonempty_list_multiplicative_unit_ -> "nonempty_list(multiplicative_unit)"
+      | N_nonempty_list_namespace_definition_ -> "nonempty_list(namespace_definition)"
       | N_nonempty_list_objc_catch_clause_ -> "nonempty_list(objc_catch_clause)"
       | N_nonempty_list_objc_instance_var_decl_ -> "nonempty_list(objc_instance_var_decl)"
       | N_nonempty_list_objc_keyword_arg_ -> "nonempty_list(objc_keyword_arg)"
@@ -990,9 +1006,13 @@ class parser_c = object (self)
       | N_pp_aexpr_if_group_closing -> "pp_aexpr_if_group_closing"
       | N_pp_aexpr_if_section_closing -> "pp_aexpr_if_section_closing"
 
+      | N_pp_args_elif_group_close_open -> "pp_args_elif_group_close_open"
       | N_pp_args_elif_group_closing -> "pp_args_elif_group_closing"
+      | N_pp_args_else_group_close_open -> "pp_args_else_group_close_open"
       | N_pp_args_else_group_closing -> "pp_args_else_group_closing"
+      | N_pp_args_if_group_close_open -> "pp_args_if_group_close_open"
       | N_pp_args_if_group_closing -> "pp_args_if_group_closing"
+      | N_pp_args_if_section_close_open -> "pp_args_if_section_close_open"
       | N_pp_args_if_section_closing -> "pp_args_if_section_closing"
       | N_pp_attr_elif_group -> "pp_attr_elif_group"
       | N_pp_attr_else_group -> "pp_attr_else_group"
@@ -1141,9 +1161,13 @@ class parser_c = object (self)
       | N_pp_ifx_shift -> "pp_ifx_shift"
       | N_pp_ifx_x -> "pp_ifx_x"
       | N_pp_init_elif_group -> "pp_init_elif_group"
+      | N_pp_init_elif_group_closing -> "pp_init_elif_group_closing"
       | N_pp_init_else_group -> "pp_init_else_group"
+      | N_pp_init_else_group_closing -> "pp_init_else_group_closing"
       | N_pp_init_if_group -> "pp_init_if_group"
+      | N_pp_init_if_group_closing -> "pp_init_if_group_closing"
       | N_pp_init_if_section -> "pp_init_if_section"
+      | N_pp_init_if_section_closing -> "pp_init_if_section_closing"
       | N_pp_ior_elif_group -> "pp_ior_elif_group"
       | N_pp_ior_else_group -> "pp_ior_else_group"
       | N_pp_ior_if_group -> "pp_ior_if_group"
@@ -1346,7 +1370,9 @@ class parser_c = object (self)
       | N_unnamed_namespace_definition_head -> "unnamed_namespace_definition_head"
       | N_unqualified_id -> "unqualified_id"
       | N_using_declaration -> "using_declaration"
+      | N_using_enum_declaration -> "using_enum_declaration"
       | N_using_declarator -> "using_declarator"
+      | N_using_enum_declarator -> "using_enum_declarator"
       | N_using_declarator_list -> "using_declarator_list"
       | N_virt_specifier -> "virt_specifier"
       | N_virt_specifier_seq -> "virt_specifier_seq"
@@ -1465,17 +1491,17 @@ class parser_c = object (self)
           loop ckpt
       end
       | I.Shifting (_menv, menv_, b) -> begin
-          DEBUG_MSG "\n%a" (pr_menv "shift" 0) menv_;
-          for ith = 1 to 9 do
-            BEGIN_DEBUG
-            match I.get ith menv_ with
-            | Some _ -> DEBUG_MSG "\n%a" (pr_menv "shift" ith) menv_
-            | _ -> ()
-                  END_DEBUG
-          done;
+          BEGIN_DEBUG
+            DEBUG_MSG "\n%a" (pr_menv "shift" 0) menv_;
+            for ith = 1 to 9 do
+              match I.get ith menv_ with
+              | Some _ -> DEBUG_MSG "\n%a" (pr_menv "shift" ith) menv_
+              | _ -> ()
+            done
+          END_DEBUG;
 
           let ctx_start_of_stmt sn =
-            DEBUG_MSG "called";
+            DEBUG_MSG "sn=%d" sn;
             menv_backup_obj := Some menv_;
             scanner#ctx_start_of_stmt sn
           in
@@ -1542,13 +1568,66 @@ class parser_c = object (self)
                 env#set_new_flag();
                 raise Exit
             end
+            | I.X (I.N N_concept_definition), _, I.X (I.T T_CONCEPT) -> begin
+                env#set_concept_flag();
+                raise Exit
+            end
+            | I.X (I.N N_concept_definition), _, I.X (I.T T_SEMICOLON) -> begin
+                env#clear_concept_flag();
+                raise Exit
+            end
             | I.X (I.N N_new_placement), _, I.X (I.T T_RPAREN) -> begin
                 scanner#ctx_new();
                 scanner#ctx_ini();
                 raise Exit
             end
+            | I.X (I.N N_logical_and_expression), _, I.X (I.T T_AMP_AMP) -> begin
+                env#set_expr_flag();
+                raise Exit
+            end
+            | I.X (I.N N_type_requirement), _, I.X (I.T T_SEMICOLON) -> begin
+                env#exit_typename();
+                raise Exit
+            end
+            | I.X (I.N N_requires_clause), _, I.X (I.T T_REQUIRES) -> begin
+                env#set_requires_clause_flag();
+                raise Exit
+            end
+            | I.X (I.N N_requirement_body), _, I.X (I.T T_LBRACE) -> begin
+                scanner#ctx_expr();
+                scanner#ctx_ini();
+                scanner#enter_block();
+                raise Exit
+            end
+
+            | I.X (I.N N_requirement_body), _, I.X (I.T T_RBRACE) -> begin
+                env#stack#exit_block();
+                iter_items ~ith:5 menv_
+                  (function
+                    | _, I.X (I.N N_template_head), _, I.X (I.T T_TEMPL_GT), _ -> begin
+                        scanner#ctx_top();
+                        scanner#ctx_ini();
+                        raise Exit
+                    end
+                    | _ -> ()
+                  );
+                raise Exit
+            end
+            | I.X (I.N N_attribute_specifier), _ , I.X (I.T T_ATTR_LBRACKET) -> begin
+                scanner#push_context();
+                scanner#push_sub_context();
+                raise Exit
+            end
+            | I.X (I.N N_attribute_specifier), _ , I.X (I.T T_RBRACKET) when i = 5 -> begin
+                env#clear_attr_flag();
+                scanner#pop_context();
+                scanner#pop_sub_context();
+                raise Exit
+            end
+
             | _ -> ()
-          in
+          in (* let _proc_shift0 *)
+
           let _proc_shift1 (_, l, rs, r, i) =
             match l, rs, r with
             | I.X (I.N N_nodeclspec_function_definition), _, I.X (I.T T_SEMICOLON) -> begin
@@ -1571,10 +1650,6 @@ class parser_c = object (self)
                 env#set_attr_flag();
                 raise Exit
             end
-            | I.X (I.N N_attribute_specifier), _ , I.X (I.T T_RBRACKET) -> begin
-                env#clear_attr_flag();
-                raise Exit
-            end
             | I.X (I.N N_unqualified_id), _ , I.X (I.T T_IDENT_V) -> begin
                 (*iter_items_w ~from_ith:2 ~to_ith:2 menv_
                   (function
@@ -1594,20 +1669,28 @@ class parser_c = object (self)
                   );
                 raise Exit
             end
-            | I.X (I.N N_simple_type_specifier), _ , x when begin
+            (*| I.X (I.N N_simple_type_specifier), _ , x when begin
                 match x with
                 | I.X (I.T T_CHAR) | I.X (I.T T_CHAR8_T) | I.X (I.T T_CHAR16_T)
                 | I.X (I.T T_CHAR32_T) | I.X (I.T T_WCHAR_T) | I.X (I.T T_BOOL)
                 | I.X (I.T T_SHORT) | I.X (I.T T_INT) | I.X (I.T T_LONG)
-                | I.X (I.T T_SIGNED) | I.X (I.T T_UNSIGNED) | I.X (I.T T_IDENT)
+                | I.X (I.T T_SIGNED) | I.X (I.T T_UNSIGNED)
                 | I.X (I.T T_FLOAT) | I.X (I.T T_DOUBLE) | I.X (I.T T_VOID) -> true
+                | I.X (I.T T_IDENT) -> true
                 | _ -> false
             end -> begin
               iter_items_w ~from_ith:4 ~to_ith:7 menv_
                 (function
-                  | sn, I.X (I.N N_unary_expression), _, _, _ -> begin
+                  | sn, I.X (I.N N_unary_expression), xl, _, _ -> begin
+                      match xl with
+                      | I.X (I.T T_SIZEOF)::I.X (I.T T_TY_LPAREN)::_ -> raise Exit
+                      | I.X (I.N N_postfix_expression)::_ -> raise Exit
+                      | _ ->
                       if
-                        scanner#peek_rawtoken() != TY_TEMPL_GT ||
+                        (match scanner#peek_rawtoken() with
+                        | TY_TEMPL_GT -> false
+                        | GT_GT when env#templ_param_arg_level > 1 -> false
+                        | _ -> true) ||
                         match scanner#peek_nth_rawtoken 2 with
                         | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
                             match scanner#peek_nth_rawtoken 3 with
@@ -1626,7 +1709,7 @@ class parser_c = object (self)
                   | _ -> ()
                 );
               raise Exit
-            end
+            end*)
             | I.X (I.N N__namespace_alias_definition), _, I.X (I.T T_EQ) -> begin
                 env#set_ns_alias_flag();
                 raise Exit
@@ -1670,7 +1753,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_idtor_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
-                env#set_pp_top_label Label.InitDeclarator;
+                env#set_pp_top_label L.InitDeclarator;
                 scanner#ctx_top();
                 scanner#ctx_ini();
                 raise Exit
@@ -1808,6 +1891,10 @@ class parser_c = object (self)
                 env#set_end_of_id_macro_call_flag();
                 raise Exit
             end
+            | I.X (I.N N_requirement_parameter_list), _, I.X (I.T T_RPAREN) -> begin
+                env#set_end_of_req_params_flag();
+                raise Exit
+            end
             | I.X (I.N N_noexcept_specifier), _, I.X (I.T T_LPAREN) -> begin
                 env#enter_noexcept();
                 raise Exit
@@ -1844,6 +1931,10 @@ class parser_c = object (self)
             end
             | I.X (I.N N_fold_expression), _, I.X (I.T T_RPAREN) -> begin
                 scanner#pop_context();
+                raise Exit
+            end
+            | I.X (I.N N_unary_operator), _, I.X (I.T T_EXCLAM) -> begin
+                env#set_expr_flag();
                 raise Exit
             end
             | I.X (I.N N_unary_expression), I.X (I.T T_SIZEOF)::_, I.X (I.T T_RPAREN) -> begin
@@ -1959,21 +2050,21 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_pp_str_if_group), _, I.X (I.T T_STR_LITERAL) -> begin
-                env#set_pp_top_label (Label.StringLiteral "");
+                env#set_pp_top_label (L.StringLiteral "");
                 raise Exit
             end
             | I.X (I.N N_pp_str_elif_group), _, I.X (I.T T_STR_LITERAL) -> begin
-                env#set_pp_top_label (Label.StringLiteral "");
+                env#set_pp_top_label (L.StringLiteral "");
                 raise Exit
             end
             | I.X (I.N N_pp_str_else_group), _, I.X (I.T T_STR_LITERAL) -> begin
-                env#set_pp_top_label (Label.StringLiteral "");
+                env#set_pp_top_label (L.StringLiteral "");
                 raise Exit
             end
             | I.X (I.N N_pp_str_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
-                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | StringLiteral _ -> env#set_pp_top_label (L.StringLiteral ";");
                   | _ -> ()
                 end;
                 raise Exit
@@ -1981,7 +2072,7 @@ class parser_c = object (self)
             | I.X (I.N N_pp_str_elif_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
-                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | StringLiteral _ -> env#set_pp_top_label (L.StringLiteral ";");
                   | _ -> ()
                 end;
                 raise Exit
@@ -1989,13 +2080,13 @@ class parser_c = object (self)
             | I.X (I.N N_pp_str_else_group), _, I.X (I.T T_SEMICOLON) -> begin
                 begin
                   match env#pp_top_label with
-                  | StringLiteral _ -> env#set_pp_top_label (Label.StringLiteral ";");
+                  | StringLiteral _ -> env#set_pp_top_label (L.StringLiteral ";");
                   | _ -> ()
                 end;
                 raise Exit
             end
             | I.X (I.N N_pp_lor_if_group), _, I.X (I.T T_SEMICOLON) -> begin
-                env#set_pp_top_label (Label.LogicalOrExpression ";");
+                env#set_pp_top_label (L.LogicalOrExpression ";");
                 raise Exit
             end
             | I.X (I.N N_op_macro_call), _ , I.X (I.T T_LPAREN) -> begin
@@ -2007,6 +2098,8 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_ty_macro_call), _ , I.X (I.T T_LPAREN) -> begin
+                (*scanner#push_context();
+                scanner#push_sub_context();*)
                 env#enter_macro_arg();
                 raise Exit
             end
@@ -2014,6 +2107,8 @@ class parser_c = object (self)
                 scanner#ctx_end_of_ty_spec();
                 env#exit_macro_arg();
                 env#set_end_of_type_macro_call_flag();
+                (*scanner#pop_context();
+                scanner#pop_sub_context();*)
                 raise Exit
             end
             | I.X (I.N N_macro_arg_list), _ , I.X (I.T T_COMMA) -> begin
@@ -2103,6 +2198,11 @@ class parser_c = object (self)
                 env#exit_asm_block();
                 raise Exit
             end
+            | _ -> ()
+          in (* let _proc_shift1 *)
+
+          let _proc_shift2 (_, l, rs, r, i) =
+            match l, rs, r with
             | I.X (I.N N_additive_expression), _, I.X (I.T _) -> begin
                 if env#templ_param_arg_level = 0 then begin
                   scanner#ctx_expr();
@@ -2136,6 +2236,10 @@ class parser_c = object (self)
             | I.X (I.N N_declaration), I.X (I.N N_pp_decl_if_section_broken)::I.X (I.T T_MARKER)::_,
                 I.X (I.T T_RBRACE) -> begin
                 scanner#ctx_top();
+                scanner#ctx_ini()
+            end
+            | I.X (I.N N_declaration), _, I.X (I.T T_MARKER) -> begin
+                scanner#ctx_stmt();
                 scanner#ctx_ini()
             end
             | I.X (I.N N_member_declaration), I.X (I.N N_pp_func_head_if_section_broken)::_,
@@ -2793,11 +2897,13 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_lambda_declarator), _, I.X (I.T T_TY_LPAREN) -> begin
+                env#stack#enter_params();
                 env#set_lambda_dtor_flag();
                 raise Exit
             end
             | I.X (I.N N_lambda_declarator), _, I.X (I.T T_RPAREN) -> begin
                 env#set_end_of_params_flag();
+                env#stack#exit_params();
                 raise Exit
             end
             | I.X (I.N N_id_macro_call), _, I.X (I.T T_LPAREN) -> begin
@@ -2902,6 +3008,10 @@ class parser_c = object (self)
                 env#clear_linkage_spec_flag();
                 raise Exit
             end
+            | I.X (I.N N__lambda_expression), _, I.X (I.T T_TEMPL_GT) -> begin
+                env#set_end_of_lambda_templ_flag();
+                raise Exit
+            end
             | I.X (I.N N_compound_statement), _, I.X (I.T T_LBRACE) -> begin
                 DEBUG_MSG "@";
                 env#clear_virtual_func_flag();
@@ -2921,6 +3031,9 @@ class parser_c = object (self)
                             env#set_body_head_flag();
                             env#set_in_body_brace_flag();
                             scanner#set_body_flag();
+                            token_seq#set_func_body_flag();
+                            token_seq#add_token (T.IDENT_V "<func>");
+                            token_seq#add_token T.LBRACE;
                             raise Exit
                         end
                         | _, I.X (I.N N_declaration), _, _, _ -> begin
@@ -3030,6 +3143,8 @@ class parser_c = object (self)
                         | _, I.X (I.N N_function_definition), _, _, _ -> begin
                             scanner#ctx_reset();
                             env#clear_in_body_brace_flag();
+                            token_seq#add_token T.EOF;
+                            token_seq#clear_func_body_flag();
                             raise Exit
                         end
                         | _, I.X (I.N N_declaration), _, _, _ -> begin
@@ -3077,6 +3192,12 @@ class parser_c = object (self)
                 end;
                 raise Exit
             end
+            | _ -> ()
+
+          in (* let _proc_shift2 *)
+
+          let _proc_shift3 (_, l, rs, r, i) =
+            match l, rs, r with
             | I.X (I.N N_iteration_statement), I.X (I.T T_FOR)::_, I.X (I.T T_COLON) -> begin
                 scanner#ctx_expr();
                 env#set_for_range_init_flag();
@@ -3215,9 +3336,14 @@ class parser_c = object (self)
                   | I.X (I.N N_cast_key), I.X (I.T T_TEMPL_LT) -> env#enter_templ_arg false
                   | I.X (I.N N_cast_key), I.X (I.T T_TEMPL_GT) -> env#exit_templ_arg()
                   | I.X (I.N N_postfix_expression), I.X (I.T T_RPAREN) -> env#set_expr_flag()
+
                   | I.X (I.T T_TY_LPAREN), I.X (I.T T_TY_LPAREN) when begin
-                      not env#sizeof_ty_flag && scanner#prev_rawtoken2 != T.SIZEOF
+                      not env#sizeof_ty_flag &&
+                      match scanner#prev_rawtoken2 with
+                      | SIZEOF -> false
+                      | _ -> true
                   end -> env#set_cast_head_flag()
+
                   | I.X (I.T T_TY_LPAREN), I.X (I.T T_RPAREN) -> begin
                       scanner#ctx_expr();
                       if env#cast_head_flag then begin
@@ -3291,12 +3417,30 @@ class parser_c = object (self)
                             ctx_start_of_stmt sn;
                             raise Exit
                         end
+                        | sn, I.X (I.N N_statement_seq_opt), _, _, _ -> begin
+                            ctx_start_of_stmt sn;
+                            raise Exit
+                        end
+                        | sn, I.X (I.N N__statement_seq), _, _, _ -> begin
+                            ctx_start_of_stmt sn;
+                            raise Exit
+                        end
                         | _ -> ()
                       );
                     iter_items_w ~from_ith:2 ~to_ith:6 menv_
                       (fun item ->
                         flag := false;
                         match item with
+                        | sn, I.X (I.N N_pp_stmt_if_group_broken), _, _, _
+                        | sn, I.X (I.N N_pp_stmt_elif_group_broken), _, _, _
+                        | sn, I.X (I.N N_pp_stmt_else_group_broken), _, _, _ when begin
+                            match x with
+                            | I.X (I.N N_decl_OR_expr) -> true
+                            | _ -> false
+                        end -> begin
+                          ctx_start_of_stmt sn;
+                          raise Exit
+                        end
                         | sn, I.X (I.N N_compound_statement), _, _, _ -> begin
                             ctx_start_of_stmt sn;
                             raise Exit
@@ -3493,6 +3637,12 @@ class parser_c = object (self)
                 env#set_end_of_attr_macro_call_flag();
                 raise Exit
             end
+
+            | _ -> ()
+          in (* let _proc_shift3 *)
+
+          let _proc_shift4 (_, l, rs, r, i) =
+            match l, rs, r with
             | I.X (I.N N_gnu_asm_attr), _, I.X (I.T T_RPAREN) -> begin
                 env#set_end_of_attr_macro_call_flag();
                 raise Exit
@@ -3677,6 +3827,8 @@ class parser_c = object (self)
                   )
             end
             | I.X (I.N N_pp_elif), _, I.X (I.T T_NEWLINE) -> begin
+                env#exit_pp_group();
+                env#enter_pp_group();
                 env#clear_end_of_params_flag();
                 scanner#pp_restore_context();
                 if env#get_broken_info() then begin
@@ -3720,6 +3872,8 @@ class parser_c = object (self)
                 raise Exit
             end
             | I.X (I.N N_pp_else), _, I.X (I.T T_NEWLINE) -> begin
+                env#exit_pp_group();
+                env#enter_pp_group();
                 env#clear_end_of_params_flag();
                 scanner#pp_restore_context();
                 if env#get_broken_info() then begin
@@ -3991,6 +4145,7 @@ class parser_c = object (self)
                   List.length (get_items _menv) = 1 ||
                   (*DEPRECATED!scanner#sub_context == END_OF_TY_SPEC ||*)
                   begin
+                    env#pstat#was_at_type_paren ||
                     try
                       iter_items_w ~from_ith:1 ~to_ith:2 menv_
                         (function
@@ -4077,6 +4232,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_assignment_operator), _, _ -> begin
                 scanner#ctx_expr();
+                env#set_rhs_flag();
                 raise Exit
             end
             (*| I.X (I.N N_pp_a_if_group), _, I.X (I.T T_LT_LT) -> begin
@@ -4222,6 +4378,19 @@ class parser_c = object (self)
                 raise Exit
             end
 
+            | I.X (I.N N_pp_init_if_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_init_elif_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+            | I.X (I.N N_pp_init_else_group_closing), rhs, I.X (I.T T_SEMICOLON) -> begin
+                env#set_semicolon_info();
+                raise Exit
+            end
+
             | I.X (I.N N_pp_cond_tl_if_group), rhs, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
                 raise Exit
@@ -4282,7 +4451,7 @@ class parser_c = object (self)
                 end
                 | _ -> begin
                     begin
-                      iter_items_w ~from_ith:5 ~to_ith:5 menv_
+                      iter_items_w ~from_ith:5 ~to_ith:6 menv_
                         (function
                           | sn, I.X (I.N N_odd_else_stmt), _, I.X (I.T T_ELSE), _ -> begin
                               scanner#enter_block();
@@ -4376,6 +4545,10 @@ class parser_c = object (self)
                 end
                 | _ -> ()
             end
+            | I.X (I.N N_explicit_instantiation), _, I.X (I.T T_TEMPLATE) -> begin
+                env#set_templ_flag();
+                raise Exit
+            end
             (*| I.X (I.N N_pp_decl_elif_group), _, I.X (I.T T_LBRACE) -> begin
                 env#pstat#close_brace();
                 raise Exit
@@ -4396,14 +4569,15 @@ class parser_c = object (self)
                 end;
                 raise Exit
             end*)
-
             | _ -> ()
-
-          in (* let _proc_shift1 *)
+          in (* let _proc_shift4 *)
 
           let proc_shift x =
             _proc_shift0 x;
-            _proc_shift1 x
+            _proc_shift1 x;
+            _proc_shift2 x;
+            _proc_shift3 x;
+            _proc_shift4 x
           in
 
           let proc_shift_objc (_, l, rs, r, i) =
@@ -4569,6 +4743,7 @@ class parser_c = object (self)
             DEBUG_MSG "%s <- %s\n"
               (xsymbol_to_string lhs) (Xlist.to_string xsymbol_to_string " " rhs);
             match lhs with
+            | I.X (I.N N_requires_clause)        -> env#clear_requires_clause_flag()
             | I.X (I.N N_declarator)             -> scanner#ctx_end_of_dtor(); env#clear_class_name_flag()
             | I.X (I.N N_id_expression)          -> scanner#ctx_end_of_id_expr()
             | I.X (I.N N_new_expression)         -> env#clear_new_flag()
@@ -4587,8 +4762,9 @@ class parser_c = object (self)
             | I.X (I.N N__using_directive)       -> env#clear_using_ns_flag()
             | I.X (I.N N__asm_declaration)       -> env#exit_asm()
             (*| I.X (I.N N_enum_head)              -> env#exit_enum_head()*)
+            | I.X (I.N N__lambda_expression)     -> env#clear_end_of_lambda_templ_flag()
             | I.X (I.N N_lambda_expression)      -> scanner#pop_context()
-            | I.X (I.N N_lambda_declarator)      -> env#clear_lambda_dtor_flag()
+            | I.X (I.N N_lambda_declarator)      -> env#clear_lambda_dtor_flag();
             | I.X (I.N N_alignment_specifier)    -> env#exit_alignas()
             | I.X (I.N N_trailing_return_type)   -> env#clear_trailing_retty_flag()
             | I.X (I.N N_base_clause)            -> env#exit_base_clause()
@@ -4739,6 +4915,10 @@ class parser_c = object (self)
             | I.X (I.N N_gnu_attribute) -> env#clear_attr_flag()
             | I.X (I.N N_restricted_postfix_expr) -> env#clear_mem_acc_flag()
             | I.X (I.N N_class_name) -> env#clear_class_name_flag()
+            | I.X (I.N N_requirement_parameter_list) -> env#clear_end_of_req_params_flag()
+            | I.X (I.N N_braced_init_list) when
+                Xlist.last rhs = I.X (I.N N_pp_init_if_section_closing)
+              -> env#exit_braced_init()
             | _ -> ()
           end;
           let ckpt = I.resume ckpt in
@@ -4750,6 +4930,10 @@ class parser_c = object (self)
             scanner#stop_replay_queue();
             scanner#restore_context();
             scanner#restore_state();
+            if dump_tokens_flag then begin
+              token_seq#clear_sub();
+              (*token_seq#clear_macro()*)
+            end;
             let menv =
               match !menv_backup_obj with
               | Some x -> rollback x scanner#state_number
@@ -4762,6 +4946,10 @@ class parser_c = object (self)
             scanner#setup_replay();
             scanner#restore_context();
             scanner#restore_state();
+            if dump_tokens_flag then begin
+              token_seq#clear_sub();
+              (*token_seq#clear_macro()*)
+            end;
             let menv =
               match !menv_backup_obj with
               | Some x -> rollback x scanner#state_number
@@ -4942,21 +5130,40 @@ class parser_c = object (self)
             DEBUG_MSG "pending_macro (%s): %s"
               (match macro_kind with
               | ObjectLike -> "object-like"
-              | _ -> "function-like") name;
+              | FunctionLike _ -> "function-like"
+              | MK_DUMMY -> "DUMMY"
+              ) name;
+
+            if macro_kind == MK_DUMMY then begin
+              if env#dump_tokens_flag then
+                token_seq#reg_dummy_macro name
+            end
+            else
 
             let params =
               match macro_kind with
-              | FunctionLike(il, _) -> il
-              | _ -> []
+              | FunctionLike {L.fm_params=il;} -> il
+              | ObjectLike -> []
+              | _ -> assert false
             in
             let setup_macro_node nd =
               let mnd =
                 let lab =
                   match macro_kind with
-                  | ObjectLike -> Label.ObjectLikeMacro
-                  | FunctionLike _ -> Label.FunctionLikeMacro macro_kind
+                  | ObjectLike -> L.ObjectLikeMacro
+                  | FunctionLike _ -> L.FunctionLikeMacro macro_kind
+                  | _ -> assert false
                 in
-                new Ast.node ~lloc:(nd#lloc) ~children:[nd] lab
+                let children =
+                  match nd#label with
+                  | L.STMTS -> begin
+                      match nd#children with
+                      | [_] -> nd#children
+                      | _ -> [nd]
+                  end
+                  | _ -> [nd]
+                in
+                new Ast.node ~lloc:(nd#lloc) ~children lab
               in
               pnd#set_children [mnd]
             in
@@ -5000,6 +5207,20 @@ class parser_c = object (self)
               scanner#queue_token (EOF, !last_lexpos, !last_lexpos);
               !last_lexpos
             in
+            let enter_macro =
+              if dump_tokens_flag then
+                fun name mode ->
+                  token_seq#clear_sub();
+                  token_seq#enter_macro name mode
+              else
+                fun _ _ -> ()
+            in
+            let exit_macro =
+              if dump_tokens_flag then
+                fun () -> token_seq#exit_macro()
+              else
+                fun () -> ()
+            in
             try
               DEBUG_MSG "parsing %s with decls_sub" name;
               mode <- M_DECLS_SUB name;
@@ -5007,8 +5228,10 @@ class parser_c = object (self)
               let _ = setup_scanner() in
               scanner#ctx_top();
               scanner#ctx_ini();
+              enter_macro name mode;
               let ckpt = P.Incremental.decls_sub ini_pos in
               let nd = loop ckpt in
+              exit_macro();
               setup_macro_node nd
             with
               Failed_to_parse pos ->
@@ -5021,8 +5244,10 @@ class parser_c = object (self)
                       let _ = setup_scanner() in
                       scanner#ctx_mem();
                       scanner#ctx_ini();
+                      enter_macro name mode;
                       let ckpt = P.Incremental.mem_decls_sub ini_pos in
                       let nd = loop ckpt in
+                      exit_macro();
                       setup_macro_node nd
                   (*end
                   | _ -> raise (Failed_to_parse pos)*)
@@ -5036,9 +5261,10 @@ class parser_c = object (self)
                   scanner#prepend_token (SEMICOLON false, last_lexpos, last_lexpos);
                   scanner#ctx_stmt();
                   scanner#ctx_ini();
+                  enter_macro name mode;
                   let ckpt = P.Incremental.stmts_sub ini_pos in
                   let nd = loop ckpt in
-                  let _ = nd#remove_leftmost_child in
+                  exit_macro();
                   setup_macro_node nd
                 with
                   Failed_to_parse pos ->
@@ -5050,8 +5276,10 @@ class parser_c = object (self)
                       let _ = setup_scanner() in
                       scanner#ctx_expr();
                       scanner#ctx_ini();
+                      enter_macro name mode;
                       let ckpt = P.Incremental.expr_sub ini_pos in
                       let nd = loop ckpt in
+                      exit_macro();
                       setup_macro_node nd
                     with
                       Failed_to_parse _ ->
@@ -5063,8 +5291,10 @@ class parser_c = object (self)
                       let _ = setup_scanner() in
                       scanner#ctx_mem_init();
                       scanner#ctx_ini();
+                      enter_macro name mode;
                       let ckpt = P.Incremental.init_sub ini_pos in
                       let nd = loop ckpt in
+                      exit_macro();
                       setup_macro_node nd
                     with
                       Failed_to_parse _ ->
@@ -5075,8 +5305,10 @@ class parser_c = object (self)
                           let _ = setup_scanner() in
                           scanner#ctx_top();
                           scanner#ctx_ini();
+                          enter_macro name mode;
                           let ckpt = P.Incremental.type_sub ini_pos in
                           let nd = loop ckpt in
+                          exit_macro();
                           setup_macro_node nd
                         with
                           Failed_to_parse _ ->
@@ -5087,9 +5319,11 @@ class parser_c = object (self)
                               let _ = setup_scanner() in
                               scanner#ctx_top();
                               scanner#ctx_ini();
+                              enter_macro name mode;
                               (*scanner#ctx_end_of_dtor();*)
                               let ckpt = P.Incremental.specs_sub ini_pos in
                               let nd = loop ckpt in
+                              exit_macro();
                               setup_macro_node nd
                             with
                               Failed_to_parse _ ->
@@ -5100,9 +5334,11 @@ class parser_c = object (self)
                                   let _ = setup_scanner() in
                                   scanner#ctx_mem_init();
                                   scanner#ctx_ini();
+                                  enter_macro name mode;
                                   (*scanner#ctx_end_of_dtor();*)
                                   let ckpt = P.Incremental.dtors_sub ini_pos in
                                   let nd = loop ckpt in
+                                  exit_macro();
                                   setup_macro_node nd
                                 with
                                   Failed_to_parse _ ->
@@ -5113,8 +5349,10 @@ class parser_c = object (self)
                                       let _ = setup_scanner() in
                                       scanner#ctx_enum();
                                       scanner#ctx_ini();
+                                      enter_macro name mode;
                                       let ckpt = P.Incremental.etors_sub ini_pos in
                                       let nd = loop ckpt in
+                                      exit_macro();
                                       setup_macro_node nd
                                     with
                                       Failed_to_parse _ ->
@@ -5126,16 +5364,18 @@ class parser_c = object (self)
                                           scanner#ctx_mem();
                                           scanner#ctx_ini();
                                           env#set_objc_class_interface_flag();
-                                          env#set_objc_class_interface_flag();
+                                          enter_macro name mode;
                                           let ckpt = P.Incremental.objc_decls_sub ini_pos in
                                           let nd = loop ckpt in
+                                          exit_macro();
                                           setup_macro_node nd
                                         with
-                                          Failed_to_parse _ -> begin
+                                        | Failed_to_parse _ when dump_tokens_flag -> ()
+                                        | Failed_to_parse _ -> begin
                                             DEBUG_MSG "all attempts failed for %s" name;
                                             Xprint.warning "all attempts failed for %s" name;
                                             raise (Failed_to_parse pos)
-                                          end
+                                        end
           )
       end;
       new Ast.c root
@@ -5167,7 +5407,10 @@ class parser_c = object (self)
 
     _parse <- fun () ->
       try
-        do_parse()
+        let ast = do_parse() in
+        if dump_tokens_flag then
+          token_seq#dump (env#current_source#file#fullpath^".tkns");
+        ast
       with
         Failed_to_parse pos ->
           let fn = env#current_source#file#fullpath in

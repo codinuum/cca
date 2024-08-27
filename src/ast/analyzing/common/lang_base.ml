@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -254,7 +254,7 @@ let _setup_options disabled_ps funcs_tbl xfuncs_tbl search options =
     let lang = search options file#get_extension in
     lang#get_cache_key file
   in
-  iter_pname_map (f (fun x -> x));
+  iter_pname_map (f Fun.id);
   iter_xpname_map (f (fun (_, x) -> x));
 
   Xset.iter
@@ -317,6 +317,8 @@ let tid_to_string (e, a) =
     (* "" *) e
   else
     e^";"^a
+
+let hash_of_tid ((h, _) : tie_id) = h
 
 
 let anonymize_tid ?(more=false) ((e, a) : tie_id) =

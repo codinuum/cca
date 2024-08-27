@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -13,10 +13,18 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 *)
+
+module type FMTR = sig
+  val formatter : Format.formatter
+end
+
+module Make : functor (Fmtr : FMTR) -> sig
+
 type block_style = BSshort | BStall
 type box = B of int | Bh | Bv of int | Bhv of int | Bhov of int
 val sprintf : ('a, unit, string) format -> 'a
 val box_to_string : box -> string
+
 val pr_string : string -> unit
 val pr_break : int -> int -> unit
 val pr_space : unit -> unit
@@ -84,3 +92,5 @@ class ppbox : object
   method private restore_box : box list -> unit
 end
 val apply_nth : ('a -> unit) -> 'a array -> int -> unit
+
+end

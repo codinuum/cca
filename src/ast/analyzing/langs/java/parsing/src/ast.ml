@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@
 
 open Printf
 
+module Loc = Astloc
+
+type loc = Loc.t
 
 type identifier = string
 
@@ -29,11 +32,7 @@ type simple_name = identifier
 
 type dims = int (* dimension *)
 
-module Loc = Astloc
-
-type loc = Loc.t
-
-
+type expr_kind = EKunknown | EKfacc | EKname
 
 type identifier_attribute =
   | IApackage
@@ -48,8 +47,13 @@ type identifier_attribute =
   | IAlabel
   | IAstatic of string
   | IAtypeparameter
-  | IAexpression
+  | IAexpression of expr_kind
   | IAarray
+
+let expr_kind_to_str = function
+  | EKunknown -> "unknown"
+  | EKfacc -> "facc"
+  | EKname -> "name"
 
 let iattr_to_str = function
   | IApackage     -> "package"
@@ -64,20 +68,30 @@ let iattr_to_str = function
   | IAvariable    -> "variable"
   | IAstatic s    -> "static member"^(if s = "" then "" else ":"^s)
   | IAtypeparameter -> "type parameter"
-  | IAexpression -> "expression"
+  | IAexpression ek -> "expression:"^(expr_kind_to_str ek)
   | IAarray -> "array"
 
 
-type frame_kind = FKclass of string * bool(* has_super *)ref | FKtypeparameter | FKother
+type frame_kind =
+  | FKclass of string * bool(* has_super *)ref
+  | FKtypeparameter
+  | FKmethod of string * bool(* is_static *)ref
+  | FKother
 
 let frame_kind_to_string = function
-  | FKclass(s, x) -> sprintf "class:%s:%B" s !x
+  | FKclass(s, x) -> sprintf "class:%s:has_super=%B" s !x
   | FKtypeparameter -> "typeparameter"
+  | FKmethod(s, x) -> sprintf "method:%s:is_static=%B" s !x
   | FKother -> "other"
 
 let is_class_frame = function
   | FKclass _ -> true
   | _ -> false
+
+let is_method_frame = function
+  | FKmethod _ -> true
+  | _ -> false
+
 class frame kind = object (self)
   val tbl = (Hashtbl.create 0 : (string, identifier_attribute) Hashtbl.t)
 
@@ -87,10 +101,16 @@ class frame kind = object (self)
 
   method is_typeparameter_frame = kind = FKtypeparameter
   method is_class_frame = is_class_frame kind
+  method is_method_frame = is_method_frame kind
 
   method get_class_name =
     match kind with
     | FKclass(n, _) -> n
+    | _ -> raise Not_found
+
+  method get_method_name =
+    match kind with
+    | FKmethod(n, _) -> n
     | _ -> raise Not_found
 
   method private _add t id attr =
@@ -152,17 +172,21 @@ let split_inner lname = (* parent * rest *)
 type name_attribute =
   | NApackage
   | NAtype of resolve_result
-  | NAexpression
+  | NAexpression of expr_kind
   | NAmethod
   | NApackageOrType
   | NAstatic of resolve_result
   | NAambiguous of resolve_result
   | NAunknown
 
+let is_expr_attr = function
+  | NAexpression _ -> true
+  | _ -> false
+
 let iattr_to_nattr = function
   | IApackage     -> NApackage
   | IAmethod      -> NAmethod
-  | IAexpression  -> NAexpression
+  | IAexpression ek -> NAexpression ek
   | _ -> failwith "Ast.iattr_to_nattr"
 
 let get_resolved_name = function
@@ -174,12 +198,6 @@ let get_resolved_name = function
         s
   | _ -> raise Not_found
 
-type name = { n_desc : name_desc; n_loc : loc; }
-and name_desc =
-  | Nsimple of name_attribute ref * identifier
-  | Nqualified of name_attribute ref * name * identifier
-  | Nerror of string
-
 let set1 orig a =
   match !orig with
   | NApackageOrType -> begin
@@ -187,7 +205,7 @@ let set1 orig a =
       | NApackage | NAtype _ -> orig := a
       | _ -> ()
   end
-  | NAexpression -> begin
+  | NAexpression _ -> begin
       match a with
       | NAstatic _ -> orig := a
       | _ -> ()
@@ -200,120 +218,26 @@ let set1 orig a =
   | NAunknown -> orig := a
   | _ -> ()
 
-let set_name_attribute ?(force=false) a n =
-  match n.n_desc with
-  | Nsimple(at, _) when force -> at := a
-  | Nqualified(at, _, _) when force -> at := a
-  | Nsimple(at, _) -> set1 at a
-  | Nqualified(at, _, _) -> set1 at a
-  | _ -> ()
+let is_capitalized s =
+  try
+    let c = Char.code s.[0] in
+    65 <= c && c <= 90
+  with
+    _ -> false
 
-let set_attribute lattr attr name =
-  let rec set_attr a n =
-    match n.n_desc with
-    | Nsimple(at, _) -> set1 at a
-    | Nqualified(at, n, _) -> set1 at a;(* set_attr a n*)
-    | _ -> ()
-  in
-  match name.n_desc with
-  | Nsimple _ -> set_attr attr name
-  | Nqualified(at, n, _) -> set_attr lattr n; set1 at attr
-  | _ -> ()
-
-let set_attribute_PT_T rr = set_attribute NApackageOrType (NAtype rr)
-let set_attribute_P_T rr  = set_attribute NApackage (NAtype rr)
-let set_attribute_PT_PT   = set_attribute NApackageOrType NApackageOrType
-let set_attribute_P_P     = set_attribute NApackage NApackage
-(*let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod*)
-(*let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression*)
-
-
-let get_name_attribute name =
-  match name.n_desc with
-  | Nsimple(attr, _)
-  | Nqualified(attr, _, _) -> !attr
-  | _ -> NAunknown
-
-let compose_name ?(attr=ref NAunknown) name ident =
-  let desc = Nqualified(attr, name, ident) in
-  let loc = Loc.widen name.n_loc ((String.length ident) + 1) in
-  {n_desc=desc;n_loc=loc}
-
-let decompose_name name =
-  match name.n_desc with
-  | Nsimple _ -> failwith "Ast.decompose_name"
-  | Nqualified(_, n, id) -> n, id
-  | _ -> failwith "Ast.decompose_name"
-
-let rec leftmost_of_name n =
-  match n.n_desc with
-  | Nsimple(attr, id) -> attr, id
-  | Nqualified(_, n, _) -> leftmost_of_name n
-  | _ -> ref NAunknown, "?"
-
-let rec leftmost_name n =
-  match n.n_desc with
-  | Nsimple(attr, id) -> n
-  | Nqualified(_, n, _) -> leftmost_name n
-  | _ -> n
-
-let rightmost_identifier n =
-  match n.n_desc with
-  | Nsimple(_, id) -> id
-  | Nqualified(_, _, id) -> id
-  | _ -> "?"
-
-let rightmost_name n =
-  match n.n_desc with
-  | Nqualified(a, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
-  | _ -> n
-
-let get_qualifier name =
-  match name.n_desc with
-  | Nsimple _ -> raise Not_found
-  | Nqualified(_, n, _) -> n
-  | _ -> raise Not_found
-
-let is_simple n =
-  match n.n_desc with
-  | Nsimple _ -> true
-  | _ -> false
-
-let is_qualified n =
-  match n.n_desc with
-  | Nqualified _ -> true
-  | _ -> false
-
-let is_ambiguous_name name =
-  match get_name_attribute name with
-  | NAambiguous _ -> true
-  | _ -> false
-
-let is_type_name name =
-  match get_name_attribute name with
-  | NAtype _ -> true
-  | NApackageOrType -> true
-  | _ -> false
-
-let is_type name =
-  match get_name_attribute name with
-  | NAtype _ -> true
-  | _ -> false
-
-let is_package_or_type_name name =
-  match get_name_attribute name with
-  | NApackageOrType -> true
-  | _ -> false
-
-let is_expression name =
-  match get_name_attribute name with
-  | NAexpression -> true
-  | _ -> false
-
-let is_unknown_name name =
-  (get_name_attribute name) = NAunknown
-
-let dummy_name = { n_desc=Nsimple(ref NAunknown, ""); n_loc=Loc.dummy; }
+let is_all_capitalized s =
+  try
+    let c = Char.code s.[0] in
+    65 <= c && c <= 90 &&
+    String.for_all
+      (fun chr ->
+        let c = Char.code chr in
+        65 <= c && c <= 90 ||
+        48 <= c && c <= 57 ||
+        chr = '_'
+      ) s
+  with
+    _ -> false
 
 type literal =
   | Linteger of string
@@ -322,6 +246,7 @@ type literal =
   | Lfalse
   | Lcharacter of string
   | Lstring of string
+  | LtextBlock of string
   | Lnull
 
 type assignment_operator = { ao_desc : assignment_operator_desc; ao_loc : loc; }
@@ -354,9 +279,14 @@ type binary_operator =
   | BOeq | BOneq | BOlt | BOgt | BOle | BOge
   | BObitAnd | BObitOr | BObitXor | BOand | BOor
 
-type variable_declarator_id = identifier * dims
+type name = { n_desc : name_desc; n_loc : loc; }
+and name_desc =
+  | Nsimple of name_attribute ref * identifier
+  | Nqualified of name_attribute ref * name * annotation list * identifier
+  | Nerror of string
 
-type javatype = { ty_desc : javatype_desc; ty_loc : loc; }
+and javatype = { ty_desc : javatype_desc; ty_loc : loc; }
+
 and primitive_type =
   | PTbyte | PTshort | PTint | PTlong
   | PTchar
@@ -370,7 +300,7 @@ and javatype_desc =
   | Tclass of type_spec list
   | Tinterface of type_spec list
 
-  | Tarray of javatype (* other than array *) * dims
+  | Tarray of javatype (* other than array *) * annot_dim list
 
   | Tvoid (* not a type (only for convenience) *)
 
@@ -392,20 +322,26 @@ and wildcard = annotation list * wildcard_bounds option
 
 and type_arguments = { tas_type_arguments : type_argument list; tas_loc : loc; }
 
+and variable_declarator_id = (loc * identifier) * annot_dim list
+
 and throws = { th_exceptions : javatype list;
-		th_loc        : loc;
+	       th_loc        : loc;
 	      }
 
 and extends_class = { exc_class : javatype;
-		       exc_loc   : loc
+		      exc_loc   : loc
 		     }
 and extends_interfaces = { exi_interfaces : javatype list;
-			    exi_loc        : loc;
+			   exi_loc        : loc;
 			  }
 
 and implements = { im_interfaces : javatype list;
-		    im_loc        : loc;
+		   im_loc        : loc;
 		  }
+
+and permits = { pm_type_names : name list;
+		pm_loc    : loc;
+	      }
 
 and formal_parameter =
     { fp_modifiers              : modifiers option;
@@ -413,6 +349,7 @@ and formal_parameter =
       fp_variable_declarator_id : variable_declarator_id;
       fp_variable_arity         : bool;
       fp_loc                    : loc;
+      fp_receiver               : identifier option;
     }
 
 and modifiers = { ms_modifiers : modifier list; ms_loc : loc; }
@@ -432,6 +369,9 @@ and modifier_desc =
   | Mstrictfp
   | Mannotation of annotation
   | Mdefault
+  | Mtransitive
+  | Msealed
+  | Mnon_sealed
   | Merror of string
 
 and variable_initializer = { vi_desc : variable_initializer_desc; vi_loc : loc; }
@@ -454,17 +394,56 @@ and variable_declarators = variable_declarator list
 and class_declaration_head = {
     ch_modifiers       : modifiers option;
     ch_identifier      : identifier;
+    ch_identifier_loc  : loc;
     ch_type_parameters : type_parameters option;
     ch_extends_class   : extends_class option;
     ch_implements      : implements option;
+    ch_permits         : permits option;
     ch_loc             : loc;
   }
+
+and record_declaration_head = {
+    rh_modifiers       : modifiers option;
+    rh_identifier      : identifier;
+    rh_identifier_loc  : loc;
+    rh_type_parameters : type_parameters option;
+    rh_record_header   : formal_parameter list;
+    rh_implements      : implements option;
+    rh_loc             : loc;
+  }
+
+and module_declaration = {
+    mod_head : module_declaration_head;
+    mod_body : module_body;
+    mod_loc  : loc;
+  }
+
+and module_declaration_head = {
+    mdh_annotations : annotation list;
+    mdh_open        : loc option;
+    mdh_name        : name;
+    mdh_loc         : loc;
+  }
+
+and module_name = { mn_name : name; mn_loc : loc }
+
+and module_body = { mb_module_directives : module_directive list; mb_loc : loc }
+
+and module_directive = { md_desc : module_directive_desc; md_loc : loc }
+
+and module_directive_desc =
+  | MDrequires of modifier list * name
+  | MDexports of name * module_name list
+  | MDopens of name * module_name list
+  | MDuses of name
+  | MDprovides of name * module_name list
 
 and class_declaration = { cd_desc : class_declaration_desc; cd_loc : loc; }
 
 and class_declaration_desc =
   | CDclass of class_declaration_head * class_body
   | CDenum  of class_declaration_head * enum_body
+  | CDrecord of record_declaration_head * record_body
   | CDaspect of class_declaration_head * aspect_body
 
 and type_parameters = { tps_type_parameters : type_parameter list;
@@ -519,6 +498,19 @@ and class_body_declaration_desc =
   | CBDpointcut of pointcut_declaration
   | CBDdeclare of declare_declaration
 
+and record_body =
+    { rb_record_body_declarations : record_body_declaration list;
+      rb_loc                      : loc;
+    }
+
+and record_body_declaration = { rbd_desc : record_body_declaration_desc;
+			        rbd_loc  : loc;
+			      }
+
+and record_body_declaration_desc =
+  | RBDclass_body_decl of class_body_declaration
+  | RBDcompact_ctor_decl of compact_constructor_declaration
+
 and declare_declaration = { dd_desc : declare_declaration_desc;
                             dd_loc  : loc;
                           }
@@ -568,11 +560,13 @@ and field_declaration = { fd_modifiers            : modifiers option;
 
 and method_header = { mh_modifiers       : modifiers option;
 		      mh_type_parameters : type_parameters option;
+                      mh_annotations     : annotation list;
 		      mh_return_type     : javatype;
 		      mh_name            : identifier;
+		      mh_name_loc        : loc;
 		      mh_parameters_loc  : loc;
 		      mh_parameters      : formal_parameter list;
-		      mh_dims            : dims;
+		      mh_dims            : annot_dim list;
 		      mh_throws          : throws option;
 		      mh_loc             : loc;
 		    }
@@ -586,6 +580,12 @@ and constructor_declaration = { cnd_modifiers       : modifiers option;
 				cnd_body            : constructor_body;
 				cnd_loc             : loc;
 			      }
+
+and compact_constructor_declaration = { ccnd_modifiers       : modifiers option;
+				        ccnd_name            : identifier;
+				        ccnd_body            : constructor_body;
+				        ccnd_loc             : loc;
+			              }
 
 and constructor_body =
     { cnb_explicit_constructor_invocation : explicit_constructor_invocation option;
@@ -611,6 +611,7 @@ and interface_declaration_head = {
     ifh_identifier         : identifier;
     ifh_type_parameters    : type_parameters option;
     ifh_extends_interfaces : extends_interfaces option;
+    ifh_permits            : permits option;
     ifh_loc                : loc;
   }
 
@@ -648,7 +649,8 @@ and annotation_type_member_declaration_desc =
   | ATMDempty
 
 and annot_dim = { ad_annotations : annotations;
-                  ad_loc : loc;
+                  ad_loc         : loc;
+                  ad_ellipsis    : bool;
                 }
 
 and interface_body = { ib_member_declarations : interface_member_declaration list;
@@ -697,6 +699,7 @@ and block = { b_block_statements : block_statement list; b_loc : loc; }
 
 and statement = { s_desc  : statement_desc;
 		  s_loc   : loc;
+                  s_extra_loc : loc option;
 		}
 and statement_desc =
   | Sblock of block
@@ -710,6 +713,7 @@ and statement_desc =
   | Ssynchronized of expression * block
   | Sthrow of expression
   | Stry of resource_spec option * block * catches option * finally option
+  | Syield of expression
 
   | Slabeled of identifier * statement
   | SifThen of expression * statement
@@ -765,8 +769,8 @@ and method_reference_desc =
   | MRtypeNew of javatype * type_arguments option
 
 and array_creation_expression =
-  | ACEtype of javatype * dim_expr list * dims
-  | ACEtypeInit of javatype * dims * array_initializer
+  | ACEtype of javatype * dim_expr list * annot_dim list
+  | ACEtypeInit of javatype * annot_dim list * array_initializer
 
 and dim_expr = { de_desc : expression; de_loc : loc; }
 
@@ -826,9 +830,11 @@ and expression_desc =
   | Ebinary of binary_operator * expression * expression
   | Ecast of javatype * expression
   | Einstanceof of expression * javatype
+  | EinstanceofP of expression * local_variable_declaration
   | Econd of expression * expression * expression
   | Eassignment of assignment
   | Elambda of lambda_params * lambda_body
+  | Eswitch of expression * switch_block
   | Eerror of string
 
 and lambda_params = { lp_desc : lambda_params_desc; lp_loc : loc; }
@@ -863,14 +869,25 @@ and left_hand_side = expression
 and constant_expression = expression (* where ... *)
 
 and switch_label_desc =
-  | SLconstant of constant_expression
+  | SLconstant of constant_expression list
   | SLdefault
 
 and switch_label = { sl_desc : switch_label_desc; sl_loc : loc; }
 
-and switch_block_stmt_grp = (switch_label list * block_statement list)
+and switch_block_stmt_grp = switch_label list * block_statement list
+
+and switch_rule_label = { srl_desc : switch_label_desc; srl_loc : loc; }
+
+and switch_rule = switch_rule_label * switch_rule_body
+
+and switch_rule_body = { srb_desc : switch_rule_body_desc; srb_loc : loc; }
+and switch_rule_body_desc =
+  | SRBexpr of expression
+  | SRBblock of block
+  | SRBthrow of statement
 
 and switch_block = { sb_switch_block_stmt_grps : switch_block_stmt_grp list;
+                     sb_switch_rules           : switch_rule list;
                      sb_loc                    : loc;
                    }
 
@@ -905,6 +922,200 @@ and resource_desc =
   | RfieldAccess of field_access
   | Rname of name
 
+
+let set_name_attribute ?(force=false) a n =
+  match n.n_desc with
+  | Nsimple(at, _) when force -> at := a
+  | Nqualified(at, _, _, _) when force -> at := a
+  | Nsimple(at, _) -> set1 at a
+  | Nqualified(at, _, _, _) -> set1 at a
+  | _ -> ()
+
+let set_attribute lattr attr name =
+  let rec set_attr a n =
+    match n.n_desc with
+    | Nsimple(at, _) -> set1 at a
+    | Nqualified(at, n, _, _) -> set1 at a;(* set_attr a n*)
+    | _ -> ()
+  in
+  match name.n_desc with
+  | Nsimple _ -> set_attr attr name
+  | Nqualified(at, n, _, _) -> set_attr lattr n; set1 at attr
+  | _ -> ()
+
+let set_attribute_PT_T rr = set_attribute NApackageOrType (NAtype rr)
+let set_attribute_P_T rr  = set_attribute NApackage (NAtype rr)
+let set_attribute_PT_PT   = set_attribute NApackageOrType NApackageOrType
+let set_attribute_P_P     = set_attribute NApackage NApackage
+(*let set_attribute_A_M rr  = set_attribute (NAambiguous rr) NAmethod*)
+(*let set_attribute_A_E rr  = set_attribute (NAambiguous rr) NAexpression*)
+
+
+let get_name_attribute name =
+  match name.n_desc with
+  | Nsimple(attr, _)
+  | Nqualified(attr, _, _, _) -> !attr
+  | _ -> NAunknown
+
+let compose_name ?(attr=ref NAunknown) name ident =
+  let desc = Nqualified(attr, name, [], ident) in
+  let loc = Loc.widen name.n_loc ((String.length ident) + 1) in
+  {n_desc=desc;n_loc=loc}
+
+let decompose_name name =
+  match name.n_desc with
+  | Nsimple _ -> failwith "Ast.decompose_name"
+  | Nqualified(_, n, _, id) -> n, id
+  | _ -> failwith "Ast.decompose_name"
+
+let rec iter_id f n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> f id
+  | Nqualified(_, n0, _, id) -> f id; iter_id f n0
+  | _ -> ()
+
+let rec leftmost_of_name n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> attr, id
+  | Nqualified(_, n, _, _) -> leftmost_of_name n
+  | _ -> ref NAunknown, "?"
+
+let leftmost_identifier n =
+  let _, id = leftmost_of_name n in
+  id
+
+let rec leftmost_name n =
+  match n.n_desc with
+  | Nsimple(attr, id) -> n
+  | Nqualified(_, n, _, _) -> leftmost_name n
+  | _ -> n
+
+let is_leftmost_id_capitalized n =
+  let id = leftmost_identifier n in
+  is_capitalized id
+
+let rightmost_identifier n =
+  match n.n_desc with
+  | Nsimple(_, id) -> id
+  | Nqualified(_, _, _, id) -> id
+  | _ -> "?"
+
+let is_rightmost_id_capitalized n =
+  match n.n_desc with
+  | Nsimple(_, id) -> is_capitalized id
+  | Nqualified(_, _, _, id) -> is_capitalized id
+  | _ -> false
+
+let is_rightmost_id_all_capitalized n =
+  match n.n_desc with
+  | Nsimple(_, id) -> is_all_capitalized id
+  | Nqualified(_, _, _, id) -> is_all_capitalized id
+  | _ -> false
+
+let rightmost_name n =
+  match n.n_desc with
+  | Nqualified(a, _, _, id) -> {n_desc=Nsimple(a, id);n_loc=n.n_loc}
+  | _ -> n
+
+let get_qualifier name =
+  match name.n_desc with
+  | Nsimple _ -> raise Not_found
+  | Nqualified(_, n, _, _) -> n
+  | _ -> raise Not_found
+
+let is_rightmost_qualifier_capitalized n =
+  try
+    let q = get_qualifier n in
+    match q.n_desc with
+    | Nsimple(_, id)
+    | Nqualified(_, _, _, id) -> is_capitalized id
+    | _ -> false
+  with
+  | _ -> false
+
+let qualifier_contains_capitalized n =
+  try
+    let q = get_qualifier n in
+    iter_id
+      (fun i ->
+        if is_capitalized i then
+          raise Exit
+      ) q;
+    false
+  with
+  | Exit -> true
+  | _ -> false
+
+let is_all_qualifier_lowercase n =
+  try
+    let q = get_qualifier n in
+    iter_id
+      (fun i ->
+        if is_capitalized i then
+          raise Exit
+      ) q;
+    true
+  with
+  | _ -> false
+
+let rec get_length name =
+  match name.n_desc with
+  | Nsimple _ -> 1
+  | Nqualified(_, n, _, _) -> 1 + get_length n
+  | _ -> raise Not_found
+
+let is_simple n =
+  match n.n_desc with
+  | Nsimple _ -> true
+  | _ -> false
+
+let is_qualified n =
+  match n.n_desc with
+  | Nqualified _ -> true
+  | _ -> false
+
+let is_ambiguous_name name =
+  match get_name_attribute name with
+  | NAambiguous _ -> true
+  | _ -> false
+
+let is_type_name name =
+  match get_name_attribute name with
+  | NAtype _ -> true
+  | NApackageOrType -> true
+  | _ -> false
+
+let is_type name =
+  match get_name_attribute name with
+  | NAtype _ -> true
+  | _ -> false
+
+let is_static name =
+  match get_name_attribute name with
+  | NAstatic _ -> true
+  | _ -> false
+
+let is_package_or_type_name name =
+  match get_name_attribute name with
+  | NApackageOrType -> true
+  | _ -> false
+
+let is_expression name =
+  match get_name_attribute name with
+  | NAexpression _ -> true
+  | _ -> false
+
+let is_unknown_expression name =
+  match get_name_attribute name with
+  | NAexpression EKunknown -> true
+  | _ -> false
+
+let is_unknown_name name =
+  (get_name_attribute name) = NAunknown
+
+let dummy_name = { n_desc=Nsimple(ref NAunknown, ""); n_loc=Loc.dummy; }
+
+
 type package_declaration = { pd_annotations : annotations;
 			     pd_name        : name;
 			     pd_loc         : loc;
@@ -930,11 +1141,25 @@ type compilation_unit =
     { cu_package   : package_declaration option;
       cu_imports   : import_declaration list;
       cu_tydecls   : type_declaration list;
+      cu_modecl    : module_declaration option;
     }
 
 let _mkprim loc d = { p_desc=d; p_loc=loc }
 
 let mh_is_generic mh = mh.mh_type_parameters <> None
+
+let get_modifiers_from_mh mh =
+  match mh.mh_modifiers with
+  | Some ms -> ms.ms_modifiers
+  | _ -> []
+
+let get_annot_dims_from_type ty =
+  match ty.ty_desc with
+  | Tarray(_, dl) -> dl
+  | _ -> []
+
+let annot_exists =
+  List.exists (fun adim -> adim.ad_annotations <> [])
 
 let proc_op proc f op =
   match op with
@@ -980,9 +1205,18 @@ and proc_expression f e =
   | Ebinary(_, e0, e1) -> List.iter (proc_expression f) [e0; e1]
   | Ecast(ty, e0) -> proc_type f ty; proc_expression f e0
   | Einstanceof(e0, ty) -> proc_expression f e0; proc_type f ty
+  | EinstanceofP(e0, lvd) -> proc_expression f e0; proc_local_variable_declaration f lvd
   | Econd(e0, e1, e2) -> List.iter (proc_expression f) [e0; e1; e2]
   | Eassignment(lhs, _, rhs) -> List.iter (proc_expression f) [lhs; rhs]
   | Elambda(_, b) -> proc_lambda_block f b
+  | Eswitch(e, swb) -> begin
+      proc_expression f e;
+      List.iter
+        (fun (sls, bss) ->
+          List.iter (proc_switch_label f) sls;
+          List.iter (proc_block_statement f) bss)
+        swb.sb_switch_block_stmt_grps
+  end
   | _ -> ()
 
 and proc_lambda_block f = function
@@ -993,10 +1227,12 @@ and _name_to_facc name =
   match name.n_desc with
   | Nsimple(a, i) -> begin
       match !a with
-      | NAexpression -> PfieldAccess(FAimplicit name)
+      | NAexpression (EKfacc|EKunknown) -> PfieldAccess(FAimplicit name)
+      | NAexpression EKname -> Pname name
       | _ -> Pname name
   end
-  | Nqualified(a, n, i) -> PfieldAccess(FAprimary(name_to_facc n, i))
+  | Nqualified(a, n, [], i) -> PfieldAccess(FAprimary(name_to_facc n, i))
+  | Nqualified(a, n, _, i) -> Pname name
   | Nerror s -> Pname name
 
 and name_to_facc name = _mkprim name.n_loc (_name_to_facc name)
@@ -1009,8 +1245,10 @@ and proc_primary f p =
       DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
       if is_qualified n then begin
         let q = get_qualifier n in
-        if is_expression q then
-          p.p_desc <- _name_to_facc n
+        if is_expression q then begin
+          p.p_desc <- _name_to_facc n;
+          DEBUG_MSG "[%s] -> %s" (Loc.to_string p.p_loc) (prim_to_string p)
+        end
       end
   end
   | PclassLiteral ty -> proc_type f ty
@@ -1020,13 +1258,16 @@ and proc_primary f p =
   | PfieldAccess (FAimplicit n) when is_type_name n -> begin
       f n;
       DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
-      p.p_desc <- Pname n
+      p.p_desc <- Pname n;
+      DEBUG_MSG "[%s] -> %s" (Loc.to_string p.p_loc) (prim_to_string p)
   end
   | PfieldAccess (FAimplicit n) when is_ambiguous_name n -> begin
       f n;
       DEBUG_MSG "[%s] %s" (Loc.to_string p.p_loc) (prim_to_string p);
-      if is_type_name n then
-        p.p_desc <- Pname n
+      if is_type_name n || is_static n then begin
+        p.p_desc <- Pname n;
+        DEBUG_MSG "[%s] -> %s" (Loc.to_string p.p_loc) (prim_to_string p)
+      end
   end
   | PfieldAccess fa -> proc_field_access f fa
   | PmethodInvocation mi -> proc_method_invocation f mi
@@ -1068,6 +1309,15 @@ and proc_class_body_declaration f cbd =
   | CBDconstructor cd -> proc_constructor_declaration f cd
   | _ -> ()
 
+and proc_record_body_declaration f rbd =
+  match rbd.rbd_desc with
+  | RBDclass_body_decl c -> proc_class_body_declaration f c
+  | RBDcompact_ctor_decl c -> proc_compact_ctor_decl f c
+
+and proc_compact_ctor_decl f ccnd =
+  proc_op proc_modifiers f ccnd.ccnd_modifiers;
+  proc_constructor_body f ccnd.ccnd_body
+
 and proc_type_bound f tb =
   proc_type f tb.tb_reference_type;
   List.iter (fun ab -> proc_type f ab.ab_interface) tb.tb_additional_bounds
@@ -1081,6 +1331,7 @@ and proc_type_parameters f tps =
 and proc_method_header f mh =
   proc_op proc_modifiers f mh.mh_modifiers;
   proc_op proc_type_parameters f mh.mh_type_parameters;
+  List.iter (proc_annotation f) mh.mh_annotations;
   proc_type f mh.mh_return_type;
   List.iter (proc_formal_parameter f) mh.mh_parameters;
   proc_op proc_throws f mh.mh_throws
@@ -1122,7 +1373,7 @@ and proc_statement_expression f se =
 
 and proc_switch_label f sl =
   match sl.sl_desc with
-  | SLconstant e -> proc_expression f e
+  | SLconstant el -> List.iter (proc_expression f) el
   | SLdefault -> ()
 
 and proc_statement f s =
@@ -1148,6 +1399,8 @@ and proc_statement f s =
       proc_block f b;
       proc_op (fun f catches -> List.iter (proc_catch f) catches) f cts_op;
       proc_op (fun f fin -> proc_block f fin.f_block) f fin_op
+  | Syield e ->
+      proc_expression f e
   | Slabeled(_, s0) -> proc_statement f s0
   | SifThen(e, s0)
   | Swhile(e, s0) ->
@@ -1207,11 +1460,21 @@ and proc_extends_class f exc =
 and proc_implements f im =
   List.iter (proc_type f) im.im_interfaces
 
+and proc_permits f pm =
+  List.iter f pm.pm_type_names
+
 and proc_class_declaration_head f ch =
   proc_op proc_modifiers f ch.ch_modifiers;
   proc_op proc_type_parameters f ch.ch_type_parameters;
   proc_op proc_extends_class f ch.ch_extends_class;
-  proc_op proc_implements f ch.ch_implements
+  proc_op proc_implements f ch.ch_implements;
+  proc_op proc_permits f ch.ch_permits
+
+and proc_record_declaration_head f rh =
+  proc_op proc_modifiers f rh.rh_modifiers;
+  proc_op proc_type_parameters f rh.rh_type_parameters;
+  List.iter (proc_formal_parameter f) rh.rh_record_header;
+  proc_op proc_implements f rh.rh_implements
 
 and proc_class_declaration f cd =
   match cd.cd_desc with
@@ -1221,6 +1484,9 @@ and proc_class_declaration f cd =
   | CDenum(eh, eb) ->
       proc_class_declaration_head f eh;
       proc_enum_body f eb
+  | CDrecord(rh, cb) ->
+      proc_record_declaration_head f rh;
+      proc_record_body f cb
   | CDaspect(ah, ab) ->
       proc_class_declaration_head f ah;
       proc_aspect_body f ab
@@ -1240,7 +1506,8 @@ and proc_enum_constant f ec =
 and proc_interface_declaration_head f ifh =
   proc_op proc_modifiers f ifh.ifh_modifiers;
   proc_op proc_type_parameters f ifh.ifh_type_parameters;
-  proc_op (fun f ei -> List.iter (proc_type f) ei.exi_interfaces) f ifh.ifh_extends_interfaces
+  proc_op (fun f ei -> List.iter (proc_type f) ei.exi_interfaces) f ifh.ifh_extends_interfaces;
+  proc_op proc_permits f ifh.ifh_permits
 
 and proc_interface_declaration f ifd =
   match ifd.ifd_desc with
@@ -1337,6 +1604,9 @@ and proc_method_reference f mr =
 and proc_class_body f cb =
   List.iter (proc_class_body_declaration f) cb.cb_class_body_declarations
 
+and proc_record_body f rb =
+  List.iter (proc_record_body_declaration f) rb.rb_record_body_declarations
+
 and proc_arguments f args =
   List.iter (proc_expression f) args.as_arguments
 
@@ -1366,7 +1636,9 @@ and proc_field_access f fa =
 and name_attribute_to_string = function
   | NApackage       -> "P"
   | NAtype r        -> "T"
-  | NAexpression    -> "E"
+  | NAexpression EKfacc -> "Ef"
+  | NAexpression EKname -> "En"
+  | NAexpression EKunknown -> "E"
   | NAmethod        -> "M"
   | NApackageOrType -> "PT"
   | NAstatic r      -> "S"
@@ -1376,7 +1648,7 @@ and name_attribute_to_string = function
 and name_to_simple_string name =
   match name.n_desc with
   | Nsimple(attr, sn) -> sn
-  | Nqualified(attr, n, sn) ->
+  | Nqualified(attr, n, al, sn) ->
       sprintf "%s.%s" (name_to_simple_string n) sn
   | Nerror s -> s
 
@@ -1385,7 +1657,7 @@ and name_to_string name =
   | Nsimple(attr, sn) ->
       sprintf "(%s)_%s" sn (name_attribute_to_string !attr)
 
-  | Nqualified(attr, n, sn) ->
+  | Nqualified(attr, n, al, sn) ->
       sprintf "(%s.%s)_%s" (name_to_string n) sn (name_attribute_to_string !attr)
 
   | Nerror s -> s
@@ -1394,7 +1666,21 @@ and prim_to_string p =
   match p.p_desc with
   | Pname n -> sprintf "Pname:%s" (name_to_string n)
   | PfieldAccess (FAimplicit n) -> sprintf "PfieldAccess:FAimplicit:%s" (name_to_string n)
-  | _ -> "<prim>"
+  | PfieldAccess (FAprimary(p, id)) ->
+      sprintf "PfieldAccess:FAprimary:(%s):%s" (prim_to_string p) id
+  | PfieldAccess _ -> "PfieldAcess"
+  | PqualifiedThis n -> sprintf "PqualifiedThis:%s" (name_to_string n)
+  | Pliteral _ -> "Pliteral"
+  | PclassLiteral _ -> "PclassLiteral"
+  | PclassLiteralVoid -> "PclassLiteralVoid"
+  | Pthis -> "Pthis"
+  | Pparen _ -> "Pparen"
+  | PclassInstanceCreation _ -> "PclassInstanceCreation"
+  | PmethodInvocation _ -> "PmethodInvocation"
+  | ParrayAccess _ -> "ParrayAccess"
+  | ParrayCreationExpression _ -> "ParrayCreationExpression"
+  | PmethodReference _ -> "PmethodReference"
+  | Perror err -> err
 
 and proc_method_invocation f mi =
   let proc = function
@@ -1431,6 +1717,7 @@ and proc_array_access f aa =
   | AAprimary(p, e) ->
       proc_primary f p;
       proc_expression f e
+
 and proc_array_creation_expression f ace =
   match ace with
   | ACEtype(ty, des, _) ->
@@ -1439,6 +1726,7 @@ and proc_array_creation_expression f ace =
   | ACEtypeInit(ty, _, ai) ->
       proc_type f ty;
       proc_array_initializer f ai
+
 and proc_type_declaration f td =
   match td.td_desc with
   | TDclass cd -> proc_class_declaration f cd

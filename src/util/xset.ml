@@ -94,3 +94,19 @@ let filter_map f (s : 'a t) =
       | None -> ()
     ) s;
   s'
+
+(*let filter_inplace f (s : 'a t) =
+  Hashtbl.filter_map_inplace
+    (fun k v -> if f k then Some true else None)
+    s*)
+
+let filter_inplace f (s : 'a t) =
+  let to_be_removed = ref [] in
+  iter
+    (fun x ->
+      if f x then
+        ()
+      else
+        to_be_removed := x :: !to_be_removed
+    ) s;
+  List.iter (remove s) !to_be_removed

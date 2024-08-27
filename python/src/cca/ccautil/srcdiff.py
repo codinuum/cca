@@ -4,7 +4,7 @@
 '''
   srcdiff.py
 
-  Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -527,7 +527,7 @@ def filter_pairs(pairs, ignore1=[], ignore2=[],
     logger.info(f'size of pairs: {len(pairs)}')
 
     result = []
-    for (f1, f2) in pairs:
+    for f1, f2 in pairs:
         if f1 in ignore1 or f2 in ignore2:
             continue
 
@@ -566,15 +566,24 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
               dumpccs=False,
               check=False,
               aggressive=False,
+              ignore_moves_of_unordered=False,
+              no_unnamed_node_moves=False,
+              no_rename_rectification=False,
+              no_binding_trace=False,
+              strict_rr=False,
+              no_implicit_name_resolution=False,
               keep_filtered_temp=False,
               local_cache_name=None,
               dump_delta=False,
+              minimize_delta=False,
               fact_for_delta=False,
               keep_going=False,
               use_sim=False,
               sim_thresh=0.7,
               quiet=False,
               no_node_count=False,
+              count_nodes=count_nodes,
+              **extra_kwargs
               ):
 
     filt = (lambda x: True)
@@ -657,46 +666,112 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
 
     extra_pairs = []
     if use_sim:
+        sim_thresh1 = 0.8
+        sim_thresh2 = 0.9
+        modified1, modified2 = zip(*modified)
         logger.debug('matching removed and added files...')
         li = []
+        li1 = []
+        li2 = []
         for x in removed:
             logger.debug(f'{x}')
             cs_ = []
+            cs1_ = []
             for x_ in added:
                 s = sim.sim(x, x_)
+                logger.debug(f'  {x_} ({s})')
                 if s > sim_thresh:
-                    logger.debug(f'  {x_} ({s})')
                     cs_.append((x_, s))
+                else:
+                    s = sim.string_sim(x, x_)
+                    if s > sim_thresh1:
+                        logger.debug(f'  {x_} ({s}) from file names')
+                        cs1_.append((x_, s))
+            if cs1_:
+                li1.append((x, cs1_))
             if cs_:
                 li.append((x, cs_))
+            else:
+                for x_ in modified2:
+                    s = sim.sim(x, x_)
+                    if s > sim_thresh2:
+                        logger.debug(f'  {x_} ({s}) from mapped files')
+                        cs_.append((x_, s))
+            if cs_:
+                li2.append((x, cs_))
+
         pairs = set()
         pairs0 = set()
+        pairs1 = set()
+        pairs2 = set()
         for (x, cs_) in li:
             if len(cs_) == 1:
                 pairs.add((x, cs_[0][0]))
             else:
                 pairs0.add((x, max(cs_, key=lambda x: x[1])[0]))
+        for (x, cs_) in li1:
+            if len(cs_) == 1:
+                pairs1.add((x, cs_[0][0]))
+            else:
+                pairs1.add((x, max(cs_, key=lambda x: x[1])[0]))
+        for (x, cs_) in li2:
+            if len(cs_) == 1:
+                pairs2.add((x, cs_[0][0]))
+            else:
+                pairs2.add((x, max(cs_, key=lambda x: x[1])[0]))
 
-        l_ = []
+        li_ = []
+        li1_ = []
+        li2_ = []
         for x_ in added:
             logger.debug(f'{x_}')
-            cands = []
+            cs = []
+            cs1 = []
             for x in removed:
                 s = sim.sim(x, x_)
+                logger.debug(f'  {x} ({s})')
                 if s > sim_thresh:
-                    logger.debug(f'  {x} ({s})')
-                    cands.append((x, s))
-            if cands:
-                l_.append((cands, x_))
+                    cs.append((x, s))
+                else:
+                    s = sim.string_sim(x, x_)
+                    if s > sim_thresh1:
+                        logger.debug(f'  {x} ({s}) from file names')
+                        cs1.append((x, s))
+            if cs1:
+                li1_.append((cs1, x_))
+            if cs:
+                li_.append((cs, x_))
+            else:
+                for x in modified1:
+                    s = sim.sim(x, x_)
+                    if s > sim_thresh2:
+                        logger.debug(f'  {x} ({s}) from mapped files')
+                        cs.append((x, s))
+            if cs:
+                li2_.append((cs, x_))
+
         pairs_ = set()
         pairs0_ = set()
-        for (cs, x_) in l_:
+        pairs1_ = set()
+        pairs2_ = set()
+        for (cs, x_) in li_:
             if len(cs) == 1:
                 pairs_.add((cs[0][0], x_))
             else:
                 pairs0_.add((max(cs, key=lambda x: x[1])[0], x_))
+        for (cs, x_) in li1_:
+            if len(cs) == 1:
+                pairs1_.add((cs[0][0], x_))
+            else:
+                pairs1_.add((max(cs, key=lambda x: x[1])[0], x_))
+        for (cs, x_) in li2_:
+            if len(cs) == 1:
+                pairs2_.add((cs[0][0], x_))
+            else:
+                pairs2_.add((max(cs, key=lambda x: x[1])[0], x_))
 
-        extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_))
+        extra_pairs = list((pairs & pairs_) | (pairs0 & pairs0_) | (pairs1 & pairs1_) |
+                           pairs2 | pairs2_)
 
         logger.info(f'extra pairs (sim_thresh={sim_thresh}):')
         for p in extra_pairs:
@@ -705,8 +780,10 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
     if extra_pairs:
         for p in extra_pairs:
             (x, x_) = p
-            removed.remove(x)
-            added.remove(x_)
+            if x in removed:
+                removed.remove(x)
+            if x_ in added:
+                added.remove(x_)
             modified.append(p)
 
     modified0 = [p[0] for p in modified]
@@ -853,12 +930,20 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
                      dumpccs=dumpccs,
                      check=check,
                      aggressive=aggressive,
+                     ignore_moves_of_unordered=ignore_moves_of_unordered,
+                     no_unnamed_node_moves=no_unnamed_node_moves,
+                     no_rename_rectification=no_rename_rectification,
+                     no_binding_trace=no_binding_trace,
+                     strict_rr=strict_rr,
+                     no_implicit_name_resolution=False,
                      keep_filtered_temp=keep_filtered_temp,
                      local_cache_name=local_cache_name,
                      dump_delta=dump_delta,
+                     minimize_delta=minimize_delta,
                      fact_for_delta=fact_for_delta,
                      keep_going=keep_going,
                      quiet=quiet,
+                     **extra_kwargs
                      )
 
             t0 = time.time() - st0

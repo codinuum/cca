@@ -16,12 +16,11 @@
 
 
 class c = object
-(*
+
   val mutable dump_delta_out = ""
 
   method dump_delta_out = dump_delta_out
   method set_dump_delta_out p = dump_delta_out <- p
-*)
 
   val mutable minimize_delta_flag = false
 

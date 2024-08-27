@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ let lang_prefix = Astml.java_prefix
 
 
 let ident_attr_name   = Astml.ident_attr_name
-let vdids_attr_name   = Astml.vdids_attr_name
+(*let vdids_attr_name   = Astml.vdids_attr_name*)
 let label_attr_name   = Astml.label_attr_name
 let dims_attr_name    = Astml.dims_attr_name
 let islocal_attr_name = Astml.islocal_attr_name
@@ -38,6 +38,7 @@ type tie_id = Lang_base.tie_id
 
 let null_tid      = Lang_base.null_tid
 let mktid         = Lang_base.mktid
+let hash_of_tid   = Lang_base.hash_of_tid
 let tid_to_string = Lang_base.tid_to_string
 let anonymize_tid = Lang_base.anonymize_tid
 let mktidattr     = Lang_base.mktidattr
@@ -133,8 +134,6 @@ module type T = sig
 
   val getlab                   : Spec.node_t -> t
 
-  val is_local_variabledeclarator : t -> bool
-
 end
 
 
@@ -143,8 +142,10 @@ end
 type dims = int (* dimension *)
 
 let vdid_to_string (n, d) = n ^ "[" ^ (string_of_int d)
-
 let vdids_to_string = Xlist.to_string vdid_to_string ";"
+
+(*!20240205!*)let vdid_to_name (n, _) = n
+let vdids_to_name = Xlist.to_string vdid_to_name ";"
 
 let rec conv_name ?(resolve=true) n =
   match n.Ast.n_desc with
@@ -157,7 +158,7 @@ let rec conv_name ?(resolve=true) n =
       else
         ident
   end
-  | Ast.Nqualified(attr, name, ident) ->
+  | Ast.Nqualified(attr, name, al, ident) -> begin
       let sep =
         match (Ast.get_name_attribute name), !attr with
         | Ast.NAtype _, Ast.NAtype _ when resolve -> "$"
@@ -169,7 +170,8 @@ let rec conv_name ?(resolve=true) n =
         with
           Not_found -> (conv_name name)^sep^ident
       else
-        (conv_name ~resolve name)^sep^ident
+        (conv_name ~resolve name)^sep^(Printer.annotations_to_string al)^ident
+  end
   | Ast.Nerror s -> s
 
 let conv_loc
@@ -213,6 +215,7 @@ module Type = struct
        "java.lang.reflect.Method";
        "java.lang.reflect.Parameter";
        "java.lang.reflect.Field";
+       "java.lang.NullPointerException";
        "java.util.List";
        "java.util.Collection";
        "java.util.Iterator";
@@ -225,13 +228,14 @@ module Type = struct
      ];
     s
 
-  let is_common = function
+  let rec is_common = function
     | Byte | Short | Int | Long | Char
     | Float | Double | Boolean | Void
       -> true
     | ClassOrInterface n
     | Class n
       -> Xset.mem common_classes n
+    | Array(ty, _) -> is_common ty
     | _ -> false
 
   let rec get_name = function
@@ -327,6 +331,10 @@ module Type = struct
     in
     "Type." ^ (conv ty)
 
+  and strip = function
+    | Array(lab, dim) -> Array(strip lab, 0)
+    | ty              -> ty
+
   and anonymize = function
     | ClassOrInterface n -> ClassOrInterface ""
     | Class n            -> Class ""
@@ -417,7 +425,7 @@ module Type = struct
     | Ast.TclassOrInterface tss -> ClassOrInterface (conv_type_specs ~resolve tss)
     | Ast.Tclass tss            -> Class (conv_type_specs ~resolve tss)
     | Ast.Tinterface tss        -> Interface (conv_type_specs ~resolve tss)
-    | Ast.Tarray(ty, dims)      -> Array(of_javatype ~resolve ty, dims)
+    | Ast.Tarray(ty, dims)      -> Array(of_javatype ~resolve ty, List.length dims)
     | Ast.Tvoid                 -> Void
 
 
@@ -433,6 +441,7 @@ module Literal = struct
     | True | False
     | Character of string
     | String of string
+    | TextBlock of string
     | Null
 
   let utf8_escape_pat = Str.regexp "\\\\u\\([0-9a-fA-F]+\\)"
@@ -460,15 +469,17 @@ module Literal = struct
     in
     let conv = function
       | Str.Delim u -> begin
-          let i = int_of_string (Str.replace_first utf8_escape_pat "0x\\1" u) in
-          if i < 8 then
-            "\\" ^ (string_of_int i)
-          else if i = 0xb then
-            "\\u000b"
-          else
-            try
-              Scanf.unescaped (enc1 i)
-            with _ -> u
+          try
+            let i = int_of_string (Str.replace_first utf8_escape_pat "0x\\1" u) in
+            if i < 8 then
+              "\\" ^ (string_of_int i)
+            else if i = 0xb then
+              "\\u000b"
+            else
+              try
+                Scanf.unescaped (enc1 i)
+              with _ -> u
+          with _ -> u
       end
       | Str.Text t -> t
     in
@@ -499,9 +510,11 @@ module Literal = struct
       | Ast.Linteger str when anonymize_int -> (Integer "")
       | Ast.LfloatingPoint str when anonymize_float -> (FloatingPoint "")
       | Ast.Lstring str when anonymize_string -> (String "")
+      | Ast.LtextBlock str when anonymize_string -> (TextBlock "")
 
       | Ast.Lcharacter str when reduce -> (Character (reduce_char str))
       | Ast.Lstring str when reduce -> (String (reduce_string str))
+      | Ast.LtextBlock str when reduce -> (TextBlock (reduce_string str))
 
       | Ast.Linteger str -> (Integer str)
       | Ast.LfloatingPoint str -> (FloatingPoint str)
@@ -509,6 +522,7 @@ module Literal = struct
       | Ast.Lfalse -> False
       | Ast.Lcharacter str -> (Character str)
       | Ast.Lstring str -> (String str)
+      | Ast.LtextBlock str -> (TextBlock str)
       | Ast.Lnull -> Null
 
   let to_string lit =
@@ -520,6 +534,7 @@ module Literal = struct
       | False -> "False"
       | Character str -> sprintf "Character(%s)" str
       | String str -> sprintf "String(%s)" str
+      | TextBlock str -> sprintf "TextBlock(%s)" str
       | Null -> "Null"
     in
     "Literal." ^ str
@@ -529,6 +544,7 @@ module Literal = struct
     | FloatingPoint str -> FloatingPoint ""
     | Character str     -> Character ""
     | String str        -> String ""
+    | TextBlock str     -> TextBlock ""
     (*| True | False      -> False*)
     | lit               -> lit
 
@@ -549,6 +565,11 @@ module Literal = struct
           "\""^(Digest.to_hex (Digest.string str))^"\""
         else
           "\""^(String.escaped str)^"\""
+    | TextBlock str     ->
+        if (String.length str) > string_len_threshold then
+          "\""^(Digest.to_hex (Digest.string str))^"\""
+        else
+          "\""^(String.escaped str)^"\""
     | Null              -> "null"
 
   let to_value = function
@@ -558,6 +579,7 @@ module Literal = struct
     | False             -> "false"
     | Character str     -> sprintf "'%s'" str
     | String str        -> "\""^str^"\""
+    | TextBlock str     -> "\"\"\""^str^"\"\"\""
     | Null              -> "null"
 
   let to_short_string = function
@@ -571,8 +593,12 @@ module Literal = struct
           catstr [mkstr 5; Digest.to_hex (Digest.string str)]
         else
           catstr [mkstr 6; str]
-    | Null              -> mkstr 7
-
+    | TextBlock str     ->
+        if (String.length str) > string_len_threshold then
+          catstr [mkstr 7; Digest.to_hex (Digest.string str)]
+        else
+          catstr [mkstr 8; str]
+    | Null              -> mkstr 9
 
   let to_tag lit =
     let name, attrs =
@@ -583,6 +609,7 @@ module Literal = struct
       | False             -> "False", []
       | Character str     -> "CharacterLiteral", ["value",xmlenc str]
       | String str        -> "StringLiteral", ["value",xmlenc str]
+      | TextBlock str     -> "TextBlockLiteral", ["value",xmlenc str]
       | Null              -> "NullLiteral", []
     in
     name, attrs
@@ -867,6 +894,27 @@ module BinaryOperator = struct
     in
     name, []
 
+  let anonymize3 = function
+      | Mul
+      | Div
+      | Mod
+      | Add
+      | Sub -> Add
+      | ShiftL
+      | ShiftR
+      | ShiftRU -> ShiftL
+      | Eq
+      | Neq
+      | Lt
+      | Gt
+      | Le
+      | Ge -> Eq
+      | BitAnd
+      | BitOr
+      | BitXor -> BitAnd
+      | And
+      | Or -> And
+
 end (* of module BinaryOperator *)
 
 
@@ -885,6 +933,9 @@ module Modifier = struct
     | Strictfp
 (*    | Annotation*)
     | Default
+    | Transitive
+    | Sealed
+    | NonSealed
     | Error of string
 
   let to_string m =
@@ -903,6 +954,9 @@ module Modifier = struct
       | Strictfp     -> "Strictfp"
 (*      | Annotation   -> "Annotation"*)
       | Default      -> "Default"
+      | Transitive   -> "Transitive"
+      | Sealed       -> "Sealed"
+      | NonSealed    -> "NonSealed"
       | Error s      -> "Error:"^s
     in
     "Modifier." ^ str
@@ -927,6 +981,9 @@ module Modifier = struct
     | Strictfp     -> "strictfp"
 (*    | Annotation   -> "@"*)
     | Default      -> "default"
+    | Transitive   -> "transitive"
+    | Sealed       -> "sealed"
+    | NonSealed    -> "non-sealed"
     | Error s      -> s
 
   let to_short_string = function
@@ -943,7 +1000,10 @@ module Modifier = struct
     | Strictfp     -> mkstr 10
 (*    | Annotation   -> mkstr 11*)
     | Default      -> mkstr 12
-    | Error s      -> combo 13 [s]
+    | Transitive   -> mkstr 13
+    | Sealed       -> mkstr 14
+    | NonSealed    -> mkstr 15
+    | Error s      -> combo 16 [s]
 
   let to_tag m =
     match m with
@@ -960,6 +1020,9 @@ module Modifier = struct
     | Strictfp     -> "Strictfp", []
 (*    | Annotation   -> "Annotation"*)
     | Default      -> "Default", []
+    | Transitive   -> "Transitive", []
+    | Sealed       -> "Sealed", []
+    | NonSealed    -> "NonSealed", []
     | Error s      -> "ErrorModifier", ["contents",xmlenc s]
 
 end (* of module Modifier *)
@@ -1034,6 +1097,11 @@ module Primary = struct
           raise Not_found
         else
           s
+    | Literal (Literal.TextBlock s) ->
+        if s = "" then
+          raise Not_found
+        else
+          s
     (*| Literal (Literal.String s) -> s
     | Literal (Literal.Character s|Literal.Integer s|Literal.FloatingPoint s) -> s*)
 
@@ -1063,6 +1131,7 @@ module Primary = struct
       -> true
 
     | Literal (Literal.String s) -> s <> ""
+    | Literal (Literal.TextBlock s) -> s <> ""
     (*| Literal (Literal.String s) -> true
     | Literal (Literal.Character _|Literal.Integer _|Literal.FloatingPoint _) -> true*)
 
@@ -1122,6 +1191,11 @@ module Primary = struct
     in
     "Primary." ^ str
 
+  let strip = function
+    | ArrayCreationDims _ -> ArrayCreationDims 0
+    | Paren tid           -> Paren null_tid
+    | prim                -> prim
+
   let anonymize ?(more=false) = function
     | Name name                              -> Name ""
     | Literal lit                            -> Literal (Literal.anonymize lit)
@@ -1146,7 +1220,7 @@ module Primary = struct
     | TypeSuperMethodReference(name, ident)  -> TypeSuperMethodReference("", "")
     | TypeNewMethodReference name            -> TypeNewMethodReference ""
     | AmbiguousName name                     -> AmbiguousName ""
-    | pri                                    -> pri
+    | prim                                   -> prim
 
   let anonymize2 = function
     | FieldAccess _
@@ -1294,7 +1368,16 @@ module Primary = struct
   let common_methods =
     let s = Xset.create 0 in
     List.iter (Xset.add s)
-      ["print#1";"println#1"];
+      [
+       "add#1";
+       "print#1";
+       "println#1";
+       "assertNull#1";
+       "assertTrue#1";
+       "assertFalse#1";
+       "assertEquals#2";
+       "assertNotEquals#2";
+      ];
     s
 
   let is_common = function
@@ -1314,6 +1397,8 @@ module Expression = struct
     | Primary of Primary.t
     | AssignmentOperator of AssignmentOperator.t * tie_id
     | Lambda
+    | Switch
+    | NaryAdd
 
   let get_name = function
     | Primary prim -> Primary.get_name prim
@@ -1338,16 +1423,21 @@ module Expression = struct
       | Primary p             -> Primary.to_string p
       | AssignmentOperator(ao, tid) -> sprintf "%s(%s)" (AssignmentOperator.to_string ao) (tid_to_string tid)
       | Lambda                -> "Lambda"
+      | Switch                -> "Switch"
+      | NaryAdd               -> "NaryAdd"
     in
     "Expression." ^ str
+
+  let strip = function
+    | Primary p                   -> Primary (Primary.strip p)
+    | AssignmentOperator(ao, tid) -> AssignmentOperator(ao, null_tid)
+    | expr                        -> expr
 
   let anonymize ?(more=false) = function
     | Primary p                   -> Primary (Primary.anonymize ~more p)
     (*| AssignmentOperator(ao, tid) when more -> AssignmentOperator(AssignmentOperator.Eq, anonymize_tid ~more tid)*)
     | AssignmentOperator(ao, tid) -> AssignmentOperator(ao, anonymize_tid ~more tid)
     | expr                        -> expr
-
-
 
   let to_simple_string = function
     | Cond                  -> "<?:>"
@@ -1358,6 +1448,8 @@ module Expression = struct
     | Primary p             -> Primary.to_simple_string p
     | AssignmentOperator(ao, tid) -> AssignmentOperator.to_simple_string ao
     | Lambda                -> "<lambda>"
+    | Switch                -> "switch"
+    | NaryAdd               -> "(+)()"
 
   let to_short_string = function
     | Cond                  -> mkstr 0
@@ -1368,6 +1460,8 @@ module Expression = struct
     | Primary p             -> catstr [mkstr 5; Primary.to_short_string p]
     | AssignmentOperator(ao, tid) -> catstr [mkstr 6; AssignmentOperator.to_short_string ao; tid_to_string tid]
     | Lambda                -> mkstr 7
+    | Switch                -> mkstr 8
+    | NaryAdd               -> mkstr 9
 
   let to_tag e =
     let name, attrs =
@@ -1380,6 +1474,8 @@ module Expression = struct
       | Primary p             -> Primary.to_tag p
       | AssignmentOperator(ao, tid) -> AssignmentOperator.to_tag ao (mktidattr tid)
       | Lambda                -> "Lambda", []
+      | Switch                -> "Switch", []
+      | NaryAdd               -> "NaryAdd", []
     in
     name, attrs
 
@@ -1468,6 +1564,7 @@ module Statement = struct
     | While
     | Do
     | Try
+    | Yield
     | Switch
     | Synchronized
     | Return
@@ -1476,6 +1573,15 @@ module Statement = struct
     | Continue of identifier option
     | Labeled of identifier
     | Expression of Expression.t * tie_id
+    (*| FlattenedIf of tie_id*)
+    | ElseIf of tie_id
+    | Else
+
+  let get_tid = function
+    | If tid -> tid
+    (*| FlattenedIf tid | ElseIf tid -> tid*)
+    (*| Expression tid -> tid*)
+    | _ -> raise Not_found
 
   let get_name = function
     | Break (Some ident)
@@ -1510,6 +1616,7 @@ module Statement = struct
       | While        -> "While"
       | Do           -> "Do"
       | Try          -> "Try"
+      | Yield        -> "Yield"
       | Switch       -> "Switch"
       | Synchronized -> "Synchronized"
       | Return       -> "Return"
@@ -1528,8 +1635,19 @@ module Statement = struct
 
       | Labeled ident -> sprintf "Labeled(%s)" ident
       | Expression(se, tid) -> (Expression.to_string se)^"("^(tid_to_string tid)^")"
+
+      (*| FlattenedIf tid -> sprintf "FlattenedIf(%s)" (tid_to_string tid)*)
+      | ElseIf tid      -> sprintf "ElseIf(%s)" (tid_to_string tid)
+      | Else            -> "Else"
     in
     "Statement." ^ str
+
+  let strip = function
+    | Expression(se, tid)   -> Expression(Expression.strip se, null_tid)
+    | If tid                -> If null_tid
+    (*| FlattenedIf tid       -> FlattenedIf null_tid*)
+    | ElseIf tid            -> ElseIf null_tid
+    | stmt                  -> stmt
 
   let anonymize ?(more=false) = function
     (*| ForEnhanced when more -> For*)
@@ -1538,6 +1656,8 @@ module Statement = struct
     | Labeled ident         -> Labeled ""
     | Expression(se, tid)   -> Expression(Expression.anonymize ~more se, anonymize_tid ~more tid)
     | If tid                -> If null_tid(*(anonymize_tid ~more tid)*)
+    (*| FlattenedIf tid       -> FlattenedIf null_tid(*(anonymize_tid ~more tid)*)*)
+    | ElseIf tid            -> ElseIf null_tid(*(anonymize_tid ~more tid)*)
     | stmt                  -> stmt
 
   let to_simple_string = function
@@ -1549,6 +1669,7 @@ module Statement = struct
     | While        -> "while"
     | Do           -> "do"
     | Try          -> "try"
+    | Yield        -> "yield"
     | Switch       -> "switch"
     | Synchronized -> "synchronized"
     | Return       -> "return"
@@ -1557,6 +1678,9 @@ module Statement = struct
     | Continue ident_opt -> (match ident_opt with None -> "continue" | Some ident -> "continue "^ident)
     | Labeled ident      -> ident
     | Expression(se, tid) -> "<se>" (* Expression.to_simple_string se *)
+    (*| FlattenedIf tid -> "<flattened-if>"*)
+    | ElseIf tid      -> "else if"
+    | Else            -> "else"
 
   let to_short_string = function
     | Empty        -> mkstr 0
@@ -1567,25 +1691,28 @@ module Statement = struct
     | While        -> mkstr 5
     | Do           -> mkstr 6
     | Try          -> mkstr 7
-    | Switch       -> mkstr 8
-    | Synchronized -> mkstr 9
-    | Return       -> mkstr 10
-    | Throw        -> mkstr 11
+    | Yield        -> mkstr 8
+    | Switch       -> mkstr 9
+    | Synchronized -> mkstr 10
+    | Return       -> mkstr 11
+    | Throw        -> mkstr 12
     | Break ident_opt ->
-        let l =
-          match ident_opt with None -> [] | Some ident -> [ident]
-        in
-        catstr ([mkstr 12] @ l)
-
-    | Continue ident_opt ->
         let l =
           match ident_opt with None -> [] | Some ident -> [ident]
         in
         catstr ([mkstr 13] @ l)
 
-    | Labeled ident       -> catstr [mkstr 14; ident]
-    | Expression(se, tid) -> catstr [mkstr 15; Expression.to_short_string se; tid_to_string tid]
+    | Continue ident_opt ->
+        let l =
+          match ident_opt with None -> [] | Some ident -> [ident]
+        in
+        catstr ([mkstr 14] @ l)
 
+    | Labeled ident       -> catstr [mkstr 15; ident]
+    | Expression(se, tid) -> catstr [mkstr 16; Expression.to_short_string se; tid_to_string tid]
+    (*| FlattenedIf tid -> catstr [mkstr 17; tid_to_string tid]*)
+    | ElseIf tid      -> catstr [mkstr 18; tid_to_string tid]
+    | Else            -> mkstr 19
 
   let to_index = function
     | Empty               -> 3
@@ -1596,27 +1723,32 @@ module Statement = struct
     | While               -> 94
     | Do                  -> 95
     | Try                 -> 96
-    | Switch              -> 97
-    | Synchronized        -> 98
-    | Return              -> 99
-    | Throw               -> 100
-    | Break ident_opt     -> 101
-    | Continue ident_opt  -> 102
-    | Labeled ident       -> 103
-    | Expression(se, tid) -> 104
+    | Yield               -> 97
+    | Switch              -> 98
+    | Synchronized        -> 99
+    | Return              -> 100
+    | Throw               -> 101
+    | Break ident_opt     -> 102
+    | Continue ident_opt  -> 103
+    | Labeled ident       -> 104
+    | Expression(se, tid) -> 105
+    (*| FlattenedIf _       -> 106*)
+    | ElseIf _            -> 107
+    | Else                -> 108
 
-
-  let to_tag s =
+  let to_tag ?(strip=false) s =
     let name, attrs =
       match s with
       | Empty           -> "EmptyStatement", []
       | Assert          -> "AssertStatement", []
+      | If _ when strip -> "IfStatement", []
       | If tid          -> "IfStatement", mktidattr tid
       | For             -> "BasicForStatement", []
       | ForEnhanced     -> "EnhancedForStatement", []
       | While           -> "WhileStatement", []
       | Do              -> "DoStatement", []
       | Try             -> "TryStatement", []
+      | Yield           -> "YieldStatement", []
       | Switch          -> "SwitchStatement", []
       | Synchronized    -> "SynchronizedStatement", []
       | Return          -> "ReturnStatement", []
@@ -1639,6 +1771,11 @@ module Statement = struct
           let t, a = Expression.to_tag se in
           t^"Statement",  a(* @ (mkstmttidattr tid)*)
 
+      (*| FlattenedIf _ when strip -> "FlattenedIfStatement", []
+      | FlattenedIf tid          -> "FlattenedIfStatement", mktidattr tid*)
+      | ElseIf _ when strip      -> "ElseIfStatement", []
+      | ElseIf tid               -> "ElseIfStatement", mktidattr tid
+      | Else                     -> "ElseStatement", []
 
     in
     name, attrs
@@ -1655,6 +1792,8 @@ module Statement = struct
     | Assert, If _ | If _, Assert
     | If _, Switch | Switch, If _
     | If _, If _
+    (*| FlattenedIf _, Switch | Switch, FlattenedIf _*)
+    | ElseIf _, If _ | If _, ElseIf _
     | For, ForEnhanced | ForEnhanced, For
     | For, While | While, For
     | ForEnhanced, While | While, ForEnhanced
@@ -1686,6 +1825,7 @@ type kind =
   | Kclass of name
   | Kinterface of name
   | Kenum of name
+  | Krecord of name
   | Kannotation of name
   | Kfield of name
   | Kconstructor of name
@@ -1704,6 +1844,7 @@ let kind_to_suffix k =
   | Kclass _     -> "C"
   | Kinterface   -> "I"
   | Kenum        -> "E"
+  | Krecord      -> "R"
   | Kannotation  -> "@"
   | Kfield       -> "f"
   | Kconstructor -> "c"
@@ -1714,10 +1855,26 @@ let kind_to_suffix k =
   | Kaspect      -> "A"
   | Kpointcut    -> "/"*)
 
+let anonymize_kind = function
+  | Kclass n       -> Kclass ""
+  | Kinterface n   -> Kinterface ""
+  | Kenum n        -> Kenum ""
+  | Krecord n      -> Krecord ""
+  | Kannotation n  -> Kannotation ""
+  | Kfield n       -> Kfield ""
+  | Kconstructor n -> Kconstructor ""
+  | Kmethod n      -> Kmethod ""
+  | Kparameter n   -> Kparameter ""
+  | Klocal n       -> Klocal ""
+  | Kany           -> Kany
+  | Kaspect n      -> Kaspect ""
+  | Kpointcut n    -> Kpointcut ""
+
 let kind_to_anonymous_string = function
   | Kclass n       -> "Class"
   | Kinterface n   -> "Interface"
   | Kenum n        -> "Enum"
+  | Krecord n      -> "Record"
   | Kannotation n  -> "Annotation"
   | Kfield n       -> "Field"
   | Kconstructor n -> "Constructor"
@@ -1732,6 +1889,7 @@ let kind_to_string = function
   | Kclass n       -> "Class:"^n
   | Kinterface n   -> "Interface:"^n
   | Kenum n        -> "Enum:"^n
+  | Krecord n      -> "Record:"^n
   | Kannotation n  -> "Annotation:"^n
   | Kfield n       -> "Field:"^n
   | Kconstructor n -> "Constructor:"^n
@@ -1746,6 +1904,7 @@ let kind_to_attrs = function
   | Kclass n       -> ["kind","class";"name",xmlenc n]
   | Kinterface n   -> ["kind","interface";"name",xmlenc n]
   | Kenum n        -> ["kind","enum";"name",xmlenc n]
+  | Krecord n      -> ["kind","record";"name",xmlenc n]
   | Kannotation n  -> ["kind","annotation";"name",xmlenc n]
   | Kfield n       -> ["kind","field";"name",xmlenc n]
   | Kconstructor n -> ["kind","constructor";"name",xmlenc n]
@@ -1760,6 +1919,7 @@ let kind_to_name_attrs = function
   | Kclass n
   | Kinterface n
   | Kenum n
+  | Krecord n
   | Kannotation n
   | Kfield n
   | Kconstructor n
@@ -1774,6 +1934,7 @@ let kind_to_name = function
   | Kclass n
   | Kinterface n
   | Kenum n
+  | Krecord n
   | Kannotation n
   | Kfield n
   | Kconstructor n
@@ -1788,15 +1949,16 @@ let kind_to_short_string = function
   | Kclass n       -> combo 0 [n]
   | Kinterface n   -> combo 1 [n]
   | Kenum n        -> combo 2 [n]
-  | Kannotation n  -> combo 3 [n]
-  | Kfield n       -> combo 4 [n]
-  | Kconstructor n -> combo 5 [n]
-  | Kmethod n      -> combo 6 [n]
-  | Kparameter n   -> combo 7 [n]
-  | Klocal n       -> combo 8 [n]
-  | Kany           -> mkstr 9
-  | Kaspect n      -> combo 10 [n]
-  | Kpointcut n    -> combo 11 [n]
+  | Krecord n      -> combo 3 [n]
+  | Kannotation n  -> combo 4 [n]
+  | Kfield n       -> combo 5 [n]
+  | Kconstructor n -> combo 6 [n]
+  | Kmethod n      -> combo 7 [n]
+  | Kparameter n   -> combo 8 [n]
+  | Klocal n       -> combo 9 [n]
+  | Kany           -> mkstr 10
+  | Kaspect n      -> combo 11 [n]
+  | Kpointcut n    -> combo 12 [n]
 
 type t = (* Label *)
 (*    Dummy *)
@@ -1816,7 +1978,8 @@ type t = (* Label *)
   | NameInvocation of name (* a kind of primary invocation *)
 
 (* switch labels *)
-  | SLconstant | SLdefault
+  | SLconstant of tie_id
+  | SLdefault
 
 (* element value *)
   | EVconditional | EVannotation | EVarrayInit
@@ -1831,7 +1994,7 @@ type t = (* Label *)
 (* misc *)
   | Block of tie_id
   | LocalVariableDeclaration of bool (* is stmt *) * (name * dims) list
-  | VariableDeclarator of name * dims * bool (* is local *)
+  | VariableDeclarator of name * dims
   | CatchClause of tie_id
   | Finally
   | ForInit of tie_id
@@ -1848,12 +2011,14 @@ type t = (* Label *)
   | Arguments
   | NamedArguments of name (* method *)
   | Parameters of name (* method *)
-  | Parameter of name * dims * bool
+  | Parameter of identifier * dims * bool
+  | ReceiverParameter of identifier option
   | TypeParameter of name (* type variable *)
   | TypeParameters of name
   | ArrayInitializer
   | Modifiers of kind
   | FieldDeclaration of (name * dims) list
+  | VariableDeclaration
   | Method of name * signature
   | Super
   | Qualifier of name
@@ -1863,8 +2028,10 @@ type t = (* Label *)
   | Class of name
   | Enum of name
   | EnumConstant of name
+  | Record of name
   | Extends
   | Implements
+  | Permits
   | ClassBody of name (* class name *)
   | EnumBody of name (* enum name *)
   | Interface of name
@@ -1874,12 +2041,24 @@ type t = (* Label *)
   | InterfaceBody of name (* interface name *)
   | PackageDeclaration of name
 
+  | Module of name
+  | Open
+  | ModuleName of name
+  | ModuleBody of name
+  | Requires of name
+  | Exports of name
+  | Opens of name
+  | Uses of name
+  | Provides of name
+  | TypeName of name
+
 (* import declarations *)
   | IDsingle of name (* type name *)
   | IDtypeOnDemand of name
   | IDsingleStatic of name * name
   | IDstaticOnDemand of name (* package name or type name *)
 
+(* *)
   | ImportDeclarations
   | TypeDeclarations
   | CompilationUnit
@@ -1889,22 +2068,23 @@ type t = (* Label *)
   | FieldDeclarations of name
 
   | InferredFormalParameters
-  | InferredFormalParameter of name
+  | InferredFormalParameter of identifier
 
   | ResourceSpec
   (*| Resource of name * dims*)
 
   | CatchParameter of name * dims
 
-  | AnnotDim
+  | AnnotDim of bool (* is_ellipsis *)
 
   | Error of string
 
   | HugeArray of int * string
+  | HugeExpr of int * string
 
   | EmptyDeclaration
 
-  | ForHeader of name * dims
+  | ForHead of tie_id
 
   | Aspect of name
   | Pointcut of name
@@ -1924,8 +2104,12 @@ type t = (* Label *)
   | ClassnamePatternName of name
   | ClassnamePatternNamePlus of name
 
+  | SwitchRule
+  | SRLconstant
+  | SRLdefault
 
-let rec to_string = function
+
+let to_string = function
 (*    Dummy -> "Dummy" *)
   | Error s                                 -> sprintf "Error(%s)" s
   | Type ty                                 -> Type.to_string ty
@@ -1939,7 +2123,7 @@ let rec to_string = function
   | SuperInvocation                         -> "SuperInvocation"
   | PrimaryInvocation                       -> "PrimaryInvocation"
   | NameInvocation name                     -> sprintf "NameInvocation(%s)" name
-  | SLconstant                              -> "SLconstant"
+  | SLconstant tid                          -> sprintf "SLconstant(%s)" (tid_to_string tid)
   | SLdefault                               -> "SLdefault"
   | EVconditional                           -> "EVconditional"
   | EVannotation                            -> "EVannotation"
@@ -1952,8 +2136,7 @@ let rec to_string = function
   | Block tid                               -> sprintf "Block(%s)" (tid_to_string tid)
   | LocalVariableDeclaration(isstmt, vdids) ->
       sprintf "LocalVariableDeclaration(%B,%s)" isstmt (vdids_to_string vdids)
-  | VariableDeclarator(name, dims, islocal) ->
-      sprintf "VariableDeclarator(%s,%d,%B)" name dims islocal
+  | VariableDeclarator(name, dims)          -> sprintf "VariableDeclarator(%s,%d)" name dims
   | CatchClause tid                         -> sprintf "CatchClause(%s)" (tid_to_string tid)
   | Finally                                 -> "Finally"
   | ForInit tid                             -> sprintf "ForInit(%s)" (tid_to_string tid)
@@ -1970,14 +2153,17 @@ let rec to_string = function
   | WildcardBoundsExtends                   -> "WildcardBoundsExtends"
   | WildcardBoundsSuper                     -> "WildcardBoundsSuper"
   | Parameters name                         -> sprintf "Parameters(%s)" name
-  | Parameter(name, dims, va)               ->
-      sprintf "Parameter(%s,%d,%s)" name dims (if va then "..." else "")
+  | Parameter(id, dims, va)               ->
+      sprintf "Parameter(%s,%d,%s)" id dims (if va then "..." else "")
+  | ReceiverParameter id_opt                ->
+      sprintf "ReceiverParameter(%s)" (match id_opt with Some id -> id^".this" | _ -> "this")
 
   | TypeParameter name                      -> sprintf "TypeParameter(%s)" name
   | TypeParameters name                     -> sprintf "TypeParameters(%s)" name
   | ArrayInitializer                        -> "ArrayInitializer"
   | Modifiers k                             -> sprintf "Modifiers(%s)" (kind_to_string k)
   | FieldDeclaration vdids                  -> sprintf "FieldDeclaration(%s)" (vdids_to_string vdids)
+  | VariableDeclaration                     -> "VariableDeclaration"
   | Method(name, msig)                      -> sprintf "Method(%s%s)" name msig
   | Super                                   -> "Super"
   | Qualifier q                             -> sprintf "Qualifier(%s)" q
@@ -1987,8 +2173,10 @@ let rec to_string = function
   | Class name                              -> sprintf "Class(%s)" name
   | Enum name                               -> sprintf "Enum(%s)" name
   | EnumConstant name                       -> sprintf "EnumConstant(%s)" name
+  | Record name                             -> sprintf "Record(%s)" name
   | Extends                                 -> "Extends"
   | Implements                              -> "Implements"
+  | Permits                                 -> "Permits"
   | ClassBody name                          -> sprintf "ClassBody(%s)" name
   | EnumBody name                           -> sprintf "EnumBody(%s)" name
   | Interface name                          -> sprintf "Interface(%s)" name
@@ -2007,20 +2195,21 @@ let rec to_string = function
   | ElementDeclaration name                 -> sprintf "ElementDeclaration(%s)" name
   | FieldDeclarations name                  -> sprintf "FieldDeclarations(%s)" name
   | InferredFormalParameters                -> "InferredFormalParameters"
-  | InferredFormalParameter name            -> sprintf "InferredFormalParameter(%s)" name
+  | InferredFormalParameter ident           -> sprintf "InferredFormalParameter(%s)" ident
 
   | ResourceSpec                            -> sprintf "ResourceSpec"
   (*| Resource(name, dims)                    -> sprintf "Resource(%s,%d)" name dims*)
 
   | CatchParameter(name, dims)              -> sprintf "CatchParameter(%s,%d)" name dims
 
-  | AnnotDim                                -> "AnnotDim"
+  | AnnotDim ellipsis                       -> sprintf "AnnotDim(%B)" ellipsis
 
   | HugeArray(sz, c)                        -> sprintf "HugeArray(%d):%s\n" sz c
+  | HugeExpr(sz, c)                         -> sprintf "HugeExpr(%d):%s\n" sz c
 
   | EmptyDeclaration                        -> "EmptyDeclaration"
 
-  | ForHeader(name, dims)                   -> sprintf "ForHeader(%s,%d)" name dims
+  | ForHead tid                   -> sprintf "ForHead(%s)" (tid_to_string tid)
 
   | Aspect name                   -> sprintf "Aspect(%s)" name
   | Pointcut name                 -> sprintf "Pointcut(%s)" name
@@ -2040,12 +2229,60 @@ let rec to_string = function
   | ClassnamePatternName name     -> sprintf "ClassnamePatternName(%s)" name
   | ClassnamePatternNamePlus name -> sprintf "ClassnamePatternNamePlus(%s)" name
 
+  | SwitchRule -> "SwitchRule"
+  | SRLconstant -> "SRLconstant"
+  | SRLdefault -> "SRLdefault"
+
+  | Module name -> sprintf "Module(%s)" name
+  | Open -> "Open"
+  | ModuleName name -> sprintf "ModuleName(%s)" name
+  | ModuleBody name -> sprintf "ModuleBody(%s)" name
+  | Requires name -> sprintf "Requires(%s)" name
+  | Exports name -> sprintf "Exports(%s)" name
+  | Opens name -> sprintf "Opens(%s)" name
+  | Uses name -> sprintf "Uses(%s)" name
+  | Provides name -> sprintf "Provides(%s)" name
+  | TypeName name -> sprintf "TypeName(%s)" name
+
+let strip = function (* strip non-name attributes from label *)
+  | Type ty      -> Type (Type.strip ty)
+  | Primary p    -> Primary (Primary.strip p)
+  | Expression e -> Expression (Expression.strip e)
+  | Statement s  -> Statement (Statement.strip s)
+
+  | Constructor(name, _)     -> Constructor(name, "")
+  | ConstructorBody(name, _) -> ConstructorBody(name, "")
+  | Method(name, _)          -> Method(name, "")
+  | MethodBody(name, _)      -> MethodBody(name, "")
+
+  | Block _       -> Block null_tid
+  | CatchClause _ -> CatchClause null_tid
+  | ForInit _     -> ForInit null_tid
+  | ForCond _     -> ForCond null_tid
+  | ForUpdate _   -> ForUpdate null_tid
+
+  | LocalVariableDeclaration(_, l) -> LocalVariableDeclaration(true, List.map (fun (n, _) -> n, 0) l)
+  | FieldDeclaration l             -> FieldDeclaration (List.map (fun (n, _) -> n, 0) l)
+  | VariableDeclarator(name, _)    -> VariableDeclarator(name, 0)
+
+  | TypeArguments(_, name)  -> TypeArguments(1, name)
+  | Parameter(name, _, _)   -> Parameter(name, 0, false)
+  | CatchParameter(name, _) -> CatchParameter(name, 0)
+  | ForHead _ -> ForHead null_tid
+
+  | lab -> lab
+
 
 let anonymize ?(more=false) = function
   | Constructor(name, msig) when more     -> Constructor("", "")
   | ConstructorBody(name, msig) when more -> ConstructorBody("", "")
   | Method(name, msig) when more          -> Method("", "")
   | MethodBody(name, msig) when more      -> MethodBody("", "")
+
+  | LocalVariableDeclaration _ when more -> VariableDeclaration
+  | FieldDeclaration _ when more         -> VariableDeclaration
+  | VariableDeclarator(name, dims) when more -> VariableDeclarator("", 0)
+  | Modifiers kind when more -> Modifiers Kany
 
   | Type ty                        -> Type (Type.anonymize ty)
   | Primary p                      -> Primary (Primary.anonymize ~more p)
@@ -2071,15 +2308,16 @@ let anonymize ?(more=false) = function
   | Method(name, msig)             -> Method("", "")
   (*| Method(name, msig)             -> Method("", msig)*)
 
-  | LocalVariableDeclaration(b, vdids)      -> LocalVariableDeclaration(b, [])
-  | VariableDeclarator(name, dims, islocal) -> VariableDeclarator("", 0, true)
+  | LocalVariableDeclaration(b, vdids) -> LocalVariableDeclaration(b, [])
+  | VariableDeclarator(name, dims) -> VariableDeclarator("", 0)
   | NamedArguments _               -> NamedArguments ""
   | TypeArguments(nth, name)       -> TypeArguments(1, "")
   | Parameters _                   -> Parameters ""
-  | Parameter(name, dims, va)      -> Parameter("", 0, false)
+  | Parameter _                    -> Parameter("", 0, false)
+  | ReceiverParameter _            -> ReceiverParameter None
   | TypeParameter _                -> TypeParameter ""
   | TypeParameters _               -> TypeParameters ""
-  | Modifiers _                    -> Modifiers Kany
+  | Modifiers kind                 -> Modifiers (anonymize_kind kind)
   | FieldDeclaration _             -> FieldDeclaration []
   | Qualifier _                    -> Qualifier ""
   | Throws name                    -> Throws ""
@@ -2087,6 +2325,7 @@ let anonymize ?(more=false) = function
   | Class _                        -> Class ""
   | Enum _                         -> Enum ""
   | EnumConstant _                 -> EnumConstant ""
+  | Record _                       -> Record ""
   | ClassBody _                    -> ClassBody ""
   | EnumBody _                     -> EnumBody ""
   | Interface _                    -> Interface ""
@@ -2106,15 +2345,31 @@ let anonymize ?(more=false) = function
   | InferredFormalParameter _      -> InferredFormalParameter ""
   (*| Resource(name, dims)           -> Resource("", 0)*)
   | CatchParameter(name, dims)     -> CatchParameter("", 0)
-  | ForHeader(name, dims)          -> ForHeader("", 0)
+  | ForHead tid                    -> ForHead (anonymize_tid ~more tid)
   | HugeArray _                    -> HugeArray(0, "")
+  | HugeExpr _                     -> HugeExpr(0, "")
   | Block tid                      -> Block null_tid
 
   | WildcardBoundsExtends when more -> Wildcard
   | WildcardBoundsSuper when more   -> Wildcard
   | CatchClause tid                 -> CatchClause (anonymize_tid ~more tid)
 
-  | lab                            -> lab
+  | Module _ -> Module ""
+  | ModuleBody _ -> ModuleBody ""
+  | Requires _ -> Requires ""
+  | Exports _ -> Exports ""
+  | Opens _ -> Opens ""
+  | Uses _ -> Uses ""
+  | Provides _ -> Provides ""
+  | TypeName _ -> TypeName ""
+
+  | Aspect _ -> Aspect ""
+  | Pointcut _ -> Pointcut ""
+  | DeclareMessage _ -> DeclareMessage ""
+
+  | SLconstant tid -> SLconstant (anonymize_tid ~more tid)
+
+  | lab -> lab
 
 
 let anonymize2 = function
@@ -2139,6 +2394,8 @@ let anonymize3 = function
   (*| Type _                      -> Type (Type.Void)*)
   (*| Primary (Primary.Literal _) -> Primary (Primary.Literal Literal.Null)*)
   (*| Statement Statement.ForEnhanced -> Statement Statement.For*)
+  (*| Expression (Expression.BinaryOperator bop) ->
+      Expression (Expression.BinaryOperator (BinaryOperator.anonymize3 bop))*)
 
   | Statement Statement.Expression(Expression.Primary p, _) when begin
       match p with
@@ -2148,7 +2405,8 @@ let anonymize3 = function
       | ClassSuperMethodInvocation _
       | TypeMethodInvocation _ -> true
       | _ -> false
-  end -> Statement (Statement.Expression(Expression.Primary(Primary.SimpleMethodInvocation ""), null_tid))
+  end ->
+    Statement (Statement.Expression(Expression.Primary(Primary.SimpleMethodInvocation ""), null_tid))
 
   | lab -> anonymize ~more:true lab
 
@@ -2165,7 +2423,7 @@ let rec to_simple_string = function
   | SuperInvocation     -> "super"
   | PrimaryInvocation   -> "<p_invok>"
   | NameInvocation name -> name
-  | SLconstant          -> "<sw_label>"
+  | SLconstant tid      -> "<sw_label>"
   | SLdefault           -> "default"
   | EVconditional       -> "<elem_val>"
   | EVannotation        -> "<elem_val>"
@@ -2177,8 +2435,7 @@ let rec to_simple_string = function
   | InstanceInitializer         -> "<init>"
   | Block tid                   -> "<block>"
   | LocalVariableDeclaration(isstmt, vdids) -> "<vdecl>"
-  | VariableDeclarator(name, dims, islocal) ->
-      name^(if dims = 0 then "" else sprintf "[%d" dims)^(if islocal then "L" else "F")
+  | VariableDeclarator(name, dims) -> name^(if dims = 0 then "" else sprintf "[%d" dims)
   | CatchClause tid             -> "catch"
   | Finally                     -> "finally"
   | ForInit tid                 -> "<for_init>"
@@ -2195,24 +2452,28 @@ let rec to_simple_string = function
   | WildcardBoundsExtends       -> "? extends"
   | WildcardBoundsSuper         -> "? super"
   | Parameters name             -> "<params>"
-  | Parameter(name, dims, va)   ->
-      name^(if dims = 0 then "" else sprintf "[%d]" dims)^(if va then "..." else "")
+  | Parameter(id, dims, va)   ->
+      id^(if dims = 0 then "" else sprintf "[%d]" dims)^(if va then "..." else "")
+  | ReceiverParameter id_opt    -> (match id_opt with Some id -> id^".this" | _ -> "this")
   | TypeParameter name          -> name
   | TypeParameters name         -> "<ty_params>"
   | ArrayInitializer            -> "<array-init>"
   | Modifiers _                 -> "<mods>"
   | FieldDeclaration vdids      -> "<fdecl>"
+  | VariableDeclaration         -> "<vdecl>"
   | Method(name, msig)          -> name
   | Super                       -> "super"
   | Qualifier q                 -> q
   | Throws name                 -> "throws"
   | MethodBody(name, msig)      -> "<body>"
   | Specifier k                 -> "<spec:"^(kind_to_string k)^">"
-  | Class name                  -> name
-  | Enum name                   -> name
+  | Class name                  -> "class "^name
+  | Enum name                   -> "enum "^name
   | EnumConstant name           -> name
+  | Record name                 -> "record "^name
   | Extends                     -> "extends"
   | Implements                  -> "implements"
+  | Permits                     -> "permits"
   | ClassBody name              -> "<body>"
   | EnumBody name               -> "<body>"
   | Interface name              -> name
@@ -2230,16 +2491,17 @@ let rec to_simple_string = function
   | CompilationUnit             -> "<compilation_unit>"
   | ElementDeclaration name     -> name^"()"
   | FieldDeclarations name      -> "<fdecls>"
-  | InferredFormalParameters     -> "<inferred_formal_parameters>"
-  | InferredFormalParameter name -> name
-  | ResourceSpec                -> "<resource_spec>"
+  | InferredFormalParameters    -> "<inferred_formal_parameters>"
+  | InferredFormalParameter id   -> id
+  | ResourceSpec                -> "<resource-spec>"
   (*| Resource(name, dims)        -> name^(if dims = 0 then "" else sprintf "[%d]" dims)*)
   | CatchParameter(name, dims)  -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
-  | AnnotDim                    -> "[]"
+  | AnnotDim ellipsis           -> if ellipsis then "..." else "[]"
   | Error s                     -> s
   | HugeArray(sz, c)            -> c
+  | HugeExpr(sz, c)             -> c
   | EmptyDeclaration            -> ";"
-  | ForHeader(name, dims)         -> name^(if dims = 0 then "" else sprintf "[%d]" dims)
+  | ForHead tid                 -> "<for_head>"
   | Aspect name                   -> "aspect "^name
   | Pointcut name                 -> "pointcut "^name
   | DeclareParents                -> "declare parents"
@@ -2257,6 +2519,21 @@ let rec to_simple_string = function
   | ClassnamePatternParen         -> "()"
   | ClassnamePatternName name     -> name
   | ClassnamePatternNamePlus name -> name^"+"
+  | SwitchRule                    -> "<switch-rule>"
+  | SRLconstant                   -> "<sw-label>"
+  | SRLdefault                    -> "default"
+
+  | Module name -> sprintf "module %s" name
+  | Open -> "open"
+  | ModuleName name -> name
+  | ModuleBody name -> sprintf "<module-body:%s>" name
+  | Requires name -> sprintf "requires %s" name
+  | Exports name -> sprintf "exports %s" name
+  | Opens name -> sprintf "opens %s" name
+  | Uses name -> sprintf "uses %s" name
+  | Provides name -> sprintf "provides %s" name
+  | TypeName name -> name
+
 
 let rec to_short_string ?(ignore_identifiers_flag=false) =
   let combo = combo ~ignore_identifiers_flag in function
@@ -2271,7 +2548,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | SuperInvocation                         -> mkstr 8
   | PrimaryInvocation                       -> mkstr 9
   | NameInvocation name                     -> combo 10 [name]
-  | SLconstant                              -> mkstr 11
+  | SLconstant tid                          -> catstr [mkstr 11; tid_to_string tid]
   | SLdefault                               -> mkstr 12
   | EVconditional                           -> mkstr 13
   | EVannotation                            -> mkstr 14
@@ -2281,8 +2558,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | StaticInitializer                       -> mkstr 18
   | InstanceInitializer                     -> mkstr 19
   | Block tid                               -> catstr [mkstr 20; tid_to_string tid]
-  | VariableDeclarator(name, dims, islocal) ->
-      combo 21 [name; string_of_int dims; if islocal then "L" else "F"]
+  | VariableDeclarator(name, dims)          -> combo 21 [name; string_of_int dims]
   | CatchClause tid                         -> catstr [mkstr 23; tid_to_string tid]
   | Finally                                 -> mkstr 24
   | ForInit tid                             -> catstr [mkstr 25; tid_to_string tid]
@@ -2296,7 +2572,7 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | TypeArguments(nth, name)                -> combo 35 [name]
   | Wildcard                                -> mkstr 36
   | Parameters name                         -> combo 37 [name]
-  | Parameter(name, dims, va)               -> combo 38 [name; (string_of_int dims); (if va then "..." else "")]
+  | Parameter(id, dims, va)                 -> combo 38 [id; (string_of_int dims); (if va then "..." else "")]
   | TypeParameter name                      -> combo 39 [name]
   | TypeParameters name                     -> combo 40 [name]
   | ArrayInitializer                        -> mkstr 41
@@ -2334,19 +2610,19 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | WildcardBoundsExtends                   -> mkstr 74
   | WildcardBoundsSuper                     -> mkstr 75
   | InferredFormalParameters                -> mkstr 76
-  | InferredFormalParameter name            -> combo 77 [name]
+  | InferredFormalParameter id              -> combo 77 [id]
   | Error s                                 -> mkstr 79
   | SwitchBlock                             -> mkstr 80
   | ConstructorBody(name, msig)             -> combo 81 [name;msig]
   | ResourceSpec                            -> mkstr 82
   (*| Resource(name, dims)                    -> combo 83 [name; string_of_int dims]*)
   | CatchParameter(name, dims)              -> combo 84 [name; string_of_int dims]
-  | AnnotDim                                -> mkstr 85
+  | AnnotDim ellipsis                       -> combo 85 [if ellipsis then "..." else "[]"]
   | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       combo 86 [string_of_int sz; h]
   | EmptyDeclaration                        -> mkstr 87
-  | ForHeader(name, dims)                   -> combo 105 [name; string_of_int dims]
+  | ForHead tid                           -> catstr [mkstr 105; tid_to_string tid]
   | Aspect name                   -> combo 88 [name]
   | Pointcut name                 -> combo 89 [name]
   | DeclareParents                -> mkstr 90
@@ -2365,6 +2641,32 @@ let rec to_short_string ?(ignore_identifiers_flag=false) =
   | ClassnamePatternName name     -> combo 103 [name]
   | ClassnamePatternNamePlus name -> combo 104 [name]
 
+  | HugeExpr(sz, c) ->
+      let h = Xhash.digest_hex_of_string Xhash.MD5 c in
+      combo 105 [string_of_int sz; h]
+
+  | SwitchRule -> mkstr 106
+  | SRLconstant -> mkstr 107
+  | SRLdefault -> mkstr 107
+  | Record name -> combo 108 [name]
+
+  | ReceiverParameter None -> mkstr 109
+  | ReceiverParameter (Some id) -> combo 109 [id]
+
+  | Module name -> combo 110 [name]
+  | Open -> mkstr 111
+  | ModuleName name -> combo 112 [name]
+  | ModuleBody name -> combo 113 [name]
+  | Requires name -> combo 114 [name]
+  | Exports name -> combo 115 [name]
+  | Opens name -> combo 116 [name]
+  | Uses name -> combo 117 [name]
+  | Provides name -> combo 118 [name]
+  | Permits -> mkstr 119
+  | TypeName name -> combo 120 [name]
+
+  | VariableDeclaration -> mkstr 121
+
 let sig_attr_name = "___signature"
 
 let to_tag ?(strip=false) l =
@@ -2373,7 +2675,7 @@ let to_tag ?(strip=false) l =
     | Type ty                     -> Type.to_tag ty
     | Primary p                   -> Primary.to_tag p
     | Expression e                -> Expression.to_tag e
-    | Statement s                 -> Statement.to_tag s
+    | Statement s                 -> Statement.to_tag ~strip s
     | Modifier m                  -> Modifier.to_tag m
     | Annotation a                -> Annotation.to_tag a
     | TypeBound                   -> "TypeBound", []
@@ -2383,7 +2685,7 @@ let to_tag ?(strip=false) l =
     | NameInvocation name         -> "NameInvocation", ["name",xmlenc name]
 
 (* switch label *)
-    | SLconstant                  -> "ConstantLabel", []
+    | SLconstant tid              -> "ConstantLabel", mktidattr tid
     | SLdefault                   -> "DefaultLabel", []
 
 (* element value *)
@@ -2402,11 +2704,7 @@ let to_tag ?(strip=false) l =
 
     | Block _ when strip          -> "Block", []
     | Block tid                   -> "Block", mktidattr tid
-    | VariableDeclarator(name, d, islocal) ->
-        "VariableDeclarator", ["name",xmlenc name;
-                                dims_attr_name,string_of_int d;
-                                islocal_attr_name,string_of_bool islocal
-                              ]
+    | VariableDeclarator(name, d) -> "VariableDeclarator", ["name",xmlenc name;dims_attr_name,string_of_int d;]
     | CatchClause tid             -> "CatchClause", mktidattr tid
     | Finally                     -> "Finally", []
     | ForInit _ when strip        -> "ForInit", []
@@ -2430,13 +2728,16 @@ let to_tag ?(strip=false) l =
     | WildcardBoundsExtends       -> "WildcardBoundsExtends", []
     | WildcardBoundsSuper         -> "WildcardBoundsSuper", []
     | Parameters name             -> "Parameters", ["name",xmlenc name]
-    | Parameter(name, dims, va)   -> "Parameter", ["name",xmlenc name;dims_attr_name,string_of_int dims;"va",string_of_bool va]
+    | Parameter(id, dims, va)     -> "Parameter", ["name",xmlenc id;dims_attr_name,string_of_int dims;"va",string_of_bool va]
+    | ReceiverParameter None      -> "ReceiverParameter", []
+    | ReceiverParameter (Some id) -> "ReceiverParameter", ["name",xmlenc id]
     | TypeParameter name          -> "TypeParameter", ["name",xmlenc name]
     | TypeParameters name         -> "TypeParameters", ["name",xmlenc name]
     | ArrayInitializer            -> "ArrayInitializer", []
     | Modifiers _ when strip      -> "Modifiers", []
     | Modifiers k                 -> "Modifiers", kind_to_attrs k
-    | FieldDeclaration vdids      -> "FieldDeclaration", [vdids_attr_name,vdids_to_string vdids]
+    | FieldDeclaration vdids      -> "FieldDeclaration", [(*vdids_attr_name*)"name",vdids_to_string vdids]
+    | VariableDeclaration         -> "VariableDeclaration", []
     | Method(name, msig)          -> "MethodDeclaration", ["name",xmlenc name;sig_attr_name,xmlenc msig]
     | MethodBody _ when strip     -> "MethodBody", []
     | MethodBody(name, msig)      -> "MethodBody", ["name",xmlenc name;sig_attr_name,xmlenc msig]
@@ -2447,8 +2748,10 @@ let to_tag ?(strip=false) l =
     | Class name                  -> "ClassDeclaration", ["name",xmlenc name]
     | Enum name                   -> "EnumDeclaration", ["name",xmlenc name]
     | EnumConstant name           -> "EnumConstant", ["name",xmlenc name]
+    | Record name                 -> "RecordDeclaration", ["name",xmlenc name]
     | Extends                     -> "Extends", []
     | Implements                  -> "Implements", []
+    | Permits                     -> "Permits", []
     | ClassBody name              -> "ClassBody", ["name",xmlenc name]
     | EnumBody name               -> "EnumBody", ["name",xmlenc name]
     | Interface name              -> "InterfaceDeclaration", ["name",xmlenc name]
@@ -2473,14 +2776,14 @@ let to_tag ?(strip=false) l =
     | FieldDeclarations name      -> "FieldDeclarations", ["name",xmlenc name]
 
     | InferredFormalParameters     -> "InferredFormalParameters", []
-    | InferredFormalParameter name -> "InferredFormalParameter", ["name",xmlenc name]
+    | InferredFormalParameter id   -> "InferredFormalParameter", ["name",xmlenc id]
 
     | CompilationUnit             -> "CompilationUnit", []
     | LocalVariableDeclaration(isstmt, vdids) ->
         (if isstmt then
           "LocalVariableDeclarationStatement"
         else
-          "LocalVariableDeclaration"), [vdids_attr_name,vdids_to_string vdids]
+          "LocalVariableDeclaration"), [(*vdids_attr_name*)"name",vdids_to_string vdids]
 
     | ResourceSpec                -> "ResourceSpec", []
     (*| Resource(name, dims)        -> "Resource", ["name",xmlenc name;
@@ -2489,16 +2792,16 @@ let to_tag ?(strip=false) l =
     | CatchParameter(name, dims)  -> "CatchParameter", ["name",xmlenc name;
                                                         dims_attr_name,string_of_int dims]
 
-    | AnnotDim                    -> "AnnotDim", []
+    | AnnotDim ellipsis -> "AnnotDim", ["ellipsis",string_of_bool ellipsis]
 
     | Error s -> "Error", ["contents",xmlenc s]
 
     | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code",xmlenc c]
+    | HugeExpr(sz, c) -> "HugeExpr", ["size",string_of_int sz;"code",xmlenc c]
 
     | EmptyDeclaration -> "EmptyDeclaration", []
 
-    | ForHeader(name, dims) -> "ForHeader", ["name",xmlenc name;
-                                             dims_attr_name,string_of_int dims]
+    | ForHead tid -> "ForHead", mktidattr tid
 
     | Aspect name                   -> "Aspect", ["name",xmlenc name]
     | Pointcut name                 -> "Pointcut", ["name",xmlenc name]
@@ -2517,7 +2820,20 @@ let to_tag ?(strip=false) l =
     | ClassnamePatternParen         -> "ClassnamePatternParen", []
     | ClassnamePatternName name     -> "ClassnamePatternName", ["name",xmlenc name]
     | ClassnamePatternNamePlus name -> "ClassnamePatternNamePlus", ["name",xmlenc name]
+    | SwitchRule                    -> "SwitchRule", []
+    | SRLconstant                   -> "ConstantRuleLabel", []
+    | SRLdefault                    -> "DefaultRuleLabel", []
 
+    | Module name     -> "ModuleDeclaration", ["name",xmlenc name]
+    | Open            -> "Open", []
+    | ModuleName name -> "ModuleName", ["name",xmlenc name]
+    | ModuleBody name -> "ModuleBody", ["name",xmlenc name]
+    | Requires name   -> "RequiresDirective", ["name",xmlenc name]
+    | Exports name    -> "ExportsDirective", ["name",xmlenc name]
+    | Opens name      -> "OpensDirective", ["name",xmlenc name]
+    | Uses name       -> "UsesDirective", ["name",xmlenc name]
+    | Provides name   -> "ProvidesDirective", ["name",xmlenc name]
+    | TypeName name   -> "TypeName", ["name",xmlenc name]
   in
   name, attrs
 
@@ -2537,7 +2853,7 @@ let to_char lab =
     | SuperInvocation -> 8
     | PrimaryInvocation -> 9
     | NameInvocation name -> 10
-    | SLconstant -> 11
+    | SLconstant tid -> 11
     | SLdefault -> 12
     | EVconditional -> 13
     | EVannotation -> 14
@@ -2547,7 +2863,7 @@ let to_char lab =
     | StaticInitializer -> 18
     | InstanceInitializer -> 19
     | Block _ -> 20
-    | VariableDeclarator(name, dims, islocal) -> 21
+    | VariableDeclarator(name, dims) -> 21
     | CatchClause tid -> 23
     | Finally -> 24
     | ForInit tid -> 25
@@ -2598,18 +2914,18 @@ let to_char lab =
     | LocalVariableDeclaration(isstmt, vdids) -> 77
     | WildcardBoundsExtends -> 78
     | WildcardBoundsSuper -> 79
-    | InferredFormalParameters     -> 80
-    | InferredFormalParameter name -> 81
+    | InferredFormalParameters -> 80
+    | InferredFormalParameter id -> 81
     | Error _ -> 83
     | SwitchBlock -> 84
     | ConstructorBody _ -> 85
     | ResourceSpec -> 86
     (*| Resource _ -> 87*)
     | CatchParameter(name, dims) -> 88
-    | AnnotDim                   -> 89
+    | AnnotDim _                 -> 89
     | HugeArray _ -> 90
     | EmptyDeclaration -> 91
-    | ForHeader _ -> 109
+    | ForHead _ -> 109
     | Aspect name                   -> 92
     | Pointcut name                 -> 93
     | DeclareParents                -> 94
@@ -2627,6 +2943,24 @@ let to_char lab =
     | ClassnamePatternParen         -> 106
     | ClassnamePatternName name     -> 107
     | ClassnamePatternNamePlus name -> 108
+    | HugeExpr _ -> 109
+    | SwitchRule -> 110
+    | SRLconstant -> 111
+    | SRLdefault -> 112
+    | Record name -> 113
+    | ReceiverParameter _ -> 114
+    | Module name -> 115
+    | Open -> 116
+    | ModuleName name -> 117
+    | ModuleBody name -> 118
+    | Requires name -> 119
+    | Exports name -> 120
+    | Opens name -> 121
+    | Uses name -> 122
+    | Provides name -> 123
+    | Permits -> 124
+    | TypeName name -> 125
+    | VariableDeclaration -> 126
   in
   char_pool.(to_index lab)
 
@@ -2692,13 +3026,14 @@ let forced_to_be_collapsible lab =
   false
 
 let is_collapse_target options lab =
-  if options#no_collapse_flag then false
+  if options#no_collapse_flag then
+    false
   else
     match lab with
     | Statement _
     | Primary _
     | Expression _
-    | Type (Type.ClassOrInterface _ | Type.Class _ | Type.Interface _)
+    | Type (Type.ClassOrInterface _ | Type.Class _ | Type.Interface _ | Type.Array _)
 
     | Class _
     | Enum _
@@ -2719,9 +3054,10 @@ let is_collapse_target options lab =
     | ForInit _
     | ForCond _
     | ForUpdate _
-(*    | ForHeader _*)
+    | ForHead _
     | Block _
     | Parameters _
+    | Parameter _
     | MethodBody _
     | ConstructorBody _
     | TypeArguments _
@@ -2751,7 +3087,6 @@ let is_collapse_target options lab =
     | ClassnamePatternOr
     | ClassnamePatternNot
     | ClassnamePatternParen
-
       -> true
     | _ -> false
 
@@ -2800,6 +3135,21 @@ let is_compatible ?(weak=false) lab1 lab2 =
   | Primary p1, Primary p2 -> Primary.is_compatible p1 p2
   | Method(n1, _), Method(n2, _) -> n1 = n2
   | Constructor(n1, _), Constructor(n2, _) -> n1 = n2
+
+  | Statement (Statement.Expression(Expression.Primary _p, _)), Primary p
+  | Primary p, Statement (Statement.Expression(Expression.Primary _p, _)) -> begin
+      match p with
+      | Primary.InstanceCreation _
+      | Primary.QualifiedInstanceCreation _
+      | Primary.NameQualifiedInstanceCreation _
+      | Primary.PrimaryMethodInvocation _
+      | Primary.SimpleMethodInvocation _
+      | Primary.SuperMethodInvocation _
+      | Primary.ClassSuperMethodInvocation _
+      | Primary.TypeMethodInvocation _ -> _p = p
+      | _ -> false
+  end
+
   | ClassBody _, InterfaceBody _ | InterfaceBody _, ClassBody _ when weak -> true (* invalid when dumping delta *)
   | ClassBody _, EnumBody _ | EnumBody _, ClassBody _ when weak -> true
   | EnumBody _, InterfaceBody _ | InterfaceBody _, EnumBody _ when weak -> true
@@ -2828,8 +3178,23 @@ let relabel_allowed (lab1, lab2) =
     match lab1, lab2 with
     | Statement stmt1, Statement stmt2 -> Statement.relabel_allowed(stmt1, stmt2)
 
-    | Statement (Statement.Expression(Expression.Primary _, _)), Primary _
-    | Primary _, Statement (Statement.Expression(Expression.Primary _, _)) -> true
+    | Statement (Statement.Expression(Expression.Primary _p, _)), Primary p
+    | Primary p, Statement (Statement.Expression(Expression.Primary _p, _)) -> begin
+        match p with
+        | Primary.InstanceCreation _
+        | Primary.QualifiedInstanceCreation _
+        | Primary.NameQualifiedInstanceCreation _
+        | Primary.PrimaryMethodInvocation _
+        | Primary.SimpleMethodInvocation _
+        | Primary.SuperMethodInvocation _
+        | Primary.ClassSuperMethodInvocation _
+        | Primary.TypeMethodInvocation _ -> begin
+            try
+              Primary.get_name _p = Primary.get_name p
+            with _ -> false
+        end
+        | _ -> false
+    end
 
     | Statement (Statement.Expression(e, _)), Primary p
     | Primary p, Statement (Statement.Expression(e, _)) -> begin
@@ -2849,11 +3214,11 @@ let relabel_allowed (lab1, lab2) =
         | _ -> false
     end
 
-    | Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
-    | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
+    (*| Statement (Statement.Expression(Expression.AssignmentOperator _, _)), VariableDeclarator _
+    | VariableDeclarator _, Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true*)
 
-    | Statement (Statement.Expression _), lab
-    | lab, Statement (Statement.Expression _) -> is_statement_expression lab
+    (*| Statement (Statement.Expression _), lab
+    | lab, Statement (Statement.Expression _) -> is_statement_expression lab*)
 
     (*| Expression (Expression.Primary _), Primary _
     | Primary _, Expression (Expression.Primary _)*)
@@ -2869,11 +3234,17 @@ let relabel_allowed (lab1, lab2) =
     | Type (Type.Class _), Primary (Primary.FieldAccess _)
     | Primary (Primary.FieldAccess _), Type (Type.Class _)
 
+    | Type (Type.Class _), Primary (Primary.Name _)
+    | Primary (Primary.Name _), Type (Type.Class _)
+
     | Primary _, Expression _
     | Expression _, Primary _
 
     | Expression Expression.Cond, Statement Statement.If _
     | Statement Statement.If _, Expression Expression.Cond
+
+    | Expression Expression.Switch, Statement Statement.If _
+    | Statement Statement.If _, Expression Expression.Switch
 
     | Implements, Extends | Extends, Implements
     | Implements, ExtendsInterfaces | ExtendsInterfaces, Implements
@@ -2902,12 +3273,18 @@ let relabel_allowed (lab1, lab2) =
 
     (*| LocalVariableDeclaration _, Resource _ | Resource _, LocalVariableDeclaration _*)
 
-(*    | VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
+    (*| VariableDeclarator _, Primary (Primary.Name _|Primary.FieldAccess _)
     | Primary (Primary.Name _|Primary.FieldAccess _), VariableDeclarator _*)
 
+    | VariableDeclarator _, InferredFormalParameter _
+    | InferredFormalParameter _, VariableDeclarator _
+
+    | LocalVariableDeclaration _, FieldDeclaration _
+    | FieldDeclaration _, LocalVariableDeclaration _
+
     | Parameter _, CatchParameter _ | CatchParameter _, Parameter _
-    | Parameter _, ForHeader _ | ForHeader _, Parameter _
-    | ForHeader _, CatchParameter _ | CatchParameter _, ForHeader _
+    | Parameter _, LocalVariableDeclaration _ | LocalVariableDeclaration _, Parameter _
+    | LocalVariableDeclaration _, CatchParameter _ | CatchParameter _, LocalVariableDeclaration _
 
       -> true
 
@@ -2937,6 +3314,7 @@ let is_common = function
   | Primary p
   | Expression (Expression.Primary p)
   | Statement (Statement.Expression (Expression.Primary p, _)) -> Primary.is_common p
+  | IDsingle n -> Xset.mem Type.common_classes n
   | _ -> false
 
 let is_order_insensitive = function
@@ -2980,6 +3358,7 @@ let is_named = function
   | Class _
   | Enum _
   | EnumConstant _
+  | Record _
   | ClassBody _
   | EnumBody _
   | Interface _
@@ -2998,12 +3377,22 @@ let is_named = function
   | InferredFormalParameter _
   (*| Resource _*)
   | CatchParameter _
-  | ForHeader _
     -> true
 
   | ClassnamePatternName _
   | ClassnamePatternNamePlus _
       -> true
+
+  | Module _
+  | ModuleName _
+  | ModuleBody _
+  | Requires _
+  | Exports _
+  | Opens _
+  | Uses _
+  | Provides _
+  | TypeName _
+    -> true
 
   | _ -> false
 
@@ -3017,6 +3406,7 @@ let is_named_orig = function
   | ElementValuePair _
   | Constructor _
   | VariableDeclarator _
+  | FieldDeclaration _ (* for merging (potential duplication detection) *)
   | Parameter _
   | TypeParameter _
   | Method _
@@ -3024,6 +3414,7 @@ let is_named_orig = function
   | Class _
   | Enum _
   | EnumConstant _
+  | Record _
   | Interface _ 
   | Specifier _
   | AnnotationType _
@@ -3036,18 +3427,29 @@ let is_named_orig = function
   | InferredFormalParameter _
   (*| Resource _*)
   | CatchParameter _
-  | ForHeader _
   | HugeArray _
+  | HugeExpr _
     -> true
 
   | ClassnamePatternName _
   | ClassnamePatternNamePlus _
       -> true
 
+  | Module _
+  | ModuleName _
+  | Requires _
+  | Exports _
+  | Opens _
+  | Uses _
+  | Provides _
+  | TypeName _
+    -> true
+
   | _ -> false
 
 
 let is_to_be_notified = function
+  | Module _
   | Class _
   | Interface _
   | Method _ -> true
@@ -3058,6 +3460,7 @@ let is_partition = function
   | IDtypeOnDemand _
   | IDsingleStatic _
   | IDstaticOnDemand _
+  | Module _
   | Class _
   | Enum _
   | Interface _
@@ -3067,9 +3470,10 @@ let is_partition = function
 
 
 let is_boundary = function
+  | Module _
   | Class _
   | Interface _
-  | FieldDeclaration _
+  (*| FieldDeclaration _*)
   | Method _
   | Constructor _
   | InstanceInitializer
@@ -3083,6 +3487,7 @@ let is_boundary = function
   | _ -> false
 
 let is_sequence = function
+  | ModuleBody _
   | Block _
   | MethodBody _
   | ConstructorBody _
@@ -3111,6 +3516,15 @@ let is_wildcard_bounds = function
 
 let is_if = function
   | Statement Statement.If _ -> true
+  (*| Statement Statement.FlattenedIf _ -> true*)
+  | _ -> false
+
+let is_elseif = function
+  | Statement Statement.ElseIf _ -> true
+  | _ -> false
+
+let is_else = function
+  | Statement Statement.Else -> true
   | _ -> false
 
 let is_while = function
@@ -3123,6 +3537,10 @@ let is_do = function
 
 let is_try = function
   | Statement Statement.Try -> true
+  | _ -> false
+
+let is_yield = function
+  | Statement Statement.Yield -> true
   | _ -> false
 
 let is_return = function
@@ -3183,12 +3601,36 @@ let is_type = function
   | Type _ -> true
   | _ -> false
 
+let is_module = function
+  | Module _ -> true
+  | _ -> false
+
+let is_module_body = function
+  | ModuleBody _ -> true
+  | _ -> false
+
+let is_open = function
+  | Open -> true
+  | _ -> false
+
+let is_module_directive = function
+  | Requires _
+  | Exports _
+  | Opens _
+  | Uses _
+  | Provides _ -> true
+  | _ -> false
+
 let is_class = function
   | Class _ -> true
   | _ -> false
 
 let is_implements = function
   | Implements -> true
+  | _ -> false
+
+let is_permits = function
+  | Permits -> true
   | _ -> false
 
 let is_classbody = function
@@ -3251,6 +3693,10 @@ let is_enum = function
 
 let is_enumconstant = function
   | EnumConstant _ -> true
+  | _ -> false
+
+let is_record = function
+  | Record _ -> true
   | _ -> false
 
 let is_typedeclaration = function
@@ -3323,8 +3769,8 @@ let is_forupdate = function
   | ForUpdate _ -> true
   | _ -> false
 
-let is_forheader = function
-  | ForHeader _ -> true
+let is_forhead = function
+  | ForHead _ -> true
   | _ -> false
 
 let is_switchblock = function
@@ -3335,8 +3781,16 @@ let is_switchblockstmtgroup = function
   | SwitchBlockStatementGroup -> true
   | _ -> false
 
+let is_switchrule = function
+  | SwitchRule -> true
+  | _ -> false
+
 let is_switchlabel = function
-  | SLconstant | SLdefault -> true
+  | SLconstant _ | SLdefault -> true
+  | _ -> false
+
+let is_switchrulelabel = function
+  | SRLconstant | SRLdefault -> true
   | _ -> false
 
 let is_arrayinitializer = function
@@ -3347,10 +3801,6 @@ let is_variabledeclarator = function
   | VariableDeclarator _ -> true
   | _ -> false
 
-let is_local_variabledeclarator = function
-  | VariableDeclarator(_, _, b) -> b
-  | _ -> raise (Invalid_argument "Java.Label.is_local_variabledeclarator")
-
 let is_literal = function
   | Primary (Primary.Literal _)
   | Expression (Expression.Primary (Primary.Literal _)) -> true
@@ -3358,6 +3808,10 @@ let is_literal = function
 
 let is_string_literal = function
   | Primary (Primary.Literal (Literal.String _)) -> true
+  | _ -> false
+
+let is_text_block = function
+  | Primary (Primary.Literal (Literal.TextBlock _)) -> true
   | _ -> false
 
 let is_int_literal = function
@@ -3389,7 +3843,8 @@ let is_instancecreation = function
 
 
 let is_assignment = function
-  | Expression (Expression.AssignmentOperator _) -> true
+  | Expression (Expression.AssignmentOperator _)
+  | Statement (Statement.Expression(Expression.AssignmentOperator _, _)) -> true
   | _ -> false
 
 let is_qualifier = function
@@ -3415,6 +3870,7 @@ let is_throws = function
 let is_expression = function
   | Primary _
   | Expression _
+  | HugeExpr _
     -> true
   | _ -> false
 
@@ -3423,7 +3879,8 @@ let is_op = function
     Expression.UnaryOperator _ |
     Expression.BinaryOperator _ |
     Expression.Instanceof |
-    Expression.AssignmentOperator _)
+    Expression.AssignmentOperator _ |
+    Expression.Cast)
       -> true
   | _ -> false
 
@@ -3579,6 +4036,10 @@ let is_binaryop = function
   | Expression.AssignmentOperator _) -> true
   | _ -> false
 
+let is_binary_add = function
+  | Expression (Expression.BinaryOperator BinaryOperator.Add) -> true
+  | _ -> false
+
 let is_block = function
   | Block _ -> true
   | _ -> false
@@ -3654,7 +4115,7 @@ let is_catch_parameter = function
   | _ -> false
 
 let is_annot_dim = function
-  | AnnotDim -> true
+  | AnnotDim _ -> true
   | _ -> false
 
 let is_aspect = function
@@ -3692,7 +4153,7 @@ let is_classname_pattern_expr = function
       -> true
   | _ -> false
 
-let scope_creating lab =
+let is_scope_creating lab =
   is_compilationunit lab ||
   is_class lab ||
   is_interface lab ||
@@ -3700,6 +4161,7 @@ let scope_creating lab =
   is_class_or_interface lab ||
   is_method lab ||
   is_methodbody lab ||
+  is_for lab ||
   is_block lab ||
   is_try lab ||
   is_aspect lab
@@ -3714,13 +4176,16 @@ let get_category lab =
 let get_dims = function
   | Parameter(_, dims, _)
   | CatchParameter(_, dims)
-  | ForHeader(_, dims)
       -> dims
   | _ -> failwith "Java_label.get_dims: no dimensions"
 
-let get_name lab =
+let get_name ?(strip=false) lab =
   let n =
     match lab with
+    | LocalVariableDeclaration(_, vdids) when strip -> vdids_to_name vdids
+    | FieldDeclaration vdids             when strip -> vdids_to_name vdids
+
+
     | Type ty -> Type.get_name ty
     | Primary prim -> Primary.get_name prim
     | Expression expr -> Expression.get_name expr
@@ -3731,7 +4196,7 @@ let get_name lab =
     | ElementValuePair name
     | Constructor(name, _)
     | ConstructorBody(name, _)
-    | VariableDeclarator(name, _, _)
+    | VariableDeclarator(name, _)
     | TypeArguments(_, name)
     | NamedArguments name
     | Parameters name
@@ -3745,6 +4210,7 @@ let get_name lab =
     | Class name
     | Enum name
     | EnumConstant name
+    | Record name
     | ClassBody name
     | EnumBody name
     | Interface name
@@ -3760,20 +4226,20 @@ let get_name lab =
     | InferredFormalParameter name
     (*| Resource(name, _)*)
     | CatchParameter(name, _)
-    | ForHeader(name, _)
       -> name
 
-    | LocalVariableDeclaration(_, name_dim_list) ->
-        String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
-
-    | FieldDeclaration name_dim_list ->
-        String.concat "," (List.map (fun (n, _) -> n) name_dim_list)
+    | LocalVariableDeclaration(_, vdids) -> vdids_to_string vdids
+    | FieldDeclaration vdids -> vdids_to_string vdids
 
     | IDsingleStatic(name1, name2) -> String.concat "." [name1; name2]
 
     | HugeArray(sz, c) ->
       let h = Xhash.digest_hex_of_string Xhash.MD5 c in
       "HUGE_ARRAY_"^h
+
+    | HugeExpr(sz, c) ->
+      let h = Xhash.digest_hex_of_string Xhash.MD5 c in
+      "HUGE_EXPR_"^h
 
     | ClassnamePatternName name
     | ClassnamePatternNamePlus name
@@ -3782,13 +4248,25 @@ let get_name lab =
     | Modifiers k
     | Specifier k -> kind_to_name k
 
+    | Module name
+    | ModuleName name
+    | ModuleBody name
+    | Requires name
+    | Exports name
+    | Opens name
+    | Uses name
+    | Provides name -> name
+    | TypeName name -> name
+
     | _ -> begin
         (*WARN_MSG "name not found: %s" (to_string lab);*)
         raise Not_found
     end
   in
-  if n = "" then
+  if n = "" then begin
+    (*Printf.printf "!!! get_name: lab=%s" (to_string lab);*)
     raise Not_found
+  end
   else
     n
 
@@ -3810,6 +4288,14 @@ let has_non_trivial_value lab =
   try
     let v = get_value lab in
     v <> "0" && v <> "1" && v <> "-1" && v <> "" && v <> "true" && v <> "false" && v <> "null"
+  with
+    Not_found -> false
+
+let has_non_trivial_tid lab =
+  try
+    match lab with
+    | Statement stmt when (hash_of_tid (Statement.get_tid stmt) <> "") -> true
+    | _ -> false
   with
     Not_found -> false
 
@@ -3873,6 +4359,7 @@ let find_kind a =
     | "class" -> Kclass n
     | "interface" -> Kinterface n
     | "enum" -> Kenum n
+    | "record" -> Krecord n
     | "annotation" -> Kannotation n
     | "field" -> Kfield n
     | "constructor" -> Kconstructor n
@@ -3931,8 +4418,8 @@ let of_elem_data =
     "DoubleType",    (fun a -> mkty a Type.Double);
     "BooleanType",   (fun a -> mkty a Type.Boolean);
     "ReferenceType", (fun a -> mkty a (Type.ClassOrInterface (find_name a)));
-    "ClassType",     (fun a -> mkty a (Type.Class (find_name a)));
-    "InterfaceType", (fun a -> mkty a (Type.Interface (find_name a)));
+    "ClassType",     (fun a -> mkty a (Type.Class(find_name a)));
+    "InterfaceType", (fun a -> mkty a (Type.Interface(find_name a)));
     "Void",          (fun a -> mkty a Type.Void);
 
     "IntegerLiteral",       (fun a -> mklit a (Literal.Integer(find_value a)));
@@ -3941,6 +4428,7 @@ let of_elem_data =
     "False",                (fun a -> mklit a Literal.False);
     "CharacterLiteral",     (fun a -> mklit a (Literal.Character(Scanf.unescaped(find_value a))));
     "StringLiteral",        (fun a -> mklit a (Literal.String(Scanf.unescaped(find_value a))));
+    "TextBlockLiteral",     (fun a -> mklit a (Literal.TextBlock(Scanf.unescaped(find_value a))));
     "NullLiteral",          (fun a -> mklit a Literal.Null);
 
     "Assign",        (fun a -> mkaop a AssignmentOperator.Eq);
@@ -3998,6 +4486,9 @@ let of_elem_data =
     "Strictfp",     (fun a -> mkmod Modifier.Strictfp);
 (*    "Annotation",   (fun a -> mkmod Modifier.Annotation);*)
     "Default",      (fun a -> mkmod Modifier.Default);
+    "Transitive",   (fun a -> mkmod Modifier.Transitive);
+    "Sealed",       (fun a -> mkmod Modifier.Sealed);
+    "NonSealed",    (fun a -> mkmod Modifier.NonSealed);
     "ErrorModifier", (fun a -> mkmod (Modifier.Error(find_attr a "contents")));
 
     "Name",                          (fun a -> mkp a Primary.(Name(find_name a)));
@@ -4030,6 +4521,8 @@ let of_elem_data =
     "Instanceof",  (fun a -> mke a Expression.Instanceof);
     "Cast",        (fun a -> mke a Expression.Cast);
     "Lambda",      (fun a -> mke a Expression.Lambda);
+    "Switch",      (fun a -> mke a Expression.Switch);
+    "NaryAdd",     (fun a -> mke a Expression.NaryAdd);
 
     "NormalAnnotation",        (fun a -> Annotation (Annotation.Normal(find_name a)));
     "MarkerAnnotation",        (fun a -> Annotation (Annotation.Marker(find_name a)));
@@ -4038,11 +4531,15 @@ let of_elem_data =
     "EmptyStatement",           (fun a -> mks Statement.Empty);
     "AssertStatement",          (fun a -> mks Statement.Assert);
     "IfStatement",              (fun a -> mks (Statement.If(find_tid a)));
+    (*"FlattenedIfStatement",     (fun a -> mks (Statement.FlattenedIf(find_tid a)));*)
+    "ElseIfStatement",          (fun a -> mks (Statement.ElseIf(find_tid a)));
+    "ElseStatement",            (fun a -> mks Statement.Else);
     "BasicForStatement",        (fun a -> mks Statement.For);
     "EnhancedForStatement",     (fun a -> mks Statement.ForEnhanced);
     "WhileStatement",           (fun a -> mks Statement.While);
     "DoStatement",              (fun a -> mks Statement.Do);
     "TryStatement",             (fun a -> mks Statement.Try);
+    "YieldStatement",           (fun a -> mks Statement.Yield);
     "SwitchStatement",          (fun a -> mks Statement.Switch);
     "SynchronizedStatement",    (fun a -> mks Statement.Synchronized);
     "ReturnStatement",          (fun a -> mks Statement.Return);
@@ -4084,8 +4581,10 @@ let of_elem_data =
     "SuperInvocation",           (fun a -> SuperInvocation);
     "PrimaryInvocation",         (fun a -> PrimaryInvocation);
     "NameInvocation",            (fun a -> NameInvocation(find_name a));
-    "ConstantLabel",             (fun a -> SLconstant);
+    "ConstantLabel",             (fun a -> SLconstant(find_tid a));
     "DefaultLabel",              (fun a -> SLdefault);
+    "ConstantRuleLabel",         (fun a -> SRLconstant);
+    "DefaultRuleLabel",          (fun a -> SRLdefault);
     "ConditionalElementValue",   (fun a -> EVconditional);
     "AnnotationElementValue",    (fun a -> EVannotation);
     "ArrayInitElementValue",     (fun a -> EVarrayInit);
@@ -4095,9 +4594,9 @@ let of_elem_data =
     "StaticInitializer",         (fun a -> StaticInitializer);
     "InstanceInitializer",       (fun a -> InstanceInitializer);
     "Block",                     (fun a -> Block(find_tid a));
-    "LocalVariableDeclaration",  (fun a -> LocalVariableDeclaration(false, find_vdids a));
-    "LocalVariableDeclarationStatement",  (fun a -> LocalVariableDeclaration(true, find_vdids a));
-    "VariableDeclarator",        (fun a -> VariableDeclarator(find_name a, find_dims a, find_bool a islocal_attr_name));
+    "LocalVariableDeclaration",  (fun a -> LocalVariableDeclaration(false, find_vdids ~attr_name:"name" a));
+    "LocalVariableDeclarationStatement",  (fun a -> LocalVariableDeclaration(true, find_vdids ~attr_name:"name" a));
+    "VariableDeclarator",        (fun a -> VariableDeclarator(find_name a, find_dims a));
     "CatchClause",               (fun a -> CatchClause(find_tid a));
     "Finally",                   (fun a -> Finally);
     "ForInit",                   (fun a -> ForInit(find_tid a));
@@ -4105,6 +4604,7 @@ let of_elem_data =
     "ForUpdate",                 (fun a -> ForUpdate(find_tid a));
     "SwitchBlock",               (fun a -> SwitchBlock);
     "SwitchBlockStatementGroup", (fun a -> SwitchBlockStatementGroup);
+    "SwitchRule",                (fun a -> SwitchRule);
     "DimExpression",             (fun a -> DimExpr);
     "Arguments",                 (fun a -> Arguments);
     "Annotations",               (fun a -> Annotations);
@@ -4115,11 +4615,12 @@ let of_elem_data =
     "WildcardBoundsSuper",       (fun a -> WildcardBoundsSuper);
     "Parameters",                (fun a -> Parameters(find_name a));
     "Parameter",                 (fun a -> Parameter(find_name a, find_dims a, find_bool a "va"));
+    "ReceiverParameter",         (fun a -> ReceiverParameter(try Some (find_name a) with _ -> None));
     "TypeParameter",             (fun a -> TypeParameter(find_name a));
     "TypeParameters",            (fun a -> TypeParameters(find_name a));
     "ArrayInitializer",          (fun a -> ArrayInitializer);
     "Modifiers",                 (fun a -> Modifiers(find_kind a));
-    "FieldDeclaration",          (fun a -> FieldDeclaration(find_vdids a));
+    "FieldDeclaration",          (fun a -> FieldDeclaration(find_vdids ~attr_name:"name" a));
     "MethodDeclaration",         (fun a -> Method(find_name a, find_sig a));
     "Super",                     (fun a -> Super);
     "Qualifier",                 (fun a -> Qualifier(find_name a));
@@ -4130,13 +4631,16 @@ let of_elem_data =
     "ClassSpecifier",            (fun a -> Specifier (Kclass(find_name a)));
     "InterfaceSpecifier",        (fun a -> Specifier (Kinterface(find_name a)));
     "EnumSpecifier",             (fun a -> Specifier (Kenum(find_name a)));
+    "RecordSpecifier",           (fun a -> Specifier (Krecord(find_name a)));
     "AnnotationSpecifier",       (fun a -> Specifier (Kannotation(find_name a)));
 
     "ClassDeclaration",          (fun a -> Class(find_name a));
     "EnumDeclaration",           (fun a -> Enum(find_name a));
     "EnumConstant",              (fun a -> EnumConstant(find_name a));
+    "RecordDeclaration",         (fun a -> Record(find_name a));
     "Extends",                   (fun a -> Extends);
     "Implements",                (fun a -> Implements);
+    "Permits",                   (fun a -> Permits);
     "ClassBody",                 (fun a -> ClassBody(find_name a));
     "EnumBody",                  (fun a -> EnumBody(find_name a));
     "InterfaceDeclaration",      (fun a -> Interface(find_name a));
@@ -4160,17 +4664,18 @@ let of_elem_data =
     "ResourceSpec",                             (fun a -> ResourceSpec);
     (*"Resource",                                 (fun a -> Resource(find_name a, find_dims a));*)
     "CatchParameter",                           (fun a -> CatchParameter(find_name a, find_dims a));
-    "AnnotDim",                                 (fun a -> AnnotDim);
+    "AnnotDim",                                 (fun a -> AnnotDim(find_bool a "ellipsis"));
 
     "AmbiguousName",                            (fun a -> mkp a Primary.(AmbiguousName(find_name a)));
     "AmbiguousMethodInvocation",                (fun a -> mkp a Primary.(AmbiguousMethodInvocation(find_name a)));
 
     "Error",                                    (fun a -> Error(find_attr a "contents"));
-    "HugeArray",
-    (fun a -> HugeArray (int_of_string (find_attr a "size"), (find_code a)));
+    "HugeArray", (fun a -> HugeArray (int_of_string (find_attr a "size"), (find_code a)));
+    "HugeExpr", (fun a -> HugeExpr (int_of_string (find_attr a "size"), (find_code a)));
+
     "EmptyDeclaration", (fun a -> EmptyDeclaration);
 
-    "ForHeader", (fun a -> ForHeader(find_name a, find_dims a));
+    "ForHead", (fun a -> ForHead(find_tid a));
 
     "Aspect",                   (fun a -> Aspect(find_name a));
     "Pointcut",                 (fun a -> Pointcut(find_name a));
@@ -4189,6 +4694,18 @@ let of_elem_data =
     "ClassnamePatternParen",    (fun a -> ClassnamePatternParen);
     "ClassnamePatternName",     (fun a -> ClassnamePatternName(find_name a));
     "ClassnamePatternNamePlus", (fun a -> ClassnamePatternNamePlus(find_name a));
+
+    "ModuleDeclaration", (fun a -> Module(find_name a));
+    "Open",              (fun a -> Open);
+    "ModuleName",        (fun a -> ModuleName(find_name a));
+    "ModuleBody",        (fun a -> ModuleBody(find_name a));
+    "RequiresDirective", (fun a -> Requires(find_name a));
+    "ExportsDirective",  (fun a -> Exports(find_name a));
+    "OpensDirective",    (fun a -> Opens(find_name a));
+    "UsesDirective",     (fun a -> Uses(find_name a));
+    "ProvidesDirective", (fun a -> Provides(find_name a));
+
+    "TypeName", (fun a -> TypeName(find_name a));
    ]
   in
   let tbl = Hashtbl.create (List.length tag_list) in

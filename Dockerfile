@@ -15,6 +15,7 @@ COPY cca /opt/cca/
 RUN set -x && \
     cd /root && \
     apt-get update && \
+    apt-get upgrade -y && \
     env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             gosu \
             vim \
@@ -41,7 +42,7 @@ RUN set -x && \
 
 RUN set -x && \
     cd /root && \
-    git clone https://github.com/mstmhsmt/virtuoso-opensource && \
+    git clone https://github.com/openlink/virtuoso-opensource && \
     cd virtuoso-opensource && \
     ./autogen.sh && \
     env CFLAGS='-O2' ./configure --prefix=/opt/virtuoso --with-layout=opt --with-readline=/usr \
@@ -65,13 +66,27 @@ COPY src /root/src/
 
 RUN set -x && \
     cd /root && \
-    opam init -y --disable-sandboxing && \
+    opam init -y --disable-sandboxing --bare && \
     eval $(opam env) && \
-    opam switch create 4.14.0 && \
+    opam update && \
+    opam switch create 4.14.2+options && \
+    eval $(opam env --switch=4.14.2+options) && \
+    opam install -y ocaml-option-flambda && \
+    echo 'test -r /root/.opam/opam-init/init.sh && . /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> .bashrc && \
+    echo 'export PATH=/opt/cca/bin:${PATH}' >> .bashrc
+
+RUN set -x && \
+    cd /root && \
+    opam update && \
+    opam upgrade -y && \
     eval $(opam env) && \
-    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt && \
+    opam install -y camlp-streams camlzip cryptokit csv git-unix menhir ocamlnet pxp ulex uuidm pcre cohttp volt
+
+RUN set -x && \
+    cd /root/src && \
+    opam update && \
+    opam upgrade -y && \
     eval $(opam env) && \
-    cd src && \
     make -C mldiff && \
     make -C util && \
     make -C otreediff && \
@@ -84,10 +99,7 @@ RUN set -x && \
     cp modules/Mfortran*.cmxs /opt/cca/modules/ && \
     cp modules/Mcpp*.cmxs /opt/cca/modules/ && \
     cd /root && \
-    rm -r src && \
-    echo 'test -r /root/.opam/opam-init/init.sh && . /root/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> .bashrc && \
-    echo 'export PATH=/opt/cca/bin:${PATH}' >> .bashrc
-
+    rm -r src
 
 RUN set -x && \
     apt-get autoremove -y && \

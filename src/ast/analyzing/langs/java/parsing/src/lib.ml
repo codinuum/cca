@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -22,7 +22,11 @@ module Aux = Parser_aux
 class parser_c = object (self)
   inherit [Tokens_.token, Ast.c] PB.sb_c (new Aux.env) as super
 
+  val mutable java_lang_spec = 11
   val mutable keep_going_flag = true
+  val mutable rely_on_naming_convention_flag = false
+  val mutable partial_name_resolution_flag = false
+  val mutable no_implicit_name_resolution_flag = false
 
   val mutable parser_main = fun ul -> Obj.magic ()
   val mutable scanner     = Obj.magic ()
@@ -30,9 +34,55 @@ class parser_c = object (self)
 
   val mutable rollback_record = [] (* (error_state_num * rawtoken) list *)
 
+  method set_java_lang_spec lv =
+    if lv = 2 || lv = 3 || lv > 6 then begin
+      java_lang_spec <- lv;
+      env#set_java_lang_spec lv;
+      if lv < 3 then begin
+        Ulexer.delete_keyword "enum";
+      end;
+      if lv < 9 then begin
+        Ulexer.delete_keyword "exports";
+        Ulexer.delete_keyword "module";
+        Ulexer.delete_keyword "open";
+        Ulexer.delete_keyword "opens";
+        Ulexer.delete_keyword "provides";
+        Ulexer.delete_keyword "requires";
+        Ulexer.delete_keyword "to";
+        Ulexer.delete_keyword "transitive";
+        Ulexer.delete_keyword "uses";
+        Ulexer.delete_keyword "with";
+      end;
+      if lv < 14 then begin
+        Ulexer.delete_keyword "yield";
+      end;
+      if lv < 16 then begin
+        Ulexer.delete_keyword "record";
+      end;
+      if lv < 17 then begin
+        Ulexer.delete_keyword "non-sealed";
+        Ulexer.delete_keyword "permits";
+        Ulexer.delete_keyword "sealed";
+      end
+    end
+    else
+      invalid_arg "Java.Lib.parser_c#set_java_lang_spec"
+
   method _set_keep_going_flag b =
     keep_going_flag <- b;
     env#_set_keep_going_flag b
+
+  method _set_rely_on_naming_convention_flag b =
+    rely_on_naming_convention_flag <- b;
+    env#_set_rely_on_naming_convention_flag b
+
+  method _set_partial_name_resolution_flag b =
+    partial_name_resolution_flag <- b;
+    env#_set_partial_name_resolution_flag b
+
+  method _set_no_implicit_name_resolution_flag b =
+    no_implicit_name_resolution_flag <- b;
+    env#_set_no_implicit_name_resolution_flag b
 
   method parser_init =
     env#begin_scope();
@@ -105,13 +155,12 @@ class parser_c = object (self)
             | Ast.NAunknown     -> DEBUG_MSG "NAunknown"; resolve_qname nattr_r qname
             | a -> DEBUG_MSG "%s" (Printer.name_attribute_to_string a)
         end
-	| Ast.Nqualified(nattr_r, q, id) -> begin
+	| Ast.Nqualified(nattr_r, q, _, id) -> begin
             DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
 	    resolve_name q;
-            if Ast.get_name_attribute q = Ast.NAexpression then begin
-              nattr_r := Ast.NAexpression
-            end
-            else begin
+            match Ast.get_name_attribute q with
+            | Ast.NAexpression ek as a -> nattr_r := a
+            | _ -> begin
               DEBUG_MSG "nattr=%s id=%s" (Printer.name_attribute_to_string !nattr_r) id;
               match !nattr_r with
               | Ast.NAtype _ -> env#finalize_name_attribute nattr_r
@@ -276,6 +325,7 @@ class parser_c = object (self)
             | I.X (I.N N_block), _, I.X (I.T T_LBRACE) -> begin
                 DEBUG_MSG "@";
                 env#open_block;
+                env#set_stmt_head_flag;
                 save_state menv_;
                 raise Exit
             end
@@ -366,6 +416,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_labeled_statement_head), _, I.X (I.T T_COLON) -> begin
                 save_state menv_;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_local_variable_declaration_statement), _, I.X (I.T T_SEMICOLON) -> begin
@@ -436,26 +487,39 @@ class parser_c = object (self)
                 save_state menv_;
                 raise Exit
             end
-            (*| I.X (I.N N_if_then_statement), _, I.X (I.T T_RPAREN) -> begin
-                save_state menv_;
+            | I.X (I.N N_if_then_statement), _, I.X (I.T T_RPAREN) -> begin
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement), _, I.X (I.T T_RPAREN) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement), _, I.X (I.T T_ELSE) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement_no_short_if), _, I.X (I.T T_RPAREN) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_if_then_else_statement_no_short_if), _, I.X (I.T T_ELSE) -> begin
-                save_state menv_;
+                (*save_state menv_;*)
+                env#set_stmt_head_flag;
                 raise Exit
-            end*)
+            end
+            | I.X (I.N N_while_statement), _, I.X (I.T T_RPAREN) -> begin
+                env#set_stmt_head_flag;
+                raise Exit
+            end
+            | I.X (I.N N_do_statement), _, I.X (I.T T_DO) -> begin
+                env#set_stmt_head_flag;
+                raise Exit
+            end
             (* *)
             | I.X (I.N N_method_invocation), _, I.X (I.T T_LPAREN) -> begin
                 env#enter_ivk;
@@ -536,6 +600,16 @@ class parser_c = object (self)
                 raise Exit
             end
 
+            | I.X (I.N N_module_body), _, I.X (I.T T_LBRACE) -> begin
+                (*save_state menv_;*)
+                env#enter_module;
+                raise Exit
+            end
+            | I.X (I.N N_module_body), _, I.X (I.T T_RBRACE) -> begin
+                save_state menv_;
+                env#exit_context;
+                raise Exit
+            end
             | I.X (I.N N_class_body), _, I.X (I.T T_LBRACE) -> begin
                 (*save_state menv_;*)
                 env#enter_class;
@@ -630,23 +704,45 @@ class parser_c = object (self)
             end
             | I.X (I.N N_for_statement), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_for_statement_no_short_if), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_enhanced_for_statement), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
             | I.X (I.N N_enhanced_for_statement_no_short_if), _, I.X (I.T T_RPAREN) -> begin
                 env#exit_for;
+                env#set_stmt_head_flag;
                 raise Exit
             end
 
             | I.X (I.N N_class_declaration_head0), _, I.X (I.T T_CLASS) -> begin
                 env#set_class_flag;
+                raise Exit
+            end
+
+            | I.X (I.N N_switch_label), _, I.X (I.T T_CASE) -> begin
+                env#set_case_flag;
+                raise Exit
+            end
+            | I.X (I.N N_switch_rule_label), _, I.X (I.T T_CASE) -> begin
+                env#set_case_flag;
+                raise Exit
+            end
+            | I.X (I.N N_switch_label), _, I.X (I.T T_COLON) -> begin
+                env#clear_case_flag;
+                env#set_stmt_head_flag;
+                raise Exit
+            end
+            | I.X (I.N N_switch_rule_label), _, I.X (I.T T_MINUS_GT__CASE) -> begin
+                env#clear_case_flag;
                 raise Exit
             end
 

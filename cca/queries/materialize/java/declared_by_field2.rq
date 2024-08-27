@@ -40,14 +40,25 @@ WHERE {
     } GROUP BY ?vdtor ?fname ?ffqn ?ffqnr ?tdecl
   }
 
-  ?x a java:Name ;
+  {
+    ?x a java:Name ;
        java:name ?name .
-
-  FILTER (?name IN (?ffqn,?ffqnr))
-
-  FILTER EXISTS {
+    FILTER (?name IN (?ffqn,?ffqnr))
     ?tdecl ver:version ?ver .
     ?x java:inTypeDeclaration/ver:version ?ver .
+  } UNION {
+    ?x a java:Name ;
+       java:name ?fname ;
+       java:inTypeDeclaration ?tdecl .
   }
+
+  # ?x a java:Name ;
+  #      java:name ?name .
+  # FILTER (?name IN (?ffqn,?ffqnr) && EXISTS {
+  #   ?tdecl ver:version ?ver .
+  #   ?x java:inTypeDeclaration/ver:version ?ver .
+  # } || ?name = ?fname && EXISTS {
+  #   ?x java:inTypeDeclaration ?tdecl .
+  # })
 
 }

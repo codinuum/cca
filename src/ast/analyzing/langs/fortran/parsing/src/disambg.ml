@@ -167,9 +167,10 @@ module F (Stat : Parser_aux.STATE_T) = struct
                 let b =
                   try
                     let loc_def = N.Spec.loc_of_decl_to_loc ospec#loc_of_decl in
+                    let id_def = ospec#id_of_decl in
                     DEBUG_MSG "node#loc: %s" (Loc.to_string node#loc);
                     if loc_def <> node#loc then begin
-                      B.make_use ~loc_opt:(Some (conv_loc loc_def)) bid
+                      B.make_use ~loc_opt:(Some (Otreediff.UID.of_int id_def, conv_loc loc_def)) bid
                     end
                     else
                       B.make_use bid

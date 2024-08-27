@@ -1,6 +1,6 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2012-2023 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -25,22 +25,45 @@ let lang_prefix = Astml.cpp_prefix
 
 let np () n = if n = "" then "" else "("^n^")"
 
+type function_like_macro_spec = {
+    fm_params : string list;
+    fm_va : string;
+    mutable fm_param_occur_count : int list;
+  }
+
 type macro_kind =
   | ObjectLike
-  | FunctionLike of string list * string (* parameter_list * va_args *)
+  | FunctionLike of function_like_macro_spec
+  | MK_DUMMY
+
+let make_func_like pl va =
+  FunctionLike
+    { fm_params=pl;
+      fm_va=va;
+      fm_param_occur_count=[];
+    }
 
 let macro_kind_to_string = function
-  | ObjectLike -> ""
-  | FunctionLike(sl, s) ->
-      sprintf "(%s%s)" (String.concat "," sl) (if s = "" then "" else sprintf ",%s..." s)
+  | ObjectLike -> "OBJ"
+  | FunctionLike {fm_params=sl;fm_va=s;fm_param_occur_count=cl;} ->
+      sprintf "FUNC(%s%s; occur:%s)"
+        (String.concat "," sl)
+        (if s = "" then "" else sprintf ",%s..." s)
+        (String.concat "," (List.map string_of_int cl))
+  | MK_DUMMY -> "MK_DUMMY"
 
 let macro_kind_to_rep = function
   | ObjectLike -> ""
-  | FunctionLike(sl, s) -> (String.concat ", " sl)^(if s = "" then "" else "...")
+  | FunctionLike {fm_params=sl;fm_va=s;} ->
+      (String.concat ", " sl)^(if s = "" then "" else "...")
+  | MK_DUMMY -> "MK_DUMMY"
 
 let macro_kind_to_attrs = function
   | ObjectLike -> []
-  | FunctionLike(sl, s) -> ["params",(String.concat "," sl);"va_args",s]
+  | FunctionLike {fm_params=sl;fm_va=s;fm_param_occur_count=cl} ->
+      ["params",(String.concat "," sl);"va_args",s;
+       (*"param_occurrences",(String.concat "," (List.map string_of_int cl))*)]
+  | MK_DUMMY -> []
 
 type t =
   | DUMMY
@@ -107,6 +130,7 @@ type t =
   | AsmDefinition of string           (* BlockDeclaration *)
   | NamespaceAliasDefinition of ident (* BlockDeclaration *)
   | UsingDeclaration                  (* BlockDeclaration *)
+  | UsingEnumDeclaration              (* BlockDeclaration *)
   | UsingDirective of ident           (* BlockDeclaration *)
   | Static_assertDeclaration          (* BlockDeclaration *)
   | AliasDeclaration of ident         (* BlockDeclaration *)
@@ -670,6 +694,7 @@ type t =
   | ConversionDeclarator
   | ConversionTypeId
   | UsingDeclarator
+  | UsingEnumDeclarator
   | TypeConstraint of name
   | TypeId
   | DecltypeSpecifier
@@ -705,6 +730,8 @@ type t =
   | AccessSpecMacro of ident
   | CvMacro of ident
   | CvMacroInvocation of ident
+  | RefMacro of ident
+  | RefMacroInvocation of ident
   | OpeningBrace
   | ClosingBrace
   | OpeningBracket
@@ -713,6 +740,7 @@ type t =
   | DummyDecl
   | DummyStmt
   | DummyExpr
+  | DummyOp
   | DummyDtor
   | GnuAsmBlockFragmented of string
   | GnuAsmFragment of string
@@ -891,6 +919,7 @@ let to_string = function
   | AsmDefinition s               -> sprintf "AsmDefinition(%s)" s
   | NamespaceAliasDefinition i    -> "NamespaceAliasDefinition:"^i
   | UsingDeclaration              -> "UsingDeclaration"
+  | UsingEnumDeclaration          -> "UsingEnumDeclaration"
   | UsingDirective i              -> "UsingDirective:"^i
   | Static_assertDeclaration      -> "Static_assertDeclaration"
   | AliasDeclaration i            -> "AliasDeclaration:"^i
@@ -1433,6 +1462,7 @@ let to_string = function
   | ConversionTypeId               -> "ConversionTypeId"
   | Typename                       -> "Typename"
   | UsingDeclarator                -> "UsingDeclarator"
+  | UsingEnumDeclarator            -> "UsingEnumDeclarator"
   | TypeConstraint n               -> "TypeConstraint:"^n
   | TypeId                         -> "TypeId"
   | DecltypeSpecifier              -> "DecltypeSpecifier"
@@ -1460,7 +1490,7 @@ let to_string = function
   | BalancedTokenSingle s          -> "BalancedTokenSingle:"^s
   | TokenSeq s                     -> "TokenSeq:"^s
   | ObjectLikeMacro                -> "ObjectLikeMacro"
-  | FunctionLikeMacro mk           -> "FunctionLikeMacro"^(macro_kind_to_string mk)
+  | FunctionLikeMacro mk           -> "FunctionLikeMacro:"^(macro_kind_to_string mk)
   | OperatorMacro i                -> "OperatorMacro:"^i
   | OperatorMacroInvocation i      -> "OperatorMacroInvocation:"^i
   | DefiningTypeSpecifierSeq       -> "DefiningTypeSpecifierSeq"
@@ -1473,6 +1503,8 @@ let to_string = function
   | AccessSpecMacro i              -> "AccessSpecMacro:"^i
   | CvMacro i                      -> "CvMacro:"^i
   | CvMacroInvocation i            -> "CvMacroInvocation:"^i
+  | RefMacro i                     -> "RefMacro:"^i
+  | RefMacroInvocation i           -> "RefMacroInvocation:"^i
   | OpeningBrace                   -> "OpeningBrace"
   | ClosingBrace                   -> "ClosingBrace"
   | OpeningBracket                 -> "OpeningBracket"
@@ -1481,6 +1513,7 @@ let to_string = function
   | DummyDecl                      -> "DummyDecl"
   | DummyStmt                      -> "DummyStmt"
   | DummyExpr                      -> "DummyExpr"
+  | DummyOp                        -> "DummyOp"
   | DummyDtor                      -> "DummyDtor"
   | GnuAsmBlockFragmented a        -> "GnuAsmBlockFragmented:"^a
   | GnuAsmFragment s               -> "GnuAsmFragment:"^s
@@ -1661,6 +1694,7 @@ let to_simple_string = function
   | AsmDefinition s               -> sprintf "asm(%s)" s
   | NamespaceAliasDefinition i    -> sprintf "namespace %s =" i
   | UsingDeclaration              -> "using"
+  | UsingEnumDeclaration          -> "using enum"
   | UsingDirective i              -> "using namespace "^i
   | Static_assertDeclaration      -> "static_assert"
   | AliasDeclaration i            -> "using "^i
@@ -2208,6 +2242,7 @@ let to_simple_string = function
   | ConversionDeclarator           -> "<conversion-dDeclarator>"
   | ConversionTypeId               -> "<conversion-type-id>"
   | UsingDeclarator                -> "<using-declarator>"
+  | UsingEnumDeclarator            -> "<using-enum-declarator>"
   | TypeConstraint n               -> sprintf "<type-constraint:%s>" n
   | TypeId                         -> "<type-id>"
   | DecltypeSpecifier              -> "decltype()"
@@ -2249,6 +2284,8 @@ let to_simple_string = function
   | AccessSpecMacro i              -> i
   | CvMacro i                      -> i
   | CvMacroInvocation i            -> i
+  | RefMacro i                     -> i
+  | RefMacroInvocation i           -> i
   | OpeningBrace                   -> "{"
   | ClosingBrace                   -> "}"
   | OpeningBracket                 -> "["
@@ -2257,6 +2294,7 @@ let to_simple_string = function
   | DummyDecl                      -> "<dummy-decl>"
   | DummyStmt                      -> "<dummy-stmt>"
   | DummyExpr                      -> "<dummy-expr>"
+  | DummyOp                        -> "<dummy-op>"
   | DummyDtor                      -> "<dummy-dtor>"
   | GnuAsmBlockFragmented a        -> a
   | GnuAsmFragment s               -> s
@@ -2438,6 +2476,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | AsmDefinition s               -> "AsmDefinition", ["asm",s]
   | NamespaceAliasDefinition i    -> "NamespaceAliasDefinition", ["ident",i]
   | UsingDeclaration              -> "UsingDeclaration", []
+  | UsingEnumDeclaration          -> "UsingEnumDeclaration", []
   | UsingDirective i              -> "UsingDirective", ["ident",i]
   | Static_assertDeclaration      -> "Static_assertDeclaration", []
   | AliasDeclaration i            -> "AliasDeclaration", ["ident",i]
@@ -2999,6 +3038,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | ConversionTypeId               -> "ConversionTypeId", []
   | Typename                       -> "Typename", []
   | UsingDeclarator                -> "UsingDeclarator", []
+  | UsingEnumDeclarator            -> "UsingEnumDeclarator", []
   | TypeConstraint n               -> "TypeConstraint", ["name",n]
   | TypeId                         -> "TypeId", []
   | DecltypeSpecifier              -> "DecltypeSpecifier", []
@@ -3039,6 +3079,8 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | AccessSpecMacro i              -> "AccessSpecMacro", ["ident",i]
   | CvMacro i                      -> "CvMacro", ["ident",i]
   | CvMacroInvocation i            -> "CvMacroInvocation", ["ident",i]
+  | RefMacro i                     -> "RefMacro", ["ident",i]
+  | RefMacroInvocation i           -> "RefMacroInvocation", ["ident",i]
   | OpeningBrace                   -> "OpeningBrace", []
   | ClosingBrace                   -> "ClosingBrace", []
   | OpeningBracket                 -> "OpeningBracket", []
@@ -3047,6 +3089,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | DummyDecl                      -> "DummyDecl", []
   | DummyStmt                      -> "DummyStmt", []
   | DummyExpr                      -> "DummyExpr", []
+  | DummyOp                        -> "DummyOp", []
   | DummyDtor                      -> "DummyDtor", []
   | GnuAsmBlockFragmented a        -> "GnuAsmBlockFragmented", ["ident",a]
   | GnuAsmFragment s               -> "GnuAsmFragment", ["block",s]
@@ -3161,7 +3204,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | LiteralMacroArgument s -> "LiteralMacroArgument", ["code",s]
 
 
-let get_name : t -> string = function
+let get_name ?(strip=false) = function
   | DELIM_MACRO n
   | DELIM_MACRO_ n
   | PpDefine n
@@ -3239,6 +3282,8 @@ let get_name : t -> string = function
   | AccessSpecMacro n
   | CvMacro n
   | CvMacroInvocation n
+  | RefMacro n
+  | RefMacroInvocation n
   | LiteralMacroInvocation n
   | NoexceptSpecifierMacro n
   | AttributeMacroInvocation n
@@ -3374,6 +3419,8 @@ let has_non_trivial_value : t -> bool = function
   | UserDefinedFloatingLiteral _
   | UserDefinedIntegerLiteral _ -> true
   | _ -> false
+
+let has_non_trivial_tid lab = false (* not yet *)
 
 module ClassKey = struct
   type t =

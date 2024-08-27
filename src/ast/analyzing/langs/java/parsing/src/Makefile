@@ -110,10 +110,10 @@ classtbl.cmx: classtbl.ml
 	$(OCAMLFIND) ocamlopt $(COMPFLAGS_OPT) -c $<
 
 $(MLY_OBJ): $(MLY_ML)
-	$(OCAMLFIND) $(OCAMLC_MODE) $(PACKAGES_NO_ULEX) $(SYNTAX) $(COMPFLAGS) -c $<
+	$(OCAMLFIND) $(OCAMLC_MODE) $(PACKAGES_NO_ULEX) $(COMPFLAGS) -c $<
 
 $(MLY_OBJ_OPT): $(MLY_ML)
-	$(OCAMLFIND) ocamlopt $(PACKAGES_NO_ULEX) $(SYNTAX) $(COMPFLAGS_OPT) -c $<
+	$(OCAMLFIND) ocamlopt $(PACKAGES_NO_ULEX) $(COMPFLAGS_OPT) -c $<
 
 
 $(PROG): $(OTHER_OBJS_DEP) $(OBJS)
@@ -137,7 +137,10 @@ clean:
 
 distclean: clean
 	$(RM) $(MLY_ML) $(MLY_MLI) $(MLY:.mly=.output) $(MLY:.mly=.automaton) $(MLY:.mly=.conflicts) 
-	$(RM) $(TOKENS_ML) $(TOKENS_MLI) classtbl.ml
+	$(RM) $(TOKENS_ML) $(TOKENS_MLI)
+
+veryclean: distclean
+	$(RM) classtbl.ml
 
 ifneq ($(MAKECMDGOALS), clean)
 ifneq ($(MAKECMDGOALS), distclean)

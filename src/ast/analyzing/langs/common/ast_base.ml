@@ -18,6 +18,8 @@
 class c = object
   val mutable file_name       = ""
   val mutable lines_read      = 0
+  val mutable blank_regions   = ([] : (int * int) list)
+  val mutable blank_LOC       = 0
   val mutable ignored_regions = ([] : (int * int) list)
   val mutable ignored_LOC     = 0
   val mutable comment_regions = ([] : (int * int) list)
@@ -31,21 +33,23 @@ class c = object
   method set_lines_read n = lines_read <- n
   method lines_read = lines_read
 
+  method set_blank_regions rs = blank_regions <- rs
+  method blank_regions = blank_regions
+  method set_blank_LOC n = blank_LOC <- n
+  method blank_LOC = blank_LOC
+
   method set_ignored_regions rs = ignored_regions <- rs
   method ignored_regions = ignored_regions
-
   method set_ignored_LOC n = ignored_LOC <- n
   method ignored_LOC = ignored_LOC
 
   method set_comment_regions rs = comment_regions <- rs
   method comment_regions = comment_regions
-
   method set_comment_LOC n = comment_LOC <- n
   method comment_LOC = comment_LOC
 
   method set_missed_regions rs = missed_regions <- rs
   method missed_regions = missed_regions
-
   method set_missed_LOC n = missed_LOC <- n
   method missed_LOC = missed_LOC
 

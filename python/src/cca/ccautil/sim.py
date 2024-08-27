@@ -4,7 +4,7 @@
 '''
   sim.py
 
-  Copyright 2012-2021 Codinuum Software Lab <https://codinuum.com>
+  Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -25,11 +25,17 @@ import difflib
 from . import java_token_diff as java
 
 
+def string_sim(s1, s2):
+    matcher = difflib.SequenceMatcher(isjunk=None, a=s1, b=s2)
+    similarity = matcher.ratio()
+    return similarity
+
+
 def line_sim(f1, f2):
     if filecmp.cmp(f1, f2):
         return 0.0
-    lines1 = open(f1, 'U').readlines()
-    lines2 = open(f2, 'U').readlines()
+    lines1 = open(f1, encoding='utf-8', errors='replace').readlines()
+    lines2 = open(f2, encoding='utf-8', errors='replace').readlines()
     matcher = difflib.SequenceMatcher(None, lines1, lines2)
     similarity = matcher.quick_ratio()
     return similarity
@@ -42,6 +48,7 @@ def java_sim(f1, f2):
     toks2 = java.get_tokens(f2)
     matcher = difflib.SequenceMatcher(isjunk=None, a=toks1, b=toks2)
     similarity = matcher.quick_ratio()
+    # similarity = java.compare_files(f1, f2)['sim']
     return similarity
 
 
@@ -76,7 +83,7 @@ def main():
         s = sim(args.path1, args.path2, plain=args.plain)
         print(s)
     except IOError as e:
-        print('ERROR: {}'.format(str(e)))
+        print(f'ERROR: {e}')
 
 
 if __name__ == '__main__':

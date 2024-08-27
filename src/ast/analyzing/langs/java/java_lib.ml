@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,37 +27,40 @@ let sprintf = Printf.sprintf
 let elaborate_edits
     options
     (cenv : (Tree.node_t, Tree.c) Comparison.c)
-    uidmapping
+    nmapping
     edits
     =
-  let mkfilt = Edit.mkfilt Fact.getlab in
-  let is_import_single       = mkfilt Label.is_import_single in
-  let is_field               = mkfilt Label.is_field in
-  let is_variabledeclarator  = mkfilt Label.is_variabledeclarator in
-  let is_field_access        = mkfilt Label.is_fieldaccess in
-  let is_variabledeclaration = mkfilt Label.is_localvariabledecl in
-  let is_parameter           = mkfilt Label.is_parameter in
-  let is_name                = mkfilt Label.is_name in
+  if options#rename_rectification_level > 0 then begin
+    DEBUG_MSG "START!";
+    let mkfilt = Edit.mkfilt Fact.getlab in
+    let is_import_single       = mkfilt Label.is_import_single in
+    let is_field               = mkfilt Label.is_field in
+    let is_variabledeclarator  = mkfilt Label.is_variabledeclarator in
+    let is_field_access        = mkfilt Label.is_fieldaccess in
+    let is_variabledeclaration = mkfilt Label.is_localvariabledecl in
+    let is_parameter           = mkfilt Label.is_parameter in
+    let is_name                = mkfilt Label.is_name in
 
-  let filters = [|
-    is_import_single;
-    is_field;
-    is_variabledeclarator;
-    is_field_access;
-    is_variabledeclaration;
-    is_parameter;
-    is_name;
-  |]
-  in
-  let max_count = 2 in
-  let handle_weak = not options#dump_delta_flag in
-  let count = ref 0 in
-  let modified = ref true in
-  while !modified && !count < max_count do
-    incr count;
-    DEBUG_MSG "%d-th execution of rename adjustment" !count;
-    modified := Edit.adjust_renames ~handle_weak options cenv uidmapping edits filters;
-  done
+    let filters = [|
+      is_import_single;
+      is_field;
+      is_variabledeclarator;
+      is_field_access;
+      is_variabledeclaration;
+      is_parameter;
+      is_name;
+    |]
+    in
+    let max_count = 2 in
+    let handle_weak = not options#dump_delta_flag in
+    let count = ref 0 in
+    let modified = ref true in
+    while !modified && !count < max_count do
+      incr count;
+      DEBUG_MSG "%d-th execution of rename rectification" !count;
+      modified := Edit.rectify_renames_u ~handle_weak options cenv nmapping edits filters;
+    done
+  end
 
 class tree_patcher options tree_factory = object
   inherit Lang.tree_patcher

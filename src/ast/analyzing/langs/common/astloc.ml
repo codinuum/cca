@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -26,6 +26,16 @@ type t =
     }
 
 let dummy =
+  { filename = "";
+    start_offset = -1;
+    end_offset   = -1;
+    start_line   = -1;
+    start_char   = -1;
+    end_line     = -1;
+    end_char     = -1;
+  }
+
+let zero =
   { filename = "";
     start_offset = 0;
     end_offset   = 0;

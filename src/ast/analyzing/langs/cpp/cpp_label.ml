@@ -1,6 +1,6 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -831,6 +831,15 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | InitEndMacroInvocation i -> combo2 678 [i]
   | LiteralMacroArgument s -> combo2 679 [s]
 
+  | UsingEnumDeclaration -> mkstr2 680
+  | UsingEnumDeclarator -> mkstr2 681
+  | RefMacro i -> combo2 682 [i]
+  | RefMacroInvocation i -> combo2 683 [i]
+
+  | DummyOp -> mkstr2 684
+
+
+let strip lab = lab (* not yet *)
 
 let _anonymize ?(more=false) ?(most=false) = function
   | SimpleTypeSpecifier _            when most -> DefiningTypeSpecifier
@@ -1800,6 +1809,9 @@ let is_op = function
       -> true
   | _ -> false
 
+let is_scope_creating = function (* not yet *)
+  | _ -> false
+
 let is_pp_branch = function
   | PpIf _
   | PpIfdef _
@@ -2262,6 +2274,12 @@ let is_initializer = function
     -> true
   | _ -> false
 
+let is_block = function
+  | CompoundStatement
+  | TryBlock
+    -> true
+  | _ -> false
+
 let is_body = function
   | DummyBody
   | FunctionBody _
@@ -2385,7 +2403,7 @@ let of_elem_data =
     | _ -> begin
         let params = Str.split comma_pat (find_attr attrs "params") in
         let va_args = find_attr attrs "va_args" in
-        FunctionLike(params, va_args)
+        make_func_like params va_args
     end
   in
 

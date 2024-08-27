@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -72,6 +72,9 @@ let _merge loc0 loc1 =
 
 let lines loc =
   loc.end_line - loc.start_line + 1
+
+let to_offsets loc =
+  loc.start_offset, loc.end_offset
 
 let is_contained loc loc0 =
   if loc.start_offset < 0 || loc0.start_offset < 0 then

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -87,14 +87,21 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
     method set_is_auxfile = is_auxfile <- true
     method is_auxfile = is_auxfile
 
+    method get_name = entry#name
+    method get_stripped_name = entry#name
+
     method label = entry#name
     method _label = entry#name
     method dirname = entry#dirname
     method path = entry#path
 
     method relabel_allowed (ndata: 'self) = true
+    method stripped_label = self#label
+    method _stripped_label = self#label
     method anonymized_label = self#label
+    method _anonymized_label = self#label
     method anonymized2_label = self#label
+    method _anonymized2_label = self#label
 
     method id = sprintf "%s%s" self#path
       (match _digest with
@@ -119,6 +126,7 @@ class node_data (tree : Storage.tree) (entry : Storage.entry_t) =
 *)
     method eq ndat = entry#name = ndat#label
     method equals ndat = self#eq ndat && digest = ndat#digest
+    method quasi_eq (ndat : 'self) = entry#name = ndat#label
 
     method feature = self#_label, (None : Xhash.t option)
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -63,14 +63,15 @@ open Stat
 (* Keywords *)
 %token AND AS ASSERT BREAK CLASS CONTINUE DEF DEL
 %token ELIF ELSE EXCEPT EXEC
-%token FINALLY FOR FROM GLOBAL
-%token IF IMPORT IN IS LAMBDA NOT OR
-%token PASS PRINT RAISE RETURN TRY
+%token FALSE FINALLY FOR FROM GLOBAL
+%token IF IMPORT IN IS LAMBDA NONE NOT OR
+%token PASS PRINT RAISE RETURN TRUE TRY
 %token WHILE WITHx YIELD
 
-(* 3 *)
-%token COLON_EQ MINUS_GT
+(* Python3 *)
+%token COLON_EQ MINUS_GT UNDERSCORE
 %token AWAIT ASYNC NONLOCAL
+%token MATCH CASE
 
 (* Error handling *)
 %token <string> ERROR MARKER
@@ -83,172 +84,203 @@ open Stat
 %%
 (********** Rules **********)
 
+%inline
+olist(X):
+| l=separated_nonempty_list(PIPE, X) { l }
+;
+
 main:
-| file_input EOF { Fileinput(get_loc $startofs $endofs, $1) }
-|            EOF { Fileinput(get_loc $startofs $endofs, []) }
+| f=file_input EOF { Fileinput(get_loc (*$startofs*)0 $endofs, f) }
+|              EOF { Fileinput(get_loc $startofs $endofs, []) }
 ;
 
 file_input:
-| file_input_ { List.rev $1 }
+| f=file_input_ { List.rev f }
 ;
 file_input_:
-|             NEWLINE { [] }
-|             stmt { [$1] }
-| file_input_ NEWLINE { $1 }
-| file_input_ stmt { $2 :: $1 }
+|                      NEWLINE { [] }
+|               s=stmt         { [s] }
+| f=file_input_        NEWLINE { f }
+| f=file_input_ s=stmt         { s :: f }
 ;
 
 decorator:
-| AT dotted_name                       NEWLINE { get_loc $startofs $endofs($2), $2, emptyarglist }
-| AT dotted_name LPAREN         RPAREN NEWLINE
-    { get_loc $startofs $endofs($4), $2, (get_loc $startofs($3) $endofs($4), []) }
-| AT dotted_name LPAREN arglist RPAREN NEWLINE { get_loc $startofs $endofs($5), $2, $4 }
+| AT d=dotted_name NEWLINE { get_loc $startofs $endofs(d), d, emptyarglist() }
+| AT d=dotted_name lp=LPAREN rp=RPAREN NEWLINE
+    { 
+      ignore lp;
+      ignore rp;
+      get_loc $startofs $endofs(rp), d, (get_loc $startofs(lp) $endofs(rp), [])
+    }
+| AT d=dotted_name LPAREN a=arglist rp=RPAREN NEWLINE
+    { 
+      ignore rp;
+      get_loc $startofs $endofs(rp), d, a
+    }
 ;
 
 decorators:
-| decorator            { [$1] }
-| decorator decorators { $1 :: $2 }
+| d=decorator               { [d] }
+| d=decorator dl=decorators { d :: dl }
 ;
 
 decorated:
-| decorators classdef { match $2 with Sclassdef(_, n, t, s) -> Sclassdef($1, n, t, s) | _ -> assert false }
-| decorators funcdef  { match $2 with Sfuncdef(_, n, p, a, s) -> Sfuncdef($1, n, p, a, s) | _ -> assert false }
-| decorators async_funcdef
-    { match $2 with Sasync_funcdef(_, n, p, a, s) -> Sasync_funcdef($1, n, p, a, s) | _ -> assert false }
+| d=decorators c=classdef
+    { 
+      match c with
+      | Sclassdef(_, n, t, s) -> Sclassdef(d, n, t, s)
+      | _ -> assert false
+    }
+| d=decorators f=funcdef
+    { 
+      match f with
+      | Sfuncdef(_, n, p, a, s) -> Sfuncdef(d, n, p, a, s)
+      | _ -> assert false
+    }
+| d=decorators a=async_funcdef
+    { 
+      match a with
+      | Sasync_funcdef(_, n, p, a, s) -> Sasync_funcdef(d, n, p, a, s)
+      | _ -> assert false
+    }
 
 async_funcdef:
-| ASYNC DEF name parameters           COLON suite { Sasync_funcdef([], $3, $4, None, $6) }
-| ASYNC DEF name parameters ret_annot COLON suite { Sasync_funcdef([], $3, $4, Some $5, $7) }
+| ASYNC DEF n=name p=parameters             COLON s=suite { Sasync_funcdef([], n, p, None, s) }
+| ASYNC DEF n=name p=parameters r=ret_annot COLON s=suite { Sasync_funcdef([], n, p, Some r, s) }
 ;
 funcdef:
-| DEF name parameters           COLON suite { Sfuncdef([], $2, $3, None, $5) }
-| DEF name parameters ret_annot COLON suite { Sfuncdef([], $2, $3, Some $4, $6) }
+| DEF n=name p=parameters             COLON s=suite { Sfuncdef([], n, p, None, s) }
+| DEF n=name p=parameters r=ret_annot COLON s=suite { Sfuncdef([], n, p, Some r, s) }
 ;
 ret_annot:
-| MINUS_GT test { $2 }
+| MINUS_GT t=test { t }
 ;
 name:
-| NAMEx { get_loc $startofs $endofs, $1 }
+| n=NAMEx { get_loc $startofs $endofs, n }
 ;
 
 parameters:
-| LPAREN               RPAREN { emptytypedargslist }
-| LPAREN typedargslist RPAREN { $2 }
+| LPAREN                 RPAREN { emptytypedargslist ~loc:(get_loc $startofs $endofs) () }
+| LPAREN t=typedargslist RPAREN { chg_loc t (get_loc $startofs $endofs) }
 ;
 
 typedargslist:
-| v=typedargs_       { get_loc $startofs $endofs, v }
-| v=typedargs_ COMMA { get_loc $startofs $endofs, v }
+| v=typedargs_ COMMA? { get_loc $startofs $endofs, (List.rev v) }
 ;
 typedargs_:
-|                typedarg {      [$1] }
-| typedargs_ COMMA typedarg { $1 @ [$3] }
+|                     t=typedarg { [t] }
+| tl=typedargs_ COMMA t=typedarg { t :: tl }
 ;
 typedarg:
-| tfpdef          { VAarg ($1, None) }
-| tfpdef EQ test  { VAarg ($1, Some $3) }
-| STAR            { VAargs(get_loc $startofs $endofs, None) }
-| STAR name       { VAargs(get_loc $startofs $endofs, (Some $2)) }
-| STAR_STAR name  { VAkwargs(get_loc $startofs $endofs, $2) }
+| t=tfpdef           { VAarg (t, None) }
+| t=tfpdef EQ e=test { VAarg (t, Some e) }
+| STAR                     { VAargs(get_loc $startofs $endofs, None, None) }
+| STAR n=name              { VAargs(get_loc $startofs $endofs, Some n, None) }
+| STAR n=name COLON t=test { VAargs(get_loc $startofs $endofs, Some n, Some t) }
+| STAR_STAR n=name              { VAkwargs(get_loc $startofs $endofs, n, None) }
+| STAR_STAR n=name COLON t=test { VAkwargs(get_loc $startofs $endofs, n, Some t) }
+| SLASH { VAsep (get_loc $startofs $endofs) }
 ;
 
 varargslist:
-| v=varargs_       { get_loc $startofs $endofs, v }
-| v=varargs_ COMMA { get_loc $startofs $endofs, v }
+| v=varargs_ COMMA? { get_loc $startofs $endofs, (List.rev v) }
 ;
 varargs_:
-|                vararg {      [$1] }
-| varargs_ COMMA vararg { $1 @ [$3] }
+|                   v=vararg { [v] }
+| vl=varargs_ COMMA v=vararg { v :: vl }
 ;
 vararg:
-| fpdef          { VAarg ($1, None) }
-| fpdef EQ test  { VAarg ($1, Some $3) }
-| STAR           { VAargs(get_loc $startofs $endofs, None) }
-| STAR name      { VAargs(get_loc $startofs $endofs, (Some $2)) }
-| STAR_STAR name { VAkwargs(get_loc $startofs $endofs, $2) }
+| f=fpdef           { VAarg (f, None) }
+| f=fpdef EQ t=test { VAarg (f, Some t) }
+| STAR              { VAargs(get_loc $startofs $endofs, None, None) }
+| STAR n=name       { VAargs(get_loc $startofs $endofs, Some n, None) }
+| STAR_STAR n=name  { VAkwargs(get_loc $startofs $endofs, n, None) }
 ;
 
 tfpdef:
-| fpdef { $1 }
-| name COLON test { Ftyped(get_loc $startofs $endofs, $1, $3) }
+| f=fpdef { f }
+| n=name COLON t=test { Ftyped(get_loc $startofs $endofs, n, t) }
 ;
 
 fpdef:
-| name                 { Fname $1 }
-| LPAREN fplist RPAREN { Flist(get_loc $startofs $endofs, $2) }
+| n=name                 { Fname n }
+| LPAREN f=fplist RPAREN { Flist(get_loc $startofs $endofs, f) }
 ;
 
 fplist:
-| fpdefs       { List.rev $1 }
-| fpdefs COMMA { List.rev $1 }
+| f=fpdefs       { List.rev f }
+| f=fpdefs COMMA { List.rev f }
 ;
 fpdefs:
-|              fpdef { [$1] }
-| fpdefs COMMA fpdef { $3 :: $1 }
+|                 f=fpdef { [f] }
+| fl=fpdefs COMMA f=fpdef { f :: fl }
 ;
 
 stmt:
-| simple_stmt   { $1 }
-| compound_stmt { $1 }
-| ERROR { mkerrstmt $startofs $endofs }
+| s=simple_stmt   { s }
+| c=compound_stmt { c }
+| ERROR    { mkerrstmt $startofs $endofs }
 | m=MARKER { mkmarkerstmt $startofs $endofs m }
 ;
 
 simple_stmt:
-| simple_stmt_ NEWLINE { $1 }
+| s=simple_stmt_ NEWLINE { s }
 ;
 simple_stmt_:
-| small_stmts           { mkstmt $startofs $endofs (Ssimple (List.rev $1)) }
-| small_stmts SEMICOLON { mkstmt $startofs $endofs (Ssimple (List.rev $1)) }
+| s=small_stmts           { mkstmt $startofs $endofs (Ssimple (List.rev s)) }
+| s=small_stmts SEMICOLON { mkstmt $startofs $endofs (Ssimple (List.rev s)) }
 ;
 small_stmts:
-|                       small_stmt { [$1] }
-| small_stmts SEMICOLON small_stmt { $3 :: $1 }
+|                          s=small_stmt { [s] }
+| sl=small_stmts SEMICOLON s=small_stmt { s :: sl }
 ; 
 
 small_stmt:
-| small_stmt_ { mksstmt $startofs $endofs $1 }
+| s=small_stmt_ { mksstmt $startofs $endofs s }
 ;
 small_stmt_:
-| expr_stmt     { $1 }
-| print_stmt    { $1 }
-| del_stmt      { $1 }
-| pass_stmt     { $1 }
-| flow_stmt     { $1 }
-| import_stmt   { $1 }
-| global_stmt   { $1 }
-| nonlocal_stmt { $1 }
-| exec_stmt     { $1 }
-| assert_stmt   { $1 }
+| e=expr_stmt     { e }
+| p=print_stmt    { p }
+| d=del_stmt      { d }
+| p=pass_stmt     { p }
+| f=flow_stmt     { f }
+| i=import_stmt   { i }
+| g=global_stmt   { g }
+| n=nonlocal_stmt { n }
+| e=exec_stmt     { e }
+| a=assert_stmt   { a }
 ;
 
+annot:
+| COLON t=test { get_loc $startofs $endofs, t }
+;
 annassign:
-| COLON test                           { $2, None }
-| COLON test EQ testlist_or_yield_expr { $2, Some $4 }
+| a=annot                             { a, None }
+| a=annot EQ y=testlist_or_yield_expr { a, Some y }
 ;
 
 expr_stmt:
-| testlist_star_expr { SSexpr $1.list }
-| testlist_star_expr annassign { SSannassign($1.list, fst $2, snd $2) }
-| testlist_star_expr augassign testlist_or_yield_expr { SSaugassign($1.list, $2, $3) }
-| testlist_star_expr eq_testlists
-    {
-     match $2 with
-     | last :: a -> SSassign($1 :: (List.rev a), last)
-     | _ ->
-         parse_error $startofs $endofs "syntax error";
-         SSerror
+| t=testlist_star_expr { SSexpr t.list }
+| t=testlist_star_expr a=annassign { SSannassign(t.list, fst a, snd a) }
+| t=testlist_star_expr a=augassign y=testlist_or_yield_expr { SSaugassign(t.list, a, y) }
+| t=testlist_star_expr e=eq_testlists
+    { 
+      match e with
+      | last :: a -> SSassign(t :: (List.rev a), last)
+      | _ ->
+          parse_error $startofs $endofs "syntax error";
+          SSerror
     }
 ;
 
 eq_testlists:
-|              EQ testlist_or_yield_expr { [$2] }
-| eq_testlists EQ testlist_or_yield_expr { $3 :: $1 }
+|                 EQ t=testlist_or_yield_expr { [t] }
+| el=eq_testlists EQ t=testlist_or_yield_expr { t :: el }
 ;
 
 testlist_or_yield_expr:
-| testlist_star_expr { $1 }
-| yield_expr { $1 }
+| t=testlist_star_expr { t }
+| y=yield_expr { y }
 ;
 
 augassign:
@@ -268,10 +300,10 @@ augassign:
 
 print_stmt:
 | PRINT                { SSprint [] }
-| PRINT       testlist { SSprint $2.list }
-| PRINT GT_GT testlist
+| PRINT       t=testlist { SSprint t.list }
+| PRINT GT_GT t=testlist
     { 
-      match $3.list with
+      match t.list with
       | h :: t -> SSprintchevron(h, t)
       | _ ->
           parse_error $startofs $endofs "syntax error";
@@ -280,7 +312,7 @@ print_stmt:
 ;
 
 del_stmt:
-| DEL exprlist { SSdel $2 }
+| DEL e=exprlist { SSdel e }
 ;
 
 pass_stmt:
@@ -288,11 +320,11 @@ pass_stmt:
 ;
 
 flow_stmt:
-| break_stmt    { $1 }
-| continue_stmt { $1 }
-| return_stmt   { $1 }
-| raise_stmt    { $1 }
-| yield_stmt    { $1 }
+| b=break_stmt    { b }
+| c=continue_stmt { c }
+| r=return_stmt   { r }
+| r=raise_stmt    { r }
+| y=yield_stmt    { y }
 ;
 
 break_stmt:
@@ -304,44 +336,44 @@ continue_stmt:
 ;
 
 return_stmt:
-| RETURN                    { SSreturn [] }
-| RETURN testlist_star_expr { SSreturn $2.list }
+| RETURN                      { SSreturn [] }
+| RETURN t=testlist_star_expr { SSreturn t.list }
 ;
 
 yield_stmt:
-| yield_expr { SSyield $1.list }
+| y=yield_expr { SSyield y.list }
 ;
 
 raise_stmt:
-| RAISE                            { SSraise }
-| RAISE test                       { SSraise1 $2 }
-| RAISE test COMMA test            { SSraise2($2, $4) }
-| RAISE test COMMA test COMMA test { SSraise3($2, $4, $6) }
-| RAISE test FROM test             { SSraisefrom($2, $4) }
+| RAISE                                     { SSraise }
+| RAISE t=test                              { SSraise1 t }
+| RAISE t0=test COMMA t1=test               { SSraise2(t0, t1) }
+| RAISE t0=test COMMA t1=test COMMA t2=test { SSraise3(t0, t1, t2) }
+| RAISE t0=test FROM t1=test                { SSraisefrom(t0, t1) }
 ;
 
 import_stmt:
-| import_name { $1 }
-| import_from { $1 }
+| i=import_name { i }
+| i=import_from { i }
 ;
 
 import_name:
-| IMPORT dotted_as_names { SSimport $2 }
+| IMPORT d=dotted_as_names { SSimport d }
 ;
 
 import_from:
-| FROM dotted_name IMPORT imports 
+| FROM d=dotted_name IMPORT i=imports 
     {
      (*begin
-       match $2, $4 with
+       match d, i with
          [_, "__future__"], [(_, "with_statement"), None] ->
            env#enable_with_stmt
        | _ -> ()
      end;*)
-     SSfrom(None, Some $2, $4)
+     SSfrom(None, Some d, i)
    }
-| FROM dot_or_ellipsis_seq dotted_name IMPORT imports { SSfrom(Some $2, Some $3, $5) }
-| FROM dot_or_ellipsis_seq             IMPORT imports { SSfrom(Some $2, None, $4) }
+| FROM d=dot_or_ellipsis_seq n=dotted_name IMPORT i=imports { SSfrom(Some d, Some n, i) }
+| FROM d=dot_or_ellipsis_seq               IMPORT i=imports { SSfrom(Some d, None, i) }
 ;
 
 %inline
@@ -350,214 +382,437 @@ dot_or_ellipsis:
 | ELLIPSIS { 3 }
 ;
 dot_or_ellipsis_seq:
-| dot_or_ellipsis+ { get_loc $startofs $endofs, (List.fold_left (fun s x -> s + x) 0 $1) }
+| d=dot_or_ellipsis+ { get_loc $startofs $endofs, (List.fold_left (fun s x -> s + x) 0 d) }
 ;
 
 imports:
 | STAR { [] }
-| LPAREN import_as_names_list RPAREN { $2 }
-| import_as_names_list { $1 }
+| LPAREN i=import_as_names_list RPAREN { i }
+| i=import_as_names_list { i }
 ;
 import_as_names_list:
-| import_as_names       { List.rev $1 }
-| import_as_names COMMA { List.rev $1 }
+| i=import_as_names       { List.rev i }
+| i=import_as_names COMMA { List.rev i }
 ;
 
 import_as_name:
-| name         { $1, None }
-| name AS name { $1, Some $3 }
+| n=name             { n, None }
+| n0=name AS n1=name { n0, Some n1 }
 ;
 
 dotted_as_name:
-| dotted_name           { $1, None }
-| dotted_name name name
+| d=dotted_name { d, None }
+| d=dotted_name n0=name n1=name
     { 
-      if (snd $2) = "as" then
-        $1, Some $3
+      if (snd n0) = "as" then
+        d, Some n1
       else begin
         parse_error $startofs $endofs "syntax error";
-        $1, Some $3
+        d, Some n1
       end
     }
-| dotted_name AS name   { $1, Some $3 }
+| d=dotted_name AS n=name   { d, Some n }
 ;
 
 import_as_names:
-|                       import_as_name { [$1] }
-| import_as_names COMMA import_as_name { $3 :: $1 }
+|                          i=import_as_name { [i] }
+| il=import_as_names COMMA i=import_as_name { i :: il }
 ;
 
 dotted_as_names:
-| dotted_as_name                       { [$1] }
-| dotted_as_name COMMA dotted_as_names { $1 :: $3 }
+| d=dotted_as_name                          { [d] }
+| d=dotted_as_name COMMA dl=dotted_as_names { d :: dl }
 ;
 
+dotted_name_:
+| n0=name DOT n1=name    { [n0; n1] }
+| n=name DOT nl=dotted_name_ { n :: nl }
+;
 dotted_name:
-| name                 { [$1] }
-| name DOT dotted_name { $1 :: $3 }
+| n=name          { [n] }
+| nl=dotted_name_ { nl }
 ;
 
 global_stmt:
-| GLOBAL names { SSglobal $2 }
+| GLOBAL n=names { SSglobal n }
 ;
 
 nonlocal_stmt:
-| NONLOCAL names { SSnonlocal $2 }
+| NONLOCAL n=names { SSnonlocal n }
 ;
 
 names:
-| name             { [$1] }
-| name COMMA names { $1 :: $3 }
+| n=name                { [n] }
+| n=name COMMA nl=names { n :: nl }
 ;
 
 exec_stmt: 
-| EXEC expr                    { SSexec $2 }
-| EXEC expr IN test            { SSexec2($2, $4) }
-| EXEC expr IN test COMMA test { SSexec3($2, $4, $6) }
+| EXEC e=expr                          { SSexec e }
+| EXEC e=expr IN t=test                { SSexec2(e, t) }
+| EXEC e=expr IN t0=test COMMA t1=test { SSexec3(e, t0, t1) }
 ;
 
 assert_stmt:
-| ASSERT test            { SSassert $2 }
-| ASSERT test COMMA test { SSassert2($2, $4) }
+| ASSERT t=test                { SSassert t }
+| ASSERT t0=test COMMA t1=test { SSassert2(t0, t1) }
 ;
 
 compound_stmt:
-| compound_stmt_ { mkstmt $startofs $endofs $1 }
+| c=compound_stmt_ { mkstmt $startofs $endofs c }
 ;
 compound_stmt_:
-| if_stmt       { $1 }
-| while_stmt    { $1 }
-| for_stmt      { $1 }
-| try_stmt      { $1 }
-| with_stmt     { $1 }
-| async_funcdef { $1 }
-| funcdef       { $1 }
-| classdef      { $1 }
-| decorated     { $1 }
-| async_stmt    { $1 }
+| i=if_stmt       { i }
+| w=while_stmt    { w }
+| f=for_stmt      { f }
+| t=try_stmt      { t }
+| w=with_stmt     { w }
+| a=async_funcdef { a }
+| f=funcdef       { f }
+| c=classdef      { c }
+| d=decorated     { d }
+| a=async_stmt    { a }
+| m=match_stmt    { m }
 ;
 
+match_stmt:
+| MATCH s=subject_expr COLON NEWLINE INDENT cl=case_block+ DEDENT { Smatch(s, cl) }
+;
+
+subject_expr:
+| s=star_expr COMMA                      { SEstar(get_loc $startofs $endofs, s, [] ) }
+| s=star_expr COMMA sl=star_exprs COMMA? { SEstar(get_loc $startofs $endofs, s, sl) }
+| n=namedexpr_test { SEnamed(get_loc $startofs $endofs, n) }
+;
+
+%inline
+star_exprs:
+| sl=_star_exprs { List.rev sl }
+;
+_star_exprs:
+|                      s=star_expr { [s] }
+| sl=_star_exprs COMMA s=star_expr { s :: sl }
+;
+
+case_block:
+| CASE p=patterns g_opt=guard? COLON s=suite { get_loc $startofs $endofs, p, g_opt, s }
+;
+
+guard:
+| IF n=namedexpr_test { get_loc $startofs $endofs, n }
+;
+
+patterns:
+| o=open_sequence_pattern { o }
+| p=pattern { p }
+;
+
+pattern:
+| a=as_pattern { a }
+| o=or_pattern { o }
+;
+
+as_pattern:
+| o=or_pattern AS p=pattern_capture_target { PAas(get_loc $startofs $endofs, o, p) }
+;
+
+pattern_capture_target:
+| n=name { PAcapture n }
+;
+
+or_pattern:
+| pl=olist(closed_pattern) { PAor(get_loc $startofs $endofs, pl) }
+;
+
+closed_pattern:
+| l=literal_pattern { PAliteral l }
+| c=capture_pattern { c }
+| w=wildcard_pattern { w }
+| v=value_pattern { v }
+| g=group_pattern { g }
+| s=sequence_pattern { s }
+| m=mapping_pattern { m }
+| c=class_pattern { c }
+;
+
+number:
+| i=INTEGER     { Linteger i }
+| l=LONGINTEGER { Llonginteger l }
+| f=FLOATNUMBER { Lfloatnumber f }
+| i=IMAGNUMBER  { Limagnumber i }
+;
+
+signed_number:
+|       n=number { LEsigned(get_loc $startofs $endofs, n) }
+| MINUS n=number { LEsignedMinus(get_loc $startofs $endofs, n) }
+;
+
+complex_number:
+| s=signed_number PLUS i=IMAGNUMBER { LEcmplxPlus(get_loc $startofs $endofs, s, i) }
+| s=signed_number MINUS i=IMAGNUMBER { LEcmplxMinus(get_loc $startofs $endofs, s, i) }
+;
+
+literal_expr:
+| s=signed_number { s }
+| c=complex_number { c }
+| s=strings { LEstrings(get_loc $startofs $endofs, s) }
+| NONE { LEnone(get_loc $startofs $endofs) }
+| TRUE { LEtrue(get_loc $startofs $endofs) }
+| FALSE { LEfalse(get_loc $startofs $endofs) }
+;
+
+%inline
+literal_pattern:
+| l=literal_expr { l }
+;
+
+%inline
+capture_pattern:
+| p=pattern_capture_target { p }
+;
+
+wildcard_pattern:
+| UNDERSCORE { PAwildcard(get_loc $startofs $endofs) }
+;
+
+value_pattern:
+| a=attr { PAvalue(get_loc $startofs $endofs, a) }
+;
+
+%inline
+attr:
+| d=dotted_name_ { d }
+;
+
+%inline
+name_or_attr:
+| d=dotted_name { d }
+;
+
+group_pattern:
+| LPAREN p=pattern RPAREN { PAgroup(get_loc $startofs $endofs, p) }
+;
+
+sequence_pattern:
+| LBRACKET m_opt=maybe_sequence_pattern? RBRACKET { PAseqB(get_loc $startofs $endofs, m_opt) }
+| LPAREN o_opt=open_sequence_pattern? RPAREN { PAseqP(get_loc $startofs $endofs, o_opt) }
+;
+
+open_sequence_pattern:
+| m=maybe_star_pattern COMMA m_opt=maybe_sequence_pattern? { PAseqOpen(get_loc $startofs $endofs, m, m_opt) }
+;
+
+%inline
+maybe_star_patterns:
+| ml=_maybe_star_patterns { List.rev ml }
+;
+_maybe_star_patterns:
+|                               m=maybe_star_pattern { [m] }
+| ml=_maybe_star_patterns COMMA m=maybe_star_pattern { m :: ml }
+;
+
+maybe_sequence_pattern:
+| ml=maybe_star_patterns COMMA? { PAseqMaybe(get_loc $startofs $endofs, ml) }
+;
+
+maybe_star_pattern:
+| s=star_pattern { s }
+| p=pattern { p }
+;
+
+star_pattern:
+| STAR p=pattern_capture_target { PAstar(get_loc $startofs $endofs, p) }
+| STAR w=wildcard_pattern { PAstar(get_loc $startofs $endofs, w) }
+;
+
+mapping_pattern:
+| LBRACE                                                    RBRACE { PAmap(get_loc $startofs $endofs, [], None) }
+| LBRACE                       d=double_star_pattern COMMA? RBRACE { PAmap(get_loc $startofs $endofs, [], Some d) }
+| LBRACE i=items_pattern COMMA d=double_star_pattern COMMA? RBRACE { PAmap(get_loc $startofs $endofs, i, Some d) }
+| LBRACE i=items_pattern                             COMMA? RBRACE { PAmap(get_loc $startofs $endofs, i, None) }
+;
+
+%inline
+items_pattern:
+| kl=_items_pattern { List.rev kl }
+;
+_items_pattern:
+|                   COMMA k=key_value_pattern { [k] }
+| kl=_items_pattern COMMA k=key_value_pattern { k :: kl }
+;
+
+key_value_pattern:
+| l=literal_expr COLON p=pattern
+    { 
+      let k = Kliteral(get_loc $startofs $endofs(l), l) in
+      PAkeyValue(get_loc $startofs $endofs, k, p)
+    }
+| a=attr COLON p=pattern
+    { 
+      let k = Kattr(get_loc $startofs $endofs(a), a) in
+      PAkeyValue(get_loc $startofs $endofs, k, p)
+    }
+;
+
+double_star_pattern:
+| STAR_STAR p=pattern_capture_target { PAdblStar(get_loc $startofs $endofs, p) }
+;
+
+class_pattern:
+| n=name_or_attr LPAREN                                                 RPAREN
+    { PAclass(get_loc $startofs $endofs, n, [], []) }
+| n=name_or_attr LPAREN p=positional_patterns                          COMMA? RPAREN
+    { PAclass(get_loc $startofs $endofs, n, p, []) }
+| n=name_or_attr LPAREN                             k=keyword_patterns COMMA? RPAREN
+    { PAclass(get_loc $startofs $endofs, n, [], k) }
+| n=name_or_attr LPAREN p=positional_patterns COMMA k=keyword_patterns COMMA? RPAREN
+    { PAclass(get_loc $startofs $endofs, n, p, k) }
+;
+
+%inline
+positional_patterns:
+| pl=_positional_patterns { List.rev pl }
+;
+_positional_patterns:
+|                         COMMA p=pattern { [p] }
+| pl=_positional_patterns COMMA p=pattern { p :: pl }
+;
+
+%inline
+keyword_patterns:
+| kl=_keyword_patterns { List.rev kl }
+;
+_keyword_patterns:
+|                      COMMA k=keyword_pattern { [k] }
+| kl=_keyword_patterns COMMA k=keyword_pattern { k :: kl }
+;
+
+keyword_pattern:
+| n=name EQ p=pattern { PAkeyword(get_loc $startofs $endofs, n, p) }
+;
+
+
 async_stmt:
-| ASYNC with_stmt { Sasync (mkstmt $startofs($2) $endofs($2) $2) }
-| ASYNC for_stmt  { Sasync (mkstmt $startofs($2) $endofs($2) $2) }
+| ASYNC w=with_stmt { Sasync (mkstmt $startofs(w) $endofs(w) w) }
+| ASYNC f=for_stmt  { Sasync (mkstmt $startofs(f) $endofs(f) f) }
 ;
 
 if_stmt:
-| IF test COLON suite           { Sif($2, $4, [], None) }
-| IF test COLON suite elifs     { Sif($2, $4, $5, None) }
-| IF test COLON suite       els { Sif($2, $4, [], Some $5) }
-| IF test COLON suite elifs els { Sif($2, $4, $5, Some $6) }
+| IF t=test COLON s=suite               { Sif(t, s, [], None) }
+| IF t=test COLON s=suite i=elifs       { Sif(t, s, i, None) }
+| IF t=test COLON s=suite         e=els { Sif(t, s, [], Some e) }
+| IF t=test COLON s=suite i=elifs e=els { Sif(t, s, i, Some e) }
 ;
 elifs:
-| elif       { [$1] }
-| elif elifs { $1 :: $2 } 
+| e=elif          { [e] }
+| e=elif el=elifs { e :: el } 
 ;
 elif:
-| ELIF test COLON suite { get_loc $startofs $endofs, $2, $4 }
+| ELIF t=test COLON s=suite { get_loc $startofs $endofs, t, s }
 ;
 els:
-| ELSE COLON suite { get_loc $startofs $endofs, $3 }
+| ELSE COLON s=suite { get_loc $startofs $endofs, s }
 ;
 
 while_stmt:
-| WHILE test COLON suite     { Swhile($2, $4, None) }
-| WHILE test COLON suite els { Swhile($2, $4, Some $5) }
+| WHILE t=namedexpr_test COLON s=suite       { Swhile(t, s, None) }
+| WHILE t=namedexpr_test COLON s=suite e=els { Swhile(t, s, Some e) }
 ;
 
 for_stmt:
-| FOR exprlist IN testlist COLON suite     { Sfor($2, $4.list, $6, None) }
-| FOR exprlist IN testlist COLON suite els { Sfor($2, $4.list, $6, Some $7) }
+| FOR el=exprlist IN t=testlist COLON s=suite       { Sfor(el, t.list, s, None) }
+| FOR el=exprlist IN t=testlist COLON s=suite e=els { Sfor(el, t.list, s, Some e) }
 ;
 
 try_stmt:
-| try_except              { let t, e = $1 in Stry(t, e, None, None) }
-| try_except els          { let t, e = $1 in Stry(t, e, Some $2, None) }
-| try_except     finally  { let t, e = $1 in Stry(t, e, None, Some $2) }
-| try_except els finally  { let t, e = $1 in Stry(t, e, Some $2, Some $3) }
-| TRY COLON suite finally { Stryfin($3, $4) }
+| t=try_except                 { let _t, _e = t in Stry(_t, _e, None, None) }
+| t=try_except e=els           { let _t, _e = t in Stry(_t, _e, Some e, None) }
+| t=try_except       f=finally { let _t, _e = t in Stry(_t, _e, None, Some f) }
+| t=try_except e=els f=finally { let _t, _e = t in Stry(_t, _e, Some e, Some f) }
+| TRY COLON s=suite f=finally  { Stryfin(s, f) }
 ;
 try_except:
-| TRY COLON suite except_clause_suites { $3, $4 }
+| TRY COLON s=suite e=except_clause_suites { s, e }
 ;
 finally:
-| FINALLY COLON suite { get_loc $startofs $endofs, $3 }
+| FINALLY COLON s=suite { get_loc $startofs $endofs, s }
 ;
 except_clause_suites:
-| except_clause COLON suite                      { [$1, $3] }
-| except_clause COLON suite except_clause_suites { ($1, $3) :: $4 }
+| e=except_clause COLON s=suite                         { [e, s] }
+| e=except_clause COLON s=suite el=except_clause_suites { (e, s) :: el }
 ;
 
 with_stmt:
-| WITHx with_item_list COLON suite { Swith(List.rev $2, $4) }
+| WITHx w=with_item_list COLON s=suite { Swith(List.rev w, s) }
 ;
 
 with_item:
-| test         { $1, None }
-| test AS expr { $1, Some $3 }
+| t=test           { t, None }
+| t=test AS e=expr { t, Some e }
 ;
 
 with_item_list:
-|                      with_item { [$1] }
-| with_item_list COMMA with_item { $3 :: $1 }
+|                         w=with_item { [w] }
+| wl=with_item_list COMMA w=with_item { w :: wl }
 ;
 
 except_clause:
-| EXCEPT                 { EX(get_loc $startofs $endofs) }
-| EXCEPT test            { EX1(get_loc $startofs $endofs, $2) }
-| EXCEPT test COMMA test { EX2(get_loc $startofs $endofs, $2, $4) }
-| EXCEPT test AS    test { EX2(get_loc $startofs $endofs, $2, $4) }
+| EXCEPT                       { EX(get_loc $startofs $endofs) }
+| EXCEPT t=test                { EX1(get_loc $startofs $endofs, t) }
+| EXCEPT t0=test COMMA t1=test { EX2(get_loc $startofs $endofs, t0, t1) }
+| EXCEPT t0=test AS    t1=test { EX2(get_loc $startofs $endofs, t0, t1) }
 ;
 
 suite:
-| simple_stmt { get_loc $startofs $endofs, [$1] }
-| NEWLINE INDENT stmts DEDENT { get_loc $startofs($3) $endofs($3), $3 }
+| s=simple_stmt { get_loc $startofs $endofs, [s] }
+| NEWLINE INDENT s=stmts DEDENT { get_loc $startofs $endofs, s }
+| NEWLINE INDENT         DEDENT { get_loc $startofs $endofs, [] } (* empty suite *)
 ;
 stmts:
-| stmt       { [$1] }
-| stmt stmts { $1 :: $2 }
+| s=stmt          { [s] }
+| s=stmt sl=stmts { s :: sl }
 ;
 
 old_test:
-| or_test { $1 }
-| old_lambdef { mkexpr $startofs $endofs $1 }
+| o=or_test { o }
+| o=old_lambdef { mkexpr $startofs $endofs o }
 ;
 
 old_lambdef:
-| LAMBDA             COLON old_test { Elambda(emptyvarargslist, $3) }
-| LAMBDA varargslist COLON old_test { Elambda($2, $4) }
+| LAMBDA               COLON o=old_test { Elambda(emptyvarargslist(), o) }
+| LAMBDA v=varargslist COLON o=old_test { Elambda(v, o) }
 ;
 
 namedexpr_test:
-| test { $1 }
-| test COLON_EQ test { mkexpr $startofs $endofs (Enamed($1, $3)) }
-| test EQ test { mkexpr $startofs $endofs (Enamed($1, $3)) } (* for print *)
+| t=test { t }
+| t0=test COLON_EQ t1=test { mkexpr $startofs $endofs (Enamed(t0, t1)) }
+| t0=test EQ       t1=test { mkexpr $startofs $endofs (Enamed(t0, t1)) } (* for print *)
 ;
 
 test:
-| or_test { $1 }
-| or_test IF or_test ELSE test { mkexpr $startofs $endofs (Econd($1, $3, $5)) }
-| lambdef { mkexpr $startofs $endofs $1 }
+| o=or_test { o }
+| o0=or_test IF o1=or_test ELSE t=test { mkexpr $startofs $endofs (Econd(o0, o1, t)) }
+| l=lambdef { mkexpr $startofs $endofs l }
 (*| ERROR { mkerrexpr $startofs $endofs }*)
 ;
 
 or_test:
-|            and_test { $1 }
-| or_test OR and_test { mkexpr $startofs $endofs (Ebop($1, Bor, $3)) }
+|              a=and_test { a }
+| o=or_test OR a=and_test { mkexpr $startofs $endofs (Ebop(o, Bor, a)) }
 ;
 
 and_test:
-|              not_test { $1 }
-| and_test AND not_test { mkexpr $startofs $endofs (Ebop($1, Band, $3)) }
+|                n=not_test { n }
+| a=and_test AND n=not_test { mkexpr $startofs $endofs (Ebop(a, Band, n)) }
 ;
 
 not_test:
-| comparison { $1 }
-| NOT not_test { mkexpr $startofs $endofs (Euop(Unot, $2)) }
+| c=comparison { c }
+| NOT n=not_test { mkexpr $startofs $endofs (Euop(Unot, n)) }
 ;
 
 comparison:
-| expr { $1 }
-| comparison comp_op expr { mkexpr $startofs $endofs (Ebop($1, $2, $3)) }
+| e=expr { e }
+| c=comparison o=comp_op e=expr { mkexpr $startofs $endofs (Ebop(c, o, e)) }
 ;
 
 comp_op:
@@ -575,39 +830,39 @@ comp_op:
 ;
 
 star_expr:
-| STAR expr { mkexpr $startofs $endofs (Estar $2) }
+| STAR e=expr { mkexpr $startofs $endofs (Estar e) }
 ;
 
 expr:
-| xor_expr           { $1 }
-| xor_expr PIPE expr { mkexpr $startofs $endofs (Ebop($1, BbitOr, $3)) }
+| x=xor_expr             { x }
+| x=xor_expr PIPE e=expr { mkexpr $startofs $endofs (Ebop(x, BbitOr, e)) }
 ;
 
 xor_expr:
-|              and_expr { $1 }
-| xor_expr HAT and_expr { mkexpr $startofs $endofs (Ebop($1, BbitXor, $3)) }
+|                a=and_expr { a }
+| x=xor_expr HAT a=and_expr { mkexpr $startofs $endofs (Ebop(x, BbitXor, a)) }
 ;
 
 and_expr:
-|              shift_expr { $1 }
-| and_expr AMP shift_expr { mkexpr $startofs $endofs (Ebop($1, BbitAnd, $3)) }
+|                s=shift_expr { s }
+| a=and_expr AMP s=shift_expr { mkexpr $startofs $endofs (Ebop(a, BbitAnd, s)) }
 ;
 
 shift_expr:
-|                  arith_expr { $1 }
-| shift_expr LT_LT arith_expr { mkexpr $startofs $endofs (Ebop($1, BshiftL, $3)) }
-| shift_expr GT_GT arith_expr { mkexpr $startofs $endofs (Ebop($1, BshiftR, $3)) }
+|                    a=arith_expr { a }
+| s=shift_expr LT_LT a=arith_expr { mkexpr $startofs $endofs (Ebop(s, BshiftL, a)) }
+| s=shift_expr GT_GT a=arith_expr { mkexpr $startofs $endofs (Ebop(s, BshiftR, a)) }
 ;
 
 arith_expr:
-|                  term { $1 }
-| arith_expr PLUS  term { mkexpr $startofs $endofs (Ebop($1, Badd, $3)) }
-| arith_expr MINUS term { mkexpr $startofs $endofs (Ebop($1, Bsub, $3)) }
+|                    t=term { t }
+| a=arith_expr PLUS  t=term { mkexpr $startofs $endofs (Ebop(a, Badd, t)) }
+| a=arith_expr MINUS t=term { mkexpr $startofs $endofs (Ebop(a, Bsub, t)) }
 ;
 
 term:
-|          factor { $1 }
-| term mop factor { mkexpr $startofs $endofs (Ebop($1, $2, $3)) }
+|              f=factor { f }
+| t=term m=mop f=factor { mkexpr $startofs $endofs (Ebop(t, m, f)) }
 ;
 mop:
 | STAR        { Bmul }
@@ -617,104 +872,113 @@ mop:
 ;
 
 factor:
-| PLUS  factor { mkexpr $startofs $endofs (Euop(Upositive, $2)) }
-| MINUS factor { mkexpr $startofs $endofs (Euop(Unegative, $2)) }
-| TILDE factor { mkexpr $startofs $endofs (Euop(Ucomplement, $2)) }
-| power { $1 }
+| PLUS  f=factor { mkexpr $startofs $endofs (Euop(Upositive, f)) }
+| MINUS f=factor { mkexpr $startofs $endofs (Euop(Unegative, f)) }
+| TILDE f=factor { mkexpr $startofs $endofs (Euop(Ucomplement, f)) }
+| p=power { p }
 ;
 
 power:
-| primary                  { mkexpr $startofs $endofs (Eprimary $1) }
-| primary STAR_STAR factor { mkexpr $startofs $endofs (Epower($1, $3)) }
+| p=primary                    { mkexpr $startofs $endofs (Eprimary p) }
+| p=primary STAR_STAR f=factor { mkexpr $startofs $endofs (Epower(p, f)) }
 ;
 primary:
-|       _primary { $1 }
-| AWAIT _primary { mkprim $startofs $endofs (Pawait $2) }
+|       p=_primary { p }
+| AWAIT p=_primary { mkprim $startofs $endofs (Pawait p) }
 ;
 _primary:
-| atom { mkprim $startofs $endofs $1 }
-| _primary trailer
+| a=atom { mkprim $startofs $endofs a }
+| p=_primary t=trailer
     { 
-      let p = 
-        match $2 with
-        | TRattrref n    -> Pattrref($1, n)
-        | TRsubscript el -> Psubscript($1, el)
-        | TRslice sil    -> Pslice($1, sil)
-        | TRcall al      -> Pcall($1, al)
+      let p_ = 
+        match t with
+        | TRattrref n    -> Pattrref(p, n)
+        | TRsubscript el -> Psubscript(p, el)
+        | TRslice sil    -> Pslice(p, sil)
+        | TRcall al      -> Pcall(p, al)
       in
-      mkprim $startofs $endofs p
+      mkprim $startofs $endofs p_
     }
 ;
 
 atom:
-| LPAREN               RPAREN { Ptuple [] }
-| LPAREN yield_expr    RPAREN { Pparen (mkprimexpr $startofs($2) $endofs($2) (Pyield $2.list)) }
-| LPAREN testlist_comp RPAREN { Pparen (mkprimexpr $startofs($2) $endofs($2) $2) }
-| LBRACKET               RBRACKET { Plistnull }
-| LBRACKET testlist_comp RBRACKET
+| LPAREN                    RPAREN { Ptuple [] }
+| LPAREN y=yield_expr       RPAREN { Pyield y.list }
+| LPAREN t=testlist_comp    RPAREN
     { 
-      match $2 with
-      | Pparen t -> Plist [t]
+      match t with
+      | Pexpr _ -> Pparen (mkprimexpr $startofs(t) $endofs(t) t)
+      | _ -> t
+    }
+| LBRACKET                  RBRACKET { Plistnull }
+| LBRACKET tc=testlist_comp RBRACKET
+    { 
+      match tc with
+      | Pparen t | Pexpr t -> Plist [t]
       | Ptuple l -> Plist l
       | PcompT(x, y) -> PcompL(x, y)
       | _ -> assert false
     }
-| LBRACE                RBRACE { Pdictnull }
-| LBRACE dictorsetmaker RBRACE { Pdictorset $2 }
-| BACKQUOTE testlist1 BACKQUOTE { Pstrconv $2 }
-| name { Pname $1 }
-| literal { Pliteral $1 }
+| LBRACE                  RBRACE { Pdictnull }
+| LBRACE d=dictorsetmaker RBRACE { Pdictorset d }
+| BACKQUOTE t=testlist1 BACKQUOTE { Pstrconv t }
+| n=name { Pname n }
+| l=literal { Pliteral l }
+| ELLIPSIS { Pellipsis }
 ;
 literal:
-| INTEGER     { Linteger $1 }
-| LONGINTEGER { Llonginteger $1 }
-| FLOATNUMBER { Lfloatnumber $1 }
-| IMAGNUMBER  { Limagnumber $1 }
-| strings     { Lstring $1 }
+| i=INTEGER     { Linteger i }
+| l=LONGINTEGER { Llonginteger l }
+| f=FLOATNUMBER { Lfloatnumber f }
+| i=IMAGNUMBER  { Limagnumber i }
+| s=strings     { Lstring s }
+| NONE  { Lnone }
+| TRUE  { Ltrue }
+| FALSE { Lfalse }
 ;
 strings:
-| stringliteral { [$1] }
-| stringliteral strings { $1 :: $2 }
+| s=stringliteral            { [s] }
+| s=stringliteral sl=strings { s :: sl }
 ;
 stringliteral:
-| SHORTSTRING                        { PSshort(get_loc $startofs $endofs, $1) }
-| LONGSTRING_BEGIN_S LONGSTRING_REST { PSlong(get_loc $startofs $endofs, $1 ^ $2) }
-| LONGSTRING_BEGIN_D LONGSTRING_REST { PSlong(get_loc $startofs $endofs, $1 ^ $2) }
+| s=SHORTSTRING                            { PSshort(get_loc $startofs $endofs, s) }
+| l0=LONGSTRING_BEGIN_S l1=LONGSTRING_REST { PSlong(get_loc $startofs $endofs, l0 ^ l1) }
+| l0=LONGSTRING_BEGIN_D l1=LONGSTRING_REST { PSlong(get_loc $startofs $endofs, l0 ^ l1) }
 ;
 
 testlist_comp:
-| test_ comp_for { PcompT($1, $2) }
-| testlist_
+| t=test_ c=comp_for { PcompT(t, c) }
+| t=testlist_
     { 
-      if $1.yield then
-        Pyield $1.list
+      if t.yield then
+        Pyield t.list
       else
-        if $1.comma then
-          match $1.list with
-          | [t] -> Pparen t
-          | _ -> Ptuple $1.list
+        if t.comma then
+          Ptuple t.list
         else
-          Ptuple $1.list
+          match t.list with
+          | [t0] -> Pexpr t0
+          | _ -> Ptuple t.list
     }
 ;
 %inline
 test_:
-| namedexpr_test { $1 }
-| star_expr { $1 }
+| n=namedexpr_test { n }
+| s=star_expr { s }
 ;
 
 lambdef:
-| LAMBDA             COLON test { Elambda(emptyvarargslist, $3) }
-| LAMBDA varargslist COLON test { Elambda($2, $4) }
+| LAMBDA               COLON t=test { Elambda(emptyvarargslist(), t) }
+| LAMBDA v=varargslist COLON t=test { Elambda(v, t) }
 ;
 
 trailer:
-| LPAREN         RPAREN { TRcall emptyarglist }
-| LPAREN arglist RPAREN { TRcall $2 }
-| LBRACKET               RBRACKET { TRsubscript [] }
-| LBRACKET subscriptlist RBRACKET
+| LPAREN           RPAREN { TRcall (emptyarglist ~loc:(get_loc $startofs $endofs) ()) }
+| LPAREN a=arglist RPAREN { TRcall (chg_loc a (get_loc $startofs $endofs)) }
+| LBRACKET                 RBRACKET { TRsubscript [] }
+| LBRACKET s=subscriptlist RBRACKET
     { 
-      if (List.for_all (function SIexpr _ -> true | _ -> false) $2) then
+      if (List.for_all (function SIexpr _ -> true | _ -> false) s) then
         TRsubscript
           (List.map
              (function
@@ -722,101 +986,106 @@ trailer:
                | _ ->
                    parse_error $startofs $endofs "syntax error";
                    mkerrexpr $startofs $endofs
-             ) $2
+             ) s
           )
-      else TRslice $2
+      else TRslice s
     }
-| DOT name { TRattrref $2 }
+| DOT n=name { TRattrref n }
 ;
 
 subscriptlist:
-| subscripts       { List.rev $1 }
-| subscripts COMMA { List.rev $1 }
+| s=subscripts COMMA? { List.rev s }
 ;
 subscripts:
-|                  subscript { [$1] }
-| subscripts COMMA subscript { $3 :: $1 }
+|                     s=subscript { [s] }
+| sl=subscripts COMMA s=subscript { s :: sl }
 ;
 
 subscript:
 (*| DOT DOT DOT { SIellipsis(get_loc $startofs $endofs) }*)
-| ELLIPSIS { SIellipsis(get_loc $startofs $endofs) }
-| test { SIexpr $1 }
+(*| ELLIPSIS { SIellipsis(get_loc $startofs $endofs) }*)
+| t=test { SIexpr t }
 
-|      COLON      { SI2(get_loc $startofs $endofs, None, None) }
-| test COLON      { SI2(get_loc $startofs $endofs, Some $1, None) }
-|      COLON test { SI2(get_loc $startofs $endofs, None, Some $2) }
-| test COLON test { SI2(get_loc $startofs $endofs, Some $1, Some $3) }
+|         COLON         { SI2(get_loc $startofs $endofs, None, None) }
+| t=test  COLON         { SI2(get_loc $startofs $endofs, Some t, None) }
+|         COLON t=test  { SI2(get_loc $startofs $endofs, None, Some t) }
+| t0=test COLON t1=test { SI2(get_loc $startofs $endofs, Some t0, Some t1) }
 
-|      COLON      sliceop { SI3(get_loc $startofs $endofs, None, None, $2) }
-| test COLON      sliceop { SI3(get_loc $startofs $endofs, Some $1, None, $3) }
-|      COLON test sliceop { SI3(get_loc $startofs $endofs, None, Some $2, $3) }
-| test COLON test sliceop { SI3(get_loc $startofs $endofs, Some $1, Some $3, $4) }
+|         COLON         s=sliceop { SI3(get_loc $startofs $endofs, None, None, s) }
+| t=test  COLON         s=sliceop { SI3(get_loc $startofs $endofs, Some t, None, s) }
+|         COLON t=test  s=sliceop { SI3(get_loc $startofs $endofs, None, Some t, s) }
+| t0=test COLON t1=test s=sliceop { SI3(get_loc $startofs $endofs, Some t0, Some t1, s) }
 ;
 
 sliceop:
-| COLON      { None }
-| COLON test { Some $2 }
+| COLON        { None }
+| COLON t=test { Some t }
 ;
 
 exprlist:
-| exprs       { $1 }
-| exprs COMMA { $1 }
+| e=_exprs COMMA? { List.rev e }
 ;
-exprs:
-|             expr_ { [$1] }
-| exprs COMMA expr_ { $1 @ [$3] }
+_exprs:
+|                 e=expr_ { [e] }
+| el=_exprs COMMA e=expr_ { e :: el }
 ;
 %inline
 expr_:
-| expr { $1 }
-| star_expr { $1 }
+| e=expr { e }
+| s=star_expr { s }
 ;
 
 testlist:
-| testlist1       { mktestlist $1 false false }
-| testlist1 COMMA { mktestlist $1 true false }
+| t=testlist1       { mktestlist t }
+| t=testlist1 COMMA { mktestlist ~comma:true t }
 ;
 testlist_star_expr:
-| testlist1_star_expr       { mktestlist $1 false false }
-| testlist1_star_expr COMMA { mktestlist $1 true false }
+| t=testlist1_star_expr       { mktestlist t }
+| t=testlist1_star_expr COMMA { mktestlist ~comma:true t }
 ;
 testlist_:
-| testlist1_       { mktestlist $1 false false }
-| testlist1_ COMMA { mktestlist $1 true false }
+| t=testlist1_       { mktestlist t }
+| t=testlist1_ COMMA { mktestlist ~comma:true t }
 ;
 
 dictorsetmaker:
-| dictelem comp_for { DSMdictC($1, $2) }
-| dictelems         { DSMdict(List.rev $1) }
-| dictelems COMMA   { DSMdict(List.rev $1) }
-| test_ comp_for            { DSMsetC($1, $2) }
-| testlist1_star_expr       { DSMset $1 }
-| testlist1_star_expr COMMA { DSMset $1 }
+| d=dictelem c=comp_for { DSMdictC(d, c) }
+| d=dictelems           { DSMdict(List.rev d) }
+| d=dictelems COMMA     { DSMdict(List.rev d) }
+| t=test_ c=comp_for { DSMsetC(t, c) }
+| t=testlist1_star_expr       { DSMset t }
+| t=testlist1_star_expr COMMA { DSMset t }
 ;
 dictelems:
-|                 dictelem { [$1] }
-| dictelems COMMA dictelem { $3 :: $1 }
+|                    d=dictelem { [d] }
+| dl=dictelems COMMA d=dictelem { d :: dl }
 ;
 dictelem:
-| test COLON test { mkde $startofs $endofs (DEkeyValue($1, $3)) }
-| STAR_STAR expr  { mkde $startofs $endofs (DEstarStar $2) }
+| t0=test COLON t1=test { mkde $startofs $endofs (DEkeyValue(t0, t1)) }
+| STAR_STAR e=expr  { mkde $startofs $endofs (DEstarStar e) }
 ;
 
 %inline
 test_star_expr:
-| test { $1 }
-| star_expr { $1 }
+| t=test { t }
+| s=star_expr { s }
 ;
 
 classdef:
-| CLASS name                       COLON suite { Sclassdef([], $2, emptyarglist, $4) }
-| CLASS name LPAREN         RPAREN COLON suite { Sclassdef([], $2, (get_loc $startofs($3) $endofs($4), []), $6) }
-| CLASS name LPAREN arglist RPAREN COLON suite
+| CLASS n=name                               COLON s=suite { Sclassdef([], n, emptyarglist(), s) }
+| CLASS n=name lp=LPAREN           rp=RPAREN COLON s=suite
     { 
-      let _, l = $4 in
-      let loc = get_loc $startofs($3) $endofs($5) in
-      Sclassdef([], $2, (loc, l), $7)
+      ignore lp;
+      ignore rp;
+      Sclassdef([], n, (get_loc $startofs(lp) $endofs(rp), []), s)
+    }
+| CLASS n=name lp=LPAREN a=arglist rp=RPAREN COLON s=suite
+    { 
+      ignore lp;
+      ignore rp;
+      let _, l = a in
+      let loc = get_loc $startofs(lp) $endofs(rp) in
+      Sclassdef([], n, (loc, l), s)
     }
 ;
 
@@ -829,56 +1098,56 @@ arglist:
 | a=arg_comma_list_ { a }
 ;
 arg_comma_list_:
-|                 argument COMMA { [$1] }
-| arg_comma_list_ argument COMMA { $1 @ [$2] }
+|                    a=argument COMMA { [a] }
+| al=arg_comma_list_ a=argument COMMA { al @ [a] }
 
 argument:
-| test                  { Aarg(get_loc $startofs $endofs, $1, None) }
-| test EQ test          { Aarg(get_loc $startofs $endofs, $1, Some $3) }
-| test         comp_for { Acomp(get_loc $startofs $endofs, $1, $2) }
-| test COLON_EQ test    { Aassign(get_loc $startofs $endofs, $1, $3) }
-| STAR test             { Aargs(get_loc $startofs $endofs, $2) }
-| STAR_STAR test        { Akwargs(get_loc $startofs $endofs, $2) }
+| t=test                   { Aarg(get_loc $startofs $endofs, t, None) }
+| t0=test EQ       t1=test { Aarg(get_loc $startofs $endofs, t0, Some t1) }
+| t=test c=comp_for        { Acomp(get_loc $startofs $endofs, t, c) }
+| t0=test COLON_EQ t1=test { Aassign(get_loc $startofs $endofs, t0, t1) }
+| STAR t=test              { Aargs(get_loc $startofs $endofs, t) }
+| STAR_STAR t=test         { Akwargs(get_loc $startofs $endofs, t) }
 ;
 
 comp_iter:
-| comp_for { Cfor $1 }
-| comp_if  { Cif $1 }
+| c=comp_for { Cfor c }
+| c=comp_if  { Cif c }
 ;
 
 comp_for:
-|       sync_comp_for { get_loc $startofs $endofs, $1, false }
-| ASYNC sync_comp_for { get_loc $startofs $endofs, $2, true }
+|       s=sync_comp_for { get_loc $startofs $endofs, s, false }
+| ASYNC s=sync_comp_for { get_loc $startofs $endofs, s, true }
 ;
 sync_comp_for:
-| FOR exprlist IN or_test           { $2, $4, None }
-| FOR exprlist IN or_test comp_iter { $2, $4, Some $5 }
+| FOR e=exprlist IN o=or_test             { e, o, None }
+| FOR e=exprlist IN o=or_test c=comp_iter { e, o, Some c }
 ;
 
 comp_if:
-| IF old_test           { get_loc $startofs $endofs, $2, None }
-| IF old_test comp_iter { get_loc $startofs $endofs, $2, Some $3 }
+| IF o=old_test             { get_loc $startofs $endofs, o, None }
+| IF o=old_test c=comp_iter { get_loc $startofs $endofs, o, Some c }
 ;
 
 testlist1:
-|                 test { [$1] }
-| testlist1 COMMA test { $1 @ [$3] }
+|                    t=test { [t] }
+| tl=testlist1 COMMA t=test { tl @ [t] }
 ;
 
 testlist1_star_expr:
-|                           test_star_expr { [$1] }
-| testlist1_star_expr COMMA test_star_expr { $1 @ [$3] }
+|                              t=test_star_expr { [t] }
+| tl=testlist1_star_expr COMMA t=test_star_expr { tl @ [t] }
 ;
 
 testlist1_:
-|                  test_ { [$1] }
-| testlist1_ COMMA test_ { $1 @ [$3] }
+|                     t=test_ { [t] }
+| tl=testlist1_ COMMA t=test_ { tl @ [t] }
 ;
 
 yield_expr:
-| YIELD                    { mktestlist [] false true }
-| YIELD testlist_star_expr { $2.yield<-true; $2 }
-| YIELD FROM test          { mktestlist [mkexpr $startofs $endofs (Efrom $3)] false true }
+| YIELD                      { mktestlist ~yield:true [] }
+| YIELD t=testlist_star_expr { t.yield<-true; t }
+| YIELD FROM t=test          { mktestlist ~yield:true [mkexpr $startofs $endofs (Efrom t)] }
 ;
 
 

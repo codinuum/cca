@@ -59,6 +59,7 @@ class tree_builder options =
       _parser#set_search_path_list options#search_path_list;
       if options#python_with_stmt_disabled_flag then
         _parser#disable_with_stmt;
-      _parser#_set_keep_going_flag options#keep_going_flag
+      _parser#_set_keep_going_flag options#keep_going_flag;
+      _parser#_set_ignore_comment_flag options#python_ignore_comment_flag
 
   end

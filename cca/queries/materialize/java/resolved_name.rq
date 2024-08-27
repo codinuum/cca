@@ -16,9 +16,9 @@ INSERT {
 }
 WHERE {
 
-  {
-    SELECT DISTINCT ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
-    WHERE {
+  # {
+  #   SELECT DISTINCT ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
+  #   WHERE {
 
        {
          SELECT DISTINCT ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
@@ -63,8 +63,8 @@ WHERE {
 
       FILTER (CONCAT(?iname, ".", ?qname) = ?cfqn)
 
-    } GROUP BY ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
-  }
+  #   } GROUP BY ?tdecl ?x ?ident ?xname ?file ?qname ?cfqn
+  # }
 
   FILTER (EXISTS {
     ?vdtor a java:VariableDeclarator ;

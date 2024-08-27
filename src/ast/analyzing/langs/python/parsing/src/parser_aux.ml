@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -26,12 +26,19 @@ class env = object (self)
   val mutable with_stmt_enabled = true (* always enabled in v2.6+ *)
 
   val mutable keep_going_flag = true
+  val mutable ignore_comment_flag = false
   val mutable shift_flag = false
-  val mutable last_token = Obj.repr ()
+  val mutable last_token_opt = (None : Obj.t option)
+  val mutable last_range = (Astloc.dummy_lexpos, Astloc.dummy_lexpos)
   val mutable paren_level = 0
   val mutable brace_level = 0
   val mutable bracket_level = 0
   val mutable block_level = 0
+
+  val comment_tbl = (Hashtbl.create 0 : (int, comment) Hashtbl.t)
+
+  method add_comment c = Hashtbl.add comment_tbl c.c_loc.Astloc.start_line c
+  method comment_tbl = comment_tbl
 
   method with_stmt_enabled = with_stmt_enabled
   method enable_with_stmt = with_stmt_enabled <- true
@@ -39,6 +46,9 @@ class env = object (self)
 
   method keep_going_flag = keep_going_flag
   method _set_keep_going_flag b = keep_going_flag <- b
+
+  method ignore_comment_flag = ignore_comment_flag
+  method _set_ignore_comment_flag b = ignore_comment_flag <- b
 
   method shift_flag = shift_flag
   method set_shift_flag () =
@@ -48,8 +58,20 @@ class env = object (self)
     DEBUG_MSG "clear";
     shift_flag <- false
 
-  method last_token = last_token
-  method set_last_token o = last_token <- o
+  method last_token =
+    match last_token_opt with
+    | Some o -> o
+    | None -> raise Not_found
+  method set_last_token o = last_token_opt <- Some o
+
+  method last_range =
+    let st, ed = last_range in
+    if st != Astloc.dummy_lexpos && ed != Astloc.dummy_lexpos then
+      st, ed
+    else
+      raise Not_found
+
+  method set_last_range x = last_range <- x
 
   method reset_paren_level () = paren_level <- 0;
   method paren_level = paren_level
@@ -124,9 +146,9 @@ module F (Stat : STATE_T) = struct
   let mkprimexpr so eo d = { expr_desc=(Eprimary (mkprim so eo d)); expr_loc=(get_loc so eo) }
   let mkde so eo d = { delem_desc=d; delem_loc=(get_loc so eo) }
 
-  let mktestlist l c y = { list=l; comma=c; yield=y }
+  let mktestlist ?(comma=false) ?(yield=false) l = { list=l; comma=comma; yield=yield }
 
-  let emptyarglist = Ast.Loc.dummy, []
+  let emptyarglist ?(loc=Ast.Loc.dummy) () = loc, []
   let emptyvarargslist = emptyarglist
   let emptytypedargslist = emptyarglist
 
@@ -149,6 +171,8 @@ module F (Stat : STATE_T) = struct
     let loc = get_loc so eo in
     env#missed_regions#add loc;
     { stmt_desc=Smarker s; stmt_loc=loc }
+
+  let chg_loc (_, xl) loc = loc, xl
 
 end (* of functor Parser_aux.F *)
 

@@ -5,7 +5,7 @@
 // selectively enable features needed in the rendering
 // process.
 
-const {apath0, apath1, apathd} = window.dvapi.sendSync('sync-mesg', 'req')
+const {apath0, apath1, apathd, blob0, blob1} = window.dvapi.sendSync('sync-mesg', 'req')
 
 var dv = new DiffViewer();
 
@@ -19,10 +19,10 @@ window.addEventListener('DOMContentLoaded', () => {
 })
 
 $(document).ready(function(){
-  var url0 = 'file://'+apath0;
-  var url1 = 'file://'+apath1;
-  var urld = 'file://'+apathd;
-  var lang = getLang(apath0);
+  const url0 = 'file://'+apath0;
+  const url1 = 'file://'+apath1;
+  const urld = 'file://'+apathd;
+  const lang = getLang(apath0);
   var view = document.getElementById("view");
 
   document.getElementById('close-button').addEventListener('click', () => {
@@ -36,6 +36,6 @@ $(document).ready(function(){
   });
 
   dv.dts = 1;
-  dv.show(url0, url1, urld, view, lang, 0, 0, [], [], []);
+  dv.show(url0, url1, urld, view, lang, 0, 0, [], [], [], blob0, blob1);
   //dv.show2(original, modified, diff, view, lang, 0, 0, [], [], []);
 })

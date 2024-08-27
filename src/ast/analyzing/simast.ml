@@ -72,7 +72,16 @@ let speclist =
    "-version", Arg.Set show_version_flag, "\tshow version";
    "-verbose", Arg.Unit (fun () -> options#set_verbose_flag), "\tdisplay verbose messages";
    "-check", Arg.Unit (fun () -> options#set_check_flag), "\tcheck result";
-   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing in spite of errors";
+   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing despite errors";
+
+   "-parser:rely-on-naming-convention", Arg.Unit
+                                        (fun () -> options#set_rely_on_naming_convention_flag),
+                                        "\trely on naming convention";
+   "-parser:partial-name-resolution", Arg.Unit (fun () -> options#set_partial_name_resolution_flag),
+                                      "\tresolve names partially";
+   "-parser:no-implicit-name-resolution",
+     Arg.Unit (fun () -> options#set_no_implicit_name_resolution_flag),
+     "\tdisable name resolution";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";
@@ -120,7 +129,17 @@ let speclist =
    "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold,
    sprintf "N\tthreshold for algorithm selection (default: %d)" options#match_algo_threshold;
 *)
-   "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
+   "-nore", Arg.Unit (fun () -> options#set_no_odd_relabel_elim_flag),
+            "\tdisable odd relabel elimination";
+
+   "-rrlv", Arg.Int (fun lv ->
+                      options#set_rename_rectification_level lv;
+                      if lv <= 0 then options#clear_use_binding_info_flag;
+                      (*options#set_no_odd_relabel_elim_flag*)
+                    ),
+          sprintf "\tset rename rectification level (0:none, 1:u, 2:u+d, 3:u+ds) (default: %d)"
+          options#rename_rectification_level;
+
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
    "-nocollapse", Arg.Unit (fun () -> options#set_no_collapse_flag), "\tdisable collapsing";
@@ -132,13 +151,15 @@ let speclist =
    "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag),
                           sprintf "\tdo not ignore huge arrays (default:%s)"
                             (if options#ignore_huge_arrays_flag then "ignore" else "scan");
-
    "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
-                           sprintf "N\thuge array size threshold (default: %d)" options#huge_array_threshold;
-
+                         sprintf "N\thuge array size threshold (default: %d)"
+                           options#huge_array_threshold;
    "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
-                               "\tsuppress moves of unnamed nodes";
-
+                             "\tsuppress moves of unnamed nodes";
+   "-no-binding-trace", Arg.Unit (fun () -> options#set_no_binding_trace_flag),
+                        "\t\tdisable binding trace";
+   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
+                  "\t\t\taggressively find moves";
 (*
 "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
 sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
@@ -311,4 +332,4 @@ let _ =
   | Triple.Proj_root_not_set          -> Xprint.error "project root not set"; exit 1
 *)
 
-  | e -> Xprint.error ~head:"[EXCEPTION]" "%s" (Printexc.to_string e); exit 1
+  (*| e -> Xprint.error ~head:"[EXCEPTION]" "%s" (Printexc.to_string e); exit 1*)

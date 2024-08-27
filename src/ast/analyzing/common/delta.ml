@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -77,6 +77,7 @@ let rev_array_exists f a =
     Exit -> true
 
 exception Defer
+exception Abort
 
 module Edit = struct
 
@@ -105,26 +106,26 @@ module Edit = struct
 
   let to_string = function
     | Delete(nd, excluded) ->
-	sprintf "DELETE(\n%s,[\n%s\n])"
+        sprintf "DELETE(\n%s,[\n%s\n])"
           nd#initial_to_string (nodes_to_string excluded)
 
     | Insert(nd, excluded) ->
-	sprintf "INSERT(\n%s,[\n%s\n])"
+        sprintf "INSERT(\n%s,[\n%s\n])"
           nd#initial_to_string (nodes_to_string excluded)
 
     | Relabel(nd1, excluded1, nd2, excluded2) ->
-	sprintf "RELABEL(\n%s,[\n%s\n] -> %s,[\n%s\n])"
-	  nd1#initial_to_string (nodes_to_string excluded1)
-	  nd2#initial_to_string (nodes_to_string excluded2)
+        sprintf "RELABEL(\n%s,[\n%s\n] -> %s,[\n%s\n])"
+          nd1#initial_to_string (nodes_to_string excluded1)
+          nd2#initial_to_string (nodes_to_string excluded2)
 
     | Move(mid, k, nd1, excluded1, nd2, excluded2) ->
-	sprintf "MOVE[%a][%s](\n%s,[\n%s\n] -> %s,[\n%s\n])"
+        sprintf "MOVE[%a][%s](\n%s,[\n%s\n] -> %s,[\n%s\n])"
           MID.ps mid (move_kind_to_string k)
           nd1#initial_to_string (nodes_to_string excluded1)
           nd2#initial_to_string (nodes_to_string excluded2)
 
     | MoveInsert(mid, k, nd2, excluded2) ->
-	sprintf "MOVE_INSERT[%a][%s](\n%s,[\n%s\n])"
+        sprintf "MOVE_INSERT[%a][%s](\n%s,[\n%s\n])"
           MID.ps mid (move_kind_to_string k)
           nd2#initial_to_string (nodes_to_string excluded2)
 
@@ -138,7 +139,7 @@ module Edit = struct
   exception Parent_not_stable
 
   let flatten_remote_stable_tbl tbl =
-    List.flatten (List.map (fun (n, ns) -> ns) tbl)
+    List.concat_map (fun (n, ns) -> ns) tbl
 
   let rec _get_anc_in mem n =
     if mem n then
@@ -158,24 +159,24 @@ module Edit = struct
   let opl_of_editop (eop : 'data eop_t) =
     let opl =
       match eop with
-      | Editop.Delete(_, _, info, excluded) ->
-	  [Delete(Info.get_node info, Info.excluded_to_nodes !excluded)]
+      | Editop.Delete(_, info, excluded) ->
+          [Delete(Info.get_node info, Info.excluded_to_nodes !excluded)]
 
-      | Editop.Insert(_, _, info, excluded) ->
-	  [Insert(Info.get_node info, Info.excluded_to_nodes !excluded)]
+      | Editop.Insert(_, info, excluded) ->
+          [Insert(Info.get_node info, Info.excluded_to_nodes !excluded)]
 
-      | Editop.Relabel(_, (_, info1, excluded1), (_, info2, excluded2)) ->
-	  let nd1 = Info.get_node info1 in
-	  let nd2 = Info.get_node info2 in
-	  let exc1 = Info.excluded_to_nodes !excluded1 in
-	  let exc2 = Info.excluded_to_nodes !excluded2 in
-	  [Relabel(nd1, exc1, nd2, exc2)]
+      | Editop.Relabel(_, (info1, excluded1), (info2, excluded2)) ->
+          let nd1 = Info.get_node info1 in
+          let nd2 = Info.get_node info2 in
+          let exc1 = Info.excluded_to_nodes !excluded1 in
+          let exc2 = Info.excluded_to_nodes !excluded2 in
+          [Relabel(nd1, exc1, nd2, exc2)]
 
-      | Editop.Move(mid, k, (_, info1, excluded1), (_, info2, excluded2)) ->
-	  let nd1 = Info.get_node info1 in
-	  let nd2 = Info.get_node info2 in
-	  let exc1 = Info.excluded_to_nodes !excluded1 in
-	  let exc2 = Info.excluded_to_nodes !excluded2 in
+      | Editop.Move(mid, k, (info1, excluded1), (info2, excluded2)) ->
+          let nd1 = Info.get_node info1 in
+          let nd2 = Info.get_node info2 in
+          let exc1 = Info.excluded_to_nodes !excluded1 in
+          let exc2 = Info.excluded_to_nodes !excluded2 in
           [ Move(!mid, !k, nd1, exc1, nd2, exc2);
             MoveInsert(!mid, !k, nd2, exc2);
           ]
@@ -186,16 +187,16 @@ module Edit = struct
     let op =
       match eop with
       | Editop.Delete(_, _, info, excluded) ->
-	  Some (Delete(Info.get_node info, Info.excluded_to_nodes !excluded))
+          Some (Delete(Info.get_node info, Info.excluded_to_nodes !excluded))
 
       | Editop.Insert(_, _, info, excluded) ->
-	  Some (Insert(Info.get_node info, Info.excluded_to_nodes !excluded))
+          Some (Insert(Info.get_node info, Info.excluded_to_nodes !excluded))
 
       | Editop.Relabel(_, (_, info1, excluded1), (_, info2, excluded2)) ->
-	  let nd1 = Info.get_node info1 in
-	  let nd2 = Info.get_node info2 in
-	  let exc1 = Info.excluded_to_nodes !excluded1 in
-	  let exc2 = Info.excluded_to_nodes !excluded2 in
+          let nd1 = Info.get_node info1 in
+          let nd2 = Info.get_node info2 in
+          let exc1 = Info.excluded_to_nodes !excluded1 in
+          let exc2 = Info.excluded_to_nodes !excluded2 in
           if
             (not nd1#data#is_named_orig) && (not nd1#data#has_value) &&
             (not nd2#data#is_named_orig) && (not nd2#data#has_value) &&
@@ -217,13 +218,13 @@ module Edit = struct
             None
           end
           else
-	    Some (Relabel(nd1, exc1, nd2, exc2))
+            Some (Relabel(nd1, exc1, nd2, exc2))
 
       | Editop.Move(mid, k, (_, info1, excluded1), (_, info2, excluded2)) ->
-	  let nd1 = Info.get_node info1 in
-	  let nd2 = Info.get_node info2 in
-	  let exc1 = Info.excluded_to_nodes !excluded1 in
-	  let exc2 = Info.excluded_to_nodes !excluded2 in
+          let nd1 = Info.get_node info1 in
+          let nd2 = Info.get_node info2 in
+          let exc1 = Info.excluded_to_nodes !excluded1 in
+          let exc2 = Info.excluded_to_nodes !excluded2 in
           if
             more &&
             nd1#data#is_order_insensitive && nd2#data#is_order_insensitive &&
@@ -234,7 +235,7 @@ module Edit = struct
             (try
               edit_seq#iter_moves
                 (function
-	          | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
+                  | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
                       List.iter
                         (fun inf ->
                           if Info.get_node inf == nd1 then
@@ -345,7 +346,7 @@ module Edit = struct
       ?(irreversible_flag=false)
       (tree1 : 'tree tree_t)
       (tree2 : 'tree tree_t)
-      uidmapping
+      nmapping
       edits_copy
       edit_seq
       (*(edit_seq : ('data node_t, 'tree tree_t) Edit_base.seq_base)*)
@@ -353,9 +354,9 @@ module Edit = struct
     let is_indivisible_move = edits_copy#is_indivisible_move in
     let edit_list =
       (*if options#minimize_delta_flag then
-        Xlist.filter_map (op_of_editop_filt ~more uidmapping edit_seq tree1) edit_seq#content
+        List.filter_map (op_of_editop_filt ~more nmapping edit_seq tree1) edit_seq#content
       else*)
-        List.flatten (List.map opl_of_editop edit_seq#content)
+        List.concat_map opl_of_editop edit_seq#content
     in
     object (self)
 
@@ -467,7 +468,7 @@ module Edit = struct
                 scan_initial_cluster nd2 excluded2
                   (fun n -> tbl_add edit_tbl2 n#uid ed)
             end
-	    | Relabel(nd1, excluded1, nd2, excluded2) -> begin
+            | Relabel(nd1, excluded1, nd2, excluded2) -> begin
                 scan_initial_cluster nd1 excluded1
                   (fun n -> tbl_add edit_tbl1 n#uid ed);
                 scan_initial_cluster nd2 excluded2
@@ -492,7 +493,7 @@ module Edit = struct
                     options#ignore_non_orig_relabel_flag &&
                     (not nd1#data#is_named_orig) && (not nd1#data#has_value) &&
                     (not nd2#data#is_named_orig) && (not nd2#data#has_value) &&
-                    nd1#data#anonymized_label = nd2#data#anonymized_label &&
+                    nd1#data#_anonymized_label = nd2#data#_anonymized_label &&
                     nd1#data#elem_name_for_delta = nd2#data#elem_name_for_delta
                   then begin
                     DEBUG_MSG "filtered: %s" (to_string ed);
@@ -522,11 +523,11 @@ module Edit = struct
                     exc1 = [] && exc2 = [] &&
                     let pnd1 = nd1#initial_parent in
                     let pnd2 = nd2#initial_parent in
-                    (try (uidmapping#find pnd1#uid) = pnd2#uid with _ -> false) &&
+                    (try nmapping#find pnd1 == pnd2 with _ -> false) &&
                     (try
                       edit_seq#iter_moves
                         (function
-	                  | Editop.Move(_, _, (_, _, e1), (_, _, _)) -> begin
+                          | Editop.Move(_, _, (_, e1), _) -> begin
                               List.iter
                                 (fun inf ->
                                   if Info.get_node inf == nd1 then
@@ -538,7 +539,7 @@ module Edit = struct
                       true
                     with
                       Exit -> false) &&
-                    match edit_seq#find12 pnd1#uid pnd2#uid with
+                    match edit_seq#find12 pnd1 pnd2 with
                     | [] -> true
                     | [Editop.Relabel _] -> pnd1#data#elem_name_for_delta = pnd2#data#elem_name_for_delta
                     | _ -> false
@@ -981,34 +982,34 @@ module Edit = struct
 
       method map_for_delta f =
         let sort =
-	  List.fast_sort
-	    (fun ed1 ed2 ->
-	      match ed1, ed2 with
-	      | Insert(nd1, _), Insert(nd2, _)
-	      | MoveInsert(_, _, nd1, _), MoveInsert(_, _, nd2, _)
-	      | Insert(nd1, _), MoveInsert(_, _, nd2, _)
+          List.fast_sort
+            (fun ed1 ed2 ->
+              match ed1, ed2 with
+              | Insert(nd1, _), Insert(nd2, _)
+              | MoveInsert(_, _, nd1, _), MoveInsert(_, _, nd2, _)
+              | Insert(nd1, _), MoveInsert(_, _, nd2, _)
               | MoveInsert(_, _, nd1, _), Insert(nd2, _)
-	      | Move(_, _, _, _, nd1, _), Move(_, _, _, _, nd2, _)
-	      | Insert(nd1, _), Move(_, _, _, _, nd2, _)
-	      | Move(_, _, _, _, nd1, _), Insert(nd2, _) ->
+              | Move(_, _, _, _, nd1, _), Move(_, _, _, _, nd2, _)
+              | Insert(nd1, _), Move(_, _, _, _, nd2, _)
+              | Move(_, _, _, _, nd1, _), Insert(nd2, _) ->
                   Stdlib.compare nd2#gindex nd1#gindex
-	      | _ ->
-		  self#fail
+              | _ ->
+                  self#fail
                     (sprintf "map_for_delta: sort: illegal edit: %s, %s"
-		       (to_string ed1) (to_string ed2))
-	    )
+                       (to_string ed1) (to_string ed2))
+            )
         in
         let sorted_edits =
           let dels, inss, movs, rels = ref [], ref [], ref [], ref [] in
           self#iter
-	    (fun edit ->
+            (fun edit ->
               match edit with
               | Relabel _ -> rels := edit::!rels
               | Delete _  -> dels := edit::!dels
               | Insert _ -> inss := edit::!inss
               | MoveInsert _ -> inss := edit::!inss
               | Move _ -> movs := edit::!movs
-	    );
+            );
           !rels @ (sort !inss) @ !movs @ !dels
         in
         List.map f sorted_edits
@@ -1089,48 +1090,48 @@ module Edit = struct
 
       (*method sort =
         let sort1 =
-	  List.fast_sort
-	    (fun ed1 ed2 ->
-	      match ed1, ed2 with
-	      | Delete(nd1, _), Delete(nd2, _)
-	      | Move(_, _, nd1, _, _, _), Move(_, _, nd2, _, _, _)
-	      | Delete(nd1, _), Move(_, _, nd2, _, _, _)
-	      | Move(_, _, nd2, _, _, _), Delete(nd1, _) ->
-		  Stdlib.compare nd1#gindex nd2#gindex
-	      | _ ->
-		  self#fail
+          List.fast_sort
+            (fun ed1 ed2 ->
+              match ed1, ed2 with
+              | Delete(nd1, _), Delete(nd2, _)
+              | Move(_, _, nd1, _, _, _), Move(_, _, nd2, _, _, _)
+              | Delete(nd1, _), Move(_, _, nd2, _, _, _)
+              | Move(_, _, nd2, _, _, _), Delete(nd1, _) ->
+                  Stdlib.compare nd1#gindex nd2#gindex
+              | _ ->
+                  self#fail
                     (sprintf "sort: sort1: illegal edit: %s, %s"
                        (to_string ed1) (to_string ed2))
-	    )
+            )
         in
         let sort2 =
-	  List.fast_sort
-	    (fun ed1 ed2 ->
-	      match ed1, ed2 with
-	      | Insert(nd1, _), Insert(nd2, _)
-	      | Move(_, _, _, _, nd1, _), Move(_, _, _, _, nd2, _)
-	      | Insert(nd1, _), Move(_, _, _, _, nd2, _)
-	      | Move(_, _, _, _, nd2, _), Insert(nd1, _) ->
-		  Stdlib.compare nd1#gindex nd2#gindex
-	      | _ ->
-		  self#fail
+          List.fast_sort
+            (fun ed1 ed2 ->
+              match ed1, ed2 with
+              | Insert(nd1, _), Insert(nd2, _)
+              | Move(_, _, _, _, nd1, _), Move(_, _, _, _, nd2, _)
+              | Insert(nd1, _), Move(_, _, _, _, nd2, _)
+              | Move(_, _, _, _, nd2, _), Insert(nd1, _) ->
+                  Stdlib.compare nd1#gindex nd2#gindex
+              | _ ->
+                  self#fail
                     (sprintf "sort: sort2: illegal edit: %s, %s"
-		       (to_string ed1) (to_string ed2))
+                       (to_string ed1) (to_string ed2))
 
-	    )
+            )
         in
         let dels, inss, rels = ref [], ref [], ref [] in
         let movs = ref [] in
         self#iter
-	  (fun edit ->
-	    match edit with
-	    | Delete _  -> dels := edit::!dels
-	    | Insert _  -> inss := edit::!inss
-	    | Relabel _ -> rels := edit::!rels
+          (fun edit ->
+            match edit with
+            | Delete _  -> dels := edit::!dels
+            | Insert _  -> inss := edit::!inss
+            | Relabel _ -> rels := edit::!rels
             | Move _    -> movs := edit::!movs
-	  );
+          );
         edits <-
-	  (List.rev !rels) @ (sort1 !dels) @ (sort2 !inss) @ (sort1 !movs)*)
+          (List.rev !rels) @ (sort1 !dels) @ (sort2 !inss) @ (sort1 !movs)*)
 
       (* experimental *)
       method private _is_simple_ins tree is_stable' is_stable_' nmap' ?(exact=true) ?(top_nodes=[]) x' =
@@ -1535,7 +1536,11 @@ module Edit = struct
                 List.map nmap' (get_p_descendants ~moveon is_stable_' x')
             in
             DEBUG_MSG "ss=[%a]" nsps ss;
-            let grp = List.filter (fun tn -> List.exists (fun s -> tn == s || is_ancestor tn s) ss) top_nodes in
+            let grp =
+              List.filter
+                (fun tn -> List.exists (fun s -> tn == s || is_ancestor tn s) ss)
+                top_nodes
+            in
             DEBUG_MSG "grp=[%a]" nsps grp;
             grp
           in
@@ -1631,7 +1636,9 @@ module Edit = struct
               try
                 let xk = self#find_key x'#uid in
                 let a, (pt, ps) =  Hashtbl.find ancto_tbl xk in
-                pt#key_opt = None && not (Hashtbl.mem edit_parent_tbl xk) && not (Hashtbl.mem parent_key_tbl xk)
+                pt#key_opt = None &&
+                not (Hashtbl.mem edit_parent_tbl xk) &&
+                not (Hashtbl.mem parent_key_tbl xk)
               with _ -> false) ||
 
               match !paths_opt with
@@ -1703,7 +1710,9 @@ module Edit = struct
                                  (fun tn ->
                                    is_ancestor tn y && is_ancestor tn x
                                  ) top_nodes
-                             ) (List.map nmap' (if is_stable' y' then [y'] else get_p_descendants is_stable' y'))
+                             ) (List.map
+                                  nmap'
+                                  (if is_stable' y' then [y'] else get_p_descendants is_stable' y'))
                          in
                          if b then
                            DEBUG_MSG "found: y'=%a" nps y';
@@ -1845,14 +1854,29 @@ module Edit = struct
                     let prev_cond =
                       x'#initial_pos > 0 &&
                       try
-                        let prev' = x'#initial_parent#initial_children.(x'#initial_pos-1) in
+                        let ca' = x'#initial_parent#initial_children in
+                        let xpos' = x'#initial_pos in
+                        let prev' = ca'.(xpos'-1) in
                         DEBUG_MSG "prev'=%a" nps prev';
                         (not (is_stable' prev') &&
                          (Xset.mem simple_ins_roots prev' ||
                          self#find_key_opt prev'#uid =
                          self#find_key_opt prev'#initial_parent#uid)
                         ) ||
-                        self#is_canceled_stable_node prev'
+                        self#is_canceled_stable_node prev'(* &&
+                        ( (* NG????? *)
+                         (try
+                           DEBUG_MSG "top_nodes=[%a]" nsps top_nodes;
+                           let x = nmap' x' in
+                           DEBUG_MSG "x=%a" nps x;
+                           List.memq x top_nodes
+                         with _ -> false
+                         )(* ||
+                         (* NG????? *)
+                         xpos' > 1 &&
+                         array_range_exists
+                           (fun x -> not (self#is_canceled_stable_node x)) ca' 0 (xpos'-2)*)
+                        )*)
                       with
                       | _ -> true
                     in
@@ -1984,6 +2008,26 @@ module Edit = struct
                 let b =
                   base_cond ||
                   not (is_stable' x') && b ||
+                  (*b && ( (* NG????? *)
+                  let xpos' = x'#initial_pos in
+                  xpos' > 1 &&
+                  try
+                    let ca' = x'#initial_parent#initial_children in
+                    try
+                      for i = xpos' - 1 downto 0 do
+                        let ci' = ca'.(i) in
+                        DEBUG_MSG "i=%d ci'=%a" i nps ci';
+                        if not (_is_excluded ci') && not (is_stable' ci') then
+                          raise Exit;
+                        if not (self#is_canceled_stable_node ci') then
+                          raise Abort
+                      done;
+                      false
+                    with
+                    | Exit -> true
+                    | Abort -> false
+                  with _ -> false
+                  ) ||*)
                   b &&
                   let check_prev tn =
                     try
@@ -2020,6 +2064,12 @@ module Edit = struct
                       _ -> fun _ -> false
                   in*)
                   self#is_canceled_stable_node x' ||
+                  (*(try (* NG????? *)
+                    let ca' = x'#initial_parent#initial_children in
+                    array_range_forall self#is_canceled_stable_node ca' 0 (x'#initial_pos-1)
+                  with
+                    _ -> false)
+                  ||*)
                   List.exists
                     (fun x ->
                       DEBUG_MSG "x=%a" nps x;
@@ -2100,6 +2150,7 @@ module Edit = struct
           | _ -> begin
               let sorted = sort_nodes_by_gindex nds in
               let nd0, ndx = List.hd sorted, Xlist.last sorted in
+              DEBUG_MSG "nd0=%a ndx=%a" nps nd0 nps ndx;
               let last_gi = ndx#gindex in
               let cur = ref nd0#initial_parent in
               begin
@@ -2111,6 +2162,7 @@ module Edit = struct
                   _ -> ()
               end;
               let anc = !cur in
+              DEBUG_MSG "anc=%a" nps anc;
               (*let st = ref (-1) in
               let ed = ref (-1) in*)
               let topa =
@@ -2151,7 +2203,7 @@ module Edit = struct
 
 
       method private get_opposite_path_and_excepted_paths lift_tbl lifted_nodes
-          is_stable is_stable' get_path' umap umap' tree tree'
+          is_stable is_stable' get_path' nmap nmap' tree tree'
           nd excluded _excepted_nds
           =
         DEBUG_MSG "nd=%a excluded=[%a] _excepted_nds=[%a]"
@@ -2194,13 +2246,13 @@ module Edit = struct
         in
         let nmap n =
           DEBUG_MSG "n=%a" nps n;
-          let n' = tree'#search_node_by_uid (umap n#uid) in
+          let n' = nmap n in
           DEBUG_MSG " -> %a" nps n';
           n'
         in
         let nmap' n' =
           DEBUG_MSG "n'=%a" nps n';
-          let n = tree#search_node_by_uid (umap' n'#uid) in
+          let n = nmap' n' in
           DEBUG_MSG " -> %a" nps n;
           n
         in
@@ -2272,7 +2324,8 @@ module Edit = struct
                             array_range_exists
                               (fun c ->
                                 not (self#is_excluded c) &&
-                                array_range_exists (fun c1 -> List.memq c1 rest) ca (c#initial_pos + 1) (len - 1)
+                                array_range_exists
+                                  (fun c1 -> List.memq c1 rest) ca (c#initial_pos + 1) (len - 1)
                               ) ca (s#initial_pos + 1) (len - 1)
                           in
                           DEBUG_MSG "not_to_be_reversed=%B" not_to_be_reversed;
@@ -2394,9 +2447,12 @@ module Edit = struct
                 | hd :: tl -> (Xlist.last tl)#initial_pos - hd#initial_pos + 1
               in
               DEBUG_MSG "pos_range=%d" pos_range;*)
-              let pos_shift, paths_count, extra_lift_flag, keys, occupied = check_occupancy anc' top_nd_tbl' in
+              let pos_shift, paths_count, extra_lift_flag, keys, occupied =
+                check_occupancy anc' top_nd_tbl'
+              in
               DEBUG_MSG "pos_shift=%d paths_count=%d" pos_shift paths_count;
-              DEBUG_MSG "extra_lift_flag=%B keys=[%s] occupied=[%a]" extra_lift_flag (keys_to_string keys) nsps occupied;
+              DEBUG_MSG "extra_lift_flag=%B keys=[%s] occupied=[%a]"
+                extra_lift_flag (keys_to_string keys) nsps occupied;
               let pos_shift, paths_count =
                 if pos_shift > 0 then
                   match top_nds' with
@@ -2465,7 +2521,7 @@ module Edit = struct
                     | [x'] -> x' :: l
                     | x'::t -> begin
                         let sg_g =
-                          Xlist.filter_map
+                          List.filter_map
                             (fun n' ->
                               if n' != tn' then
                                 let n = nmap' n' in
@@ -2839,12 +2895,29 @@ module Edit = struct
                     DEBUG_MSG "canceled: %a -> %B" nps sn canceled;
                     let pk_opt = self#find_key_opt sn#initial_parent#uid in
                     DEBUG_MSG "pk_opt=%s" (key_opt_to_string pk_opt);
-                    if
-                      canceled && key_opt = pk_opt ||
-                      (List.for_all (fun (a, b) -> a > i || i > b) ranges) ||
-                      (match sub_ins_idx_opt with Some j -> j = i | _ -> false) ||
-                      Xset.mem to_be_canceled sn && (not extra_lift_flag || !sub_ins_opt = None)
-                    then begin
+                    let cond0 () =
+                      let b = canceled && key_opt = pk_opt in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    let cond1 () =
+                      let b = List.for_all (fun (a, b) -> i < a || b < i) ranges in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    let cond2 () =
+                      let b = match sub_ins_idx_opt with Some j -> j = i | _ -> false in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    let cond3 () =
+                      let b =
+                        Xset.mem to_be_canceled sn && (not extra_lift_flag || !sub_ins_opt = None)
+                      in
+                      DEBUG_MSG "%B" b;
+                      b
+                    in
+                    if cond0() || cond1() || cond2() || cond3() then begin
                       let mem = get_anc_in_mem sn in
                       DEBUG_MSG "lift cand: i=%d (%a) mem=%a" i nps sn nps mem;
                       lift_cands := (i, mem, true) :: !lift_cands;
@@ -2910,7 +2983,7 @@ module Edit = struct
                                                     acc
                                                 ) None top_nds'
                                       in
-                                      let map = Xlist.filter_map get_grp in
+                                      let map = List.filter_map get_grp in
                                       let lsg = Xlist.uniq (map lss) in
                                       DEBUG_MSG "lsg=[%a]" nsps lsg;
                                       if lsg <> [] then begin
@@ -2928,9 +3001,9 @@ module Edit = struct
                                               else
                                                 None
                                             in
-                                            let lps = Xlist.filter_map filt lss in
+                                            let lps = List.filter_map filt lss in
                                             DEBUG_MSG "lps=[%a]" nsps lps;
-                                            let rps = Xlist.filter_map filt rss in
+                                            let rps = List.filter_map filt rss in
                                             DEBUG_MSG "rps=[%a]" nsps rps;
                                             Xlist.intersectionq lps rps = []
                                         end
@@ -3245,7 +3318,7 @@ module Edit = struct
                   | [h] -> [h]
                   | [] -> []
                 in
-                List.flatten (List.map f !groups_ref)
+                List.concat_map f !groups_ref
               in
               DEBUG_MSG "group_heads: [%a]" nsps group_heads;
 
@@ -4207,56 +4280,55 @@ module Edit = struct
                         ) l;
                       let ancs_with_stable_descs = Xset.create 0 in
                       let _vec =
-                        List.flatten
-                          (List.map
-                             (fun x ->
-                               DEBUG_MSG "x=%a" nps x;
-                               if is_stable x then begin
-                                 DEBUG_MSG "%a is stable" nps x;
-                                 let x' = nmap x in
-                                 try
-                                   let a' = Hashtbl.find atbl x' in
-                                   DEBUG_MSG "atbl: x'=%a -> a'=%a"
-                                     nps x' nps a';
-                                   Xset.add ancs_with_stable_descs a';
-                                   [a']
-                                 with
-                                   Not_found ->
-                                     Xset.add ancs_with_stable_descs x';
-                                     [x']
-                               end
-                               else begin
-                                 let ss = get_p_descendants is_stable x in
-                                 DEBUG_MSG "ss=[%a]" nsps ss;
-                                 if ss = [] then
-                                   [x]
-                                 else
-                                   let ss' = List.map nmap ss in
-                                   DEBUG_MSG "ss'=[%a]" nsps ss';
-                                   List.rev
-                                     (List.fold_left
-                                        (fun l x' ->
-                                          try
-                                            let a' = Hashtbl.find atbl x' in
-                                            DEBUG_MSG "atbl: x'=%a -> a'=%a"
-                                              nps x' nps a';
-                                            Xset.add ancs_with_stable_descs a';
-                                            a' :: l
-                                          with
-                                            Not_found ->
-                                              Xset.add ancs_with_stable_descs x;
-                                              if
-                                                Xarray.exists ((==) x') children'
-                                              then
-                                                List.iter
-                                                  (fun y ->
-                                                    DEBUG_MSG "aatbl: %a -> %a" nps y nps x;
-                                                    Hashtbl.add aatbl y x
-                                                  ) l;
-                                              x :: l
-                                        ) [] ss')
-                               end
-                             ) children)
+                        List.concat_map
+                          (fun x ->
+                            DEBUG_MSG "x=%a" nps x;
+                            if is_stable x then begin
+                              DEBUG_MSG "%a is stable" nps x;
+                              let x' = nmap x in
+                              try
+                                let a' = Hashtbl.find atbl x' in
+                                DEBUG_MSG "atbl: x'=%a -> a'=%a"
+                                  nps x' nps a';
+                                Xset.add ancs_with_stable_descs a';
+                                [a']
+                              with
+                                Not_found ->
+                                  Xset.add ancs_with_stable_descs x';
+                                  [x']
+                            end
+                            else begin
+                              let ss = get_p_descendants is_stable x in
+                              DEBUG_MSG "ss=[%a]" nsps ss;
+                              if ss = [] then
+                                [x]
+                              else
+                                let ss' = List.map nmap ss in
+                                DEBUG_MSG "ss'=[%a]" nsps ss';
+                                List.rev
+                                  (List.fold_left
+                                     (fun l x' ->
+                                       try
+                                         let a' = Hashtbl.find atbl x' in
+                                         DEBUG_MSG "atbl: x'=%a -> a'=%a"
+                                           nps x' nps a';
+                                         Xset.add ancs_with_stable_descs a';
+                                         a' :: l
+                                       with
+                                         Not_found ->
+                                           Xset.add ancs_with_stable_descs x;
+                                           if
+                                             Xarray.exists ((==) x') children'
+                                           then
+                                             List.iter
+                                               (fun y ->
+                                                 DEBUG_MSG "aatbl: %a -> %a" nps y nps x;
+                                                 Hashtbl.add aatbl y x
+                                               ) l;
+                                           x :: l
+                                     ) [] ss')
+                            end
+                          ) children
                       in
                       DEBUG_MSG "_vec=[%a]" nsps _vec;
                       DEBUG_MSG "canceled_stable_nodes=[%a]"
@@ -4413,7 +4485,7 @@ module Edit = struct
                              tbl_add pos_tbl pp pos;
                              let mem = pn#initial_parent in
                              let mps =
-                               Xlist.filter_map
+                               List.filter_map
                                  (fun x ->
                                    if List.memq x excluded then
                                      None
@@ -4675,7 +4747,7 @@ module Edit = struct
         let chk_mov_filt p anc i =
           if p#has_frac_ofs then begin
             let c = anc#initial_children.(i) in
-            if mem_mov c#uid then begin
+            if mem_mov c then begin
               DEBUG_MSG "%a should not be filtered" nps c;
               Xset.add filt_blacklist c
             end
@@ -5411,7 +5483,7 @@ module Edit = struct
           ?(force_lift=false)
           ?(parent_ins_point_opt=None)
           ?(anc_to_opt=None)
-          is_stable is_stable' tree tree' umap umap'
+          is_stable is_stable' tree tree' nmap nmap'
           nd
           =
         DEBUG_MSG "force_lift=%B, nd=%a" force_lift nps nd;
@@ -5463,8 +5535,6 @@ module Edit = struct
         let result =
           if is_stable nd then begin
 
-            let nmap = mknmap tree' umap in
-            let nmap' = mknmap tree umap' in
             let nd' = nmap nd in
 
             let conflicts', staying_move_only, conflicting_staying_moves, insttbl =
@@ -5609,16 +5679,84 @@ module Edit = struct
                           let a, (pt, ps) = Hashtbl.find ancto_tbl k in
                           let p = pt#position in
                           let nb = List.length ps in
-                          DEBUG_MSG "a=%a p=%d nb=%d" nps a p nb;
+                          DEBUG_MSG "a=%a p=%d nb=%d ps=%s" nps a p nb (paths_to_string ps);
+
+                          let x_opt = ref None in
+
+                          let to_be_lifted0 () =
+                            let b =
+                              try
+                                not
+                                  (array_range_exists
+                                     (fun x ->
+                                       (x == nd || is_ancestor x nd) &&
+                                       let xpos = x#initial_pos in
+                                       let rp = xpos - p in
+                                       DEBUG_MSG "x=%a xpos=%d rp=%d" nps x xpos rp;
+                                       let xpath = List.nth ps rp in
+                                       DEBUG_MSG "xpath=%s" xpath#to_string;
+                                       let sr' = self#get_subtree_root (stid_of_key k) in
+                                       DEBUG_MSG "sr'=%a" nps sr';
+                                       let y' = self#acc sr' (Path.get_parent xpath#path) in
+                                       DEBUG_MSG "y'=%a nd'=%a" nps y' nps nd';
+                                       if is_ancestor y' nd' then begin
+                                         x_opt := Some x;
+                                         true
+                                       end
+                                       else
+                                         false
+                                     ) a#initial_children p (p+nb-1))
+                              with _
+                                -> false
+                            in
+                            DEBUG_MSG "%B" b;
+                            b
+                          in
+                          let to_be_lifted1 () =
+                            let b =
+                              match !x_opt with
+                              | None -> false
+                              | Some x -> begin
+                                  DEBUG_MSG "x=%a" nps x;
+                                  try
+                                    List.iter
+                                      (fun (y, p) ->
+                                        DEBUG_MSG "y=%a p=%d" nps y p;
+                                        let ks0 = Hashtbl.find rev_ancto_tbl (y, p) in
+                                        DEBUG_MSG "ks0=[%s]" (keys_to_string ks0);
+                                        if
+                                          List.exists
+                                            (fun k0 ->
+                                              not (List.mem k0 !ks)
+                                            ) ks0
+                                        then
+                                          raise Found
+                                      ) (get_ancestors ~limit:(Some x) nd);
+                                    false
+                                  with
+                                  | Found -> true
+                                  | _ -> false
+                              end
+                            in
+                            DEBUG_MSG "%B" b;
+                            b
+                          in
+                          let b =
                           (try not (is_ancestor_key k (List.hd !prev)) with _ -> true) &&
                           not
                             (array_range_exists
-                               (fun x -> x == nd || is_ancestor x nd) a#initial_children p (p+nb-1)) ||
+                               (fun x -> x == nd || is_ancestor x nd)
+                               a#initial_children p (p+nb-1)
+                            ) ||
+
                           array_range_exists
                             (fun x ->
                               is_ancestor x nd &&
                               (List.nth ps (x#initial_pos - p))#has_frac_ofs
                             ) a#initial_children p (p+nb-1)
+                          in
+                          DEBUG_MSG "%B" b;
+                          b || to_be_lifted0() || to_be_lifted1()
                         with
                           _ -> false
                       end
@@ -6234,7 +6372,7 @@ module Edit = struct
                                     | (Some k, n') -> begin
                                         try
                                           let a, _ = Hashtbl.find ancto_tbl k in
-                                          umap a#uid == n'#initial_parent#uid
+                                          nmap a == n'#initial_parent
                                         with
                                           Not_found -> false
                                     end
@@ -6561,10 +6699,9 @@ module Edit = struct
           ?(extra_ns_decls=[])
           ?(fact_file_name="")
           ?(info_file_name="")
-          (uidmapping : 'node UIDmapping.c)
-	  (*(uidmapping : 'data node_t UIDmapping.c)*)
+          (nmapping : 'node Node_mapping.c)
           (ch : Xchannel.out_channel)
-	  =
+          =
         let node_diff_elem_attrs node1 node2 =
           let a1 = node1#data#orig_elem_attrs_for_delta in
           let a2 = node2#data#orig_elem_attrs_for_delta in
@@ -6592,7 +6729,7 @@ module Edit = struct
               else
                 []
             else
-              List.flatten (List.map find (Array.to_list nd#initial_children))
+              List.concat_map find (Array.to_list nd#initial_children)
           in
           let tbl =
             List.filter
@@ -6630,7 +6767,7 @@ module Edit = struct
         let check_stable_node_cache = Hashtbl.create 0 in
         let check_stable_node
             ?(set_nodes_to_be_lifted=true)
-            is_stable' tree umap' nd'
+            is_stable' tree nmap' nd'
             =
           DEBUG_MSG "nd'=%a" nps nd';
 
@@ -6651,7 +6788,6 @@ module Edit = struct
           with
             Not_found -> begin
             let result = ref false in
-            let nmap' = mknmap tree umap' in
             let nd = nmap' nd' in
             begin
               try
@@ -6665,6 +6801,9 @@ module Edit = struct
                 DEBUG_MSG "ss'=[%a]" nsps ss';
 
                 let to_be_lifted0 =
+                  if ss' = [] then
+                    false
+                  else
                   let a' = get_p_ancestor is_stable' nd' in
                   let a = nmap' a' in
                   DEBUG_MSG "a'=%a a=%a" nps a' nps a;
@@ -6830,11 +6969,12 @@ module Edit = struct
           end
         in (* check_stable_node *)
 
-        let check_to_be_lifted is_stable is_stable' nmap lifted_nodes tree umap' n =
+        let check_to_be_lifted is_stable is_stable' nmap lifted_nodes tree nmap' n =
           let b =
             if is_stable n then begin
               DEBUG_MSG "n=%a is stable" nps n;
               let n' = nmap n in
+              DEBUG_MSG "n'=%a" nps n';
               self#is_canceled_stable_node n' ||
               if
                 not (Xset.mem lifted_nodes n') &&
@@ -6842,7 +6982,7 @@ module Edit = struct
               then
                 check_stable_node
                   ~set_nodes_to_be_lifted:false
-                  is_stable' tree umap' n'
+                  is_stable' tree nmap' n'
               else
                 false
             end
@@ -6856,8 +6996,8 @@ module Edit = struct
         let reg_subtree1 = self#reg_subtree tree1 in
         let reg_subtree2 = self#reg_subtree tree2 in
 
-	let rec get_opposite_path ?(lv=0)
-            umap umap' find_edit find_edit' tree tree' get_adjusted_path
+        let rec get_opposite_path ?(lv=0)
+            nmap nmap' find_edit find_edit' tree tree' get_adjusted_path
             nd excluded
             =
           DEBUG_MSG "[lv=%d] %s" lv nd#initial_to_string;
@@ -6882,9 +7022,6 @@ module Edit = struct
               self#has_parent_ins2, self#has_offset_parent_ins2,
               anc2to_tbl
           in
-
-          let nmap = mknmap tree' umap in
-          let nmap' = mknmap tree umap' in
 
           let has_parent_ins_cache = Hashtbl.create 0 in
           let has_parent_ins x =
@@ -6922,7 +7059,7 @@ module Edit = struct
           let _is_simple_ins = self#_is_simple_ins tree' is_stable is_stable_ nmap in
 
           let pnd = nd#initial_parent in
-	  let pos = nd#initial_pos in
+          let pos = nd#initial_pos in
           let children = pnd#initial_children in
           let nchildren = pnd#initial_nchildren in
 
@@ -7193,11 +7330,18 @@ module Edit = struct
                     not (self#is_node_to_be_lifted n) &&
                     not (self#is_canceled_stable_node n))
                   then begin
-                    if can_ignore_lift n && (Xset.mem lifted_nodes n' || self#is_node_to_be_lifted n || self#is_canceled_stable_node n) then DEBUG_MSG "!!!!!!!!!!";
+                    if
+                      can_ignore_lift n && (Xset.mem lifted_nodes n' ||
+                      self#is_node_to_be_lifted n ||
+                      self#is_canceled_stable_node n)
+                    then
+                      DEBUG_MSG "!!!!!!!!!!";
+
                     if forward then begin
                       begin
                         match !_stable_nodes' with
-                        | [] -> _stable_node_opt' := Some n'; _stable_nodes' := n' :: !_stable_nodes'
+                        | [] ->
+                            _stable_node_opt' := Some n'; _stable_nodes' := n' :: !_stable_nodes'
                         | _ -> ()
                       end;
                       if
@@ -7207,7 +7351,7 @@ module Edit = struct
                       then
                         _stable_nodes' := n' :: !_stable_nodes'
                     end
-                    else begin
+                    else begin (* backward *)
                       _stable_node_opt' := Some n';
                       DEBUG_MSG "check: count=%d: a stable node %a found" count nps n';
                       raise Exit
@@ -7275,7 +7419,7 @@ module Edit = struct
             r_count;
           DEBUG_MSG "r_stable_nodes'=[%a]" nsps r_stable_nodes';
 
-	  begin (* search left siblings *)
+          begin (* search left siblings *)
             _stable_node_opt' := None;
             _count := 0;
             try
@@ -7307,19 +7451,8 @@ module Edit = struct
               raise Parent_not_stable
             end;
 
-            let puid' = umap pnd#uid in
+            let pnd' = nmap pnd in
 
-            let pnd' =
-              try
-                tree'#search_node_by_uid puid'
-              with
-                Not_found ->
-                  self#fail
-                    (sprintf
-                       "dump_delta_ch: get_opposite_path: not found: %a"
-                       UID.ps puid'
-                    )
-            in
             DEBUG_MSG "pnd'=%a" nps pnd';
 
             let get_pos n' =
@@ -7352,10 +7485,10 @@ module Edit = struct
                 | _, _, Some p' -> p', r_count
                 | _ -> -1, pnd'#initial_nchildren
               in
-	      if pos' < 0 then
-	        Elem.make ~ofs:(float (pos+count)) 0
-	      else
-	        Elem.make ~ofs:(float count) pos'
+              if pos' < 0 then
+                Elem.make ~ofs:(float (pos+count)) 0
+              else
+                Elem.make ~ofs:(float count) pos'
             in
             DEBUG_MSG "elem=%s" (Elem.to_string elem);
             pnd', (Path.append pnd'#apath elem), 0, true
@@ -7441,7 +7574,9 @@ module Edit = struct
                           not (is_stable pnd) &&
                           not (is_stable' anc'#initial_parent) &&
                           lsn'#initial_parent == rsn'#initial_parent &&
-                          try lsn'#initial_parent#initial_children.(lsn'#initial_pos+1) == rsn' with _ -> false
+                          try
+                            lsn'#initial_parent#initial_children.(lsn'#initial_pos+1) == rsn'
+                          with _ -> false
                         -> begin
                           let r = nmap' r' in
                           if Xlist.overlap (find_parent_keys r) ks then begin
@@ -7508,7 +7643,11 @@ module Edit = struct
 
                     DEBUG_MSG "anc'=%a lsn'=%a rsn'=%a" nps anc' nps lsn' nps rsn';
                     let context_cond =
-                      let b = self#has_parent_path lsn' && self#has_parent_path rsn' in if b then DEBUG_MSG "!!!!!"; b ||
+                      let b =
+                        self#has_parent_path lsn' && self#has_parent_path rsn'
+                      in
+                      if b then DEBUG_MSG "!!!!!";
+                      b ||
                       let plsn' = lsn'#initial_parent in
                       let prsn' = rsn'#initial_parent in
                       plsn' == prsn' && prsn' == anc' &&
@@ -7540,7 +7679,7 @@ module Edit = struct
                     in
                     DEBUG_MSG "context_cond=%B" context_cond;
 
-                    let _ = check_stable_node is_stable tree' umap rsn in
+                    let _ = check_stable_node is_stable tree' nmap rsn in
 
                     let not_simple =
                       try
@@ -7607,15 +7746,15 @@ module Edit = struct
                             stid nps rt nsps xs sz;
 
                           let ss =
-                            List.flatten
-                              (List.map
-                                 (fun x ->
-                                   if is_stable x then
-                                     [x]
-                                   else
-                                     get_p_descendants is_stable x
-                                 ) xs)
+                            List.concat_map
+                              (fun x ->
+                                if is_stable x then
+                                  [x]
+                                else
+                                  get_p_descendants is_stable x
+                              ) xs
                           in
+                          let ss = List.filter (fun x -> not (self#is_canceled_stable_node x)) ss in
                           DEBUG_MSG "ss=[%a]" nsps ss;
                           if (List.length ss) > 2 then begin
                             let ss' = List.map nmap ss in
@@ -7700,7 +7839,7 @@ module Edit = struct
                       context_cond &&
                       (is_simple0 ||
                       try
-                        anc'#uid = (umap pnd#uid)
+                        anc' == nmap pnd
                       with
                         Not_found -> false)
                     in
@@ -7755,12 +7894,19 @@ module Edit = struct
                               | [] when List.length rss' = 1 -> a'
                               | [] -> lsn'#initial_parent
                               | rsn0'::_ ->
-                                  let a0', _ = self#get_latest_common_ancestor tree' [lsn'; rsn0'] in
+                                  let a0', _ =
+                                    self#get_latest_common_ancestor tree' [lsn'; rsn0']
+                                  in
                                   a0'
                           in
                           DEBUG_MSG "pnd=%a" nps pnd;
                           DEBUG_MSG "a'=%a" nps a';
-                          let ofs = if !l_has_conflicts && not !r_is_desc_of_conflict then 0.0 else float l_count in
+                          let ofs =
+                            if !l_has_conflicts && not !r_is_desc_of_conflict then
+                              0.0
+                            else
+                              float l_count
+                          in
                           let ok =
                             try
                               a' != (nmap pnd)
@@ -7780,7 +7926,12 @@ module Edit = struct
                           end
                       end
                       | None -> begin
-                          let ofs = if !l_has_conflicts && not !r_is_desc_of_conflict then 0.0 else float l_count in
+                          let ofs =
+                            if !l_has_conflicts && not !r_is_desc_of_conflict then
+                              0.0
+                            else
+                              float l_count
+                          in
                           let elem = Elem.make ~ofs (get_pos anc' lsn') in
                           DEBUG_MSG "elem=%s" (Elem.to_string elem);
                           anc', (Path.append anc'#apath elem), upstream, false
@@ -7818,7 +7969,7 @@ module Edit = struct
               DEBUG_MSG "lv=%d: parent not stable" lv;
               let a', p', _, upstream, simple =
                 get_opposite_path ~lv:(lv+1)
-                  umap umap' find_edit find_edit' tree tree' get_adjusted_path
+                  nmap nmap' find_edit find_edit' tree tree' get_adjusted_path
                   pnd []
               in
               DEBUG_MSG "a'=%a simple=%B pnd=%a" nps a' simple nps pnd;
@@ -8265,15 +8416,15 @@ module Edit = struct
               a', path', [], upstream, simple
 
             end
-	in (* get_opposite_path *)
+        in (* get_opposite_path *)
 
         let get_path1 =
           get_opposite_path
-            uidmapping#inv_find uidmapping#find self#find2 self#find1 tree2 tree1
+            nmapping#inv_find nmapping#find self#find2 self#find1 tree2 tree1
         in
         let get_path2 =
           get_opposite_path
-            uidmapping#find uidmapping#inv_find self#find1 self#find2 tree1 tree2
+            nmapping#find nmapping#inv_find self#find1 self#find2 tree1 tree2
         in
 
         let get_depth rt nd =
@@ -8294,7 +8445,7 @@ module Edit = struct
             !count
         in
 
-        let get_parent_info excepted_nds nd path' tree' map is_stable is_stable' simple' =
+        let get_parent_info excepted_nds nd path' tree' nmap is_stable is_stable' simple' =
 
           DEBUG_MSG "excepted_nds=[%a] nd=%a path'=%s simple'=%B"
             nsps excepted_nds nps nd path'#to_string simple';
@@ -8329,7 +8480,6 @@ module Edit = struct
 
                 let adj_opt =
                   if parent_is_staying_move then begin
-                    let nmap n = tree'#search_node_by_uid (map n#uid) in
                     try
                       if has_iofs nd then
                         raise Not_found;
@@ -8455,7 +8605,7 @@ module Edit = struct
         let count_upstream_nds mid rt rt'
             anc path paths simple child_staying_moves
             is_stable is_stable'
-            remote_stable_tbl remote_stable_tbl' umap umap' tree tree' lift_tbl lifted_nodes
+            remote_stable_tbl remote_stable_tbl' nmap nmap' tree tree' lift_tbl lifted_nodes
             nd
             =
           DEBUG_MSG "mid=%a rt=%a rt'=%a nd=%a child_staying_moves=[%s]"
@@ -8471,8 +8621,6 @@ module Edit = struct
               self#find_intermediate_pos2, self#find_intermediate_ofs2, simple_ins_roots1,
               self#is_ancestor_key2, anc2to_tbl
           in
-          let nmap = mknmap tree' umap in
-          let nmap' = mknmap tree umap' in
 
           DEBUG_MSG "path=%s paths=%s" path#to_string (boundary_to_string ~sep:";" paths);
           let pos = path#position in
@@ -9318,8 +9466,6 @@ module Edit = struct
             else
               self#get_subtree_root_by_key1, self#get_subtree_root_by_key2, anc2to_tbl, self#is_ancestor_key2
           in
-          let umap u = (nmap (tree2#search_node_by_uid u))#uid in
-          let umap' u' = (nmap' (tree1#search_node_by_uid u'))#uid in
 
           if Xset.mem forced_upstream_nodes nd then begin
             let pnd = nd#initial_parent in
@@ -9355,7 +9501,7 @@ module Edit = struct
                       with
                         Not_found ->
                           let k_opt, _, _ =
-                            self#get_parent_key_opt is_stable' is_stable tree1 tree2 umap' umap (nmap s)
+                            self#get_parent_key_opt is_stable' is_stable tree1 tree2 nmap' nmap (nmap s)
                           in
                           k_opt
                     in
@@ -9789,7 +9935,7 @@ module Edit = struct
             List.iter (Xset.add excluded_nodes) filtered_out
         in
 
-	let dump_content tree root excluded =
+        let dump_content tree root excluded =
           tree#dump_subtree_for_delta_ch root excluded
         in
 
@@ -9828,7 +9974,7 @@ module Edit = struct
 
         let _get_child_staying_moves tbl mid paths =
           Xlist.uniq
-            (Xlist.filter_map
+            (List.filter_map
                (fun p ->
                  match p#key_opt with
                  | Some (K_mid m) -> begin
@@ -9854,19 +10000,37 @@ module Edit = struct
 
         let delta_info_flag = true in
 
+        let is_def nd = Binding.is_def nd#data#binding in
+
         let info_add, paths_info_add, dump_info =
           if delta_info_flag && info_file_name <> "" then begin
+            let scope_nodes = Xset.create 0 in
             let info_tbl = Hashtbl.create 0 in (* apath -> syn_cat * line_num * column_num *)
-            let add ?(path="") nd =
+            let add ?(add_scope_node=true) ?(path="") nd =
               let ap =
                 if path = "" then
                   Path.to_string nd#apath
                 else
                   path
               in
-              let ndata = nd#data in
-              let ln, cn = ndata#src_loc.Loc.start_line, ndata#src_loc.Loc.start_char in
-              Hashtbl.add info_tbl ap (ndata#elem_name_for_delta, ln, cn)
+              if not (Hashtbl.mem info_tbl ap) then begin
+                let ndata = nd#data in
+                let ln, cn = ndata#src_loc.Loc.start_line, ndata#src_loc.Loc.start_char in
+                let scope_path_opt =
+                  if is_def nd then begin
+                    try
+                      let sn = ndata#scope_node in
+                      if add_scope_node then
+                        Xset.add scope_nodes sn;
+                      Some (Path.to_string sn#apath)
+                    with
+                      _ -> None
+                  end
+                  else
+                    None
+                in
+                Hashtbl.add info_tbl ap (ndata, ln, cn, scope_path_opt)
+              end
             in
             let paths_add anc path pathl tid tree rt =
               let len = List.length pathl in
@@ -9885,16 +10049,25 @@ module Edit = struct
               else
                 ()
             in
+            let add_defs nd =
+              let moveon n = true in
+              preorder_scan_whole_initial_subtree ~moveon nd
+                (fun n ->
+                  if is_def n || n#data#is_scope_creating then
+                    add ~add_scope_node:false n
+                )
+            in
             let dump () =
+              Xset.iter add_defs scope_nodes;
               let l =
                 Hashtbl.fold
-                  (fun ap (name, ln, cn) l ->
-                    (ap, name, ln, cn)::l
+                  (fun ap (name, ln, cn, scope_path_opt) l ->
+                    (ap, name, ln, cn, scope_path_opt)::l
                   ) info_tbl []
               in
               let sorted =
                 List.fast_sort
-                  (fun (_, _, ln0, cn0) (_, _, ln1, cn1) -> compare (ln0, cn0) (ln1, cn1))
+                  (fun (_, _, ln0, cn0, _) (_, _, ln1, cn1, _) -> compare (ln0, cn0) (ln1, cn1))
                   l
               in
               let dest = Xchannel.Destination.of_file info_file_name in
@@ -9902,10 +10075,23 @@ module Edit = struct
               Xchannel.fprintf info_ch "{";
               let _ =
                 List.fold_left
-                  (fun comma (ap, name, ln, cn) ->
+                  (fun comma (ap, ndata, ln, cn, scope_path_opt) ->
+                    let name = ndata#elem_name_for_delta in
+                    let aname_ =
+                      try
+                        let aname = try ndata#get_orig_name with _ -> ndata#get_name in
+                        sprintf ",\"aname\":\"%s\"" (String.escaped aname)
+                      with
+                        _ -> ""
+                    in
+                    let scope_path_ =
+                      match scope_path_opt with
+                      | Some p -> sprintf ",\"scope_path\":\"%s\"" p
+                      | None -> ""
+                    in
                     Xchannel.fprintf info_ch
-                      "%s\"%s\":{\"name\":\"%s\",\"line\":%d,\"column\":%d}"
-                      comma ap name ln cn;
+                      "%s\"%s\":{\"name\":\"%s\"%s,\"line\":%d,\"column\":%d%s}"
+                      comma ap name aname_ ln cn scope_path_;
                     ","
                   ) "" sorted
               in
@@ -9915,7 +10101,7 @@ module Edit = struct
             add, paths_add, dump
           end
           else
-            (fun ?(path="") _ -> ()), (fun _ _ _ _ _ _ -> ()), (fun () -> ())
+            (fun ?(add_scope_node=true) ?(path="") _ -> ()), (fun _ _ _ _ _ _ -> ()), (fun () -> ())
         in
 
         let fact_for_delta = options#fact_for_delta_flag in
@@ -9942,8 +10128,8 @@ module Edit = struct
           end
         in*)
 
-        let nmap1 = mknmap tree2 uidmapping#find in
-        let nmap2 = mknmap tree1 uidmapping#inv_find in
+        let nmap1 = nmapping#find in
+        let nmap2 = nmapping#inv_find in
 
         (*let filter_out_canceled lifted_nodes =
           List.filter
@@ -9965,15 +10151,22 @@ module Edit = struct
 
         let _mkfmt ed =
 
-	  DEBUG_MSG "* %s" (to_string ed);
+          DEBUG_MSG "* %s" (to_string ed);
 
-	  match ed with
-	  | Delete(nd1, excluded1) -> begin
-              info_add nd1; info_add nd1#initial_parent;
+          match ed with
+          | Delete(nd1, excluded1) -> begin
+              info_add nd1;
+              let pnd1 = nd1#initial_parent in
+              info_add pnd1;
+              begin
+                try
+                  info_add pnd1#initial_parent;
+                with _ -> ()
+              end;
 
-	      let path1 = new path_c nd1#apath in
+              let path1 = new path_c nd1#apath in
 
-	      let excepted_paths1 =
+              let excepted_paths1 =
                 List.map
                   (fun n1 ->
                     info_add n1; info_add n1#initial_parent;
@@ -9983,7 +10176,7 @@ module Edit = struct
                     let force_lift =
                       check_to_be_lifted
                         self#is_stable1 self#is_stable2
-                        nmap1 lifted_nodes1 tree1 uidmapping#inv_find
+                        nmap1 lifted_nodes1 tree1 nmapping#inv_find
                         n1
                     in
                     DEBUG_MSG "force_lift: %a -> %B" nps n1 force_lift;
@@ -9991,20 +10184,20 @@ module Edit = struct
                     let key_opt, upstream, sub_path_opt =
                       self#get_parent_key_opt ~force_lift
                         self#is_stable1 self#is_stable2 tree1 tree2
-                        uidmapping#find uidmapping#inv_find n1
+                        nmapping#find nmapping#inv_find n1
                     in
                     new boundary_path ~upstream ~key_opt ~sub_path_opt rel_path
                   ) excluded1
               in
               DEBUG_MSG "excepted_paths1: %s" (boundary_to_string excepted_paths1);
 
-	      if irreversible_flag then begin
-	        let fmt = irrf (Fmt.Irr.mkdel path1 excepted_paths1) in
+              if irreversible_flag then begin
+                let fmt = irrf (Fmt.Irr.mkdel path1 excepted_paths1) in
 
                 DEBUG_MSG "%s" (Fmt.to_string fmt);
 
                 if fact_for_delta then begin
-                  let nd2 = self#find_from_or_into tree2 uidmapping#find nd1 in
+                  let nd2 = self#find_from_or_into tree2 nmapping#find nd1 in
                   try
                     let cinst = self#make_chg_inst Editop.Tdel nd1 nd2 in
                     fact_add cinst [fmt];
@@ -10015,7 +10208,7 @@ module Edit = struct
 
                 [fmt]
               end
-	      else begin
+              else begin
 
                 let stid = self#find_stid nd1#uid in
 
@@ -10040,7 +10233,7 @@ module Edit = struct
                 let anc2, path2, excepted_paths2, simple2 =
                   self#get_opposite_path_and_excepted_paths lift_tbl2 lifted_nodes2
                     self#is_stable1 self#is_stable2
-                    get_path2 uidmapping#find uidmapping#inv_find tree1 tree2
+                    get_path2 nmapping#find nmapping#inv_find tree1 tree2
                     nd1 excluded1_ remote_stable_nds1
                 in
 
@@ -10064,7 +10257,7 @@ module Edit = struct
                 DEBUG_MSG "excepted_nds1: [%a]" nsps excepted_nds1;
 
                 let key_opt, adj_opt, depth_opt, shift_opt =
-                  get_parent_info excepted_nds1 nd1 path2 tree2 uidmapping#find
+                  get_parent_info excepted_nds1 nd1 path2 tree2 nmapping#find
                     self#is_stable1 self#is_stable2 simple2
                 in
 
@@ -10091,7 +10284,8 @@ module Edit = struct
 
                 let check_path_to_ () =
                   check_path_to ncond mcond
-                    tree2 self#is_stable2 self#is_stable1 nmap1 nmap2 nd1 path2 excepted_paths2 stid_key
+                    tree2 self#is_stable2 self#is_stable1 nmap1 nmap2
+                    nd1 path2 excepted_paths2 stid_key
                 in
                 begin
                   (*try
@@ -10104,7 +10298,8 @@ module Edit = struct
 
                 DEBUG_MSG "anc2to_tbl: %s -> %a" (key_to_string stid_key) nps anc2;
                 Hashtbl.add anc2to_tbl stid_key (anc2, (path2, excepted_paths2));
-                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl stid_key anc2 path2 excepted_paths2 nd1;
+                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl
+                  stid_key anc2 path2 excepted_paths2 nd1;
 
                 if path2#upstream > 0 then begin
                   DEBUG_MSG "upstream_key: %s" (key_to_string stid_key);
@@ -10128,7 +10323,7 @@ module Edit = struct
                 [fmt]
               end
           end
-	  | Insert(nd2, excluded2) -> begin
+          | Insert(nd2, excluded2) -> begin
 
               let stid = self#find_stid nd2#uid in
 
@@ -10150,7 +10345,7 @@ module Edit = struct
               let anc1, path1, excepted_paths1, simple1 =
                 self#get_opposite_path_and_excepted_paths lift_tbl1 lifted_nodes1
                   self#is_stable2 self#is_stable1
-                  get_path1 uidmapping#inv_find uidmapping#find tree2 tree1
+                  get_path1 nmapping#inv_find nmapping#find tree2 tree1
                   nd2 excluded2_ remote_stable_nds2
               in
 
@@ -10183,7 +10378,7 @@ module Edit = struct
               DEBUG_MSG "excepted_nds2: [%a]" nsps excepted_nds2;
 
               let key_opt, adj_opt, depth_opt, shift_opt =
-                get_parent_info excepted_nds2 nd2 path1 tree1 uidmapping#inv_find
+                get_parent_info excepted_nds2 nd2 path1 tree1 nmapping#inv_find
                   self#is_stable2 self#is_stable1 simple1
               in
 
@@ -10210,7 +10405,8 @@ module Edit = struct
 
               let check_path_to_ () =
                 check_path_to ncond mcond
-                  tree1 self#is_stable1 self#is_stable2 nmap2 nmap1 nd2 path1 excepted_paths1 stid_key
+                  tree1 self#is_stable1 self#is_stable2 nmap2 nmap1
+                  nd2 path1 excepted_paths1 stid_key
               in
               begin
                 (*try
@@ -10223,7 +10419,8 @@ module Edit = struct
 
               DEBUG_MSG "anc1to_tbl: %s -> %a" (key_to_string stid_key) nps anc1;
               Hashtbl.add anc1to_tbl stid_key (anc1, (path1, excepted_paths1));
-              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl stid_key anc1 path1 excepted_paths1 nd2;
+              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl
+                stid_key anc1 path1 excepted_paths1 nd2;
 
               if path1#upstream > 0 then begin
                 DEBUG_MSG "upstream_key: %s" (key_to_string stid_key);
@@ -10235,8 +10432,8 @@ module Edit = struct
 
               self#reg_parent_key1 excepted_paths1 stid_key;
 
-	      if irreversible_flag then begin
-	        let fmt =
+              if irreversible_flag then begin
+                let fmt =
                   irrf (Fmt.Irr.mkins stid
                           path1 excepted_paths1 key_opt adj_opt depth_opt shift_opt dumper)
                 in
@@ -10248,7 +10445,7 @@ module Edit = struct
                 DEBUG_MSG "%s" (Fmt.to_string fmt);
 
                 if fact_for_delta then begin
-                  let nd1 = self#find_from_or_into tree1 uidmapping#inv_find nd2 in
+                  let nd1 = self#find_from_or_into tree1 nmapping#inv_find nd2 in
                   try
                     let cinst = self#make_chg_inst Editop.Tins nd1 nd2 in
                     fact_add cinst [fmt];
@@ -10259,8 +10456,8 @@ module Edit = struct
 
                 [fmt]
               end
-	      else begin
-	        let excepted_paths2 =
+              else begin
+                let excepted_paths2 =
                   List.map
                     (fun n2 ->
                       let rel_path = get_rel_path path2#path n2#apath in
@@ -10268,7 +10465,7 @@ module Edit = struct
                       let force_lift =
                         check_to_be_lifted
                           self#is_stable2 self#is_stable1
-                          nmap2 lifted_nodes2 tree2 uidmapping#find
+                          nmap2 lifted_nodes2 tree2 nmapping#find
                           n2
                       in
                       DEBUG_MSG "force_lift: %a -> %B" nps n2 force_lift;
@@ -10276,14 +10473,14 @@ module Edit = struct
                       let key_opt, upstream, sub_path_opt =
                         self#get_parent_key_opt ~force_lift
                           self#is_stable2 self#is_stable1 tree2 tree1
-                          uidmapping#inv_find uidmapping#find n2
+                          nmapping#inv_find nmapping#find n2
                       in
                       new boundary_path ~upstream ~key_opt ~sub_path_opt rel_path
                     ) excluded2
                 in
-	        DEBUG_MSG "excepted_paths2: %s" (boundary_to_string excepted_paths2);
+                DEBUG_MSG "excepted_paths2: %s" (boundary_to_string excepted_paths2);
 
-	        let fmt =
+                let fmt =
                   revf (Fmt.Rev.mkins stid
                           path1 excepted_paths1 key_opt adj_opt depth_opt shift_opt dumper
                           path2 excepted_paths2)
@@ -10294,28 +10491,29 @@ module Edit = struct
                 [fmt]
               end
           end
-	  | Relabel(nd1, excluded1, nd2, excluded2) -> begin
+          | Relabel(nd1, excluded1, nd2, excluded2) -> begin
               info_add nd1; info_add nd1#initial_parent;
 
-	      let path1 = new path_c nd1#apath in
-	      let path2 = new path_c nd2#apath in
+              let path1 = new path_c nd1#apath in
+              let path2 = new path_c nd2#apath in
 
-	      let sz1 = tree1#size_of_cluster (nd1, excluded1) in
-	      let sz2 = tree2#size_of_cluster (nd2, excluded2) in
+              let sz1 = tree1#size_of_cluster (nd1, excluded1) in
+              let sz2 = tree2#size_of_cluster (nd2, excluded2) in
 
-	      let same_elem =
-	        try
-		  nd1#data#orig_elem_name_for_delta = nd2#data#orig_elem_name_for_delta
-	        with
+              let same_elem =
+                try
+                  nd1#data#orig_elem_name_for_delta = nd2#data#orig_elem_name_for_delta
+                with
                   Not_element -> false
-	      in
-	      if same_elem && sz1 = 1 && sz2 = 1 then begin
-	        let fmtl = node_diff_elem_attrs nd1 nd2 in
+              in
+              if same_elem && sz1 = 1 && sz2 = 1 then begin
+                let fmtl = node_diff_elem_attrs nd1 nd2 in
 
                 if fact_for_delta then begin
                   try
                     let cinst = self#make_chg_inst Editop.Trel nd1 nd2 in
-                    fact_add cinst fmtl;
+                    if fmtl <> [] then
+                      fact_add cinst fmtl;
                     triple_add Triple.c_rel cinst nd1 nd2
                   with
                     Invalid_argument _(*"Triple._make_entity"*) -> ()
@@ -10323,25 +10521,25 @@ module Edit = struct
 
                 fmtl
               end
-	      else begin
-	        let paths1 = nodes_to_paths path1 excluded1 in
-	        let paths2 = nodes_to_paths path2 excluded2 in
+              else begin
+                let paths1 = nodes_to_paths path1 excluded1 in
+                let paths2 = nodes_to_paths path2 excluded2 in
 
                 let dumper =
                   if irreversible_flag then
                     dump_content tree2 nd2 excluded2
                   else
                     fun ch ->
-		      output_st_elem_old ch;
-		      dump_content tree1 nd1 excluded1 ch;
-		      output_ed_elem_old ch;
-		      output_st_elem_new ch;
+                      output_st_elem_old ch;
+                      dump_content tree1 nd1 excluded1 ch;
+                      output_ed_elem_old ch;
+                      output_st_elem_new ch;
                       dump_content tree2 nd2 excluded2 ch;
                       output_ed_elem_new ch
                 in
 
-	        if irreversible_flag then begin
-		  let fmt = irrf (Fmt.Irr.mkchg path1 paths1 dumper) in
+                if irreversible_flag then begin
+                  let fmt = irrf (Fmt.Irr.mkchg path1 paths1 dumper) in
 
                   DEBUG_MSG "%s" (Fmt.to_string fmt);
 
@@ -10356,14 +10554,14 @@ module Edit = struct
 
                   [fmt]
                 end
-	        else begin
-		  let fmt = revf (Fmt.Rev.mkchg path1 paths1 path2 paths2 dumper) in
+                else begin
+                  let fmt = revf (Fmt.Rev.mkchg path1 paths1 path2 paths2 dumper) in
 
                   DEBUG_MSG "%s" (Fmt.to_string fmt);
 
                   [fmt]
                 end
-	      end
+              end
           end
           | MoveInsert(mid, _, nd2, excluded2) -> begin
               let remote_stable_tbl2 =
@@ -10396,7 +10594,7 @@ module Edit = struct
               let anc1to, path1to, excepted_paths1to, simple1 =
                 self#get_opposite_path_and_excepted_paths lift_tbl1 lifted_nodes1
                   self#is_stable2 self#is_stable1
-                  get_path1 uidmapping#inv_find uidmapping#find tree2 tree1
+                  get_path1 nmapping#inv_find nmapping#find tree2 tree1
                   nd2 excluded2_
                   (if remote_stable_nds2 = [] then
                     excepted_nds2
@@ -10444,13 +10642,14 @@ module Edit = struct
               DEBUG_MSG "excepted_nds2: [%a]" nsps excepted_nds2;
 
               let key_opt1, adj_opt1, depth_opt1, shift_opt1 =
-                get_parent_info excepted_nds2 nd2 path1to tree1 uidmapping#inv_find
+                get_parent_info excepted_nds2 nd2 path1to tree1 nmapping#inv_find
                   self#is_stable2 self#is_stable1 simple1
               in
 
               DEBUG_MSG "anc1to_tbl: %s -> %a" (key_to_string mid_key) nps anc1to;
               Hashtbl.add anc1to_tbl mid_key (anc1to, (path1to, excepted_paths1to));
-              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl mid_key anc1to path1to excepted_paths1to nd2;
+              self#rev_ancto_tbl_add edit_seq#mem_mov1 rev_anc1to_tbl
+                mid_key anc1to path1to excepted_paths1to nd2;
 
               if path1to#upstream > 0 then begin
                 DEBUG_MSG "upstream_key: %s" (key_to_string mid_key);
@@ -10463,7 +10662,8 @@ module Edit = struct
               self#reg_parent_key1 excepted_paths1to mid_key;
 
               Hashtbl.add movins_tbl mid
-                (anc1to, path1to, excepted_paths1to, simple1, key_opt1, adj_opt1, depth_opt1, shift_opt1);
+                (anc1to, path1to, excepted_paths1to, simple1,
+                 key_opt1, adj_opt1, depth_opt1, shift_opt1);
 
               if irreversible_flag then begin
                 reg_edit_parent edit_parent_tbl1 key_opt1 (fun () -> key_of_mid mid);
@@ -10474,7 +10674,14 @@ module Edit = struct
               []
           end
           | Move(mid, _, nd1, excluded1, nd2, excluded2) -> begin
-              info_add nd1; info_add nd1#initial_parent;
+              info_add nd1;
+              let pnd1 = nd1#initial_parent in
+              info_add pnd1;
+              begin
+                try
+                  info_add pnd1#initial_parent;
+                with _ -> ()
+              end;
 
               let remote_stable_tbl1 =
                 get_remote_stable_tbl self#is_stable1 excluded1
@@ -10512,7 +10719,9 @@ module Edit = struct
                   tree2 nd2 self#is_stable2 excluded2 remote_stable_nds2
               in*)
 
-              let anc1to, path1to, excepted_paths1to, simple1, key_opt1, adj_opt1, depth_opt1, shift_opt1 =
+              let anc1to, path1to, excepted_paths1to, simple1,
+                key_opt1, adj_opt1, depth_opt1, shift_opt1
+                  =
                 try
                   Hashtbl.find movins_tbl mid
                 with _ -> assert false
@@ -10521,7 +10730,7 @@ module Edit = struct
               (*let anc1to, path1to, excepted_paths1to, simple1 =
                 self#get_opposite_path_and_excepted_paths lift_tbl1 lifted_nodes1
                   self#is_stable2 self#is_stable1
-                  get_path1 uidmapping#inv_find uidmapping#find tree2 tree1
+                  get_path1 nmapping#inv_find nmapping#find tree2 tree1
                   nd2 excluded2_
                   (if remote_stable_nds2 = [] then
                     excepted_nds2
@@ -10562,7 +10771,7 @@ module Edit = struct
 
               let mid_is_staying_move = self#is_staying_move mid in
 
-	      let excepted_paths1from =
+              let excepted_paths1from =
                 let parent_ins_point_opt =
                   Some (mid_key, anc1to, pos, nboundary)
                 in
@@ -10584,7 +10793,7 @@ module Edit = struct
                         anc1to path1to excepted_paths1to simple1 child_staying_moves1
                         self#is_stable1 self#is_stable2
                         remote_stable_tbl1 remote_stable_tbl2
-                        uidmapping#find uidmapping#inv_find tree1 tree2 lift_tbl1 lifted_nodes1
+                        nmapping#find nmapping#inv_find tree1 tree2 lift_tbl1 lifted_nodes1
                         n1
                     in
                     DEBUG_MSG "indirect_conflict: %a -> %B" nps n1 indirect_conflict;
@@ -10607,7 +10816,7 @@ module Edit = struct
                       (*force_lift0 ||*)
                       check_to_be_lifted
                         self#is_stable1 self#is_stable2
-                        nmap1 lifted_nodes1 tree1 uidmapping#inv_find
+                        nmap1 lifted_nodes1 tree1 nmapping#inv_find
                         n1
                     in
                     DEBUG_MSG "force_lift: %a -> %B" nps n1 force_lift;
@@ -10801,10 +11010,13 @@ module Edit = struct
                           let is_simple_ins x =
                             let b =
                               Xset.mem simple_ins_roots2 x ||
-                              let top_nodes = self#get_top_nodes nd2 x anc1to path1to excepted_paths1to in
+                              let top_nodes =
+                                self#get_top_nodes nd2 x anc1to path1to excepted_paths1to
+                              in
                               let k_opt = self#find_key_opt x#uid in
                               List.exists (fun p -> p#key_opt = k_opt) excepted_paths1to ||
-                              self#_is_simple_ins tree1 self#is_stable2 is_stable2_ nmap2 ~top_nodes x
+                              self#_is_simple_ins tree1 self#is_stable2 is_stable2_ nmap2
+                                ~top_nodes x
                             in
                             DEBUG_MSG "%a -> %B" nps x b;
                             b
@@ -10828,23 +11040,39 @@ module Edit = struct
                                       | None -> true
                                   end
                                   | None -> true) &&
-                                  (not (self#is_stable2 x) ||
-                                  self#is_excluded_tn self#is_stable2 nmap2 nd2 x n2 anc1to path1to excepted_paths1to) &&
-                                  (self#is_stable2 x ||
-                                  (match get_p_descendants self#is_stable2 x with
-                                  | [] -> false
-                                  | [s2] ->
-                                      let top_nodes = self#get_top_nodes nd2 x anc1to path1to excepted_paths1to in
-                                      let s1 = nmap2 s2 in
-                                      List.exists (fun tn -> is_ancestor tn s1) top_nodes
-                                  | _ -> true) &&
-                                  not (is_simple_ins x) &&
-                                  try not (self#is_ancestor_key1 (self#find_key x#initial_parent#uid) (self#find_key x#uid)) with _ -> true)
+                                  (
+                                   not (self#is_stable2 x) ||
+                                   self#is_excluded_tn self#is_stable2 nmap2
+                                     nd2 x n2 anc1to path1to excepted_paths1to
+                                  ) &&
+                                  (
+                                   self#is_stable2 x ||
+                                   (match get_p_descendants self#is_stable2 x with
+                                   | [] -> false
+                                   | [s2] ->
+                                       let top_nodes =
+                                         self#get_top_nodes nd2 x anc1to path1to excepted_paths1to
+                                       in
+                                       let s1 = nmap2 s2 in
+                                       List.exists (fun tn -> is_ancestor tn s1) top_nodes
+                                   | _ -> true
+                                   ) &&
+                                   not (is_simple_ins x) &&
+                                   try
+                                     not
+                                       (self#is_ancestor_key1
+                                          (self#find_key x#initial_parent#uid)
+                                          (self#find_key x#uid))
+                                   with _ -> true
+                                  )
                             (*else if self#paths_to_have_frac_ofs excepted_paths1to then
                               fun _ x -> is_excluded x*)
                             else
                               let group_heads =
-                                Hashtbl.fold (fun _ nl l -> try (List.hd (List.rev nl))::l with _ -> l) group_tbl []
+                                Hashtbl.fold
+                                  (fun _ nl l ->
+                                    try (List.hd (List.rev nl))::l with _ -> l
+                                  ) group_tbl []
                               in
                               fun _ x ->
                                 let b =
@@ -10856,9 +11084,12 @@ module Edit = struct
                                   get_p_descendants ~moveon is_stable2_ x <> [] &&
                                   try
                                     not
-                                      (self#is_ancestor_key1 (self#find_key x#initial_parent#uid) (self#find_key x#uid))
+                                      (self#is_ancestor_key1
+                                         (self#find_key x#initial_parent#uid)
+                                         (self#find_key x#uid))
                                   with _ -> true) &&
-                                  self#is_excluded_tn self#is_stable2 nmap2 nd2 x n2 anc1to path1to excepted_paths1to
+                                  self#is_excluded_tn self#is_stable2 nmap2
+                                    nd2 x n2 anc1to path1to excepted_paths1to
                                 in
                                 DEBUG_MSG "b=%B x=%a n2=%a" b nps x nps n2;
                                 b
@@ -10899,9 +11130,10 @@ module Edit = struct
                           else
                             None
                         in
-                        self#get_parent_key_opt ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc1to)
+                        self#get_parent_key_opt
+                          ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc1to)
                           self#is_stable1 self#is_stable2 tree1 tree2
-                          uidmapping#find uidmapping#inv_find n1
+                          nmapping#find nmapping#inv_find n1
                     in
                     DEBUG_MSG "%a -> (%s, %d, %s)"
                       nps n1 (key_opt_to_string key_opt) upstream (path_opt_to_string sub_path_opt);
@@ -10918,7 +11150,7 @@ module Edit = struct
               DEBUG_MSG "excepted_nds2: [%a]" nsps excepted_nds2;
 
               let key_opt1, adj_opt1, depth_opt1, shift_opt1 =
-                get_parent_info excepted_nds2 nd2 path1to tree1 uidmapping#inv_find
+                get_parent_info excepted_nds2 nd2 path1to tree1 nmapping#inv_find
                   self#is_stable2 self#is_stable1 simple1
               in*)
 
@@ -10967,7 +11199,8 @@ module Edit = struct
                 in
                 let check_path_to_ () =
                   check_path_to ncond mcond
-                    tree1 self#is_stable1 self#is_stable2 nmap2 nmap1 nd2 path1to excepted_paths1to mid_key
+                    tree1 self#is_stable1 self#is_stable2 nmap2 nmap1
+                    nd2 path1to excepted_paths1to mid_key
                 in
                 begin
                   (*try
@@ -11002,7 +11235,7 @@ module Edit = struct
                             let k_opt, upc, sp_opt =
                               self#get_parent_key_opt ~force_lift:true
                                 self#is_stable1 self#is_stable2 tree1 tree2
-                                uidmapping#find uidmapping#inv_find x
+                                nmapping#find nmapping#inv_find x
                             in
                             rp1#set_key_opt k_opt;
                             rp1#set_upstream upc;
@@ -11063,7 +11296,8 @@ module Edit = struct
                                           List.exists
                                             (fun sx2 ->
                                               let sx1 = nmap2 sx2 in
-                                              sx1#initial_parent != anc1to && not (is_ancestor c sx1)
+                                              sx1#initial_parent != anc1to &&
+                                              not (is_ancestor c sx1)
                                             ) (get_p_descendants self#is_stable2 r2)
                                         then begin
                                           DEBUG_MSG "found: %a (k=%s)" nps s02 (key_to_string k0);
@@ -11130,7 +11364,7 @@ module Edit = struct
                 let anc2to, path2to, excepted_paths2to, simple2 =
                   self#get_opposite_path_and_excepted_paths lift_tbl2 lifted_nodes2
                     self#is_stable1 self#is_stable2
-                    get_path2 uidmapping#find uidmapping#inv_find tree1 tree2
+                    get_path2 nmapping#find nmapping#inv_find tree1 tree2
                     nd1 excluded1_
                     (if remote_stable_nds1 = [] then
                       excepted_nds1
@@ -11155,7 +11389,7 @@ module Edit = struct
                 DEBUG_MSG "child_staying_moves2=[%s]"
                   (mids_to_string child_staying_moves2);
 
-	        let excepted_paths2from =
+                let excepted_paths2from =
                   let parent_ins_point_opt =
                     Some (mid_key, anc2to, path2to#position, List.length excepted_paths2to)
                   in
@@ -11176,7 +11410,7 @@ module Edit = struct
                           mid nd2 nd1 anc2to path2to excepted_paths2to simple2
                           child_staying_moves2 self#is_stable2 self#is_stable1
                           remote_stable_tbl2 remote_stable_tbl1
-                          uidmapping#inv_find uidmapping#find tree2 tree1
+                          nmapping#inv_find nmapping#find tree2 tree1
                           lift_tbl2 lifted_nodes2
                           n2
                       in
@@ -11199,7 +11433,7 @@ module Edit = struct
                         force_lift0 ||
                         check_to_be_lifted
                           self#is_stable2 self#is_stable1
-                          nmap2 lifted_nodes2 tree2 uidmapping#find
+                          nmap2 lifted_nodes2 tree2 nmapping#find
                           n2
                       in
                       DEBUG_MSG "force_lift: %a -> %B" nps n2 force_lift;
@@ -11264,9 +11498,10 @@ module Edit = struct
                           else
                             None
                         in
-                        self#get_parent_key_opt ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc2to)
+                        self#get_parent_key_opt
+                          ~force_lift ~parent_ins_point_opt ~anc_to_opt:(Some anc2to)
                           self#is_stable2 self#is_stable1 tree2 tree1
-                          uidmapping#inv_find uidmapping#find n2
+                          nmapping#inv_find nmapping#find n2
                       in
                       DEBUG_MSG "n2=%a" nps n2;
                       new boundary_path ~upstream ~key_opt ~sub_path_opt rel_path
@@ -11279,7 +11514,7 @@ module Edit = struct
                 DEBUG_MSG "excepted_nds1: [%a]" nsps excepted_nds1;
 
                 let key_opt2, adj_opt2, depth_opt2, shift_opt2 =
-                  get_parent_info excepted_nds1 nd1 path2to tree2 uidmapping#find
+                  get_parent_info excepted_nds1 nd1 path2to tree2 nmapping#find
                     self#is_stable1 self#is_stable2 simple2
                 in
 
@@ -11313,7 +11548,8 @@ module Edit = struct
                   in
                   let check_path_to_ () =
                     check_path_to ncond mcond
-                      tree2 self#is_stable2 self#is_stable1 nmap1 nmap2 nd1 path2to excepted_paths2to mid_key
+                      tree2 self#is_stable2 self#is_stable1 nmap1 nmap2
+                      nd1 path2to excepted_paths2to mid_key
                   in
                   begin
                     (*try
@@ -11327,7 +11563,8 @@ module Edit = struct
 
                 DEBUG_MSG "anc2to_tb;: %s -> %a" (key_to_string mid_key) nps anc2to;
                 Hashtbl.add anc2to_tbl mid_key (anc2to, (path2to, excepted_paths2to));
-                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl mid_key anc2to path2to excepted_paths2to nd1;
+                self#rev_ancto_tbl_add edit_seq#mem_mov2 rev_anc2to_tbl
+                  mid_key anc2to path2to excepted_paths2to nd1;
 
                 if path2to#upstream > 0 then begin
                   DEBUG_MSG "upstream_key: %s" (key_to_string mid_key);
@@ -11394,7 +11631,7 @@ module Edit = struct
                 let is_staying_move =
                   let a1 = get_p_ancestor self#is_stable1 nd1 in
                   let a2 = get_p_ancestor self#is_stable2 nd2 in
-                  (uidmapping#find a1#uid) = a2#uid &&
+                  (nmapping#find a1) == a2 &&
                   kind <> Editop.Mpermutation &&
                   (List.length remote_stable_tbl1) > 1 &&
                   (List.length remote_stable_tbl2) > 1
@@ -11449,14 +11686,14 @@ module Edit = struct
             if tree == tree1 then
               self#is_stable1,
               self#is_stable2,
-              (fun n -> tree2#search_node_by_uid (uidmapping#find n#uid)),
+              nmapping#find,
               lift_tbl1,
               lifted_nodes1,
               conv_tbl1
             else
               self#is_stable2,
               self#is_stable1,
-              (fun n -> tree1#search_node_by_uid (uidmapping#inv_find n#uid)),
+              nmapping#inv_find,
               lift_tbl2,
               lifted_nodes2,
               conv_tbl2
@@ -11815,13 +12052,19 @@ module Edit = struct
       method dump_delta
           ?(extra_ns_decls=[])
           ?(comp=Compression.none)
-          uidmapping
+          ?(info_file_path="")
+          nmapping
           file_name
           =
         let fact_file_name = Xfile.change_extension file_name ".nt" in
-        let info_file_name = Xfile.change_extension file_name "_info.json" in
+        let info_file_name =
+          if info_file_path = "" then
+            Xfile.change_extension file_name "_info.json"
+          else
+            info_file_path
+        in
         Xchannel.dump ~comp file_name
-          (self#dump_delta_ch ~extra_ns_decls ~fact_file_name ~info_file_name uidmapping)
+          (self#dump_delta_ch ~extra_ns_decls ~fact_file_name ~info_file_name nmapping)
 
 
     end (* of class Delta.Edit.seq *)

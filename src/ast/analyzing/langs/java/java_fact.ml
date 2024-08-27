@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -58,9 +58,15 @@ let p_successor      = mkjres "successor"
 let p_nparams    = mkjres "nParameters"
 let p_nargs      = mkjres "nArguments"
 let p_is_va_meth = mkjres "isVariableArityMethod"
+let p_is_abst    = mkjres "isAbstract"
 
 let p_identifier = mkjres "identifier"
 let p_qualifier  = mkjres "qualifier"
+
+let p_id_offset = mkjres "identOffset"
+let p_id_length = mkjres "identLength"
+let p_expr_offset = mkjres "exprOffset"
+let p_expr_length = mkjres "exprLength"
 
 let getlab = getlab
 
@@ -139,6 +145,15 @@ let find is_xxx children =
   else
     raise Not_found
 
+let get_logical_nth_child nd nth =
+  let l = ref [] in
+  Array.iteri
+    (fun i x ->
+      if (nd#data#get_ordinal i) = nth then
+        l := x :: !l
+    ) nd#initial_children;
+  List.rev !l
+
 class extractor options cache_path tree = object (self)
   inherit extractor_base options cache_path tree as super
 
@@ -150,7 +165,7 @@ class extractor options cache_path tree = object (self)
 
 
   method scanner_body_before_subscan nd lab entity =
-    if L.scope_creating lab then
+    if L.is_scope_creating lab then
       stack#push nd;
 
     if L.is_packagedeclaration lab then
@@ -158,12 +173,31 @@ class extractor options cache_path tree = object (self)
 
 
   method scanner_body_after_subscan nd lab entity =
-    if L.scope_creating lab then
+    if L.is_scope_creating lab then
       stack#pop;
 
     if node_filter options nd then begin
       self#add (entity, p_is_a, mkjres nd#data#get_category);
       (* self#add (entity, p_file_digest, tree#encoded_source_digest); *)
+
+      begin
+        let id_loc = nd#data#id_loc in
+        if id_loc != Loc.dummy then begin
+          let offset = id_loc.Loc.start_offset in
+          let length = id_loc.Loc.end_offset - offset + 1 in
+          self#add (entity, p_id_offset, Triple.make_nn_int_literal offset);
+          self#add (entity, p_id_length, Triple.make_nn_int_literal length);
+        end
+      end;
+      if L.is_expression lab then begin
+        let loc = nd#data#src_loc in
+        if loc != Loc.dummy then begin
+          let offset = loc.Loc.start_offset in
+          let length = loc.Loc.end_offset - offset + 1 in
+          self#add (entity, p_expr_offset, Triple.make_nn_int_literal offset);
+          self#add (entity, p_expr_length, Triple.make_nn_int_literal length);
+        end
+      end;
 
       begin
         try
@@ -192,40 +226,40 @@ class extractor options cache_path tree = object (self)
       end;
 
       if L.is_typedeclaration lab then begin
-	self#add (entity, p_in_file, self#fileentity);
-	self#add (entity, p_name, mklit (L.get_name lab));
-	let fqn = get_fqn package_name nd lab in
+        self#add (entity, p_in_file, self#fileentity);
+        self#add (entity, p_name, mklit (L.get_name lab));
+        let fqn = get_fqn package_name nd lab in
         self#add (entity, p_fqn, mklit fqn);
         let en = self#mkextname fqn in
         self#add (en, p_is_a, Triple.c_external_name);
-	self#add (entity, p_provides, en);
-	self#set_version entity;
+        self#add (entity, p_provides, en);
+        self#set_version entity;
 (*
   stack#register_global fqn nd
  *)
       end;
 
       begin
-	try
-	  let c_or_i = get_nearest_surrounding_xxx L.is_class_or_interface nd in
-	  if L.is_class (getlab c_or_i) then
-	    self#add (entity, p_in_class, self#mkentity c_or_i)
-	  else
-	    self#add (entity, p_in_interface, self#mkentity c_or_i)
-	with
-	  Not_found -> ()
+        try
+          let c_or_i = get_nearest_surrounding_xxx L.is_class_or_interface nd in
+          if L.is_class (getlab c_or_i) then
+            self#add (entity, p_in_class, self#mkentity c_or_i)
+          else
+            self#add (entity, p_in_interface, self#mkentity c_or_i)
+        with
+          Not_found -> ()
       end;
 
       if L.is_method lab || L.is_ctor lab then begin
-	let signature = L.annotation_to_string (Tree.get_annotation nd) in
-	self#add (entity, p_signature, mklit signature);
-	let name =
+        let signature = L.annotation_to_string (Tree.get_annotation nd) in
+        self#add (entity, p_signature, mklit signature);
+        let name =
           if L.is_ctor lab then
             "<init>"
           else
             L.get_name lab
         in
-	self#add (entity, p_name, mklit name);
+        self#add (entity, p_name, mklit name);
 
         let nparams = ref 0 in
         let is_va = ref false in
@@ -245,45 +279,76 @@ class extractor options cache_path tree = object (self)
         end;
 
         self#add (entity, p_nparams, Triple.make_nn_int_literal !nparams);
-	self#add (entity, p_extended_name, mklit (Printf.sprintf "%s#%d" name !nparams));
+        self#add (entity, p_extended_name, mklit (Printf.sprintf "%s#%d" name !nparams));
         if !is_va then
           self#add (entity, p_is_va_meth, Triple.l_true);
 
+        begin
+          let is_abst =
+            L.is_method lab &&
+            try
+              match Sourcecode.get_logical_nth_child nd 6 with
+              | [||] -> true
+              | _ -> false
+            with _ -> true
+          in
+          if is_abst then
+            self#add (entity, p_is_abst, Triple.l_true);
+        end;
 
 (*
   stack#register name nd;
  *)
-	let fqn = get_fqn package_name nd lab in
+        let fqn = get_fqn package_name nd lab in
         self#add (entity, p_fqn, mklit fqn);
         let en = self#mkextname fqn in
         self#add (en, p_is_a, Triple.c_external_name);
-	self#add (entity, p_provides, en);
+        self#add (entity, p_provides, en);
 (*
   stack#register_global fqn nd
  *)
       end
       else begin
-	self#add_surrounding_xxx L.is_method nd entity p_in_method;
-	self#add_surrounding_xxx L.is_ctor nd entity p_in_constructor;
+        self#add_surrounding_xxx L.is_method nd entity p_in_method;
+        self#add_surrounding_xxx L.is_ctor nd entity p_in_constructor;
       end;
 
       if (L.is_field lab) then begin
-	let name = L.get_name lab in
-	self#add (entity, p_name, mklit name);
-(*
-  stack#register name nd;
- *)
-	let fqn = get_fqn package_name nd lab in
-        self#add (entity, p_fqn, mklit fqn);
-        let en = self#mkextname fqn in
-        self#add (en, p_is_a, Triple.c_external_name);
-	self#add (entity, p_provides, en);
+        let name = L.get_name lab in
+        self#add (entity, p_name, mklit name);
+
+        let is_private =
+          List.exists
+            (fun n ->
+              DEBUG_MSG "%s" n#data#label;
+              match getlab n with
+              | L.Modifiers _ -> begin
+                  Array.exists
+                    (fun c ->
+                      match getlab c with
+                      | L.Modifier L.Modifier.Private -> true
+                      | _ -> false
+                    ) n#initial_children
+              end
+              | _ -> false
+            ) (get_logical_nth_child nd 0)
+        in
+        DEBUG_MSG "name=\"%s\" is_private=%B" name is_private;
+        if is_private then
+          stack#register name nd
+        else begin
+          let fqn = get_fqn package_name nd lab in
+          self#add (entity, p_fqn, mklit fqn);
+          let en = self#mkextname fqn in
+          self#add (en, p_is_a, Triple.c_external_name);
+          self#add (entity, p_provides, en)
+        end;
 (*
   stack#register_global fqn nd
  *)
       end
       else
-	self#add_surrounding_xxx L.is_field nd entity p_in_field;
+        self#add_surrounding_xxx L.is_field nd entity p_in_field;
 
       self#add_surrounding_xxx L.is_statement nd entity p_in_statement;
 
@@ -296,11 +361,11 @@ class extractor options cache_path tree = object (self)
   self#add_surrounding_xxx L.is_ctor_invocation nd entity p_in_ctor_invocation;
  *)
       if L.is_invocation_or_instance_creation lab(* && L.is_named lab*) then begin
-	let ename = try L.get_name lab with Not_found -> "" in
+        let ename = try L.get_name lab with Not_found -> "" in
         if ename <> "" then begin
-	  self#add (entity, p_extended_name, mklit ename);
+          self#add (entity, p_extended_name, mklit ename);
           let esn = extended_name_to_simple_name ename in
-	  self#add (entity, p_name, mklit esn);
+          self#add (entity, p_name, mklit esn);
           if String.contains esn '.' then
             self#add (entity, p_uqn, mklit (Xlist.last (String.split_on_char '.' esn)))
         end;
@@ -330,60 +395,60 @@ class extractor options cache_path tree = object (self)
       end;
 
       if not (L.is_enum lab) then
-	self#add_surrounding_xxx L.is_enum nd entity p_in_enum;
+        self#add_surrounding_xxx L.is_enum nd entity p_in_enum;
 
       if not (L.is_extends lab) then
-	self#add_surrounding_xxx L.is_extends nd entity p_in_extends;
+        self#add_surrounding_xxx L.is_extends nd entity p_in_extends;
 
       if not (L.is_throws lab) then
-	self#add_surrounding_xxx L.is_throws nd entity p_in_throws;
+        self#add_surrounding_xxx L.is_throws nd entity p_in_throws;
 
       if not (L.is_localvariabledecl lab) then
-	self#add_surrounding_xxx L.is_localvariabledecl nd entity
-	  p_in_variable_declaration;
+        self#add_surrounding_xxx L.is_localvariabledecl nd entity
+          p_in_variable_declaration;
 
       if L.is_fieldaccess lab then
-	self#add (entity, p_name, mklit (L.get_name lab));
+        self#add (entity, p_name, mklit (L.get_name lab));
 
       if L.is_qualifier lab && L.is_name lab then
-	self#add (entity, p_name, mklit (L.get_name lab));
+        self#add (entity, p_name, mklit (L.get_name lab));
 
       if L.is_parameter lab then begin
-	let name = L.get_name lab in
-	stack#register name nd;
-	self#add (entity, p_name, mklit name)
+        let name = L.get_name lab in
+        stack#register name nd;
+        self#add (entity, p_name, mklit name)
       end;
 
       if L.is_if lab then begin
-	self#add (self#mkentity nd#initial_children.(0), p_cond_of, entity);
-	let then_nd = nd#initial_children.(1) in
-	self#add (self#mkentity then_nd, p_then_part_of, entity);
-	if nd#initial_nchildren > 2 then
-	  let else_nd = nd#initial_children.(2) in
-	  self#add (self#mkentity else_nd, p_else_part_of, entity)
+        self#add (self#mkentity nd#initial_children.(0), p_cond_of, entity);
+        let then_nd = nd#initial_children.(1) in
+        self#add (self#mkentity then_nd, p_then_part_of, entity);
+        if nd#initial_nchildren > 2 then
+          let else_nd = nd#initial_children.(2) in
+          self#add (self#mkentity else_nd, p_else_part_of, entity)
       end;
 
       if L.is_variabledeclarator lab then begin
-	if L.is_local_variabledeclarator lab then begin
-	  let name = L.get_name lab in
-	  stack#register name nd
-	end;
-	if nd#initial_nchildren > 0 then
-	  let rhs_nd = nd#initial_children.(0) in
-	  self#add (entity, p_initializer, self#mkentity rhs_nd)
+        if L.is_localvariabledecl (getlab nd#initial_parent) then begin
+          let name = L.get_name lab in
+          stack#register name nd
+        end;
+        if nd#initial_nchildren > 0 then
+          let rhs_nd = nd#initial_children.(0) in
+          self#add (entity, p_initializer, self#mkentity rhs_nd);
       end;
 
       (*if L.is_resource lab then begin
-	let name = L.get_name lab in
+        let name = L.get_name lab in
         stack#register name nd
       end;*)
 
       if L.is_primaryname lab then begin
-	let name = L.get_name lab in
-	try
-	  self#add (entity, p_declared_by, self#mkentity (stack#lookup name))
-	with
-	  Not_found ->
+        let name = L.get_name lab in
+        try
+          self#add (entity, p_declared_by, self#mkentity (stack#lookup name))
+        with
+          Not_found ->
             let en = self#mkextname name in
             self#add (en, p_is_a, Triple.c_external_name);
             self#add (entity, p_requires, en)
@@ -391,7 +456,7 @@ class extractor options cache_path tree = object (self)
 
       if L.is_named lab && L.is_type lab then begin
         let n = L.get_name lab in
-	self#add (entity, p_name, mklit n);
+        self#add (entity, p_name, mklit n);
 
         let s =
           try
@@ -412,10 +477,10 @@ class extractor options cache_path tree = object (self)
       end;
 
       if L.is_named_orig lab then
-	if L.is_method lab || L.is_ctor lab || L.is_invocation_or_instance_creation lab then
-	  ()
-	else
-	  self#add (entity, p_name, mklit (L.get_name lab));
+        if L.is_method lab || L.is_ctor lab || L.is_invocation_or_instance_creation lab then
+          ()
+        else
+          self#add (entity, p_name, mklit (L.get_name lab));
 
       if L.is_ambiguous_name lab then begin
         let n = L.get_name lab in

@@ -21,7 +21,8 @@ module Aux = Parser_aux
 
 let filename_list = ref []
 
-let dump_flag = ref false
+let dump_ast_flag = ref false
+let dump_tokens_flag = ref false
 let verbose_flag = ref true
 let token_hist_flag = ref false
 let parse_macro_defs_flag = ref true
@@ -34,6 +35,8 @@ let set_flags p =
     p#set_token_hist_flag();
   if not !parse_macro_defs_flag then
     p#clear_parse_macro_defs_flag();
+  if !dump_tokens_flag then
+    p#set_dump_tokens_flag();
   p#_set_keep_going_flag !keep_going_flag
 
 let options = new Basic_options.c
@@ -42,7 +45,8 @@ let _ =
   Arg.parse
     [
      (*"-verbose", Arg.Unit (fun () -> verbose_flag := true), "\tdisplay verbose messages";*)
-     "-dump", Arg.Unit (fun () -> dump_flag := true), "\tdump AST(s)";
+     "-dump-ast", Arg.Unit (fun () -> dump_ast_flag := true), "\tdump AST(s)";
+     "-dump-tokens", Arg.Unit (fun () -> dump_tokens_flag := true), "\tdump token seq(s)";
      "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tparse despite errors";
      "-token-hist", Arg.Unit (fun () -> token_hist_flag := true), "\tshow token histogram";
      "-ignore-macro-defs",
@@ -58,7 +62,7 @@ let proc filename =
     set_flags parser0;
     let file = Fs.file_of_path options filename in
     let ast = parser0#parse_file file in
-    if !dump_flag then
+    if !dump_ast_flag then
       Ast.dump ast
   with
   | Sys_error msg -> begin

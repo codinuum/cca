@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -83,22 +83,26 @@ let set_dump_src_flag() =
   parseonly_flag := true;
   options#set_dump_src_flag;
   options#set_no_collapse_flag
-(*
+
+let set_dump_delta_flag () =
+  options#set_dump_delta_flag;
+  options#set_java_anon_ctor_body_flag
+
 let set_dump_delta_out s =
   options#set_dump_delta_out s;
-  options#set_dump_delta_flag
-*)
+  set_dump_delta_flag()
+
 let set_dump_rev_delta() =
   options#clear_irreversible_flag;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let set_dump_irrev_delta() =
   options#set_irreversible_flag;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let set_dump_compressed_delta() =
   options#set_compress_delta_flag;
-  options#set_dump_delta_flag
+  set_dump_delta_flag()
 
 let clear_prematch_flags() =
   options#set_prematch_flag
@@ -172,23 +176,28 @@ let speclist =
 
    "-check", Arg.Unit (fun () -> options#set_check_flag), "\tcheck result";
    "-r", Arg.Unit (fun () -> options#set_recursive_flag), "\t\tcompare files recursively";
-
    "-I", Arg.String options#add_search_path, "PATH\tadd search path";
-
-   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing in spite of errors";
-
+   "-k", Arg.Unit (fun () -> options#set_keep_going_flag), "\t\tcontinue parsing despite errors";
    (*"-splithunk", Arg.Unit (fun () -> options#set_split_hunk_flag), "\tsplit delta hunks";!!!!!*)
-
    "-keep-filtered-temp-file", Arg.Unit (fun () -> options#set_keep_filtered_temp_file_flag),
-   "\tkeep filtered temporary file";
-
+                               "\tkeep filtered temporary file";
    "-parser:external", Arg.Unit set_external_parser_flags, "\t\trely on external parsers";
-   "-parser:fortran", Arg.Unit (fun () -> options#designate_parser "fortran"), "\t\tforce to use Fortran parser";
+   "-parser:fortran", Arg.Unit (fun () -> options#designate_parser "fortran"),
+                      "\t\tforce to use Fortran parser";
    "-parser:c", Arg.Unit (fun () -> options#designate_parser "c"), "\t\t\tforce to use C parser";
-   "-parser:cpp", Arg.Unit (fun () -> options#designate_parser "cpp"), "\t\t\tforce to use C++ parser";
+   "-parser:cpp", Arg.Unit (fun () -> options#designate_parser "cpp"),
+                  "\t\t\tforce to use C++ parser";
    "-parser:disable", Arg.String options#disable_parser, "PARSER_ID\tdisable parser";
    "-parser:reduce-ast", Arg.Unit (fun () -> options#set_ast_reduction_flag), "\t\treduce AST";
    "-parser:normalize-ast", Arg.Unit (fun () -> options#set_normalize_ast_flag), "\tnormalize AST";
+   "-parser:rely-on-naming-convention", Arg.Unit
+                                        (fun () -> options#set_rely_on_naming_convention_flag),
+                                        "\trely on naming convention";
+   "-parser:partial-name-resolution", Arg.Unit (fun () -> options#set_partial_name_resolution_flag),
+                                      "\tresolve names partially";
+   "-parser:no-implicit-name-resolution",
+     Arg.Unit (fun () -> options#set_no_implicit_name_resolution_flag),
+     "\tdisable name resolution";
 
 (* output *)
    "-dump:ast", Arg.Unit set_dump_ast_flags, "\t\tdump AST";
@@ -196,109 +205,128 @@ let speclist =
    "-dump:ccs", Arg.Unit (fun () -> options#set_dump_ccs_flag), "\t\tdump common code structure";
    "-dump:dot", Arg.Unit (fun () -> options#set_dump_dot_flag), "\t\tdump diff in DOT file";
    "-dump:origin", Arg.Unit (fun () -> options#set_dump_origin_flag), "\t\tdump origin file";
-   "-dump:dots", Arg.Unit (fun () -> options#set_dots_flag), "\t\toutput DOTs for intermediate trees";
+   "-dump:dots", Arg.Unit (fun () -> options#set_dots_flag),
+                 "\t\toutput DOTs for intermediate trees";
    "-dump:src", Arg.Unit set_dump_src_flag, "\t\tdump unparsed AST";
    "-dump:src:out", Arg.String set_dump_src_out, "FILE\tdump unparsed AST into file";
 
 (* delta *)
-   "-dump:delta", Arg.Unit (fun () -> options#set_dump_delta_flag), "\t\t\tdump delta (Java only)";
+   "-dump:delta", Arg.Unit set_dump_delta_flag, "\t\tdump delta (Java only)";
+   "-dump:delta:out", Arg.String set_dump_delta_out, "FILE\tdump delta into file";
    "-dump:delta:minimize", Arg.Unit set_minimize_delta_flags, "\t\tminimize delta";
    "-dump:delta:minimize:more", Arg.Unit set_minimize_delta_more_flags, "\tminimize delta more";
-(*   "-dump:delta:out", Arg.String set_dump_delta_out, "FILE\tdump delta into file";*)
 (*   "-dump:delta:rev", Arg.Unit set_dump_rev_delta, "\tgenerate reversible delta";*)
 (*   "-dump:delta:irrev", Arg.Unit set_dump_irrev_delta, "\tgenerate irreversible delta";*)
    "-dump:delta:compress", Arg.Unit set_dump_compressed_delta, "\t\tdump compressed AST";
 
 (* cache *)
    "-cache", Arg.String options#set_cache_dir_base,
-   sprintf "DIR\tcache dir base (default: %s)" options#cache_dir_base;
-
+             sprintf "DIR\tcache dir base (default: %s)" options#cache_dir_base;
    "-getcache", Arg.Set get_cache_dir_only, "\tonly get cache dir";
    "-clearcache", Arg.Unit (fun () -> options#set_clear_cache_flag), "\tclear cache dir";
    "-usecache", Arg.Unit (fun () -> options#clear_clear_cache_flag), "\tuse cache";
    "-fuzzycache", Arg.Unit (fun () -> options#set_fuzzy_cache_flag), "\tsearch cache dir fuzzily";
-   "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag), "\tconstruct layered cache dir";
-   "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag), "\tconstruct flat cache dir";
+   "-layeredcache", Arg.Unit (fun () -> options#set_layered_cache_flag),
+                    "\tconstruct layered cache dir";
+   "-nolayeredcache", Arg.Unit (fun () -> options#clear_layered_cache_flag),
+                      "\tconstruct flat cache dir";
    "-localcachename", Arg.String options#set_local_cache_name,
    sprintf "DIR\tlocal cache name (default: %s)" options#local_cache_name;
 
-
 (* algorithm *)
    "-limit", Arg.Int options#set_tree_size_limit_percent,
-               sprintf "N\t\ttree size limit (%%) (default: %d)" options#tree_size_limit_percent;
-
+             sprintf "N\t\ttree size limit (%%) (default: %d)" options#tree_size_limit_percent;
    "-thresh", Arg.Int options#set_tree_size_threshold,
-                sprintf "N\t\ttree size threshold (default: %d)" options#tree_size_threshold;
-
+              sprintf "N\t\ttree size threshold (default: %d)" options#tree_size_threshold;
    "-hardlimit", Arg.Int options#set_hard_tree_size_limit,
-                   sprintf "N\t\thard tree size limit (default: %d)" options#hard_tree_size_limit;
+                 sprintf "N\t\thard tree size limit (default: %d)" options#hard_tree_size_limit;
 (*
-   "-multinodematch", Arg.Unit (fun () -> options#set_multi_node_match_flag), "\tmaintain multiple node matches";
+   "-multinodematch", Arg.Unit (fun () -> options#set_multi_node_match_flag),
+                      "\tmaintain multiple node matches";
 *)
-   "-nomultinodematch", Arg.Unit (fun () -> options#clear_multi_node_match_flag), "\tdo not maintain multiple node matches";
-
+   "-nomultinodematch", Arg.Unit (fun () -> options#clear_multi_node_match_flag),
+                        "\tdo not maintain multiple node matches";
    "-preprune", Arg.Int options#set_preprune_threshold,
-   sprintf "N\tpre-prune size threshold (default: %d)" options#preprune_threshold;
-
+                sprintf "N\tpre-prune size threshold (default: %d)" options#preprune_threshold;
    "-nopreprune", Arg.Unit (fun () -> options#clear_preprune_flag), "\tdisable pre-pruning";
-
 (*
    "-prematch", Arg.Unit (fun () -> options#set_prematch_flag), "\t\tenable pre-matching";
-   "-prematch:named", Arg.Unit (fun () -> options#set_prematch_named_flag), "\tenable pre-matching (named nodes only)";
-   "-prematch:early", Arg.Unit (fun () -> options#set_prematch_early_resolve_flag), "\tpre-matching multiple pairs early";
-   "-prematch:all", Arg.Unit (fun () -> options#clear_prematch_named_flag), "\tpre-match all kinds of nodes";
+   "-prematch:named", Arg.Unit (fun () -> options#set_prematch_named_flag),
+                      "\tenable pre-matching (named nodes only)";
+   "-prematch:early", Arg.Unit (fun () -> options#set_prematch_early_resolve_flag),
+                      "\tpre-matching multiple pairs early";
+   "-prematch:all", Arg.Unit (fun () -> options#clear_prematch_named_flag),
+                    "\tpre-match all kinds of nodes";
 *)
-
    "-noprematch", Arg.Unit clear_prematch_flags, "\tdisable pre-matching";
-
    "-noshrink", Arg.Unit (fun () -> options#clear_shrink_moves_flag), "\tdisable move shrinking";
-
 (*
    "-lock-match", Arg.Unit (fun () -> options#set_lock_matches_flag), "\t\tlock matched subtrees";
 *)
-   "-nore", Arg.Unit (fun () -> options#set_no_relabel_elim_flag), "\tdisable relabel elimination";
+   "-nore", Arg.Unit (fun () -> options#set_no_odd_relabel_elim_flag),
+            "\tdisable odd relabel elimination";
+
+   "-rrlv", Arg.Int (fun lv ->
+                      options#set_rename_rectification_level lv;
+                      if lv <= 0 then options#clear_use_binding_info_flag;
+                      (*options#set_no_odd_relabel_elim_flag*)
+                    ),
+          sprintf "\tset rename rectification level (0:none, 1:u, 2:u+d, 3:u+ds) (default: %d)"
+          options#rename_rectification_level;
+
    "-noglue", Arg.Unit (fun () -> options#set_no_glue_flag), "\tdisable delete-insert gluing";
    "-nomoves", Arg.Unit (fun () -> options#set_no_moves_flag), "\tdisable move generation";
    "-nomovrels", Arg.Unit (fun () -> options#set_no_movrels_flag), "\tdisable movrel generation";
    "-nocollapse", Arg.Unit (fun () -> options#set_no_collapse_flag), "\tdisable collapsing";
    "-noee", Arg.Unit (fun () -> options#set_no_enclave_elim_flag), "\tdisable enclave elimination";
    "-ee-match-algo-thresh", Arg.Int options#set_match_algo_threshold,
-                              sprintf "N\tthreshold for algorithm selection (default: %d)"
-                                options#match_algo_threshold;
-
+                            sprintf "N\tthreshold for algorithm selection (default: %d)"
+                            options#match_algo_threshold;
    "-ignore-huge-arrays", Arg.Unit (fun () -> options#set_ignore_huge_arrays_flag),
-   sprintf "\t\tignore huge arrays (default:%s)"
-     (if options#ignore_huge_arrays_flag then "ignore" else "scan");
-
+                          sprintf "\t\tignore huge arrays (default:%s)"
+                          (if options#ignore_huge_arrays_flag then "ignore" else "scan");
    "-scan-huge-arrays", Arg.Unit (fun () -> options#clear_ignore_huge_arrays_flag),
-   sprintf "\t\tdo not ignore huge arrays (default:%s)"
-     (if options#ignore_huge_arrays_flag then "ignore" else "scan");
-
+                        sprintf "\t\tdo not ignore huge arrays (default:%s)"
+                        (if options#ignore_huge_arrays_flag then "ignore" else "scan");
    "-huge-array-thresh", Arg.Int options#set_huge_array_threshold,
-   sprintf "N\t\thuge array size threshold (default: %d)" options#huge_array_threshold;
-
+                         sprintf "N\t\thuge array size threshold (default: %d)"
+                         options#huge_array_threshold;
+   "-ignore-huge-exprs", Arg.Unit (fun () -> options#set_ignore_huge_exprs_flag),
+                         sprintf "\t\tignore huge exprs (default:%s)"
+                         (if options#ignore_huge_exprs_flag then "ignore" else "scan");
+   "-scan-huge-exprs", Arg.Unit (fun () -> options#clear_ignore_huge_exprs_flag),
+                       sprintf "\t\tdo not ignore huge exprs (default:%s)"
+                       (if options#ignore_huge_exprs_flag then "ignore" else "scan");
+   "-huge-expr-thresh", Arg.Int options#set_huge_expr_threshold,
+                        sprintf "N\t\thuge expr size threshold (default: %d)"
+                        options#huge_expr_threshold;
+   (*"-flatten-if", Arg.Unit (fun () -> options#set_flatten_if_flag),
+                  sprintf "\t\tflatten if-statement (default:%s)"
+                  (if options#flatten_if_flag then "true" else "false");*)
+   (*"-deep-if-thresh", Arg.Int options#set_deep_if_threshold,
+                      sprintf "N\t\tdeep nested if-statement threshold (default: %d)"
+                      options#deep_if_threshold;*)
    "-moderate-nchildren-thresh", Arg.Int options#set_moderate_nchildren_threshold,
-   sprintf "N\tmoderate num of children threshold (default: %d)" options#moderate_nchildren_threshold;
-
+                                 sprintf "N\tmoderate num of children threshold (default: %d)"
+                                 options#moderate_nchildren_threshold;
    "-movrel-stability-thresh", Arg.Float options#set_movrel_stability_threshold,
-   sprintf "R\tmovrel stability threshold (default: %f)" options#movrel_stability_threshold;
-
+                               sprintf "R\tmovrel stability threshold (default: %f)"
+                               options#movrel_stability_threshold;
    "-movrel-ratio-thresh", Arg.Float options#set_movrel_ratio_threshold,
-   sprintf "R\tmovrel ratio threshold (default: %f)" options#movrel_ratio_threshold;
-
+                           sprintf "R\tmovrel ratio threshold (default: %f)"
+                           options#movrel_ratio_threshold;
    "-mapped-neighbours-thresh", Arg.Float options#set_mapped_neighbours_difference_threshold,
-   sprintf "R\tmapped neighbours difference threshold (default: %f)"
-     options#mapped_neighbours_difference_threshold;
-
+                                sprintf "R\tmapped neighbours difference threshold (default: %f)"
+                                options#mapped_neighbours_difference_threshold;
    "-no-unnamed-node-moves", Arg.Unit (fun () -> options#set_no_unnamed_node_move_flag),
-   "\tsuppress moves of unnamed nodes";
-
+                             "\tsuppress moves of unnamed nodes";
+   "-no-binding-trace", Arg.Unit (fun () -> options#set_no_binding_trace_flag),
+                        "\t\tdisable binding trace";
    "-weak", Arg.Unit set_weak_flags, "\t\t\tweaken node equation and node permutation detection";
-
-   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag), "\t\t\taggressively find moves";
-
+   "-aggressive", Arg.Unit (fun () -> options#clear_conservative_flag),
+                  "\t\t\taggressively find moves";
    "-ignore-moves-of-unordered", Arg.Unit (fun () -> options#set_ignore_move_of_unordered_flag),
-   "\tignore moves of unordered constructs";
+                                 "\tignore moves of unordered constructs";
 
 (* mode *)
    "-searchonly", Arg.Set_string keyword, "\tKEYWORD\tsearch keyword only";
@@ -306,48 +334,51 @@ let speclist =
    "-viewer",     Arg.Unit set_viewer_mode_flags, "\tviewer friendly mode";
 
 (* fact *)
-   "-fact",                    Arg.Unit (fun () -> options#set_fact_flag), "\t\t\tdump fact";
-   "-fact:into-virtuoso",      Arg.String options#set_fact_into_virtuoso,
-                                 "URI\toutput fact into graph <URI> in virtuoso";
-   "-fact:into-directory",     Arg.String options#set_fact_into_directory, "DIR\toutput fact into directory DIR";
-   "-fact:project",            Arg.String set_fact_proj, "PROJ\t\tset project name to PROJ";
-   "-fact:project-root",       Arg.String set_fact_proj_root, "PATH\tset project root to PATH";
-   "-fact:version",            Arg.String set_fact_version,
-                                 "KIND:VER\tset version of AST to KIND:VER (KIND=REL|SVNREV|GITREV|VARIANT)";
-   "-fact:add-versions",       Arg.Unit (fun () -> options#set_fact_add_versions_flag),
-                                 "\tadd version statements to fact";
-   "-fact:encoding:FDLC",      Arg.Unit set_fact_enc_FDLC, "\tuse FDLC entity encoding";
-   "-fact:encoding:FDO",       Arg.Unit set_fact_enc_FDO, "\tuse FDO entity encoding";
-   "-fact:encoding:FDLO",      Arg.Unit set_fact_enc_FDLO, "\tuse FDLO entity encoding";
-   "-fact:encoding:FDLCO",     Arg.Unit set_fact_enc_FDLCO, "\tuse FDLCO entity encoding";
-   "-fact:encoding:PVFLC",     Arg.Unit set_fact_enc_PVFLC, "\tuse PVFLC entity encoding";
-   "-fact:encoding:PVFO",      Arg.Unit set_fact_enc_PVFO, "\tuse PVFO entity encoding";
-   "-fact:encoding:PVFLO",     Arg.Unit set_fact_enc_PVFLO, "\tuse PVFLO entity encoding";
-   "-fact:encoding:PVFLCO",    Arg.Unit set_fact_enc_PVFLCO, "use PVFLCO entity encoding";
-   "-fact:hash:MD5",           Arg.Unit set_fact_algo_MD5, "\tuse MD5 for entity encoding";
-   "-fact:hash:SHA1",          Arg.Unit set_fact_algo_SHA1, "\tuse SHA1 for entity encoding";
-   "-fact:hash:SHA256",        Arg.Unit set_fact_algo_SHA256, "\tuse SHA256 for entity encoding";
-   "-fact:hash:RIPEMD160",     Arg.Unit set_fact_algo_RIPEMD160, "\tuse RIPEMD160 for entity encoding";
-   "-fact:hash:GIT",           Arg.Unit set_fact_algo_GIT, "\tuse SHA1(Git) for entity encoding";
-   "-fact:hash:PATH",          Arg.Unit set_fact_algo_PATH, "\tuse SHA1(with path header) for entity encoding";
-   "-fact:changes",            Arg.Unit (fun () -> options#set_fact_for_changes_flag),
-                                 "\toutput fact triples for changes";
-   "-fact:changes:basic",      Arg.Unit set_fact_for_changes_basic, "\toutput restricted change fact triples";
-   "-fact:mapping",            Arg.Unit (fun () -> options#set_fact_for_mapping_flag),
-                                 "\t\toutput fact triples for mapping";
+   "-fact", Arg.Unit (fun () -> options#set_fact_flag), "\t\t\tdump fact";
+   "-fact:into-virtuoso", Arg.String options#set_fact_into_virtuoso,
+                          "URI\toutput fact into graph <URI> in virtuoso";
+   "-fact:into-directory", Arg.String options#set_fact_into_directory,
+                           "DIR\toutput fact into directory DIR";
+   "-fact:project", Arg.String set_fact_proj, "PROJ\t\tset project name to PROJ";
+   "-fact:project-root", Arg.String set_fact_proj_root, "PATH\tset project root to PATH";
+   "-fact:version", Arg.String set_fact_version,
+                    "KIND:VER\tset version of AST to KIND:VER (KIND=REL|SVNREV|GITREV|VARIANT)";
+   "-fact:add-versions", Arg.Unit (fun () -> options#set_fact_add_versions_flag),
+                         "\tadd version statements to fact";
+   "-fact:encoding:FDLC", Arg.Unit set_fact_enc_FDLC, "\tuse FDLC entity encoding";
+   "-fact:encoding:FDO", Arg.Unit set_fact_enc_FDO, "\tuse FDO entity encoding";
+   "-fact:encoding:FDLO", Arg.Unit set_fact_enc_FDLO, "\tuse FDLO entity encoding";
+   "-fact:encoding:FDLCO", Arg.Unit set_fact_enc_FDLCO, "\tuse FDLCO entity encoding";
+   "-fact:encoding:PVFLC", Arg.Unit set_fact_enc_PVFLC, "\tuse PVFLC entity encoding";
+   "-fact:encoding:PVFO", Arg.Unit set_fact_enc_PVFO, "\tuse PVFO entity encoding";
+   "-fact:encoding:PVFLO", Arg.Unit set_fact_enc_PVFLO, "\tuse PVFLO entity encoding";
+   "-fact:encoding:PVFLCO", Arg.Unit set_fact_enc_PVFLCO, "use PVFLCO entity encoding";
+   "-fact:hash:MD5", Arg.Unit set_fact_algo_MD5, "\tuse MD5 for entity encoding";
+   "-fact:hash:SHA1", Arg.Unit set_fact_algo_SHA1, "\tuse SHA1 for entity encoding";
+   "-fact:hash:SHA256", Arg.Unit set_fact_algo_SHA256, "\tuse SHA256 for entity encoding";
+   "-fact:hash:RIPEMD160", Arg.Unit set_fact_algo_RIPEMD160, "\tuse RIPEMD160 for entity encoding";
+   "-fact:hash:GIT", Arg.Unit set_fact_algo_GIT, "\tuse SHA1(Git) for entity encoding";
+   "-fact:hash:PATH", Arg.Unit set_fact_algo_PATH,
+                      "\tuse SHA1(with path header) for entity encoding";
+   "-fact:changes", Arg.Unit (fun () -> options#set_fact_for_changes_flag),
+                    "\toutput fact triples for changes";
+   "-fact:changes:basic", Arg.Unit set_fact_for_changes_basic,
+                          "\toutput restricted change fact triples";
+   "-fact:mapping", Arg.Unit (fun () -> options#set_fact_for_mapping_flag),
+                    "\t\toutput fact triples for mapping";
    "-fact:mapping:restricted", Arg.Unit set_fact_for_mapping_restricted,
-                                 "\toutput fact triples for restricted mapping";
-   "-fact:restrict",           Arg.Unit (fun () -> options#set_fact_restricted_flag),
+                               "\toutput fact triples for restricted mapping";
+   "-fact:restrict", Arg.Unit (fun () -> options#set_fact_restricted_flag),
                                  "\t\trestrict fact generation to specific categories";
-   "-fact:ast",                Arg.Unit (fun () -> options#set_fact_for_ast_flag),
-                                 "\t\t\toutput fact triples for AST";
-   "-fact:delta",              Arg.Unit (fun () -> options#set_fact_for_delta_flag),
-                                 "\t\t\toutput fact triples for delta";
-   "-fact:nocompress",         Arg.Unit (fun () -> options#clear_fact_compress_flag),
-                                 "\t\tdisable fact compression";
-   "-fact:size-thresh",        Arg.Int options#set_fact_size_threshold,
-                                 sprintf "N\t\tfact buffer size threshold (default: %d)"
-                                   options#fact_size_threshold;
+   "-fact:ast", Arg.Unit (fun () -> options#set_fact_for_ast_flag),
+                "\t\t\toutput fact triples for AST";
+   "-fact:delta", Arg.Unit (fun () -> options#set_fact_for_delta_flag),
+                  "\t\t\toutput fact triples for delta";
+   "-fact:nocompress", Arg.Unit (fun () -> options#clear_fact_compress_flag),
+                       "\t\tdisable fact compression";
+   "-fact:size-thresh", Arg.Int options#set_fact_size_threshold,
+                        sprintf "N\t\tfact buffer size threshold (default: %d)"
+                        options#fact_size_threshold;
 (*
    "-fact:pruned", Arg.Unit (fun () -> options#set_fact_add_pruned_flag),
                      "\t\toutput fact \"e prunedFrom e'\" for entities";
@@ -355,26 +386,32 @@ let speclist =
                       "\t\toutput fact \"e graftedOnto e'\" for entities";
 *)
 
+(* Java *)
+   "-java:JLS", Arg.Int (fun lv -> options#set_java_lang_spec lv), "\tset JLS level";
+
 (* Python *)
    "-python:disable-with-stmt", Arg.Unit (fun () -> options#set_python_with_stmt_disabled_flag),
-                                  "\tdisable with_statement feature";
+                                "\tdisable with_statement feature";
 
 (* Fortran *)
-   "-fortran:max-line-length", Arg.Int options#set_fortran_max_line_length, "N\tset max line length to N";
+   "-fortran:max-line-length", Arg.Int options#set_fortran_max_line_length,
+                               "N\tset max line length to N";
    "-fortran:parse-d-lines",   Arg.Unit (fun () -> options#set_fortran_parse_d_lines_flag),
-                                 "\tparse d-lines as code";
+                               "\tparse d-lines as code";
    "-fortran:ignore-include",  Arg.Unit (fun () -> options#set_fortran_ignore_include_flag),
-                                 "\tignore include lines";
-
+                               "\tignore include lines";
+(*
 (* origin *)
-   "-origin:nctms",    Arg.String options#set_nctms_file, "NCTMS_FILE\tdump origin file using NCTMS_FILE";
+   "-origin:nctms", Arg.String options#set_nctms_file,
+                    "NCTMS_FILE\tdump origin file using NCTMS_FILE";
    "-origin:revindex", Arg.Int options#set_revindex, "REV_INDEX\tdump origin file of REV_INDEX";
-   "-origin:latest",   Arg.String options#set_latest_target, "TARGET\t\tset latest version of target to TARGET";
-
+   "-origin:latest", Arg.String options#set_latest_target,
+                     "TARGET\t\tset latest version of target to TARGET";
+*)
 (* others *)
    "-alignfragments", Arg.Unit set_align_fragments_flags, "\tfragments alignment mode";
    "-incompleteinfo", Arg.Unit (fun () -> options#set_incomplete_info_flag),
-                        "\tsome parts of info are omitted in AST (for counting nodes only)";
+                      "\tsome parts of info are omitted in AST (for counting nodes only)";
 
  ]
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ module UID   = Otreediff.UID
 module MID   = Moveid
 module GI    = Otreediff.GIndex
 module Path  = Otreediff.Path
+module BID   = Binding.ID
 
 
 module OutChannel = struct
@@ -90,6 +91,10 @@ class type node_data_t_shared = object ('self)
 
   method get_name           : string
   method get_orig_name      : string
+  method get_stripped_name  : string
+
+  method _stripped_label    : Obj.t
+  method _stripped_orig_label : Obj.t
 
   method _anonymized_label  : Obj.t
   method _anonymized2_label : Obj.t
@@ -133,6 +138,13 @@ class type [ 'node ] tree_t_shared = object ('self)
 
   method parser_name               : string
   method get_digest                : 'node -> Xhash.t
+  method add_to_bid_map            : BID.t -> BID.t -> unit
+  method find_mapped_bids          : BID.t -> BID.t list
+  method add_to_bid_tbl            : BID.t -> string -> unit
+  method find_name_for_bid         : BID.t -> string
+  method add_to_def_bid_tbl        : BID.t -> 'node -> unit
+  method find_def_for_bid          : BID.t -> 'node
+  method in_subtree_mutually       : 'node -> 'node -> bool
   method initial_subtree_to_rep    : 'node -> string
   method initial_to_rep            : string
   method set_source_path           : string -> unit

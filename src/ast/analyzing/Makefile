@@ -70,7 +70,7 @@ GIT_DIFFAST_OBJS = version.cmo astcore.cmo diffastcore.cmo $(_GIT_DIFFAST_OBJS)
 
 OBJS_DEP = version.cmo astcore.cmo diffastcore.cmo \
 		$(_DIFFAST_CMD_OBJS) $(_DIFFAST_WS_OBJS) \
-		$(_PATCHAST_OBJS) $(_GIT_DIFFAST_OBJS) $(_PARSESRC_OBJS) $(_SIMAST_OBJS)
+		$(_PATCHAST_OBJS) $(_GIT_DIFFAST_OBJS) $(_PARSESRC_OBJS) $(_SIMAST_CMD_OBJS)
 
 OTHER_OBJS = $(UTIL_OBJS) $(OTREEDIFF_LIB) $(MLDIFF_OBJS) \
 		$(COMMON_OBJS) $(ENGINE_OBJS) $(LANGS_COMMON_OBJS) $(LANG_OBJS)
@@ -107,13 +107,13 @@ OTHER_OBJS_OPT     = $(OTHER_OBJS:.cmo=.cmx)
 OTHER_OBJS_P_OPT   = $(OTHER_OBJS_P:.cmo=.cmx)
 OTHER_OBJS_DEP_OPT = $(OTHER_OBJS_DEP:.cmo=.cmx)
 
-PACKAGES = -package camlp-streams,pxp,ulex,str,csv,bigarray,num,zip,menhirLib,cohttp
+PACKAGES = -package camlp-streams,pxp,ulex,str,csv,bigarray,zip,menhirLib
 PACKAGES += -package cryptokit,netclient
 PACKAGES += -package netzip,uuidm,dynlink,volt
 
 PACKAGES_WS = $(PACKAGES) -package pcre,sqlite3,netcgi2,netclient,nethttpd
 
-PACKAGES_GIT_DIFFAST = $(PACKAGES) -package lwt.unix,cmdliner,mtime.clock.os,logs.cli,logs.fmt,fmt.cli,fmt.tty,checkseum.ocaml,git,digestif.ocaml,git-unix
+PACKAGES_GIT_DIFFAST = $(PACKAGES) -package lwt.unix,cmdliner,mtime.clock.os,logs.cli,logs.fmt,fmt.cli,fmt.tty,checkseum.c,git,digestif.c,git-unix
 
 DEP_INCLS = -I $(COMMON_DIR) -I $(ENGINE_DIR) -I .
 

@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2022 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -144,6 +144,10 @@ let is_attr_for_value a =
 let is_attr_for_string_literal a =
   is_attr_for_value a
 
+let is_attr_for_tid a =
+  (remove_prefix a) = "tid"
+
+
 let is_string_literal { elem_name=name; elem_attrs=attrs; } =
   Xstring.endswith name "string" &&
   List.exists
@@ -154,7 +158,12 @@ let is_string_literal { elem_name=name; elem_attrs=attrs; } =
 let is_int_literal lab = false (* not yet *)
 let is_real_literal lab = false (* not yet *)
 let is_statement lab = false (* not yet *)
+let is_block lab = false (* not yet *)
+let is_primary lab = false (* not yet *)
 let is_op lab = false (* not yet *)
+
+let is_scope_creating lab = false (* not yet *)
+
 
 let to_string { elem_name=elem; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns; } =
   let attrs_s =
@@ -662,8 +671,6 @@ let anonymize_attrs attrs =
       Astml.is_anonymization_resistant_attr la
     ) attrs
 
-
-
 let anonymize ?(more=false) { elem_name=e; elem_attrs=attrs; elem_parser=p; elem_ast_ns=ns } =
   { elem_name=e;
     elem_attrs=anonymize_attrs attrs;
@@ -671,6 +678,7 @@ let anonymize ?(more=false) { elem_name=e; elem_attrs=attrs; elem_parser=p; elem
     elem_ast_ns=ns
   }
 
+let strip lab = lab (* not yet *)
 
 let check_attrs attrs elem_attrs =
   List.for_all
@@ -823,7 +831,7 @@ let get_ident_use lab = "" (* not yet *)
 
 let get_category lab = to_string (anonymize lab)
 
-let get_name { elem_attrs=attrs; } =
+let get_name ?(strip=false) { elem_attrs=attrs; } =
   let rec doit = function
     | [] -> raise Not_found
     | (a, v)::rest ->
@@ -856,7 +864,19 @@ let has_value { elem_attrs=attrs; } =
   in
   doit attrs
 
+let has_tid { elem_attrs=attrs; } =
+  let rec doit = function
+    | [] -> false
+    | (a, v)::rest ->
+        if is_attr_for_tid a then
+          true
+        else
+          doit rest
+  in
+  doit attrs
+
 let has_non_trivial_value = has_value (* tentative *)
+let has_non_trivial_tid = has_tid (* tentative *)
 
 let get_operator { elem_attrs=attrs; } =
   let rec doit = function

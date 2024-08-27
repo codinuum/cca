@@ -18,9 +18,10 @@
 module PB = Parserlib_base
 
 type java_language_specification =
-  | JLSx
-  | JLS2
-  | JLS3
+  | JLSnone
+  | JLS of int
+
+let default_java_lang_spec = JLS 11
 
 exception Internal_error of string
 
@@ -99,7 +100,12 @@ let guess_src_dir file =
 let decompose_qname qname = (* a.b.c.d *)
   let len = String.length qname in
   try
-    let i = String.rindex qname '.' in
+    let i =
+      try
+        String.rindex qname '.'
+      with
+        Not_found -> String.rindex qname '$'
+    in
     let prefix = String.sub qname 0 i in
     let base = String.sub qname (i + 1) (len - i - 1) in
     prefix, base
@@ -111,7 +117,12 @@ let is_qualified_qname qname =
     let _ = String.rindex qname '.' in
     true
   with
-    Not_found -> false
+    Not_found ->
+      try
+        let _ = String.rindex qname '$' in
+        true
+      with
+        Not_found -> false
 
 let dot_pat = Str.regexp_string "."
 

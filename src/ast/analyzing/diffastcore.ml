@@ -1,5 +1,5 @@
 (*
-   Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
+   Copyright 2012-2024 Codinuum Software Lab <https://codinuum.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -98,8 +98,8 @@ class c options = object (self)
     else begin
       let info_paths = self#search_cache_for_info cache_path in
       if
-	info_paths <> [] &&
-	not
+        info_paths <> [] &&
+        not
           (
            options#dump_ast_flag ||
            options#dump_src_flag ||
@@ -121,7 +121,7 @@ class c options = object (self)
         self#handle_file_versions ~lock:false fact_store cache_path proj_root file
           (version :: versions);
 
-	let info = SF.scan_info info_paths in
+        let info = SF.scan_info info_paths in
 
         if show_info then
           SF.show_info info;
@@ -130,19 +130,19 @@ class c options = object (self)
 
       end
       else begin (* not processed || dump_ast || dump_src || dump_origin || clear_cache *)
-	let _ = Cache.prepare_cache_dir options cache_path in
-	let tree = self#__parse_file ~proj_root ~version file in
+        let _ = Cache.prepare_cache_dir options cache_path in
+        let tree = self#__parse_file ~proj_root ~version file in
 
         if options#recover_orig_ast_flag then
           tree#recover_true_children ~initial_only:true ();
 
-	if options#dots_flag then begin
-	  tree#save_dot "AST" [] (Filename.concat cache_path (file#basename^".dot"))
-	end;
+        if options#dots_flag then begin
+          tree#save_dot "AST" [] (Filename.concat cache_path (file#basename^".dot"))
+        end;
 
         if options#dump_dot_flag then begin
-	  let fname_dot = file#basename^".dot" in
-	  let dot = tree#to_dot_initial (*file#basename*) [] in
+          let fname_dot = file#basename^".dot" in
+          let dot = tree#to_dot_initial (*file#basename*) [] in
           Xfile.dump fname_dot
             (fun ch ->
               let buf = Buffer.create 0 in
@@ -151,18 +151,18 @@ class c options = object (self)
               Buffer.add_string buf "}";
               Buffer.output_buffer ch buf
             );
-	  self#verbose_msg "AST (in DOT) saved in \"%s\"" fname_dot
+          self#verbose_msg "AST (in DOT) saved in \"%s\"" fname_dot
         end;
 
-	if options#dump_ast_flag || options#dump_src_flag then begin
+        if options#dump_ast_flag || options#dump_src_flag then begin
 
-	  if options#dump_ast_flag then begin
-	    let fname_astml = file#fullpath^Astml.extension in
+          if options#dump_ast_flag then begin
+            let fname_astml = file#fullpath^Astml.extension in
             match Misc.find_file_name_with_exts fname_astml Sastml.extensions with
             | Some fn -> Xprint.warning "already exists: \"%s\"" fn
             | None ->
-	        tree#dump_astml ~comp:options#ast_compression fname_astml;
-	        self#verbose_msg "AST (in ASTML) saved in \"%s\"" fname_astml
+                tree#dump_astml ~comp:options#ast_compression fname_astml;
+                self#verbose_msg "AST (in ASTML) saved in \"%s\"" fname_astml
           end;
 
           if options#dump_src_flag then begin
@@ -178,48 +178,48 @@ class c options = object (self)
               close_out ch
           end
 
-	end
-	else if options#dump_origin_flag then begin (* dump origin related information *)
-	  let origin_file = Filename.concat cache_path options#origin_file_name in
-	  let ending_file = Filename.concat cache_path options#ending_file_name in
+        end
+        (*else if options#dump_origin_flag then begin (* dump origin related information *)
+          let origin_file = Filename.concat cache_path options#origin_file_name in
+          let ending_file = Filename.concat cache_path options#ending_file_name in
 
-	  DEBUG_MSG "dumping origins: nctms_file=\"%s\" revindex=%d"
+          DEBUG_MSG "dumping origins: nctms_file=\"%s\" revindex=%d"
             options#nctms_file options#revindex;
 
-	  DEBUG_MSG "dumping origins: origin_file=\"%s\" ending_file=\"%s\""
-	    origin_file ending_file;
+          DEBUG_MSG "dumping origins: origin_file=\"%s\" ending_file=\"%s\""
+            origin_file ending_file;
 
-	  let bufsize = file#size in
-	  let (nnodes, nknown, cov, nds_tbl, nknown_ending, cov_ending, nds_tbl_ending) =
-	    tree#dump_origin bufsize options#nctms_file options#revindex origin_file ending_file
-	  in
-	  self#verbose_msg "origins saved in \"%s\"" origin_file;
-	  self#verbose_msg "endings saved in \"%s\"" ending_file;
+          let bufsize = file#size in
+          let (nnodes, nknown, cov, nds_tbl, nknown_ending, cov_ending, nds_tbl_ending) =
+            tree#dump_origin bufsize options#nctms_file options#revindex origin_file ending_file
+          in
+          self#verbose_msg "origins saved in \"%s\"" origin_file;
+          self#verbose_msg "endings saved in \"%s\"" ending_file;
 
-	  let cov_file = Filename.concat cache_path options#coverage_file_name in
-	  self#dump_coverage cov_file (nknown, nnodes, cov);
-	  self#verbose_msg "coverage(origin) saved in \"%s\"" cov_file;
+          let cov_file = Filename.concat cache_path options#coverage_file_name in
+          self#dump_coverage cov_file (nknown, nnodes, cov);
+          self#verbose_msg "coverage(origin) saved in \"%s\"" cov_file;
 
-	  let frag_file =
+          let frag_file =
             self#mkfragfilepath cache_path options#fragment_file_name options#revindex
           in
-	  self#dump_fragment M_ORIGIN frag_file nds_tbl;
-	  self#verbose_msg "fragments(origin) saved in \"%s\"" frag_file;
+          self#dump_fragment M_ORIGIN frag_file nds_tbl;
+          self#verbose_msg "fragments(origin) saved in \"%s\"" frag_file;
 
-	  let cov_file_ending = Filename.concat cache_path options#coverage_file_name_ending in
-	  self#dump_coverage cov_file_ending (nknown_ending, nnodes, cov_ending);
-	  self#verbose_msg "coverage(ending) saved in \"%s\"" cov_file_ending;
+          let cov_file_ending = Filename.concat cache_path options#coverage_file_name_ending in
+          self#dump_coverage cov_file_ending (nknown_ending, nnodes, cov_ending);
+          self#verbose_msg "coverage(ending) saved in \"%s\"" cov_file_ending;
 
-	  let frag_file_ending =
-	    self#mkfragfilepath cache_path options#fragment_file_name_ending options#revindex
-	  in
-	  self#dump_fragment M_ENDING frag_file_ending nds_tbl_ending;
-	  self#verbose_msg "fragments(ending) saved in \"%s\"" frag_file_ending
-	end; (* if options#dump_origin_flag *)
+          let frag_file_ending =
+            self#mkfragfilepath cache_path options#fragment_file_name_ending options#revindex
+          in
+          self#dump_fragment M_ENDING frag_file_ending nds_tbl_ending;
+          self#verbose_msg "fragments(ending) saved in \"%s\"" frag_file_ending
+        end*); (* if options#dump_origin_flag *)
 
-	S._dump_source cache_path tree;
-	S._dump_parser cache_path tree;
-	SF.dump_info cache_path tree;
+        S._dump_source cache_path tree;
+        S._dump_parser cache_path tree;
+        SF.dump_info cache_path tree;
 
         self#handle_file_versions ~lock:false fact_store cache_path proj_root file
           (version :: versions);
@@ -227,8 +227,8 @@ class c options = object (self)
         let info = SF.get_tree_info tree in
 
         if show_info then begin
-	  SF.dump_info_ch info stdout;
-	  flush stdout
+          SF.dump_info_ch info stdout;
+          flush stdout
         end;
 
         info
@@ -267,7 +267,7 @@ class c options = object (self)
     if is_valid_src then begin
 
       if options#viewer_flag then
-	printf "%c%!" Const.viewer_mode_status_OK;
+        printf "%c%!" Const.viewer_mode_status_OK;
 
       let comparator = A.get_comparator options ~cache_path file1 file2 in
 
@@ -277,12 +277,12 @@ class c options = object (self)
       self#add_extra_source_files2 file2#get_extension comparator#extra_source_files2;
 
       if options#verbose_flag then begin
-	sw#stop;
+        sw#stop;
         self#verbose_msg "execution completed in %f seconds" sw#show
       end;
 
       if options#viewer_flag then
-	printf "%c%!" Const.viewer_mode_status_DONE;
+        printf "%c%!" Const.viewer_mode_status_DONE;
 
       Cache.put_completion_mark cache_path;
 
@@ -290,7 +290,7 @@ class c options = object (self)
     end
     else begin
       if options#viewer_flag then
-	printf "%c%!" Const.viewer_mode_status_EXT_MISMATCH
+        printf "%c%!" Const.viewer_mode_status_EXT_MISMATCH
       else
         self#verbose_msg "skipping...";
       raise (Skip invalid_src)
@@ -317,25 +317,25 @@ class c options = object (self)
   method compare_trees old_tree new_tree =
     let old_proj_root =
       try
-	options#fact_proj_roots.(0)
+        options#fact_proj_roots.(0)
       with
       | _ -> ""
     in
     let new_proj_root =
       try
-	options#fact_proj_roots.(1)
+        options#fact_proj_roots.(1)
       with
       | _ -> ""
     in
     let old_version =
       try
-	options#fact_versions.(0)
+        options#fact_versions.(0)
       with
       | _ -> Entity.unknown_version
     in
     let new_version =
       try
-	options#fact_versions.(1)
+        options#fact_versions.(1)
       with
       | _ -> Entity.unknown_version
     in
@@ -367,9 +367,9 @@ class c options = object (self)
         self#parse_file_and_handle_info ~head:"[unmodified]" fact_store old_proj_root old_version o
           (fun finfo ->
             stat.SD.s_nnodes1          <- stat.SD.s_nnodes1          + finfo.SF.i_nodes;
-	    stat.SD.s_mapping          <- stat.SD.s_mapping          + finfo.SF.i_nodes;
-	    stat.SD.s_units            <- stat.SD.s_units            + finfo.SF.i_units;
-	    stat.SD.s_unmodified_units <- stat.SD.s_unmodified_units + finfo.SF.i_units;
+            stat.SD.s_mapping          <- stat.SD.s_mapping          + finfo.SF.i_nodes;
+            stat.SD.s_units            <- stat.SD.s_units            + finfo.SF.i_units;
+            stat.SD.s_unmodified_units <- stat.SD.s_unmodified_units + finfo.SF.i_units;
           );
         self#parse_file_and_handle_info ~head:"[unmodified]" fact_store new_proj_root new_version n
           (fun finfo2 ->
@@ -380,9 +380,9 @@ class c options = object (self)
         self#parse_file_and_handle_info ~head:"[renamed]" fact_store old_proj_root old_version o
           (fun finfo ->
             stat.SD.s_nnodes1          <- stat.SD.s_nnodes1          + finfo.SF.i_nodes;
-	    stat.SD.s_mapping          <- stat.SD.s_mapping          + finfo.SF.i_nodes;
-	    stat.SD.s_units            <- stat.SD.s_units            + finfo.SF.i_units;
-	    stat.SD.s_unmodified_units <- stat.SD.s_unmodified_units + finfo.SF.i_units;
+            stat.SD.s_mapping          <- stat.SD.s_mapping          + finfo.SF.i_nodes;
+            stat.SD.s_units            <- stat.SD.s_units            + finfo.SF.i_units;
+            stat.SD.s_unmodified_units <- stat.SD.s_unmodified_units + finfo.SF.i_units;
           );
         self#parse_file_and_handle_info ~head:"[renamed]" fact_store new_proj_root new_version n
           (fun finfo2 ->
@@ -393,9 +393,9 @@ class c options = object (self)
         self#parse_file_and_handle_info ~head:"[moved]" fact_store old_proj_root old_version o
           (fun finfo ->
             stat.SD.s_nnodes1          <- stat.SD.s_nnodes1          + finfo.SF.i_nodes;
-	    stat.SD.s_mapping          <- stat.SD.s_mapping          + finfo.SF.i_nodes;
-	    stat.SD.s_units            <- stat.SD.s_units            + finfo.SF.i_units;
-	    stat.SD.s_unmodified_units <- stat.SD.s_unmodified_units + finfo.SF.i_units;
+            stat.SD.s_mapping          <- stat.SD.s_mapping          + finfo.SF.i_nodes;
+            stat.SD.s_units            <- stat.SD.s_units            + finfo.SF.i_units;
+            stat.SD.s_unmodified_units <- stat.SD.s_unmodified_units + finfo.SF.i_units;
           );
         self#parse_file_and_handle_info ~head:"[moved]" fact_store new_proj_root new_version n
           (fun finfo2 ->
@@ -406,18 +406,18 @@ class c options = object (self)
         self#parse_file_and_handle_info ~head:"[removed]" fact_store old_proj_root old_version f
           (fun finfo ->
             stat.SD.s_nnodes1    <- stat.SD.s_nnodes1    + finfo.SF.i_nodes;
-	    stat.SD.s_deletes    <- stat.SD.s_deletes    + finfo.SF.i_nodes;
-	    stat.SD.s_deletes_gr <- stat.SD.s_deletes_gr + 1;
-	    stat.SD.s_units      <- stat.SD.s_units      + finfo.SF.i_units
+            stat.SD.s_deletes    <- stat.SD.s_deletes    + finfo.SF.i_nodes;
+            stat.SD.s_deletes_gr <- stat.SD.s_deletes_gr + 1;
+            stat.SD.s_units      <- stat.SD.s_units      + finfo.SF.i_units
           )
       in
       let proc_added f =
         self#parse_file_and_handle_info ~head:"[added]" fact_store new_proj_root new_version f
           (fun finfo ->
             stat.SD.s_nnodes2    <- stat.SD.s_nnodes2    + finfo.SF.i_nodes;
-	    stat.SD.s_inserts    <- stat.SD.s_inserts    + finfo.SF.i_nodes;
-	    stat.SD.s_inserts_gr <- stat.SD.s_inserts_gr + 1;
-	    stat.SD.s_units      <- stat.SD.s_units + finfo.SF.i_units
+            stat.SD.s_inserts    <- stat.SD.s_inserts    + finfo.SF.i_nodes;
+            stat.SD.s_inserts_gr <- stat.SD.s_inserts_gr + 1;
+            stat.SD.s_units      <- stat.SD.s_units + finfo.SF.i_units
           )
       in
       let proc_copied (_, f2s) = List.iter proc_added f2s in
@@ -425,52 +425,52 @@ class c options = object (self)
 
       let proc_modified (o, n) =
         let is_modified = ref true in
-	self#verbose_msg "* comparing %s with %s" o#fullpath n#fullpath;
-	begin
+        self#verbose_msg "* comparing %s with %s" o#fullpath n#fullpath;
+        begin
           let proj_head =
             if options#fact_proj <> "" then
               "["^options#fact_proj^"]"
             else
               ""
           in
-	  try
+          try
             let cache_path = self#get_cache_path2 o n in
             let stat_paths = self#search_cache_for_stat cache_path in
             let dstat =
-	      if stat_paths <> [] && (not options#clear_cache_flag) then begin
-	        self#verbose_msg "cache found. skipping...";
+              if stat_paths <> [] && (not options#clear_cache_flag) then begin
+                self#verbose_msg "cache found. skipping...";
                 SF.scan_diff_stat ~max_retry_count:options#max_retry_count
                   stat_paths
               end
-	      else
+              else
                 self#compare_files ~cache_path o n
             in
-	    is_modified := dstat.SF.s_total_changes > 0;
+            is_modified := dstat.SF.s_total_changes > 0;
             if dstat.SF.s_total_changes < 0 then
               Xprint.warning ~head:"[modified]" "dummy diff info found: %s - %s" o#fullpath n#fullpath;
 
-	    self#update_stat stat dstat
+            self#update_stat stat dstat
 
-	  with
-	  | Failure msg                 -> Xprint.warning ~head:(proj_head^"[FAILURE]") "%s" msg
+          with
+          | Failure msg                 -> Xprint.warning ~head:(proj_head^"[FAILURE]") "%s" msg
           | Lang_base.Error msg         -> Xprint.warning ~head:(proj_head^"[LANG]") "%s" msg
-	  | Lang_base.Parse_error(head, msg) -> Xprint.warning ~head:(proj_head^head) "%s" msg
-	  | S.Stat_not_found ->
+          | Lang_base.Parse_error(head, msg) -> Xprint.warning ~head:(proj_head^head) "%s" msg
+          | S.Stat_not_found ->
               Xprint.warning ~head:(proj_head^"[modified]") "cache not found: %s - %s" o#fullpath n#fullpath
 
           | S.Malformed_stat path ->
-	      Xprint.warning ~head:(proj_head^"[modified]") "malformed cache: %s" path
+              Xprint.warning ~head:(proj_head^"[modified]") "malformed cache: %s" path
 
           | Astml.External_parser_not_found pname ->
               Xprint.warning ~head:(proj_head^"[modified]") "external parser not found: %s" pname
 (*
-	  | A.No_differences_found ->
-	      Xprint.warning "no differences found";
-	      proc_unmodified (o, n);
+          | A.No_differences_found ->
+              Xprint.warning "no differences found";
+              proc_unmodified (o, n);
               is_modified := false
 *)
-	end;
-(*	      Gc.print_stat stdout *)
+        end;
+(*            Gc.print_stat stdout *)
         !is_modified
       in
 
@@ -503,7 +503,7 @@ class c options = object (self)
       printf "comparing files...\n";
       let total = List.length modified in
       List.iteri
-	(fun i p ->
+        (fun i p ->
           begin
             try
               if not (proc_modified p) then
@@ -512,7 +512,7 @@ class c options = object (self)
               Skip _ -> ()
           end;
           printf " %d/%d (%.2f%%)\r%!" i total ((float (100*i))/.(float total))
-	) modified;
+        ) modified;
 
       (* extra source files *)
       let extra_modified, extra_extra_unmodified =
@@ -764,13 +764,13 @@ class c options = object (self)
         self#verbose_msg "COMPUTING DIFFS FOR EXTRA MODIFIED FILES...";
         let extra_unmodified = ref [] in
         List.iter
-	  (fun p ->
+          (fun p ->
             try
               if not (proc_modified p) then
                 extra_unmodified := p :: !extra_unmodified
             with
               Skip _ -> ()
-	  ) !modified;
+          ) !modified;
 
         (Xlist.subtract !modified !extra_unmodified),
         (!unmodified @ !extra_unmodified)

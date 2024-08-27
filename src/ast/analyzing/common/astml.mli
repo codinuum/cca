@@ -98,7 +98,7 @@ module Attr : sig
   val vdids_of_string : string -> (string * int) list
   val split_comma : string -> string list
   val split_colon : string -> string list
-  val find_vdids : (string * string) list -> (string * int) list
+  val find_vdids : ?attr_name:string -> (string * string) list -> (string * int) list
   val find_dims : (string * string) list -> int
   val find_vars : (string * string) list -> string list
   val find_args : (string * string) list -> string list

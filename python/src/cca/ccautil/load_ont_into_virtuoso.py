@@ -33,11 +33,13 @@ def load(db_dir, fact_dir,
          graph_uri=GRAPH_URI,
          rule_name=RULE_NAME,
          port=virtuoso.VIRTUOSO_PORT,
-         pw=virtuoso.VIRTUOSO_PW):
+         pw=virtuoso.VIRTUOSO_PW,
+         nprocs=1,
+         logdir=os.curdir):
 
     rc = 0
-    loader = virtuoso.Loader(db_dir, port=port, pw=pw)
-    rc = loader.load(graph_uri, fact_dir, ['.rdf'])
+    loader = virtuoso.Loader(db_dir, port=port, pw=pw, logdir=logdir)
+    rc = loader.load(graph_uri, fact_dir, ['.rdf'], nprocs=nprocs)
     if rc == 0:
         rc = loader.rdfs_rule_set(rule_name, graph_uri)
         if rc == 0:

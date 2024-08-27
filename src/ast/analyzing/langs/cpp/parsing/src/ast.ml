@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ module Type = Pinfo.Type
 open Common
 
 let mk_macro_id i = "`"^i
-let mk_macro_call_id i = "`"^i^"()"
+let mk_macro_call_id ?(args="") i = sprintf "`%s(%s)" i args
 
 class node
     ?(lloc=LLoc.dummy)
@@ -49,6 +49,16 @@ class node
     val mutable info = info
     val mutable binding = B.NoBinding
     val mutable pvec = pvec
+
+    val mutable id_opt = None
+    method id =
+      match id_opt with
+      | None -> begin
+          let i = Oo.id self in
+          id_opt <- Some i;
+          i
+      end
+      | Some i -> i
 
     val mutable prefix = ""
     method add_prefix s = prefix <- s^prefix
@@ -303,7 +313,7 @@ let node_exists pred (nd : node) =
 let find_nodes pred (nd : node) =
   let rec _find pred (nd : node) =
     DEBUG_MSG "%s" (L.to_string nd#label);
-    let nl = List.flatten (List.map (_find pred) nd#children) in
+    let nl = List.concat_map (_find pred) nd#children in
     if pred nd#label then
       nd::nl
     else
@@ -998,7 +1008,10 @@ and qn_of_class_head_name (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
   | ClassHeadName qn -> qn
-  | IdentifierMacroInvocation i -> mk_macro_call_id i
+  | IdentifierMacroInvocation i -> begin
+    let args = String.concat "," (List.map (fun x -> L.to_simple_string x#label) nd#children) in
+    (mk_macro_call_id ~args i)
+  end
   | _ -> uqn_of_class_name nd
 
 and qn_of_enum_head_name (nd : node) =
@@ -1036,6 +1049,33 @@ and qn_of_using_declarator (nd : node) =
   end
   | PackExpansion -> qn_of_using_declarator (nd#nth_child 0)
   | _ -> invalid_arg "Cpp.Ast.qn_of_using_declarator"
+
+and qn_list_of_using_enum_declaration (nd : node) =
+  DEBUG_MSG "%s" (L.to_string nd#label);
+  match nd#label with
+  | UsingEnumDeclaration -> List.map qn_of_using_enum_declarator nd#children
+  | _ -> invalid_arg "Cpp.Ast.qn_list_of_using_enum_declaration"
+
+and qn_of_using_enum_declarator (nd : node) =
+  DEBUG_MSG "%s" (L.to_string nd#label);
+  match nd#label with
+  | UsingEnumDeclarator -> begin
+      match nd#nth_children 0 with
+      | [] -> begin
+          match nd#nth_children 1 with
+          | [n] -> "", uqn_of_unqualified_id n
+          | _ -> assert false
+      end
+      | [n] -> begin
+          let p = encode_nested_name_spec n in
+          match nd#nth_children 1 with
+          | [n] -> p, uqn_of_unqualified_id n
+          | _ -> assert false
+      end
+      | _ -> assert false
+  end
+  | PackExpansion -> qn_of_using_enum_declarator (nd#nth_child 0)
+  | _ -> invalid_arg "Cpp.Ast.qn_of_using_enum_declarator"
 
 and qn_of_qualified_id (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
@@ -1162,16 +1202,24 @@ and alt_base_specs_list_of_node ns (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
   | PpIfSection _ -> begin
-      let ifg = fst (base_specs_of_base_clause ns ((nd#nth_child 0)#nth_child 1)) in
+      let ifg =
+        try
+          [fst (base_specs_of_base_clause ns ((nd#nth_child 0)#nth_child 1))]
+        with _ -> []
+      in
       let elifg =
-        List.map
-          (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 1)
+        try
+          List.map
+            (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 1)
+        with _ -> []
       in
       let elsg =
-        List.map
-          (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 2)
+        try
+          List.map
+            (fun x -> fst (base_specs_of_base_clause ns (x#nth_child 1))) (nd#nth_children 2)
+        with _ -> []
       in
-      ifg :: elifg @ elsg
+      ifg @ elifg @ elsg
   end
   | _ -> invalid_arg "Cpp.Ast.alt_base_specs_list_of_node"
 
@@ -1188,7 +1236,7 @@ and base_specs_of_base_clause ns (nd : node) =
               | [] -> bss, abssl
               | ys::yss ->
                   ys @ bss,
-                  List.flatten (List.map (fun abss -> List.map (fun ys -> ys @ abss) yss) abssl)
+                  List.concat_map (fun abss -> List.map (fun ys -> ys @ abss) yss) abssl
           end
           | _ -> bss @ [(base_spec_of_node ns x)], abssl
         ) ([], []) nd#children
@@ -1254,7 +1302,10 @@ and qn_class_spec_of_class ns (nd : node) =
 and qn_enum_spec_of_enum ns (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | EnumHeadEnum | EnumHeadEnumClass | EnumHeadEnumStruct -> begin
+  | EnumHeadEnum | EnumHeadEnumClass | EnumHeadEnumStruct
+  | OpaqueEnumDeclaration
+  | OpaqueEnumDeclarationClass
+  | OpaqueEnumDeclarationStruct -> begin
       let qn =
         match nd#nth_children 1 with
         | [] -> ""
@@ -1270,10 +1321,13 @@ and qn_enum_spec_of_enum ns (nd : node) =
       let spec = new N.Spec.enum_spec ~enum_base qn in
       qn, spec
   end
-  | EnumHeadEnumMacro i when i = "NS_ENUM" || i = "NS_OPTIONS" -> begin
-      let qn = (nd#nth_child 1)#get_name in
-      let spec = new N.Spec.enum_spec qn in
-      qn, spec
+  | EnumHeadEnumMacro i | OpaqueEnumDeclarationMacro i when begin
+      i = "NS_ENUM" ||
+      i = "NS_OPTIONS"
+  end -> begin
+    let qn = (nd#nth_child 1)#get_name in
+    let spec = new N.Spec.enum_spec qn in
+    qn, spec
   end
   | _ -> invalid_arg "Cpp.Ast.qn_enum_spec_of_enum"
 
@@ -1395,7 +1449,14 @@ and qn_type_list_of_enumerator scope (nd : node) =
     | _ -> invalid_arg "Cpp.Ast.qn_type_list_of_enumerator"
   in
   let qn = get_qn nd in
-  let ts = I.TypeSpec.Elaborated (I.ElaboratedType.Enum (N.Scope.get_name scope)) in
+  let et =
+    let n = N.Scope.get_name scope in
+    if N.Scope.is_enumclass scope then
+      I.ElaboratedType.EnumClass n
+    else
+      I.ElaboratedType.Enum n
+  in
+  let ts = I.TypeSpec.Elaborated et in
   let ty = I.Type.make_simple_type (new I.decl_specs) [ts] (I.TypeSpec.encode [ts]) in
   [nd, qn, ty]
 
@@ -1485,8 +1546,13 @@ and qn_wrap_of_mem_declarator (nd : node) =
   | PpDefine _ -> "", fun x -> x
   | _ -> invalid_arg "Cpp.Ast.qn_wrap_of_mem_declarator"
 
-and qn_wrap_of_declarator (nd : node) =
-  DEBUG_MSG "%s" (L.to_string nd#label);
+and qn_wrap_of_declarator ?(ty_opt=None) (nd : node) =
+  BEGIN_DEBUG
+    DEBUG_MSG "%s" (L.to_string nd#label);
+    match ty_opt with
+    | Some ty -> DEBUG_MSG "%s" (I.Type.to_string ty);
+    | None -> ()
+  END_DEBUG;
   match nd#label with
   | DummyDtor -> "", fun x -> x
   | DtorMacro i -> mk_macro_id i, fun x -> x
@@ -1657,13 +1723,25 @@ and qn_wrap_of_declarator (nd : node) =
         | [x] -> pointer_op_of_node x
         | _ -> assert false
       in
-      match nd#nth_children 2 with
-      | [] -> "", Type.make_pointer_type op
-      | [n] -> begin
-          let i, w = qn_wrap_of_declarator n in
-          i, fun x -> w (Type.make_pointer_type op (w x))
+      match ty_opt with
+      | Some ty -> begin
+          match nd#nth_children 2 with
+          | [] -> "", let x = Type.make_pointer_type op ty in fun _ -> x
+          | [n] -> begin
+              let i, w = qn_wrap_of_declarator ~ty_opt n in
+              i, let x = Type.make_pointer_type op (w ty) in fun _ -> w x
+          end
+          | _ -> assert false
       end
-      | _ -> assert false
+      | None -> begin
+          match nd#nth_children 2 with
+          | [] -> "", Type.make_pointer_type op
+          | [n] -> begin
+              let i, w = qn_wrap_of_declarator n in
+              i, fun x -> w (Type.make_pointer_type op (w x))
+          end
+          | _ -> assert false
+      end
   end
   | NewDeclaratorPtr | ConversionDeclarator | AbstractPackDeclarator -> begin
       let op = pointer_op_of_node (nd#nth_child 0) in
@@ -1831,7 +1909,7 @@ and qn_type_list_of_param_decl (nd : node) =
       let sty = simple_type_of_decl_spec_seq (nd#nth_children 1) in
       let qn, wrap =
         match nd#nth_children 2 with
-        | [n] -> qn_wrap_of_declarator n
+        | [n] -> qn_wrap_of_declarator ~ty_opt:(Some sty) n
         | _ -> "", fun x -> x
       in
       [nd, qn, wrap sty]
@@ -1886,7 +1964,9 @@ and type_spec_of_node ?(ns="") (nd : node) =
         | [n0] -> ns^(encode_nested_name_spec n0)
         | _ -> assert false
       in
-      I.TypeSpec.Simple (prefix^uqn)
+      let fqn = prefix^uqn in
+      DEBUG_MSG "fqn=%s" fqn;
+      I.TypeSpec.Simple fqn
   end
   | DecltypeSpecifier                -> I.TypeSpec.Decltype (encode_decltype nd)
   | PlaceholderTypeSpecifierAuto     -> I.TypeSpec.Placeholder I.PlaceholderType.Auto
@@ -1956,9 +2036,10 @@ and simple_type_of_class_head (nd : node) =
         (g (nd#nth_child 0))::
         (List.map g (nd#nth_children 1)) @ (List.map g (nd#nth_children 2))
       in
-      List.flatten (List.map simple_type_of_class_head chs)
+      List.concat_map simple_type_of_class_head chs
 
 and simple_type_of_decl_spec_seq (nds : node list) =
+  DEBUG_MSG "nds=[%s]" (String.concat "; " (List.map (fun n -> L.to_string n#label) nds));
   match nds with
   | [n] when begin
       match n#label with
@@ -2019,9 +2100,9 @@ and simple_type_of_decl_spec_seq (nds : node list) =
                 let k =
                   match y#label with
                   | EnumHeadEnum
-                  | EnumHeadEnumClass
-                  | EnumHeadEnumStruct
                   | EnumHeadEnumMacro _ -> fun x -> I.ElaboratedType.Enum x
+                  | EnumHeadEnumClass
+                  | EnumHeadEnumStruct -> fun x -> I.ElaboratedType.EnumClass x
                   | lab ->
                       DEBUG_MSG "%s" (L.to_string lab);
                       assert false
@@ -2044,6 +2125,7 @@ and simple_type_of_decl_spec_seq (nds : node list) =
         | _ -> ts
       ) [] nds
   in
+  DEBUG_MSG "ts=[%s]" (String.concat "; " (List.map I.TypeSpec.to_string ts));
   let encoded = I.TypeSpec.encode ts in
   Type.make_simple_type ds ts encoded
 

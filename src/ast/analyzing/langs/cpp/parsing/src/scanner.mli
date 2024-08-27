@@ -23,19 +23,7 @@ module C = Context
 
 type token = T.token Parserlib_base.token
 
-type mode =
-  | M_NORMAL
-  | M_STMTS
-  | M_DECLS_SUB of string
-  | M_MEM_DECLS_SUB of string
-  | M_STMTS_SUB of string
-  | M_EXPR_SUB of string
-  | M_INIT_SUB of string
-  | M_TYPE_SUB of string
-  | M_SPECS_SUB of string
-  | M_DTORS_SUB of string
-  | M_ETORS_SUB of string
-  | M_OBJC_DECLS_SUB of string
+type mode = Aux.parsing_mode
 
 (*
 val is_type_name : string -> bool
@@ -52,7 +40,7 @@ val is_pp_control_line : T.token -> bool
 val is_params_body_macro : string -> bool
 val is_params_body_macro_ident : string -> bool
 
-type name_kind = K_NONE | K_TYPE | K_OBJ | K_TEMPL
+type name_kind = K_NONE | K_TYPE | K_TYPE_OR_FPARAM | K_OBJ | K_TEMPL | K_TEMPL_OR_FPARAM
 
 class type c_t = object
   method keep_flag : bool
@@ -86,7 +74,7 @@ class type c_t = object
   method peek_rawtoken_up_to_group_end :
       ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> ?until:(T.token -> bool) -> ?regard_pp_if:bool
         -> unit -> int * T.token list
-  method peek_rawtoken_up_to_section_end : ?from:int -> unit -> int
+  method peek_rawtoken_up_to_section_end : ?nth_list_ref_opt:(int list ref option) -> ?from:int -> unit -> int
   method peek_rawtoken_up_to_end_of_qualified_id : ?from:int -> ?ini_tlv:int -> unit -> int
   method peek_rawtoken_up_to_rparen_split_at_comma :
       ?from:int -> ?ignore_pp:bool -> ?ignore_templ_lv:bool -> ?lv_ofs:int -> ?filt:(T.token list -> bool) ->
@@ -99,27 +87,36 @@ class type c_t = object
   method peek_rawtoken_up_to_rbracket :
       ?from:int -> ?lv_ofs:int -> ?filt:(T.token -> bool) -> unit -> int * T.token list
 
+  method reg_macro_spec : string -> (int * int * T.token) -> unit
+  method find_macro_spec : string -> int * int * T.token
+
   method reg_ident_conv : string -> T.token -> unit
   method find_ident_conv : string -> T.token
 
   method lookup_name : ?kind:name_kind -> ?prefix:string -> string -> Pinfo.Name.Spec.c
-  method is_type : ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
+  method is_type : ?qualified:bool -> ?prefix:string -> ?defined:bool -> ?weak:bool -> string -> bool
   method is_label : string -> bool
   method is_templ : ?prefix:string -> string -> bool
-  method is_val : ?prefix:string -> string -> bool
+  method is_val : ?qualified:bool -> ?prefix:string -> ?weak:bool -> string -> bool
   method _is_val : string -> bool
   method is_macro_fun : string -> bool
+  method is_id_macro_fun : string -> bool
   method is_macro_obj : string -> bool
 
   method reg_macro_fun : string -> unit
 
   method is_ty : ?strong:bool -> ?defined:bool -> ?weak:bool -> T.token -> bool
-  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list -> bool
-  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> T.token list list -> bool
+  method check_double_paren : int -> bool
+  method skip_pp_control_line : ?from:int -> unit -> int
+  method followed_by_blank_lines : int -> bool
+  method check_if_param : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> ?no_lookup:bool -> T.token list -> bool
+  method check_if_params : ?strict:bool -> ?weak:bool -> ?at_type_paren:bool -> ?no_lookup:bool -> T.token list list -> bool
   method check_if_noptr_dtor : ?weak:bool -> T.token list -> bool
   method check_if_noptr_dtor_ : ?weak:bool -> T.token list -> bool
   method check_if_macro_arg : T.token list -> bool
   method check_if_macro_args : T.token list list -> bool
+  method check_if_arg_macro : unit -> bool
+  method check_if_abst_dtor_ident : ?weak:bool -> ?nth:int -> unit -> bool
 
   method is_func_head : ?from:int -> ?head:T.token -> unit -> bool
   method is_ps_lparen : ?from:int -> unit -> bool
@@ -192,10 +189,14 @@ class type c_t = object
   method show_token_hist : unit -> unit
   method set_token_hist_flag : unit -> unit
 
+  method set_dump_tokens_flag : unit -> unit
+
   method pp_restore_context : unit -> unit
 
   method mode : mode
   method set_mode : mode -> unit
+
+  method token_seq : Token_seq.c
 
 end
 

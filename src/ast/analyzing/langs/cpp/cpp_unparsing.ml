@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2020-2023 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,7 +27,13 @@
 module L = Cpp_label
 module Tree = Sourcecode.Tree (L)
 
-open Unparsing_base
+module Fmtr = struct
+  let formatter = Format.std_formatter
+end
+
+module UPB = Unparsing_base.Make(Fmtr)
+
+open UPB
 
 (*******)
 let _pr_semicolon() = pr_string ";"
@@ -73,7 +79,7 @@ let has_orig_lab nd =
   | None -> false
 
 
-let get_nth_children = Tree._get_logical_nth_child
+let get_nth_children = Sourcecode._get_logical_nth_child
 
 
 let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
@@ -220,6 +226,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
       pr_string "namespace "; pr_id i; pr_eq(); pr_nth_child 0
   end
   | UsingDeclaration                     -> pr_string "using "; pr_seq ~sep:pr_comma ()
+  | UsingEnumDeclaration                 -> pr_string "using enum "; pr_nth_children 0
   | UsingDirective i -> begin
       pr_nth_children 0; pr_string "using namespace "; pr_nth_children 1
   end
@@ -310,6 +317,8 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | DeclarationMacroInvocationArrow      -> pr_nth_child 0; pr_string "->"; pr_nth_children 1; pr_nth_children 2
   | DeclarationMacroInvocationDot        -> pr_nth_child 0; pr_string "."; pr_nth_children 1; pr_nth_children 2
   | ImportDeclaration s                  -> pr_string "import "; pr_string s
+  | RefMacro i                           -> pr_id i
+  | RefMacroInvocation i                 -> pr_macro_invocation i
 
 (* Statement *)
   | Statement            -> pr_string "<statement>"
@@ -1149,6 +1158,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | ConversionDeclarator              -> pr_seq()
   | ConversionTypeId                  -> pr_seq()
   | UsingDeclarator                   -> pr_seq()
+  | UsingEnumDeclarator               -> pr_seq()
   | TypeConstraint i -> begin
       pr_nth_children 0; pr_id (Ast.decode_ident i); pr_nth_children ~head:pr_lt ~tail:pr_gt 1
   end
@@ -1219,6 +1229,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | DummyDecl                         -> ()
   | DummyStmt                         -> ()
   | DummyExpr                         -> ()
+  | DummyOp                           -> ()
   | DummyDtor                         -> ()
   | GnuAsmBlockFragmented a           -> pr_string a; pad1(); pr_seq()
   | GnuAsmFragment s                  -> pr_string s
