@@ -33,6 +33,9 @@ open Common
 let mk_macro_id i = "`"^i
 let mk_macro_call_id ?(args="") i = sprintf "`%s(%s)" i args
 
+let args_to_simple_string nl =
+  String.concat "," (List.map (fun x -> L.to_simple_string x#label) nl)
+
 class node
     ?(lloc=LLoc.dummy)
     ?(children=[])
@@ -864,7 +867,9 @@ and encode_string_literal (nd : node) =
 and uqn_of_ident_macro_invocation (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | IdentifierMacroInvocation i -> mk_macro_call_id i
+  | IdentifierMacroInvocation i ->
+      let args = args_to_simple_string nd#children in
+      mk_macro_call_id ~args i
   | _ -> invalid_arg "Cpp.Ast.uqn_of_ident_macro_invocation"
 
 and uqn_of_simple_template_id (nd : node) =
@@ -1009,7 +1014,7 @@ and qn_of_class_head_name (nd : node) =
   match nd#label with
   | ClassHeadName qn -> qn
   | IdentifierMacroInvocation i -> begin
-    let args = String.concat "," (List.map (fun x -> L.to_simple_string x#label) nd#children) in
+    let args = args_to_simple_string nd#children in
     (mk_macro_call_id ~args i)
   end
   | _ -> uqn_of_class_name nd
@@ -2022,7 +2027,9 @@ and simple_type_of_class_head (nd : node) =
           match x#label with
           | ClassName uqn -> uqn
           | ClassHeadName qn -> (encode_nested_name_spec (x#nth_child 0))^qn
-          | IdentifierMacroInvocation i -> mk_macro_call_id i
+          | IdentifierMacroInvocation i ->
+              let args = args_to_simple_string x#children in
+              mk_macro_call_id ~args i
           | _ -> assert false
       end
       | _ -> assert false

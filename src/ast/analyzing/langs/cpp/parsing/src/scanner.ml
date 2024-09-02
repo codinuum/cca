@@ -6044,6 +6044,25 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
       end -> DEBUG_MSG "IDENT_V @"; mk (T.ATTR_MACRO s)
 
       | IDENT_V _ when begin
+          not env#end_of_params_flag &&
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> begin
+              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+              match ll with
+              | [RPAREN::_ as l] when Xlist.last l == TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ -> begin
+                      let _, ll' = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 () in
+                      check_if_params ~weak:true ll'
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "IDENT_V @ TY_LPAREN TY_LPAREN"; mk (T.IDENT_PM s)
+
+      | IDENT_V _ when begin
           match self#peek_rawtoken() with
           | TY_LPAREN -> begin
               let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in

@@ -23,6 +23,8 @@ open Common
 
 let lang_prefix = Astml.cpp_prefix
 
+let xmlenc = XML.encode_string
+
 let np () n = if n = "" then "" else "("^n^")"
 
 type function_like_macro_spec = {
@@ -2479,13 +2481,13 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | UsingEnumDeclaration          -> "UsingEnumDeclaration", []
   | UsingDirective i              -> "UsingDirective", ["ident",i]
   | Static_assertDeclaration      -> "Static_assertDeclaration", []
-  | AliasDeclaration i            -> "AliasDeclaration", ["ident",i]
+  | AliasDeclaration i            -> "AliasDeclaration", ["ident",xmlenc i]
   | OpaqueEnumDeclaration         -> "OpaqueEnumDeclaration", []
   | OpaqueEnumDeclarationClass    -> "OpaqueEnumDeclarationClass", []
   | OpaqueEnumDeclarationStruct   -> "OpaqueEnumDeclarationStruct", []
   | OpaqueEnumDeclarationMacro i  -> "OpaqueEnumDeclarationMacro", ["ident",i]
   | NodeclspecFunctionDeclaration -> "NodeclspecFunctionDeclaration", []
-  | FunctionDefinition n          -> "FunctionDefinition", ["name", n]
+  | FunctionDefinition n          -> "FunctionDefinition", ["name",xmlenc n]
   | TemplateDeclaration           -> "TemplateDeclaration", []
   | DeductionGuide n              -> "DeductionGuide", ["name",n]
   | ExplicitInstantiation         -> "ExplicitInstantiation", []
@@ -2648,10 +2650,10 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
 
 (* Literal *)
   | Literal                       -> "Literal", []
-  | IntegerLiteral v              -> "IntegerLiteral", ["value",v]
-  | CharacterLiteral v            -> "CharacterLiteral", ["value",v]
-  | FloatingLiteral v             -> "FloatingLiteral", ["value",v]
-  | StringLiteral v               -> "StringLiteral", ["value",v]
+  | IntegerLiteral v              -> "IntegerLiteral", ["value",xmlenc v]
+  | CharacterLiteral v            -> "CharacterLiteral", ["value",xmlenc v]
+  | FloatingLiteral v             -> "FloatingLiteral", ["value",xmlenc v]
+  | StringLiteral v               -> "StringLiteral", ["value",xmlenc v]
   | StringMacro i                 -> "StringMacro", ["ident",i]
   | BooleanLiteral v              -> "BooleanLiteral", ["value",v]
   | Nullptr                       -> "Nullptr", []
@@ -2871,10 +2873,10 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | TypeParameterKeyTypename -> "TypeParameterKeyTypename", []
 
 (* FunctionBody *)
-  | FunctionBody n      -> "FunctionBody", ["name",n]
+  | FunctionBody n      -> "FunctionBody", ["name",xmlenc n]
   | FunctionBodyDefault -> "FunctionBodyDefault", []
   | FunctionBodyDelete  -> "FunctionBodyDelete", []
-  | FunctionTryBlock n  -> "FunctionTryBlock", ["name",n]
+  | FunctionTryBlock n  -> "FunctionTryBlock", ["name",xmlenc n]
   | FunctionBodyMacro i -> "FunctionBodyMacro", ["ident",i]
   | FunctionBodyMacroInvocation i -> "FunctionBodyMacroInvocation", ["ident",i]
 
@@ -3048,7 +3050,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | PpConcatenatedIdentifier       -> "PpConcatenatedIdentifier", []
   | NestedNameSpecifier            -> "NestedNameSpecifier", []
   | NestedNameSpecifierHead        -> "NestedNameSpecifierHead", []
-  | NestedNameSpecifierIdent i     -> "NestedNameSpecifierIdent", ["ident",i]
+  | NestedNameSpecifierIdent i     -> "NestedNameSpecifierIdent", ["ident",xmlenc i]
   | NestedNameSpecifierTempl i     -> "NestedNameSpecifierTempl", ["ident",i]
   | NestedNameSpecifierDeclty      -> "NestedNameSpecifierDeclty", []
   | PackExpansion                  -> "PackExpansion", []
@@ -3189,7 +3191,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | HugeArray(sz, c) -> "HugeArray", ["size",string_of_int sz;"code", c]
   | DslMacroArgument -> "DslMacroArgument", []
   | ParametersAndQualifiersList -> "ParametersAndQualifiersList", []
-  | NestedFunctionDefinition n -> "NestedFunctionDefinition", ["name",n]
+  | NestedFunctionDefinition n -> "NestedFunctionDefinition", ["name",xmlenc n]
   | PragmaMacro i -> "PragmaMacro", ["ident",i]
   | PragmaMacroInvocation i -> "PragmaMacroInvocation", ["ident",i]
   | MockQualifier i -> "MockQualifier", ["ident",i]
