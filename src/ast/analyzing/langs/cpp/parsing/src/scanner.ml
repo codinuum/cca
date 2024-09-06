@@ -24821,7 +24821,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             token
         end
 
-        | SEMICOLON _ when context == STMT && begin
+        | SEMICOLON _ | LBRACE when is_start_of_stmt() && begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
             | x when is_stmt_head x -> begin
