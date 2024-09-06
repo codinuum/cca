@@ -295,6 +295,7 @@ class pstat = object (self)
 
   val mutable brace_level_marker = 0
   val mutable brace_level_marker_flag = false
+  val mutable brace_level_marker_unbalanced_flag = false
   val mutable canceled_brace_level_marker = 0
 
   val mutable last_pp_if_section_info = I.dummy_info
@@ -409,6 +410,7 @@ class pstat = object (self)
     objc_message_expr_level <- 0;
     brace_level_marker <- 0;
     brace_level_marker_flag <- false;
+    brace_level_marker_unbalanced_flag <- false;
     canceled_brace_level_marker <- 0
 
   method to_string =
@@ -451,9 +453,20 @@ class pstat = object (self)
 
   method clear_brace_level_marker_flag () =
     DEBUG_MSG "cleared";
-    brace_level_marker_flag <- false
+    brace_level_marker_flag <- false;
+    brace_level_marker_unbalanced_flag <- false
 
   method brace_level_marker_flag = brace_level_marker_flag
+
+  method set_brace_level_marker_unbalanced_flag () =
+    DEBUG_MSG "set";
+    brace_level_marker_unbalanced_flag <- true
+
+  method clear_brace_level_marker_unbalanced_flag () =
+    DEBUG_MSG "cleared";
+    brace_level_marker_unbalanced_flag <- false
+
+  method brace_level_marker_unbalanced_flag = brace_level_marker_unbalanced_flag
 
   method brace_level_marker = brace_level_marker
 
@@ -2277,6 +2290,15 @@ class pstat = object (self)
     with
       Exit -> true
 
+  method at_ps_paren =
+    self#_at_paren &&
+    try
+      match Stack.top paren_stack with
+      | PK_PS -> true
+      | _ -> false
+    with
+      _ -> false
+
   method at_type_paren =
     self#_at_paren &&
     try
@@ -2521,6 +2543,9 @@ class dummy_pstat = object (self)
   method set_brace_level_marker_flag () = ()
   method clear_brace_level_marker_flag () = ()
   method brace_level_marker_flag = false
+  method set_brace_level_marker_unbalanced_flag () = ()
+  method clear_brace_level_marker_unbalanced_flag () = ()
+  method brace_level_marker_unbalanced_flag = false
   method brace_level_marker = 0
   method incr_brace_level_marker () = ()
   method decr_brace_level_marker () = ()

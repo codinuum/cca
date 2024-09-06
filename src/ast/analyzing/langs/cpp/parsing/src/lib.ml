@@ -151,6 +151,7 @@ class parser_c = object (self)
       | T_COLON_GT -> "COLON_GT"
       | T_COMMA -> "COMMA"
       | T_COMMA_BROKEN -> "COMMA_BROKEN"
+      | T_COMMA_BROKEN2 -> "COMMA_BROKEN2"
       | T_COMPL -> "COMPL"
       | T_CONCEPT -> "CONCEPT"
       | T_COND_MARKER -> "COND_MARKER"

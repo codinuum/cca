@@ -616,7 +616,6 @@ let word_to_token word : T.token =
   | [w; x] -> begin
       match w, x with
       | "PMODE", m -> PMODE (mode_of_string m "")
-      | "BRACE_LEVEL", lv -> BRACE_LEVEL (int_of_string lv)
       | "GT_7", b -> GT_7 (ref (bool_of_string b))
       | "STR_MACRO", s -> STR_MACRO s
       | "INT_MACRO", s -> INT_MACRO s
@@ -748,6 +747,7 @@ let word_to_token word : T.token =
       match w, x, y with
       | "PMODE", m, s -> PMODE (mode_of_string m s)
       | "CONFLICT_MARKER", b, s -> CONFLICT_MARKER(ref (bool_of_string b), s)
+      | "BRACE_LEVEL", lv, b -> BRACE_LEVEL(int_of_string lv, bool_of_string b)
       | _ -> assert false
   end
   | _ -> assert false

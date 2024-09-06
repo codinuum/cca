@@ -45,7 +45,7 @@ let rawtoken_to_string = function
   | DUMMY_BODY           -> "DUMMY_BODY"
   | DUMMY_DTOR           -> "DUMMY_DTOR"
   | DUMMY_TYPE           -> "DUMMY_TYPE"
-  | BRACE_LEVEL lv       -> sprintf "BRACE_LEVEL:%d" lv
+  | BRACE_LEVEL(lv, b)   -> sprintf "BRACE_LEVEL(%d,%B)" lv b
   | BEGIN_STMTS          -> "BEGIN_STMTS"
   | END_STMTS            -> "END_STMTS"
   | BEGIN_ETORS          -> "BEGIN_ETORS"
@@ -242,6 +242,7 @@ let rawtoken_to_string = function
   | BAR_BAR_BROKEN i      -> "BAR_BAR_BROKEN:"^i
   | AMP_AMP_BROKEN i      -> "AMP_AMP_BROKEN:"^i
   | COMMA_BROKEN          -> "COMMA_BROKEN"
+  | COMMA_BROKEN2         -> "COMMA_BROKEN2"
   | PP_ODD_ENDIF x        -> "PP_ODD_ENDIF:"^x
   | PP_ODD_IF             -> "PP_ODD_IF"
   | PP_ODD_IFDEF          -> "PP_ODD_IFDEF"
@@ -725,6 +726,7 @@ let rawtoken_to_repr = function
   | BAR_BAR_BROKEN i      -> i
   | AMP_AMP_BROKEN i      -> i
   | COMMA_BROKEN          -> ","
+  | COMMA_BROKEN2         -> ","
   | PP_ODD_ENDIF _        -> "#endif"
   | PP_ODD_IF             -> "#if"
   | PP_ODD_IFDEF          -> "#ifdef"
