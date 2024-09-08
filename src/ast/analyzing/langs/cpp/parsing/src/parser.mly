@@ -2414,6 +2414,7 @@ gnu_asm_token:
 | GOTO             { mktok $startpos $endpos T.GOTO }
 | IF               { mktok $startpos $endpos T.IF }
 | ELSE             { mktok $startpos $endpos T.ELSE }
+| EXTERN           { mktok $startpos $endpos T.EXTERN }
 | STATIC_CAST      { mktok $startpos $endpos T.STATIC_CAST }
 | REINTERPRET_CAST { mktok $startpos $endpos T.REINTERPRET_CAST }
 | DYNAMIC_CAST     { mktok $startpos $endpos T.DYNAMIC_CAST }
