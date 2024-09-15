@@ -36,6 +36,8 @@ let mk_macro_call_id ?(args="") i = sprintf "`%s(%s)" i args
 let args_to_simple_string nl =
   String.concat "," (List.map (fun x -> L.to_simple_string x#label) nl)
 
+let dummy_node_id = -1
+
 class node
     ?(lloc=LLoc.dummy)
     ?(children=[])
@@ -1580,15 +1582,18 @@ and qn_wrap_of_declarator ?(ty_opt=None) (nd : node) =
   end
   | PtrDeclaratorPtr -> begin
       let qualifiers = qualifiers_of_node_list (nd#nth_children 0) in
-      let op =
-        match nd#nth_children 1 with
-        | [n1] -> pointer_op_of_node n1
-        | _ -> assert false
-      in
       match nd#nth_children 3 with
       | [n2] -> begin
-          let i, w = qn_wrap_of_declarator n2 in
-          i, fun x -> w (Type.make_pointer_type ~qualifiers op x)
+          match nd#nth_children 1 with
+          | [] -> begin
+              qn_wrap_of_declarator n2
+          end
+          | [n1] -> begin
+              let op = pointer_op_of_node n1 in
+              let i, w = qn_wrap_of_declarator n2 in
+              i, fun x -> w (Type.make_pointer_type ~qualifiers op x)
+          end
+          | _ -> assert false
       end
       | _ -> assert false
   end

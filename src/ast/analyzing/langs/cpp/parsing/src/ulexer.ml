@@ -23,7 +23,7 @@ open Tokens_
 open Compat
 
 
-let regexp white_space = [' ' '\009' '\012']
+let regexp white_space = [' ' '\009' '\012' '\005']
 let regexp line_terminator = ['\013' '\010'] | "\013\010"
 
 let regexp h_char = [^'>' '\013' '\010']
@@ -96,7 +96,7 @@ let regexp c_char = [^'\'' '\\' '\013' '\010'] | escape_sequence | universal_cha
 
 let regexp encoding_prefix = 'u' '8' | ['u' 'U' 'L']
 
-let regexp character_literal = encoding_prefix? '\'' c_char+ '\''
+let regexp character_literal = encoding_prefix? '\'' c_char+ '\'' | "'\\'"
 
 let regexp digit_sequence = (digit+ '\'')* digit+
 
@@ -123,7 +123,7 @@ let regexp s_char_no_bq = [^'`' '"' '\\' '\013' '\010']
 let regexp d_char = [^' ' '(' ')' '\\' '\009' '\011' '\012' '\013' '\010']
 let regexp r_char = '.' (* !!! *)
 
-let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']')|line_terminator [^'#'])+
+let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']'|'>')|line_terminator [^'#'])+
 let regexp s_char_sequence_no_bq = (s_char_no_bq)+
 let regexp d_char_sequence = d_char+
 let regexp r_char_sequence = r_char+

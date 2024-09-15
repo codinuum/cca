@@ -23,6 +23,7 @@ let filename_list = ref []
 
 let dump_ast_flag = ref false
 let dump_tokens_flag = ref false
+let dump_stats_flag = ref false
 let verbose_flag = ref true
 let token_hist_flag = ref false
 let parse_macro_defs_flag = ref true
@@ -37,7 +38,9 @@ let set_flags p =
     p#clear_parse_macro_defs_flag();
   if !dump_tokens_flag then
     p#set_dump_tokens_flag();
-  p#_set_keep_going_flag !keep_going_flag
+  p#_set_keep_going_flag !keep_going_flag;
+  if !dump_stats_flag then
+    p#set_dump_stats_flag()
 
 let options = new Basic_options.c
 
@@ -47,6 +50,7 @@ let _ =
      (*"-verbose", Arg.Unit (fun () -> verbose_flag := true), "\tdisplay verbose messages";*)
      "-dump-ast", Arg.Unit (fun () -> dump_ast_flag := true), "\tdump AST(s)";
      "-dump-tokens", Arg.Unit (fun () -> dump_tokens_flag := true), "\tdump token seq(s)";
+     "-dump-stats", Arg.Unit (fun () -> dump_stats_flag := true), "\tdump stats";
      "-k", Arg.Unit (fun () -> keep_going_flag := true), "\tparse despite errors";
      "-token-hist", Arg.Unit (fun () -> token_hist_flag := true), "\tshow token histogram";
      "-ignore-macro-defs",

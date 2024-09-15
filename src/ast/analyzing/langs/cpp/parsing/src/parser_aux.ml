@@ -2150,6 +2150,14 @@ class pstat = object (self)
     with
       _ -> false
 
+  method at_ini_brace_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_INI_BRACE -> true
+      | _ -> false
+    with
+      _ -> false
+
   method at_class_brace =
     try
       match self#bracket_stack_top with
@@ -2161,6 +2169,14 @@ class pstat = object (self)
   method at_brace =
     try
       match self#bracket_stack_top with
+      | BK_BRACE -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_brace_2 =
+    try
+      match self#bracket_stack_2nd with
       | BK_BRACE -> true
       | _ -> false
     with
@@ -2346,6 +2362,15 @@ class pstat = object (self)
     try
       match Stack.top paren_stack with
       | PK_MACRO | PK_SS -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_ss_paren =
+    self#_at_paren &&
+    try
+      match Stack.top paren_stack with
+      | PK_SS -> true
       | _ -> false
     with
       _ -> false
@@ -3222,8 +3247,10 @@ class env = object (self)
   method paren_level = pstat#paren_level
   method pp_paren_level = pstat#pp_paren_level
   method at_ini_brace = pstat#at_ini_brace
+  method at_ini_brace_2 = pstat#at_ini_brace_2
   method at_class_brace = pstat#at_class_brace
   method at_brace = pstat#at_brace
+  method at_brace_2 = pstat#at_brace_2
   method at_req_brace = pstat#at_req_brace
   method at_objc_msg = pstat#at_objc_msg
   method at_attr = pstat#at_attr
@@ -3307,6 +3334,12 @@ class env = object (self)
 
   method make_local_bid () =
     bidgen#gen
+
+  method register_global_type i st ed =
+    DEBUG_MSG "i=%s" i;
+    let loc = (Ast.lloc_of_lexposs st ed)#get_loc in
+    let spec = new N.Spec.c loc Ast.dummy_node_id i N.Spec.Type in
+    top_frame#register ~replace:true i spec
 
   method register_macro_obj i (nd : Ast.node) =
     DEBUG_MSG "i=%s %s" i nd#to_string;

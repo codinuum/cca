@@ -118,7 +118,7 @@ class c (file : Storage.file) =
             raise Exit
           with
             NC.Malformed_code_at i ->
-              Bytes.set str i '?'
+              Bytes.set str i ' '
         done
       with
         Exit -> ()
@@ -171,7 +171,7 @@ class c (file : Storage.file) =
           Xprint.warning "\"%s\": malformed code found in \"%s\"" file#fullpath s;
           let b = Bytes.of_string s in
           self#purify b;
-          Xprint.warning "\"%s\": malformed characters are converted into '?'" file#fullpath;
+          Xprint.warning "\"%s\": malformed characters are converted into ' '" file#fullpath;
           _proc (Bytes.to_string b)
 (*
           let guessed_enc = ref None in

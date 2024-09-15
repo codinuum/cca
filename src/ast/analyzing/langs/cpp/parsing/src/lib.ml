@@ -39,6 +39,7 @@ class parser_c = object (self)
   val mutable token_hist_flag = false
   val mutable parse_macro_defs_flag = true
   val mutable dump_tokens_flag = false
+  val mutable dump_stats_flag = false
 
   val mutable scanner = Obj.magic ()
   val mutable _parse = fun () -> Obj.magic ()
@@ -58,6 +59,10 @@ class parser_c = object (self)
     dump_tokens_flag <- true;
     env#set_dump_tokens_flag();
     scanner#set_dump_tokens_flag()
+
+  method set_dump_stats_flag () =
+    dump_stats_flag <- true;
+    scanner#set_dump_stats_flag()
 
   method make_source file  = new Source.c file
   method make_source_stdin = new Source.c Storage.stdin
@@ -707,6 +712,8 @@ class parser_c = object (self)
       | N_enumerator_definition -> "enumerator_definition"
       | N_enumerator_list -> "enumerator_list"
       | N_equality_expression -> "equality_expression"
+      | N_error_token -> "error_token"
+      | N_error_token_seq -> "error_token_seq"
       | N_etors_sub -> "etors_sub"
       | N_exception_declaration -> "exception_declaration"
       | N_exclusive_or_expression -> "exclusive_or_expression"
@@ -896,6 +903,7 @@ class parser_c = object (self)
       | N_nonempty_list_additive_unit_ -> "nonempty_list(additive_unit)"
       | N_nonempty_list_char_literal_ -> "nonempty_list(char_literal)"
       | N_nonempty_list_designator_ -> "nonempty_list(designator)"
+      | N_nonempty_list_error_token_ -> "nonempty_list(error_token)"
       | N_nonempty_list_int_literal_ -> "nonempty_list(int_literal)"
       | N_nonempty_list_gnu_asm_token_ -> "nonempty_list(gnu_asm_token)"
       | N_nonempty_list_header_name_token_ -> "nonempty_list(header_name_token)"
@@ -4779,9 +4787,9 @@ class parser_c = object (self)
                 try (List.nth rhs 0) = I.X (I.N N_cast_key) with _ -> false
                   -> env#clear_cast_key_flag()
 
-            | I.X (I.N N_noptr_declarator) when
+            (*| I.X (I.N N_noptr_declarator) when
                 try (List.nth rhs 1) = I.X (I.T T_PS_LPAREN) with _ -> false
-                  -> env#clear_old_param_decl_flag()
+                  -> env#clear_old_param_decl_flag()*)
 
             | I.X (I.N N_pp_dtor_if_group) -> begin
                 env#clear_old_param_decl_flag();
@@ -4920,6 +4928,29 @@ class parser_c = object (self)
             | I.X (I.N N_braced_init_list) when
                 Xlist.last rhs = I.X (I.N N_pp_init_if_section_closing)
               -> env#exit_braced_init()
+
+            | I.X (I.N N_pp_expr_if_section_broken)
+            | I.X (I.N N_pp_expr_if_section_broken2)
+            | I.X (I.N N_pp_stmt_if_section_broken)
+            | I.X (I.N N_pp_decl_if_section_broken)
+            | I.X (I.N N_pp_mdecl_if_section_broken)
+            | I.X (I.N N_pp_class_head_if_section_broken)
+            | I.X (I.N N_pp_dtor_if_section_broken)
+            | I.X (I.N N_pp_func_head_if_section_broken)
+            | I.X (I.N N_pp_handler_if_section_broken)
+            | I.X (I.N N_pp_lambda_head_if_section_broken)
+            | I.X (I.N N_pp_minit_if_section_broken)
+            | I.X (I.N N_pp_aexpr_if_section_closing)
+            | I.X (I.N N_pp_args_if_section_closing)
+            | I.X (I.N N_pp_enum_if_section_closing)
+            | I.X (I.N N_pp_ifstmt_if_section_closing)
+            | I.X (I.N N_pp_init_if_section_closing)
+            | I.X (I.N N_pp_stmt_if_section_closing)
+            | I.X (I.N N_pp_args_if_section_close_open)
+            | I.X (I.N N_pp_stmt_if_section_close_open)
+              when scanner#dump_stats_flag
+              -> scanner#incr_count "broken pp-branch"
+
             | _ -> ()
           end;
           let ckpt = I.resume ckpt in
@@ -5411,6 +5442,8 @@ class parser_c = object (self)
         let ast = do_parse() in
         if dump_tokens_flag then
           token_seq#dump (env#current_source#file#fullpath^".tkns");
+        if dump_stats_flag then
+          scanner#dump_stats();
         ast
       with
         Failed_to_parse pos ->

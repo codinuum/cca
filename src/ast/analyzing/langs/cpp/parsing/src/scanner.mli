@@ -56,6 +56,7 @@ class type c_t = object
   method prev_rawtoken3 : T.token
   method prev_rawtoken4 : T.token
 
+  method _current_rawtoken : T.token
   method current_token : token
   method current_loc : Ast.Loc.t
 
@@ -74,7 +75,7 @@ class type c_t = object
   method peek_rawtoken_up_to_group_end :
       ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> ?until:(T.token -> bool) -> ?regard_pp_if:bool
         -> unit -> int * T.token list
-  method peek_rawtoken_up_to_section_end : ?nth_list_ref_opt:(int list ref option) -> ?from:int -> unit -> int
+  method peek_rawtoken_up_to_section_end : ?nth_head_list_ref_opt:(int list ref option) -> ?nth_list_ref_opt:(int list ref option) -> ?from:int -> unit -> int
   method peek_rawtoken_up_to_end_of_qualified_id : ?from:int -> ?ini_tlv:int -> unit -> int
   method peek_rawtoken_up_to_rparen_split_at_comma :
       ?from:int -> ?ignore_pp:bool -> ?ignore_templ_lv:bool -> ?lv_ofs:int -> ?filt:(T.token list -> bool) ->
@@ -198,6 +199,10 @@ class type c_t = object
 
   method token_seq : Token_seq.c
 
+  method dump_stats_flag : bool
+  method set_dump_stats_flag : unit -> unit
+  method incr_count : string -> unit
+  method dump_stats : unit -> unit
 end
 
 val conv_token : Aux.env -> c_t -> token -> token
