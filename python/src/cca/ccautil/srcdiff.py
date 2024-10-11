@@ -668,7 +668,7 @@ def diff_dirs(diff, dir1, dir2, usecache=True, cache_dir_base=None, use_result_c
     if use_sim:
         sim_thresh1 = 0.8
         sim_thresh2 = 0.9
-        modified1, modified2 = zip(*modified)
+        modified1, modified2 = zip(*modified) if len(modified) > 0 else ([], [])
         logger.debug('matching removed and added files...')
         li = []
         li1 = []
