@@ -51,6 +51,11 @@ class type c_t = object
   method prev_endofs : int
   method prev_endln : int
   method prev_edp : Lexing.position
+  method prev_indent2 : int
+  method prev_indent_rawtoken2 : T.token
+  method prev_indent : int
+  method prev_indent_rawtoken : T.token
+  method prev_indent_rawtoken_prev : T.token
   method prev_rawtoken : T.token
   method prev_rawtoken2 : T.token
   method prev_rawtoken3 : T.token

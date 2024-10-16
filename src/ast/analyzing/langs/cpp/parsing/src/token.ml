@@ -90,6 +90,7 @@ let rawtoken_to_string = function
   | PTR_MACRO s          -> sprintf "PTR_MACRO:%s" s
   | BODY_MACRO s         -> sprintf "BODY_MACRO:%s" s
   | DTOR_MACRO s         -> sprintf "DTOR_MACRO:%s" s
+  | PTR_DTOR_MACRO s     -> sprintf "PTR_DTOR_MACRO:%s" s
   | CLASS_HEAD_MACRO s   -> sprintf "CLASS_HEAD_MACRO:%s" s
   | FUNC_HEAD_MACRO s    -> sprintf "FUNC_HEAD_MACRO:%s" s
   | CAST_HEAD_MACRO s    -> sprintf "CAST_HEAD_MACRO:%s" s
@@ -143,6 +144,7 @@ let rawtoken_to_string = function
 
   | AT                    -> "AT"
   | BS                    -> "BS"
+  | DQ                    -> "DQ"
   | TEMPL_LT              -> "TEMPL_LT"
   | TEMPL_LT_             -> "TEMPL_LT_"
   | TEMPL_GT              -> "TEMPL_GT"
@@ -575,6 +577,7 @@ let rawtoken_to_repr = function
   | PTR_MACRO s          -> s
   | BODY_MACRO s         -> s
   | DTOR_MACRO s         -> s
+  | PTR_DTOR_MACRO s     -> s
   | CLASS_HEAD_MACRO s   -> s
   | FUNC_HEAD_MACRO s    -> s
   | CAST_HEAD_MACRO s    -> s
@@ -627,6 +630,7 @@ let rawtoken_to_repr = function
 
   | AT                    -> "@"
   | BS                    -> "\\"
+  | DQ                    -> "\""
   | TEMPL_LT              -> "<"
   | TEMPL_LT_             -> "<"
   | TEMPL_GT              -> ">"

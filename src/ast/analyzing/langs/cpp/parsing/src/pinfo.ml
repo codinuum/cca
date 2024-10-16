@@ -31,7 +31,7 @@ let decode_ident =
   Str.replace_first pat ""
 
 type pp_if_cond = PP_IF of string * Obj.t list | PP_IFDEF of ident | PP_IFNDEF of ident
-type pp_if_cond_sub = PP_NONE | PP_CLOSING | PP_STR | PP_EXPR
+type pp_if_cond_sub = PP_NONE | PP_CLOSING | PP_STR | PP_EXPR | PP_INIT
 
 type pp_compl = {
     mutable c_brace : int;
@@ -63,6 +63,7 @@ type pp_if_section_info = {
     mutable i_semicolon             : bool;
     mutable i_comma                 : bool;
     mutable i_cond_expr             : bool;
+    mutable i_cond_expr_            : bool;
     mutable i_asm                   : bool;
     mutable i_begin_asm             : bool;
     mutable i_pp_if_compl           : pp_compl;
@@ -84,6 +85,7 @@ let pp_if_cond_sub_to_string = function
   | PP_CLOSING -> "closing"
   | PP_STR -> "str"
   | PP_EXPR -> "expr"
+  | PP_INIT -> "init"
 
 let pp_compl_to_string {
   c_brace=blv;
@@ -119,6 +121,7 @@ let pp_if_section_info_to_string {
   i_semicolon=s;
   i_comma=cm;
   i_cond_expr=ce;
+  i_cond_expr_=ce_;
   i_asm=a;
   i_begin_asm=ba;
   i_pp_if_compl=cmpl;
@@ -141,6 +144,7 @@ let pp_if_section_info_to_string {
      ";",         s;
      ",",         cm;
      "?",         ce;
+     "?_",        ce_;
      "asm",       a;
      "begin_asm", ba;
      "lack_of_dtor", lod;
@@ -188,6 +192,7 @@ let make_pp_if_section_info ?(cond_sub=PP_NONE) ?(pp_elif=[]) ?(pp_else=None) ln
   i_semicolon=false;
   i_comma=false;
   i_cond_expr=false;
+  i_cond_expr_=false;
   i_asm=false;
   i_begin_asm=false;
   i_pp_if_compl={c_brace=0;c_paren=0};
@@ -317,6 +322,12 @@ module TypeSpec = struct
     | Typename n -> Some n
     | Elaborated e -> Some (ElaboratedType.get_name e)
     | _ -> None
+
+  let get_name = function
+    | Simple n
+    | Typename n -> n
+    | Elaborated e -> ElaboratedType.get_name e
+    | _ -> raise Not_found
 
   let to_string = function
     | Simple n        -> n
@@ -726,6 +737,16 @@ module Type = struct
     else
       sprintf "(%s %s)" ds_str (list_to_string TypeSpec.to_string " " ts)
 
+  let get_name_of_simple_ty {
+    st_decl_specs=ds;
+    st_type_specs=ts;
+    st_encoded=e;
+  } =
+    match ts with
+    | [] -> raise Not_found
+    | [t] -> [TypeSpec.get_name t]
+    | _ -> List.filter_map (fun t -> try Some (TypeSpec.get_name t) with _ -> None) ts
+
   let simple_ty_has_definite_ty {
     st_type_specs=ts;
   } = List.exists TypeSpec.is_definite_type ts
@@ -783,6 +804,21 @@ module Type = struct
     | Hat -> "^"
     | Macro i -> i
 
+  let rec get_name = function
+    | SimpleTy sty -> get_name_of_simple_ty sty
+    | ArrayTy(ty, dims) -> get_name ty
+    | PointerTy pty -> get_name_of_pointer_ty pty
+    | FunctionTy fty -> raise Not_found
+    | AltTy ts ->
+        List.flatten
+          (List.filter_map (fun t -> try Some (get_name t) with _ -> None) ts)
+
+  and get_name_of_pointer_ty {
+    pt_op=op;
+    pt_type=ty;
+    pt_qualifiers=q;
+  } = get_name ty
+
   let rec to_string = function
     | SimpleTy sty -> simple_ty_to_string sty
     | ArrayTy(ty, dims) ->
@@ -821,6 +857,8 @@ module Type = struct
         (let s = v#to_string in if s <> "" then " "^s else "")
     else
       params_macro
+
+  let get_name_ { t_typedef=b; t_desc=x } = get_name x
 
   let to_string_ { t_typedef=b; t_desc=x } =
     let s = to_string x in

@@ -372,6 +372,7 @@ type t =
   | MinusMinus
   | Comma
   | Semicolon
+  | Colon
   | Co_await
 
   | DotStar
@@ -655,7 +656,7 @@ type t =
   | MemInitializer
   | MemInitMacroInvocation of ident
   | QualifiedTypeName
-  | InitDeclarator
+  | InitDeclarator of name
   | ConceptDefinition of name
   | CtorInitializer
   | ConstraintLogicalOrExpression of ident
@@ -669,7 +670,7 @@ type t =
   | EnumeratorDefinitionMacro of ident
   | TypeMacroInvocation of ident
   | Condition
-  | ParameterDeclaration
+  | ParameterDeclaration of name
   | ParameterDeclarationClause of bool
   | ParametersAndQualifiers
   | ParamDeclMacro of ident
@@ -1152,6 +1153,7 @@ let to_string = function
   | MinusMinus    -> "MinusMinus"
   | Comma         -> "Comma"
   | Semicolon     -> "Semicolon"
+  | Colon         -> "Colon"
   | Co_await      -> "Co_await"
 
   | DotStar       -> "DotStar"
@@ -1421,7 +1423,7 @@ let to_string = function
   | MemInitializer                 -> "MemInitializer"
   | MemInitMacroInvocation i       -> "MemInitMacroInvocation:"^i
   | QualifiedTypeName              -> "QualifiedTypeName"
-  | InitDeclarator                 -> "InitDeclarator"
+  | InitDeclarator n               -> "InitDeclarator:"^n
   | ConceptDefinition n            -> "ConceptDefinition:"^n
   | CtorInitializer                -> "CtorInitializer"
   | ConstraintLogicalOrExpression i  -> "ConstraintLogicalOrExpression:"^i
@@ -1435,7 +1437,7 @@ let to_string = function
   | EnumeratorDefinitionMacro i    -> "EnumeratorDefinitionMacro:"^i
   | TypeMacroInvocation i          -> "TypeMacroInvocation:"^i
   | Condition                      -> "Condition"
-  | ParameterDeclaration           -> "ParameterDeclaration"
+  | ParameterDeclaration n         -> "ParameterDeclaration:"^n
   | ParameterDeclarationClause b   -> "ParameterDeclarationClause"^(if b then "Va" else "")
   | ParametersAndQualifiers        -> "ParametersAndQualifiers"
   | ParamDeclMacro i               -> "ParamDeclMacro:"^i
@@ -1928,6 +1930,7 @@ let to_simple_string = function
   | MinusMinus    -> "--"
   | Comma         -> ","
   | Semicolon     -> ";"
+  | Colon         -> ":"
   | Co_await      -> "co_await"
 
   | DotStar       -> ".*"
@@ -2202,7 +2205,7 @@ let to_simple_string = function
   | MemInitializer                 -> "<mem-initializer>"
   | MemInitMacroInvocation i       -> i
   | QualifiedTypeName              -> "<qualified-type-name>"
-  | InitDeclarator                 -> "<init-declarator>"
+  | InitDeclarator n               -> sprintf "<init-declarator:%s>" n
   | ConceptDefinition n            -> "concept "^n
   | CtorInitializer                -> "<ctor-initializer>"
   | ConstraintLogicalOrExpression _  -> "<constraint-logical-or-expression>"
@@ -2216,7 +2219,7 @@ let to_simple_string = function
   | EnumeratorDefinitionMacro i    -> i
   | TypeMacroInvocation i          -> i
   | Condition                      -> "<condition>"
-  | ParameterDeclaration           -> "<parameter-declaration>"
+  | ParameterDeclaration n         -> sprintf "<parameter-declaration:%s>" n
   | ParameterDeclarationClause b   ->
       sprintf "<parameter-declaration-clause%s>" (if b then "-va" else "")
   | ParametersAndQualifiers        -> "<parameters-and-qualifiers>"
@@ -2721,6 +2724,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | MinusMinus    -> "MinusMinus", []
   | Comma         -> "Comma", []
   | Semicolon     -> "Semicolon", []
+  | Colon         -> "Colon", []
   | Co_await      -> "Co_await", []
 
   | DotStar       -> "DotStar", []
@@ -2995,7 +2999,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | MemInitializer                 -> "MemInitializer", []
   | MemInitMacroInvocation i       -> "MemInitMacroInvocation", ["ident",i]
   | QualifiedTypeName              -> "QualifiedTypeName", []
-  | InitDeclarator                 -> "InitDeclarator", []
+  | InitDeclarator n               -> "InitDeclarator", ["name",n]
   | ConceptDefinition n            -> "ConceptDefinition", ["name",n]
   | CtorInitializer                -> "CtorInitializer", []
   | ConstraintLogicalOrExpression i  ->
@@ -3011,7 +3015,7 @@ let to_tag ?(strip=false) : t -> string * (string * string) list = function
   | EnumeratorDefinitionMacro i    -> "EnumeratorDefinitionMacro", ["ident",i]
   | TypeMacroInvocation i          -> "TypeMacroInvocation", ["ident",i]
   | Condition                      -> "Condition", []
-  | ParameterDeclaration           -> "ParameterDeclaration", []
+  | ParameterDeclaration n         -> "ParameterDeclaration", ["name",n]
   | ParameterDeclarationClause b   -> "ParameterDeclarationClause", ["is_va",string_of_bool b]
   | ParametersAndQualifiers        -> "ParametersAndQualifiers", []
   | ParamDeclMacro i               -> "ParamDeclMacro", ["ident",i]
@@ -3261,6 +3265,7 @@ let get_name ?(strip=false) = function
   | Enumerator n
   | EnumeratorDefinitionMacro n
   | TypeMacroInvocation n
+  | ParameterDeclaration n
   | ParamDeclMacro n
   | ParamDeclMacroInvocation n
   | ParametersMacro n
@@ -3319,6 +3324,7 @@ let get_name ?(strip=false) = function
   | AsmName n
   | AsmDirective n
   | MemInitMacroInvocation n
+  | InitDeclarator n
   | PpIfSectionFuncDef n
   | OpaqueEnumDeclarationMacro n
   | LiteralMacro n

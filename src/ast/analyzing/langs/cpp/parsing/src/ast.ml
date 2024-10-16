@@ -1419,10 +1419,14 @@ and qn_type_list_of_simple_decl (nd : node) =
           | _ -> []
       end
       | l -> begin
-          List.map
+          List.filter_map
             (fun x ->
-              let i, w = qn_wrap_of_init_declarator x in
-              x, i, w sty
+              match x#label with
+              | L.InitDeclarator _ | PpIfSection _ -> begin
+                  let i, w = qn_wrap_of_init_declarator x in
+                  Some (x, i, w sty)
+              end
+              | _ -> None
             ) l
       end
   end
@@ -1527,7 +1531,7 @@ and qn_type_of_func_def (nd : node) =
 and qn_wrap_of_init_declarator (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | InitDeclarator -> begin
+  | InitDeclarator _ -> begin
       match nd#nth_children 1 with
       | [d] -> qn_wrap_of_declarator d
       | _ -> assert false
@@ -1538,7 +1542,16 @@ and qn_wrap_of_init_declarator (nd : node) =
         (List.map (fun x -> x#nth_child 1) (nd#nth_children 1)) @
         (List.map (fun x -> x#nth_child 1) (nd#nth_children 2))
       in
-      let il, wl = List.split (List.map qn_wrap_of_init_declarator ns) in
+      let il, wl =
+        List.split
+          (List.filter_map
+             (fun x ->
+               match x#label with
+               | L.InitDeclarator _ | PpIfSection _ -> Some (qn_wrap_of_init_declarator x)
+               | _ -> None
+             ) ns
+          )
+      in
       let i = String.concat "|" il in
       let w x = Type.make_alt_type (List.map (fun w -> w x) wl) in
       i, w
@@ -1812,7 +1825,7 @@ and qn_wrap_of_declarator ?(ty_opt=None) (nd : node) =
   end
   | AbstractPack -> "", fun x -> x
 
-  | InitDeclarator -> qn_wrap_of_declarator (nd#nth_child 0)
+  | InitDeclarator _ -> qn_wrap_of_declarator (nd#nth_child 0)
 
   | _ -> invalid_arg "Cpp.Ast.qn_wrap_of_declarator"
 
@@ -1876,7 +1889,7 @@ and param_tys_and_is_vararg_of_param_decl_clause (nd : node) =
       | [] -> [], b
       | [n] -> begin
           match n#label with
-          | ParameterDeclaration -> begin
+          | ParameterDeclaration _ -> begin
               try
                 let ty = type_of_param_decl n in
                 [ty], b
@@ -1915,7 +1928,7 @@ and qn_type_of_param_decl (nd : node) =
 and qn_type_list_of_param_decl (nd : node) =
   DEBUG_MSG "%s" (L.to_string nd#label);
   match nd#label with
-  | ParameterDeclaration -> begin
+  | ParameterDeclaration _ -> begin
       let sty = simple_type_of_decl_spec_seq (nd#nth_children 1) in
       let qn, wrap =
         match nd#nth_children 2 with

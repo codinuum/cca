@@ -683,6 +683,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | MinusMinus    -> pr_string "--"
   | Comma         -> pr_string ","
   | Semicolon     -> pr_string ";"
+  | Colon         -> pr_string ":"
   | Co_await      -> pr_string "co_await"
 
   | DotStar       -> pr_string ".*"
@@ -1078,7 +1079,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   end
   | MemInitMacroInvocation i         -> pr_macro_invocation i
   | QualifiedTypeName                -> pr_seq ~sep:pr_none ()
-  | InitDeclarator                   -> pb#pr_a pad1 pr_node_ children
+  | InitDeclarator n                 -> pb#pr_a pad1 pr_node_ children
   | ConceptDefinition n              -> pr_string "concept "; pr_id n; pr_eq(); pr_nth_child 0; _pr_semicolon()
   | CtorInitializer                  -> pb#open_hvbox 0; pr_seq ~sep:pr_space (); pb#close_box()
   | ConstraintLogicalOrExpression _  -> pr_nth_child 0; pr_string " || "; pr_nth_child 1
@@ -1103,7 +1104,7 @@ let rec pr_node ?(fail_on_error=true) ?(va=false) ?(prec=0) node =
   | EnumeratorDefinitionMacro i      -> pr_id i
   | TypeMacroInvocation i            -> pr_macro_invocation i
   | Condition                        -> pr_seq()
-  | ParameterDeclaration             -> pr_seq()
+  | ParameterDeclaration n           -> pr_seq()
   | ParameterDeclarationClause b -> begin
       pb#open_hbox();
       pr_seq ~sep:pr_space ();

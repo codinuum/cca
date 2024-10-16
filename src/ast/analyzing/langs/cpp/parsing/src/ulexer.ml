@@ -123,7 +123,8 @@ let regexp s_char_no_bq = [^'`' '"' '\\' '\013' '\010']
 let regexp d_char = [^' ' '(' ')' '\\' '\009' '\011' '\012' '\013' '\010']
 let regexp r_char = '.' (* !!! *)
 
-let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']'|'>')|line_terminator [^'#'])+
+(*let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']'|'>')|line_terminator [^'#'])+*)
+let regexp s_char_sequence = (s_char|'\\' (identifier|line_terminator|'('|')'|'/'|','|']'|'>'))+
 let regexp s_char_sequence_no_bq = (s_char_no_bq)+
 let regexp d_char_sequence = d_char+
 let regexp r_char_sequence = r_char+
@@ -160,6 +161,8 @@ let regexp ident_or_symbol = identifier | '.' | '=' | ['0'-'9']+identifier?
 let regexp pp_concatenated_identifier =
   (identifier ws_or_lt* "##" ws_or_lt* )+ (ident_or_symbol ws_or_lt* "##" ws_or_lt* )* ident_or_symbol |
   (identifier "#")+ identifier?
+
+let regexp garbage = '%' sign* ['0'-'9']+ sign* '%'
 
 (* *)
 
@@ -545,6 +548,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
 | "|||||||" -> conflict_marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
 | "<<<<<<<" -> conflict_marker (Ulexing.lexeme_start lexbuf) (Ulexing.utf8_lexeme lexbuf) lexbuf
 
+|  garbage -> _token lexbuf
+
 |  "%:%:" -> mktok SHARP_SHARP(*PERC_COLON_PERC_COLON*) lexbuf
 |  "..." -> mktok ELLIPSIS lexbuf
 |  "->*" -> mktok MINUS_GT_STAR lexbuf
@@ -669,6 +674,8 @@ module F (Stat : Parser_aux.STATE_T) = struct
     end
     else
       mktok EOF lexbuf
+
+| '"' -> mktok DQ lexbuf
 
 |  _ ->
     let s = Ulexing.utf8_lexeme lexbuf in

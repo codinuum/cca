@@ -186,6 +186,7 @@ class parser_c = object (self)
       | T_DOUBLE -> "DOUBLE"
       | T_DOXYGEN_CMD -> "DOXYGEN_CMD"
       | T_DOXYGEN_LINE -> "DOXYGEN_LINE"
+      | T_DQ -> "DQ"
       | T_DTOR_MACRO -> "DTOR_MACRO"
       | T_DUMMY_BODY -> "DUMMY_BODY"
       | T_DUMMY_DTOR -> "DUMMY_DTOR"
@@ -470,6 +471,7 @@ class parser_c = object (self)
       | T_PS_LPAREN -> "PS_LPAREN"
       | T_PTR_AMP -> "PTR_AMP"
       | T_PTR_AMP_AMP -> "PTR_AMP_AMP"
+      | T_PTR_DTOR_MACRO -> "PTR_DTOR_MACRO"
       | T_PTR_HAT -> "PTR_HAT"
       | T_PTR_MACRO -> "PTR_MACRO"
       | T_PTR_STAR -> "PTR_STAR"
@@ -760,6 +762,7 @@ class parser_c = object (self)
       | N_initializer_ -> "initializer_"
       | N_initializer_clause -> "initializer_clause"
       | N_initializer_list -> "initializer_list"
+      | N_ior_unit_seq -> "ior_unit_seq"
       | N_iteration_macro -> "iteration_macro"
       | N_iteration_statement -> "iteration_statement"
       | N_jump_statement -> "jump_statement"
@@ -870,7 +873,7 @@ class parser_c = object (self)
       | N_mid_paren_close -> "mid_paren_close"
       | N_mid_brace_close -> "mid_brace_close"
       | N_mid_brace_open -> "mid_brace_open"
-      | N_mid_init -> "N_mid_init"
+      | N_mid_init -> "mid_init"
       | N_mid_objc_cat_iface -> "mid_objc_cat_iface"
       | N_mid_paren_open -> "mid_paren_open"
       | N_mid_templ_decl -> "mid_templ_decl"
@@ -916,6 +919,7 @@ class parser_c = object (self)
       | N_nonempty_list_odd_else_stmt_ -> "nonempty_list(odd_else_stmt)"
       | N_nonempty_list_pp_base_clause_if_section_ -> "nonempty_list(pp_base_clause_if_section)"
       | N_nonempty_list_pp_control_line_ -> "nonempty_list(pp_control_line)"
+      | N_nonempty_list_pp_idtor_if_section_ -> "nonempty_list(pp_idtor_if_section)"
       | N_nonempty_list_pp_param_if_section_ -> "nonempty_list(pp_param_if_section)"
       | N_nonempty_list_QUEST_ -> "nonempty_list(QUEST)"
       | N_nonempty_list_q_prop_token_ -> "nonempty_list(q_prop_token)"
@@ -1092,7 +1096,7 @@ class parser_c = object (self)
       | N_pp_dtor_elif_group_broken -> "pp_dtor_elif_group_broken"
       | N_pp_dtor_else_group_broken -> "pp_dtor_else_group_broken"
       | N_pp_dtor_if_group_broken -> "pp_dtor_if_group_broken"
-      | N_pp_dtor_if_section_broken -> "N_pp_dtor_if_section_broken"
+      | N_pp_dtor_if_section_broken -> "pp_dtor_if_section_broken"
       | N_pp_edef_elif_group -> "pp_edef_elif_group"
       | N_pp_edef_else_group -> "pp_edef_else_group"
       | N_pp_edef_if_group -> "pp_edef_if_group"
@@ -1107,7 +1111,7 @@ class parser_c = object (self)
       | N_pp_enum_elif_group_closing -> "pp_enum_elif_group_closing"
       | N_pp_enum_else_group_closing -> "pp_enum_else_group_closing"
       | N_pp_enum_if_group_closing -> "pp_enum_if_group_closing"
-      | N_pp_enum_if_section_closing -> "N_pp_enum_if_section_closing"
+      | N_pp_enum_if_section_closing -> "pp_enum_if_section_closing"
       | N_pp_expr_elif_group -> "pp_expr_elif_group"
       | N_pp_expr_else_group -> "pp_expr_else_group"
       | N_pp_expr_if_group -> "pp_expr_if_group"
@@ -1762,7 +1766,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_idtor_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
-                env#set_pp_top_label L.InitDeclarator;
+                env#set_pp_top_label (L.InitDeclarator "");
                 scanner#ctx_top();
                 scanner#ctx_ini();
                 raise Exit
