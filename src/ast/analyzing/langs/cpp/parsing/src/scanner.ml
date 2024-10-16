@@ -1398,6 +1398,7 @@ let flags_to_str e =
     "end_of_templ_head",               e#end_of_templ_head_flag;
     "end_of_type_macro_call",          e#end_of_type_macro_call_flag;
     "enum_head",                       e#enum_head_flag;
+    "eq_init",                         e#eq_init_flag;
     "exec_config",                     e#exec_config_flag;
     "expr",                            e#expr_flag;
     "for",                             e#for_flag;
@@ -2405,8 +2406,8 @@ let make_pp_endif info = T.PP_ENDIF (ref (Pinfo.pp_if_cond_to_string info.Pinfo.
 let make_pp_odd_endif info = T.PP_ODD_ENDIF (Pinfo.pp_if_cond_to_string info.Pinfo.i_cond)
 
 let parse_warning env stp edp (fmt : ('a, out_channel, unit, 'b) format4) : 'a =
-  let path = Common.relpath env#current_filename in
-  let head = Printf.sprintf "[%s]" path in
+  (*let path = Common.relpath env#current_filename in*)
+  let head = ""(*Printf.sprintf "[%s]" path*) in
   PB.parse_warning ~out:stderr ~head stp edp fmt
 
 let is_start_of_stmt sc =
@@ -20030,6 +20031,15 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 mk T.RPAREN
               end
 
+            | _ when begin
+                prev_rawtoken == NEWLINE &&
+                env#eq_init_flag &&
+                env#paren_level = 0
+            end -> begin
+              DEBUG_MSG "NEWLINE @";
+              mk T.INI_LBRACE
+            end
+
             | _ -> DEBUG_MSG "@ *"; token
         end
     end
@@ -27899,6 +27909,27 @@ let conv_token (env : Aux.env) scanner (token : token) =
               DEBUG_MSG "@";
               getclop()
             end
+
+            else if
+              !min_plv = -1 && !plv = -1 &&
+              !min_blv = 0 && !blv = 0 &&
+              match self#peek_nth_rawtoken nth_ with
+              | PP_ENDIF _ -> begin
+                  match l with
+                  | [RPAREN] -> false
+                  | RPAREN::_ -> true
+                  | _ -> false
+              end
+              | _ -> false
+            then begin
+              let _, sp, ep = self#peek_nth (nth_-1) in
+              parse_warning env sp ep "shifting a closing parenthesis";
+              let n, _ = self#peek_rawtoken_up_to ~from:nth_ [T.NEWLINE] in
+              let _, _, ep = self#peek_nth n in
+              insert_after_nth_token ~to_be_discarded:[nth_-1] n [T.RPAREN,ep,ep];
+              gete()
+            end
+
             else if !min_plv < 0 then begin
               DEBUG_MSG "@";
               let closing =

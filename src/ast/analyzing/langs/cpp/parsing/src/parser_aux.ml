@@ -275,6 +275,7 @@ class pstat = object (self)
   val mutable concept_flag = false
   val mutable requires_clause_flag = false
   val mutable rhs_flag = false
+  val mutable eq_init_flag = false
 
   val bracket_stack_stack = Stack.create()
 
@@ -395,6 +396,7 @@ class pstat = object (self)
     concept_flag <- false;
     requires_clause_flag <- false;
     rhs_flag <- false;
+    eq_init_flag <- false;
     Stack.clear bracket_stack_stack;
     Stack.push (Stack.create() : bracket_kind Stack.t) bracket_stack_stack;
     Stack.clear paren_stack;
@@ -1375,6 +1377,20 @@ class pstat = object (self)
     end
 
   method rhs_flag = rhs_flag
+
+  method set_eq_init_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "eq_init_flag set";
+      eq_init_flag <- true
+    end
+
+  method clear_eq_init_flag () =
+    if eq_init_flag then begin
+      DEBUG_MSG "eq_init_flag cleared";
+      eq_init_flag <- false
+    end
+
+  method eq_init_flag = eq_init_flag
 
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
@@ -2849,6 +2865,9 @@ class dummy_pstat = object (self)
   method set_rhs_flag () = ()
   method clear_rhs_flag () = ()
   method rhs_flag = false
+  method set_eq_init_flag () = ()
+  method clear_eq_init_flag () = ()
+  method eq_init_flag = false
   method enter_sizeof_ty () = ()
   method exit_sizeof_ty () = ()
   method sizeof_ty_flag = false
@@ -4211,6 +4230,10 @@ class env = object (self)
   method set_rhs_flag = pstat#set_rhs_flag
   method clear_rhs_flag = pstat#clear_rhs_flag
   method rhs_flag = pstat#rhs_flag
+
+  method set_eq_init_flag = pstat#set_eq_init_flag
+  method clear_eq_init_flag = pstat#clear_eq_init_flag
+  method eq_init_flag = pstat#eq_init_flag
 
   method set_alias_flag = pstat#set_alias_flag
   method clear_alias_flag = pstat#clear_alias_flag

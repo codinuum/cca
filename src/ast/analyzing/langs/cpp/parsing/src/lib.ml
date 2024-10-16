@@ -2989,6 +2989,11 @@ class parser_c = object (self)
             | I.X (I.N N_brace_or_equal_initializer), _, I.X (I.T T_EQ) -> begin
                 scanner#ctx_expr();
                 scanner#ctx_ini();
+                begin
+                  match scanner#peek_rawtoken() with
+                  | DELETE -> ()
+                  | _ -> env#set_eq_init_flag()
+                end;
                 raise Exit
             end
             | I.X (I.N N_parameter_declaration), _, I.X (I.T T_EQ) -> begin
@@ -4905,7 +4910,10 @@ class parser_c = object (self)
                 | _ -> ()
             end
             | I.X (I.N N_pp_func_body_if_section) -> env#clear_pp_func_body_odd_flag()
-            | I.X (I.N N_brace_or_equal_initializer) -> env#clear_init_flag()
+            | I.X (I.N N_brace_or_equal_initializer) -> begin
+                env#clear_init_flag();
+                env#clear_eq_init_flag();
+            end
             | I.X (I.N N_initializer_clause) -> env#clear_init_flag()
             | I.X (I.N N_objc_method_selector) -> begin
                 env#clear_end_of_objc_meth_sel_flag();

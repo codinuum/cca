@@ -3189,12 +3189,18 @@ simple_declaration_broken:
 init_declarator_list:
 | i=init_declarator { [i] }
 | pl=pp_idtor_if_section+ { pl }
+| pl=pp_idtor_if_section+ pcl=pp_control_line+ pil=pp_idtor_if_section+ { pl@pcl@pil }
 | p=_pp_idtor_if_section { [p] }
 | il=init_declarator_list COMMA { (Xlist.last il)#add_suffix ","; il }
 | il=init_declarator_list COMMA i=init_declarator
     { 
       (Xlist.last il)#add_suffix ",";
       il @ [add_attrs_l None $startpos(i) $endpos i]
+    }
+| il=init_declarator_list COMMA pl=pp_control_line+ i=init_declarator
+    { 
+      (Xlist.last il)#add_suffix ",";
+      il @ pl @ [add_attrs_l None $startpos(i) $endpos i]
     }
 | il=init_declarator_list COMMA al=gnu_attribute_seq i=init_declarator
     { 
@@ -3997,6 +4003,8 @@ pp_param_if_group:
 | pi=pp_ifx_e { mknode ~pvec:[1; 0] $startpos $endpos (pp_if_group()) [pi] }
 | pi=pp_ifx_e ioption(COMMA) pl=parameter_declaration_list ioption(COMMA)
     { mknode ~pvec:[1; List.length pl] $startpos $endpos (pp_if_group()) (pi::pl) }
+| pi=pp_ifx_e cl=pp_control_line+
+    { mknode ~pvec:[1; List.length cl] $startpos $endpos (pp_if_group()) (pi::cl) }
 | pi=pp_ifx_e cl=pp_control_line+ pl=parameter_declaration_list
     { mknode ~pvec:[1; List.length cl + List.length pl] $startpos $endpos (pp_if_group()) (pi::cl@pl) }
 (*| pi=pp_ifx_e p=pp_param_if_section { mknode ~pvec:[1; 1] $startpos $endpos (pp_if_group()) [pi; p] }*)
@@ -4005,6 +4013,8 @@ pp_param_elif_group:
 | pe=pp_elif { mknode ~pvec:[1; 0] $startpos $endpos (_pp_elif_group pe) [pe] }
 | pe=pp_elif ioption(COMMA) pl=parameter_declaration_list ioption(COMMA)
     { mknode ~pvec:[1; 1] $startpos $endpos (_pp_elif_group pe) (pe::pl) }
+| pe=pp_elif cl=pp_control_line+
+    { mknode ~pvec:[1; List.length cl] $startpos $endpos (_pp_elif_group pe) (pe::cl) }
 | pe=pp_elif cl=pp_control_line+ pl=parameter_declaration_list
     { mknode ~pvec:[1; List.length cl + List.length pl] $startpos $endpos (_pp_elif_group pe) (pe::cl@pl) }
 (*| pe=pp_elif p=pp_param_if_section { mknode ~pvec:[1; 1] $startpos $endpos (_pp_elif_group pe) [pe; p] }*)
@@ -4013,6 +4023,8 @@ pp_param_else_group:
 | pe=pp_else { mknode ~pvec:[1; 0] $startpos $endpos (_pp_else_group pe) [pe] }
 | pe=pp_else ioption(COMMA) pl=parameter_declaration_list ioption(COMMA)
     { mknode ~pvec:[1; 1] $startpos $endpos (_pp_else_group pe) (pe::pl) }
+| pe=pp_else cl=pp_control_line+
+    { mknode ~pvec:[1; List.length cl] $startpos $endpos (_pp_else_group pe) (pe::cl) }
 | pe=pp_else cl=pp_control_line+ pl=parameter_declaration_list
     { mknode ~pvec:[1; List.length cl + List.length pl] $startpos $endpos (_pp_else_group pe) (pe::cl@pl) }
 (*| pe=pp_else p=pp_param_if_section { mknode ~pvec:[1; 1] $startpos $endpos (_pp_else_group pe) [pe; p] }*)
@@ -9196,6 +9208,9 @@ logical_or_expression:
     { mknode ~pvec:[1; 1] $startpos $endpos (L.LogicalOrExpression b) [o; a] }
 
 | o=logical_or_expression b=BAR_BAR e=pp_expr_if_section
+    { mknode ~pvec:[1; 1] $startpos $endpos (L.LogicalOrExpression b) [o; e] }
+
+| o=pp_expr_if_section b=BAR_BAR e=pp_expr_if_section
     { mknode ~pvec:[1; 1] $startpos $endpos (L.LogicalOrExpression b) [o; e] }
 
 | o=logical_or_expression p=_pp_lor_if_section

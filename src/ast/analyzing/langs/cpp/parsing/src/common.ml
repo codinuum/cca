@@ -44,6 +44,17 @@ let opt_to_bool = function
   | Some _ -> true
   | None -> false
 
-let relpath path =
-  let pat = Str.regexp (Printf.sprintf "^%s%s" (Sys.getcwd()) Filename.dir_sep) in
-  Str.replace_first pat "" path
+let relpath_unix path =
+  if Filename.is_relative path then
+    path
+  else
+    let cwd = Unix.realpath (Sys.getcwd()) in
+    let pat = Str.regexp (Printf.sprintf "^%s%s" cwd Filename.dir_sep) in
+    let path = Unix.realpath path in
+    Str.replace_first pat "" path
+
+let relpath =
+  if Sys.unix then
+    relpath_unix
+  else
+    fun x -> x
