@@ -497,6 +497,7 @@ class ['a] pairs = object (self)
 end
 
 let get_orig_name n =
+  DEBUG_MSG "%s" n#data#to_string;
   let name = n#data#get_name in
   let sname = n#data#get_stripped_name in
   if name <> sname then

@@ -2987,11 +2987,16 @@ let get_comparator options ?(cache_path="") file1 file2 =
   let ext1 = file1#get_extension in
   let ext2 = file2#get_extension in
 
-  if ext1 <> ext2 && not options#parser_designated then begin
+  let lang1 = Lang.search options ext1 in
+  let lang2 = Lang.search options ext2 in
+
+  if
+    ext1 <> ext2 &&
+    lang1 != lang2 &&
+    not options#parser_designated
+  then begin
     Xprint.error "different extensions: %s and %s" ext1 ext2;
     exit 1
   end;
 
-  let lang = Lang.search options ext1 in
-
-  lang#make_tree_comparator options ~cache_path file1 file2
+  lang1#make_tree_comparator options ~cache_path file1 file2

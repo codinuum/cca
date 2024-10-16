@@ -1,6 +1,6 @@
 (*
    Copyright 2012-2020 Codinuum Software Lab <https://codinuum.com>
-   Copyright 2020 Chiba Institute of Technology
+   Copyright 2020-2024 Chiba Institute of Technology
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,6 +18,6 @@
 (* Author: Masatomo Hashimoto <m.hashimoto@stair.center> *)
 
 let parser_name = "cpp"
-let extensions = [".cpp";".hpp";".C";".H";".cc";".hh"]
+let extensions = [".cpp";".hpp";".C";".H";".cc";".hh";".c";".h"]
 
 let _ = Lang_base.register_spec parser_name extensions
