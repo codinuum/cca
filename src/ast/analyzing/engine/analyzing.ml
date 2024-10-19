@@ -1020,17 +1020,18 @@ module F (Label : Spec.LABEL_T) = struct
         edits#dump_dot2 ~final:true ddot2 tree2 tree1 nmapping;
       end;
 
+      if not options#dist_flag then begin
+        let edits_copy = edits#copy in
+        edits_copy#cleanup_ghost tree1 tree2;
 
-      let edits_copy = edits#copy in
-      edits_copy#cleanup_ghost tree1 tree2;
+        let line_align = edits_copy#get_line_align tree1 tree2 nmapping in
+        edits_copy#dump_diff_simple ~line_align tree1 tree2 diff;
+        edits_copy#dump_diff_json ~line_align tree1 tree2 diff_json;
+        edits_copy#dump_gdiff_json ~comp:Compression.gzip tree1 tree2 (gdiff_json^".gz");
 
-      let line_align = edits_copy#get_line_align tree1 tree2 nmapping in
-      edits_copy#dump_diff_simple ~line_align tree1 tree2 diff;
-      edits_copy#dump_diff_json ~line_align tree1 tree2 diff_json;
-      edits_copy#dump_gdiff_json ~comp:Compression.gzip tree1 tree2 (gdiff_json^".gz");
-
-      edits#dump_diff_info dinfo tree1 tree2;
-      edits#dump_diff_summary dsummary tree1 tree2 nmapping;
+        edits#dump_diff_info dinfo tree1 tree2;
+        edits#dump_diff_summary dsummary tree1 tree2 nmapping;
+      end;
 
       let diff_stat = edits#get_diff_stat tree1 tree2 nmapping in
 (*
@@ -1039,19 +1040,21 @@ module F (Label : Spec.LABEL_T) = struct
       Stat.File.dump_diff_stat dstat diff_stat;
       Stat.File.dump_diff_stat_json dstat_json diff_stat;
 
-      nmapping#dump_with_info ~comp:Compression.gzip (dmap^".gz");
-      nmapping#dump_json ~comp:Compression.gzip (dmap^".json.gz");
+      if not options#dist_flag then begin
+        nmapping#dump_with_info ~comp:Compression.gzip (dmap^".gz");
+        nmapping#dump_json ~comp:Compression.gzip (dmap^".json.gz");
 
-      let moved_nodes = edits#get_moved_nodes tree1 in
-      let is_mov n1 n2 =
-        try
-          if Xset.mem moved_nodes n1 then
-            nmapping#find n1 == n2
-          else
-            false
-        with _ -> false
-      in
-      nmapping#dump_gid_json ~comp:Compression.gzip is_mov (dgmap^".json.gz");
+        let moved_nodes = edits#get_moved_nodes tree1 in
+        let is_mov n1 n2 =
+          try
+            if Xset.mem moved_nodes n1 then
+              nmapping#find n1 == n2
+            else
+              false
+          with _ -> false
+        in
+        nmapping#dump_gid_json ~comp:Compression.gzip is_mov (dgmap^".json.gz");
+      end;
 
       if options#fact_for_mapping_flag then
         Lang.extract_mapping_fact options lang nmapping dmapfact tree1 tree2;

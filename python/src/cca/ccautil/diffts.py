@@ -404,6 +404,7 @@ def diffts(diff_cmd, file1, file2,
            prematch=True,
            usecache=True,
            cache_dir_base=None,
+           dist_mode=False,
            load_fact=False,
            fact_dir=None,
            fact_versions=[],
@@ -512,6 +513,10 @@ def diffts(diff_cmd, file1, file2,
 #        if not os.path.exists(diffts_working_dir_base):
 #            os.makedirs(diffts_working_dir_base)
 
+        mode_opts = ''
+        if dist_mode:
+            mode_opts += ' -dist'
+
         cachedir_opt = ''
         if cache_dir_base:
             logger.info(f'cache dir base: "{cache_dir_base}"')
@@ -566,7 +571,7 @@ def diffts(diff_cmd, file1, file2,
         if minimize_delta:
             other_opts += ' -dump:delta:minimize'
 
-        cmd = ''.join((diff_cmd,
+        cmd = ''.join((diff_cmd, mode_opts,
                        cache_opt, cachedir_opt, prep_opt, prem_opt, fact_opt,
                        dumpccs_opt, check_opt, other_opts))
         cmd += f' "{file1}" "{file2}"'
