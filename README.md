@@ -56,7 +56,7 @@ You can run both Diff/AST and DiffViewer by the following line.
 
 ### Requirements
 
-* [OCaml](http://ocaml.org/) (>=4.11.1)
+* [OCaml](http://ocaml.org/) (>=4.14.0 and < 5.0.0)
 * [OPAM](https://opam.ocaml.org/)
 
 ### Installation
