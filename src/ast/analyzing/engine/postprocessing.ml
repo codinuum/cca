@@ -26,6 +26,7 @@ open Misc
 
 let is_use n = B.is_use n#data#binding
 let get_def_node tree n = tree#search_node_by_uid (B.get_uid n#data#binding)
+let is_local_def n = B.is_local_def n#data#binding
 
 module F (Label : Spec.LABEL_T) = struct
 
@@ -2501,7 +2502,6 @@ END_DEBUG;
     END_DEBUG;
 
     let is_bad_pair =
-      let is_local_def n = B.is_local_def n#data#binding in
       let has_no_use_rename n1 n2 =
         let b =
           not (n1#data#eq n2#data) &&
@@ -2514,12 +2514,14 @@ END_DEBUG;
       if ignore_common then
         fun n1 n2 ->
           let b =
-            (try
-              (n1#data#is_common || n2#data#is_common) &&
-              n1#initial_parent#data#is_sequence &&
-              n2#initial_parent#data#is_sequence &&
-              not (n1#data#eq n2#data)
-            with _ -> false)
+            (
+             try
+               (n1#data#is_common || n2#data#is_common) &&
+               n1#initial_parent#data#is_sequence &&
+               n2#initial_parent#data#is_sequence &&
+               (not (n1#data#eq n2#data) || is_cross_boundary nmapping n1 n2)
+             with _ -> false
+            )
           ||
             Xset.mem bad_pairs (n1, n2)
           ||
@@ -6994,7 +6996,6 @@ end;
           let moveon x = not x#data#is_sequence in
           let get_mapped_descendants mem = get_p_descendants ~moveon mem in
           let get_dn = get_p_ancestor (fun x -> B.is_def x#data#binding) in
-          (*let is_use x = B.is_use x#data#binding in*)
           let name_tbl_to_str tbl =
             Hashtbl.fold
               (fun n bil s ->
@@ -7765,7 +7766,8 @@ end;
                           let nm1 = get_orig_name nd1 in
                           let nm2 = get_orig_name nd2 in
                           nd1#data#anonymized_label = nd2#data#anonymized_label &&
-                          cenv#is_rename_pat (nm1, nm2)
+                          cenv#is_rename_pat (nm1, nm2) &&
+                          not (is_cross_boundary nmapping nd1 nd2)
                         with
                           _ -> false
                       then begin
@@ -7813,7 +7815,7 @@ end;
                               | Edit.Relabel(_, (i1, _), (i2, _)) -> begin
                                   let n1 = Info.get_node i1 in
                                   let n2 = Info.get_node i2 in
-                                  B.is_use n1#data#binding && B.is_use n2#data#binding &&
+                                  is_use n1 && is_use n2 &&
                                   try
                                     let bi1 = Edit.get_bid n1 in
                                     let bi2 = Edit.get_bid n2 in
@@ -7829,6 +7831,37 @@ end;
                       then begin
                         if sz = 1 && is_cross_boundary nmapping nd1 nd2 then
                           DEBUG_MSG "single cross boundary move: %a" MID.ps mid
+                        else if
+                          sz = 1 &&
+                          let stmt_deleted =
+                            try
+                              let stmt1 = Comparison.get_stmt nd1 in
+                              is_del stmt1
+                            with
+                              _ -> false
+                          in
+                          let stmt_inserted =
+                            try
+                              let stmt2 = Comparison.get_stmt nd2 in
+                              is_ins stmt2
+                            with
+                              _ -> false
+                          in
+                          (stmt_deleted || stmt_inserted) &&
+                          (
+                           stmt_deleted && stmt_inserted ||
+                           not (
+                             not (is_use nd1 && is_use nd2) ||
+                             try
+                               let def1 = get_def_node tree1 nd1 in
+                               let def2 = get_def_node tree2 nd2 in
+                               is_local_def def1 && is_local_def def2 &&
+                               nmapping#find def1 == def2
+                             with _ -> false
+                           )
+                          )
+                        then
+                          DEBUG_MSG "single cross statement move: %a" MID.ps mid
                         else begin
                           DEBUG_MSG "to be excluded: %a (binding)" MID.ps mid;
                           Xset.add xset mid
@@ -10517,6 +10550,123 @@ end;
         | _ -> assert false
       );
 
+    if true then begin
+      DEBUG_MSG "@";
+      let add_move n1 n2 =
+        let mid, kind =
+          try
+            let pn1 = n1#initial_parent in
+            let pn2 = n2#initial_parent in
+            if pn1#initial_nchildren = 1 || pn2#initial_nchildren = 1 then
+              match edits#find_mov12 pn1 pn2 with
+              | Edit.Move(mid, k, _, _) -> !mid, !k
+              | _ -> raise Not_found
+            else
+              raise Not_found
+          with
+            _ -> options#moveid_generator#gen, Edit.Mnormal
+        in
+        let mov = Edit._make_move mid kind (mkinfo n1) (mkinfo n2) in
+        DEBUG_MSG "generated move: %s" (Edit.to_string mov);
+        edits#add_edit mov
+      in
+      cenv#multiple_node_matches#iter
+        (fun (_lab, _nds1, _nds2) ->
+          let nds1 = List.filter (fun x -> not (nmapping#mem_dom x)) _nds1 in
+          let nds2 = List.filter (fun x -> not (nmapping#mem_cod x)) _nds2 in
+          match nds1, nds2 with
+          | [nd1], [nd2] -> begin
+              if
+                nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
+                try
+                  nmapping#find nd1#initial_parent == nd2#initial_parent
+                with _ -> false
+              then begin
+                DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
+                  (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
+                ignore (nmapping#add_unsettled nd1 nd2);
+                add_move nd1 nd2;
+                let del = edits#find_del nd1 in
+                let ins = edits#find_ins nd2 in
+                edits#remove_edit del;
+                edits#remove_edit ins
+              end
+          end
+          | nd1::_, nd2::_ when false -> begin
+              DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
+                (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
+              let tbl1 = Nodetbl.create 0 in
+              let tbl2 = Nodetbl.create 0 in
+              let tbl_add tbl mem n =
+                if n#initial_nchildren = 0 then
+                  let moveon_ x = not x#data#is_boundary in
+                  try
+                    let an = Sourcecode.find_nearest_p_ancestor_node ~moveon_ mem n in
+                    try
+                      let nl = Nodetbl.find tbl an in
+                      Nodetbl.replace tbl an (n::nl)
+                    with
+                      Not_found -> Nodetbl.add tbl an [n]
+                  with
+                    _ -> ()
+              in
+              List.iter (tbl_add tbl1 nmapping#mem_dom) nds1;
+              List.iter (tbl_add tbl2 nmapping#mem_cod) nds2;
+              Nodetbl.iter
+                (fun an1 nl1 ->
+                  try
+                    let nl2 = Nodetbl.find tbl2 (nmapping#find an1) in
+                    DEBUG_MSG "%s nl1=[%a] nl2=[%a]"
+                      (Label.to_string (Obj.obj _lab)) nsps nl1 nsps nl2;
+
+                    match nl1, nl2 with
+                    | [n1], [n2] -> begin
+
+                        ignore (nmapping#add_unsettled n1 n2);
+                        let del = edits#find_del n1 in
+                        let ins = edits#find_ins n2 in
+                        edits#remove_edit del;
+                        edits#remove_edit ins;
+
+                        let cur1 = ref n1 in
+                        let cur2 = ref n2 in
+                        begin
+                          try
+                            while true do
+                              let pn1 = (!cur1)#initial_parent in
+                              let pn2 = (!cur2)#initial_parent in
+                              if
+                                pn1#initial_nchildren = 1 && pn2#initial_nchildren = 1 &&
+                                not (pn1#data#eq pn2#data) &&
+                                not (nmapping#mem_dom pn1) && not (nmapping#mem_cod pn2) &&
+                                pn1#data#_anonymized_label = pn2#data#_anonymized_label
+                              then begin
+                                ignore (nmapping#add_unsettled pn1 pn2);
+                                edits#add_edit (Edit.make_relabel pn1 pn2);
+                                let del = edits#find_del pn1 in
+                                let ins = edits#find_ins pn2 in
+                                edits#remove_edit del;
+                                edits#remove_edit ins;
+                                cur1 := pn1;
+                                cur2 := pn2
+                              end
+                              else
+                                raise Exit
+                            done
+                          with
+                            _ -> ()
+                        end;
+                        add_move !cur1 !cur2
+                    end
+                    | _ -> ()
+                  with
+                    _ -> ()
+                ) tbl1;
+
+          end
+          | _ -> ()
+        )
+    end;
 
     let delete_exclude_map = Nodetbl.create 0 in
     let insert_exclude_map = Nodetbl.create 0 in

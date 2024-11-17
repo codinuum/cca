@@ -1611,6 +1611,10 @@ let is_sequence = function
     -> true
   | _ -> false
 
+let is_ntuple = function
+  (* not yet *)
+  | _ -> false
+
 
 let is_boundary = function
   | TranslationUnit

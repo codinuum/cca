@@ -469,6 +469,8 @@ module Tree (L : Spec.LABEL_T) = struct
 
       method is_sequence = L.is_sequence lab
 
+      method is_ntuple = L.is_ntuple lab
+
       method is_phantom = L.is_phantom lab
 
       method is_special = L.is_special lab

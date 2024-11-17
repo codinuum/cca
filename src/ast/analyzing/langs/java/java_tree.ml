@@ -346,6 +346,7 @@ class visitor options bid_gen static_vdtors tree = object (self)
   method set_scope_node nd =
     try
       let n = stack#top.Sourcecode.f_scope_node in
+      DEBUG_MSG "n=%s" n#data#to_string;
       nd#data#set_scope_node n
     with
       Not_found -> ()
@@ -483,8 +484,10 @@ class visitor options bid_gen static_vdtors tree = object (self)
 
     if L.is_primaryname lab then begin
       let name = L.get_name lab in
+      (*DEBUG_MSG "nd=%s" nd#data#to_string;*)
       try
         let binder_nd = stack#lookup name in
+        (*DEBUG_MSG "binder_nd=%s" binder_nd#data#to_string;*)
         let bid = Binding.get_bid binder_nd#data#binding in
         tree#add_to_bid_tbl bid name;
         Binding.incr_use binder_nd#data#binding;

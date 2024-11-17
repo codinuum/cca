@@ -357,6 +357,17 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
     DEBUG_MSG "%a-%a -> %B" nups n1 nups n2 b;
     b
 
+  val mutable pre_boundary_mappings = (Xset.create 0 : ('node_t * 'node_t) Xset.t)
+
+  method add_to_pre_boundary_mapping n1 n2 =
+    DEBUG_MSG "%a-%a" nups n1 nups n2;
+    Xset.add pre_boundary_mappings (n1, n2)
+
+  method is_pre_boundary_mapping n1 n2 =
+    let b = Xset.mem pre_boundary_mappings (n1, n2) in
+    DEBUG_MSG "%a-%a -> %B" nups n1 nups n2 b;
+    b
+
   val mutable stable_pairs = (Nodetbl.create 0: 'node_t Nodetbl.t)
   method stable_pairs = stable_pairs
   method set_stable_pairs ps = stable_pairs <- ps
@@ -553,6 +564,10 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
     let invalidated_settled_root_tbl = Hashtbl.create 0 in
 
     let check adder n1 n2 =
+      if m#is_pre_boundary_mapping n1 n2 then
+        adder n1 n2
+      else begin
+
       DEBUG_MSG "checking %a-%a" nups n1 nups n2;
       let mem1 = self#mem_dom n1 in
       let mem2 = self#mem_cod n2 in
@@ -594,9 +609,18 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
       end
       else
         adder n1 n2
+
+      end
     in
 
-    m#iter_settled (check (fun n1 n2 -> ignore (self#add_settled ~stable:false n1 n2)));
+    m#iter_settled
+      (check
+         (fun n1 n2 ->
+           ignore (self#add_settled ~stable:false n1 n2);
+           if m#is_final_mapping n1 n2 then
+             self#finalize_mapping n1 n2
+         )
+      );
     m#iter_unsettled (check (fun n1 n2 -> ignore (self#add_unsettled n1 n2)));
 
     let rec get_settled_roots (nd1, nd2) =

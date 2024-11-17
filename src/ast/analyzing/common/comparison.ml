@@ -23,6 +23,10 @@ open Misc
 
 let sprintf = Printf.sprintf
 
+let is_use n = B.is_use n#data#binding
+let get_def_node tree n = tree#search_node_by_uid (B.get_uid n#data#binding)
+let is_local_def n = B.is_local_def n#data#binding
+
 let subtree_similarity_thresh = 0.7
 let subtree_similarity_ratio_thresh = 0.8
 let subtree_similarity_ratio_cutoff = 0.15
@@ -141,7 +145,7 @@ let boundary_mapped nmap nd nd' =
     let bn = get_bn nd in
     let bn' = get_bn nd' in
     let b = nmap bn == bn' in
-    DEBUG_MSG "%a-%a: %B" nups bn nups bn' b;
+    DEBUG_MSG "%a-%a (%a-%a): %B" nups nd nups nd' nups bn nups bn' b;
     b
   with _ -> false
 
@@ -498,8 +502,8 @@ end
 
 let get_orig_name n =
   DEBUG_MSG "%s" n#data#to_string;
-  let name = n#data#get_name in
-  let sname = n#data#get_stripped_name in
+  let name = try n#data#get_name with _ -> "" in
+  let sname = try n#data#get_stripped_name with _ -> "" in
   if name <> sname then
     sname
   else
@@ -711,7 +715,7 @@ class ['node_t, 'tree_t] c
     else
       let get_def_bn_opt tree n =
         try
-          let def = tree#search_node_by_uid (B.get_uid n#data#binding) in
+          let def = get_def_node tree n in
           get_bn_opt def
         with
           _ -> get_bn_opt n
@@ -915,17 +919,47 @@ class ['node_t, 'tree_t] c
     DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
     b
 
-  method is_scope_breaking_mapping
+  method scan_subtree_pair nd1 nd2 f =
+    let xl1 = ref [] in
+    let xl2 = ref [] in
+    tree1#fast_scan_whole_initial_subtree nd1 (fun x1 -> xl1 := x1 :: !xl1);
+    tree2#fast_scan_whole_initial_subtree nd2 (fun x2 -> xl2 := x2 :: !xl2);
+    List.iter2 f !xl1 !xl2
+
+  method is_scope_consistent_mapping
+      ?(local=true)
+      (nmapping : 'node_t Node_mapping.c)
+      (nd1 : 'node_t)
+      (nd2 : 'node_t)
+      =
+    is_use nd1 && is_use nd2 &&
+    try
+      let def1 = get_def_node tree1 nd1 in
+      let def2 = get_def_node tree2 nd2 in
+      let b =
+        (not local || is_local_def def1 && is_local_def def2) &&
+        nmapping#find def1 == def2
+      in
+      if b then begin
+        DEBUG_MSG "nd1=%a nd2=%a (%s)" nups nd1 nups nd2 nd1#data#to_string;
+        DEBUG_MSG "def1=%a def2=%a (%s)" nups def1 nups def2 def1#data#to_string;
+      end;
+      b
+    with
+      _ -> false
+
+  method private _is_scope_breaking_mapping
       (nmapping : 'node_t Node_mapping.c)
       (n1 : 'node_t)
       (n2 : 'node_t)
       =
+    DEBUG_MSG "%a-%a" nups n1 nups n2;
     let b =
       try
         let b1 = n1#data#binding in
         let b2 = n2#data#binding in
         if B.is_use b1 && B.is_use b2 then begin
-          DEBUG_MSG "@";
+          DEBUG_MSG "b1=%s b2=%s" (B.to_string b1) (B.to_string b2);
           let xor a b = (a || b) && not (a && b) in
           if xor (B.has_loc b1) (B.has_loc b2) then begin
             DEBUG_MSG "@";
@@ -949,7 +983,57 @@ class ['node_t, 'tree_t] c
                 Not_found -> false)
           end
           else
-            failwith "Comparison.c#is_scope_breaking_mapping"
+            try
+              let def_uid1 = B.get_uid b1 in
+              let def_uid2 = B.get_uid b2 in
+              let def1 = tree1#search_node_by_uid def_uid1 in
+              let def2 = tree2#search_node_by_uid def_uid2 in
+              DEBUG_MSG "def1=%s" def1#data#to_string;
+              DEBUG_MSG "def2=%s" def2#data#to_string;
+              let b =
+                let def1_eq_def2 = def1#data#eq def2#data in
+                not (def1_eq_def2 || def1#data#relabel_allowed def2#data) ||
+                not def1_eq_def2 && is_local_def def1 && is_local_def def2 &&
+                is_cross_boundary nmapping def1 def2 &&
+                (
+                 (
+                  try
+                    let def1' = nmapping#find def1 in
+                    DEBUG_MSG "def1'=%s" def1'#data#to_string;
+                    def1' != def2 && def1'#data#eq def1#data &&
+                    (
+                     (
+                      try
+                        let bn1 = get_bn def1 in
+                        not (nmapping#mem_dom bn1)
+                      with _ -> true
+                     ) ||
+                     not (is_cross_boundary nmapping def1 def1')
+                    )
+                  with _ -> false
+                 ) ||
+                 (
+                  try
+                    let def2' = nmapping#inv_find def2 in
+                    DEBUG_MSG "def2'=%s" def2'#data#to_string;
+                    def2' != def1 && def2'#data#eq def2#data &&
+                    (
+                     (
+                      try
+                        let bn2 = get_bn def2 in
+                        not (nmapping#mem_cod bn2)
+                      with _ -> true
+                     ) ||
+                     not (is_cross_boundary nmapping def2' def2)
+                    )
+                  with _ -> false
+                 )
+                )
+              in
+              DEBUG_MSG "b=%B" b;
+              b
+            with _ ->
+              failwith "Comparison.c#is_scope_breaking_mapping"
         end
         else if B.is_local_def b1 && B.is_local_def b2 then begin
           DEBUG_MSG "@";
@@ -959,9 +1043,74 @@ class ['node_t, 'tree_t] c
             failwith "Comparison.c#is_scope_breaking_mapping"
         end
         else
-          false
+          raise Not_found
       with
-        _ -> false
+        _ -> raise Not_found
+    in
+    DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+    b
+
+  method is_scope_breaking_mapping
+      ?(subtree=false)
+      (nmapping : 'node_t Node_mapping.c)
+      (n1 : 'node_t)
+      (n2 : 'node_t)
+      =
+    let b =
+      try
+        self#_is_scope_breaking_mapping nmapping n1 n2
+      with
+        _ -> begin
+          if n1#data#is_primary && n2#data#is_primary then begin
+            if subtree then begin
+              try
+                self#scan_subtree_pair n1 n2
+                  (fun x1 x2 ->
+                    try
+                      if self#_is_scope_breaking_mapping nmapping x1 x2 then
+                        raise Exit
+                    with
+                    | Failure _ | Not_found -> ()
+                  );
+                false
+              with Exit -> true
+            end
+            else
+            try
+              tree1#fast_scan_whole_initial_subtree n1
+                (fun x1 ->
+                  try
+                    let x2 = nmapping#find x1 in
+                    if self#_is_scope_breaking_mapping nmapping x1 x2 then
+                      raise Exit
+                  with
+                  | Failure _ | Not_found -> ()
+                );
+              false
+            with Exit -> true
+          end
+          else begin
+            n1#data#is_boundary && n2#data#is_boundary &&
+            n1#data#is_named_orig && n2#data#is_named_orig &&
+            try
+              let bn1 = get_bn n1 in
+              let bn2 = get_bn n2 in
+              DEBUG_MSG "bn1: %a" nps bn1;
+              DEBUG_MSG "bn2: %a" nps bn2;
+              (
+               try
+                 nmapping#find bn1 != bn2
+               with Not_found -> false
+              ) ||
+              (
+               try
+                 nmapping#inv_find bn2 != bn1
+               with Not_found -> false
+              )
+            with
+              _ -> false
+          end
+        end
     in
     DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
     b
@@ -969,6 +1118,7 @@ class ['node_t, 'tree_t] c
   val bad_pairs = (Xset.create 0 : ('node_t * 'node_t) Xset.t)
   method bad_pairs = bad_pairs
   method add_bad_pair n1 n2 = Xset.add bad_pairs (n1, n2)
+  method is_bad_pair n1 n2 = Xset.mem bad_pairs (n1, n2)
 
   val subtree_matches = (Xset.create 0 : ('node_t * 'node_t * int) Xset.t)
   method subtree_matches = subtree_matches
@@ -1215,6 +1365,14 @@ class ['node_t, 'tree_t] c
           nd1#data#_stripped_label = nd2#data#_stripped_label*)
         then
           3 + if bonus_rename_pat then 2 else 0
+        else if
+          nd1#data#is_boundary && nd2#data#is_boundary &&
+          nd1#data#is_named_orig && nd2#data#is_named_orig &&
+          get_orig_name nd1 = get_orig_name nd2
+        then begin
+          DEBUG_MSG "@";
+          3
+        end
         else
           2
       else if nd1#data#_anonymized2_label = nd2#data#_anonymized2_label then begin
@@ -2319,7 +2477,7 @@ class ['node_t, 'tree_t] c
           if
             nd1#data#is_statement || nd2#data#is_statement ||
             try
-              not (B.is_use nd1#data#binding) || not (B.is_use nd2#data#binding)
+              not (is_use nd1) || not (is_use nd2)
             with _ -> true
           then
             0.0
@@ -2910,10 +3068,24 @@ class ['node_t, 'tree_t] c
                 (nd2new#initial_nchildren = 1 || parent_check nd1old nd2new nd2old)
               then
                 ancsim_new, ancsim_new, true
-
               else if
                 nd2old == nd2new#initial_parent &&
                 (nd2old#initial_nchildren = 1 || parent_check nd1old nd2old nd2new)
+              then
+                ancsim_old, ancsim_old, true
+
+              else if
+                nd2old == nd2new#initial_parent &&
+                nd2old#data#is_op &&
+                nd2new#data#is_named_orig && nd1new#data#is_named_orig &&
+                nd2new#data#_anonymized_label = nd1new#data#_anonymized_label
+              then
+                ancsim_new, ancsim_new, true
+              else if
+                nd2old#initial_parent == nd2new &&
+                nd2new#data#is_op &&
+                nd2old#data#is_named_orig && nd1old#data#is_named_orig &&
+                nd2old#data#_anonymized_label = nd1old#data#_anonymized_label
               then
                 ancsim_old, ancsim_old, true
 
@@ -2943,6 +3115,19 @@ class ['node_t, 'tree_t] c
                 ancsim_old, ancsim_old, true
               end
 
+              else if
+                nd2old#initial_parent == nd2new#initial_parent &&
+                nd1old#data#is_boundary && nd2old#data#is_boundary &&
+                                           nd2new#data#is_boundary &&
+                nd1old#data#is_named_orig && nd2old#data#is_named_orig &&
+                                             nd2new#data#is_named_orig &&
+                get_orig_name nd1old = get_orig_name nd2old &&
+                get_orig_name nd1new = get_orig_name nd2new
+              then begin
+                DEBUG_MSG "@";
+                ancsim_old, ancsim_new, true
+              end
+
               else
                 ancsim_old, ancsim_new, false
 
@@ -2955,6 +3140,21 @@ class ['node_t, 'tree_t] c
               else if
                 nd1old == nd1new#initial_parent &&
                 (nd1old#initial_nchildren = 1 || parent_check nd2old nd1old nd1new)
+              then
+                ancsim_old, ancsim_old, true
+
+              else if
+                nd1old == nd1new#initial_parent &&
+                nd1old#data#is_op &&
+                nd1new#data#is_named_orig && nd2new#data#is_named_orig &&
+                nd1new#data#_anonymized_label = nd2new#data#_anonymized_label
+              then
+                ancsim_new, ancsim_new, true
+              else if
+                nd1old#initial_parent == nd1new &&
+                nd1new#data#is_op &&
+                nd1old#data#is_named_orig && nd2old#data#is_named_orig &&
+                nd1old#data#_anonymized_label = nd2old#data#_anonymized_label
               then
                 ancsim_old, ancsim_old, true
 
@@ -2981,6 +3181,19 @@ class ['node_t, 'tree_t] c
                 DEBUG_MSG "nd2: %a" ndps nd2old;
                 DEBUG_MSG "nd1: %a > %a" ndps nd1old ndps nd1new;
                 ancsim_old, ancsim_old, true
+              end
+
+              else if
+                nd1old#initial_parent == nd1new#initial_parent &&
+                nd1old#data#is_boundary && nd2old#data#is_boundary &&
+                nd1new#data#is_boundary &&
+                nd1old#data#is_named_orig && nd2old#data#is_named_orig &&
+                nd1new#data#is_named_orig &&
+                get_orig_name nd1old = get_orig_name nd2old &&
+                get_orig_name nd1new = get_orig_name nd2new
+              then begin
+                DEBUG_MSG "@";
+                ancsim_old, ancsim_new, true
               end
 
               else
@@ -3169,10 +3382,59 @@ class ['node_t, 'tree_t] c
           in
 
           if
+            try
+              let pnd1old = nd1old#initial_parent in
+              let pnd2old = nd2old#initial_parent in
+              let pnd1new = nd1new#initial_parent in
+              let pnd2new = nd2new#initial_parent in
+              pnd1old#data#is_boundary && pnd2old#data#is_boundary &&
+              pnd1old#data#is_named_orig && pnd2old#data#is_named_orig &&
+              pnd1new#data#is_boundary && pnd2new#data#is_boundary &&
+              pnd1new#data#is_named_orig && pnd2new#data#is_named_orig &&
+              get_orig_name pnd1old = get_orig_name pnd2old &&
+              nmapping#find pnd1old == pnd2old
+            with _ -> false
+          then begin
+            DEBUG_MSG "@";
+            let b, ncd, ncsim =
+              action_old None None false;
+              false, None, None
+            in
+            add_cache false b ncd ncsim
+          end
+          else if
+            try
+              let pnd1old = nd1old#initial_parent in
+              let pnd2old = nd2old#initial_parent in
+              let pnd1new = nd1new#initial_parent in
+              let pnd2new = nd2new#initial_parent in
+              pnd1old#data#is_boundary && pnd2old#data#is_boundary &&
+              pnd1old#data#is_named_orig && pnd2old#data#is_named_orig &&
+              pnd1new#data#is_boundary && pnd2new#data#is_boundary &&
+              pnd1new#data#is_named_orig && pnd2new#data#is_named_orig &&
+              get_orig_name pnd1new = get_orig_name pnd2new &&
+              nmapping#find pnd1new == pnd2new
+             with _ -> false
+          then begin
+            DEBUG_MSG "@";
+            let b, ncd, ncsim =
+              action_new None None false;
+              true, None, None
+            in
+            add_cache false b ncd ncsim
+          end
+          else if
             ancsim_old > 1.0 && ancsim_new < 1.0 && subtree_sim_new = 1.0
               && all_in_no_seq() && boundary_mapped nmapping#find nd1old nd2old
           ||
             ancsim_old = 1.0 && subtree_sim_old = 1.0 && ancsim_new < 1.0 && subtree_sim_new < 1.0
+          (*||
+            size_old > 4 && size_new > 4 &&
+            subtree_sim_old = 1.0 && not (is_cross_boundary nmapping nd1old nd2old) &&
+            subtree_sim_new < 1.0 && is_cross_boundary nmapping nd1new nd2new
+          ||
+            self#is_scope_consistent_mapping nmapping nd1old nd2old &&
+            not (self#is_scope_consistent_mapping nmapping nd1new nd2new)*)
           ||
             anc_sim_almost_same && subtree_sim_old = 1.0 && subtree_sim_new < 1.0 && chk_for_old()
           ||
@@ -3187,8 +3449,8 @@ class ['node_t, 'tree_t] c
             nmapping#is_stable_pair nd1old nd2old && not (nmapping#is_stable_pair nd1new nd2new)
           ||
             prefer_sim && subtree_sim_old > subtree_sim_new
-      (* ||
-        (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
+        (*||
+        (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff)*)
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
@@ -3202,6 +3464,13 @@ class ['node_t, 'tree_t] c
               && all_in_no_seq() && boundary_mapped nmapping#find nd1new nd2new
           ||
             ancsim_new = 1.0 && subtree_sim_new = 1.0 && ancsim_old < 1.0 && subtree_sim_old < 1.0
+          (*||
+            size_old > 4 && size_new > 4 &&
+            subtree_sim_new = 1.0 && not (is_cross_boundary nmapping nd1new nd2new) &&
+            subtree_sim_old < 1.0 && is_cross_boundary nmapping nd1old nd2old
+          ||
+            self#is_scope_consistent_mapping nmapping nd1new nd2new &&
+            not (self#is_scope_consistent_mapping nmapping nd1old nd2old)*)
           ||
             anc_sim_almost_same && subtree_sim_new = 1.0 && subtree_sim_old < 1.0 && chk_for_new()
           ||
@@ -3216,7 +3485,8 @@ class ['node_t, 'tree_t] c
             nmapping#is_stable_pair nd1new nd2new && not (nmapping#is_stable_pair nd1old nd2old)
           ||
             prefer_sim && subtree_sim_new > subtree_sim_old
-            (* || (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff) *)
+        (*||
+        (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff)*)
           then begin
             DEBUG_MSG "@";
             let b, ncd, ncsim =
@@ -3415,6 +3685,24 @@ class ['node_t, 'tree_t] c
 
                       DEBUG_MSG "sz_old: %d sz_new: %d" sz_old sz_new;
 
+                      (
+                       nd1old#data#is_ntuple && nd2old#data#is_ntuple &&
+                       nd1new#data#is_ntuple && nd2new#data#is_ntuple &&
+                       match uniq_pairs_old, uniq_pairs_new with
+                       | [], [(n1, n2)]
+                       | [(n1, n2)], [] -> begin
+                           let b =
+                             (n_mapped_old > 0 || n_mapped_new > 0) &&
+                             n1#data#is_boundary && n2#data#is_boundary &&
+                             n1#data#is_named_orig && n2#data#is_named_orig &&
+                             get_orig_name n1 = get_orig_name n2
+                           in
+                           DEBUG_MSG "b=%B" b;
+                           b
+                       end
+                       | _ -> false
+                      ) ||
+
                       let denom = sz_old + sz_new in
                       let r =
                         if denom = 0 then
@@ -3422,7 +3710,8 @@ class ['node_t, 'tree_t] c
                         else
                           (float (2 * (abs (n_mapped_old - n_mapped_new)))) /. (float denom)
                       in
-                      DEBUG_MSG "difference: %f" r;
+                      DEBUG_MSG "difference: %f (thresh=%f)"
+                        r options#mapped_neighbours_difference_threshold;
 
                       r < options#mapped_neighbours_difference_threshold
 

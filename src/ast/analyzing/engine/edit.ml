@@ -256,7 +256,6 @@ let combine_node_lists
     ?(filt=(fun _ _ -> true))
     (cenv : (node_t, tree_t) Comparison.c)
     nmapping
-    edits
     cands1
     cands2
     =
@@ -861,7 +860,16 @@ let collect_use_renames ?(filt=fun _ _ -> true) cenv nmapping edits is_possible_
               is_def nd1 && is_def nd2 &&
               match nd1#initial_children, nd2#initial_children with
               | [|c1|], [|c2|] -> has_uniq_subtree_match c1 c2
-              | _ -> false
+              | _ -> begin
+                  try
+                    nd1#initial_parent#data#is_ntuple && nd2#initial_parent#data#is_ntuple &&
+                    let bn1 = Comparison.get_bn nd1 in
+                    let bn2 = Comparison.get_bn nd2 in
+                    bn1#data#is_named_orig && bn2#data#is_named_orig &&
+                    nmapping#find bn1 == bn2
+                  with
+                    _ -> false
+              end
             then begin
               let bonus = 2 in
               try
@@ -1771,7 +1779,11 @@ let rectify_renames_u
       match bi1_opt, bi2_opt with
       | Some bi1, Some bi2 -> begin
           DEBUG_MSG "bi1=%a bi2=%a" BID.ps bi1 BID.ps bi2;
-          if (non_rename1 || non_rename2) && not same_name then
+          if non_rename1 && non_rename2 && not same_name then begin
+            DEBUG_MSG "@";
+            true, true
+          end
+          else if (non_rename1 || non_rename2) && not same_name then
             context_cond_, true
           (*!20240521!else if
             context_cond_ && List.mem (bi1, bi2) selected_renames
@@ -2022,7 +2034,7 @@ let rectify_renames_u
         is_def1 && is_def2 || is_use1 && is_use2 ||
         not is_def1 && not is_def2 && not is_use1 && not is_use2
       in
-      compatible_pairs := (combine_node_lists ~filt cenv nmapping edits cands1 cands2) @ !compatible_pairs
+      compatible_pairs := (combine_node_lists ~filt cenv nmapping cands1 cands2) @ !compatible_pairs
 
     ) cands_pair_tbl;
 
@@ -2593,7 +2605,7 @@ let rectify_renames_d
         begin
           try
             let pdef1 = def1#initial_parent in
-            if not pdef1#data#is_sequence then begin
+            if not (pdef1#data#is_sequence || pdef1#data#is_ntuple) then begin
               let pdef2 = def2#initial_parent in
               if nmapping#find pdef1 == pdef2 then begin
                 DEBUG_MSG "added to pairs_to_be_removed: %a-%a" nups pdef1 nups pdef2;
@@ -2708,7 +2720,7 @@ let rectify_renames_d
        (fun (x, _) (y, _) -> Stdlib.compare x#gindex y#gindex)
        !def_pair_list);
 
-  DEBUG_MSG "* removing bad def renames and mappings...";
+  DEBUG_MSG "* removing renames and mappings...";
 
   remove_relabels_and_mapping cenv edits nmapping !pairs_to_be_removed;
 
@@ -2717,6 +2729,8 @@ let rectify_renames_d
   let compatible_pairs = ref [] in
   List.iter
     (fun (cands1, cands2) ->
+      DEBUG_MSG "cands1=[%a]" nsps cands1;
+      DEBUG_MSG "cands2=[%a]" nsps cands2;
       let ncands1 = List.length cands1 in
       let ncands2 = List.length cands2 in
       DEBUG_MSG "ncands1=%d ncands2=%d" ncands1 ncands2;
@@ -2733,7 +2747,7 @@ let rectify_renames_d
         compatible_pairs := (comb sorted_cands1 sorted_cands2) @ !compatible_pairs
       end
       else
-        compatible_pairs := (combine_node_lists cenv nmapping edits cands1 cands2) @ !compatible_pairs
+        compatible_pairs := (combine_node_lists cenv nmapping cands1 cands2) @ !compatible_pairs
     ) !to_be_mapped;
 
   BEGIN_DEBUG

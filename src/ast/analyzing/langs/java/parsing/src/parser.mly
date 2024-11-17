@@ -2606,7 +2606,13 @@ method_invocation:
       if is_local_name n then begin
         mkmi $startofs $endofs (MImethodName(n, a))
       end
-      else if env#partial_name_resolution_flag then begin
+      else if
+        env#partial_name_resolution_flag &&
+        (
+         Ast.is_simple n ||
+         not (is_local_name ~force:true (Ast.leftmost_name n))
+        )
+      then begin
         mkmi $startofs $endofs (MImethodName(n, a))
       end
       else begin
@@ -2615,7 +2621,7 @@ method_invocation:
           env#set_attribute_A q;
           let id = rightmost_identifier n in
           if
-            is_local_name q ||
+            is_local_name ~force:true q ||
             is_implicit_field_name q ||
             is_field_access q ||
             is_expr_name q

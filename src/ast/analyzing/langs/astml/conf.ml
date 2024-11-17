@@ -41,6 +41,7 @@ let forced_to_be_collapsible_tag = add_conf_prefix "forced_to_be_collapsible"
 let boundary_nodes_tag           = add_conf_prefix "boundary_nodes"
 let partition_nodes_tag          = add_conf_prefix "partition_nodes"
 let sequence_nodes_tag           = add_conf_prefix "sequence_nodes"
+let ntuple_nodes_tag             = add_conf_prefix "ntuple_nodes"
 
 let cannot_be_keyroot_tag        = add_conf_prefix "cannot_be_keyroot"
 
@@ -129,6 +130,9 @@ class c conf_file = object (self)
 
   val mutable sequence_nodes = [] (* TAG_NAME_PAT * ATTRS *)
   method sequence_nodes = sequence_nodes
+
+  val mutable ntuple_nodes = [] (* TAG_NAME_PAT * ATTRS *)
+  method ntuple_nodes = ntuple_nodes
 
 
   val mutable cannot_be_keyroot = [] (* TAG_NAME_PAT * ATTRS *)
@@ -229,6 +233,9 @@ class c conf_file = object (self)
   method set_sequence_nodes =
     sequence_nodes <- self#get_pattern_list sequence_nodes_tag
 
+  method set_ntuple_nodes =
+    ntuple_nodes <- self#get_pattern_list ntuple_nodes_tag
+
 
   method set_cannot_be_keyroot =
     cannot_be_keyroot <- self#get_pattern_list cannot_be_keyroot_tag
@@ -311,6 +318,7 @@ class c conf_file = object (self)
     self#set_boundary_nodes;
     self#set_partition_nodes;
     self#set_sequence_nodes;
+    self#set_ntuple_nodes;
     self#set_cannot_be_keyroot;
 
 end (* of class Conf.c *)
