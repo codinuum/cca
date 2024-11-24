@@ -1963,11 +1963,16 @@ end;
       Xprint.verbose options#verbose_flag "digest of T2: %s" (Xhash.to_hex digest2);
 
       if digest1 = digest2 then begin
-        DEBUG_MSG "creating trivial mapping...";
+        DEBUG_MSG "genarating trivial mapping...";
+        if options#recover_orig_ast_flag then begin
+          tree1#recover_true_children ~initial_only:true ();
+          tree2#recover_true_children ~initial_only:true ()
+        end;
         let nmapping = new Node_mapping.c cenv in
         tree1#fast_scan_whole_initial
           (fun nd1 ->
             let nd2 = tree2#search_node_by_gindex nd1#gindex in
+            (*DEBUG_MSG "%a: %s - %s" GI.ps nd1#gindex nd1#data#to_string nd2#data#to_string;*)
             ignore (nmapping#add_settled nd1 nd2)
           );
         let edits = new Edit.seq options in
@@ -2310,14 +2315,19 @@ end;
                 | [], _ | _, [] -> ()
                 | [nd1], [nd2] ->
                     (*Xset.add matched_digests d;*)
-                    if cenv#is_bad_pair nd1 nd2 then
-                      ()
+                    if cenv#is_bad_pair nd1 nd2 then begin
+                      DEBUG_MSG "@";
+                    end
                     else if
                       cenv#is_scope_breaking_mapping ~subtree:true pre_nmapping nd1 nd2
-                    then
+                    then begin
+                      DEBUG_MSG "@";
                       cenv#scan_subtree_pair nd1 nd2 cenv#add_bad_pair
-                    else
+                    end
+                    else begin
+                      DEBUG_MSG "@";
                       add_subtree_match ~add_parent_match:false nd1 nd2
+                    end
 
                 | _ ->
                     Xset.add matched_digests d;
@@ -2823,27 +2833,35 @@ end;
 
 
           let check_pruned prnd tree nd =
-            try
-              List.iter
-                (fun n ->
-                  if tree#initial_subtree_mem n nd then
-                    raise Found
-                ) prnd;
-              false
-            with
-              Found -> true
+            let b =
+              try
+                List.iter
+                  (fun n ->
+                    if tree#initial_subtree_mem n nd then
+                      raise Found
+                  ) prnd;
+                false
+              with
+                Found -> true
+            in
+            DEBUG_MSG "%a -> %B" nups nd b;
+            b
           in
 
           let check_locked lckd tree nd =
-            try
-              Xset.iter
-                (fun n ->
-                  if tree#initial_subtree_mem n nd then
-                    raise Found
-                ) lckd;
-              false
-            with
-              Found -> true
+            let b =
+              try
+                Xset.iter
+                  (fun n ->
+                    if tree#initial_subtree_mem n nd then
+                      raise Found
+                  ) lckd;
+                false
+              with
+                Found -> true
+            in
+            DEBUG_MSG "%a -> %B" nups nd b;
+            b
           in
 
           let rt1, rt2 = tree1#root, tree2#root in
@@ -3013,13 +3031,50 @@ end;
                         ignore (pre_nmapping#add_settled ~stable:false c1 c2);
                         pre_nmapping#add_to_pre_boundary_mapping c1 c2;
 
-                        if c1#initial_nchildren = 1 && c2#initial_nchildren = 1 then
+                        if c1#initial_nchildren = 1 && c2#initial_nchildren = 1 then begin
                           let cc1 = c1#initial_children.(0) in
                           let cc2 = c2#initial_children.(0) in
                           if cc1#data#anonymized_label = cc2#data#anonymized_label then begin
                             ignore (pre_nmapping#add_unsettled cc1 cc2);
                             pre_nmapping#add_to_pre_boundary_mapping cc1 cc2
                           end
+                        end
+                        else if
+                          c1#data#is_ntuple && c2#data#is_ntuple &&
+                          (c1#initial_nchildren > 1 || c2#initial_nchildren > 1)
+                        then begin
+                          let cca1 = c1#initial_children in
+                          let cca2 = c2#initial_children in
+                          let selected_child_child_pair_list =
+                            let cmpr =
+                              new SMP.ComparatorFloat.c
+                                (fun cc1 cc2 ->
+                                  if cc1#data#eq cc2#data then
+                                    1.0
+                                  else if cc1#data#anonymized_label = cc2#data#anonymized_label then
+                                    0.5
+                                  else
+                                    0.0
+                                ) cca1 cca2
+                            in
+                            SMP.get_stable_matches cmpr cca1 cca2
+                          in
+                          List.iter
+                            (fun (cc1, cc2) ->
+                              ignore (pre_nmapping#add_settled ~stable:false cc1 cc2);
+                              pre_nmapping#add_to_pre_boundary_mapping cc1 cc2;
+
+                              if cc1#initial_nchildren = 1 && cc2#initial_nchildren = 1 then begin
+                                let ccc1 = cc1#initial_children.(0) in
+                                let ccc2 = cc2#initial_children.(0) in
+                                if ccc1#data#anonymized_label = ccc2#data#anonymized_label then begin
+                                  ignore (pre_nmapping#add_unsettled ccc1 ccc2);
+                                  pre_nmapping#add_to_pre_boundary_mapping ccc1 ccc2
+                                end
+                              end
+
+                            ) selected_child_child_pair_list
+                        end
 
                       ) selected_child_pair_list;
 

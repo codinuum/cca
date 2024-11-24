@@ -1548,7 +1548,7 @@ class translator options =
         let name = P.type_to_string ~resolve:true ~show_attr:false ty in
         let args_nd =
           let orig_lab_opt = Some (L.NamedArguments orig_name) in
-          [self#of_named_arguments ~orig_lab_opt name args]
+          [self#of_named_arguments ~orig_lab_opt (deco name args) args]
         in
         let ta_nodes = self#of_type_arguments_opt name targs_opt in
         let cb_nodes = self#of_class_body_opt ~in_method:true name body_opt in

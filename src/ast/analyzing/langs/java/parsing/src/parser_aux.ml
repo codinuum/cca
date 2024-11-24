@@ -1996,13 +1996,16 @@ module F (Stat : STATE_T) = struct
       env#partial_name_resolution_flag &&
       try
         let q = get_qualifier n in
-        is_local_name ~force:true q
+        is_local_name ~force:true (leftmost_name q)
       with _ -> false
     then begin
       DEBUG_MSG "@";
       name_to_facc n
     end
-    else if env#partial_name_resolution_flag then begin
+    else if
+      env#partial_name_resolution_flag &&
+      not (is_simple n && is_local_name ~force:true n)
+    then begin
       set_name_attribute ~force:true (NAambiguous (mkresolved (P.name_to_simple_string n))) n;
       DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
       _mkprim loc (Pname n)

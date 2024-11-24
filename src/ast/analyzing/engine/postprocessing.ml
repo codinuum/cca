@@ -10576,14 +10576,14 @@ end;
           let nds2 = List.filter (fun x -> not (nmapping#mem_cod x)) _nds2 in
           match nds1, nds2 with
           | [nd1], [nd2] -> begin
+              DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
+                (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
               if
                 nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
                 try
                   nmapping#find nd1#initial_parent == nd2#initial_parent
                 with _ -> false
               then begin
-                DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
-                  (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
                 ignore (nmapping#add_unsettled nd1 nd2);
                 add_move nd1 nd2;
                 let del = edits#find_del nd1 in

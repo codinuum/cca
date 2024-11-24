@@ -2468,6 +2468,7 @@ let rectify_renames_d
       let bid1 = get_bid def1 in
       let bid2 = get_bid def2 in
       DEBUG_MSG "             %a-%a" BID.ps bid1 BID.ps bid2;
+
       let use_rename_count = ref 0 in
       let delete_list = ref [] in
       let insert_list = ref [] in
@@ -2528,6 +2529,12 @@ let rectify_renames_d
       DEBUG_MSG "conflicting_use_mapping_count1=%d" conflicting_use_mapping_count1;
       DEBUG_MSG "conflicting_use_mapping_count2=%d" conflicting_use_mapping_count2;
 
+      let local_def_flag = B.is_local_def def1#data#binding && B.is_local_def def2#data#binding in
+      DEBUG_MSG "local_def_flag=%B" local_def_flag;
+
+      let compatible_scope_flag = Misc.is_scope_compatible nmapping def1 def2 in
+      DEBUG_MSG "compatible_scope_flag=%B" compatible_scope_flag;
+
       let non_rename_def_cand1 = ref None in
       let non_rename_def_cand2 = ref None in
 
@@ -2552,7 +2559,15 @@ let rectify_renames_d
               let b =
                 let name1 = Comparison.get_orig_name n1 in
                 Comparison.get_orig_name n2 = name1 &&
-                not (Misc.is_cross_boundary nmapping n1 n2) &&
+                not
+                  (
+                   Misc.is_cross_boundary nmapping n1 n2 ||
+                   local_def_flag &&
+                   (
+                    compatible_scope_flag ||
+                    Misc.is_cross_scope nmapping n1 n2
+                   )
+                  ) &&
                 let bi2 = get_bid n2 in
                 List.for_all
                   (fun (x, y) ->
@@ -2570,30 +2585,43 @@ let rectify_renames_d
                       false
                   ) pl
               in
+              DEBUG_MSG "b=%B" b;
               b
           end) ||
           (match !conflicting_mapping_list2 with
           | [] -> false
           | ((n1, n2)::_ as pl) -> begin
-              let name2 = Comparison.get_orig_name n2 in
-              Comparison.get_orig_name n1 = name2 &&
-              not (Misc.is_cross_boundary nmapping n1 n2) &&
-              let bi1 = get_bid n1 in
-              List.for_all
-                (fun (x, y) ->
-                  if Comparison.get_orig_name x = name2 && get_bid x = bi1 then begin
-                    begin
-                      try
-                        let def1' = cenv#tree1#search_node_by_uid (B.get_uid x#data#binding) in
-                        non_rename_def_cand1 := Some def1'
-                      with
-                        _ -> ()
-                    end;
-                    true
-                  end
-                  else
-                    false
-                ) pl
+              let b =
+                let name2 = Comparison.get_orig_name n2 in
+                Comparison.get_orig_name n1 = name2 &&
+                not
+                  (
+                   Misc.is_cross_boundary nmapping n1 n2 ||
+                   local_def_flag &&
+                   (
+                    compatible_scope_flag ||
+                    Misc.is_cross_scope nmapping n1 n2
+                   )
+                  ) &&
+                let bi1 = get_bid n1 in
+                List.for_all
+                  (fun (x, y) ->
+                    if Comparison.get_orig_name x = name2 && get_bid x = bi1 then begin
+                      begin
+                        try
+                          let def1' = cenv#tree1#search_node_by_uid (B.get_uid x#data#binding) in
+                          non_rename_def_cand1 := Some def1'
+                        with
+                          _ -> ()
+                      end;
+                      true
+                    end
+                    else
+                      false
+                  ) pl
+              in
+              DEBUG_MSG "b=%B" b;
+              b
           end)
          )
         )

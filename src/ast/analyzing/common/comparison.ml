@@ -188,7 +188,6 @@ class ['node_t] multiple_node_matches (label_to_string : Obj.t -> string) = obje
 
   method add _lab (nds1, nds2) =
     DEBUG_MSG "%s [%a]-[%a]" (label_to_string _lab) nsps nds1 nsps nds2;
-
     if not (Hashtbl.mem tbl _lab) then
       Hashtbl.add tbl _lab (nds1, nds2)
     else
@@ -199,9 +198,11 @@ class ['node_t] multiple_node_matches (label_to_string : Obj.t -> string) = obje
     Hashtbl.find tbl _lab
 
   method replace _lab (nds1, nds2) =
+    DEBUG_MSG "%s [%a]-[%a]" (label_to_string _lab) nsps nds1 nsps nds2;
     Hashtbl.replace tbl _lab (nds1, nds2)
 
   method remove _lab =
+    DEBUG_MSG "%s" (label_to_string _lab);
     Hashtbl.remove tbl _lab
 
   method iter (f : Obj.t * 'node_t list * 'node_t list -> unit) =
@@ -1117,7 +1118,9 @@ class ['node_t, 'tree_t] c
 
   val bad_pairs = (Xset.create 0 : ('node_t * 'node_t) Xset.t)
   method bad_pairs = bad_pairs
-  method add_bad_pair n1 n2 = Xset.add bad_pairs (n1, n2)
+  method add_bad_pair n1 n2 =
+    DEBUG_MSG "%a-%a" nups n1 nups n2;
+    Xset.add bad_pairs (n1, n2)
   method is_bad_pair n1 n2 = Xset.mem bad_pairs (n1, n2)
 
   val subtree_matches = (Xset.create 0 : ('node_t * 'node_t * int) Xset.t)
@@ -3380,6 +3383,23 @@ class ['node_t, 'tree_t] c
             DEBUG_MSG "%B" b;
             b
           in
+          let is_stable_ntuple n1 n2 =
+            let b =
+              n1#data#is_ntuple && n2#data#is_ntuple &&
+              n1#data#is_named && n2#data#is_named &&
+              try
+                let pn1 = n1#initial_parent in
+                let pn2 = n2#initial_parent in
+                pn1#data#is_named && pn2#data#is_named &&
+                pn1#data#get_name = n1#data#get_name &&
+                pn2#data#get_name = n2#data#get_name
+              with _ -> false
+            in
+            DEBUG_MSG "%B" b;
+            b
+          in
+
+          DEBUG_MSG "@";
 
           if
             try
@@ -3449,6 +3469,8 @@ class ['node_t, 'tree_t] c
             nmapping#is_stable_pair nd1old nd2old && not (nmapping#is_stable_pair nd1new nd2new)
           ||
             prefer_sim && subtree_sim_old > subtree_sim_new
+          ||
+            is_stable_ntuple nd1old nd2old && not (is_stable_ntuple nd1new nd2new)
         (*||
         (subtree_sim_old > subtree_sim_new && subtree_sim_ratio < subtree_similarity_ratio_cutoff)*)
           then begin
@@ -3485,6 +3507,8 @@ class ['node_t, 'tree_t] c
             nmapping#is_stable_pair nd1new nd2new && not (nmapping#is_stable_pair nd1old nd2old)
           ||
             prefer_sim && subtree_sim_new > subtree_sim_old
+          ||
+            is_stable_ntuple nd1new nd2new && not (is_stable_ntuple nd1old nd2old)
         (*||
         (subtree_sim_new > subtree_sim_old && subtree_sim_ratio < subtree_similarity_ratio_cutoff)*)
           then begin

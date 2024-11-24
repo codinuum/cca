@@ -468,6 +468,65 @@ let is_cross_boundary nmapping n1 n2 =
   DEBUG_MSG "%a - %a -> %B" nps n1 nps n2 b;
   b
 
+let is_ancestor a n =
+  let visited = ref [n] in
+  let cur = ref n in
+  let b =
+    try
+      while true do
+        cur := (!cur)#initial_parent;
+        if List.memq !cur !visited then
+          failwith "is_ancestor"
+        else begin
+          if !cur == a then
+            raise Exit;
+          visited := !cur :: !visited
+        end
+      done;
+      false
+    with
+    | Exit -> true
+    | _ -> false
+  in
+  DEBUG_MSG "%a %a --> %B" nups a nups n b;
+  b
+
+let get_scope_node nd = get_p_ancestor (fun x -> x#data#is_scope_creating) nd
+
+let is_scope_compatible nmapping n1 n2 =
+  let b =
+    try
+      let a1 = get_scope_node n1 in
+      let a2 = get_scope_node n2 in
+      try
+        let a1_ = nmapping#find a1 in
+        DEBUG_MSG "%a -> %a" nups a1 nups a1_;
+        a1_ != a2 && (is_ancestor a1_ a2 || is_ancestor a2 a1_)
+      with Not_found -> begin
+        try
+          let _a2 = nmapping#inv_find a2 in
+          DEBUG_MSG "%a <- %a" nups _a2 nups a2;
+          is_ancestor a1 _a2 || is_ancestor _a2 a1
+        with _ -> false
+      end
+    with
+      _ -> false
+  in
+  DEBUG_MSG "%a - %a -> %B" nps n1 nps n2 b;
+  b
+
+let is_cross_scope nmapping n1 n2 =
+  let b =
+    try
+      let a1 = get_p_ancestor (fun x -> x#data#is_scope_creating) n1 in
+      let a2 = get_p_ancestor (fun x -> x#data#is_scope_creating) n2 in
+      not (try nmapping#find a1 == a2 with _ -> false)
+    with
+      _ -> false
+  in
+  DEBUG_MSG "%a - %a -> %B" nps n1 nps n2 b;
+  b
+
 let inv_assq k l =
   let res_opt =
     List.fold_left
