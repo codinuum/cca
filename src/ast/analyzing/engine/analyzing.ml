@@ -2958,6 +2958,87 @@ end;
             !res
           in*)
 
+          let setup_boundary_mapping ?(weak=false) ?(stable=false) nd1 nd2 =
+            DEBUG_MSG "%a-%a" nups nd1 nups nd2;
+
+            let ca1 = nd1#initial_children in
+            let ca2 = nd2#initial_children in
+            let selected_child_pair_list =
+              let cmpr =
+                new SMP.ComparatorFloat.c
+                  (fun c1 c2 ->
+                    if c1#data#eq c2#data then
+                      1.0
+                    else if c1#data#anonymized_label = c2#data#anonymized_label then
+                      0.5
+                    else
+                      0.0
+                  ) ca1 ca2
+              in
+              SMP.get_stable_matches cmpr ca1 ca2
+            in
+            List.iter
+              (fun (c1, c2) ->
+                ignore (pre_nmapping#add_settled ~stable c1 c2);
+                pre_nmapping#add_to_pre_boundary_mapping c1 c2;
+
+                if c1#initial_nchildren = 1 && c2#initial_nchildren = 1 then begin
+                  let cc1 = c1#initial_children.(0) in
+                  let cc2 = c2#initial_children.(0) in
+                  if cc1#data#anonymized_label = cc2#data#anonymized_label then begin
+                    ignore (pre_nmapping#add_unsettled cc1 cc2);
+                    pre_nmapping#add_to_pre_boundary_mapping cc1 cc2
+                  end
+                end
+                else if
+                  c1#data#is_ntuple && c2#data#is_ntuple &&
+                  (c1#initial_nchildren > 1 || c2#initial_nchildren > 1)
+                then begin
+                  let cca1 = c1#initial_children in
+                  let cca2 = c2#initial_children in
+                  let selected_child_child_pair_list =
+                    let cmpr =
+                      new SMP.ComparatorFloat.c
+                        (fun cc1 cc2 ->
+                          if cc1#data#eq cc2#data then
+                            1.0
+                          else if cc1#data#anonymized_label = cc2#data#anonymized_label then
+                            0.5
+                          else
+                            0.0
+                        ) cca1 cca2
+                    in
+                    SMP.get_stable_matches cmpr cca1 cca2
+                  in
+                  List.iter
+                    (fun (cc1, cc2) ->
+                      ignore (pre_nmapping#add_settled ~stable cc1 cc2);
+                      pre_nmapping#add_to_pre_boundary_mapping cc1 cc2;
+
+                      if cc1#initial_nchildren = 1 && cc2#initial_nchildren = 1 then begin
+                        let ccc1 = cc1#initial_children.(0) in
+                        let ccc2 = cc2#initial_children.(0) in
+                        if ccc1#data#anonymized_label = ccc2#data#anonymized_label then begin
+                          ignore (pre_nmapping#add_unsettled ccc1 ccc2);
+                          pre_nmapping#add_to_pre_boundary_mapping ccc1 ccc2
+                        end
+                      end
+
+                    ) selected_child_child_pair_list
+                end
+
+                ) selected_child_pair_list;
+
+            ignore (pre_nmapping#add_settled ~stable nd1 nd2);
+
+            pre_nmapping#add_to_pre_boundary_mapping nd1 nd2;
+
+            pre_nmapping#finalize_mapping nd1 nd2;
+
+            (*pre_nmapping#add_settled_roots nd1 nd2*)
+
+          in (* setup_boundary_mapping *)
+
           Hashtbl.iter
             (fun _lab nds1 ->
               let lab = Obj.obj _lab in
@@ -2995,7 +3076,41 @@ end;
                   register_matches nds1 nds2;
                 end;
                 if options#multi_node_match_flag then
-                  multiple_node_matches#add _lab (nds1, nds2)
+                  multiple_node_matches#add _lab (nds1, nds2);
+
+                begin
+                  DEBUG_MSG "[%a]-[%a]" nsps nds1 nsps nds2;
+                  let get_uniq_child_ntuple n =
+                    let xl = ref [] in
+                    Array.iter
+                      (fun c ->
+                        if c#data#is_ntuple then
+                          xl := c :: !xl
+                      ) n#initial_children;
+                    match !xl with
+                    | [x] -> DEBUG_MSG "%a -> %a" nups n nups x; x
+                    | _ -> raise Not_found
+                  in
+                  match nds1, nds2 with
+                  | [nd1], [nd2] -> begin
+                      if
+                        nd1#data#is_boundary && nd1#data#is_named_orig &&
+                        not nd1#data#is_sequence && not nd1#data#is_ntuple &&
+                        try
+                          let cnd1 = get_uniq_child_ntuple nd1 in
+                          let cnd2 = get_uniq_child_ntuple nd2 in
+                          not (cnd1#data#subtree_equals cnd2#data)
+                        with _ -> false
+                      then begin
+                        DEBUG_MSG "boundary node match: %a[%a] <--> %a[%a] <%a>"
+                          nups nd1 locps nd1 nups nd2 locps nd2 labps nd1;
+
+                        setup_boundary_mapping ~weak:true(* ~stable:true*) nd1 nd2
+                      end
+                  end
+                  | _ -> ()
+                end
+
               with
                 Not_found -> ()
 
@@ -3010,78 +3125,7 @@ end;
                     DEBUG_MSG "boundary node match: %a[%a] <--> %a[%a] <%a>"
                       nups nd1 locps nd1 nups nd2 locps nd2 labps nd1;
 
-                    let ca1 = nd1#initial_children in
-                    let ca2 = nd2#initial_children in
-                    let selected_child_pair_list =
-                      let cmpr =
-                        new SMP.ComparatorFloat.c
-                          (fun c1 c2 ->
-                            if c1#data#eq c2#data then
-                              1.0
-                            else if c1#data#anonymized_label = c2#data#anonymized_label then
-                              0.5
-                            else
-                              0.0
-                          ) ca1 ca2
-                      in
-                      SMP.get_stable_matches cmpr ca1 ca2
-                    in
-                    List.iter
-                      (fun (c1, c2) ->
-                        ignore (pre_nmapping#add_settled ~stable:false c1 c2);
-                        pre_nmapping#add_to_pre_boundary_mapping c1 c2;
-
-                        if c1#initial_nchildren = 1 && c2#initial_nchildren = 1 then begin
-                          let cc1 = c1#initial_children.(0) in
-                          let cc2 = c2#initial_children.(0) in
-                          if cc1#data#anonymized_label = cc2#data#anonymized_label then begin
-                            ignore (pre_nmapping#add_unsettled cc1 cc2);
-                            pre_nmapping#add_to_pre_boundary_mapping cc1 cc2
-                          end
-                        end
-                        else if
-                          c1#data#is_ntuple && c2#data#is_ntuple &&
-                          (c1#initial_nchildren > 1 || c2#initial_nchildren > 1)
-                        then begin
-                          let cca1 = c1#initial_children in
-                          let cca2 = c2#initial_children in
-                          let selected_child_child_pair_list =
-                            let cmpr =
-                              new SMP.ComparatorFloat.c
-                                (fun cc1 cc2 ->
-                                  if cc1#data#eq cc2#data then
-                                    1.0
-                                  else if cc1#data#anonymized_label = cc2#data#anonymized_label then
-                                    0.5
-                                  else
-                                    0.0
-                                ) cca1 cca2
-                            in
-                            SMP.get_stable_matches cmpr cca1 cca2
-                          in
-                          List.iter
-                            (fun (cc1, cc2) ->
-                              ignore (pre_nmapping#add_settled ~stable:false cc1 cc2);
-                              pre_nmapping#add_to_pre_boundary_mapping cc1 cc2;
-
-                              if cc1#initial_nchildren = 1 && cc2#initial_nchildren = 1 then begin
-                                let ccc1 = cc1#initial_children.(0) in
-                                let ccc2 = cc2#initial_children.(0) in
-                                if ccc1#data#anonymized_label = ccc2#data#anonymized_label then begin
-                                  ignore (pre_nmapping#add_unsettled ccc1 ccc2);
-                                  pre_nmapping#add_to_pre_boundary_mapping ccc1 ccc2
-                                end
-                              end
-
-                            ) selected_child_child_pair_list
-                        end
-
-                      ) selected_child_pair_list;
-
-                    ignore (pre_nmapping#add_settled ~stable:false nd1 nd2);
-                    pre_nmapping#add_to_pre_boundary_mapping nd1 nd2;
-                    pre_nmapping#finalize_mapping nd1 nd2;
-                    (*pre_nmapping#add_settled_roots nd1 nd2*)
+                    setup_boundary_mapping nd1 nd2
 
                 end
                 | _ -> ()
