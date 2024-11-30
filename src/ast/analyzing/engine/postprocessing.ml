@@ -2378,6 +2378,145 @@ END_DEBUG;
       nmapping
 
 
+  let has_crossing_descendant tree1 tree2 nmapping nd1 nd2 =
+    let b =
+      try
+        let pnd1 = nd1#initial_parent in
+        let pnd2 = nd2#initial_parent in
+        (
+         try
+           tree1#fast_scan_whole_initial_subtree nd1
+             (fun n ->
+               if n != nd1 then
+                 try
+                   let n' = nmapping#find n in
+                   if
+                     not (tree2#is_initial_ancestor nd2 n') &&
+                     tree2#is_initial_ancestor pnd2 n'
+                   then begin
+                     DEBUG_MSG "found: %a->%a" nups n nups n';
+                     raise Exit
+                   end
+                 with
+                   Not_found -> ()
+             );
+           false
+         with
+           Exit -> true
+        ) ||
+        (
+         try
+           tree2#fast_scan_whole_initial_subtree nd2
+             (fun n ->
+               if n != nd2 then
+                 try
+                   let n' = nmapping#inv_find n in
+                   if
+                     not (tree1#is_initial_ancestor nd1 n') &&
+                     tree1#is_initial_ancestor pnd1 n'
+                   then begin
+                     DEBUG_MSG "found: %a<-%a" nups n' nups n;
+                     raise Exit
+                   end
+                 with
+                   Not_found -> ()
+             );
+           false
+         with
+           Exit -> true
+        )
+      with _ -> false
+    in
+    DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
+    b
+
+  (*let has_mapped_descendant tree1 tree2 nmapping nd1 nd2 =
+    let b =
+      (
+       try
+         tree1#fast_scan_whole_initial_subtree nd1
+           (fun n ->
+             try
+               let n' = nmapping#find n in
+               if
+                 tree2#is_initial_ancestor nd2 n'
+               then
+                 raise Exit
+             with
+               Not_found -> ()
+           );
+         false
+       with
+         Exit -> true
+      ) ||
+      (
+       try
+         tree2#fast_scan_whole_initial_subtree nd2
+           (fun n ->
+             try
+               let n' = nmapping#inv_find n in
+               if
+                 tree1#is_initial_ancestor nd1 n'
+               then
+                 raise Exit
+             with
+               Not_found -> ()
+           );
+         false
+       with
+         Exit -> true
+      )
+    in
+    DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
+    b*)
+
+  let is_extendable_move tree1 tree2 nmapping n1 n2 =
+    DEBUG_MSG "n1=%a" nps n1;
+    DEBUG_MSG "n2=%a" nps n2;
+    let has_crossing_descendant = has_crossing_descendant tree1 tree2 nmapping in
+    let b =
+      try
+        let pn1 = n1#initial_parent in
+        let pn2 = n2#initial_parent in
+        DEBUG_MSG "pn1=%a" nps pn1;
+        DEBUG_MSG "pn2=%a" nps pn2;
+        let na1 = pn1#initial_children in
+        let na2 = pn2#initial_children in
+        let nna1 = Array.length na1 in
+        let nna2 = Array.length na2 in
+        DEBUG_MSG "nna1=%d nna2=%d" nna1 nna2;
+        nna1 = 1 && nna2 = 1 ||
+        let pos1 = Sourcecode.get_logical_pos n1 in
+        let pos2 = Sourcecode.get_logical_pos n2 in
+        DEBUG_MSG "pos1=%d pos2=%d" pos1 pos2;
+        pos1 = pos2 &&
+        (
+         not (has_crossing_descendant n1 n2) &&
+         let p1 = n1#initial_pos in
+         let p2 = n2#initial_pos in
+         (
+          try
+            let _n1 = na1.(p1-1) in
+            let _n2 = na2.(p2-1) in
+            DEBUG_MSG "_n1=%a _n2=%a" nups _n1 nups _n2;
+            not (has_crossing_descendant _n1 _n2)
+          with _ -> false
+         ) ||
+         (
+          try
+            let n1_ = na1.(p1+1) in
+            let n2_ = na2.(p2+1) in
+            DEBUG_MSG "n1_=%a n2_=%a" nups n1_ nups n2_;
+            not (has_crossing_descendant n1_ n2_)
+          with _ -> false
+         )
+        )
+      with _ -> false
+    in
+    DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+    b
+
+
  (*
   * glueing deletes and inserts
   *)
@@ -2700,46 +2839,6 @@ END_DEBUG;
       DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
       b
     in
-    let has_crossing_descendant nd1 nd2 =
-      let b =
-        (
-         try
-           tree1#fast_scan_whole_initial_subtree nd1
-             (fun n ->
-               try
-                 let n' = nmapping#find n in
-                 if
-                   not (tree2#is_initial_ancestor nd2 n')
-                 then
-                   raise Exit
-               with
-                 Not_found -> ()
-             );
-           false
-         with
-           Exit -> true
-        ) ||
-        (
-         try
-           tree2#fast_scan_whole_initial_subtree nd2
-             (fun n ->
-               try
-                 let n' = nmapping#inv_find n in
-                 if
-                   not (tree1#is_initial_ancestor nd1 n')
-                 then
-                   raise Exit
-               with
-                 Not_found -> ()
-             );
-           false
-         with
-           Exit -> true
-        )
-      in
-      DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
-      b
-    in
 
     tree1#init; tree2#init;
 
@@ -2780,20 +2879,7 @@ END_DEBUG;
            (*not nd1#data#is_order_insensitive && not nd2#data#is_order_insensitive &&*)
            (*not nd1#data#is_sequence && not nd2#data#is_sequence &&
            not nd1#data#is_ntuple && not nd2#data#is_ntuple &&*)
-           try
-             let pnd1 = nd1#initial_parent in
-             let pnd2 = nd2#initial_parent in
-             pnd1#initial_nchildren = pnd2#initial_nchildren &&
-             let pos1 = Sourcecode.get_logical_pos nd1 in
-             let pos2 = Sourcecode.get_logical_pos nd2 in
-             DEBUG_MSG "nd1=%a" nps nd1;
-             DEBUG_MSG "nd2=%a" nps nd2;
-             DEBUG_MSG "pos1=%d pos2=%d" pos1 pos2;
-             pos1 = pos2 &&
-             Array.for_all2
-               (fun n1 n2 -> not (has_crossing_descendant n1 n2))
-               pnd1#initial_children pnd2#initial_children
-           with _ -> false
+           is_extendable_move tree1 tree2 nmapping nd1 nd2
           )
         then begin
           DEBUG_MSG "@";
@@ -5108,7 +5194,12 @@ END_DEBUG;
               else (* n2 == nd2 *)
                 false, None, None
             with
-              Not_found -> not no_moves || not (is_crossing_with_added nd1 nd2), None, None
+              Not_found ->
+                let b =
+                  not no_moves ||
+                  not (is_crossing_with_added nd1 nd2)
+                in
+                b, None, None
           in
           let can_add2, dnc2, padj2 =
             try
@@ -5171,7 +5262,12 @@ END_DEBUG;
               else (* n1 == nd1 *)
                 false, None, None
             with
-              Not_found -> not no_moves || not (is_crossing_with_added nd1 nd2), None, None
+              Not_found ->
+                let b =
+                  not no_moves ||
+                  not (is_crossing_with_added nd1 nd2)
+                in
+                b, None, None
           in
           BEGIN_DEBUG
             let dnc_to_str = function
@@ -7851,6 +7947,20 @@ end;
                         DEBUG_MSG "to be excluded: %a (ancestor mapping)" MID.ps mid;
                         Xset.add xset mid
                       end
+                      (*else if
+                        try
+                          let pnd1 = nd1#initial_parent in
+                          let pnd2 = nd2#initial_parent in
+                          pnd1#data#is_boundary && pnd2#data#is_boundary &&
+                          pnd1#data#is_named && pnd2#data#is_named &&
+                          pnd1#data#get_name = nd1#data#get_name &&
+                          pnd2#data#get_name = nd2#data#get_name &&
+                          nmapping#find pnd1 == pnd2
+                        with _ -> false
+                      then begin
+                        DEBUG_MSG "to be excluded: %a (namesake boundary)" MID.ps mid;
+                        Xset.add xset mid
+                      end*)
                       else if
                         try
                           let nm1 = get_orig_name nd1 in
@@ -10676,16 +10786,22 @@ end;
       );
 
     if true then begin
-      DEBUG_MSG "@";
+      DEBUG_MSG "tidying up...";
       let add_move n1 n2 =
+        DEBUG_MSG "%a-%a" nups n1 nups n2;
         let mid, kind =
           try
             let pn1 = n1#initial_parent in
             let pn2 = n2#initial_parent in
-            if pn1#initial_nchildren = 1 || pn2#initial_nchildren = 1 then
+            if
+              pn1#initial_nchildren = 1 || pn2#initial_nchildren = 1 ||
+              is_extendable_move tree1 tree2 nmapping n1 n2
+            then begin
+              DEBUG_MSG "@";
               match edits#find_mov12 pn1 pn2 with
               | Edit.Move(mid, k, _, _) -> !mid, !k
               | _ -> raise Not_found
+            end
             else
               raise Not_found
           with
@@ -10695,6 +10811,58 @@ end;
         DEBUG_MSG "generated move: %s" (Edit.to_string mov);
         edits#add_edit mov
       in
+
+      edits#iter_deletes
+        (function
+          | Edit.Delete(whole, info, excludes) as del -> begin
+              let nd1 = Info.get_node info in
+              if nd1#data#is_named then begin
+                try
+                  let pnd1 = nd1#initial_parent in
+                  if
+                    pnd1#data#is_boundary && pnd1#data#is_named &&
+                    pnd1#data#get_name = nd1#data#get_name
+                  then begin
+                    let pnd2 = nmapping#find pnd1 in
+                    if
+                      pnd2#data#is_boundary && pnd2#data#is_named
+                    then begin
+                      DEBUG_MSG "nd1=%a" nps nd1;
+                      DEBUG_MSG "pnd1=%a" nps pnd1;
+                      DEBUG_MSG "pnd2=%a" nps pnd2;
+                      let pname2 = pnd2#data#get_name in
+                      let alab1 = nd1#data#_anonymized_label in
+                      let nl2 = ref [] in
+                      Array.iter
+                        (fun n2 ->
+                          if
+                            edits#mem_ins n2 &&
+                            not (nd1#data#eq n2#data) &&
+                            n2#data#_anonymized_label = alab1 &&
+                            n2#data#is_named && n2#data#get_name = pname2
+                          then begin
+                            nl2 := n2 :: !nl2
+                          end
+                        ) pnd2#initial_children;
+                      match !nl2 with
+                      | [nd2] -> begin
+                          DEBUG_MSG "nd2=%a" nps nd2;
+                          ignore (nmapping#add_unsettled nd1 nd2);
+                          add_move nd1 nd2;
+                          edits#add_edit (Edit.make_relabel nd1 nd2);
+                          let ins = edits#find_ins nd2 in
+                          edits#remove_edit del;
+                          edits#remove_edit ins
+                      end
+                      | _ -> ()
+                    end
+                  end
+                with _ -> ()
+              end
+          end
+          | _ -> assert false
+        );
+
       cenv#multiple_node_matches#iter
         (fun (_lab, _nds1, _nds2) ->
           let nds1 = List.filter (fun x -> not (nmapping#mem_dom x)) _nds1 in
@@ -10717,7 +10885,7 @@ end;
                 edits#remove_edit ins
               end
           end
-          | nd1::_, nd2::_ when false -> begin
+          | nd1::_, nd2::_(* when false*) -> begin
               DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
                 (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
               let tbl1 = Nodetbl.create 0 in
@@ -10748,6 +10916,7 @@ end;
                     | [n1], [n2] -> begin
 
                         ignore (nmapping#add_unsettled n1 n2);
+                        add_move n1 n2;
                         let del = edits#find_del n1 in
                         let ins = edits#find_ins n2 in
                         edits#remove_edit del;

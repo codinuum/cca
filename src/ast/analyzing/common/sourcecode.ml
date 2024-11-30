@@ -141,7 +141,8 @@ let get_logical_pos ?(strict=false) nd =
   let pnd = nd#initial_parent in
   if strict && not pnd#data#has_ordinal then
     raise Not_found;
-  let pos = pnd#data#get_ordinal nd#initial_pos in
+  let ipos = nd#initial_pos in
+  let pos = try pnd#data#get_ordinal ipos with _ -> ipos in
   DEBUG_MSG "%a -> %d" UID.ps nd#uid pos;
   pos
 

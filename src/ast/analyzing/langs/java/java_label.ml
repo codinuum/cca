@@ -3329,6 +3329,7 @@ let is_order_insensitive = function
   | IDsingleStatic _
   | IDstaticOnDemand _
   | Modifier _
+  | Annotation _
       -> true
   | _ -> false
 
