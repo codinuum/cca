@@ -194,6 +194,15 @@ module Json = struct
     l := (sprintf "\"loc\":%s" (get_loc nd)) :: !l;
     l := (sprintf "\"cat\":%s" (get_cat nd)) :: !l;
 
+    begin
+      try
+        let pgi = get_gid nd#initial_parent in
+        let pos = nd#initial_pos in
+        l := (sprintf "\"parent\":%a" GI.rs pgi) :: !l;
+        l := (sprintf "\"pos\":%d" pos) :: !l
+      with _ -> ()
+    end;
+
     if is_subtree_root nd && not phantom then begin
       let h = get_digest tree nd in
       let lmnd = tree#initial_leftmost nd in
@@ -274,12 +283,14 @@ module Json = struct
       try
         let pgi1 = get_gid nd1#initial_parent in
         l := (sprintf "\"from_parent\":%a" GI.rs pgi1) :: !l;
+        l := (sprintf "\"from_pos\":%d" nd1#initial_pos) :: !l
       with _ -> ()
     end;
     begin
       try
         let pgi2 = get_gid nd2#initial_parent in
         l := (sprintf "\"to_parent\":%a" GI.rs pgi2) :: !l;
+        l := (sprintf "\"to_pos\":%d" nd2#initial_pos) :: !l
       with _ -> ()
     end;
 
