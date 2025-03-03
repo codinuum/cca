@@ -1,3 +1,11 @@
+# Caveat
+
+This project has been divided into the following projects:
+* [Diff/AST](https://github.com/codinuum/diffast) and
+* [CCA-Base](https://github.com/codinuum/cca-base).
+
+Hence it will be archived soon.
+
 # Code Continuity Analysis Framework
 
 The framework is currently composed of the following:
