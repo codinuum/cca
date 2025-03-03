@@ -545,7 +545,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | RequirementParameterList       -> mkstr2 380
   | MemInitializer                 -> mkstr2 381
   | QualifiedTypeName              -> mkstr2 382
-  | InitDeclarator                 -> mkstr2 383
+  | InitDeclarator n               -> combo2 383 [n]
   | ConceptDefinition n            -> combo2 384 [n]
   | CtorInitializer                -> mkstr2 385
   | ConstraintLogicalOrExpression i  -> combo2 386 [i]
@@ -558,7 +558,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | EnumeratorDefinition           -> mkstr2 393
   | TypeMacroInvocation i          -> combo2 394 [i]
   | Condition                      -> mkstr2 395
-  | ParameterDeclaration           -> mkstr2 396
+  | ParameterDeclaration n         -> combo2 396 [n]
   | ParameterDeclarationClause b   -> combo2 397 [string_of_bool b]
   | ParametersAndQualifiers        -> mkstr2 398
   | ParametersMacro i              -> combo2 399 [i]
@@ -837,6 +837,7 @@ let to_short_string ?(ignore_identifiers_flag=false) =
   | RefMacroInvocation i -> combo2 683 [i]
 
   | DummyOp -> mkstr2 684
+  | Colon -> mkstr2 685
 
 
 let strip lab = lab (* not yet *)
@@ -1610,6 +1611,10 @@ let is_sequence = function
     -> true
   | _ -> false
 
+let is_ntuple = function
+  (* not yet *)
+  | _ -> false
+
 
 let is_boundary = function
   | TranslationUnit
@@ -2238,7 +2243,7 @@ let is_param_decl_clause = function
   | _ -> false
 
 let is_param_decl = function
-  | ParameterDeclaration -> true
+  | ParameterDeclaration _ -> true
   | _ -> false
 
 let is_desig = function
@@ -2712,6 +2717,7 @@ let of_elem_data =
     "MinusMinus",    (fun a -> MinusMinus);
     "Comma",         (fun a -> Comma);
     "Semicolon",     (fun a -> Semicolon);
+    "Colon",         (fun a -> Colon);
     "Co_await",      (fun a -> Co_await);
     "DotStar",       (fun a -> DotStar);
     "Dot",           (fun a -> Dot);
@@ -2990,7 +2996,7 @@ let of_elem_data =
     "MemInitializer",               (fun a -> MemInitializer);
     "MemInitMacroInvocation",       (fun a -> MemInitMacroInvocation(find_ident a));
     "QualifiedTypeName",            (fun a -> QualifiedTypeName);
-    "InitDeclarator",               (fun a -> InitDeclarator);
+    "InitDeclarator",               (fun a -> InitDeclarator(find_name a));
     "ConceptDefinition",            (fun a -> ConceptDefinition(find_name a));
     "CtorInitializer",              (fun a -> CtorInitializer);
     "RequiresClause",               (fun a -> RequiresClause);
@@ -3002,7 +3008,7 @@ let of_elem_data =
     "EnumeratorDefinitionMacro",    (fun a -> EnumeratorDefinitionMacro(find_ident a));
     "TypeMacroInvocation",          (fun a -> TypeMacroInvocation(find_ident a));
     "Condition",                    (fun a -> Condition);
-    "ParameterDeclaration",         (fun a -> ParameterDeclaration);
+    "ParameterDeclaration",         (fun a -> ParameterDeclaration(find_name a));
     "ParameterDeclarationClause",   (fun a -> ParameterDeclarationClause(find_is_va a));
     "ParametersAndQualifiers",      (fun a -> ParametersAndQualifiers);
     "ParamDeclMacro",               (fun a -> ParamDeclMacro(find_ident a));

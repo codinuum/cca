@@ -41,6 +41,7 @@ class parser_c : object
   method parser_init : unit
   method set_token_hist_flag : unit -> unit
   method set_dump_tokens_flag : unit -> unit
+  method set_dump_stats_flag : unit -> unit
   method set_keep_going_flag : unit
   method set_search_path_list : string list -> unit
   method set_verbose_flag : unit

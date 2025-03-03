@@ -261,15 +261,15 @@ let register_external, register, search, setup_options
   let get_lang2 options file1 file2 =
     let ext1 = file1#get_extension in
     let ext2 = file2#get_extension in
-    if ext1 <> ext2 then begin
-      Xprint.warning "different extensions: %s and %s" ext1 ext2
-    end;
     let lang1 = search options ext1 in
     let lang2 = search options ext2 in
     if lang1 == lang2 then
       lang1
-    else
+    else begin
+      if ext1 <> ext2 then
+        Xprint.warning "different extensions: %s and %s" ext1 ext2;
       failwith "Lang.get_lang2"
+    end
   in
   let get_cache_name2 options file1 file2 =
     let lang = get_lang2 options file1 file2 in

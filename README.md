@@ -1,3 +1,11 @@
+# Caveat
+
+This project has been divided into the following projects:
+* [Diff/AST](https://github.com/codinuum/diffast) and
+* [CCA-Base](https://github.com/codinuum/cca-base).
+
+Hence it will be archived soon.
+
 # Code Continuity Analysis Framework
 
 The framework is currently composed of the following:
@@ -56,7 +64,7 @@ You can run both Diff/AST and DiffViewer by the following line.
 
 ### Requirements
 
-* [OCaml](http://ocaml.org/) (>=4.11.1)
+* [OCaml](http://ocaml.org/) (>=4.14.0 and < 5.0.0)
 * [OPAM](https://opam.ocaml.org/)
 
 ### Installation

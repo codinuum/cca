@@ -1688,6 +1688,8 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
     let _movrel_list = ref [] in
     let _mov_list = ref [] in
 
+    let ins_tbl = Nodetbl.create 0 in
+
     let mapped_node_tbl = Nodetbl.create 0 in
 
     let subtree_roots = Xset.create 0 in
@@ -1704,7 +1706,11 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             let nd = Info.get_node info in
             let nds = List.map Info.get_node !excludes in
             Xset.add subtree_roots nd;
-            tree2#scan_initial_cluster (nd, nds) (fun n -> _ins_list := n :: !_ins_list);
+            tree2#scan_initial_cluster (nd, nds)
+              (fun n ->
+                _ins_list := n :: !_ins_list;
+                Nodetbl.add ins_tbl n nd
+              );
         end
         | Relabel(movrel, (info1, excludes1), (info2, excludes2)) -> begin
             let nd1 = Info.get_node info1 in
@@ -1765,13 +1771,13 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
       if not (Xfile.dir_exists d) then
         Xfile.mkdir d;
       let ch = new Xchannel.out_channel ~comp (Xchannel.Destination.of_file fname) in
-      let dump1 tree ch l =
+      let dump1 ?(get_root=None) tree ch l =
         let comma_flag = ref false in
         List.iter
           (fun nd ->
             if !comma_flag then
               _fprintf ch ",";
-            let info = get_info1 tree nd in
+            let info = get_info1 ~get_root tree nd in
             _fprintf ch "[%a,%s]" GI.rs (get_gid nd) info;
             comma_flag := true
           ) l
@@ -1787,16 +1793,12 @@ class ['node_t, 'tree_t] seq_base options = object (self : 'edits)
             comma_flag := true
           ) l
       in
-      _fprintf ch "{\"delete\":[";
-      dump1 tree1 ch del_list;
-      _fprintf ch "],\"insert\":[";
-      dump1 tree2 ch ins_list;
-      _fprintf ch "],\"relabel\":[";
-      dump2 ch rel_list;
-      _fprintf ch "],\"move+relabel\":[";
-      dump2 ch movrel_list;
-      _fprintf ch "],\"move\":[";
-      dump2 ch mov_list;
+      _fprintf ch "{\"delete\":["; dump1 tree1 ch del_list;
+      let get_root = Some (Nodetbl.find ins_tbl) in
+      _fprintf ch "],\"insert\":["; dump1 ~get_root tree2 ch ins_list;
+      _fprintf ch "],\"relabel\":["; dump2 ch rel_list;
+      _fprintf ch "],\"move+relabel\":["; dump2 ch movrel_list;
+      _fprintf ch "],\"move\":["; dump2 ch mov_list;
       _fprintf ch "]}";
       ch#close
     with

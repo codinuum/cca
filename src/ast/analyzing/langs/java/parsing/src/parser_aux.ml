@@ -1601,13 +1601,13 @@ module F (Stat : STATE_T) = struct
   let mkfqn_cls ?(exclude_current=false) = _mkfqn ~exclude_current "$"
 
 
-  let is_local_name n =
-    DEBUG_MSG "\"%s\"" (P.name_to_simple_string n);
+  let is_local_name ?(force=false) n =
+    DEBUG_MSG "\"%s\" (force=%B)" (P.name_to_simple_string n) force;
     let b =
       if is_qualified n then begin
         false
       end
-      else if env#partial_name_resolution_flag then begin
+      else if not force && env#partial_name_resolution_flag then begin
         false
       end
       else begin
@@ -1992,7 +1992,20 @@ module F (Stat : STATE_T) = struct
   let _name_to_prim ?(whole=true) loc n =
     DEBUG_MSG "[%s] %s (whole=%B)" (Loc.to_string loc) (P.name_to_string n) whole;
 
-    if env#partial_name_resolution_flag then begin
+    if
+      env#partial_name_resolution_flag &&
+      try
+        let q = get_qualifier n in
+        is_local_name ~force:true (leftmost_name q)
+      with _ -> false
+    then begin
+      DEBUG_MSG "@";
+      name_to_facc n
+    end
+    else if
+      env#partial_name_resolution_flag &&
+      not (is_simple n && is_local_name ~force:true n)
+    then begin
       set_name_attribute ~force:true (NAambiguous (mkresolved (P.name_to_simple_string n))) n;
       DEBUG_MSG "[%s] %s" (Loc.to_string loc) (P.name_to_string n);
       _mkprim loc (Pname n)

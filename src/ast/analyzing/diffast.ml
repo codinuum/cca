@@ -61,6 +61,9 @@ let set_minimize_delta_more_flags() =
 let set_viewer_mode_flags() =
   options#set_viewer_flag
 
+let set_dist_mode_flags() =
+  options#set_dist_flag
+
 let set_external_parser_flags() =
   options#set_external_parser_flag
 
@@ -332,6 +335,7 @@ let speclist =
    "-searchonly", Arg.Set_string keyword, "\tKEYWORD\tsearch keyword only";
    "-parseonly",  Arg.Set parseonly_flag, "\tparse only";
    "-viewer",     Arg.Unit set_viewer_mode_flags, "\tviewer friendly mode";
+   "-dist",       Arg.Unit set_dist_mode_flags, "\tdistance computing mode";
 
 (* fact *)
    "-fact", Arg.Unit (fun () -> options#set_fact_flag), "\t\t\tdump fact";

@@ -1445,6 +1445,14 @@ let is_sequence = function
       -> true
   | _ -> false
 
+let is_ntuple = function
+  | Parameters
+  | NamedParameters _
+  | Arguments _
+  | NamedArguments _
+    -> true
+  | _ -> false
+
 let is_comment = function
   | Comment _ -> true
   | _ -> false

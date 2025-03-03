@@ -35,6 +35,8 @@ let mes fmt = Common._mes "Scanner" fmt
 
 let list_memqn xs = List.exists (fun y -> List.exists ((==) y) xs)
 
+let get_col lexpos = lexpos.Lexing.pos_cnum - lexpos.Lexing.pos_bol
+
 exception Found
 exception Abort
 exception Exit2
@@ -713,6 +715,9 @@ let is_class_head_macro_ident =
     "PASSWORD_INTERFACE";
     "STREAM_INTERFACE";
     "STREAM_INTERFACE_SUB";
+    "DECLARE_INTERFACE"; (* Wine *)
+    "DECLARE_INTERFACE_"; (* Wine *)
+    "DECLARE_INTERFACE_IID_"; (* Wine *)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -818,6 +823,10 @@ let is_ident_macro_ident =
     "ZYAN_MACRO_CONCAT_EXPAND";
     "_COMPILER_CONCAT";
     "msgpack_unpack_func";
+    (*"STDMETHOD"; (* Wine *)
+    "STDMETHOD_"; (* Wine *)
+    "STDMETHODV"; (* Wine *)
+    "STDMETHODV_"; (* Wine *)*)
   ] in
   let names = Xset.create 0 in
   List.iter (Xset.add names) l;
@@ -1163,6 +1172,8 @@ let is_doxygen_cmd =
 let is_gas_directive =
   let l = [
     "abort";
+    "align";
+    "app-file";
     "ascii";
     "asciz";
     "att_syntax";
@@ -1173,28 +1184,73 @@ let is_gas_directive =
     "constants";
     "data";
     "def";
+    "desc";
     "dim";
     "double";
     "eject";
+    "else";
     "endef";
     "endif";
     "endm";
     "equ";
+    "equiv";
+    "err";
     "error";
+    "extern";
     "file";
+    "fill";
+    "float";
+    "globl";
     "global";
+    "hword";
+    "ident";
     "if";
+    "include";
+    "int";
+    "irp";
+    "irpc";
     "intel_syntax";
+    "lcomm";
+    "lflags";
+    "line";
+    "linkonce";
+    "list";
+    "ln";
     "long";
     "macro";
+    "mri";
+    "nolist";
+    "octa";
+    "org";
+    "p2align";
+    "p2alignl";
+    "p2alignw";
     "popsection";
     "previous";
+    "psize";
     "pushsection";
+    "quad";
+    "rept";
+    "sbttl";
+    "scl";
     "section";
     "set";
+    "short";
+    "single";
+    "size";
+    "sleb";
     "skip";
+    "space";
+    "stabd";
+    "stabn";
+    "stabs";
     "string";
+    "symver";
+    "tag";
     "text";
+    "title";
+    "type";
+    "uleb128";
     "word";
   ] in
   let names = Xset.create 0 in
@@ -1244,6 +1300,7 @@ let levels_to_str e =
     "brace_lv",                 e#brace_level;
     "brace_lv_marker",          e#pstat#brace_level_marker;
     "braced_init_lv",           e#braced_init_level;
+    "pp_line_rel_brace_lv",     e#pstat#pp_line_rel_brace_level;
     "bracket_lv",               e#bracket_level;
     "canceled_brace_lv_marker", e#pstat#canceled_brace_level_marker;
     "in_body_brace_lv",         e#in_body_brace_level;
@@ -1301,6 +1358,7 @@ let flags_to_str e =
     "base_clause",                     e#base_clause_flag;
     "body_head",                       e#body_head_flag;
     "brace_lv_marker",                 e#pstat#brace_level_marker_flag;
+    "brace_lv_marker_unbalanced",      e#pstat#brace_level_marker_unbalanced_flag;
     "braced_asm",                      e#braced_asm_flag;
     "braced_init",                     e#braced_init_flag;
     "cast_head",                       e#cast_head_flag;
@@ -1340,6 +1398,7 @@ let flags_to_str e =
     "end_of_templ_head",               e#end_of_templ_head_flag;
     "end_of_type_macro_call",          e#end_of_type_macro_call_flag;
     "enum_head",                       e#enum_head_flag;
+    "eq_init",                         e#eq_init_flag;
     "exec_config",                     e#exec_config_flag;
     "expr",                            e#expr_flag;
     "for",                             e#for_flag;
@@ -1645,11 +1704,18 @@ class type c_t = object
   method prev_endofs : int
   method prev_endln : int
   method prev_edp : Lexing.position
+  method prev_indent : int
+  method prev_indent_rawtoken : T.token
+  method prev_indent_rawtoken_prev : T.token
+  method prev_indent2 : int
+  method prev_indent_rawtoken2 : T.token
+
   method prev_rawtoken : T.token
   method prev_rawtoken2 : T.token
   method prev_rawtoken3 : T.token
   method prev_rawtoken4 : T.token
 
+  method _current_rawtoken : T.token
   method current_token : token
   method current_loc : Ast.Loc.t
 
@@ -1668,7 +1734,7 @@ class type c_t = object
   method peek_rawtoken_up_to_group_end :
       ?limit:int -> ?from:int -> ?filt:(T.token -> bool) -> ?until:(T.token -> bool) -> ?regard_pp_if:bool
         -> unit -> int * T.token list
-  method peek_rawtoken_up_to_section_end : ?nth_list_ref_opt:(int list ref option) -> ?from:int -> unit -> int
+  method peek_rawtoken_up_to_section_end : ?nth_head_list_ref_opt:(int list ref option) -> ?nth_list_ref_opt:(int list ref option) -> ?from:int -> unit -> int
   method peek_rawtoken_up_to_end_of_qualified_id : ?from:int -> ?ini_tlv:int -> unit -> int
   method peek_rawtoken_up_to_rparen_split_at_comma :
       ?from:int -> ?ignore_pp:bool -> ?ignore_templ_lv:bool -> ?lv_ofs:int -> ?filt:(T.token list -> bool) ->
@@ -1794,6 +1860,10 @@ class type c_t = object
 
   method token_seq : Token_seq.c
 
+  method dump_stats_flag : bool
+  method set_dump_stats_flag : unit -> unit
+  method incr_count : string -> unit
+  method dump_stats : unit -> unit
 end
 
 
@@ -1932,10 +2002,24 @@ let _is_op = function
   | OP_MACRO _ | DUMMY_OP -> true
   | _ -> false
 
+let _is_bop = function
+  | T.AMP_AMP _ | BAR_BAR _
+  | PLUS | MINUS | STAR | SLASH | PERC
+  | HAT _ | AMP _ | BAR _ | LT_LT | GT_GT | PLUS_EQ | MINUS_EQ
+  | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
+  | LT_LT_EQ | GT_GT_EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
+  | LT | GT -> true
+  | _ -> false
+
 let is_aop = function
   | T.EQ | PLUS_EQ | MINUS_EQ
   | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
   | LT_LT_EQ | GT_GT_EQ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ -> true
+  | _ -> false
+
+let _is_uop = function
+  | T.EXCLAM _ | TILDE _ | PLUS_PLUS | MINUS_MINUS -> true
+  | PLUS | MINUS | STAR | AMP _ -> true
   | _ -> false
 
 let is_uop = function
@@ -1948,6 +2032,10 @@ let is_arith = function
         (*| PTR_STAR -> begin
           true
           end*)
+  | _ -> false
+
+let _is_ident = function
+  | T.IDENT _ -> true
   | _ -> false
 
 let is_ident = function
@@ -2115,24 +2203,52 @@ exception To_be_recovered
 exception Continue
 exception Not_templ_arg_param
 
-let get_common_prefix_rev ?(lbrace_only=false) ?(rparen_only=false) ?(rparen_max=(-1)) ?(lparen_max=(-1)) l1 l2 =
+let get_common_prefix_rev
+    ?(lbrace_only=false)
+    ?(rparen_only=false)
+    ?(rparen_max=(-1))
+    ?(lparen_max=(-1))
+    l1 l2
+    =
+  DEBUG_MSG "lbrace_only=%B rparen_only=%B rparen_max=%d lparen_max=%d"
+    lbrace_only rparen_only rparen_max lparen_max;
   let rparen_count = ref 0 in
   let lparen_count = ref 0 in
-  let prefix = ref [] in
   let eq =
     if lbrace_only then
       fun x y -> x == T.LBRACE && x == y
     else if rparen_only then
       fun x y ->
-        (rparen_max <= -1 || !rparen_count < rparen_max) &&
-        (x == T.LBRACE || x == T.RPAREN || is_semicolon x) && x == y
+        let b =
+          (rparen_max <= -1 || !rparen_count < rparen_max) &&
+          (x == T.LBRACE || x == T.RPAREN || is_semicolon x) &&
+          x = y
+        in
+        DEBUG_MSG "%s vs %s (rparen_count=%d) --> %B"
+          (Token.rawtoken_to_string x) (Token.rawtoken_to_string y) !rparen_count b;
+        b
+    else if rparen_max > 0 then
+      fun x y ->
+        let b =
+          (!rparen_count < rparen_max) &&
+          x = y
+        in
+        DEBUG_MSG "%s vs %s (rparen_count=%d) --> %B"
+          (Token.rawtoken_to_string x) (Token.rawtoken_to_string y) !rparen_count b;
+        b
     else if lparen_max > -1 then
       fun x y ->
-        (x != T.TY_LPAREN && x != T.LPAREN || lparen_max <= -1 || !lparen_count < lparen_max) &&
-        x == y
+        let b =
+          (x != T.TY_LPAREN && x != T.LPAREN || !lparen_count < lparen_max) &&
+          x = y
+        in
+        DEBUG_MSG "%s vs %s (lparen_count=%d) --> %B"
+          (Token.rawtoken_to_string x) (Token.rawtoken_to_string y) !lparen_count b;
+        b
     else
       (=)
   in
+  let prefix = ref [] in
   begin
     try
       List.iter2
@@ -2175,9 +2291,18 @@ let insert_after_nth_token self ?(to_be_discarded=[]) n tl =
   List.iter self#prepend_token (List.rev tl);
   List.iter self#prepend_token !l
 
+let discard_n_tokens self n =
+  DEBUG_MSG "discarding %d tokens" n;
+  for i = 1 to n do
+    let _ = self#discard_token() in
+    ()
+  done
+
 let discard_tokens self to_be_discarded =
   let n = Xlist.max to_be_discarded in
-  DEBUG_MSG "discarding tokens (max=%d)" n;
+  DEBUG_MSG "discarding tokens [%s] (max=%d)"
+    (String.concat ";" (List.map string_of_int to_be_discarded))
+    n;
   let n =
     let rn = self#replay_queue_length in
     if rn > 0 then begin
@@ -2190,6 +2315,7 @@ let discard_tokens self to_be_discarded =
   in
   let l = ref [] in
   for i = 1 to n do
+    DEBUG_MSG "i=%d" i;
     let t = self#discard_token() in
     if not (List.mem i to_be_discarded) then
       l := t::!l
@@ -2280,8 +2406,8 @@ let make_pp_endif info = T.PP_ENDIF (ref (Pinfo.pp_if_cond_to_string info.Pinfo.
 let make_pp_odd_endif info = T.PP_ODD_ENDIF (Pinfo.pp_if_cond_to_string info.Pinfo.i_cond)
 
 let parse_warning env stp edp (fmt : ('a, out_channel, unit, 'b) format4) : 'a =
-  let path = Common.relpath env#current_filename in
-  let head = Printf.sprintf "[%s]" path in
+  (*let path = Common.relpath env#current_filename in*)
+  let head = ""(*Printf.sprintf "[%s]" path*) in
   PB.parse_warning ~out:stderr ~head stp edp fmt
 
 let is_start_of_stmt sc =
@@ -2499,7 +2625,40 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
   let is_seq_macro_ident = is_seq_macro_ident env in
   let is_seq_macro_ident_p = is_seq_macro_ident_p env in
 
+  let check_if_stmt ?(after_brace=false) nth =
+    let b =
+      match self#peek_nth_rawtoken nth with
+      | x when is_stmt_head x -> true
+      | x when is_ty x -> true
+      | _ when after_brace -> begin
+          let semicolon_flag = ref false in
+          let filt rt =
+            match (rt : T.token) with
+            | SEMICOLON _ -> semicolon_flag := true; false
+            | _ -> false
+          in
+          let (*nth, l*)_ = self#peek_rawtoken_up_to_rbrace ~from:nth ~filt () in
+          !semicolon_flag
+          (*let ll = split_at_semicolon l in
+          DEBUG_MSG "ll=\n%s"
+            (String.concat "\n"
+               (List.map
+                  (fun x -> String.concat ";"
+                      (List.map Token.rawtoken_to_string x)) ll));
+          List.exists
+            (function
+              | x::_ when is_stmt_head x || is_ty x -> true
+              | _ -> false
+            ) ll*)
+      end
+      | _ -> false
+    in
+    DEBUG_MSG "b=%B" b;
+    b
+  in
+
   let doit = ref (fun () -> token) in
+
   match context, sub_context with
   | EXPR, _ | _, IN_EXPR -> begin
       DEBUG_MSG "@";
@@ -2599,6 +2758,25 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           end -> DEBUG_MSG "@ LBRACE"; mk (T.LAM_MACRO s)
 
           | LBRACE when begin
+              env#at_if_paren &&
+              match prev_rawtoken with
+              | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ -> begin
+                  let nth, l = self#peek_rawtoken_up_to_rbrace ~from:2 () in
+                  List.exists
+                    (function
+                      | T.SEMICOLON _ -> true
+                      | _ -> false
+                    ) l
+              end
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "@ LBRACE";
+            parse_warning env stp edp "lack of a closing parenthesis";
+            self#prepend_token (T.RPAREN, edp, edp);
+            mk (T.IDENT_V s)
+          end
+
+          | LBRACE when begin
               not env#dtor_flag &&
               not env#lambda_intro_flag &&
               not env#end_of_id_macro_call_flag &&
@@ -2639,9 +2817,14 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               | _ -> true
           end -> begin
             DEBUG_MSG "@ (IDENT|TY_LPAREN)";
-            (*match self#peek_rawtoken() with
-              | TY_LPAREN -> mk (T.IDENT_OM s)
-              | _ -> *)mk (T.OP_MACRO s)
+            match self#peek_rawtoken() with
+            | TY_LPAREN when _is_bop (self#peek_nth_rawtoken 2) -> begin
+                let _, _, e = self#peek_nth 1 in
+                insert_after_nth_token self 1 [T.DUMMY_EXPR, e, e];
+                conv_nth_token (function T.TY_LPAREN,s,e -> T.LPAREN,s,e | x -> x) 1;
+                mk (T.IDENT_OM s)
+            end
+            | _ -> mk (T.OP_MACRO s)
           end
 
           | IDENT x when begin
@@ -2919,7 +3102,31 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | _ -> false
               end -> true
               | _ -> false
-          end -> DEBUG_MSG "@ IDENT IDENT IDENT SEMICOLON"; mk (T.IDENT_V s)
+          end -> DEBUG_MSG "EQ @ IDENT IDENT IDENT SEMICOLON"; mk (T.IDENT_V s)
+
+          | IDENT x when begin
+              not (is_block_end_macro x) &&
+              not env#in_objc_message_expr &&
+              (match prev_rawtoken with
+              | LPAREN -> true
+              | y when _is_uop y -> true
+              | y when _is_bop y -> true
+              | _ -> false) &&
+              match self#peek_nth_rawtoken 2 with
+              | TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | y when _is_bop y -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "(LPAREN|uop|bop) @ IDENT TY_LPAREN bop";
+            let _, _, e = self#peek_nth 2 in
+            insert_after_nth_token self 2 [T.DUMMY_EXPR, e, e];
+            conv_nth_token (function T.TY_LPAREN,s,e -> T.LPAREN,s,e | x -> x) 2;
+            conv_nth_token (function T.IDENT x,s,e -> T.IDENT_OM x,s,e | x -> x) 1;
+            mk (T.IDENT_V s)
+          end
 
           | IDENT x when begin
               not (is_block_end_macro x) &&
@@ -2996,20 +3203,28 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               | _ -> false
           end -> DEBUG_MSG "@ IDENT"; mk (T.OP_MACRO s)
 
-          | IDENT _ when prev_rawtoken == TY_LPAREN && begin
+          | IDENT x when prev_rawtoken == TY_LPAREN && begin
               let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
               List.length ll = 1 &&
               match self#peek_nth_rawtoken (nth+1) with
               | INT_LITERAL _ | FLOAT_LITERAL _ | BOOL_LITERAL _
               | CHAR_LITERAL _ | STR_LITERAL _ | NULLPTR | PP_STRINGIZED _
-              | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _ | USER_STR_LITERAL _ | USER_CHAR_LITERAL _
-                -> true
+              | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
+              | USER_STR_LITERAL _ | USER_CHAR_LITERAL _ -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+                      match self#peek_nth_rawtoken 3 with
+                      | IDENT y when y = x -> false
+                      | _ -> true
+                  end
+                  | _ -> true
+              end
               | TY_LPAREN -> begin
                   match self#peek_nth_rawtoken (nth+2) with
                   | INT_LITERAL _ | FLOAT_LITERAL _ | BOOL_LITERAL _
                   | CHAR_LITERAL _ | STR_LITERAL _ | NULLPTR | PP_STRINGIZED _
-                  | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _ | USER_STR_LITERAL _ | USER_CHAR_LITERAL _
-                    -> true
+                  | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
+                  | USER_STR_LITERAL _ | USER_CHAR_LITERAL _ -> true
                   | _ -> false
               end
               | _ -> false
@@ -3228,20 +3443,51 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           end -> DEBUG_MSG "@ (PP_IF|PP_IFDEF|PP_IFNDEF)"; mk (T.ARG_MACRO s)
 
           | PP_IF | PP_IFDEF | PP_IFNDEF when begin
-              let nth, l = self#peek_rawtoken_up_to [T.NEWLINE] in
-              match self#peek_nth_rawtoken (nth+1) with
-              | STR_LITERAL _ -> begin
-                  match self#peek_nth_rawtoken (nth+2) with
-                  | PP_ENDIF _ -> true
-                  | _ -> false
-              end
-              | _ -> false
+              let rec check nth =
+                match self#peek_nth_rawtoken (nth+1) with
+                | STR_LITERAL _ -> begin
+                    match self#peek_nth_rawtoken (nth+2) with
+                    | PP_ENDIF _ | PP_ELIF _ | PP_ELSE _ -> true
+                    | _ -> false
+                end
+                | PP_IF | PP_IFDEF | PP_IFNDEF -> begin
+                    let nth', _ =
+                      self#peek_rawtoken_up_to ~from:(nth+1) [T.NEWLINE]
+                    in
+                    check nth'
+                end
+                | _ -> false
+              in
+              let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+              check nth
           end -> DEBUG_MSG "@ (PP_IF|PP_IFDEF|PP_IFNDEF)"; mk (T.STR_MACRO s)
 
           | NOEXCEPT when begin
               env#macro_arg_flag &&
               prev_rawtoken == LPAREN
           end -> DEBUG_MSG "LPAREN @ NOEXCEPT"; mk (T.ARG_MACRO s)
+
+          | TY_LPAREN when begin
+              DEBUG_MSG "@";
+              (env#at_arg_paren || env#at_paren) &&
+              match prev_rawtoken with
+              | IDENT_V _ -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | x when _is_bop x -> begin
+                      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | COMMA | RPAREN -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "IDENT_V @ TY_LPAREN bop";
+            let _, _, e = self#peek_nth 1 in
+            insert_after_nth_token self 1 [T.DUMMY_EXPR, e, e];
+            mk (T.IDENT_OM s)
+          end
 
           | TY_LPAREN when begin
               env#at_arg_paren &&
@@ -3624,6 +3870,23 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                         DEBUG_MSG "%s" (Token.rawtoken_to_string (self#peek_nth_rawtoken (n+1)));
                         let b =
                           match rt_n with
+                          | TY_TEMPL_GT | GT_GT when begin
+                              env#at_paren &&
+                              match self#peek_nth_rawtoken (n+1) with
+                              | TY_LPAREN -> begin
+                                  let nth, ll =
+                                    self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(n+2) ()
+                                  in
+                                  List.length ll = 1 &&
+                                  match self#peek_nth_rawtoken (nth+1) with
+                                  | x when is_literal x -> true
+                                  | IDENT _ -> true
+                                  | _ -> false
+                              end
+                              | INT_LITERAL _ | FLOAT_LITERAL _ -> true
+                              | _ -> false
+                          end -> false
+
                           | TY_TEMPL_GT | GT_GT when begin
                               match self#peek_nth_rawtoken (n+1) with
                               | COMMA | TY_TEMPL_GT | GT_GT | SEMICOLON _ -> true
@@ -4681,6 +4944,12 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | _ -> false
               end -> DEBUG_MSG "@ PTR_STAR PTR_STAR"; token
 
+              | RPAREN when begin
+                  match prev_rawtoken with
+                  | MINUS_GT | DOT -> true
+                  | _ -> false
+              end -> DEBUG_MSG "(MINUS_GT|DOT) @ PTR_STAR PTR_STAR"; mk (T.IDENT_V s)
+
               | TY_TEMPL_GT | GT_GT | COMMA | RPAREN | LBRACE | LBRACKET | CONST
                 -> DEBUG_MSG "@ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) ..."; token
 
@@ -4726,6 +4995,10 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               | IDENT _ when begin
                   match self#peek_nth_rawtoken 3 with
                   | RPAREN when env#at_type_paren -> true
+                  | SEMICOLON _ | LBRACKET when begin
+                      is_semicolon prev_rawtoken &&
+                      env#old_param_decl_flag
+                  end -> true
                   | _ -> false
               end -> DEBUG_MSG "@ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) IDENT"; token
 
@@ -4754,6 +5027,33 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
 
                   | TEMPL_LT when env#cast_key_flag
                     -> DEBUG_MSG "TEMPL_LT @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) *"; token
+
+                  | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
+                  | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | IDENT _ when begin
+                      match self#peek_nth_rawtoken 2 with
+                      | IDENT x -> begin
+                          x = s &&
+                          match self#peek_nth_rawtoken 3 with
+                          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+                              conv_nth_token (function T.IDENT x,s,e -> T.CC_MACRO x,s,e | x -> x) 2;
+                              begin
+                                match self#peek_nth_rawtoken 4 with
+                                | IDENT y when begin
+                                    y = s &&
+                                    match self#peek_nth_rawtoken 5 with
+                                    | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
+                                    | _ -> false
+                                end ->
+                                  conv_nth_token
+                                    (function T.IDENT x,s,e -> T.CC_MACRO x,s,e | x -> x) 4;
+                                | _ -> ()
+                              end;
+                              true
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end -> DEBUG_MSG "(CHAR|...) @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) *"; mk (T.CC_MACRO s)
 
                   | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
                   | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | IDENT _ ->
@@ -5100,7 +5400,15 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | _ -> false
               end -> true
               | _ -> false
-          end -> DEBUG_MSG "(DOT|MINUS_GT) IDENT_V @ TY_LPAREN"; mk (T.OP_MACRO s)
+          end -> begin
+            DEBUG_MSG "(DOT|MINUS_GT) IDENT_V @ TY_LPAREN";
+            conv_nth_token (function T.TY_LPAREN,s,e -> T.LPAREN,s,e | x -> x) 1;
+            if _is_bop (self#peek_nth_rawtoken 2) then begin
+              let _, _, e = self#peek_nth 1 in
+              insert_after_nth_token self 1 [T.DUMMY_EXPR, e, e]
+            end;
+            mk (T.OP_MACRO s)
+          end
 
           | TY_LPAREN when env#paren_level > 0 && begin
               match prev_rawtoken with
@@ -5891,6 +6199,29 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | _ -> false
               end -> DEBUG_MSG "RETURN @"; mk (T.IDENT_OM s)
 
+              | LPAREN when begin
+                  DEBUG_MSG "@";
+                  match self#peek_rawtoken() with
+                  | TY_LPAREN -> begin
+                      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                      DEBUG_MSG "\n%s"
+                        (String.concat "\n"
+                           (List.map
+                              (fun x -> String.concat ";"
+                                  (List.map Token.rawtoken_to_string x)) ll));
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | x when is_literal x -> true
+                      | EXCLAM _ | TILDE _ -> true
+                      | IDENT _ -> begin
+                          match ll with
+                          | [x::_] when _is_bop x -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end -> DEBUG_MSG "LPAREN @ TY_LPAREN"; mk (T.IDENT_OM s)
+
               | x when begin
                   is_literal x &&
                   (env#at_arg_paren || env#braced_init_flag) &&
@@ -6023,6 +6354,55 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   then begin
                     DEBUG_MSG "complementing with a semicolon";
                     self#prepend_token (mk_ (T.SEMICOLON false))
+                  end
+                  else if
+                    env#at_paren && prev_rawtoken == LPAREN &&
+                    prev_rawtoken2 == IF
+                  then begin
+                    match self#peek_rawtoken() with
+                    | TY_LPAREN -> begin
+                        let nth, ll =
+                          self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+                        in
+                        match self#peek_nth_rawtoken (nth+1) with
+                        | SEMICOLON _ -> begin
+                            match self#peek_nth_rawtoken (nth+2) with
+                            | IDENT _ -> begin
+                                match self#peek_nth_rawtoken (nth+3) with
+                                | TY_LPAREN -> begin
+                                    let nth', ll' =
+                                      self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+4) ()
+                                    in
+                                    match self#peek_nth_rawtoken (nth'+1) with
+                                    | SEMICOLON _ -> begin
+                                        let _ = self#discard_nth_token (nth+1) in
+                                        let _, _, e = self#peek_nth nth in
+                                        insert_after_nth_token self nth [T.RPAREN, e, e]
+                                    end
+                                    | _ -> ()
+                                end
+                                | _ -> ()
+                            end
+                            | _ -> ()
+                        end
+                        | IDENT _ -> begin
+                            match self#peek_nth_rawtoken (nth+2) with
+                            | TY_LPAREN -> begin
+                                let nth', ll' =
+                                  self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+3) ()
+                                in
+                                match self#peek_nth_rawtoken (nth'+1) with
+                                | SEMICOLON _ -> begin
+                                    let _, _, e = self#peek_nth nth in
+                                    insert_after_nth_token self nth [T.RPAREN, e, e]
+                                end
+                                | _ -> ()
+                            end
+                            | _ -> ()
+                        end
+                        | _ -> ()
+                    end
+                    | _ -> ()
                   end;
                   mk (T.IDENT_V s)
               end
@@ -6042,6 +6422,25 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           | SEMICOLON _ -> true
           | _ -> false
       end -> DEBUG_MSG "IDENT_V @"; mk (T.ATTR_MACRO s)
+
+      | IDENT_V _ when begin
+          not env#end_of_params_flag &&
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> begin
+              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+              match ll with
+              | [RPAREN::_ as l] when Xlist.last l == TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ -> begin
+                      let _, ll' = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 () in
+                      check_if_params ~weak:true ll'
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "IDENT_V @ TY_LPAREN TY_LPAREN"; mk (T.IDENT_PM s)
 
       | IDENT_V _ when begin
           match self#peek_rawtoken() with
@@ -6085,6 +6484,40 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           | _ -> false
       end -> DEBUG_MSG "RPAREN @ IDENT"; mk (T.OP_MACRO s)
 
+      | CC_MACRO _ when begin
+          match self#peek_rawtoken() with
+          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
+          | _ -> false
+      end -> DEBUG_MSG "CC_MACRO @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR)"; mk (T.CC_MACRO s)
+
+      | TY_LPAREN when begin
+          match prev_rawtoken2 with
+          | PTR_STAR -> begin
+              match self#peek_rawtoken() with
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | RPAREN -> begin
+                      match self#peek_nth_rawtoken 3 with
+                      | SEMICOLON _ -> true
+                      | _ -> false
+                  end
+                  | LBRACKET -> begin
+                      let n, _ = self#peek_rawtoken_up_to_rbracket ~from:3 () in
+                      match self#peek_nth_rawtoken (n+1) with
+                      | RPAREN -> begin
+                          match self#peek_nth_rawtoken (n+2) with
+                          | SEMICOLON _ -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "PTR_STAR TY_LPAREN @ IDENT RPAREN"; mk (T.ATTR_MACRO s)
+
       | TY_LPAREN when begin
           match prev_rawtoken2 with
           | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
@@ -6093,10 +6526,11 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               (
                (match prev_rawtoken2 with IDENT _ -> false | _ -> true) ||
                (match prev_rawtoken3 with SEMICOLON _ | NEWLINE | TYPEDEF | EXTERN -> true | _ -> false)
-         ) &&
+              ) &&
               match self#peek_rawtoken() with
               | COLON_COLON | RPAREN | MINUS_GT | DOT | COMMA | ELLIPSIS
               | PLUS | MINUS | SLASH | PERC | BAR _ | BAR_BAR _ | LBRACKET -> false
+
               | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
                   let nth, l = self#peek_rawtoken_up_to_rparen_none() in
                   match self#peek_nth_rawtoken 2 with
@@ -6113,10 +6547,41 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                           | SEMICOLON _ -> true
                           | _ -> false
                       end
+                      | LBRACKET -> begin
+                          let n, _ = self#peek_rawtoken_up_to_rbracket ~from:(nth+2) () in
+                          match self#peek_nth_rawtoken (n+1) with
+                          | SEMICOLON _ -> true
+                          | _ -> false
+                      end
                       | _ -> false
                   end
                   | _ -> false
               end
+              | IDENT x when begin
+                  match self#peek_nth_rawtoken 2 with
+                  | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
+                      let nth, l = self#peek_rawtoken_up_to_rparen_none() in
+                      match self#peek_nth_rawtoken 3 with
+                      | IDENT _ -> begin
+                          match self#peek_nth_rawtoken (nth+1) with
+                          | TY_LPAREN -> true
+                          | IDENT _ -> begin
+                              match self#peek_nth_rawtoken (nth+2) with
+                              | TY_LPAREN -> begin
+                                  match self#peek_nth_rawtoken (nth+3) with
+                                  | TY_LPAREN -> true
+                                  | _ -> false
+                              end
+                              | SEMICOLON _ -> true
+                              | _ -> false
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end -> true
+
               | TEMPL_LT -> false
               | IDENT _ -> false
               | _ -> true
@@ -6132,7 +6597,7 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               (
                (match prev_rawtoken2 with IDENT _ -> false | _ -> true) ||
                (match prev_rawtoken3 with SEMICOLON _ | NEWLINE | TYPEDEF | EXTERN -> true | _ -> false)
-         ) &&
+              ) &&
               match self#peek_rawtoken() with
               | IDENT _ -> begin
                   match self#peek_nth_rawtoken 2 with
@@ -6181,1447 +6646,1659 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           | _ -> false
       end -> DEBUG_MSG "TY_LPAREN @"; mk (T.IDENT_V s)
 
-          (*| TY_LPAREN when begin
-            self#peek_rawtoken() == RPAREN &&
-            self#peek_nth_rawtoken 2 == TY_LPAREN &&
-            let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 () in
-            match self#peek_nth_rawtoken (nth+1) with
-            | LBRACE | COLON | CONST -> true
-            | _ -> check_if_params ll
-            end -> DEBUG_MSG "TY_LPAREN @"; mk (T.IDENT_V s)*)
+      (*| TY_LPAREN when begin
+          self#peek_rawtoken() == RPAREN &&
+          self#peek_nth_rawtoken 2 == TY_LPAREN &&
+          let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 () in
+          match self#peek_nth_rawtoken (nth+1) with
+          | LBRACE | COLON | CONST -> true
+          | _ -> check_if_params ll
+      end -> DEBUG_MSG "TY_LPAREN @"; mk (T.IDENT_V s)*)
 
-          (*| TY_LPAREN *)| CLASS | ENUM | STRUCT | UNION -> DEBUG_MSG "(TY_LPAREN|CLASS|ENUM|STRUCT|UNION) @"; token
+      (*| TY_LPAREN *)| CLASS | ENUM | STRUCT | UNION -> DEBUG_MSG "(TY_LPAREN|CLASS|ENUM|STRUCT|UNION) @"; token
 
-        | LPAREN when prev_rawtoken2 == ELLIPSIS && prev_rawtoken3 == SIZEOF -> DEBUG_MSG "LPAREN @"; token
+      | LPAREN when prev_rawtoken2 == ELLIPSIS && prev_rawtoken3 == SIZEOF -> DEBUG_MSG "LPAREN @"; token
 
-        | LPAREN when begin
-            (env#at_arg_paren || env#at_macro_arg_paren) &&
+      | LPAREN when begin
+          (env#at_arg_paren || env#at_macro_arg_paren) &&
+          match self#peek_rawtoken() with
+          | STR_LITERAL _ | PP_STRINGIZED _ | STR_MACRO _ | STR_MARKER -> true
+          | _ -> false
+      end -> DEBUG_MSG "LPAREN @ (STR_LITERAL|...)"; mk (T.STR_MACRO s)
+
+      | STR_LITERAL _ | PP_STRINGIZED _ | STR_MACRO _ | STR_MARKER when begin
+          match self#peek_rawtoken() with
+          | STR_LITERAL _ | PP_STRINGIZED _ | STR_MACRO _ | STR_MARKER -> true
+          | _ -> false
+      end -> DEBUG_MSG "(STR_LITERAL|...) @ (STR_LITERAL|...)"; mk (T.STR_MACRO s)
+
+      | STR_LITERAL _ when prev_rawtoken2 == OPERATOR -> DEBUG_MSG "STR_LITERAL @"; token
+
+      | USING when self#peek_rawtoken() == EQ -> DEBUG_MSG "USING @"; token
+
+      | EQ when begin
+          env#using_flag && env#alias_flag && begin
             match self#peek_rawtoken() with
-            | STR_LITERAL _ | PP_STRINGIZED _ | STR_MACRO _ | STR_MARKER -> true
+            | SEMICOLON _ | TY_LPAREN -> true
             | _ -> false
-        end -> DEBUG_MSG "LPAREN @ (STR_LITERAL|...)"; mk (T.STR_MACRO s)
+          end
+      end -> DEBUG_MSG "EQ @"; token
 
-        | STR_LITERAL _ | PP_STRINGIZED _ | STR_MACRO _ | STR_MARKER when begin
-            match self#peek_rawtoken() with
-            | STR_LITERAL _ | PP_STRINGIZED _ | STR_MACRO _ | STR_MARKER -> true
-            | _ -> false
-        end -> DEBUG_MSG "(STR_LITERAL|...) @ (STR_LITERAL|...)"; mk (T.STR_MACRO s)
+      (*NG!| COLON_COLON when env#typename_flag -> token*)
 
-        | STR_LITERAL _ when prev_rawtoken2 == OPERATOR -> DEBUG_MSG "STR_LITERAL @"; token
+      | COLON_COLON when begin
+          (self#peek_rawtoken()) == TEMPL_LT &&
+          match prev_rawtoken2 with
+          | IDENT q -> begin
+              let qn = String.concat "::" [q; s] in
+              DEBUG_MSG "qn=%s" qn;
+              is_val_templ qn
+          end
+          | _ -> false
+      end -> begin
+        DEBUG_MSG "COLON_COLON @";
+        self#conv_nth_token (function T.TEMPL_LT,s,e -> T.TEMPL_LT_,s,e | x -> x) 1;
+        if env#templ_param_arg_level > 0 then begin
+          try
+            match env#pstat#bracket_stack_top with
+            | BK_TEMPL_PARAM c | BK_TEMPL_ARG c -> c.tpac_expr_flag <- true
+            | _ -> ()
+          with
+            _ -> ()
+        end;
+        token
+      end
 
-        | USING when self#peek_rawtoken() == EQ -> DEBUG_MSG "USING @"; token
+      | COLON_COLON when
+          env#using_flag && env#alias_flag && is_semicolon (self#peek_rawtoken())
+        -> DEBUG_MSG "COLON_COLON @"; token
 
-        | EQ when begin
-            env#using_flag && env#alias_flag && begin
-              match self#peek_rawtoken() with
-              | SEMICOLON _ | TY_LPAREN -> true
-              | _ -> false
-            end
-        end -> DEBUG_MSG "EQ @"; token
+      | COLON_COLON when env#templ_head_flag && env#ty_param_key_flag
+        -> DEBUG_MSG "COLON_COLON @"; token
 
-            (*NG!| COLON_COLON when env#typename_flag -> token*)
-
-        | COLON_COLON when begin
-            (self#peek_rawtoken()) == TEMPL_LT &&
-            match prev_rawtoken2 with
-            | IDENT q -> begin
-                let qn = String.concat "::" [q; s] in
-                DEBUG_MSG "qn=%s" qn;
-                is_val_templ qn
-            end
-            | _ -> false
-        end -> begin
+      | COLON_COLON when env#const_flag && self#peek_rawtoken() == TY_TEMPL_GT -> begin
           DEBUG_MSG "COLON_COLON @";
-          self#conv_nth_token (function T.TEMPL_LT,s,e -> T.TEMPL_LT_,s,e | x -> x) 1;
-          if env#templ_param_arg_level > 0 then begin
-            try
-              match env#pstat#bracket_stack_top with
-              | BK_TEMPL_PARAM c | BK_TEMPL_ARG c -> c.tpac_expr_flag <- true
-              | _ -> ()
-            with
-              _ -> ()
-          end;
           token
-        end
-
-        | COLON_COLON when
-            env#using_flag && env#alias_flag && is_semicolon (self#peek_rawtoken())
-          -> DEBUG_MSG "COLON_COLON @"; token
-
-        | COLON_COLON when env#templ_head_flag && env#ty_param_key_flag
-          -> DEBUG_MSG "COLON_COLON @"; token
-
-        | COLON_COLON when env#const_flag && self#peek_rawtoken() == TY_TEMPL_GT -> begin
-            DEBUG_MSG "COLON_COLON @";
-            token
-        end
-        | COLON_COLON when begin
-            match prev_rawtoken2 with
-            | IDENT _ -> begin
-                match prev_rawtoken3 with
-                | CONST -> begin
-                    match prev_rawtoken4 with
-                    | COMMA | TEMPL_LT -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "COLON_COLON @"; token
-
-        | COLON_COLON when begin
-            env#templ_arg_flag &&
-            match self#peek_rawtoken() with
-            | PTR_STAR when env#stack#at_params && begin
-                match self#peek_nth_rawtoken 2 with
-                | IDENT _ -> begin
-                    match self#peek_nth_rawtoken 3 with
-                    | RPAREN | COMMA -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> false
-            | PLUS | MINUS | PTR_STAR | SLASH | PERC -> begin
-                match self#peek_nth_rawtoken 2 with
-                | TY_TEMPL_GT | GT_GT | COMMA | RPAREN -> false
-                | ELLIPSIS when env#typename_flag -> false
-                | _ -> true
-            end
-            | TEMPL_LT when begin
-                env#at_paren &&
-                let _, nth, l = self#peek_rawtoken_up_to_rparen None in
-                List.for_all
-                  (function
-                    | T.TY_TEMPL_GT | GT_GT -> false
-                    | _ -> true
-                  ) l
-            end -> true
-            | _ -> false
-        end -> DEBUG_MSG "COLON_COLON @"; mk (T.IDENT_V s)
-
-        | CONST when env#using_flag && env#alias_flag && is_semicolon (self#peek_rawtoken())
-          -> DEBUG_MSG "CONST @"; token
-
-        | CONST | VOLATILE when begin
-            match prev_rawtoken2 with
-            | COMMA | TEMPL_LT -> true
-            | CONST | VOLATILE -> begin
-                match prev_rawtoken3 with
-                | COMMA | TEMPL_LT -> true
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "(CONST|VOLATILE) @"; token
-
-        | STATIC when begin
-            match self#peek_rawtoken() with
-            | TYPENAME -> true
-            | _ -> false
-        end -> DEBUG_MSG "STATIC @"; token
-
-        | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
-            (match prev_rawtoken2 with
-            | TY_LPAREN | CC_MACRO _ -> true
-            | _ -> false) &&
-            self#peek_rawtoken() == TY_LPAREN && begin
-              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-              match self#peek_nth_rawtoken (nth+1) with
-              | RPAREN -> begin
-                  match self#peek_nth_rawtoken (nth+2) with
-                  | TY_LPAREN when not (self#check_if_params ll) -> true
-                  | IDENT _ when begin
-                      match self#peek_nth_rawtoken (nth+3) with
-                      | SEMICOLON _ -> begin
-                          conv_nth_token
-                            (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) (nth+2);
-                          true
-                      end
-                      | _ -> false
-                  end -> true
+      end
+      | COLON_COLON when begin
+          match prev_rawtoken2 with
+          | IDENT _ -> begin
+              match prev_rawtoken3 with
+              | CONST -> begin
+                  match prev_rawtoken4 with
+                  | COMMA | TEMPL_LT -> true
                   | _ -> false
-              end
-              | _ -> false
-            end
-        end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @"; mk (T.IDENT_IM s)
-
-        | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
-            self#peek_rawtoken() != COLON_COLON &&
-            match prev_rawtoken2 with
-            | COMMA when begin
-                match self#peek_rawtoken() with
-                | IDENT _ -> true
-                | _ -> false
-            end -> false
-            | TY_LPAREN | COMMA -> true
-            | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
-            | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
-            | IDENT _ -> begin
-                match prev_rawtoken3 with
-                | SEMICOLON _ | RBRACE -> begin
-                    match self#peek_rawtoken() with
-                    | TY_LPAREN when check_if_abst_dtor_ident() -> false
-                    | TY_LPAREN -> begin
-                        let nth, ll =
-                          self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
-                        in
-                        match self#peek_nth_rawtoken (nth+1) with
-                        | SEMICOLON _ | LBRACE -> true
-                        | CONST | OVERRIDE | FINAL -> true
-                        | IDENT x when is_capital_ident x -> true
-                        | _ -> false
-                    end
-                    | IDENT x when not (is_capital_ident s) && is_capital_ident x -> begin
-                        begin
-                          match self#peek_nth_rawtoken 2 with
-                          | TY_LPAREN ->
-                              conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1
-                          | _ -> ()
-                        end;
-                        true
-                    end
-                    | _ -> false
-                end
-                | LPAREN when begin
-                    env#for_flag &&
-                    match self#peek_rawtoken() with
-                    | IDENT "in" when begin
-                        match self#peek_nth_rawtoken 2 with
-                        | IDENT _ -> true
-                        | _ -> false
-                    end -> true
-                    | _ -> false
-                end -> begin
-                  conv_nth_token (function T.IDENT "in",s,e -> T.IN,s,e | x -> x) 1;
-                  true
-                end
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @"; mk (T.IDENT_V s)
-
-        | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
-            match self#peek_rawtoken() with
-            | IDENT x when is_attr_macro x || is_attr_macro_ident x -> false
-            | IDENT x when not env#at_type_paren -> begin
-                match self#peek_nth_rawtoken 2 with
-                | TY_LPAREN -> begin
-                    match self#peek_nth_rawtoken 3 with
-                    | TY_LPAREN -> not (check_double_paren 2)
-                    | _ -> begin
-                        let nth, ll =
-                          self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 ()
-                        in
-                        match self#peek_nth_rawtoken (nth+1) with
-                        | IDENT y when y = x -> false
-                        | _ -> true
-                    end
-                end
-                | _ -> true
-            end
-            | PTR_STAR -> true
-            | _ -> false
-        end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @"; mk (T.ATTR_MACRO s)
-
-        | LBRACKET when self#peek_rawtoken() != COLON_COLON -> DEBUG_MSG "LBRACKET @"; mk (T.IDENT_V s)
-
-        | LPAREN | COMMA when begin
-            match self#peek_rawtoken() with
-            | TY_LPAREN -> true
-            | _ -> false
-        end && begin
-          let _, _, l =
-            self#peek_rawtoken_up_to_rparen ~level:env#paren_level None
-          in
-          match List.rev l with
-          | TY_LPAREN::IDENT _::TY_LPAREN::rest -> begin
-              match List.rev rest with
-              | RPAREN::rest -> begin
-                  let ll = split_at_comma (List.rev rest) in
-                  DEBUG_MSG "\n%s"
-                    (String.concat "\n"
-                       (List.map
-                          (fun x -> String.concat ";"
-                              (List.map Token.rawtoken_to_string x)) ll));
-                  List.exists ty_pat1 ll
               end
               | _ -> false
           end
           | _ -> false
-        end -> DEBUG_MSG "(LPAREN|COMMA) @"; mk (T.IDENT_EM s)
+      end -> DEBUG_MSG "COLON_COLON @"; token
 
-        | TEMPL_LT when begin
-            match prev_rawtoken2 with
-            | STATIC_CAST | DYNAMIC_CAST | REINTERPRET_CAST | CONST_CAST -> true
-            | _ -> false
-        end -> DEBUG_MSG "TEMPL_LT @"; token
+      | COLON_COLON when begin
+          env#templ_arg_flag &&
+          match self#peek_rawtoken() with
+          | PTR_STAR when env#stack#at_params && begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | RPAREN | COMMA -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> false
+          | PLUS | MINUS | PTR_STAR | SLASH | PERC -> begin
+              match self#peek_nth_rawtoken 2 with
+              | TY_TEMPL_GT | GT_GT | COMMA | RPAREN -> false
+              | ELLIPSIS when env#typename_flag -> false
+              | _ -> true
+          end
+          | TEMPL_LT when begin
+              env#at_paren &&
+              let _, nth, l = self#peek_rawtoken_up_to_rparen None in
+              List.for_all
+                (function
+                  | T.TY_TEMPL_GT | GT_GT -> false
+                  | _ -> true
+                ) l
+          end -> true
+          | _ -> false
+      end -> DEBUG_MSG "COLON_COLON @"; mk (T.IDENT_V s)
 
-        | COMMA | TEMPL_LT when begin
-            env#templ_arg_flag &&
-            match self#peek_rawtoken() with
-            | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
-                match self#peek_nth_rawtoken 2 with
-                | COMMA | TY_TEMPL_GT | TEMPL_GT | GT_GT -> true
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "(COMMA|TEMPL_LT) @"; token
+      | CONST when env#using_flag && env#alias_flag && is_semicolon (self#peek_rawtoken())
+        -> DEBUG_MSG "CONST @"; token
 
-        | COMMA | TEMPL_LT when begin
-            env#typedef_flag && env#templ_param_arg_level > 0 &&
-            match self#peek_rawtoken() with
-            | PLUS | MINUS | SLASH | PERC -> true
-            | PTR_STAR -> begin
-                match self#peek_nth_rawtoken 2 with
-                | TY_TEMPL_GT | COMMA -> false
-                | _ -> true
-            end
-            | _ -> false
-        end -> DEBUG_MSG "(COMMA|TEMPL_LT) @"; mk (T.IDENT_V s)
+      | CONST | VOLATILE when begin
+          match prev_rawtoken2 with
+          | COMMA | TEMPL_LT -> true
+          | CONST | VOLATILE -> begin
+              match prev_rawtoken3 with
+              | COMMA | TEMPL_LT -> true
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(CONST|VOLATILE) @"; token
 
-        | RPAREN | CONST when begin
-            env#end_of_params_flag &&
-            (context == TOP || context == MEM) &&
-            not env#objc_class_interface_flag &&
-            not env#objc_protocol_decl_flag &&
-            match self#peek_rawtoken() with
-            | COLON | LBRACE -> true
-            | EQ when env#end_of_params_flag -> true
-            | _ -> false
-        end -> DEBUG_MSG "(RPAREN|CONST) @"; mk (T.NOEXCEPT_MACRO s)
+      | STATIC when begin
+          match self#peek_rawtoken() with
+          | TYPENAME -> true
+          | _ -> false
+      end -> DEBUG_MSG "STATIC @"; token
 
-        | RPAREN | CV_MACRO _ | REF_MACRO _ when begin
-            env#end_of_params_flag &&
-            not env#objc_class_interface_flag &&
-            not env#objc_protocol_decl_flag &&
-            match self#peek_rawtoken() with
-            | SEMICOLON _ | LBRACE -> true
-            | IDENT _ -> true
-            | COMMA | TY_TEMPL_GT when env#at_templ_arg -> true
-            | rt -> DEBUG_MSG "rt=%s" (Token.rawtoken_to_string rt); false
-        end -> begin
-          DEBUG_MSG "(RPAREN|CV_MACRO) @";
-          if is_cv_qualifier_like s then
-            mk (T.CV_MACRO s)
-          else if is_ref_qualifier_like s then
-            mk (T.REF_MACRO s)
-          else if is_noexcept_spec_like s then
-            mk (T.NOEXCEPT_MACRO s)
-          else
-            mk (T.ATTR_MACRO s)
-        end
-
-        | RPAREN when begin
-            context == CLASS &&
-            match self#peek_rawtoken() with
-            | LBRACE -> true
-            | _ -> false
-        end -> DEBUG_MSG "RPAREN @"; mk (T.IDENT s)
-
-        | RPAREN when begin
-            env#alignas_flag &&
-            match self#peek_rawtoken() with
-            | x when is_basic_ty x -> true
-            | IDENT x when is_type_name x || is_type x -> true
-            | _ -> false
-        end -> DEBUG_MSG "RPAREN @"; mk (T.ATTR_MACRO s)
-
-        | RPAREN when self#peek_rawtoken() != COLON_COLON && begin
-            match prev_rawtoken2 with
-            | IDENT _ | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
-            | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _ -> begin
-                match prev_rawtoken3 with
-                | TY_LPAREN when not env#end_of_params_flag -> true
-                | LPAREN -> begin
-                    match prev_rawtoken4 with
-                    | IDENT_TM _ -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "RPAREN @"; mk (T.IDENT_V s)
-
-        | COMMA when begin
-            match self#peek_rawtoken() with
-            | PTR_STAR when self#peek_nth_rawtoken 2 == PTR_AMP -> true
-            | PTR_AMP when self#peek_nth_rawtoken 2 == PTR_STAR -> true
-            | _ -> false
-        end -> DEBUG_MSG "COMMA @"; token
-
-        | COMMA when begin
-            match self#peek_rawtoken() with
-            | STAR | SLASH | PERC | AMP _ | BAR _ | PLUS | MINUS | EXCLAM _ | TILDE _
-            | LT_LT | GT_GT | AMP_AMP _ | BAR_BAR _ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
-              -> true
-            | PTR_STAR | PTR_AMP_AMP | PTR_AMP when
-                not env#at_type_paren && (env#templ_arg_flag || env#at_arg_paren) -> true
-
-            | TEMPL_LT when begin
-                match self#peek_nth_rawtoken 2 with
-                | IDENT _ -> begin
-                    match self#peek_nth_rawtoken 3 with
-                    | RPAREN -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> true
-            | TY_TEMPL_GT when env#templ_param_arg_level = 0 -> true
-            | _ -> false
-        end -> DEBUG_MSG "COMMA @"; mk (T.IDENT_V s)
-
-        | TY_TILDE when context == TOP || context == MEM -> DEBUG_MSG "TY_TILDE @"; token
-
-        | IDENT_V _ | RPAREN when
-            not env#end_of_params_flag &&
-            self#peek_rawtoken() == TY_LPAREN &&
-            self#peek_nth_rawtoken 2 == TY_LPAREN
-          -> DEBUG_MSG "(IDENT_V|RPAREN) @"; mk (T.IDENT_PM s)
-
-        | IDENT_V _ when begin
-            env#at_type_paren &&
-            self#peek_rawtoken() == TY_LPAREN &&
-            let nth, ll =
-              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
-            in
+      | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
+          (match prev_rawtoken2 with
+          | TY_LPAREN | CC_MACRO _ -> true
+          | _ -> false) &&
+          self#peek_rawtoken() == TY_LPAREN && begin
+            let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
             match self#peek_nth_rawtoken (nth+1) with
-            | IDENT x when x = s -> begin
-                conv_nth_token (function T.IDENT x,s,e -> T.IDENT_PM x,s,e | x -> x) (nth+1);
-                true
-            end
-            | _ -> false
-        end -> DEBUG_MSG "IDENT_V @"; mk (T.IDENT_PM s)
-
-        | IDENT _ when self#peek_rawtoken() == TY_LPAREN && env#templ_arg_flag && begin
-            let _, nth, l = self#peek_rawtoken_up_to_rparen ~from:2 None in
-            match self#peek_nth_rawtoken (nth+1) with
-            | TY_TEMPL_GT -> true
-            | _ -> false
-        end -> DEBUG_MSG "IDENT @"; mk (T.IDENT_TM s)
-
-        | RBRACE when begin
-            match self#peek_rawtoken() with
-            | TY_LPAREN -> begin
-                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                match self#peek_nth_rawtoken (nth+1) with
-                | EQ -> true
-                | SEMICOLON _ when env#end_of_enum_spec_flag -> true
-                | LBRACKET when
-                    self#peek_nth_rawtoken (nth+2) == RBRACKET &&
-                    self#peek_nth_rawtoken (nth+3) == EQ
-                  -> true
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "RBRACE @"; mk (T.IDENT_IM s)
-
-        | _ when self#peek_rawtoken() == TY_LPAREN && begin
-            DEBUG_MSG "@";
-            match prev_rawtoken with
-            | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
-            | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
-            | CONST | EXTERN | PTR_STAR | CC_MACRO _
-            | IDENT _ -> begin
-                match prev_rawtoken2 with
-                | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
-                | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
-                | ELAB_ENUM | ELAB_CLASS | CLASS | STRUCT | UNION
-                | CONST | EXTERN | PTR_STAR | IDENT _ -> begin
-                    let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 None in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | TY_LPAREN -> true
-                    | LBRACKET -> begin
-                        match self#peek_nth_rawtoken (nth+2) with
-                        | RBRACKET -> begin
-                            match self#peek_nth_rawtoken (nth+3) with
-                            | EQ -> true
-                            | SEMICOLON _ -> true
-                            | _ -> false
-                        end
-                        | INT_LITERAL _ | IDENT _ -> begin
-                            match self#peek_nth_rawtoken (nth+3) with
-                            | RBRACKET -> true
-                            | _ -> false
-                        end
-                        | _ -> false
-                    end
-                    | EQ when begin
-                        match self#peek_nth_rawtoken (nth+2) with
-                        | DELETE | DEFAULT | INT_LITERAL _ when context == TOP || context == MEM
-                          -> false
-                        | _ -> true
-                    end -> true
-                    | IDENT _ when begin
-                        match self#peek_nth_rawtoken (nth+2) with
-                        | EQ -> true
-                        | _ -> false
-                    end -> true
-                    | SEMICOLON _ when is_ident_macro_ident s -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "(CHAR|...) @ TY_LPAREN"; mk (T.IDENT_IM s)
-
-        | _ when begin
-            match context, sub_context with
-            | (TOP | MEM), END_OF_TY_SPEC -> begin
-                self#peek_rawtoken() == TY_LPAREN &&
-                match prev_rawtoken with
-                | NEWLINE -> begin
-                    let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 None in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | TY_LPAREN -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "NEWLINE @"; mk (T.IDENT_IM s)
-
-        | EQ when env#ty_param_key_flag -> DEBUG_MSG "EQ @"; token
-
-        | MINUS_GT when env#at_type_paren -> DEBUG_MSG "MINUS_GT @"; token
-
-        | MINUS_GT when begin
-            match self#peek_rawtoken() with
-            | TY_LPAREN -> begin
-                let nth, ll =
-                  self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
-                in
-                match self#peek_nth_rawtoken (nth+1) with
-                | LBRACE -> true
-                | TY_LPAREN -> true
-                | _ -> false
-            end
-            | LBRACE -> true
-            | _ -> false
-        end -> DEBUG_MSG "MINUS_GT @"; token
-
-        | COLON_COLON when begin
-            match prev_rawtoken2 with
-            | IDENT _ -> begin
-                match prev_rawtoken3 with
-                | TYPENAME -> true
-                | _ -> false
-            end
-            | _ -> false
-        end -> DEBUG_MSG "COLON_COLON @"; token
-
-        | COLON_COLON when env#at_type_paren && begin
-            match self#peek_rawtoken() with
-            | RPAREN -> is_semicolon (self#peek_nth_rawtoken 2)
-            | _ -> false
-        end -> DEBUG_MSG "COLON_COLON @"; token
-
-        | QUEST when self#peek_rawtoken() == COLON -> DEBUG_MSG "QUEST @"; mk (T.IDENT_V s)
-
-        | ELLIPSIS when prev_rawtoken2 == TYPENAME -> DEBUG_MSG "ELLIPSIS @"; token
-
-        | TY_TEMPL_GT when begin
-            env#templ_arg_flag &&
-            match self#peek_rawtoken() with
-            | COMMA | TY_TEMPL_GT -> true
-            | _ -> false
-        end -> DEBUG_MSG "TY_TEMPL_GT @ (COMMA|TY_TEMPL_GT)"; mk (T.CV_MACRO s)
-
-        | IDENT x when x = s -> DEBUG_MSG "IDENT @"; mk (T.IDENT_V s)
-
-        | PTR_AMP | PTR_STAR when begin
-            match prev_rawtoken2 with
-            | IDENT x -> x = s
-            | _ -> false
-        end -> DEBUG_MSG "IDENT PTR_AMP @"; mk (T.IDENT_V s)
-
-        | AMP_AMP _ | BAR_BAR _ | AMP _ | BAR _ | STAR | PLUS | MINUS | SLASH | PERC
-        | EXCLAM _ | TILDE _ | HAT _
-        | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ when begin
-            env#templ_arg_flag &&
-            match self#peek_rawtoken() with
-            | COMMA | TY_TEMPL_GT -> true
-            | _ -> false
-        end -> DEBUG_MSG "(AMP_AMP|...) @"; mk (T.IDENT_V s)
-
-        | IDENT _ when begin
-            env#alias_flag && env#using_flag &&
-            match self#peek_rawtoken() with
-            | SEMICOLON _ -> true
-            | IDENT _ -> true
-            | _ -> false
-        end -> DEBUG_MSG "IDENT @"; token
-
-        | _ -> begin
-            DEBUG_MSG "* @";
-            match self#peek_rawtoken() with
-            | CONST when env#templ_arg_flag -> DEBUG_MSG "@ CONST"; token
-
-            | PTR_AMP | PTR_STAR when env#templ_arg_flag -> begin
-                match self#peek_nth_rawtoken 2 with
+            | RPAREN -> begin
+                match self#peek_nth_rawtoken (nth+2) with
+                | TY_LPAREN when not (self#check_if_params ll) -> true
                 | IDENT _ when begin
-                    match self#peek_nth_rawtoken 3 with
-                    | PLUS | MINUS | SLASH | PTR_STAR | PTR_AMP | HAT _ | BAR _ -> true
-                    | RPAREN -> begin
-                        match self#peek_nth_rawtoken 4 with
-                        | EQ_EQ | EXCLAM_EQ _ | QUEST -> true
-                        | _ -> env#at_paren
+                    match self#peek_nth_rawtoken (nth+3) with
+                    | SEMICOLON _ -> begin
+                        conv_nth_token
+                          (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) (nth+2);
+                        true
                     end
-                    | TY_TEMPL_GT -> true
                     | _ -> false
-                end -> DEBUG_MSG "@ (PTR_AMP|PTR_STAR) IDENT"; mk (T.IDENT_V s)
-
-                | INT_LITERAL _ | FLOAT_LITERAL _
-                | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
-                  -> DEBUG_MSG "@ (PTR_AMP|PTR_STAR) (INT_LITERAL|...)"; mk (T.IDENT_V s)
-
-                | _ ->
-                    let nth, l = self#peek_rawtoken_up_to [T.COMMA;TY_TEMPL_GT] in
-                    if filt_at_level0 l ((==) T.QUEST) then begin
-                      DEBUG_MSG "@ (PTR_AMP|PTR_STAR)";
-                      mk (T.IDENT_V s)
-                    end
-                    else if
-                      not env#at_type_paren && env#templ_arg_flag &&
-                      match self#peek_nth_rawtoken 2 with
-                      | TY_TEMPL_GT | GT_GT | COMMA | ELLIPSIS -> false
-                      | _ -> true
-                    then begin
-                      DEBUG_MSG "@ (PTR_AMP|PTR_STAR)";
-                      mk (T.IDENT_V s)
-                    end
-                    else begin
-                      DEBUG_MSG "@ (PTR_AMP|PTR_STAR)";
-                      token
-                    end
+                end -> true
+                | _ -> false
             end
-            | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
-                DEBUG_MSG "* @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR)";
-                if
-                  prev_rawtoken == COLON_COLON && prev_rawtoken2 == TEMPL_GT &&
-                  not env#last_ty_templ_id_flag
-                then
-                  match self#peek_nth_rawtoken 2 with
-                  | IDENT _ -> begin
-                      match self#peek_nth_rawtoken 3 with
-                      | EQ -> DEBUG_MSG "@"; token
-                      | TY_LPAREN when (context == TOP || context == MEM) && begin
-                          let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:4 () in
-                          match self#peek_nth_rawtoken (nth+1) with
-                          | SEMICOLON _ | LBRACE -> true
-                          | _ -> check_if_params ll
-                      end -> DEBUG_MSG "@"; token
-                      | _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                  end
-                  | _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                else if prev_rawtoken == COMMA && env#dtor_flag then begin
-                  DEBUG_MSG "@"; mk (T.CC_MACRO s)
-                end
-                else
-                  match self#peek_nth_rawtoken 2 with
+            | _ -> false
+          end
+      end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @"; mk (T.IDENT_IM s)
+
+      | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
+          self#peek_rawtoken() != COLON_COLON &&
+          match prev_rawtoken2 with
+          | COMMA when begin
+              match self#peek_rawtoken() with
+              | IDENT _ -> true
+              | _ -> false
+          end -> false
+          | TY_LPAREN | COMMA -> true
+          | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
+          | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
+          | IDENT _ -> begin
+              match prev_rawtoken3 with
+              | SEMICOLON _ | RBRACE | DECL_SPEC_MACRO _ -> begin
+                  match self#peek_rawtoken() with
+                  | TY_LPAREN when check_if_abst_dtor_ident() -> false
                   | TY_LPAREN -> begin
-                      match self#peek_nth_rawtoken 3 with
-                      | TY_LPAREN when check_double_paren 2 -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                      | x when is_uop x -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                      | _ -> DEBUG_MSG "@"; token
+                      let nth, ll =
+                        self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+                      in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | SEMICOLON _ | LBRACE -> true
+                      | CONST | OVERRIDE | FINAL -> true
+                      | IDENT x when is_capital_ident x -> true
+                      | _ -> false
                   end
-                  | SIZEOF | INT_LITERAL _ | FLOAT_LITERAL _
-                  | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                  | _ when prev_rawtoken == LPAREN -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                  | _ when begin
-                      not env#at_type_paren && env#templ_arg_flag &&
-                      match self#peek_nth_rawtoken 2 with
-                      | TY_TEMPL_GT | COMMA -> false
-                      | _ -> true
-                  end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                  | _ -> DEBUG_MSG "@"; token
-            end
-
-            | CONSTEXPR -> DEBUG_MSG "@ CONSTEXPR"; token
-
-            | IDENT _ when begin
-                prev_rawtoken != COLON_COLON &&
-                env#end_of_params_flag &&
-                (not env#objc_class_interface_flag && not env#objc_protocol_decl_flag
-               ||
-                 not env#end_of_objc_meth_type_flag)
-            end -> DEBUG_MSG "@ IDENT"; mk (T.ATTR_MACRO s)
-
-            | EOF | SEMICOLON _ when env#end_of_params_flag && begin
-                match prev_rawtoken with
-                | ATTR_MACRO _ | CONST -> true
-                | _ -> false
-            end -> DEBUG_MSG "@ (EOF|SEMICOLON)"; mk (T.ATTR_MACRO s)
-
-            | IDENT _ when begin
-                env#at_type_paren &&
-                match prev_rawtoken with
-                | CONST -> begin
-                    match self#peek_nth_rawtoken 2 with
-                    | COMMA | RPAREN -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "CONST @ IDENT (COMMA|RPAREN)"; mk (T.CV_MACRO s)
-
-            | IDENT x when (contains_arg x || contains_param x) && begin
-                match self#peek_nth_rawtoken 2 with
-                | LBRACE when begin
-                    match context with
-                    | TOP | MEM -> sub_context == END_OF_TY_SPEC
-                    | _ -> false
-                end -> begin
-                  conv_nth_token (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) 1;
-                  true
-                end
-                | _ -> false
-            end -> DEBUG_MSG "@ IDENT"; mk (T.IDENT_V s)
-
-            | IDENT x when begin
-                is_attr_macro x &&
-                env#at_type_paren &&
-                match self#peek_nth_rawtoken 2 with
-                | COMMA | RPAREN | EQ -> begin
-                    match prev_rawtoken with
-                    | IDENT _ | TYPE_MACRO _ | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "@ IDENT"; mk (T.IDENT_V s)
-
-            | IDENT _ when begin
-                (match prev_rawtoken with
-                | COMMA -> true
-                | _ -> false) &&
-                match self#peek_nth_rawtoken 2 with
-                | EQ -> true
-                | _ -> false
-            end -> begin
-              DEBUG_MSG "* @ IDENT EQ";
-              conv_nth_token (function T.IDENT x,s,e -> T.ATTR_MACRO x,s,e | x -> x) 1;
-              mk (T.IDENT_V s)
-            end
-
-            | IDENT _ when begin
-                env#objc_meth_decl_flag && env#at_type_paren &&
-                match prev_rawtoken with
-                | PTR_STAR -> begin
-                    match self#peek_nth_rawtoken 2 with
-                    | IDENT _ | PTR_STAR -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "PTR_STAR @ IDENT"; mk (T.ATTR_MACRO s)
-
-            | IDENT x when begin
-                (is_attr_macro x || is_attr_macro_ident x) &&
-                match prev_rawtoken with
-                | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
-                    match prev_rawtoken2 with
-                    | IDENT _ | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
-                    | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _ | CONST -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @ IDENT"; mk (T.IDENT_V s)
-
-            | TEMPL_LT | COLON_COLON | IDENT _ -> begin
-                DEBUG_MSG "* @ (TEMPL_LT|COLON_COLON|IDENT)";
-                match self#peek_nth_rawtoken 2 with
-                | TY_LPAREN -> begin
-                    match self#peek_nth_rawtoken 3 with
-                    | TY_LPAREN when check_double_paren 2 -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                    | _  -> begin
-                        match self#peek_rawtoken() with
-                        | IDENT x -> begin
-                            let nth, ll =
-                              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 ()
-                            in
-                            match self#peek_nth_rawtoken (nth+1) with
-                            | IDENT y when y = x -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                            | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
-                            | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
-                            | CONST -> DEBUG_MSG "@"; token
-                            | IDENT y when is_type_name y || is_type y -> DEBUG_MSG "@"; token
-
-                            | LBRACE | SEMICOLON _ when env#attr_flag -> DEBUG_MSG "@"; mk (T.ATTR_MACRO s)
-
-                            | _ when is_attr_macro x || is_attr_macro_ident x -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-                            | _ when env#at_type_paren && begin
-                                match prev_rawtoken with
-                                | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
-                                | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
-                                | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _ -> true
-                                | _ -> false
-                            end -> begin
-                              DEBUG_MSG "@";
-                              conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1;
-                              mk (T.IDENT_V s)
-                            end
-                            | _ -> DEBUG_MSG "@"; token
-                        end
-                        | _ -> DEBUG_MSG "@"; token
-                    end
-                end
-
-                | RPAREN | COMMA when begin
-                    env#at_type_paren && env#paren_level = 1 && not env#typename_flag &&
-                    match self#peek_rawtoken() with
-                    | IDENT _ when begin
-                        match prev_rawtoken with
-                        | TY_LPAREN | COMMA -> begin
-                            match self#peek_nth_rawtoken 2 with
-                            | RPAREN | COMMA -> true
-                            | _ -> false
-                        end
-                        | _ -> false
-                    end -> false
-                    | IDENT x when is_capital_ident x -> true
-                    | _ -> false
-                end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-
-                    (*| RPAREN*)(* | COMMA*) | PP_IF | PP_IFDEF | PP_IFNDEF when begin
-                      env#at_type_paren && env#paren_level = 1 && not env#typename_flag &&
-                      match self#peek_rawtoken() with
-                      | IDENT _ when begin
-                          match prev_rawtoken with
-                          | TY_LPAREN | COMMA -> begin
-                              match self#peek_nth_rawtoken 2 with
-                              | RPAREN | COMMA -> true
-                              | _ -> false
+                  | IDENT x when not (is_capital_ident s) && is_capital_ident x -> begin
+                      DEBUG_MSG "@";
+                      begin
+                        let b =
+                          match self#peek_nth_rawtoken 2 with
+                          | TY_LPAREN -> begin
+                              let nth, ll =
+                                self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 ()
+                              in
+                              match self#peek_nth_rawtoken (nth+1) with
+                              | LBRACE when check_if_stmt ~after_brace:true (nth+2) -> false
+                              | _ -> true
                           end
                           | _ -> false
-                      end -> false
-                      | IDENT x -> begin
-                          DEBUG_MSG "@";
-                          conv_nth_token
-                            (function T.IDENT x,s,e -> T.PARAM_DECL_MACRO x,s,e | x -> x) 1;
-                          true
-                      end
-                      | _ -> false
-                    end -> DEBUG_MSG "@ IDENT"; mk (T.IDENT_V s)
-
-                  | SEMICOLON _ when begin
-                      match self#peek_rawtoken() with
-                      | IDENT x when is_capital_ident x -> begin
-                          conv_nth_token (function T.IDENT x,s,e -> T.ATTR_MACRO x,s,e | x -> x) 1;
-                          true
-                      end
-                      | _ -> false
-                  end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-
-                  | IDENT _ when env#paren_level = 1 && self#peek_nth_rawtoken 3 == RPAREN
-                    -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-
-                  | _ when begin
-                      match self#peek_rawtoken() with
-                      | IDENT x when not (is_type_name x || is_type x) -> begin
-                          match prev_rawtoken with
-                          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
-                          | CONST | VOLATILE -> true
-                          | _ -> false
-                      end
-                      | _ -> false
-                  end -> DEBUG_MSG "(PTR_AMP|...) @ IDENT"; mk (T.CV_MACRO s)
-
-                  | _ when begin
-                      prev_rawtoken == LPAREN &&
-                      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
-                      not (templ_param_arg_balanced ~rev:true (Xlist.last ll))
-                  end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
-
-                  | _ -> DEBUG_MSG "@"; token
-            end
-
-            | ELLIPSIS when self#peek_nth_rawtoken 2 == TY_TEMPL_GT && begin
-                prev_rawtoken == COLON_COLON && prev_rawtoken2 == TEMPL_GT &&
-                env#last_ty_templ_id_flag
-            end -> DEBUG_MSG "@"; token
-
-            | TY_TEMPL_GT | TEMPL_GT | COMMA when (*env#templ_arg_flag &&*) begin
-                prev_rawtoken == COLON_COLON &&
-                (prev_rawtoken2 == TEMPL_GT ||
-                (match prev_rawtoken2 with IDENT _ -> true | _ -> false) &&
-                prev_rawtoken3 == COLON_COLON && prev_rawtoken4 == TEMPL_GT) &&
-                env#last_ty_templ_id_flag
-            end -> DEBUG_MSG "@"; token
-
-            | GT_GT when env#templ_param_arg_level > 1 && begin
-                prev_rawtoken == COLON_COLON &&
-                (prev_rawtoken2 == TEMPL_GT && env#last_ty_templ_id_flag || env#const_flag)
-            end -> DEBUG_MSG "@"; token
-
-            | GT_GT -> begin
-                DEBUG_MSG "@ GT_GT";
-                if env#templ_arg_flag || is_type_name s || is_type s then
-                  token
-                else
-                  mk (T.IDENT_V s)
-            end
-
-            | SEMICOLON _ | EOF when context == MEM(* && sub_context == END_OF_TY_SPEC*) && begin
-                env#end_of_params_flag && not env#typedef_flag &&
-                match prev_rawtoken with
-                | RPAREN when not env#end_of_decl_spec_macro_call_flag && env#end_of_params_flag -> true
-                | _ -> false
-            end -> DEBUG_MSG "* @ SEMICOLON"; mk (T.VIRT_SPEC_MACRO s)
-
-            | SEMICOLON _ when context == MEM && sub_context == END_OF_TY_SPEC && begin
-                not env#typedef_flag &&
-                match prev_rawtoken with
-                | MINUS_GT -> true
-                | COLON_COLON -> env#typename_flag
-                | _ -> false
-            end -> DEBUG_MSG "* @ SEMICOLON"; token
-
-            | COLON when begin
-                not env#for_flag &&
-                not env#objc_class_interface_flag &&
-                not env#objc_protocol_decl_flag
-            end -> DEBUG_MSG "* @ COLON"; mk (T.IDENT_B s)
-
-            | OPERATOR when begin
-                match prev_rawtoken with
-                | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
-                | _ -> false
-            end -> DEBUG_MSG "* @ OPERATOR"; mk (T.ATTR_MACRO s)
-
-            | OPERATOR -> DEBUG_MSG "@ OPERATOR"; token
-
-            | TY_LPAREN when begin
-                match self#peek_nth_rawtoken 2 with
-                | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
-                    match self#peek_nth_rawtoken 3 with
-                    | RPAREN -> begin
-                        match self#peek_nth_rawtoken 4 with
-                        | TY_LPAREN -> true
-                        | LBRACKET when env#at_type_paren -> true
-                        | _ -> false
-                    end
-                    | IDENT _ -> begin
-                        match self#peek_nth_rawtoken 4 with
-                        | RPAREN -> begin
-                            match self#peek_nth_rawtoken 5 with
-                            | TY_LPAREN -> true
-                            | LBRACKET when env#at_type_paren -> true
-                            | _ -> false
-                        end
-                        | _ -> false
-                    end
-                    | _ -> false
-                end
-
-                | IDENT _ when env#templ_arg_flag && not env#decltype_flag && begin
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | NOEXCEPT -> true
-
-                    | STAR | SLASH | PERC | AMP _ | BAR _ | PLUS | MINUS | EXCLAM _ | TILDE _
-                    | LT_LT | GT_GT | AMP_AMP _ | BAR_BAR _ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
-                      -> false
-
-                    | _ when begin
-                        match prev_rawtoken with
-                        | STAR | SLASH | PERC | AMP _ | BAR _ | PLUS | MINUS | EXCLAM _ | TILDE _
-                        | LT_LT | GT_GT | AMP_AMP _ | BAR_BAR _ | EQ_EQ | EXCLAM_EQ _
-                        | LT_EQ | GT_EQ -> true
-                        | _ -> false
-                    end -> false
-
-                    | _ when check_if_params ll -> true
-                    | _ when begin
-                        match ll with
-                        | [PTR_STAR::COLON_COLON::_] -> true
-                        | _ -> false
-                    end -> true
-                    | _ -> false
-                end -> true
-                | RPAREN when env#templ_arg_flag && not env#decltype_flag && begin
-                    match self#peek_nth_rawtoken 3 with
-                    | NOEXCEPT -> true
-                    | TY_TEMPL_GT -> true
-                    | _ -> false
-                end -> true
-
-                | RPAREN when env#conv_func_id_flag -> true
-                | _ -> false
-            end -> DEBUG_MSG "@ TY_LPAREN"; token
-
-            | TY_LPAREN when begin
-                is_ty _rawtok &&
-                match prev_rawtoken with
-                | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
-                | _ -> false
-            end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_V s)
-
-            | TY_LPAREN when begin
-                is_ty _rawtok
-            end -> DEBUG_MSG "@ TY_LPAREN"; token
-
-            | TY_LPAREN when begin
-                env#objc_class_interface_flag &&
-                not env#objc_protocol_decl_flag &&
-                match prev_rawtoken with
-                | IDENT_V _ -> true
-                | _ -> false
-            end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_AM s)
-
-            | TY_LPAREN when begin
-                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                DEBUG_MSG "\n%s"
-                  (String.concat "\n"
-                     (List.map
-                        (fun x -> String.concat ";"
-                            (List.map Token.rawtoken_to_string x)) ll));
-                ll <> [] &&
-                match self#peek_nth_rawtoken (nth+1) with
-                | RPAREN when begin
-                    match prev_rawtoken with
-                    | CONST -> true
-                    | _ -> false
-                end -> true
-                | TY_LPAREN -> begin
-                    let nth0, ll0 =
-                      self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+2) ()
-                    in
-                    match ll0 with
-                    | [l] -> begin
-                        match self#peek_nth_rawtoken (nth0+1) with
-                        | TY_LPAREN -> begin
-                            let nth1, ll1 =
-                              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth0+2) ()
-                            in
-                            match self#peek_nth_rawtoken (nth1+1) with
-                            | LBRACE | CONST -> true
-                            | _ -> false
-                        end
-                        | _ -> false
-                    end
-                    | _ -> false
-                end
-                | IDENT x when x = s -> begin
-                    conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) (nth+1);
-                    true
-                end
-                | IDENT x when is_macro_fun x -> false
-                | IDENT x when is_virt_spec_macro_ident x || is_virt_spec_macro x -> false
-                | IDENT x when is_cv_spec_macro_ident x || is_cv_spec_macro x -> false
-
-                | IDENT _ -> begin
-                    match self#peek_nth_rawtoken (nth+2) with
-                    | TY_LPAREN -> begin
-                        match self#peek_nth_rawtoken (nth+3) with
-                        | TY_LPAREN when begin
-                            let nth1, ll1 =
-                              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+4) ()
-                            in
-                            match self#peek_nth_rawtoken (nth1+1) with
-                            | RPAREN -> true
-                            | _ -> false
-                        end -> false
-
-                        | INT_LITERAL _ | FLOAT_LITERAL _ | BOOL_LITERAL _
-                        | CHAR_LITERAL _ | STR_LITERAL _ | NULLPTR | PP_STRINGIZED _
-                        | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
-                        | USER_STR_LITERAL _ | USER_CHAR_LITERAL _ -> false
-                        | _ ->
-                            not
-                              (List.exists
-                                 (fun l ->
-                                   filt_at_level0 l
-                                     (function
-                                       | T.CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
-                                       | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | CONST
-                                       | TYPE_MACRO _ -> true
-                                       | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
-                                       | IDENT x when is_type_name x -> true
-                                       | _ -> false
-                                     ) ||
-                                     match l with
-                                     | [IDENT _; IDENT _] -> true
-                                     | IDENT _::IDENT _::COLON_COLON::_ -> true
-                                     | _ -> false
-                       ) ll)
-                    end
-                    | SEMICOLON _ when begin
-                        List.exists
-                          (function
-                              [T.INT_LITERAL _ | FLOAT_LITERAL _ | BOOL_LITERAL _
-                            | CHAR_LITERAL _ | STR_LITERAL _ | NULLPTR | PP_STRINGIZED _
-                            | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
-                            | USER_STR_LITERAL _ | USER_CHAR_LITERAL _] -> true
-                            | _ -> false
-                          ) ll
-                    end -> true
-                    | CONST -> true
-                    | _ -> false
-                end
-                | OPERATOR -> true
-                | TY_TEMPL_GT -> prev_rawtoken == CONST && env#templ_arg_flag
-                | _ -> false
-            end -> begin
-              DEBUG_MSG "@ TY_LPAREN";
-              match prev_rawtoken with
-              | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> mk (T.IDENT_AM s)
-              | x when is_ty x -> mk (T.IDENT_AM s)
-              | _ -> mk (T.IDENT_TM s)
-            end
-
-            | TY_LPAREN when env#end_of_params_flag && begin
-                match prev_rawtoken with
-                | COMMA -> false
-                | _ ->
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    DEBUG_MSG "\n%s"
-                      (String.concat "\n"
-                         (List.map
-                            (fun x -> String.concat ";"
-                                (List.map Token.rawtoken_to_string x)) ll));
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | LBRACE | SEMICOLON _ -> true
-                    | CONST when begin
-                        match self#peek_nth_rawtoken (nth+2) with
-                        | LBRACE | SEMICOLON _ -> true
-                        | _ -> false
-                    end -> true
-                    | _ -> false
-            end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_CM s)
-
-            | TY_LPAREN when begin
-                match prev_rawtoken with
-                | IDENT _ -> begin
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    DEBUG_MSG "\n%s"
-                      (String.concat "\n"
-                         (List.map
-                            (fun x -> String.concat ";"
-                                (List.map Token.rawtoken_to_string x)) ll));
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | STRUCT | UNION | CLASS | ENUM -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_DM s)
-
-            | TY_LPAREN when begin
-                match prev_rawtoken with
-                | AMP_AMP _ | BAR_BAR _ | AMP _ | BAR _ | STAR | PLUS | MINUS | SLASH | PERC
-                | EXCLAM _ | TILDE _ | HAT _
-                | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ
-                | LPAREN | COMMA -> begin
-                    (match prev_rawtoken with
-                    | COMMA -> env#macro_arg_flag || env#at_arg_paren || env#templ_arg_flag
-                    | LPAREN -> begin
-                        match prev_rawtoken2 with
-                        | AMP_AMP _ | BAR_BAR _ | AMP _ | BAR _ | STAR | PLUS | MINUS | SLASH | PERC
-                        | EXCLAM _ | TILDE _ | HAT _
-                        | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ -> true
-                        | _ when env#at_arg_paren -> true
-                        | _ -> false
-                    end
-                    | _ -> true) &&
-                    let b = is_macro_fun s in
-                    b ||
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    DEBUG_MSG "\n%s"
-                      (String.concat "\n"
-                         (List.map
-                            (fun x -> String.concat ";"
-                                (List.map Token.rawtoken_to_string x)) ll));
-                    check_if_macro_args ll
-                      (*List.exists
-                        (fun l ->
-                        match (List.rev l : T.token list) with
-                        | TYPENAME::_ -> true
-                        | [IDENT x] when is_type_name x || is_type x -> true
-                        | x::_ when is_basic_ty x -> true
-                        | _ -> false
-                        ) ll*)
-                end
-                | _ -> false
-            end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_EM s)
-
-            | TY_LPAREN when begin
-                env#at_type_paren &&
-                match prev_rawtoken with
-                | IDENT_V _ -> begin
-                    match prev_rawtoken2 with
-                    | IDENT _ -> begin
-                        match prev_rawtoken3 with
-                        | COMMA | TY_LPAREN -> true
-                        | _ -> false
-                    end
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "(COMMA|TY_LPAREN) IDENT IDENT_V @ TY_LPAREN"; mk (T.IDENT_PM s)
-
-            | TY_LPAREN when begin
-                not env#macro_arg_flag &&
-                env#end_of_params_flag &&
-                match prev_rawtoken with
-                | CONST | RPAREN when begin
-                    let nth, ll =
-                      self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
-                    in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | SEMICOLON _ | LBRACE | VOLATILE | RESTRICT _ | MS_STDCALL _ | MS_CDECL _
-                    | CC_MACRO _ | CV_MACRO _ | EQ | COLON -> false
-                    | TEMPLATE -> true
-                    | IDENT _ when begin
-                        try
-                          let _, macro_kind, tok_list_obj = env#find_pending_macro s in
-                          match macro_kind with
-                          | FunctionLike _ -> begin
-                              let tok_list = (Obj.obj tok_list_obj : token list) in
-                              match tok_list with
-                              | (T.LBRACE,_,_)::rest when begin
-                                  match Xlist.last rest with
-                                  | RBRACE,_,_ -> true
-                                  | _ -> false
-                              end -> true
-                              | _ -> false
-                          end
-                          | _ -> false
-                        with
-                          _ -> false
-                    end -> true
-                    | IDENT _ -> false
-                    | _ -> true
-                end -> true
-                | _ -> false
-            end -> DEBUG_MSG "(CONST|RPAREN) @ TY_LPAREN"; mk (T.IDENT_BM s)
-
-            | TY_LPAREN when begin
-                env#end_of_params_flag &&
-                match prev_rawtoken with
-                | RPAREN | CONST | ATTR_MACRO _ -> begin
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | COLON | SEMICOLON _ | LBRACE -> true
-                    | TY_TEMPL_GT when env#templ_arg_flag -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "(CONST|RPAREN|...) @ TY_LPAREN"; mk (T.IDENT_AM s)
-
-            | TY_LPAREN when begin
-                match prev_rawtoken with
-                | RBRACE -> begin
-                    env#end_of_class_spec_flag &&
-                    is_attr_macro_ident_p s &&
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | SEMICOLON _ -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "RBRACE @ TY_LPAREN"; mk (T.IDENT_AM s)
-
-            | TY_LPAREN when begin
-                match prev_rawtoken with
-                | IDENT _ -> begin
-                    is_id_or_ty_macro_ident s &&
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | IDENT x -> begin
-                        let _x = String.lowercase_ascii x in
-                        (x = "args" || x = "params") &&
-                        match self#peek_nth_rawtoken (nth+2) with
-                        | SEMICOLON _ -> true
-                        | _ -> false
-                    end
-                    | _ -> false
-                end
-                | RBRACE -> begin
-                    env#end_of_class_spec_flag &&
-                    is_id_macro_fun s &&
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | SEMICOLON _ | COMMA -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "IDENT @ TY_LPAREN"; mk (T.IDENT_IM s)
-
-            | TY_LPAREN when begin
-                env#objc_meth_decl_flag &&
-                match prev_rawtoken with
-                | TY_LPAREN -> begin
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | PTR_STAR -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "TY_LPAREN @ TY_LPAREN"; mk (T.IDENT_TM s)
-
-            | x when is_basic_ty x -> DEBUG_MSG "@ *"; token
-
-            | RPAREN when begin
-                env#at_type_paren && begin
-                  match prev_rawtoken with
-                  | COLON_COLON | HEAD_COLON_COLON -> true
-                  | IDENT _ when begin
-                      (env#objc_class_interface_flag || env#objc_protocol_decl_flag) &&
+                        in
+                        if b then
+                          conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1
+                      end;
+                      true
+                  end
+                  | _ -> false
+              end
+              | LPAREN when begin
+                  env#for_flag &&
+                  match self#peek_rawtoken() with
+                  | IDENT "in" when begin
                       match self#peek_nth_rawtoken 2 with
                       | IDENT _ -> true
                       | _ -> false
                   end -> true
                   | _ -> false
-                end &&
-                self#peek_nth_rawtoken 2 != TY_LPAREN
-            end -> DEBUG_MSG "@ RPAREN"; token
+              end -> begin
+                conv_nth_token (function T.IDENT "in",s,e -> T.IN,s,e | x -> x) 1;
+                true
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @"; mk (T.IDENT_V s)
 
-            | SEMICOLON _ | EOF | GNU_ASM _ when begin
-                match prev_rawtoken with
-                | IDENT_V _ -> begin
-                    match prev_rawtoken2 with
-                    | IDENT _ -> begin
-                        match prev_rawtoken3 with
-                        | SEMICOLON _ | RBRACE -> true
+      | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
+          match self#peek_rawtoken() with
+          | IDENT x -> begin
+              match self#peek_nth_rawtoken 2 with
+              | TY_LPAREN -> begin
+                  try
+                    let _, macro_kind, tok_list_obj = env#find_pending_macro x in
+                    match macro_kind with
+                    | L.FunctionLike _ -> begin
+                        let tok_list = (Obj.obj tok_list_obj : token list) in
+                        DEBUG_MSG "[%s]"
+                          (String.concat ";"
+                             (List.map (fun (rt,_,_) -> Token.rawtoken_to_string rt) tok_list));
+                        match tok_list with
+                        | (T.EQ,_,_)::_ -> begin
+                            conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1;
+                            true
+                        end
                         | _ -> false
                     end
                     | _ -> false
+                  with
+                    _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @ IDENT"; mk (T.IDENT_V s)
+
+      | PTR_STAR | PTR_AMP | PTR_AMP_AMP when begin
+          match self#peek_rawtoken() with
+          | IDENT x when is_attr_macro x || is_attr_macro_ident x -> false
+          | IDENT x when not env#at_type_paren -> begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT y when is_attr_macro y || is_attr_macro_ident y -> false
+              | LBRACE when check_if_stmt ~after_brace:true 3 -> false
+              | TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | TY_LPAREN -> not (check_double_paren 2)
+                  | _ -> begin
+                      let nth, ll =
+                        self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 ()
+                      in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | IDENT y when y = x -> false
+                      | _ -> true
+                  end
+              end
+              | _ -> true
+          end
+          | PTR_STAR -> true
+          | _ -> false
+      end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @"; mk (T.ATTR_MACRO s)
+
+      | LBRACKET when self#peek_rawtoken() != COLON_COLON -> DEBUG_MSG "LBRACKET @"; mk (T.IDENT_V s)
+
+      | LPAREN | COMMA when begin
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> true
+          | _ -> false
+      end && begin
+        let _, _, l =
+          self#peek_rawtoken_up_to_rparen ~level:env#paren_level None
+        in
+        match List.rev l with
+        | TY_LPAREN::IDENT _::TY_LPAREN::rest -> begin
+            match List.rev rest with
+            | RPAREN::rest -> begin
+                let ll = split_at_comma (List.rev rest) in
+                DEBUG_MSG "\n%s"
+                  (String.concat "\n"
+                     (List.map
+                        (fun x -> String.concat ";"
+                            (List.map Token.rawtoken_to_string x)) ll));
+                List.exists ty_pat1 ll
+            end
+            | _ -> false
+        end
+        | _ -> false
+      end -> DEBUG_MSG "(LPAREN|COMMA) @"; mk (T.IDENT_EM s)
+
+      | TEMPL_LT when begin
+          match prev_rawtoken2 with
+          | STATIC_CAST | DYNAMIC_CAST | REINTERPRET_CAST | CONST_CAST -> true
+          | _ -> false
+      end -> DEBUG_MSG "TEMPL_LT @"; token
+
+      | COMMA | TEMPL_LT when begin
+          env#templ_arg_flag &&
+          match self#peek_rawtoken() with
+          | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
+              match self#peek_nth_rawtoken 2 with
+              | COMMA | TY_TEMPL_GT | TEMPL_GT | GT_GT -> true
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(COMMA|TEMPL_LT) @"; token
+
+      | COMMA | TEMPL_LT when begin
+          env#typedef_flag && env#templ_param_arg_level > 0 &&
+          match self#peek_rawtoken() with
+          | PLUS | MINUS | SLASH | PERC -> true
+          | PTR_STAR -> begin
+              match self#peek_nth_rawtoken 2 with
+              | TY_TEMPL_GT | COMMA -> false
+              | _ -> true
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(COMMA|TEMPL_LT) @"; mk (T.IDENT_V s)
+
+      | RPAREN | CONST when begin
+          env#end_of_params_flag &&
+          (context == TOP || context == MEM) &&
+          not env#objc_class_interface_flag &&
+          not env#objc_protocol_decl_flag &&
+          match self#peek_rawtoken() with
+          | COLON | LBRACE -> true
+          | EQ when env#end_of_params_flag -> true
+          | _ -> false
+      end -> DEBUG_MSG "(RPAREN|CONST) @"; mk (T.NOEXCEPT_MACRO s)
+
+      | RPAREN | CV_MACRO _ | REF_MACRO _ when begin
+          env#end_of_params_flag &&
+          not env#objc_class_interface_flag &&
+          not env#objc_protocol_decl_flag &&
+          match self#peek_rawtoken() with
+          | SEMICOLON _ | LBRACE -> true
+          | IDENT _ -> true
+          | COMMA | TY_TEMPL_GT when env#at_templ_arg -> true
+          | rt -> DEBUG_MSG "rt=%s" (Token.rawtoken_to_string rt); false
+      end -> begin
+        DEBUG_MSG "(RPAREN|CV_MACRO) @";
+        if is_cv_qualifier_like s then
+          mk (T.CV_MACRO s)
+        else if is_ref_qualifier_like s then
+          mk (T.REF_MACRO s)
+        else if is_noexcept_spec_like s then
+          mk (T.NOEXCEPT_MACRO s)
+        else
+          mk (T.ATTR_MACRO s)
+      end
+
+      | RPAREN when begin
+          context == CLASS &&
+          match self#peek_rawtoken() with
+          | LBRACE -> true
+          | _ -> false
+      end -> DEBUG_MSG "RPAREN @"; mk (T.IDENT s)
+
+      | RPAREN when begin
+          env#alignas_flag &&
+          match self#peek_rawtoken() with
+          | x when is_basic_ty x -> true
+          | IDENT x when is_type_name x || is_type x -> true
+          | _ -> false
+      end -> DEBUG_MSG "RPAREN @"; mk (T.ATTR_MACRO s)
+
+      | RPAREN when self#peek_rawtoken() != COLON_COLON && begin
+          match prev_rawtoken2 with
+          | IDENT _ | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
+          | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _ -> begin
+              match prev_rawtoken3 with
+              | TY_LPAREN when not env#end_of_params_flag -> true
+              | LPAREN -> begin
+                  match prev_rawtoken4 with
+                  | IDENT_TM _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "RPAREN @"; mk (T.IDENT_V s)
+
+      | COMMA when begin
+          match self#peek_rawtoken() with
+          | PTR_STAR when self#peek_nth_rawtoken 2 == PTR_AMP -> true
+          | PTR_AMP when self#peek_nth_rawtoken 2 == PTR_STAR -> true
+          | _ -> false
+      end -> DEBUG_MSG "COMMA @"; token
+
+      | COMMA when begin
+          match self#peek_rawtoken() with
+          | STAR | SLASH | PERC | AMP _ | BAR _ | PLUS | MINUS | EXCLAM _ | TILDE _
+          | LT_LT | GT_GT | AMP_AMP _ | BAR_BAR _ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
+            -> true
+          | PTR_STAR | PTR_AMP_AMP | PTR_AMP when
+              not env#at_type_paren && (env#templ_arg_flag || env#at_arg_paren) -> true
+
+          | TEMPL_LT when begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | RPAREN -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> true
+          | TY_TEMPL_GT when env#templ_param_arg_level = 0 -> true
+          | _ -> false
+      end -> DEBUG_MSG "COMMA @"; mk (T.IDENT_V s)
+
+      | TY_TILDE when context == TOP || context == MEM -> DEBUG_MSG "TY_TILDE @"; token
+
+      | IDENT_V _ | RPAREN when
+          not env#end_of_params_flag &&
+          self#peek_rawtoken() == TY_LPAREN &&
+          self#peek_nth_rawtoken 2 == TY_LPAREN
+        -> DEBUG_MSG "(IDENT_V|RPAREN) @"; mk (T.IDENT_PM s)
+
+      | IDENT_V _ when begin
+          env#at_type_paren &&
+          self#peek_rawtoken() == TY_LPAREN &&
+          let nth, ll =
+            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+          in
+          match self#peek_nth_rawtoken (nth+1) with
+          | IDENT x when x = s -> begin
+              conv_nth_token (function T.IDENT x,s,e -> T.IDENT_PM x,s,e | x -> x) (nth+1);
+              true
+          end
+          | _ -> false
+      end -> DEBUG_MSG "IDENT_V @"; mk (T.IDENT_PM s)
+
+      | IDENT_V _ when begin
+          DEBUG_MSG "@";
+          self#peek_rawtoken() == TY_LPAREN &&
+          let nth, ll =
+            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+          in
+          match self#peek_nth_rawtoken (nth+1) with
+          | LBRACE when begin
+              match self#peek_nth_rawtoken (nth+2) with
+              | RBRACE -> true
+              | _ -> check_if_stmt ~after_brace:true (nth+2)
+          end -> true
+          | _ -> false
+      end -> DEBUG_MSG "IDENT_V @"; mk (T.IDENT_PM s)
+
+      | IDENT_V _ when begin
+          DEBUG_MSG "@";
+          self#peek_rawtoken() == TY_LPAREN &&
+          let nth, ll =
+            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+          in
+          match self#peek_nth_rawtoken (nth+1) with
+          | LBRACE when begin
+              match self#peek_nth_rawtoken (nth+2) with
+              | RBRACE -> true
+              | _ -> check_if_stmt ~after_brace:true (nth+2)
+          end -> true
+          | _ -> false
+      end -> DEBUG_MSG "IDENT_V @"; mk (T.IDENT_PM s)
+
+      | IDENT _ when self#peek_rawtoken() == TY_LPAREN && env#templ_arg_flag && begin
+          let _, nth, l = self#peek_rawtoken_up_to_rparen ~from:2 None in
+          match self#peek_nth_rawtoken (nth+1) with
+          | TY_TEMPL_GT -> true
+          | _ -> false
+      end -> DEBUG_MSG "IDENT @"; mk (T.IDENT_TM s)
+
+      | RBRACE when begin
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> begin
+              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+              match self#peek_nth_rawtoken (nth+1) with
+              | EQ -> true
+              | SEMICOLON _ when env#end_of_enum_spec_flag -> true
+              | LBRACKET when
+                  self#peek_nth_rawtoken (nth+2) == RBRACKET &&
+                  self#peek_nth_rawtoken (nth+3) == EQ
+                -> true
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "RBRACE @"; mk (T.IDENT_IM s)
+
+      | _ when self#peek_rawtoken() == TY_LPAREN && begin
+          DEBUG_MSG "@";
+          match prev_rawtoken with
+          | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
+          | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
+          | CONST | EXTERN | PTR_STAR | CC_MACRO _
+          | IDENT _ -> begin
+              match prev_rawtoken2 with
+              | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
+              | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
+              | ELAB_ENUM | ELAB_CLASS | CLASS | STRUCT | UNION
+              | CONST | EXTERN | PTR_STAR | IDENT _ -> begin
+                  let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 None in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | TY_LPAREN -> true
+                  | LBRACKET -> begin
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | RBRACKET -> begin
+                          match self#peek_nth_rawtoken (nth+3) with
+                          | EQ -> true
+                          | SEMICOLON _ -> true
+                          | _ -> false
+                      end
+                      | INT_LITERAL _ | IDENT _ -> begin
+                          match self#peek_nth_rawtoken (nth+3) with
+                          | RBRACKET -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | EQ when begin
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | DELETE | DEFAULT | INT_LITERAL _ when context == TOP || context == MEM
+                        -> false
+                      | _ -> true
+                  end -> true
+                  | IDENT _ when begin
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | EQ -> true
+                      | _ -> false
+                  end -> true
+                  | SEMICOLON _ when is_ident_macro_ident s -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(CHAR|...) @ TY_LPAREN"; mk (T.IDENT_IM s)
+
+      | _ when begin
+          match context, sub_context with
+          | (TOP | MEM), END_OF_TY_SPEC -> begin
+              self#peek_rawtoken() == TY_LPAREN &&
+              match prev_rawtoken with
+              | NEWLINE -> begin
+                  let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 None in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | TY_LPAREN -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "NEWLINE @"; mk (T.IDENT_IM s)
+
+      | EQ when env#ty_param_key_flag -> DEBUG_MSG "EQ @"; token
+
+      | MINUS_GT when env#at_type_paren -> DEBUG_MSG "MINUS_GT @"; token
+
+      | MINUS_GT when begin
+          match self#peek_rawtoken() with
+          | TY_LPAREN -> begin
+              let nth, ll =
+                self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+              in
+              match self#peek_nth_rawtoken (nth+1) with
+              | LBRACE -> true
+              | TY_LPAREN -> true
+              | _ -> false
+          end
+          | LBRACE -> true
+          | _ -> false
+      end -> DEBUG_MSG "MINUS_GT @"; token
+
+      | COLON_COLON when begin
+          match prev_rawtoken2 with
+          | IDENT _ -> begin
+              match prev_rawtoken3 with
+              | TYPENAME -> true
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "COLON_COLON @"; token
+
+      | COLON_COLON when env#at_type_paren && begin
+          match self#peek_rawtoken() with
+          | RPAREN -> is_semicolon (self#peek_nth_rawtoken 2)
+          | _ -> false
+      end -> DEBUG_MSG "COLON_COLON @"; token
+
+      | QUEST when self#peek_rawtoken() == COLON -> DEBUG_MSG "QUEST @"; mk (T.IDENT_V s)
+
+      | ELLIPSIS when prev_rawtoken2 == TYPENAME -> DEBUG_MSG "ELLIPSIS @"; token
+
+      | TY_TEMPL_GT when begin
+          env#templ_arg_flag &&
+          match self#peek_rawtoken() with
+          | COMMA | TY_TEMPL_GT -> true
+          | _ -> false
+      end -> DEBUG_MSG "TY_TEMPL_GT @ (COMMA|TY_TEMPL_GT)"; mk (T.CV_MACRO s)
+
+      | IDENT x when x = s -> DEBUG_MSG "IDENT @"; mk (T.IDENT_V s)
+
+      | PTR_AMP | PTR_STAR when begin
+          match prev_rawtoken2 with
+          | IDENT x -> x = s
+          | _ -> false
+      end -> DEBUG_MSG "IDENT PTR_AMP @"; mk (T.IDENT_V s)
+
+      | AMP_AMP _ | BAR_BAR _ | AMP _ | BAR _ | STAR | PLUS | MINUS | SLASH | PERC
+      | EXCLAM _ | TILDE _ | HAT _
+      | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ when begin
+          env#templ_arg_flag &&
+          match self#peek_rawtoken() with
+          | COMMA | TY_TEMPL_GT -> true
+          | _ -> false
+      end -> DEBUG_MSG "(AMP_AMP|...) @"; mk (T.IDENT_V s)
+
+      | IDENT _ when begin
+          env#alias_flag && env#using_flag &&
+          match self#peek_rawtoken() with
+          | SEMICOLON _ -> true
+          | IDENT _ -> true
+          | _ -> false
+      end -> DEBUG_MSG "IDENT @"; token
+
+      | _ -> begin
+          DEBUG_MSG "* @";
+          match self#peek_rawtoken() with
+          | CONST when env#templ_arg_flag -> DEBUG_MSG "@ CONST"; token
+
+          | PTR_AMP | PTR_STAR when env#templ_arg_flag -> begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT _ when begin
+                  match self#peek_nth_rawtoken 3 with
+                  | PLUS | MINUS | SLASH | PTR_STAR | PTR_AMP | HAT _ | BAR _ -> true
+                  | RPAREN -> begin
+                      match self#peek_nth_rawtoken 4 with
+                      | EQ_EQ | EXCLAM_EQ _ | QUEST -> true
+                      | _ -> env#at_paren
+                  end
+                  | TY_TEMPL_GT -> true
+                  | _ -> false
+              end -> DEBUG_MSG "@ (PTR_AMP|PTR_STAR) IDENT"; mk (T.IDENT_V s)
+
+              | INT_LITERAL _ | FLOAT_LITERAL _
+              | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
+                -> DEBUG_MSG "@ (PTR_AMP|PTR_STAR) (INT_LITERAL|...)"; mk (T.IDENT_V s)
+
+              | _ ->
+                  let nth, l = self#peek_rawtoken_up_to [T.COMMA;TY_TEMPL_GT] in
+                  if filt_at_level0 l ((==) T.QUEST) then begin
+                    DEBUG_MSG "@ (PTR_AMP|PTR_STAR)";
+                    mk (T.IDENT_V s)
+                  end
+                  else if
+                    not env#at_type_paren && env#templ_arg_flag &&
+                    match self#peek_nth_rawtoken 2 with
+                    | TY_TEMPL_GT | GT_GT | COMMA | ELLIPSIS -> false
+                    | _ -> true
+                  then begin
+                    DEBUG_MSG "@ (PTR_AMP|PTR_STAR)";
+                    mk (T.IDENT_V s)
+                  end
+                  else begin
+                    DEBUG_MSG "@ (PTR_AMP|PTR_STAR)";
+                    token
+                  end
+          end
+          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+              DEBUG_MSG "* @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR)";
+              if
+                prev_rawtoken == COLON_COLON && prev_rawtoken2 == TEMPL_GT &&
+                not env#last_ty_templ_id_flag
+              then
+                match self#peek_nth_rawtoken 2 with
+                | IDENT _ -> begin
+                    match self#peek_nth_rawtoken 3 with
+                    | EQ -> DEBUG_MSG "@"; token
+                    | TY_LPAREN when (context == TOP || context == MEM) && begin
+                        let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:4 () in
+                        match self#peek_nth_rawtoken (nth+1) with
+                        | SEMICOLON _ | LBRACE -> true
+                        | _ -> check_if_params ll
+                    end -> DEBUG_MSG "@"; token
+                    | _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
                 end
-                | _ -> false
-            end -> DEBUG_MSG "@ (SEMICOLON|EOF|GNU_ASM)"; mk (T.PARAMS_MACRO s)
-
-            | LBRACE when context == TOP && sub_context == END_OF_TY_SPEC && begin
-                match prev_rawtoken with
-                | IDENT_V _ -> true
-                | _ -> false
-            end -> DEBUG_MSG "IDENT_V @ LBRACE"; mk (T.PARAMS_MACRO s)
-
-            | SEMICOLON _ when
-                env#trailing_retty_flag && (env#end_of_params_flag || env#typename_flag)
-              -> DEBUG_MSG "@ SEMICOLON"; token
-
-            | COMMA when begin
-                prev_rawtoken == COLON_COLON &&
-                (env#at_type_paren && env#alias_flag ||
-                (*env#base_clause_flag ||*)
-                env#templ_arg_flag && env#const_flag)
-            end -> DEBUG_MSG "@ COMMA"; token
-
-            | GNU_ATTR _ when begin
+                | _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+              else if prev_rawtoken == COMMA && env#dtor_flag then begin
+                DEBUG_MSG "@"; mk (T.CC_MACRO s)
+              end
+              else
                 match self#peek_nth_rawtoken 2 with
                 | TY_LPAREN -> begin
-                    let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 ~from:2 None in
-                    match self#peek_nth_rawtoken (nth+1) with
+                    match self#peek_nth_rawtoken 3 with
+                    | TY_LPAREN when check_double_paren 2 -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                    | x when is_uop x -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                    | _ -> DEBUG_MSG "@"; token
+                end
+                | SIZEOF | INT_LITERAL _ | FLOAT_LITERAL _
+                | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _ -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                | _ when prev_rawtoken == LPAREN -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                | _ when begin
+                    not env#at_type_paren && env#templ_arg_flag &&
+                    match self#peek_nth_rawtoken 2 with
+                    | TY_TEMPL_GT | COMMA -> false
+                    | _ -> true
+                end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                | _ -> DEBUG_MSG "@"; token
+          end
+
+          | CONSTEXPR -> DEBUG_MSG "@ CONSTEXPR"; token
+
+          | IDENT _ when begin
+              prev_rawtoken != COLON_COLON &&
+              env#end_of_params_flag &&
+              (not env#objc_class_interface_flag && not env#objc_protocol_decl_flag
+             ||
+               not env#end_of_objc_meth_type_flag)
+          end -> DEBUG_MSG "@ IDENT"; mk (T.ATTR_MACRO s)
+
+          | EOF | SEMICOLON _ when env#end_of_params_flag && begin
+              match prev_rawtoken with
+              | ATTR_MACRO _ | CONST -> true
+              | _ -> false
+          end -> DEBUG_MSG "@ (EOF|SEMICOLON)"; mk (T.ATTR_MACRO s)
+
+          | IDENT _ when begin
+              env#at_type_paren &&
+              match prev_rawtoken with
+              | CONST -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | COMMA | RPAREN -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "CONST @ IDENT (COMMA|RPAREN)"; mk (T.CV_MACRO s)
+
+          | IDENT x when (contains_arg x || contains_param x) && begin
+              match self#peek_nth_rawtoken 2 with
+              | LBRACE when begin
+                  match context with
+                  | TOP | MEM -> sub_context == END_OF_TY_SPEC
+                  | _ -> false
+              end -> begin
+                conv_nth_token (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) 1;
+                true
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ IDENT"; mk (T.IDENT_V s)
+
+          | IDENT x when begin
+              is_attr_macro x &&
+              env#at_type_paren &&
+              match self#peek_nth_rawtoken 2 with
+              | COMMA | RPAREN | EQ -> begin
+                  match prev_rawtoken with
+                  | IDENT _ | TYPE_MACRO _ | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ IDENT"; mk (T.IDENT_V s)
+
+          | IDENT _ when begin
+              (match prev_rawtoken with
+              | COMMA -> true
+              | _ -> false) &&
+              match self#peek_nth_rawtoken 2 with
+              | EQ -> true
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "* @ IDENT EQ";
+            conv_nth_token (function T.IDENT x,s,e -> T.ATTR_MACRO x,s,e | x -> x) 1;
+            mk (T.IDENT_V s)
+          end
+
+          | IDENT _ when begin
+              env#objc_meth_decl_flag && env#at_type_paren &&
+              match prev_rawtoken with
+              | PTR_STAR -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | IDENT _ | PTR_STAR -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "PTR_STAR @ IDENT"; mk (T.ATTR_MACRO s)
+
+          | IDENT x when begin
+              (is_attr_macro x || is_attr_macro_ident x) &&
+              match prev_rawtoken with
+              | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
+                  match prev_rawtoken2 with
+                  | IDENT _ | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
+                  | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _ | CONST -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "(PTR_STAR|PTR_AMP|PTR_AMP_AMP) @ IDENT"; mk (T.IDENT_V s)
+
+          | IDENT x when begin
+              (match prev_rawtoken with
+              | IDENT _ | DECL_SPEC_MACRO _ -> true
+              | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
+              | y when is_ty y -> true
+              | _ -> false) &&
+              match self#peek_nth_rawtoken 2 with
+              | TY_LPAREN -> begin
+                  try
+                    let _, macro_kind, tok_list_obj = env#find_pending_macro x in
+                    match macro_kind with
+                    | L.FunctionLike _ -> begin
+                        let tok_list = (Obj.obj tok_list_obj : token list) in
+                        DEBUG_MSG "[%s]"
+                          (String.concat ";"
+                             (List.map (fun (rt,_,_) -> Token.rawtoken_to_string rt) tok_list));
+                        match tok_list with
+                        | (T.EQ,_,_)::_ -> begin
+                            conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1;
+                            true
+                        end
+                        | _ -> false
+                    end
+                    | _ -> false
+                  with
+                    _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "(IDENT|...) @ IDENT"; mk (T.IDENT_V s)
+
+          | TEMPL_LT | COLON_COLON | IDENT _ -> begin
+              DEBUG_MSG "* @ (TEMPL_LT|COLON_COLON|IDENT)";
+              match self#peek_nth_rawtoken 2 with
+              | TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | TY_LPAREN when check_double_paren 2 -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                  | _  -> begin
+                      match self#peek_rawtoken() with
+                      | IDENT x -> begin
+                          let nth, ll =
+                            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 ()
+                          in
+                          match self#peek_nth_rawtoken (nth+1) with
+                          | IDENT y when y = x -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+                          | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
+                          | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
+                          | CONST -> DEBUG_MSG "@"; token
+                          | IDENT y when is_type_name y || is_type y -> DEBUG_MSG "@"; token
+
+                          | LBRACE | SEMICOLON _ when env#attr_flag
+                            -> DEBUG_MSG "@"; mk (T.ATTR_MACRO s)
+
+                          | LBRACE | SEMICOLON _ when begin
+                              match prev_rawtoken with
+                              | ATTR_MACRO _ -> true
+                              | _ -> false
+                          end -> DEBUG_MSG "@"; mk (T.ATTR_MACRO s)
+
+                          | _ when is_attr_macro x || is_attr_macro_ident x
+                            -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+
+                          | _ when env#at_type_paren && begin
+                              match prev_rawtoken with
+                              | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
+                              | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT
+                              | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID
+                              | TYPE_MACRO _ -> true
+                              | _ -> false
+                          end -> begin
+                            DEBUG_MSG "@";
+                            conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1;
+                            mk (T.IDENT_V s)
+                          end
+
+                          | _ when begin
+                              try
+                                let _, macro_kind, tok_list_obj = env#find_pending_macro x in
+                                match macro_kind with
+                                | L.FunctionLike _ -> begin
+                                    let tok_list = (Obj.obj tok_list_obj : token list) in
+                                    DEBUG_MSG "[%s]"
+                                      (String.concat ";"
+                                         (List.map
+                                            (fun (rt,_,_) ->
+                                              Token.rawtoken_to_string rt) tok_list
+                                         )
+                                      );
+                                    match tok_list with
+                                    | (T.EQ,_,_)::_ -> begin
+                                        conv_nth_token
+                                          (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1;
+                                        true
+                                    end
+                                    | _ -> false
+                                end
+                                | _ -> false
+                              with
+                                _ -> false
+                          end -> begin
+                            DEBUG_MSG "@";
+                            conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) 1;
+                            mk (T.IDENT_V s)
+                          end
+
+                          | _ -> DEBUG_MSG "@"; token
+                      end
+                      | _ -> DEBUG_MSG "@"; token
+                  end
+              end
+
+              | RPAREN | COMMA when begin
+                  env#at_type_paren && env#paren_level = 1 && not env#typename_flag &&
+                  match self#peek_rawtoken() with
+                  | IDENT _ when begin
+                      match prev_rawtoken with
+                      | TY_LPAREN | COMMA -> begin
+                          match self#peek_nth_rawtoken 2 with
+                          | RPAREN | COMMA -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end -> false
+                  | IDENT x when is_capital_ident x -> true
+                  | _ -> false
+              end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+
+              (*| RPAREN*)(* | COMMA*) | PP_IF | PP_IFDEF | PP_IFNDEF when begin
+                  env#at_type_paren && env#paren_level = 1 && not env#typename_flag &&
+                  match self#peek_rawtoken() with
+                  | IDENT _ when begin
+                      match prev_rawtoken with
+                      | TY_LPAREN | COMMA -> begin
+                          match self#peek_nth_rawtoken 2 with
+                          | RPAREN | COMMA -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end -> false
+                  | IDENT x -> begin
+                      DEBUG_MSG "@";
+                      conv_nth_token
+                        (function T.IDENT x,s,e -> T.PARAM_DECL_MACRO x,s,e | x -> x) 1;
+                      true
+                  end
+                  | _ -> false
+              end -> DEBUG_MSG "@ IDENT"; mk (T.IDENT_V s)
+
+              | SEMICOLON _ | EQ when begin
+                  match self#peek_rawtoken() with
+                  | IDENT x when is_capital_ident x && not (is_capital_ident s) -> begin
+                      conv_nth_token (function T.IDENT x,s,e -> T.ATTR_MACRO x,s,e | x -> x) 1;
+                      true
+                  end
+                  | _ -> false
+              end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+
+              | IDENT _ when env#paren_level = 1 && self#peek_nth_rawtoken 3 == RPAREN
+                  -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+
+              | _ when begin
+                  match self#peek_rawtoken() with
+                  | IDENT x when not (is_type_name x || is_type x) -> begin
+                      match prev_rawtoken with
+                      | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
+                      | CONST | VOLATILE -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end -> DEBUG_MSG "(PTR_AMP|...) @ IDENT"; mk (T.CV_MACRO s)
+
+              | _ when begin
+                  prev_rawtoken == LPAREN &&
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
+                  not (templ_param_arg_balanced ~rev:true (Xlist.last ll))
+              end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+
+              | _ -> DEBUG_MSG "@"; token
+          end
+
+          | ELLIPSIS when self#peek_nth_rawtoken 2 == TY_TEMPL_GT && begin
+              prev_rawtoken == COLON_COLON && prev_rawtoken2 == TEMPL_GT &&
+              env#last_ty_templ_id_flag
+          end -> DEBUG_MSG "@"; token
+
+          | TY_TEMPL_GT | TEMPL_GT | COMMA when (*env#templ_arg_flag &&*) begin
+              prev_rawtoken == COLON_COLON &&
+              (prev_rawtoken2 == TEMPL_GT ||
+              (match prev_rawtoken2 with IDENT _ -> true | _ -> false) &&
+              prev_rawtoken3 == COLON_COLON && prev_rawtoken4 == TEMPL_GT) &&
+              env#last_ty_templ_id_flag
+          end -> DEBUG_MSG "@"; token
+
+          | GT_GT when env#templ_param_arg_level > 1 && begin
+              prev_rawtoken == COLON_COLON &&
+              (prev_rawtoken2 == TEMPL_GT && env#last_ty_templ_id_flag || env#const_flag)
+          end -> DEBUG_MSG "@"; token
+
+          | GT_GT -> begin
+              DEBUG_MSG "@ GT_GT";
+              if env#templ_arg_flag || is_type_name s || is_type s then
+                token
+              else
+                mk (T.IDENT_V s)
+          end
+
+          | SEMICOLON _ when context == MEM(* && sub_context == END_OF_TY_SPEC*) && begin
+              env#end_of_params_flag && not env#typedef_flag &&
+              match prev_rawtoken with
+              | RPAREN when not env#end_of_decl_spec_macro_call_flag && env#end_of_params_flag -> true
+              | _ -> false
+          end -> DEBUG_MSG "* @ SEMICOLON"; mk (T.VIRT_SPEC_MACRO s)
+
+          | EOF when context == MEM(* && sub_context == END_OF_TY_SPEC*) && begin
+              env#end_of_params_flag && not env#typedef_flag &&
+              match prev_rawtoken with
+              | RPAREN when not env#end_of_decl_spec_macro_call_flag && env#end_of_params_flag -> true
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "* @ EOF";
+            DEBUG_MSG "complementing with a semicolon";
+            self#prepend_token (mk_ (T.SEMICOLON false));
+            mk (T.VIRT_SPEC_MACRO s)
+          end
+
+          | SEMICOLON _ when context == MEM && sub_context == END_OF_TY_SPEC && begin
+              not env#typedef_flag &&
+              match prev_rawtoken with
+              | MINUS_GT -> true
+              | COLON_COLON -> env#typename_flag
+              | _ -> false
+          end -> DEBUG_MSG "* @ SEMICOLON"; token
+
+          | COLON when begin
+              not env#for_flag &&
+              not env#objc_class_interface_flag &&
+              not env#objc_protocol_decl_flag
+          end -> DEBUG_MSG "* @ COLON"; mk (T.IDENT_B s)
+
+          | OPERATOR when begin
+              match prev_rawtoken with
+              | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
+              | _ -> false
+          end -> DEBUG_MSG "* @ OPERATOR"; mk (T.ATTR_MACRO s)
+
+          | OPERATOR -> DEBUG_MSG "@ OPERATOR"; token
+
+          | TY_LPAREN when begin
+              match self#peek_nth_rawtoken 2 with
+              | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | RPAREN -> begin
+                      match self#peek_nth_rawtoken 4 with
+                      | TY_LPAREN -> true
+                      | LBRACKET when env#at_type_paren -> true
+                      | _ -> false
+                  end
+                  | IDENT _ -> begin
+                      match self#peek_nth_rawtoken 4 with
+                      | RPAREN -> begin
+                          match self#peek_nth_rawtoken 5 with
+                          | TY_LPAREN -> true
+                          | LBRACKET when env#at_type_paren -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+
+              | IDENT _ when env#templ_arg_flag && not env#decltype_flag && begin
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | NOEXCEPT -> true
+
+                  | STAR | SLASH | PERC | AMP _ | BAR _ | PLUS | MINUS | EXCLAM _ | TILDE _
+                  | LT_LT | GT_GT | AMP_AMP _ | BAR_BAR _ | EQ_EQ | EXCLAM_EQ _ | LT_EQ | GT_EQ
+                    -> false
+
+                  | _ when begin
+                      match prev_rawtoken with
+                      | STAR | SLASH | PERC | AMP _ | BAR _ | PLUS | MINUS | EXCLAM _ | TILDE _
+                      | LT_LT | GT_GT | AMP_AMP _ | BAR_BAR _ | EQ_EQ | EXCLAM_EQ _
+                      | LT_EQ | GT_EQ -> true
+                      | _ -> false
+                  end -> false
+
+                  | _ when check_if_params ll -> true
+                  | _ when begin
+                      match ll with
+                      | [PTR_STAR::COLON_COLON::_] -> true
+                      | _ -> false
+                  end -> true
+                  | _ -> false
+              end -> true
+              | RPAREN when env#templ_arg_flag && not env#decltype_flag && begin
+                  match self#peek_nth_rawtoken 3 with
+                  | NOEXCEPT -> true
+                  | TY_TEMPL_GT -> true
+                  | _ -> false
+              end -> true
+
+              | RPAREN when env#conv_func_id_flag -> true
+              | _ -> false
+          end -> DEBUG_MSG "@ TY_LPAREN"; token
+
+          | TY_LPAREN when begin
+              is_ty _rawtok &&
+              match prev_rawtoken with
+              | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
+              | _ -> false
+          end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_V s)
+
+          | TY_LPAREN when begin
+              is_ty _rawtok
+          end -> DEBUG_MSG "@ TY_LPAREN"; token
+
+          | TY_LPAREN when begin
+              env#objc_class_interface_flag &&
+              not env#objc_protocol_decl_flag &&
+              match prev_rawtoken with
+              | IDENT_V _ -> true
+              | _ -> false
+          end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_AM s)
+
+          | TY_LPAREN when begin
+              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+              DEBUG_MSG "\n%s"
+                (String.concat "\n"
+                   (List.map
+                      (fun x -> String.concat ";"
+                          (List.map Token.rawtoken_to_string x)) ll));
+              ll <> [] &&
+              match self#peek_nth_rawtoken (nth+1) with
+              | RPAREN when begin
+                  match prev_rawtoken with
+                  | CONST -> true
+                  | _ -> false
+              end -> true
+              | TY_LPAREN -> begin
+                  let nth0, ll0 =
+                    self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+2) ()
+                  in
+                  match ll0 with
+                  | [l] -> begin
+                      match self#peek_nth_rawtoken (nth0+1) with
+                      | TY_LPAREN -> begin
+                          let nth1, ll1 =
+                            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth0+2) ()
+                          in
+                          match self#peek_nth_rawtoken (nth1+1) with
+                          | LBRACE | CONST -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | IDENT x when x = s -> begin
+                  conv_nth_token (function T.IDENT x,s,e -> T.IDENT_AM x,s,e | x -> x) (nth+1);
+                  true
+              end
+              | IDENT x when is_macro_fun x -> false
+              | IDENT x when is_virt_spec_macro_ident x || is_virt_spec_macro x -> false
+              | IDENT x when is_cv_spec_macro_ident x || is_cv_spec_macro x -> false
+
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken (nth+2) with
+                  | TY_LPAREN -> begin
+                      match self#peek_nth_rawtoken (nth+3) with
+                      | TY_LPAREN when begin
+                          let nth1, ll1 =
+                            self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+4) ()
+                          in
+                          match self#peek_nth_rawtoken (nth1+1) with
+                          | RPAREN -> true
+                          | _ -> false
+                      end -> false
+
+                      | INT_LITERAL _ | FLOAT_LITERAL _ | BOOL_LITERAL _
+                      | CHAR_LITERAL _ | STR_LITERAL _ | NULLPTR | PP_STRINGIZED _
+                      | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
+                      | USER_STR_LITERAL _ | USER_CHAR_LITERAL _ -> false
+                      | _ ->
+                          not
+                            (List.exists
+                               (fun l ->
+                                 filt_at_level0 l
+                                   (function
+                                     | T.CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
+                                     | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | CONST
+                                     | TYPE_MACRO _ -> true
+                                     | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> true
+                                     | IDENT x when is_type_name x -> true
+                                     | _ -> false
+                                   ) ||
+                                   match l with
+                                   | [IDENT _; IDENT _] -> true
+                                   | IDENT _::IDENT _::COLON_COLON::_ -> true
+                                   | _ -> false
+                     ) ll)
+                  end
+                  | SEMICOLON _ when begin
+                      List.exists
+                        (function
+                            [T.INT_LITERAL _ | FLOAT_LITERAL _ | BOOL_LITERAL _
+                          | CHAR_LITERAL _ | STR_LITERAL _ | NULLPTR | PP_STRINGIZED _
+                          | USER_INT_LITERAL _ | USER_FLOAT_LITERAL _
+                          | USER_STR_LITERAL _ | USER_CHAR_LITERAL _] -> true
+                          | _ -> false
+                        ) ll
+                  end -> true
+                  | CONST -> true
+                  | _ -> false
+              end
+              | OPERATOR -> true
+              | TY_TEMPL_GT -> prev_rawtoken == CONST && env#templ_arg_flag
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "@ TY_LPAREN";
+            match prev_rawtoken with
+            | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> mk (T.IDENT_AM s)
+            | x when is_ty x -> mk (T.IDENT_AM s)
+            | _ -> mk (T.IDENT_TM s)
+          end
+
+          | TY_LPAREN when env#end_of_params_flag && begin
+              match prev_rawtoken with
+              | COMMA -> false
+              | _ ->
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  DEBUG_MSG "\n%s"
+                    (String.concat "\n"
+                       (List.map
+                          (fun x -> String.concat ";"
+                              (List.map Token.rawtoken_to_string x)) ll));
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | LBRACE | SEMICOLON _ -> true
+                  | CONST when begin
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | LBRACE | SEMICOLON _ -> true
+                      | _ -> false
+                  end -> true
+                  | _ -> false
+          end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_CM s)
+
+          | TY_LPAREN when begin
+              match prev_rawtoken with
+              | IDENT _ -> begin
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  DEBUG_MSG "\n%s"
+                    (String.concat "\n"
+                       (List.map
+                          (fun x -> String.concat ";"
+                              (List.map Token.rawtoken_to_string x)) ll));
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | STRUCT | UNION | CLASS | ENUM -> begin
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | IDENT _ -> begin
+                          match self#peek_nth_rawtoken (nth+3) with
+                          | SEMICOLON _ -> begin
+                              match self#peek_nth_rawtoken (nth+4) with
+                              | LBRACE -> false
+                              | _ -> true
+                          end
+                          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+                              match self#peek_nth_rawtoken (nth+4) with
+                              | IDENT _ -> begin
+                                  match self#peek_nth_rawtoken (nth+5) with
+                                  | SEMICOLON _ -> false
+                                  | _ -> true
+                              end
+                              | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+                                  match self#peek_nth_rawtoken (nth+5) with
+                                  | IDENT _ -> begin
+                                      match self#peek_nth_rawtoken (nth+6) with
+                                      | SEMICOLON _ -> false
+                                      | _ -> true
+                                  end
+                                  | _ -> true
+                              end
+                              | _ -> true
+                          end
+                          | _ -> true
+                      end
+                      | _ -> true
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_DM s)
+
+          | TY_LPAREN when begin
+              match prev_rawtoken with
+              | AMP_AMP _ | BAR_BAR _ | AMP _ | BAR _ | STAR | PLUS | MINUS | SLASH | PERC
+              | EXCLAM _ | TILDE _ | HAT _
+              | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ
+              | LPAREN | COMMA -> begin
+                  (match prev_rawtoken with
+                  | COMMA -> env#macro_arg_flag || env#at_arg_paren || env#templ_arg_flag
+                  | LPAREN -> begin
+                      match prev_rawtoken2 with
+                      | AMP_AMP _ | BAR_BAR _ | AMP _ | BAR _ | STAR | PLUS | MINUS | SLASH | PERC
+                      | EXCLAM _ | TILDE _ | HAT _
+                      | EQ_EQ | EXCLAM_EQ _ | LT | GT | LT_EQ | GT_EQ -> true
+                      | _ when env#at_arg_paren -> true
+                      | _ -> false
+                  end
+                  | _ -> true) &&
+                  let b = is_macro_fun s in
+                  b ||
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  DEBUG_MSG "\n%s"
+                    (String.concat "\n"
+                       (List.map
+                          (fun x -> String.concat ";"
+                              (List.map Token.rawtoken_to_string x)) ll));
+                  check_if_macro_args ll
+                  (*List.exists
+                    (fun l ->
+                    match (List.rev l : T.token list) with
+                    | TYPENAME::_ -> true
+                    | [IDENT x] when is_type_name x || is_type x -> true
+                    | x::_ when is_basic_ty x -> true
+                    | _ -> false
+                    ) ll*)
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_EM s)
+
+          | TY_LPAREN when begin
+              env#at_type_paren &&
+              match prev_rawtoken with
+              | IDENT_V _ -> begin
+                  match prev_rawtoken2 with
+                  | IDENT _ -> begin
+                      match prev_rawtoken3 with
+                      | COMMA | TY_LPAREN -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "(COMMA|TY_LPAREN) IDENT IDENT_V @ TY_LPAREN"; mk (T.IDENT_PM s)
+
+          | TY_LPAREN when begin
+              not env#macro_arg_flag &&
+              env#end_of_params_flag &&
+              match prev_rawtoken with
+              | CONST | RPAREN when begin
+                  let nth, ll =
+                    self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+                  in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ | LBRACE | VOLATILE | RESTRICT _ | MS_STDCALL _ | MS_CDECL _
+                  | CC_MACRO _ | CV_MACRO _ | EQ | COLON -> false
+                  | TEMPLATE -> true
+                  | IDENT _ when begin
+                      try
+                        let _, macro_kind, tok_list_obj = env#find_pending_macro s in
+                        match macro_kind with
+                        | FunctionLike _ -> begin
+                            let tok_list = (Obj.obj tok_list_obj : token list) in
+                            match tok_list with
+                            | (T.LBRACE,_,_)::rest when begin
+                                match Xlist.last rest with
+                                | RBRACE,_,_ -> true
+                                | _ -> false
+                            end -> true
+                            | _ -> false
+                        end
+                        | _ -> false
+                      with
+                        _ -> false
+                  end -> true
+                  | IDENT _ -> false
+                  | _ -> true
+              end -> true
+              | _ -> false
+          end -> DEBUG_MSG "(CONST|RPAREN) @ TY_LPAREN"; mk (T.IDENT_BM s)
+
+          | TY_LPAREN when begin
+              env#end_of_params_flag &&
+              match prev_rawtoken with
+              | RPAREN | CONST | ATTR_MACRO _ -> begin
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | COLON | SEMICOLON _ | LBRACE -> true
+                  | TY_TEMPL_GT when env#templ_arg_flag -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "(CONST|RPAREN|...) @ TY_LPAREN"; mk (T.IDENT_AM s)
+
+          | TY_LPAREN when begin
+              match prev_rawtoken with
+              | RBRACE -> begin
+                  env#end_of_class_spec_flag &&
+                  is_attr_macro_ident_p s &&
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "RBRACE @ TY_LPAREN"; mk (T.IDENT_AM s)
+
+          | TY_LPAREN when begin
+              is_capital_ident s &&
+              match prev_rawtoken with
+              | IDENT_V _ -> begin
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | EQ -> begin
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | DEFAULT | DELETE -> false
+                      (*| INT_LITERAL "0" when check_if_params ll -> false*)
+                      | _ -> true
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "IDENT_V @ TY_LPAREN"; mk (T.IDENT_AM s)
+
+          | TY_LPAREN when begin
+              match prev_rawtoken with
+              | IDENT _ -> begin
+                  is_id_or_ty_macro_ident s &&
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | IDENT x -> begin
+                      let _x = String.lowercase_ascii x in
+                      (x = "args" || x = "params") &&
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | SEMICOLON _ -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | RBRACE -> begin
+                  env#end_of_class_spec_flag &&
+                  is_id_macro_fun s &&
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ | COMMA -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "IDENT @ TY_LPAREN"; mk (T.IDENT_IM s)
+
+          | TY_LPAREN when begin
+              env#objc_meth_decl_flag &&
+              match prev_rawtoken with
+              | TY_LPAREN -> begin
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | PTR_STAR -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "TY_LPAREN @ TY_LPAREN"; mk (T.IDENT_TM s)
+
+          | x when is_basic_ty x -> DEBUG_MSG "@ *"; token
+
+          | RPAREN when begin
+              env#at_type_paren && begin
+                match prev_rawtoken with
+                | COLON_COLON | HEAD_COLON_COLON -> true
+                | IDENT _ when begin
+                    (env#objc_class_interface_flag || env#objc_protocol_decl_flag) &&
+                    match self#peek_nth_rawtoken 2 with
                     | IDENT _ -> true
                     | _ -> false
-                end
+                end -> true
                 | _ -> false
-            end -> DEBUG_MSG "@ GNU_ATTR"; token
+              end &&
+              self#peek_nth_rawtoken 2 != TY_LPAREN
+          end -> DEBUG_MSG "@ RPAREN"; token
 
-            | TY_TEMPL_GT when
-                env#typename_flag && env#templ_arg_flag
-              -> DEBUG_MSG "@ TY_TEMPL_GT"; token
+          | SEMICOLON _ | EOF | GNU_ASM _ when begin
+              match prev_rawtoken with
+              | IDENT_V _ -> begin
+                  match prev_rawtoken2 with
+                  | IDENT _ -> begin
+                      match prev_rawtoken3 with
+                      | SEMICOLON _ | RBRACE -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ (SEMICOLON|EOF|GNU_ASM)"; mk (T.PARAMS_MACRO s)
 
-            | HAT _ when begin
-                env#templ_arg_flag && self#peek_nth_rawtoken 2 == TY_TEMPL_GT
-            end -> DEBUG_MSG "@ HAT TY_TEMPL_GT"; token
+          | LBRACE when context == TOP && sub_context == END_OF_TY_SPEC && begin
+              match prev_rawtoken with
+              | IDENT_V _ -> true
+              | _ -> false
+          end -> DEBUG_MSG "IDENT_V @ LBRACE"; mk (T.PARAMS_MACRO s)
 
-            | HAT _ when begin
-                match self#peek_nth_rawtoken 2 with
-                | IDENT x -> begin
-                    match self#peek_nth_rawtoken 3 with
-                    | TY_LPAREN when x = "get" || x = "set" -> true
-                    | TY_LPAREN -> begin
-                        let _, nth, l = self#peek_rawtoken_up_to_rparen ~from:4 None in
+          | SEMICOLON _ when
+              env#trailing_retty_flag && (env#end_of_params_flag || env#typename_flag)
+            -> DEBUG_MSG "@ SEMICOLON"; token
+
+          | COMMA when begin
+              prev_rawtoken == COLON_COLON &&
+              (env#at_type_paren && env#alias_flag ||
+              (*env#base_clause_flag ||*)
+              env#templ_arg_flag && env#const_flag)
+          end -> DEBUG_MSG "@ COMMA"; token
+
+          | GNU_ATTR _ when begin
+              match self#peek_nth_rawtoken 2 with
+              | TY_LPAREN -> begin
+                  let _, nth, l = self#peek_rawtoken_up_to_rparen ~level:0 ~from:2 None in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | IDENT _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ GNU_ATTR"; token
+
+          | TY_TEMPL_GT when
+              env#typename_flag && env#templ_arg_flag
+            -> DEBUG_MSG "@ TY_TEMPL_GT"; token
+
+          | HAT _ when begin
+              env#templ_arg_flag && self#peek_nth_rawtoken 2 == TY_TEMPL_GT
+          end -> DEBUG_MSG "@ HAT TY_TEMPL_GT"; token
+
+          | HAT _ when begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT x -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | TY_LPAREN when x = "get" || x = "set" -> true
+                  | TY_LPAREN -> begin
+                      let _, nth, l = self#peek_rawtoken_up_to_rparen ~from:4 None in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | LBRACE | SEMICOLON _ -> true
+                      | _ -> false
+                  end
+                  | LBRACE | SEMICOLON _ -> true
+                  | COLON_COLON -> begin
+                      try
+                        let nth = self#peek_rawtoken_up_to_end_of_qualified_id ~from:3 () in
                         match self#peek_nth_rawtoken (nth+1) with
-                        | LBRACE | SEMICOLON _ -> true
+                        | EQ -> true
                         | _ -> false
-                    end
-                    | LBRACE | SEMICOLON _ -> true
-                    | COLON_COLON -> begin
-                        try
-                          let nth = self#peek_rawtoken_up_to_end_of_qualified_id ~from:3 () in
-                          match self#peek_nth_rawtoken (nth+1) with
-                          | EQ -> true
-                          | _ -> false
-                        with _ -> false
-                    end
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "@ HAT IDENT TY_LPAREN"; token
+                      with _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@ HAT IDENT TY_LPAREN"; token
 
-            | _ when begin
-                prev_rawtoken == TY_LPAREN && is_type ~weak:true s &&
-                let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
-                match ll with
-                | [_] -> begin
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | SEMICOLON _ -> false
-                    | _ -> true
-                end
-                | _ -> true
-            end -> DEBUG_MSG "TY_LPAREN @ *"; token
+          | _ when begin
+              prev_rawtoken == TY_LPAREN && is_type ~weak:true s &&
+              let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma() in
+              match ll with
+              | [_] -> begin
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | SEMICOLON _ -> false
+                  | _ -> true
+              end
+              | _ -> true
+          end -> DEBUG_MSG "TY_LPAREN @ *"; token
 
-            | _ when
-                (env#objc_class_interface_flag || env#objc_protocol_decl_flag) &&
-                (
-                 prev_rawtoken == TY_LPAREN ||
-                 env#at_type_paren &&
-                 match prev_rawtoken with
-                 | COMMA | CONST -> true
-                 | _ -> false
-           )
-              -> DEBUG_MSG "TY_LPAREN @ *"; token
+          | _ when
+              (env#objc_class_interface_flag || env#objc_protocol_decl_flag) &&
+              (
+               prev_rawtoken == TY_LPAREN ||
+               env#at_type_paren &&
+               match prev_rawtoken with
+               | COMMA | CONST -> true
+               | _ -> false
+              )
+            -> DEBUG_MSG "TY_LPAREN @ *"; token
 
-            | OBJC_INTERFACE when begin
-                match prev_rawtoken with
-                | OBJC_END -> true
-                | _ -> false
-            end -> DEBUG_MSG "OBJC_END @ OBJC_INTERFACE"; mk (T.ATTR_MACRO s)
+          | OBJC_INTERFACE when begin
+              match prev_rawtoken with
+              | OBJC_END -> true
+              | _ -> false
+          end -> DEBUG_MSG "OBJC_END @ OBJC_INTERFACE"; mk (T.ATTR_MACRO s)
 
-            | RPAREN when begin
-                env#objc_meth_decl_flag && env#at_type_paren &&
-                match prev_rawtoken with
-                | PTR_STAR -> begin
-                    match self#peek_nth_rawtoken 2 with
-                    | IDENT _ | PTR_STAR -> true
-                    | _ -> false
-                end
-                | _ -> false
-            end -> DEBUG_MSG "PTR_STAR @ RPAREN (IDENT|PTR_STAR)"; mk (T.ATTR_MACRO s)
+          | RPAREN when begin
+              env#objc_meth_decl_flag && env#at_type_paren &&
+              match prev_rawtoken with
+              | PTR_STAR -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | IDENT _ | PTR_STAR -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "PTR_STAR @ RPAREN (IDENT|PTR_STAR)"; mk (T.ATTR_MACRO s)
 
-            | COMMA | RPAREN when begin
-                env#at_type_paren &&
-                match prev_rawtoken with
-                | IDENT_V _ -> true
-                | _ -> false
-            end -> DEBUG_MSG "IDENT_V @ (COMMA|RPAREN)"; mk (T.ATTR_MACRO s)
+          | COMMA | RPAREN when begin
+              env#at_type_paren &&
+              match prev_rawtoken with
+              | IDENT_V _ -> true
+              | _ -> false
+          end -> DEBUG_MSG "IDENT_V @ (COMMA|RPAREN)"; mk (T.ATTR_MACRO s)
 
-            | RPAREN when begin
-                match self#peek_nth_rawtoken 2 with
-                | RPAREN -> false
-                | _ -> begin
-                    env#objc_meth_sel_flag &&
-                    env#at_type_paren &&
-                    match prev_rawtoken with
-                    | ATTR_MACRO _ -> true
-                    | _ -> false
-                end
-            end -> DEBUG_MSG "ATTR_MACRO @ RPAREN"; token
+          | RPAREN when begin
+              match self#peek_nth_rawtoken 2 with
+              | RPAREN -> false
+              | _ -> begin
+                  env#objc_meth_sel_flag &&
+                  env#at_type_paren &&
+                  match prev_rawtoken with
+                  | ATTR_MACRO _ -> true
+                  | _ -> false
+              end
+          end -> DEBUG_MSG "ATTR_MACRO @ RPAREN"; token
 
-            | RPAREN when begin
-                match prev_rawtoken with
-                | TY_LPAREN -> begin
-                    match self#peek_nth_rawtoken 2 with
-                    | TY_LPAREN when env#cast_head_flag -> true
-                    | TY_LPAREN | EQ | SEMICOLON _ -> false
-                    | LBRACKET -> false
-                    | _ -> true
-                end
-                | COLON_COLON when
-                    env#typename_flag && env#paren_level = 1 && env#at_macro_arg_paren
-                  -> true
-                | _ -> false
-            end -> DEBUG_MSG "(TY_LPAREN|COLON_COLON) @ RPAREN"; token
+          | RPAREN when begin
+              match prev_rawtoken with
+              | TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | TY_LPAREN when env#cast_head_flag -> true
+                  | TY_LPAREN | EQ | SEMICOLON _ -> false
+                  | LBRACKET -> false
+                  | _ -> true
+              end
+              | COLON_COLON when
+                  env#typename_flag && env#paren_level = 1 && env#at_macro_arg_paren
+                -> true
+              | _ -> false
+          end -> DEBUG_MSG "(TY_LPAREN|COLON_COLON) @ RPAREN"; token
 
-            | _ ->
-                DEBUG_MSG "@ *";
+          | RBRACE when begin
+              context == MEM &&
+              env#at_class_brace
+          end -> begin
+            DEBUG_MSG "@ RBRACE";
+            parse_warning env stp edp "complementing with a semicolon";
+            self#prepend_token (_mk (T.SEMICOLON false));
+            mk (T.IDENT_V s)
+          end
+
+          | rt ->
+              DEBUG_MSG "@ %s" (Token.rawtoken_to_string rt);
                 (*if context == TOP && sub_context == END_OF_TY_SPEC then begin
                   match self#peek_rawtoken() with
                   | EQ -> begin
@@ -7648,8 +8325,8 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   end
                   | _ -> ()
                   end;*)
-                mk (T.IDENT_V s)
-        end
+              mk (T.IDENT_V s)
+      end
   end
   | _, START_OF_STMT sn -> begin
       DEBUG_MSG "@";
@@ -7862,6 +8539,40 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
         | _ -> false
       end -> DEBUG_MSG "@"; mk (T.STMT_MACRO s)
 
+      | IDENT x when begin
+          prev_rawtoken != LPAREN &&
+          (
+           try
+             let _ = env#find_resolved_macro s in
+             false
+           with
+             Not_found -> begin
+               try
+                 let _ = env#find_pending_macro s in
+                 false
+               with
+                 Not_found -> true
+             end
+          ) &&
+          let x_ = Pinfo.encode_ident x in
+          try
+            let spec = env#lookup_obj x_ in
+            DEBUG_MSG "%s -> %s" x_ spec#to_string;
+            let ty = spec#get_type() in
+            let tnames = Pinfo.Type.get_name_ ty in
+            DEBUG_MSG "tnames=[%s]" (String.concat "," tnames);
+            let s_ = Pinfo.encode_ident s in
+            List.mem s_ tnames ||
+            List.exists
+              (fun tn -> Xstring.startswith s tn)
+              (List.map Pinfo.decode_ident tnames)
+          with
+            Not_found -> false
+      end -> begin
+        DEBUG_MSG "@ IDENT";
+        token
+      end
+
       | IDENT x when prev_rawtoken != LPAREN && begin
           let x_ = Pinfo.encode_ident x in
           let is_bound () =
@@ -7878,7 +8589,8 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                     _ -> true
                 end
               with
-                Not_found -> false
+              | Not_found -> false
+              | Abort -> false
             in
             DEBUG_MSG "%s -> %B" x_ b;
             b
@@ -8055,6 +8767,7 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | SEMICOLON _ | DOT -> false
                   | _ -> true
                   end -> true*)(*NG*)
+
           | _ -> begin
               let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
               List.exists
@@ -8332,7 +9045,27 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
 
       | _ when is_type_name s || is_type s -> DEBUG_MSG "@"; token
 
-      | x when is_literal x && is_semicolon (self#peek_nth_rawtoken 2) -> DEBUG_MSG "@"; mk (T.OP_MACRO s)
+      | x when
+          is_literal x &&
+          is_semicolon (self#peek_nth_rawtoken 2)
+        -> DEBUG_MSG "@"; mk (T.OP_MACRO s)
+
+      | TY_LPAREN when begin
+          is_start_of_stmt() &&
+          match self#peek_nth_rawtoken 2 with
+          | RBRACE -> begin
+              match self#peek_nth_rawtoken 3 with
+              | RPAREN -> begin
+                  conv_nth_token
+                    (function T.TY_LPAREN,s,e -> T.SS_LPAREN,s,e | x -> x) 1;
+                  conv_nth_token
+                    (function T.RBRACE,s,e -> T.ODD_RBRACE,s,e | x -> x) 2;
+                  true
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "@ TY_LPAREN"; mk (T.IDENT_SM s)
 
       | _ -> begin
           DEBUG_MSG "@";
@@ -8532,10 +9265,33 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           | IDENT _ -> begin
               match self#peek_nth_rawtoken 2 with
               | LBRACKET -> true
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | LBRACKET -> true
+                  | _ -> false
+              end
               | _ -> false
           end
           | _ -> false
       end -> DEBUG_MSG "IDENT @"; token
+
+      | IDENT _ when begin
+          match self#peek_rawtoken() with
+          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT x when x = s -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+                      match self#peek_nth_rawtoken 4 with
+                      | IDENT _ -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "IDENT @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) IDENT"; token
 
       | IDENT _ when begin
           match self#peek_rawtoken() with
@@ -8574,8 +9330,15 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                       | EQ | SEMICOLON _ | COMMA | LBRACE -> true
                       | _ -> false
                   end
+                  | LBRACKET -> begin
+                      let nth, _ = self#peek_rawtoken_up_to_rbracket ~from:4 () in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | EQ | SEMICOLON _ | COMMA | LBRACE -> true
+                      | _ -> false
+                  end
                   | _ -> false
               end
+              | PTR_STAR -> true
               | _ -> false
           end -> false
           | TEMPL_LT -> false
@@ -9096,11 +9859,13 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | IDENT _ -> begin
                       match self#peek_nth_rawtoken 3 with
                       | RPAREN -> DEBUG_MSG "@ COLON IDENT RPAREN"; mk (T.IDENT_V s)
+                      | _ when _is_uop prev_rawtoken -> DEBUG_MSG "@ COLON IDENT"; mk (T.IDENT_V s)
                       | _ -> DEBUG_MSG "@ COLON IDENT"; token
                   end
+
                   | _ when begin
                       match prev_rawtoken with
-                      | PLUS_PLUS | MINUS_MINUS -> true
+                      | x when _is_uop x -> true
                       | _ -> false
                   end -> DEBUG_MSG "@ COLON"; mk (T.IDENT_V s)
 
@@ -9521,6 +10286,52 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                     | EQ | LT_LT | PLUS_PLUS | MINUS_MINUS
                     | TY_TEMPL_GT | DELETE -> DEBUG_MSG "(EQ|...) @ *"; mk (T.IDENT_V s)
 
+                    | EXTERN when begin
+                        match self#peek_rawtoken() with
+                        | TY_LPAREN -> begin
+                            let nth, ll =
+                              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 ()
+                            in
+                            match self#peek_nth_rawtoken (nth+1) with
+                            | COMMA | SEMICOLON _ -> true
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end -> DEBUG_MSG "EXTERN @ TY_LPAREN ... RPAREN (COMMA|SEMICOLON)"; mk (T.IDENT_V s)
+
+                    | EXTERN when begin
+                        match self#peek_rawtoken() with
+                        | IDENT _ -> begin
+                            match self#peek_nth_rawtoken 2 with
+                            | TY_LPAREN -> begin
+                                let nth, ll =
+                                  self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 ()
+                                in
+                                match self#peek_nth_rawtoken (nth+1) with
+                                | SEMICOLON _ -> true
+                                | _ -> false
+                            end
+                            | _ -> false
+                        end
+                        | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+                            match self#peek_nth_rawtoken 2 with
+                            | IDENT _ -> begin
+                                match self#peek_nth_rawtoken 3 with
+                                | TY_LPAREN -> begin
+                                    let nth, ll =
+                                      self#peek_rawtoken_up_to_rparen_split_at_comma ~from:4 ()
+                                    in
+                                    match self#peek_nth_rawtoken (nth+1) with
+                                    | SEMICOLON _ -> true
+                                    | _ -> false
+                                end
+                                | _ -> false
+                            end
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end -> DEBUG_MSG "EXTERN @ IDENT"; token
+
                     | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
                     | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID
                     | TYPE_MACRO _ when begin
@@ -9589,7 +10400,7 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                         | _ -> false
                     end -> DEBUG_MSG "COMMA @ (COMMA|RBRACKET)"; mk (T.IDENT_V s)
 
-                    | _ when env#at_arg_paren && begin
+                    | _ when (env#at_arg_paren || env#at_paren) && begin
                         match self#peek_rawtoken() with
                         | COMMA | RPAREN -> true
                         | _ -> false
@@ -9740,6 +10551,17 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
       | _ -> false
   end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
 
+  | MEM_INIT, _ when begin
+      macro_body_parsing_flag &&
+      match prev_rawtoken with
+      | IDENT _ -> begin
+          match self#peek_rawtoken() with
+          | SEMICOLON _ -> true
+          | _ -> false
+      end
+      | _ -> false
+  end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
+
   | MEM_INIT, _ when not env#macro_arg_flag && not env#at_arg_paren -> DEBUG_MSG "@"; token
 
   | ENUM, _ when begin
@@ -9866,6 +10688,11 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
       not env#objc_protocol_decl_flag &&
       match self#peek_rawtoken() with
       | SEMICOLON _ -> not env#typedef_flag
+      | EOF when not env#typedef_flag -> begin
+          DEBUG_MSG "complementing with a semicolon";
+          self#prepend_token (mk_ (T.SEMICOLON false));
+          true
+      end
       | LBRACE when not env#alignas_flag && context != CLASS -> true
       | EQ -> begin
           match self#peek_nth_rawtoken 2 with
@@ -10122,6 +10949,12 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
 
       | CLASS | STRUCT | UNION | ENUM when begin
           match self#peek_rawtoken() with
+          | IDENT _ when begin
+              env#at_macro_arg_paren &&
+              match self#peek_nth_rawtoken 2 with
+              | COMMA | RPAREN -> true
+              | _ -> false
+          end -> true
           | IDENT _  -> false
           | _ -> true
       end -> DEBUG_MSG "(CLASS|STRUCT|UNION|ENUM) @"; token
@@ -10154,6 +10987,7 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 () in
                   match self#peek_nth_rawtoken (nth+1) with
                   | SEMICOLON _ | LBRACE | EQ | CONST | STRUCT | UNION | ENUM | ELAB_ENUM | REGISTER -> false
+                  | PP_ELSE _ | PP_ELIF _ | PP_ENDIF _ -> false
                   | IDENT _ when begin
                       match self#peek_nth_rawtoken (nth+2) with
                       | SEMICOLON _ | LBRACE | EQ | CONST | STRUCT | UNION | ENUM | ELAB_ENUM | REGISTER -> true
@@ -10455,6 +11289,44 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
       | TY_TEMPL_GT | STATIC
       | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | AUTO | IDENT _ | TYPE_MACRO _ when begin
           match self#peek_rawtoken() with
+          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | COMMA -> begin
+                      match self#peek_nth_rawtoken 4 with
+                      | IDENT x when x = s -> begin
+                          conv_nth_token (function T.IDENT x,s,e -> T.CC_MACRO x,s,e | x -> x) 4;
+                          true
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "(CHAR|...) @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) IDENT COMMA IDENT"; mk (T.CC_MACRO s)
+
+      | COMMA when begin
+          env#old_param_decl_flag &&
+          match self#peek_rawtoken() with
+          | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> begin
+              match self#peek_nth_rawtoken 2 with
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | SEMICOLON _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end -> DEBUG_MSG "COMMA @ (PTR_AMP|PTR_AMP_AMP|PTR_STAR) IDENT SEMICOLON"; mk (T.CC_MACRO s)
+
+      | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT | LONG
+      | TY_TEMPL_GT | STATIC
+      | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | AUTO | IDENT _ | TYPE_MACRO _ when begin
+          match self#peek_rawtoken() with
           | IDENT x when begin
               (env#objc_class_interface_flag && is_attr_macro x) ||
               is_attr_macro_ident x ||
@@ -10482,11 +11354,21 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               | TY_LPAREN -> begin
                   match self#peek_nth_rawtoken 3 with
                   | EQ -> true
+                  | _ when begin
+                      is_capital_ident x && not (is_capital_ident s) &&
+                      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:3 () in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | IDENT _ -> false
+                      | CLASS | STRUCT | UNION | ENUM -> false
+                      | TY_LPAREN -> false
+                      | x when is_ty x -> false
+                      | _ -> true
+                  end -> true
                   | _ -> false
               end
               | LBRACE -> begin
                   match self#peek_nth_rawtoken 3 with
-                  | RETURN | IF | SWITCH | FOR | WHILE | DO -> true
+                  | x when is_stmt_head x -> true
                   | _ -> false
               end
               | _ -> false
@@ -10681,6 +11563,15 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           | COLON -> true
           | _ -> false
       end -> DEBUG_MSG "@"; mk (T.IDENT_B s)
+
+      | EXTERN when begin
+          self#peek_rawtoken() == TY_LPAREN &&
+          not env#templ_arg_flag &&
+          let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+          match self#peek_nth_rawtoken (nth+1) with
+          | SEMICOLON _ -> check_if_macro_args ll
+          | _ -> false
+      end -> DEBUG_MSG "EXTERN @ TY_LPAREN ... RPAREN SEMICOLON"; mk (T.IDENT_IM s)
 
       | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT | AUTO | TYPEDEF
       | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _ | CONST | EXTERN
@@ -10994,7 +11885,11 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
       | CLASS_LBRACE | SEMICOLON _ | RBRACE | NEWLINE when begin
           context == MEM && sub_context == INI &&
           match self#peek_rawtoken() with
-          | COLON -> true
+          | COLON -> begin
+              match self#peek_nth_rawtoken 2 with
+              | x when is_literal x -> false
+              | _ -> true
+          end
           | _ -> false
       end -> DEBUG_MSG "(CLASS_LBRACE|SEMICOLON|RBRACE|NEWLINE) @"; mk (T.ACC_SPEC_MACRO s)
 
@@ -11318,6 +12213,85 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           mk (T.ATTR_MACRO s)
       end
 
+      | EOF when begin
+          let _s = String.lowercase_ascii s in
+          (_s = "if" || _s = "we" || _s = "the" || _s = "this") &&
+          let filt = function
+            | T.IDENT _ | BAR_BAR "or" | AMP_AMP "and" -> true
+            | COMMA | DOT -> true
+            | _ -> false
+          in
+          let is_ident = function T.IDENT _ -> true | _ -> false in
+          let limit = 16 in
+          let count = ref 0 in
+          let max_ident_count = ref 0 in
+          let ident_count = ref 1 in
+          let is_prev_ident = ref true in
+          let b =
+            try
+              while true do
+                incr count;
+
+                if !count > limit then
+                  raise Abort;
+
+                let rt = self#peek_nth_rawtoken (!count) in
+
+                DEBUG_MSG "%d: %s" !count (Token.rawtoken_to_string rt);
+
+                let is_cur_ident = is_ident rt in
+                if is_cur_ident then
+                  if !is_prev_ident then
+                    incr ident_count
+                  else
+                    ident_count := 1
+                else begin
+                  if !ident_count > !max_ident_count then
+                    max_ident_count := !ident_count;
+                  ident_count := 0
+                end;
+
+                if not (filt rt) then
+                  raise Exit;
+
+                is_prev_ident := is_cur_ident
+              done;
+              false
+            with
+            | Exit -> true
+            | _ -> false
+          in
+          DEBUG_MSG "count=%d b=%B max_ident_count=%d" !count b !max_ident_count;
+          if b && !max_ident_count > 3 then begin
+            let max_nth = !count - 1 in
+            let ep = ref dummy_lexpos in
+            let tl = ref [token] in
+            for i = 1 to max_nth do
+              let _, _, e as t = self#discard_token() in
+              tl := t::!tl;
+              ep := e
+            done;
+            doit :=
+              (fun () ->
+                let line =
+                  String.concat " "
+                    (List.rev_map (fun (rt,_,_) -> Token.rawtoken_to_repr rt) !tl)
+                in
+                DEBUG_MSG "@";
+                parse_warning env stp edp "generating #error for tokens: %s" line;
+                self#prepend_token (T.NEWLINE, !ep, !ep);
+                List.iter self#prepend_token !tl;
+                _mk T.PP_ERROR
+              );
+            true
+          end
+          else
+            false
+      end -> begin
+        DEBUG_MSG "EOF @ IDENT...";
+        (!doit)()
+      end
+
       | _ -> begin
           DEBUG_MSG "* @";
           let templ_unbalanced_flag = ref false in
@@ -11495,6 +12469,12 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   env#at_paren && is_macro_obj s
               end -> DEBUG_MSG "* @ IDENT *"; mk (T.OP_MACRO s)
 
+              | SEMICOLON _ when prev_rawtoken == EXTERN -> begin
+                  DEBUG_MSG "EXTERN @ IDENT SEMICOLON";
+                  env#register_global_type s stp edp;
+                  token
+              end
+
               | _ -> DEBUG_MSG "* @ IDENT *"; token (*???*)
           end
           | LBRACKET when
@@ -11517,6 +12497,30 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
           | EQ when begin
               prev_rawtoken == CONCEPT
           end -> DEBUG_MSG "@ EQ"; token
+
+          | EQ when begin
+              context == TOP && sub_context == INI &&
+              not env#at_type_paren && not env#templ_head_flag &&
+              match self#peek_nth_rawtoken 2 with
+              | INT_LITERAL "0" -> begin
+                  match prev_rawtoken with
+                  | SEMICOLON _ -> begin
+                      match self#peek_nth_rawtoken 3 with
+                      | SEMICOLON _ -> begin
+                          match self#peek_nth_rawtoken 4 with
+                          | x when not (is_stmt_head x) -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "@ EQ";
+            self#prepend_token (mk (T.IDENT_V s));
+            mk T.DUMMY_TYPE
+          end
 
           | EQ when begin
               not env#at_type_paren && not env#templ_head_flag &&
@@ -12167,6 +13171,17 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                         | _ -> false
                     end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
 
+                    | LBRACE when begin
+                        sub_context == INI &&
+                        match context with
+                        | TOP | MEM -> begin
+                            match prev_rawtoken with
+                            | STATIC -> check_if_macro_args ll
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end -> DEBUG_MSG "@"; mk (T.IDENT_IM s)
+
                     | STATIC when begin
                         sub_context == INI &&
                         match context with
@@ -12224,17 +13239,70 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                     | PARAMS_MACRO _ -> DEBUG_MSG "@"; token
 
                     | IDENT _ when begin
-                        match self#peek_nth_rawtoken nth2 with
-                        | SEMICOLON _ | EQ -> begin
-                            match (ll : T.token list list) with
-                            | [[IDENT _; (PTR_STAR|PTR_AMP|PTR_AMP_AMP); (MS_CDECL _|CC_MACRO _)]]
-                              -> true
-                            | _ -> false
+                        DEBUG_MSG "@";
+                        let deferred = ref (fun () -> ()) in
+                        if
+                          match self#peek_nth_rawtoken nth2 with
+                          | TY_LPAREN -> begin
+                              let n, _ =
+                                self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth2+1) ()
+                              in
+                              match self#peek_nth_rawtoken (n+1) with
+                              | SEMICOLON _ | EQ | EOF -> true
+                              | IDENT _ -> begin
+                                  match self#peek_nth_rawtoken (n+2) with
+                                  | SEMICOLON _ | EQ | EOF -> begin
+                                      deferred :=
+                                        (fun () ->
+                                          conv_nth_token
+                                            (function T.IDENT x,s,e -> T.ATTR_MACRO x,s,e | x -> x) (n+1));
+                                      true
+                                  end
+                                  | _ -> false
+                              end
+                              | _ -> false
+                          end
+                          | SEMICOLON _ | EQ | EOF -> true
+                          | _ -> false
+                        then begin
+                          match (ll : T.token list list) with
+                          | [[IDENT _; (PTR_STAR|PTR_AMP|PTR_AMP_AMP); (MS_CDECL _|CC_MACRO _)]]
+                            -> true
+                          | [[IDENT _; IDENT x]] when begin
+                              DEBUG_MSG "@";
+                              try
+                                let _, macro_kind, tok_list_obj = env#find_pending_macro x in
+                                match macro_kind with
+                                | ObjectLike -> begin
+                                    let tok_list = (Obj.obj tok_list_obj : token list) in
+                                    match tok_list with
+                                    | [(T.MS_CDECL _|MS_STDCALL _),_,_] -> begin
+                                        conv_nth_token
+                                          (function T.IDENT x,s,e -> T.PTR_DTOR_MACRO x,s,e | x -> x) 3;
+                                        conv_nth_token
+                                          (function T.IDENT x,s,e -> T.CC_MACRO x,s,e | x -> x) 2;
+                                        (!deferred)();
+                                        true
+                                    end
+                                    | _ -> false
+                                end
+                                | _ -> false
+                              with
+                                _ -> false
+                          end -> true
+                          | _ -> false
                         end
-                        | _ -> false
+                        else
+                          false
                     end -> begin
                       DEBUG_MSG "@";
-                      conv_nth_token (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) nth1;
+                      begin
+                        match self#peek_nth_rawtoken nth2 with
+                        | TY_LPAREN ->
+                            conv_nth_token (function T.IDENT x,s,e -> T.IDENT_PM x,s,e | x -> x) nth1
+                        | _ ->
+                            conv_nth_token (function T.IDENT x,s,e -> T.PARAMS_MACRO x,s,e | x -> x) nth1
+                      end;
                       token
                     end
 
@@ -12557,7 +13625,12 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
               | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT | INT | LONG
               | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | AUTO
               | CONST | CONSTEXPR | CONSTEVAL | CONSTINIT | INLINE
-              | TYPE_MACRO _ when begin
+              | TYPE_MACRO _ | IDENT _ when begin
+                  (
+                   match prev_rawtoken with
+                   | IDENT _ -> env#typedef_flag && prev_rawtoken2 == TYPEDEF
+                   | _ -> true
+                  ) &&
                   let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
                   match self#peek_nth_rawtoken (nth+1) with
                   | TY_LPAREN | LBRACKET -> begin
@@ -12989,51 +14062,51 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
 
               | _ when env#objc_class_flag -> DEBUG_MSG "* @ TY_LPAREN"; mk (T.IDENT_IM s)
 
-              | COLON when
+              | COLON when begin
                   env#objc_class_interface_flag || env#objc_protocol_decl_flag
-                  -> DEBUG_MSG "COLON @ TY_LPAREN"; mk (T.IDENT_IM s)
+              end -> DEBUG_MSG "COLON @ TY_LPAREN"; mk (T.IDENT_IM s)
 
-                | RPAREN when
-                    env#end_of_objc_property_attrs_decl_flag
-                  -> DEBUG_MSG "RPAREN @ TY_LPAREN"; mk (T.IDENT_TM s)
+              | RPAREN when begin
+                  env#end_of_objc_property_attrs_decl_flag
+              end -> DEBUG_MSG "RPAREN @ TY_LPAREN"; mk (T.IDENT_TM s)
 
-                | RPAREN when
-                    env#end_of_attr_macro_call_flag && env#objc_meth_sel_flag
-                  -> DEBUG_MSG "RPAREN @ TY_LPAREN"; mk (T.IDENT_AM s)
+              | RPAREN when begin
+                  env#end_of_attr_macro_call_flag && env#objc_meth_sel_flag
+              end -> DEBUG_MSG "RPAREN @ TY_LPAREN"; mk (T.IDENT_AM s)
 
-                | TEMPL_LT when begin
-                    (env#objc_meth_decl_flag || env#objc_class_interface_flag) &&
-                    let _, nth, l = self#peek_rawtoken_up_to_rparen ~from:2 None in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | PTR_STAR -> true
-                    | _ -> false
-                end -> DEBUG_MSG "TEMPL_LT @ TY_LPAREN"; mk (T.IDENT_TM s)
+              | TEMPL_LT when begin
+                  (env#objc_meth_decl_flag || env#objc_class_interface_flag) &&
+                  let _, nth, l = self#peek_rawtoken_up_to_rparen ~from:2 None in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | PTR_STAR -> true
+                  | _ -> false
+              end -> DEBUG_MSG "TEMPL_LT @ TY_LPAREN"; mk (T.IDENT_TM s)
 
-                | _ when begin
-                    env#end_of_templ_head_flag &&
-                    let _, nth, _ = self#peek_rawtoken_up_to_rparen ~from:2 None in
-                    match self#peek_nth_rawtoken (nth+1) with
-                    | MINUS_GT -> true
-                    | _ -> false
-                end -> begin
-                  DEBUG_MSG "* @ TY_LPAREN";
-                  conv_nth_token (function T.TY_LPAREN,s,e -> T.TY_LPAREN_,s,e | x -> x) 1;
-                  mk (T.IDENT_V s)
-                end
+              | _ when begin
+                  env#end_of_templ_head_flag &&
+                  let _, nth, _ = self#peek_rawtoken_up_to_rparen ~from:2 None in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | MINUS_GT -> true
+                  | _ -> false
+              end -> begin
+                DEBUG_MSG "* @ TY_LPAREN";
+                conv_nth_token (function T.TY_LPAREN,s,e -> T.TY_LPAREN_,s,e | x -> x) 1;
+                mk (T.IDENT_V s)
+              end
 
-                | COLON_COLON when begin
-                    env#templ_arg_flag &&
-                    let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
-                    ll <> [] &&
-                    List.for_all
-                      (function
-                        | [x] -> is_ty x || is_ident x
-                        | (T.PTR_STAR | PTR_AMP | PTR_AMP_AMP)::_ -> true
-                        | _ -> false
-                      ) ll
-                end -> DEBUG_MSG "COLON_COLON @ TY_LPAREN"; token
+              | COLON_COLON when begin
+                  env#templ_arg_flag &&
+                  let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+                  ll <> [] &&
+                  List.for_all
+                    (function
+                      | [x] -> is_ty x || is_ident x
+                      | (T.PTR_STAR | PTR_AMP | PTR_AMP_AMP)::_ -> true
+                      | _ -> false
+                    ) ll
+              end -> DEBUG_MSG "COLON_COLON @ TY_LPAREN"; token
 
-                | rt -> DEBUG_MSG "%s @ TY_LPAREN" (Token.rawtoken_to_string rt); mk (T.IDENT_V s)
+              | rt -> DEBUG_MSG "%s @ TY_LPAREN" (Token.rawtoken_to_string rt); mk (T.IDENT_V s)
           end
 
           | COMMA | TY_TEMPL_GT when
@@ -13449,6 +14522,18 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                   | STATIC when begin
                       match self#peek_rawtoken() with
                       | COMMA -> true
+                      | LBRACKET -> begin
+                          let nth, _ = self#peek_rawtoken_up_to_rbracket ~from:2 () in
+                          match self#peek_nth_rawtoken (nth+1) with
+                          | EQ -> true
+                          | LBRACKET -> begin
+                              let nth', _ = self#peek_rawtoken_up_to_rbracket ~from:(nth+2) () in
+                              match self#peek_nth_rawtoken (nth'+1) with
+                              | EQ -> true
+                              | _ -> false
+                          end
+                          | _ -> false
+                      end
                       | _ -> false
                   end -> DEBUG_MSG "STATIC @ COMMA"; mk (T.IDENT_V s)
 
@@ -13491,6 +14576,26 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                           env#templ_head_flag && env#templ_param_arg_level > 0 &&
                           not env#typename_flag
                       end -> DEBUG_MSG "@ ELLIPSIS"; mk (T.IDENT_C s)
+
+                      | PP_ENDIF _ when begin
+                          match prev_rawtoken with
+                          | NEWLINE -> begin
+                              let nth, _ =
+                                self#peek_rawtoken_up_to ~from:1 [T.NEWLINE]
+                              in
+                              match self#peek_nth_rawtoken (nth+1) with
+                              | TY_LPAREN -> begin
+                                  let nth', ll' =
+                                    self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+2) ()
+                                  in
+                                  match self#peek_nth_rawtoken (nth'+1) with
+                                  | LBRACE | SEMICOLON _ -> check_if_params ~weak:true ll'
+                                  | _ -> false
+                              end
+                              | _ -> false
+                          end
+                          | _ -> false
+                      end -> DEBUG_MSG "NEWLINE @ PP_ENDIF"; mk (T.IDENT_V s)
 
                       | PP_DEFINE | PP_UNDEF | PP_INCLUDE | PP_IMPORT
                       | PP_IF | PP_IFDEF | PP_IFNDEF | PP_ENDIF _ | EOF when begin
@@ -13595,14 +14700,28 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                               match self#peek_rawtoken() with
                               | RBRACE | PRIVATE | PUBLIC | PROTECTED
                                 -> DEBUG_MSG "(NEWLINE|LBRACE) @ (RBRACE|PRIVATE|...)"; mk (T.DECL_MACRO s)
+
+                              | STR_LITERAL _ when s = "__error__" && begin
+                                  match self#peek_nth_rawtoken 2 with
+                                  | SEMICOLON _ -> true
+                                  | _ -> false
+                              end -> begin
+                                DEBUG_MSG "(NEWLINE|LBRACE) @ STR_LITERAL SEMICOLON";
+                                parse_warning env stp edp "generating #error";
+                                let _, _, ep = self#peek_nth 2 in
+                                insert_after_nth_token self 1 [T.NEWLINE, ep, ep];
+                                mk T.PP_ERROR
+                              end
+
                               | STR_LITERAL _ | TEMPL_LT when
                                   s = "import"
                                 -> DEBUG_MSG "(NEWLINE|LBRACE) @ (STR_LITERAL|TEMPL_LT)"; mk T.IMPORT
-                              | OBJC_INTERFACE | OBJC_PROTOCOL
-                                -> begin
+
+                              | OBJC_INTERFACE | OBJC_PROTOCOL -> begin
                                   DEBUG_MSG "(NEWLINE|LBRACE) @ (OBJC_INTERFACE|OBJC_PROTOCOL)";
                                   mk (T.ATTR_MACRO s)
-                                end
+                              end
+
                               | GNU_ATTR _ when begin
                                   match self#peek_nth_rawtoken 2 with
                                   | TY_LPAREN -> begin
@@ -13616,6 +14735,7 @@ let conv_ident (env : Aux.env) scanner (token : token) s =
                                 DEBUG_MSG "(NEWLINE|LBRACE) @ GNU_ATTR";
                                 mk (T.ATTR_MACRO s)
                               end
+
                               | _ -> DEBUG_MSG "(NEWLINE|LBRACE) @"; token
                           end
 
@@ -13927,6 +15047,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
   (*let mk1 x = (x, stp, stp) in*)
   let _mk x = (x, stp, Astloc.decr_lexpos edp) in
   let mk_ x = (x, Astloc.incr_lexpos stp, edp) in
+  let prev_mk_ x = (x, self#prev_edp, self#prev_edp) in
   let prev_endofs = self#prev_endofs in
   let prev_endln = self#prev_endln in
   let prev_rawtoken = self#prev_rawtoken in
@@ -13998,6 +15119,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
     | _ -> false
   in
   let get_common_prefix ?(lparen_max=(-1)) nth_ l =
+    DEBUG_MSG "lparen_max=%d" lparen_max;
     let common_prefix = ref l in
     let nth_list = ref [] in
     let sect_end_nth = ref 0 in
@@ -14006,12 +15128,14 @@ let conv_token (env : Aux.env) scanner (token : token) =
       match self#peek_nth_rawtoken nth_ with
       (*| PP_ELIF _ | PP_ELSE _ as x -> begin*)
       | x when is_pp_elif_else_like env x -> begin
+          let rev_l = List.rev l in
           let nth', _ = self#peek_rawtoken_up_to ~from:(nth_+1) [T.NEWLINE] in
           let nth_', l' = self#peek_rawtoken_up_to_group_end ~limit:(-1) () ~from:(nth'+1) in
           nth_list := (nth'+1) :: !nth_list;
           let rev_l' = List.rev l' in
+          DEBUG_MSG "rev_l=%s" (String.concat ";" (List.map Token.rawtoken_to_string rev_l));
           DEBUG_MSG "rev_l'=%s" (String.concat ";" (List.map Token.rawtoken_to_string rev_l'));
-          let prefix = get_common_prefix_rev ~lparen_max (List.rev l) rev_l' in
+          let prefix = get_common_prefix_rev ~lparen_max rev_l rev_l' in
           DEBUG_MSG "prefix=%s" (String.concat ";" (List.map Token.rawtoken_to_string prefix));
           if List.length !common_prefix > List.length prefix then
             common_prefix := prefix;
@@ -14887,6 +16011,11 @@ let conv_token (env : Aux.env) scanner (token : token) =
               | EXCLAM _ -> false
               | IDENT_V _ -> false
               | IDENT x when is_val x -> false
+              | IDENT _ when begin
+                  match self#peek_nth_rawtoken 2 with
+                  | x when _is_bop x -> true
+                  | _ -> false
+              end -> false
               | _ -> true
             end &&
             let nth, l = self#peek_rawtoken_up_to_rparen_none() in
@@ -15731,6 +16860,44 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       | IDENT _ -> true
                       | _ -> false
                   end -> DEBUG_MSG "@ ... RPAREN SEMICOLON"; token
+
+                  | LBRACKET | SEMICOLON _ when begin
+                      (context == TOP || context == STMT) &&
+                      sub_context == INI &&
+                      is_ty prev_rawtoken &&
+                      match self#peek_rawtoken() with
+                      | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@ ... RPAREN (LBRACKET|SEMICOLON)"; token
+
+                  | LBRACKET when begin
+                      (context == TOP || context == STMT) &&
+                      sub_context == INI &&
+                      (match prev_rawtoken with
+                      | IDENT _ -> true
+                      | _ -> false
+                      ) &&
+                      match self#peek_rawtoken() with
+                      | PTR_AMP | PTR_AMP_AMP | PTR_STAR -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@ ... RPAREN LBRACKET RBRACKET"; token
+
+                  | SEMICOLON _ when begin
+                      match self#peek_rawtoken() with
+                      | ELSE -> true
+                      | _ -> false
+                  end -> DEBUG_MSG "@ ELSE ... RPAREN SEMICOLON"; mk T.SS_LPAREN
+
+                  | ELLIPSIS when begin
+                      env#top_stmts_flag && env#rhs_flag &&
+                      match self#peek_nth_rawtoken (nth+2) with
+                      | SEMICOLON _ -> true
+                      | _ -> false
+                  end -> begin
+                    DEBUG_MSG "@ ... RPAREN ELLIPSIS";
+                    conv_nth_token (function T.ELLIPSIS,s,e -> T.IDENT_V "...",s,e | x -> x) (nth+1);
+                    token
+                  end
 
                   | rt -> DEBUG_MSG "@ ... RPAREN %s" (Token.rawtoken_to_string rt); mk T.LPAREN
               end
@@ -18035,6 +19202,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
   in
   let conv_ptr_op () =
     DEBUG_MSG "@";
+    let doit = ref (fun () -> token) in
     let get () =
       match _rawtok with
       | PTR_STAR    -> mk T.STAR
@@ -18054,6 +19222,101 @@ let conv_token (env : Aux.env) scanner (token : token) =
       | _ -> assert false
     in
     match prev_rawtoken with
+
+    | RBRACE | SEMICOLON _ | LBRACE when begin
+        _rawtok == PTR_STAR &&
+        (
+         match context, sub_context with
+         | TOP, INI | STMT, START_OF_STMT _ -> true
+         | _ -> false
+        ) &&
+        match self#peek_rawtoken() with
+        | PTR_STAR -> begin
+            match self#peek_nth_rawtoken 2 with
+            | PTR_STAR -> begin
+                match self#peek_nth_rawtoken 3 with
+                | PTR_STAR -> begin
+                    let filt = function
+                      | T.PTR_STAR | IDENT _ | INT_LITERAL _ | EXCLAM _ | SLASH -> true
+                      | BAR_BAR "or" -> true
+                      | _ -> false
+                    in
+                    let eat count =
+                      let buf = Buffer.create 0 in
+                      let _ = Buffer.add_string buf "*" in
+                      let last_rt = ref T.EOF in
+                      let last_ep = ref dummy_lexpos in
+                      for i = 1 to count do
+                        let rt, _, ep = self#discard_token() in
+                        let r = Token.rawtoken_to_repr rt in
+                        begin
+                          match !last_rt, rt with
+                          | EOF, _ -> ()
+                          | PTR_STAR, PTR_STAR -> ()
+                          | _, SLASH | SLASH, _ -> ()
+                          | _, EXCLAM _ -> ()
+                          | _ -> Buffer.add_string buf " "
+                        end;
+                        Buffer.add_string buf r;
+                        last_rt := rt;
+                        last_ep := ep
+                      done;
+                      let line = Buffer.contents buf in
+                      match context, sub_context with
+                      | TOP, INI -> begin
+                          doit :=
+                            (fun () ->
+                              T.DECL_MACRO line, stp, !last_ep
+                            );
+                          true
+                      end
+                      | STMT, START_OF_STMT _ -> begin
+                          doit :=
+                            (fun () ->
+                              if self#is_func_head ~from:1 () then begin
+                                for i = 1 to env#in_body_brace_level + 1 do
+                                  self#prepend_token (T.RBRACE, !last_ep, !last_ep)
+                                done
+                              end;
+                              T.STMT_MACRO line, stp, !last_ep
+                            );
+                          true
+                      end
+                      | _ -> false
+                    in
+                    try
+                      let nth, l =
+                        self#peek_rawtoken_up_to ~limit:16 ~filt ~from:4 [T.PTR_STAR]
+                      in
+                      DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | PTR_STAR -> begin
+                          match self#peek_nth_rawtoken (nth+2) with
+                          | PTR_STAR -> begin
+                              match self#peek_nth_rawtoken (nth+3) with
+                              | PTR_STAR -> begin
+                                  match self#peek_nth_rawtoken (nth+4) with
+                                  | PTR_STAR -> false
+                                  | _ -> eat (nth+3)
+                              end
+                              | _ -> eat (nth+2)
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                    with
+                      _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end
+        | _ -> false
+    end -> begin
+      DEBUG_MSG "@";
+      (!doit)()
+    end
+
     | SEMICOLON _ | RBRACE | NEWLINE when begin
         match sub_context with
         | START_OF_STMT _ -> true
@@ -18237,6 +19500,22 @@ let conv_token (env : Aux.env) scanner (token : token) =
     | RPAREN when begin
         match sub_context with
         | START_OF_STMT _ -> true
+        | INI when begin
+            not env#at_paren &&
+            not env#at_type_paren &&
+            not env#at_macro_arg_paren &&
+            match self#prev_indent_rawtoken with
+            | IDENT_DSM _ | IDENT_SM _ -> begin
+                match self#peek_rawtoken() with
+                | IDENT _ -> begin
+                    match self#peek_nth_rawtoken 2 with
+                    | EQ -> true
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> true
         | _ when match self#peek_rawtoken() with TILDE _ -> true | _ -> false -> true
         | _ -> false
     end -> DEBUG_MSG "RPAREN @"; get()
@@ -18245,6 +19524,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
     | RPAREN when begin
         match self#peek_rawtoken() with
+        | RPAREN when env#expr_flag -> false
         | RPAREN | COMMA when not env#end_of_params_flag -> true
         | IDENT _ -> begin
             match self#peek_nth_rawtoken 2 with
@@ -18549,7 +19829,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       _ -> false
                 end
                 | _ -> not env#end_of_params_flag
-            end -> DEBUG_MSG "@ (STR_LITERAL|...)"; mk T.INI_LBRACE
+            end -> begin
+              DEBUG_MSG "@ (STR_LITERAL|...)";
+              match prev_rawtoken with
+              | RBRACE -> begin
+                  DEBUG_MSG "complementing with a comma";
+                  self#prepend_token (mk T.INI_LBRACE);
+                  mk T.COMMA
+              end
+              | _ -> mk T.INI_LBRACE
+            end
 
             | RBRACE when self#peek_nth_rawtoken 2 == DOT -> DEBUG_MSG "@ RBRACE"; mk T.INI_LBRACE
 
@@ -18574,13 +19863,17 @@ let conv_token (env : Aux.env) scanner (token : token) =
                  not env#trailing_retty_flag && not env#init_flag &&
                  prev_rawtoken != RBRACKET && prev_rawtoken != LPAREN &&
                  prev_rawtoken != REQUIRES && not env#end_of_req_params_flag &&
-                 not env#braced_init_flag && try env#paren_stack_top == PK_NORMAL with _ -> false
+                 not env#braced_init_flag &&
+                 try
+                   match env#paren_stack_top with
+                   | PK_NORMAL _ -> true
+                   | _ -> false
+                 with _ -> false
                 )
             end -> begin
-              DEBUG_MSG "NEWLINE RPAREN PP_ENDIF NEWLINE @";
               DEBUG_MSG "lack of closing parenthesis";
               self#prepend_token token;
-              mk T.RPAREN
+              prev_mk_ T.RPAREN
             end
 
             | IDENT _ | RBRACE -> begin
@@ -18622,7 +19915,15 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | _ -> false
                 end -> DEBUG_MSG "NEWLINE @ (IDENT|RBRACE) SEMICOLON"; mk T.INI_LBRACE
 
+                | RBRACE when env#at_ini_brace -> begin
+                    DEBUG_MSG "RBRACE @";
+                    DEBUG_MSG "complementing with a comma";
+                    self#prepend_token (mk T.INI_LBRACE);
+                    mk_ T.COMMA
+                end
+
                 | _ -> begin
+                    DEBUG_MSG "@";
                     match self#peek_nth_rawtoken 2 with
                     | COMMA when
                         prev_rawtoken == EOF
@@ -18643,7 +19944,17 @@ let conv_token (env : Aux.env) scanner (token : token) =
                         | _ when not env#enum_head_flag && begin
                             env#braced_init_flag && not env#lambda_dtor_flag ||
                             prev_rawtoken == LBRACKET
-                        end -> DEBUG_MSG "* @ (IDENT|RBRACE) COMMA *"; mk T.INI_LBRACE
+                        end -> begin
+                          DEBUG_MSG "* @ (IDENT|RBRACE) COMMA *";
+                          let token_ = mk T.INI_LBRACE in
+                          match prev_rawtoken with
+                          | RBRACE -> begin
+                              DEBUG_MSG "complementing with a comma";
+                              self#prepend_token token_;
+                              mk_ T.COMMA
+                          end
+                          | _ -> token_
+                        end
 
                         | _ -> DEBUG_MSG "* @ (IDENT|RBRACE) COMMA *"; token
                     end
@@ -18719,6 +20030,15 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 self#prepend_token token;
                 mk T.RPAREN
               end
+
+            | _ when begin
+                prev_rawtoken == NEWLINE &&
+                env#eq_init_flag &&
+                env#paren_level = 0
+            end -> begin
+              DEBUG_MSG "NEWLINE @";
+              mk T.INI_LBRACE
+            end
 
             | _ -> DEBUG_MSG "@ *"; token
         end
@@ -19202,7 +20522,11 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 | _ -> DEBUG_MSG "* @ (PTR_STAR|PTR_AMP|PTR_AMP_AMP)"; mk T.GT
             end
 
-            | IDENT _ when sc == IN_SIMPLE_TEMPL_ID && env#templ_param_arg_level > 0 -> DEBUG_MSG "@ IDENT"; token
+            | IDENT _ when begin
+                sc == IN_SIMPLE_TEMPL_ID &&
+                env#templ_param_arg_level > 0 &&
+                env#at_templ_arg
+            end -> DEBUG_MSG "@ IDENT"; token
 
             | IDENT _ when env#typedef_flag && env#templ_param_arg_level = 1 -> DEBUG_MSG "@ IDENT"; token
 
@@ -20402,9 +21726,18 @@ let conv_token (env : Aux.env) scanner (token : token) =
               ) (nth+1);
             mk (T.IDENT_LM s)
           end
+
+          | IDENT _ when begin
+              match self#peek_nth_rawtoken (nth+2) with
+              | x when _is_bop x -> true
+              | DOT | MINUS_GT -> true
+              | _ -> false
+          end -> DEBUG_MSG "@"; mk (T.IDENT_OM s)
+
           | x when
               is_literal x && is_semicolon (self#peek_nth_rawtoken (nth+2))
             -> DEBUG_MSG "@"; mk (T.IDENT_OM s)
+
           | _ ->
               if
                 check_if_macro_args ll ||
@@ -20416,6 +21749,24 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
                 else begin
                   DEBUG_MSG "@";
+                  begin
+                    match ll with
+                    | [EQ::_] -> begin
+                        conv_nth_token
+                          (function T.TY_LPAREN,s,e -> T.SS_LPAREN,s,e | x -> x) 1;
+                        match self#peek_nth_rawtoken (nth+1) with
+                        | IDENT _ -> begin
+                            match self#peek_nth_rawtoken (nth+2) with
+                            | SEMICOLON _ -> begin
+                                let _, _, e = self#peek_nth nth in
+                                insert_after_nth_token nth [T.DUMMY_OP,e,e]
+                            end
+                            | _ -> ()
+                        end
+                        | _ -> ()
+                    end
+                    | _ -> ()
+                  end;
                   mk (T.IDENT_EM s)
                 end
               end
@@ -21167,6 +22518,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             match macro_kind with
             | ObjectLike -> begin
                 let plv, blv, last_rt = check_tokens ~name:x tl in
+                DEBUG_MSG "plv=%d blv=%d last_rt=%s" plv blv (Token.rawtoken_to_string last_rt);
                 let add_lbraces () =
                   let t = mk T.LBRACE in
                   for i = 1 to blv do
@@ -21185,7 +22537,16 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   add_lbraces()
                 else if b1 then
                   add_rbraces();
-                b0 || b1 || last_rt == COLON
+                b0 || b1 ||
+                match last_rt with
+                | COLON -> true
+                | SEMICOLON _ | RBRACE when begin
+                    plv = 0 && blv = 0 &&
+                    match tl with
+                    | x::_ when is_stmt_head x -> true
+                    | _ -> false
+                end -> true
+                | _ -> false
             end
             | FunctionLike spec -> begin
                 match self#peek_rawtoken() with
@@ -21260,7 +22621,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             let plv, blv, last_rt, count =
               List.fold_left
                 (fun (plv, blv, _, c) ((rt : T.token), _, _) ->
-                  DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
+                  DEBUG_MSG "[plv=%d,blv=%d] %s" plv blv (Token.rawtoken_to_string rt);
                   match rt with
                   | TY_LPAREN -> (plv + 1, blv, rt, c+1)
                   | RPAREN -> (plv - 1, blv, rt, c+1)
@@ -21274,10 +22635,23 @@ let conv_token (env : Aux.env) scanner (token : token) =
             let cond1 = count = 1 && blv = 1 && last_rt == LBRACE in
             DEBUG_MSG "cond0=%B cond1=%B" cond0 cond1;
             if cond0 then
-              doit := (fun () -> env#open_paren PK_NORMAL; mk (T.IDENT_LPAREN s));
+              doit := (fun () -> env#open_paren (PK_NORMAL PKS_NONE); mk (T.IDENT_LPAREN s));
             if cond1 then
               doit := (fun () -> mk T.LBRACE);
-            cond0 || cond1
+            if cond0 || cond1 then
+              true
+            else begin
+              match self#peek_rawtoken() with
+              | LBRACE -> begin
+                  match tok_list with
+                  | ((STRUCT|UNION|CLASS),_,_)::(IDENT _,_,_)::[] -> begin
+                      doit := (fun () -> mk (T.CLASS_HEAD_MACRO s));
+                      true
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+            end
         end
         | _ -> false
       with
@@ -21371,6 +22745,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
   end -> DEBUG_MSG "@"; mk (T.IDENT_V s)
 
   | IDENT s when prev_rawtoken == EOF && begin
+      DEBUG_MSG "@";
       match self#peek_rawtoken() with
       | TY_LPAREN -> begin
           let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
@@ -21404,11 +22779,220 @@ let conv_token (env : Aux.env) scanner (token : token) =
           end
           | _ -> false
       end
+      | COLON -> begin
+          match self#peek_nth_rawtoken 2 with
+          | IDENT _ -> begin
+              match self#peek_nth_rawtoken 3 with
+              | TY_LPAREN -> begin
+                  match self#peek_nth_rawtoken 4 with
+                  | PERC -> begin
+                      match self#peek_nth_rawtoken 5 with
+                      | IDENT _ -> begin
+                          match self#peek_nth_rawtoken 6 with
+                          | COMMA | RPAREN -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | PERC -> begin
+                  match self#peek_nth_rawtoken 4 with
+                  | IDENT _ -> self#peek_nth_rawtoken 5 == COMMA
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
       | _ -> false
   end -> begin
     DEBUG_MSG "@";
     self#prepend_token token;
     mk T.BEGIN_ASM
+  end
+
+  | IDENT _ when begin
+      let startln = stp.Lexing.pos_lnum in
+      prev_endln + 1 < startln &&
+      match sub_context with
+      | START_OF_STMT _ -> begin
+          DEBUG_MSG "@";
+          let startln_ = startln + 1 in
+          let nth = ref 1 in
+          let count = ref 0 in
+          let max_count = ref 0 in
+          let prev_rt = ref T.EOF in
+          try
+            begin
+              try
+                while true do
+                  let rt, sp, _ = self#peek_nth !nth in
+                  DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
+                  if startln_ < sp.Lexing.pos_lnum then
+                    raise Found;
+                  begin
+                    match rt with
+                    | IDENT _ when begin
+                        match !prev_rt with
+                        | IDENT _ -> true
+                        | _ -> false
+                    end -> incr count
+                    | IDENT _ | COLON | DOT | QUEST
+                    | TY_LPAREN | RPAREN
+                    | INT_LITERAL _ | STR_LITERAL _ -> begin
+                        if !count > !max_count then
+                          max_count := !count;
+                        count := 0
+                    end
+                    | _ -> raise Not_found
+                  end;
+                  incr nth;
+                  prev_rt := rt
+                done
+              with
+                Found -> begin
+                  DEBUG_MSG "nth=%d max_count=%d" !nth !max_count;
+                  if !max_count < 3 then
+                    raise Not_found
+                end
+            end;
+            let ep = ref dummy_lexpos in
+            let tl = ref [token] in
+            for i = 1 to (!nth - 1) do
+              let (_, _, e) as t = self#discard_token() in
+              tl := t::!tl;
+              ep := e
+            done;
+            doit :=
+              (fun () ->
+                let line =
+                  String.concat " " (List.rev_map (fun (rt, _, _) -> Token.rawtoken_to_repr rt) !tl)
+                in
+                DEBUG_MSG "@";
+                parse_warning env stp edp "generating #error for tokens: %s" line;
+                self#prepend_token (T.NEWLINE, !ep, !ep);
+                List.iter self#prepend_token !tl;
+                _mk T.PP_ERROR
+              );
+            true
+          with _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "<NEWLINE> @ ... <NEWLINE>";
+    (!doit)()
+  end
+
+  | IDENT s when begin
+      match self#peek_rawtoken() with
+      | IDENT x -> begin
+          let b = Xstring.startswith x "@" in
+          if b then begin
+            let _, sp, ep = self#discard_token() in
+            if
+              edp.Lexing.pos_lnum = sp.Lexing.pos_lnum &&
+              edp.Lexing.pos_cnum + 1 = sp.Lexing.pos_cnum
+            then begin
+              doit := (fun () -> T.IDENT (s^x), stp, ep);
+              true
+            end
+            else
+              false
+          end
+          else
+            false
+      end
+      | AT -> begin
+          let _, sp, ep = self#discard_token() in
+          if
+            edp.Lexing.pos_lnum = sp.Lexing.pos_lnum &&
+            edp.Lexing.pos_cnum + 1 = sp.Lexing.pos_cnum
+          then begin
+            doit := (fun () -> T.IDENT (s^"@"), stp, ep);
+            true
+          end
+          else
+            false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@ IDENT:@+";
+    self#prepend_token ((!doit)());
+    raise To_be_recovered
+  end
+
+  | IDENT s when begin
+      (
+       try
+         let info = env#pp_if_section_top_info in
+         match info.Pinfo.i_cond with
+         | PP_IF("0", _) -> DEBUG_MSG "@"; true
+         | _ -> false
+       with _ -> false
+      ) &&
+      s = "fdef" &&
+      match prev_rawtoken with
+      | NEWLINE -> begin
+          match self#peek_rawtoken() with
+          | IDENT x -> begin
+              match self#peek_nth_rawtoken 2 with
+              | PP_IF | PP_IFDEF | PP_IFNDEF -> begin
+                  let nth, l =
+                    self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:2 ()
+                  in
+                  match self#peek_nth_rawtoken nth with
+                  | PP_ENDIF _ -> begin
+                      let nth', _ = self#peek_rawtoken_up_to ~from:nth [T.NEWLINE] in
+                      begin
+                        match self#peek_nth_rawtoken nth' with
+                        | rt -> DEBUG_MSG "%d: %s" nth' (Token.rawtoken_to_string rt)
+                      end;
+                      let nth'', l'' = self#peek_rawtoken_up_to ~from:(nth'+1) [T.NEWLINE] in
+                      begin
+                        match self#peek_nth_rawtoken nth'' with
+                        | rt -> DEBUG_MSG "%d: %s" nth'' (Token.rawtoken_to_string rt)
+                      end;
+                      match self#peek_nth_rawtoken (nth''-1) with
+                      | PP_ENDIF _ -> begin
+                          doit :=
+                            (fun () ->
+                              let tl = ref [token] in
+                              for i = 1 to nth''-2 do
+                                let (rt, sp, ep) as t = self#discard_token() in
+                                let t =
+                                  match rt with
+                                  | PP_IF | PP_IFDEF | PP_IFNDEF | PP_ELIF _ | PP_ENDIF _ ->
+                                      T.IDENT (Token.rawtoken_to_repr rt), sp, ep
+                                  | NEWLINE -> T.IDENT "\n", sp, ep
+                                  | _ -> t
+                                in
+                                tl := t::!tl
+                              done;
+                              let line =
+                                String.concat " "
+                                  ((List.rev_map (fun (rt, _, _) -> Token.rawtoken_to_repr rt) !tl))
+                              in
+                              parse_warning env stp edp "generating #error for tokens: %s" line;
+                              tl := (mk T.NEWLINE)::!tl;
+                              List.iter self#prepend_token !tl;
+                              let _, sp, _ = token in
+                              T.PP_ERROR, sp, sp
+                            );
+                          true
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "NEWLINE @ IDENT (PP_IF|PP_IFDEF|PP_IFNDEF)";
+    (!doit)()
   end
 
   | IDENT s -> conv_ident s
@@ -21456,7 +23040,25 @@ let conv_token (env : Aux.env) scanner (token : token) =
       end
       | _ -> false
   end -> DEBUG_MSG "@"; mk T.PP_LPAREN
-  | TY_LPAREN when env#pp_if_flag -> DEBUG_MSG "@"; mk T.LPAREN
+
+  | TY_LPAREN when env#pp_if_flag -> begin
+      match prev_rawtoken with
+      | SIZEOF -> begin
+          match self#peek_rawtoken() with
+          | x when is_ty x -> begin
+              DEBUG_MSG "@";
+              begin
+                match x with
+                | IDENT _ -> conv_nth_token (function T.IDENT x,s,e -> T.IDENT_ x,s,e | x -> x) 1
+                | _ -> ()
+              end;
+              token
+          end
+          | _ -> DEBUG_MSG "@"; mk T.LPAREN
+      end
+      | _ -> DEBUG_MSG "@"; mk T.LPAREN
+  end
+
   | TY_LPAREN when env#pp_line_flag && context != EXPR -> DEBUG_MSG "@"; token
 
   | TY_LPAREN | LPAREN when begin
@@ -21502,9 +23104,26 @@ let conv_token (env : Aux.env) scanner (token : token) =
           | [l] -> begin
               let b = List.exists is_semicolon l || f l in
               if b then begin
-                let rt, _, e = self#peek_nth (nth-1) in
-                DEBUG_MSG "rt=%s" (Token.rawtoken_to_string rt);
-                insert_after_nth_token (nth-1) [T.SEMICOLON false, e, e]
+                match l with
+                | SEMICOLON _::_ -> ()
+                | _ ->
+                    let blv = ref 0 in
+                    List.iter
+                      (function
+                        | T.LBRACE -> incr blv
+                        | RBRACE -> decr blv
+                        | _ -> ()
+                      ) (List.rev l);
+                    DEBUG_MSG "blv=%d" !blv;
+                    let last_rt, _, e = self#peek_nth (nth-1) in
+                    DEBUG_MSG "last_rt=%s" (Token.rawtoken_to_string last_rt);
+                    let tl =
+                      if !blv = 1 then
+                        [T.RBRACE,e,e;SEMICOLON false,e,e]
+                      else
+                        [T.SEMICOLON false,e,e]
+                    in
+                    insert_after_nth_token (nth-1) tl
               end;
               b
           end
@@ -21723,8 +23342,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
       | EOF | NEWLINE -> true
       | _ -> false) &&
       match self#peek_rawtoken() with
+      | IF | EXTERN -> true
       | IDENT x when is_gas_directive x -> true
-      | IF -> true
       | _ -> false
   end -> begin
     DEBUG_MSG "@";
@@ -21909,6 +23528,61 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
   | SEMICOLON true when env#asm_block_flag -> DEBUG_MSG "@"; mk T.SEMICOLON_
 
+  | RBRACE when begin
+      env#in_body_brace_flag &&
+      env#stack#block_level = 2 &&
+      env#pstat#brace_level_marker_flag &&
+      env#pstat#brace_level_marker_unbalanced_flag &&
+      env#pstat#brace_level_marker = 1 &&
+      (not env#pp_if_section_flag || env#pp_if_section_rel_brace_level > -1) &&
+      not (is_start_of_stmt())
+  end -> begin
+    parse_warning env stp edp "complementing with a closing brace";
+    DEBUG_MSG "complementing with a closing brace";
+    self#prepend_token (mk T.RBRACE);
+    token
+  end
+
+  | RPAREN when begin
+      env#pstat#at_ss_paren &&
+      match prev_rawtoken with
+      | RBRACE | SEMICOLON _ -> false
+      | _ -> true
+  end -> begin
+    DEBUG_MSG "@";
+    self#prepend_token token;
+    match prev_rawtoken with
+    | EQ -> begin
+        self#prepend_token (mk_ (T.SEMICOLON false));
+        mk_ T.DUMMY_EXPR
+    end
+    | _ -> mk_ (T.SEMICOLON false)
+  end
+
+  | RPAREN when begin
+      try
+        match env#pstat#bracket_stack_top with
+        | BK_PAREN (PK_NORMAL PKS_IF) -> begin
+            match self#peek_rawtoken() with
+            | EQ_EQ | EXCLAM_EQ _ -> begin
+                DEBUG_MSG "@";
+                match self#peek_nth_rawtoken 2 with
+                | INT_LITERAL _ -> begin
+                    match self#peek_nth_rawtoken 3 with
+                    | RPAREN -> true
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end
+        | _ -> false
+      with _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    self#discard_token()
+  end
+
   | RPAREN | SEMICOLON _ | DOT | MINUS_GT | LT_LT | RBRACE | EQ
   | STR_LITERAL _ -> DEBUG_MSG "@"; token
 
@@ -21916,7 +23590,31 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
   (*| COMMA when not env#macro_arg_flag -> token*)
 
-  | INT_LITERAL s when s = "0" && begin
+  | INT_LITERAL x when begin
+      DEBUG_MSG "x=%s" x;
+      match self#peek_rawtoken() with
+      | FLOAT_LITERAL y when (try y.[0] == '.' with _ -> false) -> begin
+          DEBUG_MSG "y=%s" y;
+          match self#peek_nth_rawtoken 2 with
+          | FLOAT_LITERAL z when (try z.[0] == '.' with _ -> false) -> begin
+              DEBUG_MSG "z=%s" z;
+              let _ = self#discard_token() in
+              let _, _, ep = self#discard_token() in
+              doit :=
+                (fun () ->
+                  FLOAT_LITERAL (x^y^z), stp, ep
+                );
+              true
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
+  end
+
+  | INT_LITERAL "0" when begin
       match self#peek_rawtoken() with
       | INT_LITERAL _ -> true
       | _ -> false
@@ -21924,9 +23622,10 @@ let conv_token (env : Aux.env) scanner (token : token) =
     DEBUG_MSG "@";
     let rt, _, ep = self#discard_token() in
     match rt with
-    | INT_LITERAL s' -> T.INT_LITERAL (s^s'), stp, ep
+    | INT_LITERAL s' -> T.INT_LITERAL ("0"^s'), stp, ep
     | _ -> assert false
   end
+
   | INT_LITERAL s when s <> "0" -> begin
       if env#asm_flag && not env#braced_asm_flag then begin
         match self#peek_rawtoken() with
@@ -21959,6 +23658,124 @@ let conv_token (env : Aux.env) scanner (token : token) =
   | PTR_STAR | PTR_AMP | PTR_AMP_AMP -> conv_ptr_op()
 
   | LBRACKET when env#asm_flag -> DEBUG_MSG "@"; token
+
+  | LBRACKET when begin
+      match prev_rawtoken with
+      | RBRACE | SEMICOLON _ | LBRACE -> begin
+          (
+           match context, sub_context with
+           | TOP, INI | STMT, START_OF_STMT _ -> true
+           | _ -> false
+          ) &&
+          match self#peek_rawtoken() with
+          | LBRACKET -> begin
+              DEBUG_MSG "@";
+              match self#peek_nth_rawtoken 2 with
+              | LBRACKET -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | LBRACKET -> begin
+                      match self#peek_nth_rawtoken 4 with
+                      | LBRACKET -> begin
+                          match self#peek_nth_rawtoken 5 with
+                          | LBRACKET -> begin
+                              match self#peek_nth_rawtoken 6 with
+                              | LBRACKET -> begin
+                                  let filt = function
+                                    | T.LBRACKET | IDENT _ | INT_LITERAL _ | EXCLAM _ | SLASH -> true
+                                    | RBRACKET -> true
+                                    | BAR_BAR "or" -> true
+                                    | _ -> false
+                                  in
+                                  try
+                                    let nth, l =
+                                      self#peek_rawtoken_up_to ~limit:32 ~filt ~from:7 [T.RBRACKET]
+                                    in
+                                    DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
+                                    match self#peek_nth_rawtoken (nth+1) with
+                                    | RBRACKET -> begin
+                                        match self#peek_nth_rawtoken (nth+2) with
+                                        | RBRACKET -> begin
+                                            match self#peek_nth_rawtoken (nth+3) with
+                                            | RBRACKET -> begin
+                                                match self#peek_nth_rawtoken (nth+4) with
+                                                | RBRACKET -> begin
+                                                    match self#peek_nth_rawtoken (nth+5) with
+                                                    | RBRACKET -> begin
+                                                        match self#peek_nth_rawtoken (nth+6) with
+                                                        | RBRACKET -> begin
+                                                            match self#peek_nth_rawtoken (nth+7) with
+                                                            | RBRACKET -> false
+                                                            | _ -> begin
+                                                                let buf = Buffer.create 0 in
+                                                                let _ = Buffer.add_string buf "[" in
+                                                                let last_rt = ref T.EOF in
+                                                                let last_ep = ref dummy_lexpos in
+                                                                for i = 1 to nth + 6 do
+                                                                  let rt, _, ep = self#discard_token() in
+                                                                  let r = Token.rawtoken_to_repr rt in
+                                                                  begin
+                                                                    match !last_rt, rt with
+                                                                    | EOF, _ -> ()
+                                                                    | LBRACKET, LBRACKET -> ()
+                                                                    | RBRACKET, RBRACKET -> ()
+                                                                    | _, SLASH | SLASH, _ -> ()
+                                                                    | _, EXCLAM _ -> ()
+                                                                    | _ -> Buffer.add_string buf " "
+                                                                  end;
+                                                                  Buffer.add_string buf r;
+                                                                  last_rt := rt;
+                                                                  last_ep := ep
+                                                                done;
+                                                                let line = Buffer.contents buf in
+                                                                match context, sub_context with
+                                                                | TOP, INI -> begin
+                                                                    doit :=
+                                                                      (fun () ->
+                                                                        T.DECL_MACRO line, stp, !last_ep
+                                                                      );
+                                                                    true
+                                                                end
+                                                                | STMT, START_OF_STMT _ -> begin
+                                                                    doit :=
+                                                                      (fun () ->
+                                                                        T.STMT_MACRO line, stp, !last_ep
+                                                                      );
+                                                                    true
+                                                                end
+                                                                | _ -> false
+                                                            end
+                                                        end
+                                                        | _ -> false
+                                                    end
+                                                    | _ -> false
+                                                end
+                                                | _ -> false
+                                            end
+                                            | _ -> false
+                                        end
+                                        | _ -> false
+                                    end
+                                    | _ -> false
+                                  with
+                                    _ -> false
+                              end
+                              | _ -> false
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
+  end
 
   | LBRACKET -> begin
       DEBUG_MSG "@";
@@ -22451,6 +24268,22 @@ let conv_token (env : Aux.env) scanner (token : token) =
     raise To_be_recovered
   end
 
+  | CONFLICT_MARKER(_, s) when begin
+      (
+       match context, sub_context with
+       | TOP, INI | STMT, START_OF_STMT _ -> true
+       | _ -> false
+      ) &&
+      Xstring.startswith s "<<<<<<<<<< " &&
+      Xstring.endswith s " >>>>>>>>>>"
+  end -> begin
+    DEBUG_MSG "@";
+    match context, sub_context with
+    | TOP, INI -> mk (T.DECL_MACRO s)
+    | STMT, START_OF_STMT _ -> mk (T.STMT_MACRO s)
+    | _ -> assert false
+  end
+
   | CONFLICT_MARKER(maker_flag, s) when begin
       env#keep_going && _is_conflict_marker_start s
   end -> begin
@@ -22668,8 +24501,11 @@ let conv_token (env : Aux.env) scanner (token : token) =
         mk T.BEGIN_ASM
       end
 
-      | _ when prev_rawtoken == COMMA && not env#pp_define_body_flag
-        -> DEBUG_MSG "@"; mk T.BASE_COLON
+      | _ when begin
+          prev_rawtoken == COMMA &&
+          not env#pp_define_body_flag &&
+          not env#dtor_flag
+      end -> DEBUG_MSG "@"; mk T.BASE_COLON
 
       | _ when begin
           env#class_name_flag && (env#at_brace || Stack.is_empty env#pstat#bracket_stack) &&
@@ -22877,6 +24713,18 @@ let conv_token (env : Aux.env) scanner (token : token) =
       | _ -> assert false
   end
 
+  | ELLIPSIS when begin
+      env#top_stmts_flag && env#rhs_flag &&
+      match self#peek_rawtoken() with
+      | TY_LPAREN -> begin
+          let nth, _ = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:2 () in
+          match self#peek_nth_rawtoken (nth+1) with
+          | SEMICOLON _ -> true
+          | _ -> false
+      end
+      | _ -> false
+  end -> DEBUG_MSG "@"; mk (T.IDENT_V "...")
+
   | ELLIPSIS when not env#pp_line_flag && begin
       match prev_rawtoken with
       | CHAR | CHAR8_T| CHAR16_T| CHAR32_T | WCHAR_T | BOOL | SHORT | INT | LONG
@@ -22891,6 +24739,67 @@ let conv_token (env : Aux.env) scanner (token : token) =
     (*| IDENT _ -> false*)
     | _ -> true
   end -> DEBUG_MSG "@"; mk T.ELLIPSIS_
+
+  | ELLIPSIS when begin
+      env#at_type_paren &&
+      env#param_head_flag &&
+      prev_rawtoken == COMMA &&
+      let nth, ll =
+        self#peek_rawtoken_up_to_rparen_split_at_comma ()
+      in
+      DEBUG_MSG "\n%s"
+        (String.concat "\n"
+           (List.map
+              (fun x -> String.concat ";"
+                  (List.map Token.rawtoken_to_string x)) ll));
+      match ll with
+      | [ELLIPSIS::tl] when begin
+          List.for_all
+            (function
+              | T.IDENT _ -> true
+              | _ -> false
+            ) tl
+      end -> begin
+        let xl = ref ["..."] in
+        let last_ep = ref dummy_lexpos in
+        for i = 1 to nth - 1 do
+          let rt, _, ep = self#discard_token() in
+          xl := (Token.rawtoken_to_repr rt) :: !xl;
+          last_ep := ep
+        done;
+        let line = String.concat " " (List.rev !xl) in
+        parse_warning env stp !last_ep "skipping: %s" line;
+        doit := (fun () -> T.PARAMS_MACRO line, stp, !last_ep);
+        true
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
+  end
+
+  | ELLIPSIS when begin
+      is_start_of_stmt() &&
+      try
+        let nth, l = self#peek_rawtoken_up_to ~limit:4 [T.ELLIPSIS] in
+        DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
+        let last_ep = ref dummy_lexpos in
+        for i = 1 to nth do
+          let _, _, ep = self#discard_token() in
+          last_ep := ep
+        done;
+        let line =
+          "..."^(String.concat " " (List.rev_map Token.rawtoken_to_repr l))^"..."
+        in
+        parse_warning env stp !last_ep "skipping: %s" line;
+        doit := (fun () -> T.STMT_MACRO line, stp, !last_ep);
+        true
+      with
+        _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
+  end
 
   | INT_LITERAL "0" when
       prev_rawtoken == EQ && (env#virtual_func_flag ||
@@ -22942,6 +24851,52 @@ let conv_token (env : Aux.env) scanner (token : token) =
   | USER_INT_LITERAL s when prev_rawtoken == TYPEDEF -> begin (* e.g. typedef 64BIT_INT_CUSTOM_TYPE ZPOS64_T; *)
       DEBUG_MSG "@";
       mk (T.IDENT s)
+  end
+
+  | FLOAT_LITERAL x when begin
+      DEBUG_MSG "x=%s" x;
+      match self#peek_rawtoken() with
+      | FLOAT_LITERAL y when (try y.[0] == '.' with _ -> false) -> begin
+          DEBUG_MSG "y=%s" y;
+          match self#peek_nth_rawtoken 2 with
+          | FLOAT_LITERAL z when (try z.[0] == '.' with _ -> false) -> begin
+              DEBUG_MSG "z=%s" z;
+              let _ = self#discard_token() in
+              let _, _, ep = self#discard_token() in
+              doit :=
+                (fun () ->
+                  FLOAT_LITERAL (x^y^z), stp, ep
+                );
+              true
+          end
+          | DOT -> begin
+              DEBUG_MSG "DOT";
+              match self#peek_nth_rawtoken 3 with
+              | PLUS -> begin
+                  DEBUG_MSG "PLUS";
+                  match self#peek_nth_rawtoken 4 with
+                  | FLOAT_LITERAL z when (try z.[0] == '.' with _ -> false) -> begin
+                      DEBUG_MSG "z=%s" z;
+                      let _ = self#discard_token() in
+                      let _ = self#discard_token() in
+                      let _ = self#discard_token() in
+                      let _, _, ep = self#discard_token() in
+                      doit :=
+                        (fun () ->
+                          FLOAT_LITERAL (x^y^".+"^z), stp, ep
+                        );
+                      true
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
   end
 
   | FLOAT_LITERAL x when begin
@@ -23340,6 +25295,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
           | _ -> assert false
         in
         let geti () =
+          env#set_cond_sub_info Pinfo.PP_INIT;
           match _rawtok with
           | PP_IF     -> mk T.PP_IF_I
           | PP_IFDEF  -> mk T.PP_IFDEF_I
@@ -23452,6 +25408,129 @@ let conv_token (env : Aux.env) scanner (token : token) =
               | PP_IFNDEF -> mk T.PP_IFNDEF_COND_
               | _ -> assert false
           end
+          | IDENT _ when begin
+              match self#peek_nth_rawtoken (nth+2) with
+              | TY_LPAREN -> begin
+                  let nth', ll' =
+                    self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+3) ()
+                  in
+                  match self#peek_nth_rawtoken (nth'+1) with
+                  | COLON -> begin
+                      let plv = ref 0 in
+                      let filt x =
+                        begin
+                          match x with
+                          | T.TY_LPAREN | LPAREN -> incr plv
+                          | RPAREN -> decr plv
+                          | _ -> ()
+                        end;
+                        false
+                      in
+                      let nth'', l'' =
+                        self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth'+1) ~filt ()
+                      in
+                      begin
+                        match l'' with
+                        | RPAREN::_ when !plv = -1 -> begin
+                            begin
+                              DEBUG_MSG "nth''=%d" nth'';
+                              match self#peek_nth_rawtoken nth'' with
+                              | PP_ENDIF _ -> begin
+                                  let n, _ = self#peek_rawtoken_up_to ~from:nth'' [T.NEWLINE] in
+                                  DEBUG_MSG "n=%d" n;
+                                  match self#peek_nth_rawtoken (n+1) with
+                                  | PP_IF | PP_IFDEF | PP_IFNDEF as pp_ifx -> begin
+                                      let n0, _ = self#peek_rawtoken_up_to ~from:(n+1) [T.NEWLINE] in
+                                      let plv0 = ref 0 in
+                                      let filt x =
+                                        begin
+                                          match x with
+                                          | T.TY_LPAREN | LPAREN -> incr plv0
+                                          | RPAREN -> decr plv0
+                                          | _ -> ()
+                                        end;
+                                        false
+                                      in
+                                      let nth0, l0 =
+                                        self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(n0+1) ~filt ()
+                                      in
+                                      match l0 with
+                                      | RPAREN::_ when !plv0 = -1 -> begin
+                                          parse_warning env stp edp "transforming #endif #if* into #elif";
+                                          DEBUG_MSG "transforming #endif #if* into #elif";
+                                          conv_nth_token
+                                            (function
+                                              | (T.PP_IFDEF|PP_IFNDEF),s,e -> T.PP_ELIF (ref ""),s,e
+                                              | x -> x
+                                            ) (n+1);
+                                          begin
+                                            match pp_ifx with
+                                            | PP_IFDEF | PP_IFNDEF -> begin
+                                                match self#peek_nth_rawtoken (n+2) with
+                                                | IDENT _ -> begin
+                                                    let _, _, e = self#peek_nth (n+1) in
+                                                    let tokl =
+                                                      match pp_ifx with
+                                                      | PP_IFDEF -> [T.DEFINED,e,e]
+                                                      | PP_IFNDEF -> [T.EXCLAM"!",e,e;DEFINED,e,e]
+                                                      | _ -> assert false
+                                                    in
+                                                    insert_after_nth_token (n+1) tokl
+                                                end
+                                                | _ -> ()
+                                            end
+                                            | _ -> ()
+                                          end;
+                                          let nth_list = ref [] in
+                                          for i = n downto nth'' do
+                                            nth_list := i :: !nth_list
+                                          done;
+                                          discard_tokens !nth_list;
+                                          self#prepend_token token;
+                                          raise To_be_recovered
+                                      end
+                                      | _ -> ()
+                                  end
+                                  | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt)
+                              end
+                              | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt)
+                            end;
+                            let nth_list = ref [] in
+                            let nth_list_ref_opt = Some nth_list in
+                            let nth''' =
+                              self#peek_rawtoken_up_to_section_end ~nth_list_ref_opt ()
+                            in
+                            if
+                              List.for_all
+                                (fun n ->
+                                  match self#peek_nth_rawtoken n with
+                                  | RPAREN -> true
+                                  | _ -> false
+                                ) !nth_list
+                            then begin
+                              let rt, _, e = self#peek_nth nth''' in
+                              DEBUG_MSG "rt=%s" (Token.rawtoken_to_string rt);
+                              insert_after_nth_token nth''' [T.RPAREN, e, e];
+                              discard_tokens !nth_list
+                            end
+
+                        end
+                        | _ -> ()
+                      end;
+                      true
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> begin
+            env#set_cond_expr_info();
+            match _rawtok with
+            | PP_IF     -> mk T.PP_IF_COND_
+            | PP_IFDEF  -> mk T.PP_IFDEF_COND_
+            | PP_IFNDEF -> mk T.PP_IFNDEF_COND_
+            | _ -> assert false
+          end
+
           | DOT | MINUS_GT when begin
               match self#peek_nth_rawtoken (nth+2) with
               | IDENT _ -> begin
@@ -23621,7 +25700,22 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | _ -> false
         end -> DEBUG_MSG "INT_LITERAL @"; gete()
 
-        | QUEST | BAR _ | PLUS | MINUS | STAR | SLASH | PERC -> DEBUG_MSG "(QUEST|...) @"; gete()
+        | QUEST | BAR _ -> DEBUG_MSG "(QUEST|...) @"; gete()
+
+        | PLUS | MINUS | STAR | SLASH | PERC when begin
+            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            let plv = ref 0 in
+            let filt = function
+              | T.TY_LPAREN | LPAREN -> incr plv; false
+              | RPAREN -> decr plv; false
+              | _ -> false
+            in
+            let _ =
+              self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt ()
+            in
+            DEBUG_MSG "plv=%d" !plv;
+            !plv >= 0
+        end -> DEBUG_MSG "(PLUS|...) @"; gete()
 
         | COLON when begin
             match prev_rawtoken2 with
@@ -23793,7 +25887,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     | HAT_EQ _ | AMP_EQ _ | BAR_EQ _ -> begin
                         begin
                           match (l' : T.token list) with
-                          | [IDENT _] -> conv_nth_token (function T.IDENT x,s,e -> T.IDENT_V x,s,e | x -> x) (nth+1)
+                          | [IDENT _] ->
+                              conv_nth_token
+                                (function T.IDENT x,s,e -> T.IDENT_V x,s,e | x -> x) (nth+1)
                           | _ -> ()
                         end;
                         true
@@ -23847,11 +25943,42 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
                 | _ -> false
             end -> DEBUG_MSG "NEWLINE @"; token
-            | _ -> begin
-                let _, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
+            | rt -> begin
+                let plv = ref 0 in
+                let filt = function
+                  | T.TY_LPAREN | LPAREN -> incr plv; false
+                  | RPAREN -> decr plv; false
+                  | _ -> false
+                in
+                let _, l =
+                  self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt ()
+                in
+                DEBUG_MSG "plv=%d" !plv;
                 match l with
-                | (T.BAR _|COLON)::_ -> DEBUG_MSG "NEWLINE @"; gete()
+                | T.BAR _::_ -> DEBUG_MSG "NEWLINE @"; gete()
+                | T.COLON::rest -> begin
+                    DEBUG_MSG "NEWLINE @";
+                    if list_memqn [T.QUEST] rest then begin
+                      env#set_cond_expr__info()
+                    end;
+                    gete()
+                end
                 | T.SEMICOLON _::_ -> DEBUG_MSG "NEWLINE @"; token
+                | _ when begin
+                    rt != COMMA &&
+                    !plv = 0 &&
+                    (
+                     try
+                       let info = env#pp_if_section_nth_info 2 in
+                       match info.Pinfo.i_cond_sub with
+                       | PP_INIT -> false
+                       | _ -> true
+                     with _ -> true
+                    ) &&
+                    match l with
+                    | COMMA::_ -> false
+                    | _ -> true
+                end -> DEBUG_MSG "NEWLINE @"; _gete()
                 | _ ->
                     match rev_skip_pp_l l with
                     | Some (T.BAR _|COLON) -> DEBUG_MSG "NEWLINE @"; gete()
@@ -23878,6 +26005,31 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
                 | _ -> false
             end -> DEBUG_MSG "NEWLINE @"; token
+
+            | SEMICOLON _ when begin
+                match self#peek_nth_rawtoken (nth+2) with
+                | PP_ELIF _ | PP_ELSE _ -> begin
+                    let nth', _ = self#peek_rawtoken_up_to ~from:(nth+2) [T.NEWLINE] in
+                    match self#peek_nth_rawtoken (nth'+1) with
+                    | BAR _ -> begin
+                        let nth'' =
+                          self#peek_rawtoken_up_to_section_end ~from:(nth+1) ()
+                        in
+                        begin
+                          match self#peek_nth_rawtoken (nth''+1) with
+                          | RBRACE -> begin
+                              let _, _, ep = self#peek_nth nth'' in
+                              insert_after_nth_token nth'' [T.SEMICOLON false,ep,ep]
+                          end
+                          | _ -> ()
+                        end;
+                        true
+                    end
+                    | _ -> false
+                end
+                | _ -> false
+            end -> DEBUG_MSG "NEWLINE @"; getb()
+
             | _ -> begin
                 DEBUG_MSG "NEWLINE @";
                 if env#objc_protocol_ref_flag then
@@ -24395,7 +26547,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
         | LBRACE when context == STMT && begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
-            | IF -> false
+            | IF | FOR -> false
             | _ ->
             let nth', l' = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
             match self#peek_nth_rawtoken (nth'-1) with
@@ -24527,7 +26679,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             token
         end
 
-        | SEMICOLON _ when context == STMT && begin
+        | SEMICOLON _ | LBRACE when is_start_of_stmt() && begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
             | x when is_stmt_head x -> begin
@@ -24625,7 +26777,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 cond0 || cond1
             end
             | _ -> false
-        end -> DEBUG_MSG "SEMICOLON @ (RETURN|...)"; (!doit)()
+        end -> begin
+          DEBUG_MSG "SEMICOLON @ (RETURN|...)";
+          if self#dump_stats_flag then begin
+            self#incr_count "broken pp-branch"
+          end;
+          (!doit)()
+        end
 
         | RPAREN | CONST when env#end_of_params_flag && begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
@@ -24650,6 +26808,34 @@ let conv_token (env : Aux.env) scanner (token : token) =
             DEBUG_MSG "nth=%d" nth;
             match self#peek_nth_rawtoken (nth+1) with
             | IDENT x -> begin
+                match self#peek_nth_rawtoken (nth+2) with
+                | PP_ELIF _ | PP_ELSE _ -> begin
+                    let nth' =
+                      self#peek_rawtoken_up_to_section_end ~from:(nth+1) ()
+                    in
+                    match self#peek_nth_rawtoken (nth'+1) with
+                    | TY_LPAREN -> begin
+                        let nth'', ll'' =
+                          self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth'+2) ()
+                        in
+                        match self#peek_nth_rawtoken (nth''+1) with
+                        | LBRACE | SEMICOLON _ -> check_if_params ~weak:true ll''
+                        | _ -> false
+                    end
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> DEBUG_MSG "(CHAR|...) @"; _gete()
+
+        | CHAR | CHAR8_T| CHAR16_T| CHAR32_T | WCHAR_T | BOOL | SHORT | INT | LONG
+        | FLOAT | DOUBLE | VOID | TYPE_MACRO _ | CONST | VOLATILE | UNSIGNED | SIGNED | STATIC
+        | NEWLINE | SEMICOLON _ | RBRACE when begin
+            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            DEBUG_MSG "nth=%d" nth;
+            match self#peek_nth_rawtoken (nth+1) with
+            | IDENT x -> begin
                 (self#peek_nth_rawtoken (nth+2) == TY_LPAREN) && begin
                   let filt = function
                     | T.IDENT y -> y = x
@@ -24662,13 +26848,29 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     DEBUG_MSG "nth'=%d" nth';
                     match self#peek_nth_rawtoken (nth'-1) with
                     | RPAREN -> begin
+                        let doit_set = ref false in
                         let nth'' =
-                          if is_pp_endif (self#peek_nth_rawtoken nth') then
-                            let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
-                            n
-                          else
-                            self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
+                          match self#peek_nth_rawtoken nth' with
+                          | PP_ENDIF _ -> begin
+                              let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
+                              n
+                          end
+                          | PP_ELIF _ | PP_ELSE _ -> begin
+                              begin
+                                let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
+                                match self#peek_nth_rawtoken (n+1) with
+                                | IDENT _ -> begin
+                                    match self#peek_nth_rawtoken (n+2) with
+                                    | IDENT _ -> doit := (fun () -> token); doit_set := true
+                                    | _ -> ()
+                                end
+                                | _ -> ()
+                              end;
+                              self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
+                          end
+                          | _ -> self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
                         in
+                        DEBUG_MSG "doit_set=%B" !doit_set;
                         DEBUG_MSG "nth''=%d" nth'';
                         try
                           match self#peek_nth_rawtoken (nth''+1) with
@@ -24680,6 +26882,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
                               DEBUG_MSG "@";
                               conv_nth_token
                                 (function T.TY_LPAREN,s,e -> T.PS_LPAREN,s,e | x -> x) (nth+1);
+                              if not !doit_set then
+                                doit := _gete;
                               true
                           end
                           | _ -> false
@@ -24690,7 +26894,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 end
             end
             | _ -> false
-        end -> DEBUG_MSG "(CHAR|...) @"; _gete()
+        end -> DEBUG_MSG "(CHAR|...) @"; (!doit)()
 
         | PTR_STAR when begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
@@ -24943,7 +27147,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
               getattr()
             end
 
-            | _ -> DEBUG_MSG "@"; getd()
+            | RBRACE -> DEBUG_MSG "@"; token
+
+            | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt); getd()
         end
 
         | NEWLINE when begin
@@ -25178,7 +27384,45 @@ let conv_token (env : Aux.env) scanner (token : token) =
             DEBUG_MSG "@";
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             let _, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
-            if list_memqn [T.EQ] l || not (list_memqn [T.TY_LPAREN;LPAREN;RPAREN] l) then begin
+            if
+              list_memqn [T.EQ] l ||
+              not (list_memqn [T.TY_LPAREN;LPAREN;RPAREN] l) ||
+              sub_context == END_OF_TY_SPEC &&
+              let nth_ = self#peek_rawtoken_up_to_section_end ~from:(nth+1) () in
+              match self#peek_nth_rawtoken (nth_+1) with
+              | x when is_pp_control_line x -> begin
+                  let nth__ = skip_pp_control_line ~from:(nth_+1) () in
+                  match self#peek_nth_rawtoken (nth__+1) with
+                  | IDENT _ -> begin
+                      match self#peek_nth_rawtoken (nth__+2) with
+                      | LBRACKET -> begin
+                          match self#peek_nth_rawtoken (nth__+3) with
+                          | RBRACKET -> begin
+                              match self#peek_nth_rawtoken (nth__+4) with
+                              | EQ -> true
+                              | _ -> false
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken (nth_+2) with
+                  | LBRACKET -> begin
+                      match self#peek_nth_rawtoken (nth_+3) with
+                      | RBRACKET -> begin
+                          match self#peek_nth_rawtoken (nth_+4) with
+                          | EQ -> true
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+            then begin
               DEBUG_MSG "COMMA @";
               geti()
             end
@@ -25188,7 +27432,70 @@ let conv_token (env : Aux.env) scanner (token : token) =
             end
         end
 
-        | STR_LITERAL _ when not env#asm_flag -> DEBUG_MSG "STR_LITERAL @"; gets()
+        | STR_LITERAL _ when not env#asm_flag -> begin
+            DEBUG_MSG "STR_LITERAL @";
+            let plv = ref 0 in
+            let min_plv = ref 0 in
+            let blv = ref 0 in
+            let min_blv = ref 0 in
+            let filt = function
+              | T.LPAREN | TY_LPAREN -> incr plv; false
+              | T.RPAREN -> begin
+                  decr plv;
+                  if !plv < !min_plv then
+                    min_plv := !plv;
+                  false
+              end
+              | T.LBRACE -> incr blv; false
+              | T.RBRACE -> begin
+                  decr blv;
+                  if !blv < !min_blv then
+                    min_blv := !blv;
+                  false
+              end
+              | _ -> false
+            in
+            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            let nth_, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~filt ~from:(nth+1) () in
+            if
+              List.exists
+                (function
+                  | T.STR_LITERAL _ | IDENT _ -> false
+                  | _ -> true
+                ) l
+            then begin
+              DEBUG_MSG "@";
+              let common_suffix, nth_list, sect_end_nth, __mk =
+                get_common_suffix ~rparen_only:false ~rparen_max:(-(!plv)) nth_ l
+              in
+
+              if sect_end_nth > 0 then begin
+                let len = List.length common_suffix in
+
+                DEBUG_MSG "common_suffix=%s (%d)"
+                  (String.concat ";" (List.map Token.rawtoken_to_string common_suffix)) len;
+
+                let to_be_discarded = ref [] in
+                List.iter
+                  (fun nth ->
+                    to_be_discarded := nth :: !to_be_discarded;
+                    for i = 1 to len - 1 do
+                      to_be_discarded := (nth - i) :: !to_be_discarded
+                    done
+                  ) nth_list;
+                let to_be_discarded = !to_be_discarded in
+                DEBUG_MSG "to_be_discarded=[%s]" (String.concat ";" (List.map string_of_int to_be_discarded));
+                insert_after_nth_token ~to_be_discarded sect_end_nth (List.map __mk common_suffix);
+                List.iter
+                  (function
+                    | T.RPAREN -> incr min_plv
+                    | _ -> ()
+                  ) common_suffix;
+                DEBUG_MSG "min_plv -> %d" !min_plv
+              end
+            end;
+            gets()
+        end
 
         | LPAREN | COMMA when begin
             not env#asm_flag && env#at_arg_paren &&
@@ -25232,15 +27539,105 @@ let conv_token (env : Aux.env) scanner (token : token) =
         end -> begin
           DEBUG_MSG "@";
           let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
-          let _, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
+          let plv = ref 0 in
+          let pp_flag = ref false in
+          let last_rt = ref T.EOF in
+          let filt x =
+            begin
+              match x with
+              | T.PP_IF | PP_IFDEF | PP_IFNDEF | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
+                  pp_flag := true
+              end
+              | NEWLINE when !pp_flag -> begin
+                  pp_flag := false
+              end
+              | TY_LPAREN | LPAREN -> begin
+                  incr plv;
+                  if not !pp_flag then
+                    last_rt := x
+              end
+              | RPAREN -> begin
+                  decr plv;
+                  if not !pp_flag then
+                    last_rt := x
+              end
+              | _ ->
+                  if not !pp_flag then
+                    last_rt := x
+            end;
+            false
+          in
+          let nth', l =
+            self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt ()
+          in
+          DEBUG_MSG "plv=%d" !plv;
+          DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
+          DEBUG_MSG "last_rt=%s" (Token.rawtoken_to_string !last_rt);
           match (l : T.token list) with
           | (BAR _|COLON)::_ -> DEBUG_MSG "(COMMA|NEWLINE) @"; gete()
           | COMMA::_ when env#macro_arg_flag -> DEBUG_MSG "(COMMA|NEWLINE) @"; gete()
-          | COMMA::tl when (env#at_arg_paren || env#_arg_paren_flag && env#at_ini_brace) && Xlist.last tl != DOT
-            -> DEBUG_MSG "(COMMA|NEWLINE) @"; _gete()
+          | COMMA::tl when begin
+              (env#at_arg_paren || env#_arg_paren_flag && env#at_ini_brace) &&
+              Xlist.last tl != DOT
+          end -> DEBUG_MSG "(COMMA|NEWLINE) @"; _gete()
           | SEMICOLON _::_ -> DEBUG_MSG "(COMMA|NEWLINE) @"; token
-          | _ when is_start_of_stmt() && not env#braced_init_flag
-            -> DEBUG_MSG "(COMMA|NEWLINE) @"; token
+          | _ when begin
+              is_start_of_stmt() &&
+              not env#braced_init_flag
+          end -> DEBUG_MSG "(COMMA|NEWLINE) @"; token
+
+          | _ when begin
+              !plv = 0 &&
+              not env#braced_init_flag &&
+              (
+               match self#peek_nth_rawtoken (nth+1) with
+               | COMMA -> false
+               | LBRACE -> false
+               | _ -> true
+              ) &&
+              (
+               try
+                 let info = env#pp_if_section_nth_info 2 in
+                 match info.Pinfo.i_cond_sub with
+                 | PP_INIT -> false
+                 | _ -> true
+               with _ -> true
+              ) &&
+              (
+               match !last_rt with
+               | COMMA -> false
+               | _ -> true
+              ) &&
+              match l with
+              | COMMA::_ -> false
+              | [STR_LITERAL _] -> false
+              | _ ->
+                  let nth'' =
+                    if is_pp_endif (self#peek_nth_rawtoken nth') then
+                      let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
+                      n
+                    else
+                      self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
+                  in
+                  match self#peek_nth_rawtoken (nth''+1) with
+                  | IDENT _ when !last_rt == RPAREN -> false
+                  | LBRACKET -> false
+                  | _ -> true
+          end -> DEBUG_MSG "(COMMA|NEWLINE) @"; _gete()
+
+          | _ when begin
+              let nth'' =
+                if is_pp_endif (self#peek_nth_rawtoken nth') then
+                  let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
+                  n
+                else
+                  self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
+              in
+              match self#peek_nth_rawtoken (nth''+1) with
+              | QUEST -> true
+              | _ -> false
+          end -> DEBUG_MSG "(COMMA|NEWLINE) @"; _gete()
+
           | _ ->
               match rev_skip_pp_l l with
               | Some (BAR _|COLON) -> DEBUG_MSG "(COMMA|NEWLINE) @"; gete()
@@ -25391,6 +27788,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
         end -> DEBUG_MSG "@"; getd()
 
         | _ when begin
+            DEBUG_MSG "@";
             not env#asm_flag &&
             prev_rawtoken != EXTERN &&
             not (is_semicolon prev_rawtoken) &&
@@ -25439,7 +27837,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             DEBUG_MSG "(%d+1)-th token -> %s"
               nth (Token.rawtoken_to_string (self#peek_nth_rawtoken (nth+1)));
 
-            let nth_, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~filt () ~from:(nth+1) in
+            let nth_, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~filt ~from:(nth+1) () in
             DEBUG_MSG "nth_=%d" nth_;
 
             let rev_l = List.rev l in
@@ -25457,7 +27855,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             then begin
               DEBUG_MSG "@";
               let common_suffix, nth_list, sect_end_nth, __mk =
-                get_common_suffix ~rparen_only:true ~rparen_max:(-(!plv)) nth_ l
+                get_common_suffix(* ~rparen_only:true*) ~rparen_max:(-(!plv)) nth_ l
               in
 
               if sect_end_nth > 0 then begin
@@ -25511,6 +27909,27 @@ let conv_token (env : Aux.env) scanner (token : token) =
               DEBUG_MSG "@";
               getclop()
             end
+
+            else if
+              !min_plv = -1 && !plv = -1 &&
+              !min_blv = 0 && !blv = 0 &&
+              match self#peek_nth_rawtoken nth_ with
+              | PP_ENDIF _ -> begin
+                  match l with
+                  | [RPAREN] -> false
+                  | RPAREN::_ -> true
+                  | _ -> false
+              end
+              | _ -> false
+            then begin
+              let _, sp, ep = self#peek_nth (nth_-1) in
+              parse_warning env sp ep "shifting a closing parenthesis";
+              let n, _ = self#peek_rawtoken_up_to ~from:nth_ [T.NEWLINE] in
+              let _, _, ep = self#peek_nth n in
+              insert_after_nth_token ~to_be_discarded:[nth_-1] n [T.RPAREN,ep,ep];
+              gete()
+            end
+
             else if !min_plv < 0 then begin
               DEBUG_MSG "@";
               let closing =
@@ -25564,6 +27983,21 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | (PTR_AMP|BAR _|COLON|LT_LT|GT_GT)::_ -> DEBUG_MSG "@"; gete()
             | PTR_AMP_AMP::_ -> DEBUG_MSG "@"; geta()
             | BAR_BAR _::_ -> DEBUG_MSG "@"; geto()
+            | IDENT "NULL"::EXCLAM_EQ _::IDENT x::_ when begin
+                match self#peek_nth_rawtoken nth_ with
+                | PP_ENDIF _ -> begin
+                    let n, _ = self#peek_rawtoken_up_to ~from:nth_ [T.NEWLINE] in
+                    match self#peek_nth_rawtoken (n+1) with
+                    | IDENT y when y = x -> begin
+                        let _, _, ep = self#peek_nth (nth_-1) in
+                        parse_warning env ep ep "lack of &&";
+                        insert_after_nth_token (nth_-1) [T.AMP_AMP_BROKEN "&&", ep, ep];
+                        true
+                    end
+                    | _ -> false
+                end
+                | _ -> false
+            end -> DEBUG_MSG "@"; geta()
             | _ -> begin
                 DEBUG_MSG "@";
                 let head_opt = ref None in
@@ -25600,22 +28034,32 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
                 | _ ->
                     DEBUG_MSG "@";
+                    let nth, _ = self#peek_rawtoken_up_to ~from:2 [T.NEWLINE] in
                     if
                       env#at_arg_paren &&
                       (match prev_rawtoken with
                       | LPAREN | COMMA -> true
                       | _ -> not env#stack#in_lambda_body) &&
                       (context == EXPR || context == TOP && env#paren_level > 1) &&
-                      let nth, _ = self#peek_rawtoken_up_to ~from:2 [T.NEWLINE] in
                       self#peek_nth_rawtoken (nth+1) != QUEST
                     then begin
                       DEBUG_MSG "@";
-                      geti()
+                      let nth', _ =
+                        self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
+                      let nth'' =
+                        if is_pp_endif (self#peek_nth_rawtoken nth') then
+                          let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
+                          n
+                        else
+                          self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
+                      in
+                      match try self#peek_nth_rawtoken (nth''+1) with _ -> T.EOF with
+                      | x when _is_bop x -> getp()
+                      | _ -> geti()
                     end
                     else if
                       env#lambda_intro_flag && env#at_bracket &&
                       (prev_rawtoken == COMMA ||
-                      let nth, _ = self#peek_rawtoken_up_to ~from:2 [T.NEWLINE] in
                       self#peek_nth_rawtoken (nth+1) == COMMA)
                     then begin
                       DEBUG_MSG "@";
@@ -25624,7 +28068,6 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     else if
                       env#_arg_paren_flag &&
                       (context == EXPR || context == STMT && sub_context == INI) &&
-                      let nth, _ = self#peek_rawtoken_up_to ~from:2 [T.NEWLINE] in
                       match self#peek_nth_rawtoken (nth+1) with
                       | COMMA -> true
                       | _ -> false
@@ -25640,7 +28083,6 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       | IDENT_V _ | PTR_STAR | PTR_AMP | PTR_AMP_AMP | PARAM_DECL_MACRO _ -> true
                       | NEWLINE -> false
                       | _ when begin
-                          let nth, _ = self#peek_rawtoken_up_to ~from:2 [T.NEWLINE] in
                           match self#peek_nth_rawtoken (nth+1) with
                           | COMMA -> true
                           | _ -> false
@@ -25894,6 +28336,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
                 match common_prefix_rev with
                 | [TY_LPAREN] -> begin
+                    if self#dump_stats_flag then begin
+                      self#incr_count "broken pp-branch";
+                    end;
                     let len = List.length common_prefix_rev in
                     let to_be_discarded = ref [] in
                     List.iter
@@ -25947,7 +28392,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | _ -> false
         end -> DEBUG_MSG "@"; gete()*)
 
-        | LT_LT | GT_GT -> DEBUG_MSG "@"; gete()
+        | LT_LT | GT_GT -> DEBUG_MSG "(LT_LT|GT_GT) @"; gete()
 
         | _ when begin
             env#braced_init_flag &&
@@ -25963,6 +28408,15 @@ let conv_token (env : Aux.env) scanner (token : token) =
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
             | LBRACKET when self#peek_nth_rawtoken (nth+2) == LBRACKET -> false
+            | DOT when begin
+                is_start_of_stmt() &&
+                is_stmt_head (self#peek_nth_rawtoken (nth+2))
+            end -> begin
+              DEBUG_MSG "is this DOT garbage?";
+              let _ = self#discard_nth_token (nth+1) in
+              self#prepend_token token;
+              raise To_be_recovered
+            end
             | DOT | LBRACKET | BAR _ -> true
             | COLON -> env#in_body_brace_flag
             | LBRACE -> context == EXPR
@@ -26005,6 +28459,45 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | IDENT x when is_attr_macro_ident x -> true
             | _ -> false
         end -> DEBUG_MSG "IDENT_V @"; _gete()
+
+        | SEMICOLON _ when begin
+            context == MEM && sub_context == INI &&
+            env#at_class_brace &&
+            let nth, l = self#peek_rawtoken_up_to [T.NEWLINE] in
+            match self#peek_nth_rawtoken (nth+1) with
+            | RBRACE -> begin
+                match self#peek_nth_rawtoken (nth+2) with
+                | IDENT _ -> begin
+                    let nth_head_list = ref [] in
+                    let nth_head_list_ref_opt = Some nth_head_list in
+                    let _ =
+                      self#peek_rawtoken_up_to_section_end ~nth_head_list_ref_opt ()
+                    in
+                    let b =
+                      List.for_all
+                        (fun n ->
+                          DEBUG_MSG "%d-th" n;
+                          match self#peek_nth_rawtoken n with
+                          | RBRACE -> begin
+                              match self#peek_nth_rawtoken (n+1) with
+                              | IDENT _ -> true
+                              | _ -> false
+                          end
+                          | _ -> false
+                        ) !nth_head_list
+                    in
+                    if b then
+                      discard_tokens !nth_head_list;
+                    b
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> begin
+          DEBUG_MSG "SEMICOLON @";
+          self#prepend_token (geti());
+          mk T.RBRACE
+        end
 
         | _ when env#brace_level > 0 -> begin
             DEBUG_MSG "@";
@@ -26079,6 +28572,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
               false
             in
             let nth_, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt () in
+            DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
 
             (*let nth_, l =
               match l with
@@ -26248,6 +28742,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
             else if
               match prev_rawtoken with
               | AMP_AMP _ -> true
+              | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _
+              | LT_LT_EQ | GT_GT_EQ | EQ -> true
               | _ -> false
             then begin
               match l with
@@ -26459,7 +28955,9 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   prev_rawtoken == NEWLINE &&
                   is_pp_else prev_rawtoken2 &&
                   try
-                    (env#pp_if_section_nth_info 2).Pinfo.i_label == InitDeclarator
+                    match (env#pp_if_section_nth_info 2).Pinfo.i_label with
+                    | InitDeclarator _ -> true
+                    | _ -> false
                   with
                     _ -> false
               end -> DEBUG_MSG "@"; geti()
@@ -26501,8 +28999,8 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   DEBUG_MSG "@"; getc()*)
 
               | _ -> begin
-                  DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
-                  match Xlist.last l with
+                  let last_l = Xlist.last l in
+                  match last_l with
                   | EQ when sub_context == END_OF_TY_SPEC -> DEBUG_MSG "@"; geti()
 
                   | LT_LT | EQ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ | PERC_EQ
@@ -26576,6 +29074,169 @@ let conv_token (env : Aux.env) scanner (token : token) =
                     getbroken()
                   end
 
+                  | _ when !blv - ini_blv = 1 && !plv - ini_plv = 0 && begin
+                      DEBUG_MSG "nth_=%d" nth_;
+                      match self#peek_nth_rawtoken nth_ with
+                      | PP_ENDIF _ -> begin
+                          let n0, _ = self#peek_rawtoken_up_to ~from:nth_ [T.NEWLINE] in
+                          DEBUG_MSG "n0=%d" n0;
+                          match self#peek_nth_rawtoken (n0+1) with
+                          | PP_IF | PP_IFDEF | PP_IFNDEF as pp_ifx -> begin
+                              let n1, _ = self#peek_rawtoken_up_to ~from:(n0+1) [T.NEWLINE] in
+                              let plv1 = ref 0 in
+                              let blv1 = ref 0 in
+                              let filt x =
+                                begin
+                                  match x with
+                                  | T.TY_LPAREN -> incr plv1
+                                  | RPAREN -> decr plv1
+                                  | LBRACE -> incr blv1
+                                  | RBRACE -> decr blv1
+                                  | _ -> ()
+                                end;
+                                false
+                              in
+                              let _ =
+                                self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(n1+1) ~filt ()
+                              in
+                              DEBUG_MSG "plv1=%d blv1=%d" !plv1 !blv1;
+                              let b = !plv1 = 0 && !blv1 = 1 in
+                              if b then begin
+                                DEBUG_MSG "@";
+                                doit :=
+                                  (fun () ->
+                                    parse_warning env stp edp "transforming #endif #if* into #elif";
+                                    DEBUG_MSG "transforming #endif #if* into #elif";
+
+                                    conv_nth_token
+                                      (function
+                                        | (T.PP_IFDEF|PP_IFNDEF),s,e -> T.PP_ELIF (ref ""),s,e
+                                        | x -> x
+                                      ) (n0+1);
+                                    begin
+                                      match pp_ifx with
+                                      | PP_IFDEF | PP_IFNDEF -> begin
+                                          match self#peek_nth_rawtoken (n0+2) with
+                                          | IDENT _ -> begin
+                                              let _, _, e = self#peek_nth (n0+1) in
+                                              let tokl =
+                                                match pp_ifx with
+                                                | PP_IFDEF -> [T.DEFINED,e,e]
+                                                | PP_IFNDEF -> [T.EXCLAM"!",e,e;DEFINED,e,e]
+                                                | _ -> assert false
+                                              in
+                                              insert_after_nth_token (n0+1) tokl
+                                          end
+                                          | _ -> ()
+                                      end
+                                      | _ -> ()
+                                    end;
+                                    let nth_list = ref [] in
+                                    for i = n0 downto nth_ do
+                                      nth_list := i :: !nth_list
+                                    done;
+                                    discard_tokens !nth_list;
+                                    self#prepend_token token;
+                                    raise To_be_recovered
+                                  )
+                              end;
+                              b
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end -> begin
+                    DEBUG_MSG "@";
+                    (!doit)()
+                  end
+
+                  | IDENT _ | ELSE when begin
+                      DEBUG_MSG "@";
+                      (
+                       match last_l with
+                       | IDENT x -> begin
+                           let _x = String.lowercase_ascii x in
+                           _x = "if" || _x = "we" || _x = "the" || _x = "this"
+                       end
+                       | _ -> begin
+                           list_memqn [T.MINUS_MINUS] l
+                       end
+                      ) &&
+                      let is_word = function
+                        | T.IDENT _ | BOOL_LITERAL _ -> true
+                        | _ -> false
+                      in
+                      let q = (new Xqueue.c : T.token Xqueue.c) in
+                      List.iter q#add (List.rev l);
+                      try
+                        while true do
+                          let rt = q#take in
+                          DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
+                          match rt with
+                          | MINUS_MINUS -> begin
+                              match q#peek with
+                              | MINUS_MINUS | MINUS -> begin
+                                  match q#peek_nth 2 with
+                                  | IDENT _ -> begin
+                                      match q#peek_nth 3 with
+                                      | x when is_word x -> begin
+                                          match q#peek_nth 4 with
+                                          | x when is_word x -> begin
+                                              match q#peek_nth 5 with
+                                              | x when is_word x -> begin
+                                                  DEBUG_MSG "@";
+                                                  raise Found
+                                              end
+                                              | _ -> ()
+                                          end
+                                          | _ -> ()
+                                      end
+                                      | _ -> ()
+                                  end
+                                  | _ -> ()
+                              end
+                              | _ -> ()
+                          end
+                          | IDENT _ -> begin
+                              match q#peek with
+                              | x when is_word x -> begin
+                                  match q#peek_nth 2 with
+                                  | x when is_word x -> begin
+                                      match q#peek_nth 3 with
+                                      | x when is_word x -> begin
+                                          match q#peek_nth 4 with
+                                          | x when is_word x -> begin
+                                              DEBUG_MSG "@";
+                                              raise Found
+                                          end
+                                          | _ -> ()
+                                      end
+                                      | _ -> ()
+                                  end
+                                  | _ -> ()
+                              end
+                              | _ -> ()
+                          end
+                          | PP_IF | PP_IFDEF | PP_IFNDEF -> raise Exit
+                          | _ -> ()
+                        done;
+                        false
+                      with
+                      | Found -> true
+                      | _ -> false
+                  end -> begin
+                    DEBUG_MSG "@";
+                    parse_warning env stp edp "generating #error for tokens: %s"
+                      (String.concat " " (List.rev_map Token.rawtoken_to_repr l));
+
+                    let _, st, _ = self#peek_nth nth_ in
+                    insert_after_nth_token (nth_-1) [T.NEWLINE,st,st];
+                    let _, _, ed = self#peek_nth nth in
+                    insert_after_nth_token nth [T.PP_ERROR,ed,ed];
+
+                    token
+                  end
+
                   | _ -> begin
                       DEBUG_MSG "@";
                       begin
@@ -26592,6 +29253,35 @@ let conv_token (env : Aux.env) scanner (token : token) =
                             end
                             | _ -> ()
                         end
+                        | IDENT _ -> begin
+                            let plv = ref 0 in
+                            let filt = function
+                              | T.TY_LPAREN -> incr plv; false
+                              | RPAREN -> decr plv; false
+                              | _ -> false
+                            in
+                            let n, l =
+                              self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt ()
+                            in
+                            match l with
+                            | SEMICOLON _::_ when !plv = 1 -> begin
+                                match self#peek_nth_rawtoken n with
+                                | PP_ENDIF _ -> begin
+                                    let nth', _ = self#peek_rawtoken_up_to ~from:n [T.NEWLINE] in
+                                    match self#peek_nth_rawtoken (nth'+1) with
+                                    | x when is_stmt_head x -> begin
+                                        DEBUG_MSG "lack of a closing parenthesis";
+                                        parse_warning env stp edp "complementing with a closing parenthesis";
+                                        let rt, _, e = self#peek_nth (n-2) in
+                                        DEBUG_MSG "rt=%s" (Token.rawtoken_to_string rt);
+                                        insert_after_nth_token (n-2) [T.RPAREN,e,e]
+                                    end
+                                    | _ -> ()
+                                end
+                                | _ -> ()
+                            end
+                            | _ -> ()
+                        end
                         | _ -> ()
                       end;
                       token
@@ -26605,9 +29295,24 @@ let conv_token (env : Aux.env) scanner (token : token) =
         | _ when env#top_stmts_flag && prev_rawtoken == COMMA -> DEBUG_MSG "@"; gete()
 
         | _ when begin
-            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            let nth, _ = self#peek_rawtoken_up_to ~skip_pp_control_line:true [T.NEWLINE] in
+            DEBUG_MSG "%d: %s" (nth+1) (Token.rawtoken_to_string (self#peek_nth_rawtoken (nth+1)));
             match self#peek_nth_rawtoken (nth+1) with
             | EQ when sub_context == END_OF_ID_EXPR -> true
+            | IDENT _ when begin
+                sub_context == END_OF_TY_SPEC &&
+                match self#peek_nth_rawtoken (nth+2) with
+                | LBRACKET -> begin
+                    match self#peek_nth_rawtoken (nth+3) with
+                    | RBRACKET -> begin
+                        match self#peek_nth_rawtoken (nth+4) with
+                        | EQ -> true
+                        | _ -> false
+                    end
+                    | _ -> false
+                end
+                | _ -> false
+            end -> true
             | _ -> false
         end -> DEBUG_MSG "@"; geti()
 
@@ -26638,18 +29343,174 @@ let conv_token (env : Aux.env) scanner (token : token) =
                 try
                   let _ = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) ~filt () in
                   DEBUG_MSG "brace_level: %d -> %d" ini_blv !blv;
-                  !blv > ini_blv
+                  !blv > ini_blv &&
+                  let n1 = self#peek_rawtoken_up_to_section_end ~from:(nth+1) () in
+                  not (self#is_func_head ~from:(n1+1) ())
                 with
                   Exit -> false
             end
             | _ -> false
         end -> DEBUG_MSG "@"; getd()
 
-        | SEMICOLON _ | NEWLINE when begin
-            env#old_param_decl_flag &&
+        | SEMICOLON _ | RBRACE | NEWLINE when begin
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             match self#peek_nth_rawtoken (nth+1) with
-            | x when is_ty x -> true
+            | x when env#old_param_decl_flag && is_ty x -> true
+            | STRUCT when env#old_param_decl_flag -> true
+            | IDENT _ -> begin
+                match self#peek_nth_rawtoken (nth+2) with
+                | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
+
+                    let nth', _ = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(nth+1) () in
+                    let nth'' =
+                      if is_pp_endif (self#peek_nth_rawtoken nth') then
+                        let n, _ = self#peek_rawtoken_up_to ~from:nth' [T.NEWLINE] in
+                        n
+                      else
+                        self#peek_rawtoken_up_to_section_end ~from:(nth'+1) ()
+                    in
+                    match self#peek_nth_rawtoken (nth''+1) with
+                    | x when is_ty x -> begin
+                        match self#peek_nth_rawtoken (nth''+2) with
+                        | IDENT _ -> begin
+                            match self#peek_nth_rawtoken (nth''+3) with
+                            | TY_LPAREN -> begin
+                                let nth''', ll =
+                                  self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth''+4) ()
+                                in
+                                match self#peek_nth_rawtoken (nth'''+1) with
+                                | x when begin
+                                    (
+                                     is_ty x ||
+                                     match x with
+                                     | STRUCT -> true
+                                     | _ -> false
+                                    ) &&
+                                    List.for_all
+                                      (function
+                                        | [T.IDENT _] -> true
+                                        | _ -> false
+                                      ) ll
+                                end -> true
+                                | LBRACE -> true
+                                | _ -> false
+                            end
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end
+                    | IDENT _ -> begin
+                        match self#peek_nth_rawtoken (nth''+2) with
+                        | TY_LPAREN -> begin
+                            let nth''', ll =
+                              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth''+3) ()
+                            in
+                            match self#peek_nth_rawtoken (nth'''+1) with
+                            | x when begin
+                                (
+                                 is_ty x ||
+                                 match x with
+                                 | STRUCT -> true
+                                 | _ -> false
+                                ) &&
+                                List.for_all
+                                  (function
+                                    | [T.IDENT _] -> true
+                                    | _ -> false
+                                  ) ll
+                            end -> true
+                            | LBRACE -> true
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end
+                    | _ -> false
+                end
+                | IDENT _ when begin
+                    env#old_param_decl_flag &&
+                    match self#peek_nth_rawtoken (nth+3) with
+                    | SEMICOLON _ -> true
+                    | _ -> false
+                end -> true
+
+                | x when is_ty x && begin
+                    match self#peek_nth_rawtoken (nth+3) with
+                    | IDENT _ when begin
+                        match self#peek_nth_rawtoken (nth+4) with
+                        | TY_LPAREN -> begin
+                            let n0, ll0 =
+                              self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+5) ()
+                            in
+                            List.for_all (function [T.IDENT _] -> true | _ -> false) ll0 &&
+                            let rt = self#peek_nth_rawtoken (n0+1) in
+                            match rt with
+                            | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
+                                let n1 =
+                                  if is_pp_endif rt then
+                                    let n, _ = self#peek_rawtoken_up_to ~from:(n0+1) [T.NEWLINE] in
+                                    n
+                                  else
+                                    self#peek_rawtoken_up_to_section_end ~from:(n0+2) ()
+                                in
+                                match self#peek_nth_rawtoken (n1+1) with
+                                | x when is_ty x -> true
+                                | STRUCT -> true
+                                | IDENT _ when begin
+                                    match self#peek_nth_rawtoken (n1+2) with
+                                    | IDENT _ -> begin
+                                        match self#peek_nth_rawtoken (n1+3) with
+                                        | SEMICOLON _ -> true
+                                        | _ -> false
+                                    end
+                                    | _ -> false
+                                end -> true
+                                | _ -> false
+                            end
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end -> true
+                    | _ -> false
+                end -> true
+
+                | IDENT _ when begin
+                    match self#peek_nth_rawtoken (nth+3) with
+                    | TY_LPAREN -> begin
+                        let n0, ll0 =
+                          self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(nth+4) ()
+                        in
+                        List.for_all (function [T.IDENT _] -> true | _ -> false) ll0 &&
+                        let rt = self#peek_nth_rawtoken (n0+1) in
+                        match rt with
+                        | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
+                            let n1 =
+                              if is_pp_endif rt then
+                                let n, _ = self#peek_rawtoken_up_to ~from:(n0+1) [T.NEWLINE] in
+                                n
+                              else
+                                self#peek_rawtoken_up_to_section_end ~from:(n0+2) ()
+                            in
+                            match self#peek_nth_rawtoken (n1+1) with
+                            | x when is_ty x -> true
+                            | STRUCT -> true
+                            | IDENT _ when begin
+                                match self#peek_nth_rawtoken (n1+2) with
+                                | IDENT _ -> begin
+                                    match self#peek_nth_rawtoken (n1+3) with
+                                    | SEMICOLON _ -> true
+                                    | _ -> false
+                                end
+                                | _ -> false
+                            end -> true
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end
+                    | _ -> false
+                end -> true
+
+                | _ -> false
+            end
             | _ -> false
         end -> DEBUG_MSG "(SEMICOLON|NEWLINE) @"; getd()
 
@@ -26671,6 +29532,25 @@ let conv_token (env : Aux.env) scanner (token : token) =
             | COMMA | IDENT _ -> true
             | _ -> false
         end -> DEBUG_MSG "(COMMA|NEWLINE|LT) @"; geti()
+
+        | RBRACE when env#end_of_class_spec_flag && begin
+            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            match self#peek_nth_rawtoken (nth+1) with
+            | IDENT _ -> begin
+                match self#peek_nth_rawtoken (nth+2) with
+                | SEMICOLON _ -> true
+                | EQ -> true
+                | LBRACKET -> begin
+                    let n, _ = self#peek_rawtoken_up_to_rbracket ~from:(nth+3) () in
+                    match self#peek_nth_rawtoken (n+1) with
+                    | SEMICOLON _ -> true
+                    | EQ -> true
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> DEBUG_MSG "RBRACE @"; geti()
 
         | _ when env#class_name_flag && begin
             try
@@ -26698,12 +29578,69 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   DEBUG_MSG "to_be_discarded=[%s]" (String.concat ";" (List.map string_of_int to_be_discarded));
                   insert_after_nth_token ~to_be_discarded sect_end_nth (List.map __mk common_suffix);
 
+                  if self#dump_stats_flag then begin
+                    self#incr_count "broken pp-branch"
+                  end;
+
                   true
               end
               | _ -> false
             with
               Abort -> false
         end -> DEBUG_MSG "@"; token
+
+        | _ when begin
+            env#end_of_broken_decl_section_flag && env#end_of_params_flag &&
+            let nth_list = ref [] in
+            let nth =
+              self#peek_rawtoken_up_to_section_end ~nth_list_ref_opt:(Some nth_list) ~from:2 ()
+            in
+            match self#peek_nth_rawtoken (nth+1) with
+            | LBRACE -> begin
+                List.iter
+                  (fun n ->
+                    insert_after_nth_token n [mk T.SECTION_MARKER]
+                  ) !nth_list;
+                true
+            end
+            | _ -> false
+        end -> DEBUG_MSG "@"; token
+
+        | IDENT x when begin
+            is_type x &&
+            let n0, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            match self#peek_nth_rawtoken (n0+1) with
+            | IDENT _ -> begin
+                match self#peek_nth_rawtoken (n0+2) with
+                | TY_LPAREN -> begin
+                    let n1, l1 = self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(n0+3) () in
+                    match self#peek_nth_rawtoken (n1+1) with
+                    | x when is_ty x -> true
+                    | STRUCT -> true
+                    | IDENT _ -> true
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ -> false
+        end -> DEBUG_MSG "IDENT @ IDENT TY_LPAREN ... RPAREN IDENT"; _gete()
+
+        | _ when begin
+            env#top_stmts_flag &&
+            context == STMT && is_start_of_stmt() &&
+            let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            let nth_ = self#skip_pp (nth+1) in
+            self#is_func_head ~from:(nth_+1) ()
+        end -> begin
+          DEBUG_MSG "@";
+          self#prepend_token token;
+          if env#end_of_if_head_flag then begin
+            self#prepend_token (mk T.END_STMTS);
+            mk T.DUMMY_STMT
+          end
+          else
+            mk T.END_STMTS
+        end
 
         | _ -> DEBUG_MSG "@"; token
       end
@@ -26741,6 +29678,59 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
   | PP_ELIF x when env#pp_odd_flag -> DEBUG_MSG "@"; mk (T.PP_ODD_ELIF (!x))
   | PP_ELSE x when env#pp_odd_flag -> DEBUG_MSG "@"; mk (T.PP_ODD_ELSE (!x))
+
+  | PP_ELSE x when begin
+      is_start_of_stmt() &&
+      env#brace_level > 0 &&
+      env#in_body_brace_level = 0 && env#in_body_brace_flag &&
+      begin
+        match prev_rawtoken with
+        | SEMICOLON _ -> true
+        | _ -> false
+      end &&
+      begin
+        match self#prev_indent_rawtoken with
+        | head when begin
+            DEBUG_MSG "head=%s" (Token.rawtoken_to_string head);
+            let n, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+            match self#peek_nth_rawtoken (n+1) with
+            | head' when begin
+                DEBUG_MSG "head'=%s" (Token.rawtoken_to_string head');
+                match head', head with
+                | (IDENT i|IDENT_V i), (IDENT j|IDENT_V j) -> i = j
+                | _ -> false
+            end -> true
+            | _ -> false
+        end -> true
+        | _ -> false
+      end &&
+      try
+        let blv = ref 0 in
+        let min_blv = ref 0 in
+        let filt = function
+          | T.LBRACE -> incr blv; false
+          | T.RBRACE -> begin
+              decr blv;
+              if !blv < !min_blv then
+                min_blv := !blv;
+              false
+          end
+          | _ -> false
+        in
+        let nth, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~filt () in
+        DEBUG_MSG "blv=%d, min_blv=%d" !blv !min_blv;
+        if !min_blv < 0 then begin
+          min_blv := !min_blv + env#pstat#canceled_brace_level_marker;
+          DEBUG_MSG "min_blv -> %d" !min_blv
+        end;
+        match self#peek_nth_rawtoken nth with
+        | PP_ENDIF _ when begin
+            !min_blv < 0
+        end -> true
+        | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt); false
+      with
+      | Abort -> false
+  end -> DEBUG_MSG "@"; mk (T.PP_ODD_ELSE !x)
 
   (*| PP_ELSE _ when begin
       let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
@@ -26896,6 +29886,46 @@ let conv_token (env : Aux.env) scanner (token : token) =
     parse_warning env stp edp "closing statement context";
     self#prepend_token token;
     mk T.END_STMTS
+  end
+
+  | PP_ELSE _ when begin
+      try
+        let info = env#pp_if_section_top_info in
+        info.Pinfo.i_paren_closing &&
+        let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+        match self#peek_nth_rawtoken (nth+1) with
+        | PP_ENDIF _ -> begin
+            let nth', _ = self#peek_rawtoken_up_to ~from:(nth+1) [T.NEWLINE] in
+            match self#peek_nth_rawtoken (nth'+1) with
+            | IDENT _ -> begin
+                match self#peek_nth_rawtoken (nth'+2) with
+                | RPAREN -> begin
+                    match self#peek_nth_rawtoken (nth'+3) with
+                    | SEMICOLON _ -> begin
+                        DEBUG_MSG "@";
+                        doit :=
+                          (fun () ->
+                            let t0 = self#discard_nth_token (nth'+3) in (* ; *)
+                            let t1 = self#discard_nth_token (nth'+2) in (* ) *)
+                            let t2 = self#discard_nth_token (nth'+1) in (* x *)
+                            insert_after_nth_token nth [t2; t1; t0];
+                            token
+                          );
+                        true
+                    end
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt); false
+        end
+        | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt); false
+      with
+        _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    parse_warning env stp edp "wrong parenthesis-closing pp-branch";
+    (!doit)()
   end
 
   | PP_ELSE _ | PP_ELIF _ -> begin
@@ -27160,7 +30190,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
             if lv > 0 && not stmt_flag && ok then begin
               DEBUG_MSG "putting brace_level(%d)" lv;
-              self#prepend_token (mk (T.BRACE_LEVEL lv))
+              self#prepend_token (mk (T.BRACE_LEVEL(lv, unbalanced_flag)))
             end;
 
             (*DEBUG_MSG "putting NEWLINE";
@@ -27270,6 +30300,21 @@ let conv_token (env : Aux.env) scanner (token : token) =
   end
 
   | PP_ENDIF _ when begin
+      try
+        env#get_cond_expr__info() &&
+        match prev_rawtoken with
+        | COLON -> false
+        | COND_MARKER -> false
+        | _ -> true
+      with _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    self#prepend_token token;
+    self#prepend_token (mk T.COND_MARKER);
+    raise To_be_recovered
+  end
+
+  | PP_ENDIF _ when begin
       (
        self#peek_rawtoken() == EOF ||
        try
@@ -27334,6 +30379,19 @@ let conv_token (env : Aux.env) scanner (token : token) =
         then begin
           DEBUG_MSG "inserting END_ASM";
           insert_after_nth_token nth [mk T.END_ASM]
+        end
+        else if
+          env#asm_block_flag &&
+          env#pp_if_section_level > 0 &&
+          not (env#get_asm_info()) &&
+          match self#peek_nth_rawtoken (nth+1) with
+          | DOT -> true
+          | _ -> false
+        then begin
+          DEBUG_MSG "inserting END_ASM";
+          self#prepend_token token;
+          self#prepend_token (mk T.END_ASM);
+          raise To_be_recovered
         end
       end;
 
@@ -27609,6 +30667,67 @@ let conv_token (env : Aux.env) scanner (token : token) =
             env#open_brace();
           end;
 
+          if
+            sub_context == END_OF_TY_SPEC &&
+            (
+             let b =
+               try
+                 let info2 = env#pp_if_section_nth_info 2 in
+                 info2.Pinfo.i_sub_context != END_OF_TY_SPEC
+               with
+                 _ -> true
+             in
+             DEBUG_MSG "b=%B" b;
+             b
+            )
+          then begin
+            match prev_rawtoken with
+            | COMMA | NEWLINE -> begin
+                DEBUG_MSG "@";
+                let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
+                match self#peek_nth_rawtoken (nth+1) with
+                | IDENT _ -> begin
+                    match self#peek_nth_rawtoken (nth+2) with
+                    | LBRACKET -> begin
+                        match self#peek_nth_rawtoken (nth+3) with
+                        | RBRACKET -> begin
+                            match self#peek_nth_rawtoken (nth+4) with
+                            | EQ -> begin
+                                DEBUG_MSG "@";
+                                insert_after_nth_token nth [mk T.SECTION_MARKER]
+                            end
+                            | _ -> ()
+                        end
+                        | _ -> ()
+                    end
+                    | _ -> ()
+                end
+                | x when is_pp_control_line x -> begin
+                    let nth_ = skip_pp_control_line ~from:(nth+1) () in
+                    match self#peek_nth_rawtoken (nth_+1) with
+                    | IDENT _ -> begin
+                        match self#peek_nth_rawtoken (nth_+2) with
+                        | LBRACKET -> begin
+                            match self#peek_nth_rawtoken (nth_+3) with
+                            | RBRACKET -> begin
+                                match self#peek_nth_rawtoken (nth_+4) with
+                                | EQ -> begin
+                                    DEBUG_MSG "@";
+                                    insert_after_nth_token nth [mk T.SECTION_MARKER]
+                                end
+                                | _ -> ()
+                            end
+                            | _ -> ()
+                        end
+                        | _ -> ()
+                    end
+                    | _ -> ()
+                end
+                | _ -> ()
+            end
+            | _ -> ()
+          end;
+
           DEBUG_MSG "pp_if_section_level:%d" env#pp_if_section_level;
           env#exit_pp_if_section();
           DEBUG_MSG "pp_if_section_level:%d" env#pp_if_section_level;
@@ -27697,6 +30816,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
       DEBUG_MSG "mem_decl_flag=%B" mem_decl_flag;
       DEBUG_MSG "stmt_head_flag=%B" stmt_head_flag;
       let is_invalid_rt_seq l =
+        DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
         let q = (new Xqueue.c : T.token Xqueue.c) in
         List.iter q#add (List.rev l);
         let plv = ref 0 in
@@ -27751,14 +30871,18 @@ let conv_token (env : Aux.env) scanner (token : token) =
                   end
                   | _ -> ()
               end
-              | IDENT _ -> begin
+              | IDENT x0 -> begin
                   match q#peek with
-                  | IDENT _ -> begin
+                  | IDENT x1 -> begin
                       match q#peek_nth 2 with
-                      | IDENT _ -> begin
+                      | IDENT x2 -> begin
                           match q#peek_nth 3 with
                           | IDENT _ -> DEBUG_MSG "@"; raise Found
-                          | _ -> ()
+                          | _ ->
+                              if x1 = "must" && x2 = "be" then begin
+                                DEBUG_MSG "@";
+                                raise Found
+                              end
                       end
                       | _ -> ()
                   end
@@ -27816,6 +30940,19 @@ let conv_token (env : Aux.env) scanner (token : token) =
                       | IDENT _ -> true
                       | _ -> false
                   end
+                  | IDENT "scale" -> begin
+                      match self#peek_nth_rawtoken 2 with
+                      | EQ -> begin
+                          match self#peek_nth_rawtoken 3 with
+                          | INT_LITERAL _ -> begin (* bc code? *)
+                              match self#peek_nth_rawtoken 4 with
+                              | IDENT _ -> true
+                              | _ -> false
+                          end
+                          | _ -> false
+                      end
+                      | _ -> false
+                  end
                   | _ -> false
               end
               | START_OF_STMT _ -> begin
@@ -27868,6 +31005,29 @@ let conv_token (env : Aux.env) scanner (token : token) =
       end -> begin
         DEBUG_MSG "@";
         match self#peek_rawtoken() with
+        | IDENT x when begin
+            x = "$Log" &&
+            match self#peek_nth_rawtoken 2 with
+            | COLON -> true
+            | _ -> false
+        end -> true
+        | IDENT _ when begin
+            match prev_rawtoken with
+            | IDENT _ -> begin
+                match prev_rawtoken2 with
+                | PP_IFDEF -> begin
+                    match self#peek_nth_rawtoken 2 with
+                    | COLON -> true
+                    | _ -> false
+                end
+                | _ -> false
+            end
+            | _ when self#peek_nth_rawtoken 2 == COLON -> begin
+                let nth, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) () in
+                is_invalid_rt_seq l
+            end
+            | _ -> false
+        end -> true
         | IDENT x when is_type_name x || is_type x || is_decl_spec_macro x -> false
         | OBJC_UNKNOWN _ -> begin
             match self#peek_nth_rawtoken 2 with
@@ -28015,11 +31175,30 @@ let conv_token (env : Aux.env) scanner (token : token) =
       | _ when begin
           DEBUG_MSG "@";
           let nth, l = self#peek_rawtoken_up_to_group_end ~limit:(-1) () in
-          if0_flag && is_invalid_rt_seq l
+          (
+           if0_flag ||
+           let last_rt = ref T.EOF in
+           try
+             List.iter
+               (fun rt ->
+                 last_rt := rt;
+                 match (rt : T.token) with
+                 | CONFLICT_MARKER _ | GT_7 _ -> raise Found
+                 | TEMPLATE -> raise Found
+                 | _ -> ()
+               ) l;
+             match !last_rt with
+             | PP_INCLUDE | PP_DEFINE | PP_UNDEF | PP_IF | PP_IFDEF | PP_IFNDEF -> false
+             | _ -> true
+           with
+             Found -> false
+          ) &&
+          is_invalid_rt_seq l
       end -> true
 
       | _ -> false
   end -> begin
+    DEBUG_MSG "@";
     begin
       try
         let until = function
@@ -28038,7 +31217,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
             marker_flag := true;
           let t =
             match rt with
-            | PP_IF | PP_IFDEF | PP_IFNDEF | PP_ELIF _ | PP_ENDIF _ ->
+            | PP_IF | PP_IFDEF | PP_IFNDEF | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ ->
                 T.IDENT (Token.rawtoken_to_repr rt), sp, ep
             | NEWLINE -> T.IDENT "\n", sp, ep
             | _ -> t
@@ -28127,6 +31306,169 @@ let conv_token (env : Aux.env) scanner (token : token) =
     | _ -> token
   end
 
+  | NEWLINE when begin (* ONLY for libpng *)
+      match self#peek_rawtoken() with
+      | IDENT "C" -> begin
+          match self#peek_nth_rawtoken 2 with
+          | DQ -> begin
+              match self#peek_nth_rawtoken 3 with
+              | RPAREN -> begin
+                  match self#peek_nth_rawtoken 4 with
+                  | SEMICOLON _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    parse_warning env stp edp "missing double quotation mark";
+    let rt, _, _ = self#discard_token() in (* IDENT *)
+    let _, _, ep = self#discard_token() in (* DQ *)
+    let t = (T.STR_LITERAL ("\""^(Token.rawtoken_to_repr rt)^"\"")), stp, ep in
+    self#prepend_token t;
+    token
+  end
+
+  | NEWLINE when begin
+      match prev_rawtoken with
+      | BAR _ -> begin
+          match self#peek_rawtoken() with
+          | IDENT s -> begin
+              try
+                let nd = env#find_resolved_macro s in
+                match nd#label with
+                | ObjectLikeMacro -> begin
+                    match nd#children with
+                    | [c] when begin
+                        match c#label with
+                        | IntegerLiteral _ -> begin
+                            match self#peek_nth_rawtoken 2 with
+                            | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> true
+                            | _ -> false
+                        end
+                        | _ -> false
+                    end -> true
+                    | _ -> false
+                end
+                | _ -> false
+              with
+                _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    parse_warning env stp edp "lack of line concatenation";
+    let t = self#discard_token() in
+    self#prepend_token token;
+    t
+  end
+
+  | MINUS_MINUS when begin
+      match prev_rawtoken with
+      | RBRACE | SEMICOLON _ | LBRACE -> begin
+          (
+           match context, sub_context with
+           | TOP, INI | STMT, START_OF_STMT _ -> true
+           | _ -> false
+          ) &&
+          match self#peek_rawtoken() with
+          | MINUS_MINUS -> begin
+              match self#peek_nth_rawtoken 2 with
+              | MINUS_MINUS -> begin
+                  match self#peek_nth_rawtoken 3 with
+                  | MINUS -> begin
+                      let filt = function
+                        | T.MINUS_MINUS | IDENT _ | INT_LITERAL _ | EXCLAM _ | SLASH -> true
+                        | BAR_BAR "or" -> true
+                        | _ -> false
+                      in
+                      let eat count =
+                        let buf = Buffer.create 0 in
+                        let _ = Buffer.add_string buf "--" in
+                        let last_rt = ref T.EOF in
+                        let last_ep = ref dummy_lexpos in
+                        for i = 1 to count do
+                          let rt, _, ep = self#discard_token() in
+                          let r = Token.rawtoken_to_repr rt in
+                          begin
+                            match !last_rt, rt with
+                            | EOF, _ -> ()
+                            | MINUS_MINUS, (MINUS_MINUS|MINUS) -> ()
+                            | _, SLASH | SLASH, _ -> ()
+                            | _, EXCLAM _ -> ()
+                            | _ -> Buffer.add_string buf " "
+                          end;
+                          Buffer.add_string buf r;
+                          last_rt := rt;
+                          last_ep := ep
+                        done;
+                        let line = Buffer.contents buf in
+                        match context, sub_context with
+                        | TOP, INI -> begin
+                            doit :=
+                              (fun () ->
+                                T.DECL_MACRO line, stp, !last_ep
+                              );
+                            true
+                        end
+                        | STMT, START_OF_STMT _ -> begin
+                            doit :=
+                              (fun () ->
+                                if self#is_func_head ~from:1 () then begin
+                                  for i = 1 to env#in_body_brace_level + 1 do
+                                    self#prepend_token (T.RBRACE, !last_ep, !last_ep)
+                                  done
+                                end;
+                                T.STMT_MACRO line, stp, !last_ep
+                              );
+                            true
+                        end
+                        | _ -> false
+                      in
+                      try
+                        let nth, l =
+                          self#peek_rawtoken_up_to ~limit:16 ~filt ~from:4 [T.MINUS_MINUS]
+                        in
+                        DEBUG_MSG "l=%s" (String.concat ";" (List.map Token.rawtoken_to_string l));
+                        match self#peek_nth_rawtoken (nth+1) with
+                        | MINUS_MINUS -> begin
+                            match self#peek_nth_rawtoken (nth+2) with
+                            | MINUS_MINUS -> begin
+                                match self#peek_nth_rawtoken (nth+3) with
+                                | MINUS_MINUS -> begin
+                                    match self#peek_nth_rawtoken (nth+4) with
+                                    | MINUS_MINUS -> begin
+                                        match self#peek_nth_rawtoken (nth+5) with
+                                        | MINUS_MINUS | MINUS -> false
+                                        | _ -> eat (nth+4)
+                                    end
+                                    | _ -> eat (nth+3)
+                                end
+                                | _ -> false
+                            end
+                            | _ -> false
+                        end
+                        | _ -> false
+                      with
+                        _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
+  end
+
   | MINUS_MINUS when begin
       self#peek_rawtoken() == MINUS_MINUS &&
       match sub_context with
@@ -28209,10 +31551,13 @@ let conv_token (env : Aux.env) scanner (token : token) =
       match self#peek_nth_rawtoken (nth+1) with
       | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> true
       | _ -> false
-  end -> mk T.COMMA_BROKEN
+  end -> DEBUG_MSG "@"; mk T.COMMA_BROKEN
 
   | COMMA when begin
-      env#paren_level > 0 && env#at_arg_paren && not env#asm_flag &&
+      env#paren_level > 0 &&
+      env#at_arg_paren &&
+      env#at_paren_2 &&
+      not env#asm_flag &&
       match self#peek_rawtoken() with
       | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
           let info = env#pp_if_section_top_info in
@@ -28222,7 +31567,22 @@ let conv_token (env : Aux.env) scanner (token : token) =
           | _ -> false
       end
       | _ -> false
-  end -> mk T.COMMA_BROKEN
+  end -> DEBUG_MSG "@"; mk T.COMMA_BROKEN2
+
+  | COMMA when begin
+      env#paren_level > 0 &&
+      env#at_arg_paren &&
+      not env#asm_flag &&
+       match self#peek_rawtoken() with
+      | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
+          let info = env#pp_if_section_top_info in
+          info.Pinfo.i_context == STMT &&
+          match info.Pinfo.i_sub_context with
+          | INI | START_OF_STMT _ -> true
+          | _ -> false
+      end
+      | _ -> false
+  end -> DEBUG_MSG "@"; mk T.COMMA_BROKEN
 
   | COMMA when begin
       match self#peek_rawtoken() with
@@ -28240,7 +31600,24 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
   | COMMA when env#macro_arg_flag -> begin
       DEBUG_MSG "@";
-      let nth, ll = self#peek_rawtoken_up_to_rparen_split_at_comma ~ignore_templ_lv:true () in
+      let filt =
+        if env#at_macro_arg_paren && env#at_brace_2 then
+          fun tl -> begin
+            if list_memqn [T.RBRACE] tl then
+              raise Abort
+            else
+              false
+          end
+        else
+          fun _ -> false
+      in
+
+      let nth, ll =
+        try
+          self#peek_rawtoken_up_to_rparen_split_at_comma ~filt ~ignore_templ_lv:true ()
+        with
+          Abort -> 0, []
+      in
       let l =
         match ll with
         | [] -> []
@@ -28295,7 +31672,12 @@ let conv_token (env : Aux.env) scanner (token : token) =
 
   | COMMA when env#at_type_paren -> begin
       DEBUG_MSG "@";
-      if prev_rawtoken != TY_LPAREN && self#peek_rawtoken() == RPAREN then begin
+      if
+        not env#asm_block_flag &&
+        prev_rawtoken != TY_LPAREN &&
+        self#peek_rawtoken() == RPAREN
+      then begin
+        DEBUG_MSG "inserting DUMMY_TYPE";
         self#prepend_token (mk T.DUMMY_TYPE)
       end;
       token
@@ -28418,6 +31800,7 @@ let conv_token (env : Aux.env) scanner (token : token) =
               end -> false
               | _ -> true
           end
+          | RBRACE when env#in_body_brace_level > 0 -> true
           | _ -> false
       end
       | _ -> false
@@ -28431,6 +31814,24 @@ let conv_token (env : Aux.env) scanner (token : token) =
     DEBUG_MSG "complementing expression with dummy expression";
     self#prepend_token token;
     _mk T.DUMMY_EXPR
+  end
+
+  | INT_LITERAL _ | FLOAT_LITERAL _ when begin
+      match prev_rawtoken with
+      | EOF -> begin
+          match self#peek_rawtoken() with
+          | COMMA -> begin
+              match self#peek_nth_rawtoken 2 with
+              | x when is_literal x -> true
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | _ -> false
+  end -> begin
+    DEBUG_MSG "inserting INI_LBRACE";
+    self#prepend_token token;
+    mk T.INI_LBRACE
   end
 
   | EOF when env#asm_block_flag -> begin
@@ -28453,6 +31854,69 @@ let conv_token (env : Aux.env) scanner (token : token) =
       DEBUG_MSG "lack of block end";
       self#prepend_token token;
       mk (T.BLOCK_END_MACRO "")
+  end
+
+  | DQ when begin
+      parse_warning env stp edp "line-terminator in string literal";
+      let is_target =
+        if env#pp_line_flag then
+          function
+            | T.NEWLINE -> true
+            | _ -> false
+        else
+          fun _ -> false
+      in
+      try
+        let nth, _ = self#peek_rawtoken_up_to ~limit:(-1) ~is_target [T.DQ] in
+        let rt = self#peek_nth_rawtoken nth in
+        DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
+        let buf = Buffer.create 0 in
+        let last_ep = ref edp in
+        let last_repr = ref "" in
+        if rt == T.DQ then begin
+          for i = 1 to nth do
+            let rt, _, ep = self#discard_token() in
+            if rt != DQ then begin
+              let repr = Token.rawtoken_to_repr rt in
+              begin
+                if !last_repr <> "" then
+                  match rt with
+                  | DOT | COMMA | COLON | SEMICOLON _ -> ()
+                  | _ -> Buffer.add_string buf " "
+              end;
+              Buffer.add_string buf repr;
+              last_ep := ep;
+              last_repr := repr
+            end
+          done;
+          doit :=
+            (fun () ->
+              T.STR_LITERAL ("\""^(Buffer.contents buf)^"\""), stp, !last_ep);
+          true
+        end
+        else begin
+          for i = 1 to nth - 1 do
+            let rt, _, ep = self#discard_token() in
+            let repr = Token.rawtoken_to_repr rt in
+            begin
+              if !last_repr <> "" then
+                match rt with
+                | DOT | COMMA | COLON | SEMICOLON _ -> ()
+                | _ -> Buffer.add_string buf " "
+            end;
+            Buffer.add_string buf repr;
+            last_ep := ep;
+            last_repr := repr
+          done;
+          doit :=
+            (fun () ->
+              T.STR_LITERAL ("\""^(Buffer.contents buf)), stp, !last_ep);
+          true
+        end
+      with _ -> false
+  end -> begin
+    DEBUG_MSG "@";
+    (!doit)()
   end
 
   | _ -> token
@@ -28499,6 +31963,9 @@ module F (Stat : Aux.STATE_T) = struct
 
     val mutable dump_tokens_flag = false
 
+    val mutable dump_stats_flag = false
+    val stats_tbl = Hashtbl.create 0
+
     val mutable mode = (M_NORMAL : mode)
 
     val mutable context = C.TOP
@@ -28508,6 +31975,12 @@ module F (Stat : Aux.STATE_T) = struct
     val mutable prev_endln = 0
     val mutable prev_stp = dummy_lexpos
     val mutable prev_edp = dummy_lexpos
+    val mutable prev_indent = 0
+    val mutable prev_indent_rawtoken = T.EOF
+    val mutable prev_indent_rawtoken_prev = T.EOF
+    val mutable prev_indent2 = 0
+    val mutable prev_indent_rawtoken2 = T.EOF
+
     val mutable prev_rawtoken = T.EOF
     val mutable prev_rawtoken2 = T.EOF
     val mutable prev_rawtoken3 = T.EOF
@@ -28516,6 +31989,7 @@ module F (Stat : Aux.STATE_T) = struct
     val mutable sstat = new sstat
 
     val mutable current_token = T.EOF, dummy_lexpos, dummy_lexpos
+    val mutable _current_rawtoken = T.EOF
 
     val context_stack = Stack.create()
     val sub_context_stack = Stack.create()
@@ -28745,6 +32219,7 @@ module F (Stat : Aux.STATE_T) = struct
                   DEBUG_MSG "s=%s" s;
                   s = "9interface"(* MIDL? *)
               end -> true
+              | SimpleTy sty when not weak && spec#is_local -> false
               | SimpleTy sty when not weak -> begin
                   not (Pinfo.Type.simple_ty_has_definite_ty sty)
               end
@@ -28835,6 +32310,12 @@ module F (Stat : Aux.STATE_T) = struct
     method prev_endofs = prev_endofs
     method prev_endln = prev_endln
     method prev_edp = prev_edp
+    method prev_indent = prev_indent
+    method prev_indent_rawtoken = prev_indent_rawtoken
+    method prev_indent_rawtoken_prev = prev_indent_rawtoken_prev
+    method prev_indent2 = prev_indent2
+    method prev_indent_rawtoken2 = prev_indent_rawtoken2
+
     method prev_rawtoken = prev_rawtoken
     method prev_rawtoken2 = prev_rawtoken2
     method prev_rawtoken3 = prev_rawtoken3
@@ -28855,6 +32336,8 @@ module F (Stat : Aux.STATE_T) = struct
 
     method current_token = current_token
 
+    method _current_rawtoken = _current_rawtoken
+
     method current_loc =
       let _, st, ed = current_token in
       env#current_pos_mgr#lexposs_to_loc ~get_position:false st ed
@@ -28874,6 +32357,9 @@ module F (Stat : Aux.STATE_T) = struct
     method set_token_hist_flag () = token_hist_flag <- true
 
     method set_dump_tokens_flag () = dump_tokens_flag <- true
+
+    method dump_stats_flag = dump_stats_flag
+    method set_dump_stats_flag () = dump_stats_flag <- true
 
     method pp_restore_context () =
       try
@@ -29324,16 +32810,27 @@ module F (Stat : Aux.STATE_T) = struct
       in
       peek_rawtoken_up_to()
 
-    method peek_rawtoken_up_to_section_end ?(nth_list_ref_opt=None) ?(from=1) () =
+    method peek_rawtoken_up_to_section_end
+        ?(nth_head_list_ref_opt=None)
+        ?(nth_list_ref_opt=None)
+        ?(from=1)
+        ()
+        =
       let nth = ref from in
       let add_nth =
         match nth_list_ref_opt with
         | Some r -> fun x -> r := x :: !r
         | None -> fun _ -> ()
       in
+      let add_nth_head =
+        match nth_head_list_ref_opt with
+        | Some r -> fun x -> r := x :: !r
+        | None -> fun _ -> ()
+      in
       try
         while true do
           let n0, _ = self#peek_rawtoken_up_to ~from:(!nth) [T.NEWLINE] in
+          add_nth_head (n0+1);
           let n1, _ = self#peek_rawtoken_up_to_group_end ~limit:(-1) ~from:(n0+1) () in
           nth := n1 + 1;
           match self#peek_nth_rawtoken n1 with
@@ -29829,11 +33326,31 @@ module F (Stat : Aux.STATE_T) = struct
     method conv_next_n_tokens conv n =
       DEBUG_MSG "converting next %d tokens" n;
       let l = ref [] in
+      let skip_flag =
+        let b =
+          let rt = self#_current_rawtoken in
+          DEBUG_MSG "current_rawtoken=%s" (Token.rawtoken_to_string rt);
+          match rt with
+          | PP_IF | PP_IFDEF | PP_IFNDEF | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> true
+          | _ -> false
+        in
+        ref b
+      in
+      DEBUG_MSG "skip_flag=%B" !skip_flag;
       for i = 1 to n do
         let _rt,_,_ as _t = self#discard_token() in
-        let rt,_,_ as t = conv _t in
-        DEBUG_MSG "%d: %s -> %s" i (Token.rawtoken_to_string _rt) (Token.rawtoken_to_string rt);
-        l := t::!l
+        match _rt with
+        | PP_IF | PP_IFDEF | PP_IFNDEF
+        | PP_ELIF _ | PP_ELSE _ | PP_ENDIF _ -> begin
+            skip_flag := true;
+            l := _t::!l
+        end
+        | NEWLINE -> skip_flag := false; l := _t::!l
+        | _ when !skip_flag -> l := _t::!l
+        | _ ->
+            let rt,_,_ as t = conv _t in
+            DEBUG_MSG "%d: %s -> %s" i (Token.rawtoken_to_string _rt) (Token.rawtoken_to_string rt);
+            l := t::!l
       done;
       List.iter self#prepend_token !l
 
@@ -30152,10 +33669,23 @@ module F (Stat : Aux.STATE_T) = struct
                 | rt -> DEBUG_MSG "%s" (Token.rawtoken_to_string rt); false
               )
           end
+
+          | RPAREN when begin
+              match self#peek_nth_rawtoken (nth+2) with
+              | LBRACKET -> begin
+                  let nth', _ = self#peek_rawtoken_up_to_rbracket ~from:(nth+3) () in
+                  match self#peek_nth_rawtoken (nth'+1) with
+                  | x when self#is_ty x -> true
+                  | IDENT _ -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> true
+
           | CHAR | CHAR8_T | CHAR16_T | CHAR32_T | WCHAR_T | BOOL | SHORT
           | INT | LONG | SIGNED | UNSIGNED | FLOAT | DOUBLE | VOID | TYPE_MACRO _
           | CONST | AUTO
-          | IDENT _ | STRUCT | ENUM | REGISTER | VOLATILE -> begin
+          | IDENT _ | STRUCT | UNION | ENUM | REGISTER | VOLATILE -> begin
               let rec skip_nested_name_specifier n =
                 DEBUG_MSG "n=%d" n;
                 match self#peek_nth_rawtoken (n+1) with
@@ -30307,8 +33837,44 @@ module F (Stat : Aux.STATE_T) = struct
         else
           self#peek_nth_rawtoken from
       in
+      DEBUG_MSG "from=%d head=%s" from (Token.rawtoken_to_string head);
+      let is_ident = function
+        | T.IDENT _ -> true
+        | _ -> false
+      in
       match head with
-      | x when self#is_ty x -> begin
+      | STATIC -> begin
+          match self#peek_nth_rawtoken (from+1) with
+          | x when self#is_ty x || is_ident x -> begin
+              match self#peek_nth_rawtoken (from+2) with
+              | IDENT _ -> begin
+                  match self#peek_nth_rawtoken (from+3) with
+                  | TY_LPAREN -> begin
+                      let nth, ll =
+                        self#peek_rawtoken_up_to_rparen_split_at_comma ~from:(from+4) ()
+                      in
+                      match self#peek_nth_rawtoken (nth+1) with
+                      | LBRACE -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | PP_IF | PP_IFDEF | PP_IFNDEF -> begin
+                  let nth, _ = self#peek_rawtoken_up_to ~from:(from+3) [T.NEWLINE] in
+                  match self#peek_nth_rawtoken (nth+1) with
+                  | IDENT _ -> begin
+                      let nth' = self#peek_rawtoken_up_to_section_end ~from:(nth+1) () in
+                      match self#peek_nth_rawtoken (nth'+1) with
+                      | LBRACE -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end
+          | _ -> false
+      end
+      | x when self#is_ty x || is_ident x -> begin
           match self#peek_nth_rawtoken (from+1) with
           | IDENT _ -> begin
               match self#peek_nth_rawtoken (from+2) with
@@ -30783,6 +34349,7 @@ module F (Stat : Aux.STATE_T) = struct
         | [RPAREN] -> true
         | [RPAREN;TY_LPAREN] -> true
         | [RPAREN;IDENT _;TY_LPAREN] -> false
+        | EQ::_ -> true
         | RPAREN::rest when begin
             match List.rev rest with
             | TY_LPAREN::x when not (list_memqn [T.TY_LPAREN;RPAREN] x) -> begin
@@ -30862,7 +34429,7 @@ module F (Stat : Aux.STATE_T) = struct
       match self#peek_nth_rawtoken (n+1) with
       | PP_IF | PP_IFDEF | PP_IFNDEF
       | PP_ELIF _ | PP_ELSE _(* | PP_ENDIF*)
-      | PP_DEFINE | PP_UNDEF when limit > 0 || limit < 0 -> begin
+      | PP_DEFINE | PP_UNDEF | PP_INCLUDE when limit > 0 || limit < 0 -> begin
           let limit =
             if limit > 0 then
               limit - 1
@@ -30912,6 +34479,8 @@ module F (Stat : Aux.STATE_T) = struct
         let mk x = (x, stp, edp) in
         let mk_ e x = (x, stp, e) in
 
+        _current_rawtoken <- _rawtok;
+
         if token_hist_flag then begin
           let rt =
             match _rawtok with
@@ -30936,11 +34505,15 @@ module F (Stat : Aux.STATE_T) = struct
 
         BEGIN_DEBUG
           if macro_body_parsing_flag then
-            DEBUG_MSG "[macro_body_parsing]";
+            DEBUG_MSG "[macro_body_parsing:%s]" (Aux.parsing_mode_to_string self#mode);
           if env#pp_if_section_level > 0 then begin
             DEBUG_MSG "pp_if_section_rel_brace_level:%d" env#pp_if_section_rel_brace_level;
             let info = env#pp_if_section_top_info in
             DEBUG_MSG "%s" (Pinfo.pp_if_section_info_to_string info);
+            if env#pp_if_section_level > 1 then begin
+              let info2 = env#pp_if_section_nth_info 2 in
+              DEBUG_MSG "%s" (Pinfo.pp_if_section_info_to_string info2);
+            end
           end;
           if env#pp_odd_if_section_level > 0 then begin
             DEBUG_MSG "pp_odd_if_section_rel_brace_level:%d" env#pp_odd_if_section_rel_brace_level;
@@ -30955,6 +34528,11 @@ module F (Stat : Aux.STATE_T) = struct
         DEBUG_MSG "block level: %d" env#stack#block_level;
         DEBUG_MSG "paren stack: %s" env#pstat#paren_stack_to_string;
         DEBUG_MSG "bracket stack: %s" env#pstat#bracket_stack_to_string;
+        DEBUG_MSG "prev_indent2: %d" prev_indent2;
+        DEBUG_MSG "prev_indent_rawtoken2: %s" (Token.rawtoken_to_string prev_indent_rawtoken2);
+        DEBUG_MSG "prev_indent: %d" prev_indent;
+        DEBUG_MSG "prev_indent_rawtoken_prev: %s" (Token.rawtoken_to_string prev_indent_rawtoken_prev);
+        DEBUG_MSG "prev_indent_rawtoken: %s" (Token.rawtoken_to_string prev_indent_rawtoken);
 
         DEBUG_MSG "prev4=%s" (Token.rawtoken_to_string prev_rawtoken4);
         DEBUG_MSG "prev3=%s" (Token.rawtoken_to_string prev_rawtoken3);
@@ -30974,6 +34552,7 @@ module F (Stat : Aux.STATE_T) = struct
               DEBUG_MSG "@"; _rawtok, token
 
           | PP_ when begin
+              not env#pp_line_flag &&
               match self#peek_rawtoken() with
               | NEWLINE when prev_endln = stp.Lexing.pos_lnum -> true
               | NEWLINE | INT_LITERAL _ -> false
@@ -30983,6 +34562,25 @@ module F (Stat : Aux.STATE_T) = struct
             let nth, _ = self#peek_rawtoken_up_to [T.NEWLINE] in
             let _ = self#discard_nth_token nth in
             get()
+          end
+
+          | PP_IF when begin
+              match self#peek_rawtoken() with
+              | IDENT "def" -> begin
+                  match self#peek_nth_rawtoken 2 with
+                  | IDENT _ -> begin
+                      match self#peek_nth_rawtoken 3 with
+                      | NEWLINE -> true
+                      | _ -> false
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "@";
+            parse_warning env stp edp "converting #if def into #ifdef";
+            let _, _, ep = self#discard_token() in
+            PP_IFDEF, (PP_IFDEF, ep, ep)
           end
 
           | SHARP when begin
@@ -31260,8 +34858,19 @@ module F (Stat : Aux.STATE_T) = struct
               | _ -> false
           end -> DEBUG_MSG "@"; get()
 
+          | PRIVATE | PUBLIC | PROTECTED when begin
+              context == TOP && sub_context == INI &&
+              match prev_rawtoken with
+              | NEWLINE | RBRACE | SEMICOLON _ -> begin
+                  match self#peek_rawtoken() with
+                  | COLON -> false
+                  | _ -> true
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@"; get()
+
           | CLASS | ENUM | STRUCT | UNION | PRIVATE | PUBLIC | PROTECTED
-          | THIS | CATCH | EXPLICIT | VIRTUAL when begin
+          | THIS | CATCH | EXPLICIT | VIRTUAL | INLINE when begin
               match prev_rawtoken with
               | TEMPL_GT when _rawtok == CLASS && env#end_of_templ_head_flag -> false
               | PP_DEFINE | PP_UNDEF -> true
@@ -31311,7 +34920,7 @@ module F (Stat : Aux.STATE_T) = struct
                   | DOT | MINUS_GT | EQ_EQ | EXCLAM_EQ _
                   | TEMPL_LT (*| TY_TEMPL_GT *)| LT_EQ | GT_EQ
                   | BAR_BAR _ | PTR_AMP_AMP | PTR_AMP | BAR _
-                  | PTR_STAR | SLASH | PERC | PLUS | MINUS
+                  | PTR_STAR | SLASH | PERC | PLUS | MINUS | PLUS_PLUS | MINUS_MINUS
                   | RBRACKET when _rawtok != THIS -> true
                   | COMMA -> true
                   | LBRACKET when self#peek_nth_rawtoken 2 != LBRACKET -> true
@@ -31599,6 +35208,8 @@ module F (Stat : Aux.STATE_T) = struct
                   let nth, l = self#peek_rawtoken_up_to_rparen_none() in
                   not (list_memqn [T.TY_TEMPL_GT] l)
               end -> true
+              | PTR_AMP_AMP | PTR_AMP | PTR_STAR -> true
+              | x when _is_op x -> true
               | _ -> false
           end -> DEBUG_MSG "@ (TY_LPAREN|LBRACKET|TY_TEMPL_GT|TEMPL_LT)"; get()
 
@@ -31715,7 +35326,7 @@ module F (Stat : Aux.STATE_T) = struct
               | _ -> false
           end -> DEBUG_MSG "@ (DOT|...)"; get()
 
-          | EXPLICIT | THREAD_LOCAL | CATCH | RESTRICT _ when begin
+          | EXPLICIT | THREAD_LOCAL | CATCH | RESTRICT _ | CONTINUE when begin
               match prev_rawtoken with
               | LPAREN | COMMA -> true
               | AMP_AMP _ | BAR_BAR _ | PLUS | MINUS | STAR | SLASH | PERC
@@ -31855,6 +35466,7 @@ module F (Stat : Aux.STATE_T) = struct
           end -> DEBUG_MSG "@"; get()
 
           | ALIGNAS | ALIGNOF | CHAR16_T | CHAR32_T | CONSTEXPR | DECLTYPE | NOEXCEPT | NULLPTR(* | OVERRIDE*)
+          | BOOL_LITERAL _
           | STATIC_ASSERT | THREAD_LOCAL when begin
               context == ENUM && sub_context == INI && env#brace_level = 1 &&
               (match prev_rawtoken with
@@ -31873,6 +35485,16 @@ module F (Stat : Aux.STATE_T) = struct
           end -> DEBUG_MSG "@"; get()
 
           | DEFAULT when self#is_macro_fun (Token.rawtoken_to_repr _rawtok) -> DEBUG_MSG "@"; get()
+
+          | AT when begin
+              match prev_rawtoken with
+              | LPAREN | COMMA -> begin
+                  match self#peek_rawtoken() with
+                  | COMMA | RPAREN -> true
+                  | _ -> false
+              end
+              | _ -> false
+          end -> DEBUG_MSG "@"; get()
 
           | _ -> DEBUG_MSG "@"; _rawtok, token
         in
@@ -31972,6 +35594,17 @@ module F (Stat : Aux.STATE_T) = struct
         end -> begin
           DEBUG_MSG "@";
           match rawtok with
+          | x when begin
+              DEBUG_MSG "x=%s" (Token.rawtoken_to_string x);
+              not env#at_brace &&
+              is_stmt_head x &&
+              match prev_rawtoken with
+              | NEWLINE | SEMICOLON _ | EOF -> true
+              | _ -> false
+          end -> begin
+            DEBUG_MSG "@";
+            begin_stmts mk stp edp
+          end
           | LBRACE when begin
               not env#end_of_params_flag && not env#old_param_decl_flag &&
               not env#start_of_func_body_flag && not env#end_of_old_param_decl_flag &&
@@ -32094,6 +35727,32 @@ module F (Stat : Aux.STATE_T) = struct
             self#prepend_token (mk T.MARKER);
             raise To_be_recovered
         end
+
+        | LBRACE when begin
+            is_start_of_stmt sub_context &&
+            env#in_body_brace_level = 0 &&
+            let rt_, sp_, _ = self#peek() in
+            match rt_ with
+            | LBRACE -> begin
+                let ln = stp.Lexing.pos_lnum in
+                ln = prev_endln &&
+                let ln_ = sp_.Lexing.pos_lnum in
+                ln_ = ln + 1 &&
+                let _, sp__, _ = self#peek_nth 2 in
+                sp__.Lexing.pos_lnum > ln_ &&
+                get_col sp_ = prev_indent &&
+                (prev_indent_rawtoken != T.IF || prev_indent_rawtoken_prev != ELSE) &&
+                match prev_indent_rawtoken with
+                | IF -> true
+                | _ -> false
+            end
+            | _ -> false
+        end -> begin
+          DEBUG_MSG "@";
+          parse_warning env stp edp "redundant opening brace";
+          raise To_be_recovered
+        end
+
         | LBRACE | INI_LBRACE | CLASS_LBRACE when not env#pp_line_flag -> begin
             env#open_in_body_brace();
             env#open_brace();
@@ -32105,10 +35764,53 @@ module F (Stat : Aux.STATE_T) = struct
                   | REQUIRES | SUB_REQUIRES -> true
                   | _ -> false
               end -> env#_open_bracket BK_REQ_BRACE
-              | LBRACE -> env#_open_bracket BK_BRACE
+              | LBRACE -> begin
+                  let i_opt =
+                    match prev_rawtoken with
+                    | COLON | BRACE_LEVEL _ -> None
+                    | _ ->
+                        if prev_endln < stp.Lexing.pos_lnum then
+                          let i = get_col stp in
+                          let _, sp, _ = self#peek() in
+                          if get_col sp > i then
+                            Some i
+                          else
+                            None
+                        else
+                          None
+                  in
+                  env#_open_bracket (BK_BRACE i_opt)
+              end
               | INI_LBRACE -> env#_open_bracket BK_INI_BRACE
               | CLASS_LBRACE -> env#_open_bracket BK_CLASS_BRACE
               | _ -> ()
+        end
+
+        | RBRACE when begin
+            not env#pp_line_flag &&
+            env#pp_if_section_flag &&
+            let info = env#pp_if_section_top_info in
+            info.Pinfo.i_brace_level = 1 &&
+            try
+              match env#pstat#bracket_stack_top with
+              | BK_BRACE (Some i) when i > 0 -> begin
+                  DEBUG_MSG "i=%d" i;
+                  let rt, sp, ep = self#peek() in
+                  edp.Lexing.pos_lnum < ep.Lexing.pos_lnum &&
+                  match rt with
+                  | RBRACE -> begin
+                      let i_ = get_col sp in
+                      DEBUG_MSG "i_=%d" i_;
+                      i_ = i
+                  end
+                  | _ -> false
+              end
+              | _ -> false
+            with
+              _ -> false
+        end -> begin
+          DEBUG_MSG "@";
+          raise To_be_recovered
         end
 
         | RBRACE when not env#pp_line_flag -> begin
@@ -32223,8 +35925,26 @@ module F (Stat : Aux.STATE_T) = struct
                 | _ -> ()
               end;
               env#close_brace();
-              if not env#pp_line_flag then
-                env#_close_bracket()
+              if not env#pp_line_flag then begin
+                let i_opt = env#__close_bracket() in
+                match i_opt with
+                | Some i -> begin
+                    let indent = get_col stp in
+                    let _, stp_, _ = self#peek() in
+                    if
+                      edp.Lexing.pos_lnum < stp_.Lexing.pos_lnum &&
+                      indent > 1 &&
+                      let d = i - indent in d > 2 &&
+                      i mod d = 0
+                    then begin
+                      DEBUG_MSG "indent mismatch: %d vs %d" i indent;
+                      parse_warning env stp edp "indent mismatch: %d vs %d" i indent;
+                      parse_warning env stp edp "complementing with a closing brace";
+                      self#prepend_token (mk T.RBRACE)
+                    end
+                end
+                | _ -> ()
+              end
             end
             else if
               match self#peek_rawtoken() with
@@ -32334,7 +36054,7 @@ module F (Stat : Aux.STATE_T) = struct
             end;
             match prev_rawtoken with
             | IDENT_V s when s = "Q_PROPERTY" -> begin
-                env#open_paren PK_NORMAL;
+                env#open_paren (PK_NORMAL PKS_NONE);
                 self#set_q_prop_flag();
                 self#prepend_token (mk T.BEGIN_QPROP)
             end
@@ -32368,7 +36088,14 @@ module F (Stat : Aux.STATE_T) = struct
                 not env#requires_clause_flag && not env#end_of_params_flag
               -> env#open_paren (PK_TYPE PKS_NONE)
 
-            | _ -> env#open_paren PK_NORMAL
+            | _ ->
+                let kind =
+                  match prev_rawtoken with
+                  | IF -> Aux.PKS_IF
+                  | LT | GT | LT_EQ | GT_EQ -> Aux.PKS_NUMERIC
+                  | _ -> Aux.PKS_NONE
+                in
+                env#open_paren (PK_NORMAL kind)
         end
 
         | RPAREN -> begin
@@ -32426,9 +36153,18 @@ module F (Stat : Aux.STATE_T) = struct
             self#clear_keep_flag();
             self#clear_alternative_tokens();
             let close_brace ?(semicolon=false) () =
+              let semicolon_last_only =
+                env#brace_level = 2 &&
+                semicolon &&
+                env#at_ini_brace &&
+                env#at_ini_brace_2
+              in
+              DEBUG_MSG "semicolon_last_only=%B" semicolon_last_only;
               self#prepend_token token;
+              if semicolon_last_only then
+                self#prepend_token (mk (T.SEMICOLON false));
               for i = 1 to env#brace_level do
-                if semicolon then
+                if semicolon && not semicolon_last_only then
                   self#prepend_token (mk (T.SEMICOLON false));
                 self#prepend_token (mk T.RBRACE)
               done
@@ -32451,9 +36187,8 @@ module F (Stat : Aux.STATE_T) = struct
             if env#brace_level > 0 && env#paren_level = 0 then begin
               DEBUG_MSG "env#brace_level=%d" env#brace_level;
               parse_warning env prev_stp prev_edp "lack of closing braces";
-              let semicolon =
-                env#stack#at_enum || prev_rawtoken == INI_LBRACE
-              in
+              let ini_brace = prev_rawtoken == INI_LBRACE in
+              let semicolon = env#stack#at_enum || ini_brace in
               DEBUG_MSG "semicolon=%B" semicolon;
               close_brace ~semicolon ();
               if not semicolon then begin
@@ -32509,6 +36244,14 @@ module F (Stat : Aux.STATE_T) = struct
                   parse_warning env prev_stp prev_edp "lack of closing parentheses and braces";
                   close_brace();
                   close_paren();
+                  raise To_be_recovered
+              end
+              | _ -> ()
+            end
+            else if env#rhs_flag then begin
+              match prev_rawtoken with
+              | EQ -> begin
+                  self#prepend_token (mk T.DUMMY_EXPR);
                   raise To_be_recovered
               end
               | _ -> ()
@@ -32700,6 +36443,49 @@ module F (Stat : Aux.STATE_T) = struct
           raise To_be_recovered
         end
 
+        | TYPEDEF when begin
+            match self#peek_rawtoken() with
+            | LBRACE -> true
+            | _ -> false
+        end -> begin
+          DEBUG_MSG "@";
+          self#prepend_token (mk T.STRUCT)
+        end
+
+        | PTR_STAR when begin
+            prev_rawtoken == EOF &&
+            let nth = ref 1 in
+            let prev_rt = ref T.EOF in
+            try
+              while true do
+                let rt = self#peek_nth_rawtoken !nth in
+                begin
+                  match rt with
+                  | PTR_STAR | IDENT _ | COLON | COMMA | DOT | THIS
+                  | FLOAT_LITERAL _ | INT_LITERAL _ -> ()
+                  | AMP_AMP s when String.lowercase_ascii s = "and" -> ()
+                  | BAR_BAR s when String.lowercase_ascii s = "or" -> ()
+                  | SLASH when !prev_rt == PTR_STAR -> begin
+                      DEBUG_MSG "nth=%d" !nth;
+                      DEBUG_MSG "skipping possible comments...";
+                      parse_warning env stp edp "skipping possible comments...";
+                      discard_n_tokens self !nth;
+                      raise Found
+                  end
+                  | _ -> raise Abort
+                end;
+                prev_rt := rt;
+                incr nth
+              done;
+              false
+            with
+            | Found -> true
+            | Abort -> false
+        end -> begin
+          DEBUG_MSG "@";
+          raise To_be_recovered
+        end
+
         | _ when begin
             check_top_stmts_flag && not env#top_stmts_flag &&
             not env#pp_line_flag && not env#pp_define_body_flag &&
@@ -32740,9 +36526,20 @@ module F (Stat : Aux.STATE_T) = struct
             end
 
             | MINUS_GT | DOT | GT_GT | LT_LT | EQ | PLUS_EQ | MINUS_EQ | STAR_EQ | SLASH_EQ
-            | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _ | LBRACKET -> begin
+            | PERC_EQ | HAT_EQ _ | AMP_EQ _ | BAR_EQ _ -> begin
                 DEBUG_MSG "@";
                 begin_stmts mk stp edp
+            end
+
+            | LBRACKET when begin
+                let n, l = self#peek_rawtoken_up_to_rbracket ~from:2 () in
+                match self#peek_nth_rawtoken (n+1) with
+                | SEMICOLON _ -> false
+                | EQ when l = [] -> false
+                | _ -> true
+            end -> begin
+              DEBUG_MSG "@";
+              begin_stmts mk stp edp
             end
 
             | TY_LPAREN -> begin
@@ -33033,11 +36830,103 @@ module F (Stat : Aux.STATE_T) = struct
           raise To_be_recovered
         end
 
+        | NEWLINE when begin
+            env#pp_define_body_flag &&
+            context = STMT && sub_context == INI &&
+            env#pstat#pp_line_rel_brace_level > 0 &&
+            let ln0 = stp.Lexing.pos_lnum in
+            let rt1, sp1, _ = self#peek() in
+            let brace_flag = ref (rt1 == T.RBRACE) in
+            let ln1 = sp1.Lexing.pos_lnum in
+            ln1 = ln0 + 1 &&
+            begin
+              DEBUG_MSG "@";
+              let nth = ref 2 in
+              let prev_rt = ref T.EOF in
+              try
+                while true do
+                  let rt, sp, _ = self#peek_nth !nth in
+                  DEBUG_MSG "%s" (Token.rawtoken_to_string rt);
+                  brace_flag := !brace_flag || rt == T.RBRACE;
+                  let ln = sp.Lexing.pos_lnum in
+                  if ln > ln1 then begin
+                    if
+                      ln > ln1 + 1 &&
+                      is_stmt_head rt &&
+                      match !prev_rt with
+                      | RBRACE | SEMICOLON _ -> false
+                      | _ -> !brace_flag
+                    then begin
+                      DEBUG_MSG "nth=%d" !nth;
+                      let n = !nth - 1 in
+                      parse_warning env stp edp "shifting NEWLINE (%d tokens)" n;
+                      insert_after_nth_token self n [token];
+                      raise Found
+                    end
+                    else
+                      raise Exit
+                  end;
+                  incr nth;
+                  prev_rt := rt
+                done;
+                false
+              with
+              | Exit -> false
+              | Found -> true
+            end
+        end -> begin
+          DEBUG_MSG "@";
+          raise To_be_recovered
+        end
+
         | BRACE_PAREN_MARKER -> begin
             env#pstat#open_paren_arg();
             env#open_in_body_brace();
             env#open_brace();
             raise To_be_recovered
+        end
+
+        | RETURN | GOTO | BREAK | CONTINUE
+        | IF | ELSE | SWITCH | CASE | DEFAULT
+        | FOR | WHILE | DO | TRY when begin
+            match sub_context with
+            | START_OF_STMT _ -> false
+            | _ ->
+                not env#pp_line_flag &&
+                not env#at_macro_arg_paren &&
+                match prev_rawtoken with
+                | EOF | NEWLINE | SEMICOLON _ | RBRACE | COLON | ELSE | DO -> false
+                | TY_LPAREN | S_LPAREN | LPAREN | COMMA -> false
+                | EQ when rawtok == DEFAULT -> false
+                | _ -> true
+        end -> begin
+          DEBUG_MSG "complementing with a semicolon";
+          self#prepend_token token;
+          self#prepend_token (mk (T.SEMICOLON false));
+          raise To_be_recovered
+        end
+
+        | BAR_BAR _ when begin
+            env#condition_flag &&
+            let _, sp, _ = self#peek() in
+            sp.Lexing.pos_lnum = edp.Lexing.pos_lnum + 1 &&
+            try
+              match env#pstat#bracket_stack_top with
+              | BK_PAREN (PK_NORMAL PKS_NUMERIC) -> begin
+                  match env#pstat#bracket_stack_2nd with
+                  | BK_PAREN (PK_NORMAL PKS_IF) -> true
+                  | _ -> false
+              end
+              | _ -> false
+            with
+              _ -> false
+        end -> begin
+          DEBUG_MSG "@";
+          DEBUG_MSG "complementing with a closing parenthesis";
+          parse_warning env stp edp "complementing with a closing parenthesis";
+          self#prepend_token token;
+          self#prepend_token (mk T.RPAREN);
+          raise To_be_recovered
         end
 
         | _ -> ()
@@ -33146,23 +37035,35 @@ module F (Stat : Aux.STATE_T) = struct
         | LBRACE -> begin
             env#clear_end_of_params_flag();
             env#clear_class_name_flag();
-            env#pstat#incr_pp_group_rel_brace_level();
+            if env#pp_line_flag then
+              env#pstat#incr_pp_line_rel_brace_level()
+            else
+              env#pstat#incr_pp_group_rel_brace_level();
             if env#pstat#brace_level_marker_flag then
               env#pstat#incr_brace_level_marker()
         end
         | INI_LBRACE -> begin
-            env#pstat#incr_pp_group_rel_brace_level();
+            if env#pp_line_flag then
+              env#pstat#incr_pp_line_rel_brace_level()
+            else
+              env#pstat#incr_pp_group_rel_brace_level();
             if env#pstat#brace_level_marker_flag then
               env#pstat#incr_brace_level_marker()
         end
         | CLASS_LBRACE -> begin
-            env#pstat#incr_pp_group_rel_brace_level();
+            if env#pp_line_flag then
+              env#pstat#incr_pp_line_rel_brace_level()
+            else
+              env#pstat#incr_pp_group_rel_brace_level();
             if env#pstat#brace_level_marker_flag then
               env#pstat#incr_brace_level_marker()
         end
        | RBRACE when env#pstat#brace_level_marker_flag -> begin
            env#pstat#decr_brace_level_marker();
-           env#pstat#decr_pp_group_rel_brace_level();
+           if env#pp_line_flag then
+              env#pstat#decr_pp_line_rel_brace_level()
+           else
+             env#pstat#decr_pp_group_rel_brace_level();
            env#stack#set_popped_frame_scope_from_params_to_top();
            if env#pstat#brace_level_marker = 0 then begin
              env#pstat#clear_brace_level_marker_flag();
@@ -33173,7 +37074,12 @@ module F (Stat : Aux.STATE_T) = struct
                  _ -> ()
            end
         end
-        | RBRACE -> env#pstat#decr_pp_group_rel_brace_level();
+        | RBRACE -> begin
+           if env#pp_line_flag then
+              env#pstat#decr_pp_line_rel_brace_level()
+           else
+             env#pstat#decr_pp_group_rel_brace_level()
+        end
 
         | RPAREN when env#pp_define_flag -> begin
             env#exit_pp_define();
@@ -33268,7 +37174,11 @@ module F (Stat : Aux.STATE_T) = struct
             self#ctx_top();
             self#ctx_ini();
         end
-        | BRACE_LEVEL _ -> env#pstat#set_brace_level_marker_flag()
+        | BRACE_LEVEL(_, unbalanced) -> begin
+            env#pstat#set_brace_level_marker_flag();
+            if unbalanced then
+              env#pstat#set_brace_level_marker_unbalanced_flag()
+        end
         | IDENT_BM _ -> env#clear_end_of_params_flag()
         | _ -> ()
       end;
@@ -33321,7 +37231,14 @@ module F (Stat : Aux.STATE_T) = struct
           token_seq#add_token rawtok;
         match rawtok with
         | COLON_COLON -> ()
-        | _ -> env#clear_value_flag()
+        | _ -> begin
+            begin
+              match rawtok with
+              | LBRACE -> env#clear_old_param_decl_flag()
+              | _ -> ()
+            end;
+            env#clear_value_flag()
+        end
       end;
 
       DEBUG_MSG "                              ------%s%s------ %s\n"
@@ -33344,16 +37261,64 @@ module F (Stat : Aux.STATE_T) = struct
       current_token <- token;
 
       let rt, sp, ep = token in
+
       prev_rawtoken4 <- prev_rawtoken3;
       prev_rawtoken3 <- prev_rawtoken2;
       prev_rawtoken2 <- prev_rawtoken;
       prev_rawtoken <- rt;
+
+      if prev_endln < sp.Lexing.pos_lnum then begin
+        prev_indent2 <- prev_indent;
+        prev_indent_rawtoken2 <- prev_indent_rawtoken;
+        prev_indent <- get_col sp;
+        prev_indent_rawtoken <- rt;
+        prev_indent_rawtoken_prev <- prev_rawtoken2
+      end;
+
       prev_endofs <- ep.Lexing.pos_cnum;
       prev_endln <- ep.Lexing.pos_lnum;
       prev_stp <- sp;
       prev_edp <- ep;
 
+      if dump_stats_flag then begin
+        let rawtok, _, _ = token in
+        match rawtok with
+        | IDENT_AGM _ | IDENT_AGSM _ | IDENT_AM _
+        | IDENT_BEM _ | IDENT_BFM _ | IDENT_BHM _ | IDENT_BM _ | IDENT_BSM _
+        | IDENT_CBHM _ | IDENT_CBEM _ | IDENT_IHM _ | IDENT_IEM _
+        | IDENT_CHM _ | IDENT_CM _ | IDENT_CTM _
+        | IDENT_DLM _ | IDENT_DM _ | IDENT_DSM _ | IDENT_EM _ | IDENT_IM _
+        | IDENT_LM _ | IDENT_LOM _ | IDENT_NSM _
+        | IDENT_OM _ | IDENT_PDM _ | IDENT_PGM _ | IDENT_PM _ | IDENT_PBM _
+        | IDENT_SM _ | IDENT_SXM _ | IDENT_TM _
+        | IDENT_TPM _ | IDENT_VM _ -> self#incr_count "function-like macro"
+
+        | STR_MACRO _ | DECL_MACRO _ | STMT_MACRO _ | VIRT_SPEC_MACRO _ | OP_MACRO _
+        | PARAMS_MACRO _ | PARAMS_BODY_MACRO _ | ARGS_MACRO _ | ARG_MACRO _ | NEW_INIT_MACRO _
+        | ATTR_MACRO _
+        | ACC_SPEC_MACRO _ | DECL_SPEC_MACRO _ | CV_MACRO _ | NOEXCEPT_MACRO _ | NS_MACRO _
+        | EMPTY_MACRO _ | DELIM_MACRO _ | BASE_MACRO _ | SUFFIX_MACRO _ | BODY_MACRO _
+        | BLOCK_HEAD_MACRO _ | BLOCK_END_MACRO _ | TYPE_MACRO _ | CC_MACRO _ | PRAGMA_MACRO _
+        | PARAM_DECL_MACRO _ | PTR_MACRO _ | CAST_HEAD_MACRO _ -> self#incr_count "object-like macro"
+
+        | BRACE_LEVEL _ -> self#incr_count "broken pp-branch"
+        | _ -> ()
+      end;
+
       token
+
+    method incr_count k =
+      try
+        let v = Hashtbl.find stats_tbl k in
+        Hashtbl.replace stats_tbl k (v + 1)
+      with
+        Not_found -> Hashtbl.add stats_tbl k 1
+
+    method dump_stats () =
+      Hashtbl.iter
+        (fun k v ->
+          Printf.printf "%s: %d\n" k v
+        ) stats_tbl
 
     initializer
       env#set_enter_source_callback self#enter_source

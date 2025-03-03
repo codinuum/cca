@@ -62,9 +62,11 @@ let mes fmt = _mes "Parser_aux" fmt
 type paren_kind_sub =
   | PKS_NONE
   | PKS_SIZEOF
+  | PKS_IF
+  | PKS_NUMERIC
 
 type paren_kind =
-  | PK_NORMAL
+  | PK_NORMAL of paren_kind_sub
   | PK_ARG
   | PK_TYPE of paren_kind_sub
   | PK_MACRO
@@ -77,9 +79,11 @@ type paren_kind =
 let paren_kind_sub_to_string = function
   | PKS_NONE   -> "PKS_NONE"
   | PKS_SIZEOF -> "PKS_SIZEOF"
+  | PKS_IF     -> "PKS_IF"
+  | PKS_NUMERIC -> "PKS_NUMERIC"
 
 let paren_kind_to_string = function
-  | PK_NORMAL -> "PK_NORMAL"
+  | PK_NORMAL s -> "PK_NORMAL:"^(paren_kind_sub_to_string s)
   | PK_ARG    -> "PK_ARG"
   | PK_TYPE s -> "PK_TYPE:"^(paren_kind_sub_to_string s)
   | PK_MACRO  -> "PK_MACRO"
@@ -114,7 +118,7 @@ type bracket_kind =
   | BK_LAM_INTR
   | BK_ATTR
   | BK_OBJC_MSG
-  | BK_BRACE
+  | BK_BRACE of int (* indent *) option
   | BK_CLASS_BRACE
   | BK_INI_BRACE
   | BK_REQ_BRACE
@@ -130,7 +134,7 @@ let bracket_kind_to_string = function
   | BK_LAM_INTR    -> "BK_LAM_INTR"
   | BK_ATTR        -> "BK_ATTR"
   | BK_OBJC_MSG    -> "BK_OBJC_MSG"
-  | BK_BRACE       -> "BK_BRACE"
+  | BK_BRACE i_opt -> "BK_BRACE:"^(match i_opt with Some i -> string_of_int i | _ -> "")
   | BK_CLASS_BRACE -> "BK_CLASS_BRACE"
   | BK_INI_BRACE   -> "BK_INI_BRACE"
   | BK_REQ_BRACE   -> "BK_REQ_BRACE"
@@ -271,6 +275,7 @@ class pstat = object (self)
   val mutable concept_flag = false
   val mutable requires_clause_flag = false
   val mutable rhs_flag = false
+  val mutable eq_init_flag = false
 
   val bracket_stack_stack = Stack.create()
 
@@ -295,7 +300,9 @@ class pstat = object (self)
 
   val mutable brace_level_marker = 0
   val mutable brace_level_marker_flag = false
+  val mutable brace_level_marker_unbalanced_flag = false
   val mutable canceled_brace_level_marker = 0
+  val mutable pp_line_rel_brace_level = 0
 
   val mutable last_pp_if_section_info = I.dummy_info
 
@@ -389,6 +396,7 @@ class pstat = object (self)
     concept_flag <- false;
     requires_clause_flag <- false;
     rhs_flag <- false;
+    eq_init_flag <- false;
     Stack.clear bracket_stack_stack;
     Stack.push (Stack.create() : bracket_kind Stack.t) bracket_stack_stack;
     Stack.clear paren_stack;
@@ -409,7 +417,9 @@ class pstat = object (self)
     objc_message_expr_level <- 0;
     brace_level_marker <- 0;
     brace_level_marker_flag <- false;
-    canceled_brace_level_marker <- 0
+    brace_level_marker_unbalanced_flag <- false;
+    canceled_brace_level_marker <- 0;
+    pp_line_rel_brace_level <- 0
 
   method to_string =
     let l = [
@@ -434,16 +444,28 @@ class pstat = object (self)
               sprintf "%s:%d" k v
             ) (List.filter (fun (k, v) -> v <> 0) l)))
 
-  method copy = {<bracket_stack_stack = Stack.copy bracket_stack_stack;
-                  paren_stack = Stack.copy paren_stack;
-                  brace_stack = Stack.copy brace_stack;
-                  templ_param_arg_stack = Stack.copy templ_param_arg_stack;
-                  pp_if_section_stack = Stack.copy pp_if_section_stack;
-                  pp_group_rel_brace_level_stack = Stack.copy pp_group_rel_brace_level_stack;
-                  top_stmts_stack = Stack.copy top_stmts_stack;
-                  templ_arg_stack = Stack.copy templ_arg_stack;
-                  odd_brace_lv_stack = Stack.copy odd_brace_lv_stack;
-                  >}
+  method copy =
+    let bracket_stack_stack_copy =
+      let stack_list = ref [] in
+      Stack.iter
+        (fun bracket_stack ->
+          let bracket_stack_copy = Stack.copy bracket_stack in
+          stack_list := bracket_stack_copy :: !stack_list
+        ) bracket_stack_stack;
+      let stack_copy = Stack.create() in
+      List.iter (fun x -> Stack.push x stack_copy) !stack_list;
+      stack_copy
+    in
+    {<bracket_stack_stack = bracket_stack_stack_copy;
+      paren_stack = Stack.copy paren_stack;
+      brace_stack = Stack.copy brace_stack;
+      templ_param_arg_stack = Stack.copy templ_param_arg_stack;
+      pp_if_section_stack = Stack.copy pp_if_section_stack;
+      pp_group_rel_brace_level_stack = Stack.copy pp_group_rel_brace_level_stack;
+      top_stmts_stack = Stack.copy top_stmts_stack;
+      templ_arg_stack = Stack.copy templ_arg_stack;
+      odd_brace_lv_stack = Stack.copy odd_brace_lv_stack;
+      >}
 
   method set_brace_level_marker_flag () =
     DEBUG_MSG "set";
@@ -451,9 +473,20 @@ class pstat = object (self)
 
   method clear_brace_level_marker_flag () =
     DEBUG_MSG "cleared";
-    brace_level_marker_flag <- false
+    brace_level_marker_flag <- false;
+    brace_level_marker_unbalanced_flag <- false
 
   method brace_level_marker_flag = brace_level_marker_flag
+
+  method set_brace_level_marker_unbalanced_flag () =
+    DEBUG_MSG "set";
+    brace_level_marker_unbalanced_flag <- true
+
+  method clear_brace_level_marker_unbalanced_flag () =
+    DEBUG_MSG "cleared";
+    brace_level_marker_unbalanced_flag <- false
+
+  method brace_level_marker_unbalanced_flag = brace_level_marker_unbalanced_flag
 
   method brace_level_marker = brace_level_marker
 
@@ -478,6 +511,20 @@ class pstat = object (self)
   method reset_canceled_brace_level_marker () =
     DEBUG_MSG "@";
     canceled_brace_level_marker <- 0
+
+  method pp_line_rel_brace_level = pp_line_rel_brace_level
+
+  method incr_pp_line_rel_brace_level () =
+    let lv = pp_line_rel_brace_level in
+    let lv1 = lv + 1 in
+    DEBUG_MSG "lv=%d -> %d" lv lv1;
+    pp_line_rel_brace_level <- lv1
+
+  method decr_pp_line_rel_brace_level () =
+    let lv = pp_line_rel_brace_level in
+    let lv1 = lv - 1 in
+    DEBUG_MSG "lv=%d -> %d" lv lv1;
+    pp_line_rel_brace_level <- lv1
 
   method pp_group_rel_brace_level_stack = pp_group_rel_brace_level_stack
 
@@ -1331,6 +1378,20 @@ class pstat = object (self)
 
   method rhs_flag = rhs_flag
 
+  method set_eq_init_flag () =
+    if not self#pp_line_flag then begin
+      DEBUG_MSG "eq_init_flag set";
+      eq_init_flag <- true
+    end
+
+  method clear_eq_init_flag () =
+    if eq_init_flag then begin
+      DEBUG_MSG "eq_init_flag cleared";
+      eq_init_flag <- false
+    end
+
+  method eq_init_flag = eq_init_flag
+
   method enter_sizeof_ty () =
     DEBUG_MSG "entering sizeof_ty";
     sizeof_ty_flag <- true
@@ -1527,12 +1588,14 @@ class pstat = object (self)
 
   method enter_pp_line () =
     DEBUG_MSG "entering pp_line";
-    pp_line_flag <- true
+    pp_line_flag <- true;
+    pp_line_rel_brace_level <- 0
 
   method exit_pp_line () =
     if pp_line_flag then begin
       DEBUG_MSG "exiting pp_line";
-      pp_line_flag <- false
+      pp_line_flag <- false;
+      pp_line_rel_brace_level <- 0
     end
 
   method pp_line_flag = pp_line_flag
@@ -1947,6 +2010,18 @@ class pstat = object (self)
     with
       _ -> false
 
+  method set_cond_expr__info () =
+    let info = Stack.top pp_if_section_stack in
+    DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
+    info.i_cond_expr_ <- true
+
+  method get_cond_expr__info () =
+    try
+      let info = Stack.top pp_if_section_stack in
+      info.i_cond_expr_
+    with
+      _ -> false
+
   method set_asm_info () =
     let info = Stack.top pp_if_section_stack in
     DEBUG_MSG "%s" (I.pp_if_section_info_to_string info);
@@ -2080,26 +2155,35 @@ class pstat = object (self)
     DEBUG_MSG "opening %s" (bracket_kind_to_string bk);
     Stack.push bk self#bracket_stack
 
-  method _close_bracket () =
+  method __close_bracket () =
     try
       let bk = Stack.pop self#bracket_stack in
-      let _ = bk in
       DEBUG_MSG "closed %s" (bracket_kind_to_string bk);
       begin
         try
           DEBUG_MSG "top changed to %s" (bracket_kind_to_string (self#bracket_stack_top))
         with _ -> ()
-      end
+      end;
+      match bk with
+      | BK_BRACE i_opt -> i_opt
+      | _ -> None
     with
-      Stack.Empty -> DEBUG_MSG "stack empty"
+      Stack.Empty -> begin
+        DEBUG_MSG "stack empty";
+        None
+      end
+
+  method _close_bracket () =
+    let _ = self#__close_bracket() in
+    ()
 
   method open_paren k =
     DEBUG_MSG "opening paren (%s)" (paren_kind_to_string k);
     Stack.push k paren_stack;
     self#_open_bracket (BK_PAREN k)
 
-  method open_paren_normal () =
-    self#open_paren PK_NORMAL;
+  method open_paren_normal ?(kind=PKS_NONE) () =
+    self#open_paren (PK_NORMAL kind);
 
   method open_paren_arg () =
     self#open_paren PK_ARG
@@ -2137,6 +2221,14 @@ class pstat = object (self)
     with
       _ -> false
 
+  method at_ini_brace_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_INI_BRACE -> true
+      | _ -> false
+    with
+      _ -> false
+
   method at_class_brace =
     try
       match self#bracket_stack_top with
@@ -2148,7 +2240,15 @@ class pstat = object (self)
   method at_brace =
     try
       match self#bracket_stack_top with
-      | BK_BRACE -> true
+      | BK_BRACE _ -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_brace_2 =
+    try
+      match self#bracket_stack_2nd with
+      | BK_BRACE _ -> true
       | _ -> false
     with
       _ -> false
@@ -2277,6 +2377,15 @@ class pstat = object (self)
     with
       Exit -> true
 
+  method at_ps_paren =
+    self#_at_paren &&
+    try
+      match Stack.top paren_stack with
+      | PK_PS -> true
+      | _ -> false
+    with
+      _ -> false
+
   method at_type_paren =
     self#_at_paren &&
     try
@@ -2328,11 +2437,20 @@ class pstat = object (self)
     with
       _ -> false
 
+  method at_ss_paren =
+    self#_at_paren &&
+    try
+      match Stack.top paren_stack with
+      | PK_SS -> true
+      | _ -> false
+    with
+      _ -> false
+
   method at_paren =
     self#_at_paren &&
     try
       match Stack.top paren_stack with
-      | PK_NORMAL -> true
+      | PK_NORMAL _ -> true
       | _ -> false
     with
       _ -> false
@@ -2340,7 +2458,16 @@ class pstat = object (self)
   method at_paren_2 =
     try
       match self#bracket_stack_2nd with
-      | BK_PAREN PK_NORMAL -> true
+      | BK_PAREN PK_NORMAL _ -> true
+      | _ -> false
+    with
+      _ -> false
+
+  method at_if_paren =
+    self#_at_paren &&
+    try
+      match Stack.top paren_stack with
+      | PK_NORMAL PKS_IF -> true
       | _ -> false
     with
       _ -> false
@@ -2521,12 +2648,18 @@ class dummy_pstat = object (self)
   method set_brace_level_marker_flag () = ()
   method clear_brace_level_marker_flag () = ()
   method brace_level_marker_flag = false
+  method set_brace_level_marker_unbalanced_flag () = ()
+  method clear_brace_level_marker_unbalanced_flag () = ()
+  method brace_level_marker_unbalanced_flag = false
   method brace_level_marker = 0
   method incr_brace_level_marker () = ()
   method decr_brace_level_marker () = ()
   method canceled_brace_level_marker = 0
   method set_canceled_brace_level_marker lv = ()
   method reset_canceled_brace_level_marker () = ()
+  method pp_line_rel_brace_level = 0
+  method incr_pp_line_rel_brace_level () = ()
+  method decr_pp_line_rel_brace_level () = ()
   method reset_pp_group_rel_brace_level () = ()
   method incr_pp_group_rel_brace_level () = ()
   method decr_pp_group_rel_brace_level () = ()
@@ -2732,6 +2865,9 @@ class dummy_pstat = object (self)
   method set_rhs_flag () = ()
   method clear_rhs_flag () = ()
   method rhs_flag = false
+  method set_eq_init_flag () = ()
+  method clear_eq_init_flag () = ()
+  method eq_init_flag = false
   method enter_sizeof_ty () = ()
   method exit_sizeof_ty () = ()
   method sizeof_ty_flag = false
@@ -2850,6 +2986,8 @@ class dummy_pstat = object (self)
   method get_comma_info () = false
   method set_cond_expr_info () = ()
   method get_cond_expr_info () = false
+  method set_cond_expr__info () = ()
+  method get_cond_expr__info () = false
   method set_asm_info () = ()
   method get_asm_info () = false
   method set_begin_asm_info () = ()
@@ -2875,11 +3013,11 @@ class dummy_pstat = object (self)
   method _open_bracket (bk : bracket_kind) = ()
   method _close_bracket () = ()
   method open_paren k = ()
-  method open_paren_normal () = ()
+  method open_paren_normal ?(kind=PKS_NONE) () = ()
   method open_paren_arg () = ()
   method close_paren ?(pseudo=false) () = ()
   method paren_level = 0
-  method paren_stack_top = PK_NORMAL
+  method paren_stack_top = PK_NORMAL PKS_NONE
   method at_arg_paren = false
   method at_arg_paren_2 = false
   method _arg_paren_flag = false
@@ -2891,6 +3029,7 @@ class dummy_pstat = object (self)
   method at_macro_arg_paren_2 = false
   method at_paren = false
   method at_paren_2 = false
+  method at_if_paren = false
   method at_bracket = false
   method change_paren_kind pk = ()
   method get_paren_stack () = Stack.create()
@@ -3180,6 +3319,7 @@ class env = object (self)
   method get_pstat () = pstat
 
   method _open_bracket = pstat#_open_bracket
+  method __close_bracket = pstat#__close_bracket
   method _close_bracket = pstat#_close_bracket
 
   method open_paren x =
@@ -3197,8 +3337,10 @@ class env = object (self)
   method paren_level = pstat#paren_level
   method pp_paren_level = pstat#pp_paren_level
   method at_ini_brace = pstat#at_ini_brace
+  method at_ini_brace_2 = pstat#at_ini_brace_2
   method at_class_brace = pstat#at_class_brace
   method at_brace = pstat#at_brace
+  method at_brace_2 = pstat#at_brace_2
   method at_req_brace = pstat#at_req_brace
   method at_objc_msg = pstat#at_objc_msg
   method at_attr = pstat#at_attr
@@ -3218,6 +3360,7 @@ class env = object (self)
   method at_fold_paren_2 = pstat#at_fold_paren_2
   method at_paren = pstat#at_paren
   method at_paren_2 = pstat#at_paren_2
+  method at_if_paren = pstat#at_if_paren
   method at_macro_arg_paren = pstat#at_macro_arg_paren
   method at_macro_arg_paren_2 = pstat#at_macro_arg_paren_2
   method at_bracket = pstat#at_bracket
@@ -3282,6 +3425,12 @@ class env = object (self)
 
   method make_local_bid () =
     bidgen#gen
+
+  method register_global_type i st ed =
+    DEBUG_MSG "i=%s" i;
+    let loc = (Ast.lloc_of_lexposs st ed)#get_loc in
+    let spec = new N.Spec.c loc Ast.dummy_node_id i N.Spec.Type in
+    top_frame#register ~replace:true i spec
 
   method register_macro_obj i (nd : Ast.node) =
     DEBUG_MSG "i=%s %s" i nd#to_string;
@@ -3453,7 +3602,7 @@ class env = object (self)
                             | AbstractDeclaratorFunc | NoptrAbstractDeclaratorFunc
                               -> incr count
                             | TrailingReturnType -> decr count
-                            | ParameterDeclaration when not !decltype_flag -> raise Exit
+                            | ParameterDeclaration _ when not !decltype_flag -> raise Exit
                             | DecltypeSpecifier -> decltype_flag := true
                             | _ -> ()
                           in
@@ -3646,7 +3795,18 @@ class env = object (self)
         if is_local then begin
           n#set_binding (B.make_unknown_def bid is_local)
         end;
-        frm#register qn spec
+        frm#register qn spec;
+        begin
+          let name = I.decode_ident qn in
+          let flag, lab =
+            match (n#label : L.t) with
+            | InitDeclarator _ -> true, L.InitDeclarator name
+            | ParameterDeclaration _ -> true, L.ParameterDeclaration name
+            | x -> false, x
+          in
+          if flag then
+            n#relab lab
+        end
       ) (Ast.qn_type_list_of_simple_decl nd)
 
   method register_label ?(replace=false) (nd : Ast.node) =
@@ -4071,6 +4231,10 @@ class env = object (self)
   method clear_rhs_flag = pstat#clear_rhs_flag
   method rhs_flag = pstat#rhs_flag
 
+  method set_eq_init_flag = pstat#set_eq_init_flag
+  method clear_eq_init_flag = pstat#clear_eq_init_flag
+  method eq_init_flag = pstat#eq_init_flag
+
   method set_alias_flag = pstat#set_alias_flag
   method clear_alias_flag = pstat#clear_alias_flag
   method alias_flag = pstat#alias_flag
@@ -4131,6 +4295,8 @@ class env = object (self)
   method get_comma_info = pstat#get_comma_info
   method set_cond_expr_info = pstat#set_cond_expr_info
   method get_cond_expr_info = pstat#get_cond_expr_info
+  method set_cond_expr__info = pstat#set_cond_expr__info
+  method get_cond_expr__info = pstat#get_cond_expr__info
   method set_asm_info = pstat#set_asm_info
   method get_asm_info = pstat#get_asm_info
   method set_begin_asm_info = pstat#set_begin_asm_info

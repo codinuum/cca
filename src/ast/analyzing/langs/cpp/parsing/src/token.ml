@@ -45,7 +45,7 @@ let rawtoken_to_string = function
   | DUMMY_BODY           -> "DUMMY_BODY"
   | DUMMY_DTOR           -> "DUMMY_DTOR"
   | DUMMY_TYPE           -> "DUMMY_TYPE"
-  | BRACE_LEVEL lv       -> sprintf "BRACE_LEVEL:%d" lv
+  | BRACE_LEVEL(lv, b)   -> sprintf "BRACE_LEVEL(%d,%B)" lv b
   | BEGIN_STMTS          -> "BEGIN_STMTS"
   | END_STMTS            -> "END_STMTS"
   | BEGIN_ETORS          -> "BEGIN_ETORS"
@@ -90,6 +90,7 @@ let rawtoken_to_string = function
   | PTR_MACRO s          -> sprintf "PTR_MACRO:%s" s
   | BODY_MACRO s         -> sprintf "BODY_MACRO:%s" s
   | DTOR_MACRO s         -> sprintf "DTOR_MACRO:%s" s
+  | PTR_DTOR_MACRO s     -> sprintf "PTR_DTOR_MACRO:%s" s
   | CLASS_HEAD_MACRO s   -> sprintf "CLASS_HEAD_MACRO:%s" s
   | FUNC_HEAD_MACRO s    -> sprintf "FUNC_HEAD_MACRO:%s" s
   | CAST_HEAD_MACRO s    -> sprintf "CAST_HEAD_MACRO:%s" s
@@ -143,6 +144,7 @@ let rawtoken_to_string = function
 
   | AT                    -> "AT"
   | BS                    -> "BS"
+  | DQ                    -> "DQ"
   | TEMPL_LT              -> "TEMPL_LT"
   | TEMPL_LT_             -> "TEMPL_LT_"
   | TEMPL_GT              -> "TEMPL_GT"
@@ -242,6 +244,7 @@ let rawtoken_to_string = function
   | BAR_BAR_BROKEN i      -> "BAR_BAR_BROKEN:"^i
   | AMP_AMP_BROKEN i      -> "AMP_AMP_BROKEN:"^i
   | COMMA_BROKEN          -> "COMMA_BROKEN"
+  | COMMA_BROKEN2         -> "COMMA_BROKEN2"
   | PP_ODD_ENDIF x        -> "PP_ODD_ENDIF:"^x
   | PP_ODD_IF             -> "PP_ODD_IF"
   | PP_ODD_IFDEF          -> "PP_ODD_IFDEF"
@@ -574,6 +577,7 @@ let rawtoken_to_repr = function
   | PTR_MACRO s          -> s
   | BODY_MACRO s         -> s
   | DTOR_MACRO s         -> s
+  | PTR_DTOR_MACRO s     -> s
   | CLASS_HEAD_MACRO s   -> s
   | FUNC_HEAD_MACRO s    -> s
   | CAST_HEAD_MACRO s    -> s
@@ -626,6 +630,7 @@ let rawtoken_to_repr = function
 
   | AT                    -> "@"
   | BS                    -> "\\"
+  | DQ                    -> "\""
   | TEMPL_LT              -> "<"
   | TEMPL_LT_             -> "<"
   | TEMPL_GT              -> ">"
@@ -725,6 +730,7 @@ let rawtoken_to_repr = function
   | BAR_BAR_BROKEN i      -> i
   | AMP_AMP_BROKEN i      -> i
   | COMMA_BROKEN          -> ","
+  | COMMA_BROKEN2         -> ","
   | PP_ODD_ENDIF _        -> "#endif"
   | PP_ODD_IF             -> "#if"
   | PP_ODD_IFDEF          -> "#ifdef"

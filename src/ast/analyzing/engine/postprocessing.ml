@@ -26,6 +26,7 @@ open Misc
 
 let is_use n = B.is_use n#data#binding
 let get_def_node tree n = tree#search_node_by_uid (B.get_uid n#data#binding)
+let is_local_def n = B.is_local_def n#data#binding
 
 module F (Label : Spec.LABEL_T) = struct
 
@@ -2377,6 +2378,145 @@ END_DEBUG;
       nmapping
 
 
+  let has_crossing_descendant tree1 tree2 nmapping nd1 nd2 =
+    let b =
+      try
+        let pnd1 = nd1#initial_parent in
+        let pnd2 = nd2#initial_parent in
+        (
+         try
+           tree1#fast_scan_whole_initial_subtree nd1
+             (fun n ->
+               if n != nd1 then
+                 try
+                   let n' = nmapping#find n in
+                   if
+                     not (tree2#is_initial_ancestor nd2 n') &&
+                     tree2#is_initial_ancestor pnd2 n'
+                   then begin
+                     DEBUG_MSG "found: %a->%a" nups n nups n';
+                     raise Exit
+                   end
+                 with
+                   Not_found -> ()
+             );
+           false
+         with
+           Exit -> true
+        ) ||
+        (
+         try
+           tree2#fast_scan_whole_initial_subtree nd2
+             (fun n ->
+               if n != nd2 then
+                 try
+                   let n' = nmapping#inv_find n in
+                   if
+                     not (tree1#is_initial_ancestor nd1 n') &&
+                     tree1#is_initial_ancestor pnd1 n'
+                   then begin
+                     DEBUG_MSG "found: %a<-%a" nups n' nups n;
+                     raise Exit
+                   end
+                 with
+                   Not_found -> ()
+             );
+           false
+         with
+           Exit -> true
+        )
+      with _ -> false
+    in
+    DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
+    b
+
+  (*let has_mapped_descendant tree1 tree2 nmapping nd1 nd2 =
+    let b =
+      (
+       try
+         tree1#fast_scan_whole_initial_subtree nd1
+           (fun n ->
+             try
+               let n' = nmapping#find n in
+               if
+                 tree2#is_initial_ancestor nd2 n'
+               then
+                 raise Exit
+             with
+               Not_found -> ()
+           );
+         false
+       with
+         Exit -> true
+      ) ||
+      (
+       try
+         tree2#fast_scan_whole_initial_subtree nd2
+           (fun n ->
+             try
+               let n' = nmapping#inv_find n in
+               if
+                 tree1#is_initial_ancestor nd1 n'
+               then
+                 raise Exit
+             with
+               Not_found -> ()
+           );
+         false
+       with
+         Exit -> true
+      )
+    in
+    DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
+    b*)
+
+  let is_extendable_move tree1 tree2 nmapping n1 n2 =
+    DEBUG_MSG "n1=%a" nps n1;
+    DEBUG_MSG "n2=%a" nps n2;
+    let has_crossing_descendant = has_crossing_descendant tree1 tree2 nmapping in
+    let b =
+      try
+        let pn1 = n1#initial_parent in
+        let pn2 = n2#initial_parent in
+        DEBUG_MSG "pn1=%a" nps pn1;
+        DEBUG_MSG "pn2=%a" nps pn2;
+        let na1 = pn1#initial_children in
+        let na2 = pn2#initial_children in
+        let nna1 = Array.length na1 in
+        let nna2 = Array.length na2 in
+        DEBUG_MSG "nna1=%d nna2=%d" nna1 nna2;
+        nna1 = 1 && nna2 = 1 ||
+        let pos1 = Sourcecode.get_logical_pos n1 in
+        let pos2 = Sourcecode.get_logical_pos n2 in
+        DEBUG_MSG "pos1=%d pos2=%d" pos1 pos2;
+        pos1 = pos2 &&
+        (
+         not (has_crossing_descendant n1 n2) &&
+         let p1 = n1#initial_pos in
+         let p2 = n2#initial_pos in
+         (
+          try
+            let _n1 = na1.(p1-1) in
+            let _n2 = na2.(p2-1) in
+            DEBUG_MSG "_n1=%a _n2=%a" nups _n1 nups _n2;
+            not (has_crossing_descendant _n1 _n2)
+          with _ -> false
+         ) ||
+         (
+          try
+            let n1_ = na1.(p1+1) in
+            let n2_ = na2.(p2+1) in
+            DEBUG_MSG "n1_=%a n2_=%a" nups n1_ nups n2_;
+            not (has_crossing_descendant n1_ n2_)
+          with _ -> false
+         )
+        )
+      with _ -> false
+    in
+    DEBUG_MSG "%a-%a --> %B" nups n1 nups n2 b;
+    b
+
+
  (*
   * glueing deletes and inserts
   *)
@@ -2501,7 +2641,6 @@ END_DEBUG;
     END_DEBUG;
 
     let is_bad_pair =
-      let is_local_def n = B.is_local_def n#data#binding in
       let has_no_use_rename n1 n2 =
         let b =
           not (n1#data#eq n2#data) &&
@@ -2514,12 +2653,14 @@ END_DEBUG;
       if ignore_common then
         fun n1 n2 ->
           let b =
-            (try
-              (n1#data#is_common || n2#data#is_common) &&
-              n1#initial_parent#data#is_sequence &&
-              n2#initial_parent#data#is_sequence &&
-              not (n1#data#eq n2#data)
-            with _ -> false)
+            (
+             try
+               (n1#data#is_common || n2#data#is_common) &&
+               n1#initial_parent#data#is_sequence &&
+               n2#initial_parent#data#is_sequence &&
+               (not (n1#data#eq n2#data) || is_cross_boundary nmapping n1 n2)
+             with _ -> false
+            )
           ||
             Xset.mem bad_pairs (n1, n2)
           ||
@@ -2534,7 +2675,21 @@ END_DEBUG;
           let b =
             Xset.mem bad_pairs (n1, n2)
           ||
-            (try cenv#is_scope_breaking_mapping nmapping n1 n2 with Failure _ -> false)
+            (
+             try
+               cenv#is_scope_breaking_mapping nmapping n1 n2 &&
+               (
+                try
+                  let d1 = get_def_node cenv#tree1 n1 in
+                  let d2 = get_def_node cenv#tree2 n2 in
+                  DEBUG_MSG "d1=%a" nps d1;
+                  DEBUG_MSG "d2=%a" nps d2;
+                  not (is_local_def d1 && is_local_def d2) ||
+                  nmapping#mem_dom d1 && nmapping#mem_cod d2
+                with _ -> true
+               )
+             with Failure _ -> false
+            )
           ||
             has_no_use_rename n1 n2
           ||
@@ -2670,15 +2825,19 @@ END_DEBUG;
       s
     in
     let are_parents_mapped nd1 nd2 =
-      try
-        let pnd1 = nd1#initial_parent in
-        let pnd2 = nd2#initial_parent in
-        nmapping#find pnd1 == pnd2 &&
-        let ppnd1 = pnd1#initial_parent in
-        let ppnd2 = pnd2#initial_parent in
-        nmapping#find ppnd1 == ppnd2
-      with
-        _ -> false
+      let b =
+        try
+          let pnd1 = nd1#initial_parent in
+          let pnd2 = nd2#initial_parent in
+          nmapping#find pnd1 == pnd2 &&
+          let ppnd1 = pnd1#initial_parent in
+          let ppnd2 = pnd2#initial_parent in
+          nmapping#find ppnd1 == ppnd2
+        with
+          _ -> false
+      in
+      DEBUG_MSG "%a-%a --> %B" nups nd1 nups nd2 b;
+      b
     in
 
     tree1#init; tree2#init;
@@ -2716,8 +2875,14 @@ END_DEBUG;
         let parents_mapped = are_parents_mapped nd1 nd2 in
         if
           parents_mapped &&
-          nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0
+          (
+           (*not nd1#data#is_order_insensitive && not nd2#data#is_order_insensitive &&*)
+           (*not nd1#data#is_sequence && not nd2#data#is_sequence &&
+           not nd1#data#is_ntuple && not nd2#data#is_ntuple &&*)
+           is_extendable_move tree1 tree2 nmapping nd1 nd2
+          )
         then begin
+          DEBUG_MSG "@";
           try
             reg_deferred_op (nd1, nd2) (extend_move nd1 nd2);
             false
@@ -2730,11 +2895,14 @@ END_DEBUG;
           not nd1#data#is_boundary && not nd2#data#is_boundary &&
           not (is_move nd1#initial_parent nd2#initial_parent)
         then begin
+          DEBUG_MSG "@";
           reg_deferred_op (nd1, nd2) (add_move nd1 nd2);
           false
         end
-        else
+        else begin
+          DEBUG_MSG "@";
           true
+        end
       then
         DEBUG_MSG "move: %a-%a" nups nd1 nups nd2
 
@@ -4972,7 +5140,11 @@ END_DEBUG;
 
                 DEBUG_MSG "conflict: %a->%a" nups nd1 nups n2;
 
-                if no_moves && nmapping#is_stable_pair nd1 n2 then begin
+                if nmapping#is_final_mapping nd1 n2 then begin
+                  DEBUG_MSG "         --> final";
+                  false, None, None
+                end
+                else if no_moves && nmapping#is_stable_pair nd1 n2 then begin
                   DEBUG_MSG "         --> stable";
                   false, None, None
                 end
@@ -5022,7 +5194,12 @@ END_DEBUG;
               else (* n2 == nd2 *)
                 false, None, None
             with
-              Not_found -> not no_moves || not (is_crossing_with_added nd1 nd2), None, None
+              Not_found ->
+                let b =
+                  not no_moves ||
+                  not (is_crossing_with_added nd1 nd2)
+                in
+                b, None, None
           in
           let can_add2, dnc2, padj2 =
             try
@@ -5031,7 +5208,11 @@ END_DEBUG;
 
                 DEBUG_MSG "conflict: %a<-%a" nups n1 nups nd2;
 
-                if no_moves && nmapping#is_stable_pair n1 nd2 then begin
+                if nmapping#is_final_mapping n1 nd2 then begin
+                  DEBUG_MSG "         --> final";
+                  false, None, None
+                end
+                else if no_moves && nmapping#is_stable_pair n1 nd2 then begin
                   DEBUG_MSG "         --> stable";
                   false, None, None
                 end
@@ -5081,7 +5262,12 @@ END_DEBUG;
               else (* n1 == nd1 *)
                 false, None, None
             with
-              Not_found -> not no_moves || not (is_crossing_with_added nd1 nd2), None, None
+              Not_found ->
+                let b =
+                  not no_moves ||
+                  not (is_crossing_with_added nd1 nd2)
+                in
+                b, None, None
           in
           BEGIN_DEBUG
             let dnc_to_str = function
@@ -6970,8 +7156,10 @@ end;
         end
         else if*)
           not force &&
-          (rt1#initial_nchildren = 0 && rt2#initial_nchildren = 0 && node_eq rt1 rt2 ||
-          rt1#data#subtree_equals rt2#data) &&
+          (
+           rt1#initial_nchildren = 0 && rt2#initial_nchildren = 0 && node_eq rt1 rt2 ||
+           rt1#data#subtree_equals rt2#data && tsz > 1
+          ) &&
           (cenv#has_uniq_match rt1 rt2)
         then begin
           DEBUG_MSG "unique move";
@@ -6994,7 +7182,6 @@ end;
           let moveon x = not x#data#is_sequence in
           let get_mapped_descendants mem = get_p_descendants ~moveon mem in
           let get_dn = get_p_ancestor (fun x -> B.is_def x#data#binding) in
-          (*let is_use x = B.is_use x#data#binding in*)
           let name_tbl_to_str tbl =
             Hashtbl.fold
               (fun n bil s ->
@@ -7760,12 +7947,27 @@ end;
                         DEBUG_MSG "to be excluded: %a (ancestor mapping)" MID.ps mid;
                         Xset.add xset mid
                       end
+                      (*else if
+                        try
+                          let pnd1 = nd1#initial_parent in
+                          let pnd2 = nd2#initial_parent in
+                          pnd1#data#is_boundary && pnd2#data#is_boundary &&
+                          pnd1#data#is_named && pnd2#data#is_named &&
+                          pnd1#data#get_name = nd1#data#get_name &&
+                          pnd2#data#get_name = nd2#data#get_name &&
+                          nmapping#find pnd1 == pnd2
+                        with _ -> false
+                      then begin
+                        DEBUG_MSG "to be excluded: %a (namesake boundary)" MID.ps mid;
+                        Xset.add xset mid
+                      end*)
                       else if
                         try
                           let nm1 = get_orig_name nd1 in
                           let nm2 = get_orig_name nd2 in
                           nd1#data#anonymized_label = nd2#data#anonymized_label &&
-                          cenv#is_rename_pat (nm1, nm2)
+                          cenv#is_rename_pat (nm1, nm2) &&
+                          not (is_cross_boundary nmapping nd1 nd2)
                         with
                           _ -> false
                       then begin
@@ -7813,7 +8015,7 @@ end;
                               | Edit.Relabel(_, (i1, _), (i2, _)) -> begin
                                   let n1 = Info.get_node i1 in
                                   let n2 = Info.get_node i2 in
-                                  B.is_use n1#data#binding && B.is_use n2#data#binding &&
+                                  is_use n1 && is_use n2 &&
                                   try
                                     let bi1 = Edit.get_bid n1 in
                                     let bi2 = Edit.get_bid n2 in
@@ -7829,6 +8031,37 @@ end;
                       then begin
                         if sz = 1 && is_cross_boundary nmapping nd1 nd2 then
                           DEBUG_MSG "single cross boundary move: %a" MID.ps mid
+                        else if
+                          sz = 1 &&
+                          let stmt_deleted =
+                            try
+                              let stmt1 = Comparison.get_stmt nd1 in
+                              is_del stmt1
+                            with
+                              _ -> false
+                          in
+                          let stmt_inserted =
+                            try
+                              let stmt2 = Comparison.get_stmt nd2 in
+                              is_ins stmt2
+                            with
+                              _ -> false
+                          in
+                          (stmt_deleted || stmt_inserted) &&
+                          (
+                           stmt_deleted && stmt_inserted ||
+                           not (
+                             not (is_use nd1 && is_use nd2) ||
+                             try
+                               let def1 = get_def_node tree1 nd1 in
+                               let def2 = get_def_node tree2 nd2 in
+                               is_local_def def1 && is_local_def def2 &&
+                               nmapping#find def1 == def2
+                             with _ -> false
+                           )
+                          )
+                        then
+                          DEBUG_MSG "single cross statement move: %a" MID.ps mid
                         else begin
                           DEBUG_MSG "to be excluded: %a (binding)" MID.ps mid;
                           Xset.add xset mid
@@ -8945,43 +9178,54 @@ end;
       pre_nmapping
       =
     let extend_move n1 n2 =
+      DEBUG_MSG "n1=%a n2=%a" nups n1 nups n2;
       try
         let pn1 = n1#initial_parent in
         let pn2 = n2#initial_parent in
-        match edits#find_mov12 pn1 pn2 with
-        | Edit.Move(mid, k, _, _) -> begin
-            DEBUG_MSG "mid=%a" MID.ps !mid;
-            let chk1 c1 =
-              try
-                match edits#find_mov1 c1 with
-                | Edit.Move(m, _, _, (ci2, _)) -> begin
-                    DEBUG_MSG "m=%a" MID.ps !m;
-                    !m <> !mid ||
-                    let c2 = Info.get_node ci2 in
-                    DEBUG_MSG "c1=%a c2=%a" nups c1 nups c2;
-                    not (cenv#is_crossing_or_incompatible c1 c2 n1 n2)
-                end
-                | _ -> assert false
-              with
-                Not_found -> true
-            in
-            let ok =
-              Array.for_all
-                (fun c1 ->
-                  c1 == n1 ||
-                  chk1 c1 && not (has_p_descendant (fun x -> not (chk1 x)) c1)
-                ) pn1#initial_children
-            in
-            DEBUG_MSG "ok=%B" ok;
-            if ok then
-              fun () ->
-                let mov = Edit._make_move !mid !k (mkinfo n1) (mkinfo n2) in
-                DEBUG_MSG "generated move: %s" (Edit.to_string mov);
-                edits#add_edit mov
+        DEBUG_MSG "pn1=%a pn2=%a" nups pn1 nups pn2;
+
+        try
+          match edits#find_mov12 pn1 pn2 with
+          | Edit.Move(mid, k, _, _) -> begin
+              DEBUG_MSG "mid=%a" MID.ps !mid;
+              let chk1 c1 =
+                try
+                  match edits#find_mov1 c1 with
+                  | Edit.Move(m, _, _, (ci2, _)) -> begin
+                      DEBUG_MSG "m=%a" MID.ps !m;
+                      !m <> !mid ||
+                      let c2 = Info.get_node ci2 in
+                      DEBUG_MSG "c1=%a c2=%a" nups c1 nups c2;
+                      not (cenv#is_crossing_or_incompatible c1 c2 n1 n2)
+                  end
+                  | _ -> assert false
+                with
+                  Not_found -> true
+              in
+              let ok =
+                Array.for_all
+                  (fun c1 ->
+                    c1 == n1 ||
+                    chk1 c1 && not (has_p_descendant (fun x -> not (chk1 x)) c1)
+                  ) pn1#initial_children
+              in
+              DEBUG_MSG "ok=%B" ok;
+              if ok then
+                fun () ->
+                  let mov = Edit._make_move !mid !k (mkinfo n1) (mkinfo n2) in
+                  DEBUG_MSG "generated move: %s" (Edit.to_string mov);
+                  edits#add_edit mov
+              else
+                failwith "extend_move"
+          end
+          | _ -> assert false
+        with
+          Not_found -> begin
+            if try nmapping#find pn1 == pn2 with _ -> false then
+              fun () -> DEBUG_MSG "stably mapped"
             else
               failwith "extend_move"
-        end
-        | _ -> assert false
+          end
       with
         _ -> failwith "extend_move"
     in
@@ -9609,26 +9853,50 @@ end;
         Xset.iter
           (fun (mid, nd1, nd2) ->
             DEBUG_MSG "mid=%a nd1=%a nd2=%a" MID.ps mid nps nd1 nps nd2;
-            tree1#fast_scan_whole_initial_subtree nd1
-              (fun n1 ->
-                if is_stable1 n1 then begin
-                  let n2 = nmap1 n1 in
-                  if n1#data#is_named_orig && n1#data#eq n2#data then
-                    ()
-                  else
+            let has_key_node1 =
+              try
+                tree1#fast_scan_whole_initial_subtree nd1
+                  (fun n1 ->
+                    if
+                      is_stable1 n1 &&
+                      (n1#data#is_named_orig || n1#data#has_non_trivial_value)
+                    then
+                      raise Found
+                  );
+                false
+              with Found -> true
+            in
+            DEBUG_MSG "has_key_node1=%B" has_key_node1;
+            if not has_key_node1 then
+              tree1#fast_scan_whole_initial_subtree nd1
+                (fun n1 ->
+                  if is_stable1 n1 then begin
+                    let n2 = nmap1 n1 in
                     rmmap n1 n2
-                end
-              );
-            tree2#fast_scan_whole_initial_subtree nd2
-              (fun n2 ->
-                if is_stable2 n2 then begin
-                  let n1 = nmap2 n2 in
-                  if n1#data#is_named_orig && n1#data#eq n2#data then
-                    ()
-                  else
+                  end
+                );
+            let has_key_node2 =
+              try
+                tree2#fast_scan_whole_initial_subtree nd2
+                  (fun n2 ->
+                    if
+                      is_stable2 n2 &&
+                      (n2#data#is_named_orig || n2#data#has_non_trivial_value)
+                    then
+                      raise Found
+                  );
+                false
+              with Found -> true
+            in
+            DEBUG_MSG "has_key_node2=%B" has_key_node2;
+            if not has_key_node2 then
+              tree2#fast_scan_whole_initial_subtree nd2
+                (fun n2 ->
+                  if is_stable2 n2 then begin
+                    let n1 = nmap2 n2 in
                     rmmap n1 n2
-                end
-              );
+                  end
+                );
 
             nmapping#set_starting_pairs_for_glueing [nd1, nd2];
 
@@ -10517,6 +10785,182 @@ end;
         | _ -> assert false
       );
 
+    if true then begin
+      DEBUG_MSG "tidying up...";
+      let add_move n1 n2 =
+        DEBUG_MSG "%a-%a" nups n1 nups n2;
+        let mid, kind =
+          try
+            let pn1 = n1#initial_parent in
+            let pn2 = n2#initial_parent in
+            if
+              pn1#initial_nchildren = 1 || pn2#initial_nchildren = 1 ||
+              is_extendable_move tree1 tree2 nmapping n1 n2
+            then begin
+              DEBUG_MSG "@";
+              match edits#find_mov12 pn1 pn2 with
+              | Edit.Move(mid, k, _, _) -> !mid, !k
+              | _ -> raise Not_found
+            end
+            else
+              raise Not_found
+          with
+            _ -> options#moveid_generator#gen, Edit.Mnormal
+        in
+        let mov = Edit._make_move mid kind (mkinfo n1) (mkinfo n2) in
+        DEBUG_MSG "generated move: %s" (Edit.to_string mov);
+        edits#add_edit mov
+      in
+
+      edits#iter_deletes
+        (function
+          | Edit.Delete(whole, info, excludes) as del -> begin
+              let nd1 = Info.get_node info in
+              if nd1#data#is_named then begin
+                try
+                  let pnd1 = nd1#initial_parent in
+                  if
+                    pnd1#data#is_boundary && pnd1#data#is_named &&
+                    pnd1#data#get_name = nd1#data#get_name
+                  then begin
+                    let pnd2 = nmapping#find pnd1 in
+                    if
+                      pnd2#data#is_boundary && pnd2#data#is_named
+                    then begin
+                      DEBUG_MSG "nd1=%a" nps nd1;
+                      DEBUG_MSG "pnd1=%a" nps pnd1;
+                      DEBUG_MSG "pnd2=%a" nps pnd2;
+                      let pname2 = pnd2#data#get_name in
+                      let alab1 = nd1#data#_anonymized_label in
+                      let nl2 = ref [] in
+                      Array.iter
+                        (fun n2 ->
+                          if
+                            edits#mem_ins n2 &&
+                            not (nd1#data#eq n2#data) &&
+                            n2#data#_anonymized_label = alab1 &&
+                            n2#data#is_named && n2#data#get_name = pname2
+                          then begin
+                            nl2 := n2 :: !nl2
+                          end
+                        ) pnd2#initial_children;
+                      match !nl2 with
+                      | [nd2] -> begin
+                          DEBUG_MSG "nd2=%a" nps nd2;
+                          ignore (nmapping#add_unsettled nd1 nd2);
+                          add_move nd1 nd2;
+                          edits#add_edit (Edit.make_relabel nd1 nd2);
+                          let ins = edits#find_ins nd2 in
+                          edits#remove_edit del;
+                          edits#remove_edit ins
+                      end
+                      | _ -> ()
+                    end
+                  end
+                with _ -> ()
+              end
+          end
+          | _ -> assert false
+        );
+
+      cenv#multiple_node_matches#iter
+        (fun (_lab, _nds1, _nds2) ->
+          let nds1 = List.filter (fun x -> not (nmapping#mem_dom x)) _nds1 in
+          let nds2 = List.filter (fun x -> not (nmapping#mem_cod x)) _nds2 in
+          match nds1, nds2 with
+          | [nd1], [nd2] -> begin
+              DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
+                (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
+              if
+                nd1#initial_nchildren = 0 && nd2#initial_nchildren = 0 &&
+                try
+                  nmapping#find nd1#initial_parent == nd2#initial_parent
+                with _ -> false
+              then begin
+                ignore (nmapping#add_unsettled nd1 nd2);
+                add_move nd1 nd2;
+                let del = edits#find_del nd1 in
+                let ins = edits#find_ins nd2 in
+                edits#remove_edit del;
+                edits#remove_edit ins
+              end
+          end
+          | nd1::_, nd2::_(* when false*) -> begin
+              DEBUG_MSG "%s nds1=[%a] nds2=[%a]"
+                (Label.to_string (Obj.obj _lab)) nsps nds1 nsps nds2;
+              let tbl1 = Nodetbl.create 0 in
+              let tbl2 = Nodetbl.create 0 in
+              let tbl_add tbl mem n =
+                if n#initial_nchildren = 0 then
+                  let moveon_ x = not x#data#is_boundary in
+                  try
+                    let an = Sourcecode.find_nearest_p_ancestor_node ~moveon_ mem n in
+                    try
+                      let nl = Nodetbl.find tbl an in
+                      Nodetbl.replace tbl an (n::nl)
+                    with
+                      Not_found -> Nodetbl.add tbl an [n]
+                  with
+                    _ -> ()
+              in
+              List.iter (tbl_add tbl1 nmapping#mem_dom) nds1;
+              List.iter (tbl_add tbl2 nmapping#mem_cod) nds2;
+              Nodetbl.iter
+                (fun an1 nl1 ->
+                  try
+                    let nl2 = Nodetbl.find tbl2 (nmapping#find an1) in
+                    DEBUG_MSG "%s nl1=[%a] nl2=[%a]"
+                      (Label.to_string (Obj.obj _lab)) nsps nl1 nsps nl2;
+
+                    match nl1, nl2 with
+                    | [n1], [n2] -> begin
+
+                        ignore (nmapping#add_unsettled n1 n2);
+                        add_move n1 n2;
+                        let del = edits#find_del n1 in
+                        let ins = edits#find_ins n2 in
+                        edits#remove_edit del;
+                        edits#remove_edit ins;
+
+                        let cur1 = ref n1 in
+                        let cur2 = ref n2 in
+                        begin
+                          try
+                            while true do
+                              let pn1 = (!cur1)#initial_parent in
+                              let pn2 = (!cur2)#initial_parent in
+                              if
+                                pn1#initial_nchildren = 1 && pn2#initial_nchildren = 1 &&
+                                not (pn1#data#eq pn2#data) &&
+                                not (nmapping#mem_dom pn1) && not (nmapping#mem_cod pn2) &&
+                                pn1#data#_anonymized_label = pn2#data#_anonymized_label
+                              then begin
+                                ignore (nmapping#add_unsettled pn1 pn2);
+                                edits#add_edit (Edit.make_relabel pn1 pn2);
+                                let del = edits#find_del pn1 in
+                                let ins = edits#find_ins pn2 in
+                                edits#remove_edit del;
+                                edits#remove_edit ins;
+                                cur1 := pn1;
+                                cur2 := pn2
+                              end
+                              else
+                                raise Exit
+                            done
+                          with
+                            _ -> ()
+                        end;
+                        add_move !cur1 !cur2
+                    end
+                    | _ -> ()
+                  with
+                    _ -> ()
+                ) tbl1;
+
+          end
+          | _ -> ()
+        )
+    end;
 
     let delete_exclude_map = Nodetbl.create 0 in
     let insert_exclude_map = Nodetbl.create 0 in

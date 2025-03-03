@@ -823,6 +823,10 @@ let is_sequence lab =
   let conf = get_conf lab.elem_parser in
   scan_cats lab conf#sequence_nodes
 
+let is_ntuple lab =
+  let conf = get_conf lab.elem_parser in
+  scan_cats lab conf#ntuple_nodes
+
 
 let get_ident_use lab = "" (* not yet *)
 

@@ -39,6 +39,7 @@ class parser_c = object (self)
   val mutable token_hist_flag = false
   val mutable parse_macro_defs_flag = true
   val mutable dump_tokens_flag = false
+  val mutable dump_stats_flag = false
 
   val mutable scanner = Obj.magic ()
   val mutable _parse = fun () -> Obj.magic ()
@@ -58,6 +59,10 @@ class parser_c = object (self)
     dump_tokens_flag <- true;
     env#set_dump_tokens_flag();
     scanner#set_dump_tokens_flag()
+
+  method set_dump_stats_flag () =
+    dump_stats_flag <- true;
+    scanner#set_dump_stats_flag()
 
   method make_source file  = new Source.c file
   method make_source_stdin = new Source.c Storage.stdin
@@ -151,6 +156,7 @@ class parser_c = object (self)
       | T_COLON_GT -> "COLON_GT"
       | T_COMMA -> "COMMA"
       | T_COMMA_BROKEN -> "COMMA_BROKEN"
+      | T_COMMA_BROKEN2 -> "COMMA_BROKEN2"
       | T_COMPL -> "COMPL"
       | T_CONCEPT -> "CONCEPT"
       | T_COND_MARKER -> "COND_MARKER"
@@ -180,6 +186,7 @@ class parser_c = object (self)
       | T_DOUBLE -> "DOUBLE"
       | T_DOXYGEN_CMD -> "DOXYGEN_CMD"
       | T_DOXYGEN_LINE -> "DOXYGEN_LINE"
+      | T_DQ -> "DQ"
       | T_DTOR_MACRO -> "DTOR_MACRO"
       | T_DUMMY_BODY -> "DUMMY_BODY"
       | T_DUMMY_DTOR -> "DUMMY_DTOR"
@@ -464,6 +471,7 @@ class parser_c = object (self)
       | T_PS_LPAREN -> "PS_LPAREN"
       | T_PTR_AMP -> "PTR_AMP"
       | T_PTR_AMP_AMP -> "PTR_AMP_AMP"
+      | T_PTR_DTOR_MACRO -> "PTR_DTOR_MACRO"
       | T_PTR_HAT -> "PTR_HAT"
       | T_PTR_MACRO -> "PTR_MACRO"
       | T_PTR_STAR -> "PTR_STAR"
@@ -706,6 +714,8 @@ class parser_c = object (self)
       | N_enumerator_definition -> "enumerator_definition"
       | N_enumerator_list -> "enumerator_list"
       | N_equality_expression -> "equality_expression"
+      | N_error_token -> "error_token"
+      | N_error_token_seq -> "error_token_seq"
       | N_etors_sub -> "etors_sub"
       | N_exception_declaration -> "exception_declaration"
       | N_exclusive_or_expression -> "exclusive_or_expression"
@@ -752,6 +762,7 @@ class parser_c = object (self)
       | N_initializer_ -> "initializer_"
       | N_initializer_clause -> "initializer_clause"
       | N_initializer_list -> "initializer_list"
+      | N_ior_unit_seq -> "ior_unit_seq"
       | N_iteration_macro -> "iteration_macro"
       | N_iteration_statement -> "iteration_statement"
       | N_jump_statement -> "jump_statement"
@@ -862,7 +873,7 @@ class parser_c = object (self)
       | N_mid_paren_close -> "mid_paren_close"
       | N_mid_brace_close -> "mid_brace_close"
       | N_mid_brace_open -> "mid_brace_open"
-      | N_mid_init -> "N_mid_init"
+      | N_mid_init -> "mid_init"
       | N_mid_objc_cat_iface -> "mid_objc_cat_iface"
       | N_mid_paren_open -> "mid_paren_open"
       | N_mid_templ_decl -> "mid_templ_decl"
@@ -895,6 +906,7 @@ class parser_c = object (self)
       | N_nonempty_list_additive_unit_ -> "nonempty_list(additive_unit)"
       | N_nonempty_list_char_literal_ -> "nonempty_list(char_literal)"
       | N_nonempty_list_designator_ -> "nonempty_list(designator)"
+      | N_nonempty_list_error_token_ -> "nonempty_list(error_token)"
       | N_nonempty_list_int_literal_ -> "nonempty_list(int_literal)"
       | N_nonempty_list_gnu_asm_token_ -> "nonempty_list(gnu_asm_token)"
       | N_nonempty_list_header_name_token_ -> "nonempty_list(header_name_token)"
@@ -907,6 +919,7 @@ class parser_c = object (self)
       | N_nonempty_list_odd_else_stmt_ -> "nonempty_list(odd_else_stmt)"
       | N_nonempty_list_pp_base_clause_if_section_ -> "nonempty_list(pp_base_clause_if_section)"
       | N_nonempty_list_pp_control_line_ -> "nonempty_list(pp_control_line)"
+      | N_nonempty_list_pp_idtor_if_section_ -> "nonempty_list(pp_idtor_if_section)"
       | N_nonempty_list_pp_param_if_section_ -> "nonempty_list(pp_param_if_section)"
       | N_nonempty_list_QUEST_ -> "nonempty_list(QUEST)"
       | N_nonempty_list_q_prop_token_ -> "nonempty_list(q_prop_token)"
@@ -1083,7 +1096,7 @@ class parser_c = object (self)
       | N_pp_dtor_elif_group_broken -> "pp_dtor_elif_group_broken"
       | N_pp_dtor_else_group_broken -> "pp_dtor_else_group_broken"
       | N_pp_dtor_if_group_broken -> "pp_dtor_if_group_broken"
-      | N_pp_dtor_if_section_broken -> "N_pp_dtor_if_section_broken"
+      | N_pp_dtor_if_section_broken -> "pp_dtor_if_section_broken"
       | N_pp_edef_elif_group -> "pp_edef_elif_group"
       | N_pp_edef_else_group -> "pp_edef_else_group"
       | N_pp_edef_if_group -> "pp_edef_if_group"
@@ -1098,7 +1111,7 @@ class parser_c = object (self)
       | N_pp_enum_elif_group_closing -> "pp_enum_elif_group_closing"
       | N_pp_enum_else_group_closing -> "pp_enum_else_group_closing"
       | N_pp_enum_if_group_closing -> "pp_enum_if_group_closing"
-      | N_pp_enum_if_section_closing -> "N_pp_enum_if_section_closing"
+      | N_pp_enum_if_section_closing -> "pp_enum_if_section_closing"
       | N_pp_expr_elif_group -> "pp_expr_elif_group"
       | N_pp_expr_else_group -> "pp_expr_else_group"
       | N_pp_expr_if_group -> "pp_expr_if_group"
@@ -1753,7 +1766,7 @@ class parser_c = object (self)
             end
             | I.X (I.N N_pp_idtor_if_group), _, I.X (I.T T_SEMICOLON) -> begin
                 env#set_semicolon_info();
-                env#set_pp_top_label L.InitDeclarator;
+                env#set_pp_top_label (L.InitDeclarator "");
                 scanner#ctx_top();
                 scanner#ctx_ini();
                 raise Exit
@@ -2976,6 +2989,11 @@ class parser_c = object (self)
             | I.X (I.N N_brace_or_equal_initializer), _, I.X (I.T T_EQ) -> begin
                 scanner#ctx_expr();
                 scanner#ctx_ini();
+                begin
+                  match scanner#peek_rawtoken() with
+                  | DELETE -> ()
+                  | _ -> env#set_eq_init_flag()
+                end;
                 raise Exit
             end
             | I.X (I.N N_parameter_declaration), _, I.X (I.T T_EQ) -> begin
@@ -4778,9 +4796,9 @@ class parser_c = object (self)
                 try (List.nth rhs 0) = I.X (I.N N_cast_key) with _ -> false
                   -> env#clear_cast_key_flag()
 
-            | I.X (I.N N_noptr_declarator) when
+            (*| I.X (I.N N_noptr_declarator) when
                 try (List.nth rhs 1) = I.X (I.T T_PS_LPAREN) with _ -> false
-                  -> env#clear_old_param_decl_flag()
+                  -> env#clear_old_param_decl_flag()*)
 
             | I.X (I.N N_pp_dtor_if_group) -> begin
                 env#clear_old_param_decl_flag();
@@ -4892,7 +4910,10 @@ class parser_c = object (self)
                 | _ -> ()
             end
             | I.X (I.N N_pp_func_body_if_section) -> env#clear_pp_func_body_odd_flag()
-            | I.X (I.N N_brace_or_equal_initializer) -> env#clear_init_flag()
+            | I.X (I.N N_brace_or_equal_initializer) -> begin
+                env#clear_init_flag();
+                env#clear_eq_init_flag();
+            end
             | I.X (I.N N_initializer_clause) -> env#clear_init_flag()
             | I.X (I.N N_objc_method_selector) -> begin
                 env#clear_end_of_objc_meth_sel_flag();
@@ -4919,6 +4940,29 @@ class parser_c = object (self)
             | I.X (I.N N_braced_init_list) when
                 Xlist.last rhs = I.X (I.N N_pp_init_if_section_closing)
               -> env#exit_braced_init()
+
+            | I.X (I.N N_pp_expr_if_section_broken)
+            | I.X (I.N N_pp_expr_if_section_broken2)
+            | I.X (I.N N_pp_stmt_if_section_broken)
+            | I.X (I.N N_pp_decl_if_section_broken)
+            | I.X (I.N N_pp_mdecl_if_section_broken)
+            | I.X (I.N N_pp_class_head_if_section_broken)
+            | I.X (I.N N_pp_dtor_if_section_broken)
+            | I.X (I.N N_pp_func_head_if_section_broken)
+            | I.X (I.N N_pp_handler_if_section_broken)
+            | I.X (I.N N_pp_lambda_head_if_section_broken)
+            | I.X (I.N N_pp_minit_if_section_broken)
+            | I.X (I.N N_pp_aexpr_if_section_closing)
+            | I.X (I.N N_pp_args_if_section_closing)
+            | I.X (I.N N_pp_enum_if_section_closing)
+            | I.X (I.N N_pp_ifstmt_if_section_closing)
+            | I.X (I.N N_pp_init_if_section_closing)
+            | I.X (I.N N_pp_stmt_if_section_closing)
+            | I.X (I.N N_pp_args_if_section_close_open)
+            | I.X (I.N N_pp_stmt_if_section_close_open)
+              when scanner#dump_stats_flag
+              -> scanner#incr_count "broken pp-branch"
+
             | _ -> ()
           end;
           let ckpt = I.resume ckpt in
@@ -5410,6 +5454,8 @@ class parser_c = object (self)
         let ast = do_parse() in
         if dump_tokens_flag then
           token_seq#dump (env#current_source#file#fullpath^".tkns");
+        if dump_stats_flag then
+          scanner#dump_stats();
         ast
       with
         Failed_to_parse pos ->

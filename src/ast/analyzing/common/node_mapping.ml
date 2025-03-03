@@ -182,6 +182,7 @@ module Json = struct
 
   let get_info1
       ?(is_subtree_root=fun x -> false)
+      ?(get_root=None)
       tree
       (nd : node_t)
       =
@@ -193,11 +194,39 @@ module Json = struct
     l := (sprintf "\"loc\":%s" (get_loc nd)) :: !l;
     l := (sprintf "\"cat\":%s" (get_cat nd)) :: !l;
 
+    begin
+      try
+        let pgi = get_gid nd#initial_parent in
+        let pos = nd#initial_pos in
+        l := (sprintf "\"parent\":%a" GI.rs pgi) :: !l;
+        l := (sprintf "\"pos\":%d" pos) :: !l
+      with _ -> ()
+    end;
+
     if is_subtree_root nd && not phantom then begin
       let h = get_digest tree nd in
-      let lgi = (tree#initial_leftmost nd)#gindex in
+      let lmnd = tree#initial_leftmost nd in
+      let lgi = get_gid lmnd in
       l := (sprintf "\"digest\":\"%s\"" h) :: !l;
-      l := (sprintf "\"leftmost\":\"%a\"" GI.rs lgi) :: !l
+      l := (sprintf "\"leftmost\":%a" GI.rs lgi) :: !l;
+      match get_root with
+      | Some get -> begin
+          try
+            if get lmnd == get nd then
+              l := (sprintf "\"mem_leftmost\":true") :: !l
+          with _ -> ()
+      end
+      | _ -> ()
+    end;
+
+    begin
+      match get_root with
+      | Some get -> begin
+          try
+            l := (sprintf "\"root\":%a" GI.rs (get_gid (get nd))) :: !l;
+          with _ -> ()
+      end
+      | _ -> ()
     end;
 
     if name <> "" then
@@ -228,8 +257,8 @@ module Json = struct
       try
         let un2 = find_nearest_unordered_ancestor_node nd2 in
         let un1 = Nodetbl.find mapped_node_tbl un2 in
-        let ug1, ug2 = un1#gindex, un2#gindex in
-        let gi1, gi2 = nd1#gindex, nd2#gindex in
+        let ug1, ug2 = get_gid un1, get_gid un2 in
+        let gi1, gi2 = get_gid nd1, get_gid nd2 in
         (ug1 - gi1) * (ug2 - gi2) > 0
       with _ -> false
     in
@@ -239,15 +268,30 @@ module Json = struct
 
     if is_subtree_root nd1 && not nd1#data#is_phantom then begin
       let h = get_digest tree1 nd1 in
-      let lgi = (tree1#initial_leftmost nd1)#gindex in
+      let lgi = get_gid (tree1#initial_leftmost nd1) in
       l := (sprintf "\"from_digest\":\"%s\"" h) :: !l;
-      l := (sprintf "\"from_leftmost\":\"%a\"" GI.rs lgi) :: !l
+      l := (sprintf "\"from_leftmost\":%a" GI.rs lgi) :: !l
     end;
     if is_subtree_root nd2 && not nd2#data#is_phantom then begin
       let h = get_digest tree2 nd2 in
-      let lgi = (tree2#initial_leftmost nd2)#gindex in
+      let lgi = get_gid (tree2#initial_leftmost nd2) in
       l := (sprintf "\"to_digest\":\"%s\"" h) :: !l;
-      l := (sprintf "\"to_leftmost\":\"%a\"" GI.rs lgi) :: !l
+      l := (sprintf "\"to_leftmost\":%a" GI.rs lgi) :: !l
+    end;
+
+    begin
+      try
+        let pgi1 = get_gid nd1#initial_parent in
+        l := (sprintf "\"from_parent\":%a" GI.rs pgi1) :: !l;
+        l := (sprintf "\"from_pos\":%d" nd1#initial_pos) :: !l
+      with _ -> ()
+    end;
+    begin
+      try
+        let pgi2 = get_gid nd2#initial_parent in
+        l := (sprintf "\"to_parent\":%a" GI.rs pgi2) :: !l;
+        l := (sprintf "\"to_pos\":%d" nd2#initial_pos) :: !l
+      with _ -> ()
     end;
 
     if name1 <> "" then
@@ -262,7 +306,7 @@ module Json = struct
       l := "\"unordered\":true" :: !l;
     "{"^(String.concat "," !l)^"}"
 
-end
+end (* module Json *)
 
 class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
 
@@ -354,6 +398,17 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
 
   method is_final_mapping n1 n2 =
     let b = Xset.mem final_mappings (n1, n2) in
+    DEBUG_MSG "%a-%a -> %B" nups n1 nups n2 b;
+    b
+
+  val mutable pre_boundary_mappings = (Xset.create 0 : ('node_t * 'node_t) Xset.t)
+
+  method add_to_pre_boundary_mapping n1 n2 =
+    DEBUG_MSG "%a-%a" nups n1 nups n2;
+    Xset.add pre_boundary_mappings (n1, n2)
+
+  method is_pre_boundary_mapping n1 n2 =
+    let b = Xset.mem pre_boundary_mappings (n1, n2) in
     DEBUG_MSG "%a-%a -> %B" nups n1 nups n2 b;
     b
 
@@ -553,6 +608,10 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
     let invalidated_settled_root_tbl = Hashtbl.create 0 in
 
     let check adder n1 n2 =
+      if m#is_pre_boundary_mapping n1 n2 then
+        adder n1 n2
+      else begin
+
       DEBUG_MSG "checking %a-%a" nups n1 nups n2;
       let mem1 = self#mem_dom n1 in
       let mem2 = self#mem_cod n2 in
@@ -594,9 +653,18 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
       end
       else
         adder n1 n2
+
+      end
     in
 
-    m#iter_settled (check (fun n1 n2 -> ignore (self#add_settled ~stable:false n1 n2)));
+    m#iter_settled
+      (check
+         (fun n1 n2 ->
+           ignore (self#add_settled ~stable:false n1 n2);
+           if m#is_final_mapping n1 n2 then
+             self#finalize_mapping n1 n2
+         )
+      );
     m#iter_unsettled (check (fun n1 n2 -> ignore (self#add_unsettled n1 n2)));
 
     let rec get_settled_roots (nd1, nd2) =
@@ -1028,7 +1096,11 @@ class ['node_t] c (cenv : 'a Node.cenv_t) = object (self : 'self)
             if !comma_flag then
               _fprintf ch ",";
             let info = get_info nd1 nd2 in
-            _fprintf ch "[%a,%a,%s]" GI.rs (get_gid nd1) GI.rs (get_gid nd2) info;
+            let gid1 = get_gid nd1 in
+            let gid2 = get_gid nd2 in
+            (*DEBUG_MSG "!!! gid1=%a gid2=%a" GI.ps gid1 GI.ps gid2;
+            DEBUG_MSG "!!! nd1=%s nd2=%s" nd1#to_string nd2#to_string;*)
+            _fprintf ch "[%a,%a,%s]" GI.rs gid1 GI.rs gid2 info;
             comma_flag := true
           ) a
       in

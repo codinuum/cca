@@ -141,7 +141,8 @@ let get_logical_pos ?(strict=false) nd =
   let pnd = nd#initial_parent in
   if strict && not pnd#data#has_ordinal then
     raise Not_found;
-  let pos = pnd#data#get_ordinal nd#initial_pos in
+  let ipos = nd#initial_pos in
+  let pos = try pnd#data#get_ordinal ipos with _ -> ipos in
   DEBUG_MSG "%a -> %d" UID.ps nd#uid pos;
   pos
 
@@ -468,6 +469,8 @@ module Tree (L : Spec.LABEL_T) = struct
       method is_partition = L.is_partition lab
 
       method is_sequence = L.is_sequence lab
+
+      method is_ntuple = L.is_ntuple lab
 
       method is_phantom = L.is_phantom lab
 

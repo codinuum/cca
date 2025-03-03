@@ -22,9 +22,10 @@ class c = object (self)
   method moveid_generator = moveid_generator
 
 (* flags *)
-  val mutable viewer_flag      = false
-  val mutable check_flag       = false
-  val mutable dots_flag        = false
+  val mutable viewer_flag = false
+  val mutable check_flag  = false
+  val mutable dots_flag   = false
+  val mutable dist_flag   = false
 
   (* algo *)
   val mutable group_relabels_flag          = false
@@ -87,6 +88,10 @@ class c = object (self)
   method dots_flag = dots_flag
   method set_dots_flag = dots_flag <- true
   method clear_dots_flag = dots_flag <-false
+
+  method dist_flag = dist_flag
+  method set_dist_flag = dist_flag <- true
+  method clear_dist_flag = dist_flag <-false
 
 
   (* algorithm *)

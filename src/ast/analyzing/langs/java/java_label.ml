@@ -3329,6 +3329,7 @@ let is_order_insensitive = function
   | IDsingleStatic _
   | IDstaticOnDemand _
   | Modifier _
+  | Annotation _
       -> true
   | _ -> false
 
@@ -3506,6 +3507,15 @@ let is_sequence = function
 
   | _ -> false
 
+let is_ntuple = function
+  | Parameters _
+  | TypeParameters _
+  | InferredFormalParameters
+  | Arguments
+  | NamedArguments _
+  | TypeArguments _
+      -> true
+  | _ -> false
 
 (* for change pattern detection *)
 
@@ -4010,6 +4020,7 @@ let is_specifier = function
 
 let is_primary = function
   | Primary _ -> true
+  (*| Statement (Statement.Expression (Expression.Primary _, _)) -> true*)
   | _ -> false
 
 let is_primarythis = function

@@ -48,6 +48,7 @@ class type node_data_t = object ('self)
   method _annotation     : Obj.t
 
   method is_sequence     : bool
+  method is_ntuple       : bool
   method is_phantom      : bool
   method is_special      : bool
 
@@ -391,6 +392,7 @@ module type LABEL_T = sig
   val is_boundary        : t -> bool
   val is_partition       : t -> bool
   val is_sequence        : t -> bool
+  val is_ntuple          : t -> bool
 
   val strip              : t -> t
 
